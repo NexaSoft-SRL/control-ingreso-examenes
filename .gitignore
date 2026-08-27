@@ -1,0 +1,35 @@
+# ---- Laravel ----
+/vendor/
+/storage/*.key
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*
+/bootstrap/cache/*
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+auth.json
+
+# ---- Entorno: NUNCA subir credenciales ----
+.env
+.env.*
+!.env.example
+
+# ---- Node y compilados del cliente ----
+/node_modules/
+/public/build/
+/public/hot
+/public/storage
+npm-debug.log*
+yarn-error.log
+
+# ---- Paquete de despliegue ----
+/deploy/
+*.zip
+
+# ---- Editor y sistema ----
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

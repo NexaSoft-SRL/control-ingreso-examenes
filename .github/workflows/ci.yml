@@ -1,0 +1,82 @@
+# Integracion continua: se ejecuta en cada pull request contra main.
+# Si algo falla, el PR queda en rojo y la proteccion de rama impide el merge.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (PHP 8.2)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: control_ingreso_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # PHP 8.2: la misma version que corre el servidor de TIS.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_pgsql, mbstring, bcmath
+          coverage: none
+
+      - run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Preparar entorno de pruebas
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          sed -i 's/^DB_DATABASE=.*/DB_DATABASE=control_ingreso_test/' .env
+          sed -i 's/^DB_USERNAME=.*/DB_USERNAME=postgres/' .env
+          sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=postgres/' .env
+
+      - name: Estilo de codigo (Laravel Pint)
+        run: ./vendor/bin/pint --test
+
+      # Las pruebas renderizan la vista, que carga los assets con @vite:
+      # sin el manifest compilado fallan. Por eso se construye antes.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      # Las migraciones se ejecutan contra PostgreSQL real, para verificar que
+      # el esquema funciona en el motor de destino. Las pruebas corren sobre
+      # SQLite en memoria, que es lo que fija phpunit.xml.
+      - name: Migraciones sobre PostgreSQL
+        run: php artisan migrate --force
+
+      - name: Pruebas
+        run: php artisan test
+
+  frontend:
+    name: Cliente (Node 20)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: npm
+      - run: npm ci
+      - name: Reglas de estilo (ESLint)
+        run: npm run lint
+      - name: Compilacion del cliente
+        run: npm run build

@@ -1,0 +1,32 @@
+# Base de datos para el entorno de desarrollo.
+#
+# No corresponde al despliegue: en el servidor de TIS la base se crea desde el
+# panel de administracion y la aplicacion se transfiere por FTP. Su finalidad es
+# unificar la version del motor entre los equipos de desarrollo.
+#
+#   docker compose up -d     iniciar
+#   docker compose down      detener
+#   docker compose down -v   detener y eliminar los datos
+
+services:
+  postgres:
+    # Version equivalente a la del servidor de destino (15.10).
+    image: postgres:15-alpine
+    container_name: control_ingreso_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: control_ingreso
+      POSTGRES_USER: nexasoft
+      POSTGRES_PASSWORD: nexasoft
+    ports:
+      - '5432:5432'
+    volumes:
+      - datos_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U nexasoft -d control_ingreso']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  datos_postgres:
