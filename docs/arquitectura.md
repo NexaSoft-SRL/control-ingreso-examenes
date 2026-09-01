@@ -34,11 +34,39 @@ Las versiones se determinan por las disponibles en el servidor de destino
 | Lenguaje | PHP 7.4.22 y 8.2 | PHP 8.2 |
 | Base de datos | PostgreSQL 15.10; MariaDB 10.11.6 | PostgreSQL 15 |
 | Servidor web | Apache 2.4.62 | Apache 2.4 |
+| Marco de trabajo | Laravel 8--11 | Laravel 11 (11.56.1) |
 | Entorno JavaScript | Node 20.19.0 | Node 20.19.0, únicamente para compilación |
 
 El archivo `composer.json` fija la plataforma en PHP 8.2.0 y el archivo `.nvmrc`
 establece la versión de Node, de modo que la resolución de dependencias sea equivalente
 en todos los equipos de desarrollo y en la integración continua.
+
+### 3.1. Excepción de seguridad en Laravel 11
+
+El marco no se instala en el servidor: viaja dentro de `vendor/` en la transferencia por
+FTP. Se adopta Laravel 11 por corresponder al rango que el pliego declara sostenido, aun
+cuando su ventana de soporte de seguridad concluyó en marzo de 2026 y la última versión
+publicada, 11.56.1, es también la última que existirá.
+
+Tres avisos de seguridad afectan a la totalidad de la rama 11 y no tienen corrección
+dentro de ella. Composer bloquea la instalación mientras no se declaren de forma
+explícita, por lo que constan en `composer.json` bajo `config.policy.advisories.ignore-id`:
+
+| Aviso | Asunto | Corregido en |
+|---|---|---|
+| `PKSA-mdq4-51ck-6kdq` (CVE-2026-48019) | Inyección CRLF en la regla de validación `email` | Laravel 12.60.0 |
+| `PKSA-3r5d-mb8f-1qw9` | Inyección CRLF en la regla de validación `email` | Laravel 12.60.0 |
+| `PKSA-m5cs-t1y6-qpcs` | Confusión de rutas en URLs firmadas temporales | Laravel 12.61.1 |
+
+Ambos asuntos alcanzan a piezas que el sistema emplea. Mientras la excepción siga
+vigente, la validación de direcciones de correo rechaza los caracteres de control antes
+de aplicar la regla del marco, y el control de acceso no se apoya en URLs firmadas
+temporales como única credencial.
+
+La restricción proviene del punto 3.3 del pliego, no de una limitación técnica del
+servidor, que solo aporta PHP 8.2 y Apache. Corresponde plantear a la administración del
+servidor y a la consultora la adopción de Laravel 12, que corrige los tres avisos y
+mantiene el mismo requisito de PHP; de aceptarse, se retira esta excepción.
 
 Queda pendiente de confirmación con la administración del servidor la disponibilidad de
 PostgreSQL en el alojamiento compartido, cuyo panel administra bases de datos mediante

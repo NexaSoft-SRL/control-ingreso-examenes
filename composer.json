@@ -10,17 +10,17 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "laravel/framework": "^12.0",
-        "laravel/tinker": "^2.10.1"
+        "laravel/framework": "^11.0",
+        "laravel/tinker": "^2.9"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
-        "laravel/pail": "^1.2.2",
-        "laravel/pint": "^1.24",
-        "laravel/sail": "^1.41",
+        "laravel/pail": "^1.1",
+        "laravel/pint": "^1.13",
+        "laravel/sail": "^1.26",
         "mockery/mockery": "^1.6",
-        "nunomaduro/collision": "^8.6",
-        "phpunit/phpunit": "^11.5.50"
+        "nunomaduro/collision": "^8.1",
+        "phpunit/phpunit": "^11.0.1"
     },
     "autoload": {
         "psr-4": {
@@ -85,6 +85,15 @@
         },
         "platform": {
             "php": "8.2.0"
+        },
+        "policy": {
+            "advisories": {
+                "ignore-id": {
+                    "PKSA-m5cs-t1y6-qpcs": "Sin correccion en la rama 11; el pliego (3.3) limita a Laravel 8-11. Ver docs/arquitectura.md 3.1.",
+                    "PKSA-3r5d-mb8f-1qw9": "Sin correccion en la rama 11; el pliego (3.3) limita a Laravel 8-11. Ver docs/arquitectura.md 3.1.",
+                    "PKSA-mdq4-51ck-6kdq": "Sin correccion en la rama 11; el pliego (3.3) limita a Laravel 8-11. Ver docs/arquitectura.md 3.1."
+                }
+            }
         }
     },
     "minimum-stability": "stable",
