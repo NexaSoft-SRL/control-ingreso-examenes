@@ -3,6 +3,7 @@
 namespace Tests\Feature\Modules\Administracion;
 
 use App\Modules\Administracion\Domain\Models\User;
+use Database\Factories\UserFactory;
 use Tests\TestCase;
 
 class UserModelConfigurationTest extends TestCase
@@ -15,9 +16,9 @@ class UserModelConfigurationTest extends TestCase
         );
     }
 
-    public function test_user_factory_resolves_for_the_modular_user_model(): void
+    public function test_user_factory_creates_the_modular_user_model(): void
     {
-        $user = User::factory()->make();
+        $user = UserFactory::new()->make();
 
         $this->assertInstanceOf(User::class, $user);
     }

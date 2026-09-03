@@ -191,3 +191,33 @@ Esto no autoriza a Domain a depender de:
 No se introducirán modelos de persistencia duplicados, mappers o Repository Pattern de forma sistemática.
 
 Una abstracción de persistencia se incorporará únicamente cuando exista un problema concreto que la justifique.
+
+## Dependencias de factories
+
+El código de producción ubicado en app/Modules no depende de clases ubicadas en database/factories.
+
+Las factories pueden depender de los modelos del dominio, pero los modelos del dominio no dependen de sus factories.
+
+Esto mantiene la dirección:
+
+Factory -> Domain Model
+
+y evita introducir dependencias de soporte de pruebas dentro del código productivo.
+
+
+## Dependencias externas permitidas en Domain
+
+Domain no dispone de acceso general a Laravel ni a otras dependencias externas.
+
+Toda dependencia externa utilizada desde Domain debe estar modelada explícitamente en el control arquitectónico. Las dependencias no clasificadas se consideran `uncovered` y deben hacer fallar el quality gate.
+
+Actualmente se permiten únicamente las siguientes dependencias de Laravel para soportar el modelo autenticable de la aplicación:
+
+- `Illuminate\Foundation\Auth\User`
+- `Illuminate\Notifications\Notifiable`
+
+Esta excepción es deliberadamente mínima. No autoriza el namespace `Illuminate` completo ni el paquete `laravel/framework` de forma general.
+
+Por ejemplo, dependencias de transporte HTTP como `Illuminate\Http\Request` no están permitidas dentro de Domain.
+
+Deptrac debe ejecutarse con `--fail-on-uncovered` para impedir que una nueva dependencia externa entre al dominio sin una decisión arquitectónica explícita.
