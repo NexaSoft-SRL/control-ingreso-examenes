@@ -80,8 +80,10 @@ de entorno; las migraciones de Laravel son independientes del motor.
 El requerimiento 8 del pliego exige impedir que un estudiante registre su ingreso más de
 una vez para el mismo examen. La verificación previa a la inserción no ofrece garantía
 suficiente ante lecturas simultáneas del mismo documento. En consecuencia, la restricción
-se implementa como índice único sobre el par examen–estudiante en la base de datos, de
-modo que el segundo intento sea rechazado por el motor.
+se implementa como índice único sobre `habilitacion_id` en la tabla `ingresos`: como cada
+habilitación vincula a un único examen y a un único estudiante, y todo ingreso remite a
+una habilitación, esa restricción impide que la misma habilitación produzca dos asientos,
+de modo que el segundo intento sea rechazado por el motor.
 
 ### 4.2. Inmutabilidad del registro
 
@@ -129,7 +131,7 @@ routes/
 | M1 | Gestión de estudiantes | 1 |
 | M2 | Gestión de exámenes y ambientes | 2, 10 |
 | M3 | Habilitación | 3, 6 |
-| M4 | Control de ingreso | 4, 5, 6, 7, 8, 9, 14, 15 |
+| M4 | Control de ingreso | 4, 5, 6, 7, 8, 9, 10, 14, 15 |
 | M5 | Monitoreo en tiempo real | 11 |
 | M6 | Reportes | 12, 13 |
 | M7 | Administración y seguridad | 16 |
