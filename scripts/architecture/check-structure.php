@@ -6,20 +6,52 @@ use NexaSoft\Architecture\StructureChecker;
 
 require_once __DIR__.'/src/StructureChecker.php';
 
-$options = getopt('', [
-    'root:',
-    'contract:',
-]);
-
-$root = isset($options['root'])
-    ? rtrim((string) $options['root'], DIRECTORY_SEPARATOR)
-    : dirname(__DIR__, 2);
-
-$contractPath = isset($options['contract'])
-    ? (string) $options['contract']
-    : $root.'/docs/architecture/architecture-contract.json';
-
 try {
+    $options = getopt('', [
+        'root:',
+        'contract:',
+    ]);
+
+    if ($options === false) {
+        throw new RuntimeException(
+            'No se pudieron interpretar los argumentos del comando.'
+        );
+    }
+
+    $rootOption = $options['root'] ?? null;
+
+    if (
+        $rootOption !== null
+        && (! is_string($rootOption) || $rootOption === '')
+    ) {
+        throw new RuntimeException(
+            'La opción --root debe recibir una ruta no vacía.'
+        );
+    }
+
+    $contractOption = $options['contract'] ?? null;
+
+    if (
+        $contractOption !== null
+        && (! is_string($contractOption) || $contractOption === '')
+    ) {
+        throw new RuntimeException(
+            'La opción --contract debe recibir una ruta no vacía.'
+        );
+    }
+
+    $rootInput = $rootOption ?? dirname(__DIR__, 2);
+    $root = realpath($rootInput);
+
+    if ($root === false || ! is_dir($root)) {
+        throw new RuntimeException(
+            "No existe el directorio raíz indicado: {$rootInput}"
+        );
+    }
+
+    $contractPath = $contractOption
+        ?? $root.'/docs/architecture/architecture-contract.json';
+
     $checker = new StructureChecker(
         $root,
         $contractPath

@@ -9,6 +9,7 @@ use NexaSoft\Architecture\StructureChecker;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use SplFileInfo;
 
 require_once dirname(__DIR__, 2)
     .'/scripts/architecture/src/StructureChecker.php';
@@ -261,6 +262,10 @@ final class RepositoryStructureGuardTest extends TestCase
         );
 
         foreach ($iterator as $item) {
+            if (! $item instanceof SplFileInfo) {
+                continue;
+            }
+
             if ($item->isLink() || $item->isFile()) {
                 unlink($item->getPathname());
 

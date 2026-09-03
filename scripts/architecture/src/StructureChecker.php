@@ -8,7 +8,23 @@ use FilesystemIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RuntimeException;
+use SplFileInfo;
 
+/**
+ * @phpstan-type ArchitectureContract array{
+ *     version: 1,
+ *     app_roots: list<string>,
+ *     required_app_roots: list<string>,
+ *     modules: list<string>,
+ *     layers: array<string, list<string>>,
+ *     shared_categories: list<string>,
+ *     forbidden_directory_names: list<string>,
+ *     allowed_app_file_extensions: list<string>,
+ *     directory_name_pattern: string,
+ *     php_file_name_pattern: string,
+ *     forbid_symlinks_in_app: bool
+ * }
+ */
 final class StructureChecker
 {
     public function __construct(
@@ -42,7 +58,7 @@ final class StructureChecker
     }
 
     /**
-     * @return array<string, mixed>
+     * @return ArchitectureContract
      */
     private function loadContract(): array
     {
@@ -87,7 +103,9 @@ final class StructureChecker
     }
 
     /**
-     * @param  array<string, mixed>  $contract
+     * @param  array<array-key, mixed>  $contract
+     *
+     * @phpstan-assert ArchitectureContract $contract
      */
     private function validateContract(array $contract): void
     {
@@ -187,9 +205,12 @@ final class StructureChecker
         );
     }
 
+    /**
+     * @phpstan-assert list<string> $value
+     */
     private function assertStringList(mixed $value, string $key): void
     {
-        if (! is_array($value)) {
+        if (! is_array($value) || ! array_is_list($value)) {
             throw new RuntimeException(
                 "La clave '{$key}' debe ser una lista."
             );
@@ -224,7 +245,7 @@ final class StructureChecker
     }
 
     /**
-     * @param  array<string, mixed>  $contract
+     * @param  ArchitectureContract  $contract
      * @param  list<string>  $errors
      */
     private function checkAppRoot(
@@ -253,7 +274,7 @@ final class StructureChecker
     }
 
     /**
-     * @param  array<string, mixed>  $contract
+     * @param  ArchitectureContract  $contract
      * @param  list<string>  $errors
      */
     private function checkModules(
@@ -326,7 +347,7 @@ final class StructureChecker
     }
 
     /**
-     * @param  array<string, mixed>  $contract
+     * @param  ArchitectureContract  $contract
      * @param  list<string>  $errors
      */
     private function checkShared(
@@ -358,7 +379,7 @@ final class StructureChecker
     }
 
     /**
-     * @param  array<string, mixed>  $contract
+     * @param  ArchitectureContract  $contract
      * @param  list<string>  $errors
      */
     private function checkRecursiveRules(
@@ -380,6 +401,12 @@ final class StructureChecker
         );
 
         foreach ($iterator as $item) {
+            if (! $item instanceof SplFileInfo) {
+                throw new RuntimeException(
+                    'El recorrido de app/ produjo una entrada inválida.'
+                );
+            }
+
             $relative = $this->relativePath($item->getPathname());
 
             if (
