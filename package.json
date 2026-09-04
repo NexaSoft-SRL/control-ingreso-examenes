@@ -7,7 +7,9 @@
         "dev": "vite",
         "lint": "eslint resources/js",
         "lint:fix": "eslint resources/js --fix",
-        "format": "prettier --write resources/js resources/css"
+        "format": "prettier --write resources/js resources/css",
+        "format:check": "prettier --check resources/js resources/css",
+        "quality": "npm run lint && npm run format:check && npm run build"
     },
     "devDependencies": {
         "@eslint/js": "^9.39.5",

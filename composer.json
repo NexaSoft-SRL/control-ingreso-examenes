@@ -38,11 +38,10 @@
     },
     "scripts": {
         "setup": [
-            "composer install",
+            "composer install --no-interaction",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
             "@php artisan key:generate",
-            "@php artisan migrate --force",
-            "npm install",
+            "npm ci",
             "npm run build"
         ],
         "dev": [
@@ -64,12 +63,30 @@
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
         ],
         "post-create-project-cmd": [
-            "@php artisan key:generate --ansi",
-            "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
-            "@php artisan migrate --graceful --ansi"
+            "@php artisan key:generate --ansi"
         ],
         "pre-package-uninstall": [
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
+        ],
+        "quality:composer": "@composer validate --strict",
+        "quality:structure": "@php scripts/architecture/check-structure.php",
+        "quality:layers": "@php vendor/bin/deptrac analyse --config-file=deptrac.php --no-cache --report-uncovered --fail-on-uncovered",
+        "quality:modules": [
+            "@php vendor/bin/deptrac debug:unassigned --config-file=deptrac.modules.php",
+            "@php vendor/bin/deptrac analyse --config-file=deptrac.modules.php --no-cache"
+        ],
+        "quality:static": "@php vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --no-progress --memory-limit=1G",
+        "quality:style": "@php vendor/bin/pint --test",
+        "quality:autoload": "@composer dump-autoload --optimize --strict-psr --strict-ambiguous",
+        "quality:backend": [
+            "@quality:composer",
+            "@quality:structure",
+            "@quality:layers",
+            "@quality:modules",
+            "@quality:static",
+            "@quality:style",
+            "@quality:autoload",
+            "@test"
         ]
     },
     "extra": {
