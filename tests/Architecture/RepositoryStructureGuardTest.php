@@ -111,6 +111,29 @@ final class RepositoryStructureGuardTest extends TestCase
         );
     }
 
+    public function test_module_provider_is_allowed_only_in_infrastructure(): void
+    {
+        $this->makeDirectory(
+            'app/Modules/Habilitacion/Infrastructure/Providers'
+        );
+
+        $this->assertSame([], $this->errors());
+    }
+
+    public function test_provider_outside_infrastructure_is_rejected(): void
+    {
+        foreach (['Domain', 'Application', 'Http'] as $layer) {
+            $this->makeDirectory(
+                "app/Modules/Habilitacion/{$layer}/Providers"
+            );
+
+            $this->assertErrorsContain(
+                'Categoría no permitida: '
+                ."app/Modules/Habilitacion/{$layer}/Providers"
+            );
+        }
+    }
+
     public function test_unapproved_shared_category_is_rejected(): void
     {
         $this->makeDirectory('app/Shared/Foo');
