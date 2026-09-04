@@ -126,7 +126,9 @@ PHP
 
         $this->assertPrivateDependencyRejected(
             $privateApplication,
-            'Application interno de otro módulo debe ser privado.'
+            'Application interno de otro módulo debe ser privado.',
+            'App\\Modules\\Ingreso\\Application\\Actions\\ForbiddenApplicationProbe',
+            'App\\Modules\\Habilitacion\\Application\\Actions\\PrivateArchitectureProbeAction',
         );
 
         $this->removeProbe(
@@ -156,7 +158,9 @@ PHP
 
         $this->assertPrivateDependencyRejected(
             $domain,
-            'Domain de otro módulo debe ser privado.'
+            'Domain de otro módulo debe ser privado.',
+            'App\\Modules\\Ingreso\\Application\\Actions\\ForbiddenDomainProbe',
+            'App\\Modules\\Administracion\\Domain\\Models\\User',
         );
 
         $this->removeProbe(
@@ -198,7 +202,9 @@ PHP
 
         $this->assertPrivateDependencyRejected(
             $infrastructure,
-            'Infrastructure de otro módulo debe ser privado.'
+            'Infrastructure de otro módulo debe ser privado.',
+            'App\\Modules\\Ingreso\\Application\\Actions\\ForbiddenInfrastructureProbe',
+            'App\\Modules\\Habilitacion\\Infrastructure\\Providers\\PrivateArchitectureProbeProvider',
         );
 
         $this->removeProbe(
@@ -240,13 +246,17 @@ PHP
 
         $this->assertPrivateDependencyRejected(
             $http,
-            'Http de otro módulo debe ser privado.'
+            'Http de otro módulo debe ser privado.',
+            'App\\Modules\\Ingreso\\Application\\Actions\\ForbiddenHttpProbe',
+            'App\\Modules\\Habilitacion\\Http\\Controllers\\PrivateArchitectureProbeController',
         );
     }
 
     private function assertPrivateDependencyRejected(
         Process $process,
         string $message,
+        string $consumer,
+        string $dependency,
     ): void {
         self::assertNotSame(
             0,
@@ -254,9 +264,21 @@ PHP
             $message
         );
 
+        $output = $this->processOutput($process);
+
         self::assertStringContainsString(
-            'DependsOnPrivateLayer',
-            $this->processOutput($process)
+            $consumer,
+            $output
+        );
+
+        self::assertStringContainsString(
+            'must not depend on',
+            $output
+        );
+
+        self::assertStringContainsString(
+            $dependency,
+            $output
         );
     }
 
