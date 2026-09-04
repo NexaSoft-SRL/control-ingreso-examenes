@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "app_roots": [
+    "Modules",
+    "Shared",
+    "Providers"
+  ],
+  "required_app_roots": [
+    "Modules",
+    "Providers"
+  ],
+  "modules": [
+    "Estudiantes",
+    "Examenes",
+    "Habilitacion",
+    "Ingreso",
+    "Monitoreo",
+    "Reportes",
+    "Administracion"
+  ],
+  "layers": {
+    "Domain": [
+      "Models",
+      "Enums",
+      "Rules",
+      "Exceptions",
+      "ValueObjects"
+    ],
+    "Application": [
+      "Actions",
+      "Queries",
+      "DTOs",
+      "Contracts",
+      "Authorization"
+    ],
+    "Infrastructure": [
+      "Import",
+      "Export",
+      "Files",
+      "Persistence",
+      "QR",
+      "Providers"
+    ],
+    "Http": [
+      "Controllers",
+      "Requests",
+      "Resources",
+      "Middleware"
+    ]
+  },
+  "shared_categories": [],
+  "forbidden_directory_names": [
+    "Helpers",
+    "Utils",
+    "Common",
+    "Misc",
+    "Other",
+    "Otros",
+    "Temporal",
+    "Temp",
+    "Nuevo",
+    "Services",
+    "Services2"
+  ],
+  "allowed_app_file_extensions": [
+    ".php"
+  ],
+  "directory_name_pattern": "^[A-Z][A-Za-z0-9]*$",
+  "php_file_name_pattern": "^[A-Z][A-Za-z0-9]*\\.php$",
+  "forbid_symlinks_in_app": true
+}
