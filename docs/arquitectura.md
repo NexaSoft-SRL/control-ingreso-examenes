@@ -79,11 +79,13 @@ de entorno; las migraciones de Laravel son independientes del motor.
 
 El requerimiento 8 del pliego exige impedir que un estudiante registre su ingreso más de
 una vez para el mismo examen. La verificación previa a la inserción no ofrece garantía
-suficiente ante lecturas simultáneas del mismo documento. En consecuencia, la restricción
-se implementa como índice único sobre `habilitacion_id` en la tabla `ingresos`: como cada
-habilitación vincula a un único examen y a un único estudiante, y todo ingreso remite a
-una habilitación, esa restricción impide que la misma habilitación produzca dos asientos,
-de modo que el segundo intento sea rechazado por el motor.
+suficiente ante solicitudes concurrentes. Por tanto, la garantía debe existir también en
+la capa de persistencia mediante una restricción transaccional adecuada al modelo
+definitivo.
+
+La clave y el mecanismo físico concretos no se fijan mientras permanezca abierta la
+decisión sobre el efecto de una anulación y la posibilidad de registrar posteriormente
+un ingreso corregido.
 
 ### 4.2. Inmutabilidad del registro
 
