@@ -87,6 +87,12 @@
             "@quality:style",
             "@quality:autoload",
             "@test"
+        ],
+        "pre-install-cmd": [
+            "@php scripts/setup/prepare-runtime-directories.php"
+        ],
+        "pre-update-cmd": [
+            "@php scripts/setup/prepare-runtime-directories.php"
         ]
     },
     "extra": {
