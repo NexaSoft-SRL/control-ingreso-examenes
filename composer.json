@@ -52,6 +52,7 @@
             "@php artisan config:clear --ansi",
             "@php artisan test"
         ],
+        "test:postgresql": "@php vendor/bin/phpunit --configuration=phpunit.postgresql.xml",
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"

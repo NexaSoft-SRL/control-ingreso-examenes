@@ -1,8 +1,8 @@
-# Quality gate de integración continua.
+# Quality gates de integración continua.
 #
-# Se ejecuta en cada pull request y push sobre main.
-# Para bloquear merges, estos checks deberán configurarse posteriormente
-# como obligatorios en la protección de la rama main.
+# Se ejecutan en cada pull request y push sobre main.
+# Para bloquear merges, estos checks deben configurarse como obligatorios
+# en la protección de la rama main.
 
 name: CI
 
@@ -54,6 +54,47 @@ jobs:
 
       - name: Quality gate backend
         run: composer quality:backend
+
+  postgresql:
+    name: PostgreSQL Integration
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15.10-alpine
+        env:
+          POSTGRES_DB: control_ingreso_testing
+          POSTGRES_USER: nexasoft
+          POSTGRES_PASSWORD: nexasoft
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U nexasoft -d control_ingreso_testing"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: PHP 8.2 con PostgreSQL
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_pgsql, pgsql, mbstring, bcmath
+          coverage: none
+
+      - name: Instalar dependencias PHP
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Preparar entorno PostgreSQL de testing
+        run: |
+          cp .env.testing.example .env.testing
+          php artisan key:generate --env=testing
+
+      - name: Integración PostgreSQL 15.10
+        run: composer test:postgresql
 
   frontend:
     name: Frontend Quality
