@@ -14,7 +14,7 @@ registra la hora de ingreso de forma inmutable.
 
 ## Plataforma
 
-PHP 8.2 · Laravel · React · Tailwind CSS · PostgreSQL 15 · Apache 2.4
+PHP 8.2 · Laravel 11 · React · Tailwind CSS · PostgreSQL 15 · Apache 2.4
 
 Las versiones se corresponden con las disponibles en el servidor de destino. Ver
 `docs/arquitectura.md`.

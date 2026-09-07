@@ -34,11 +34,39 @@ Las versiones se determinan por las disponibles en el servidor de destino
 | Lenguaje | PHP 7.4.22 y 8.2 | PHP 8.2 |
 | Base de datos | PostgreSQL 15.10; MariaDB 10.11.6 | PostgreSQL 15 |
 | Servidor web | Apache 2.4.62 | Apache 2.4 |
+| Marco de trabajo | Laravel 8--11 | Laravel 11 (11.56.1) |
 | Entorno JavaScript | Node 20.19.0 | Node 20.19.0, únicamente para compilación |
 
 El archivo `composer.json` fija la plataforma en PHP 8.2.0 y el archivo `.nvmrc`
 establece la versión de Node, de modo que la resolución de dependencias sea equivalente
 en todos los equipos de desarrollo y en la integración continua.
+
+### 3.1. Excepción de seguridad en Laravel 11
+
+El marco no se instala en el servidor: viaja dentro de `vendor/` en la transferencia por
+FTP. Se adopta Laravel 11 por corresponder al rango que el pliego declara sostenido, aun
+cuando su ventana de soporte de seguridad concluyó en marzo de 2026 y la última versión
+publicada, 11.56.1, es también la última que existirá.
+
+Tres avisos de seguridad afectan a la totalidad de la rama 11 y no tienen corrección
+dentro de ella. Composer bloquea la instalación mientras no se declaren de forma
+explícita, por lo que constan en `composer.json` bajo `config.policy.advisories.ignore-id`:
+
+| Aviso | Asunto | Corregido en |
+|---|---|---|
+| `PKSA-mdq4-51ck-6kdq` (CVE-2026-48019) | Inyección CRLF en la regla de validación `email` | Laravel 12.60.0 |
+| `PKSA-3r5d-mb8f-1qw9` | Inyección CRLF en la regla de validación `email` | Laravel 12.60.0 |
+| `PKSA-m5cs-t1y6-qpcs` | Confusión de rutas en URLs firmadas temporales | Laravel 12.61.1 |
+
+Ambos asuntos alcanzan a piezas que el sistema emplea. Mientras la excepción siga
+vigente, la validación de direcciones de correo rechaza los caracteres de control antes
+de aplicar la regla del marco, y el control de acceso no se apoya en URLs firmadas
+temporales como única credencial.
+
+La restricción proviene del punto 3.3 del pliego, no de una limitación técnica del
+servidor, que solo aporta PHP 8.2 y Apache. Corresponde plantear a la administración del
+servidor y a la consultora la adopción de Laravel 12, que corrige los tres avisos y
+mantiene el mismo requisito de PHP; de aceptarse, se retira esta excepción.
 
 Queda pendiente de confirmación con la administración del servidor la disponibilidad de
 PostgreSQL en el alojamiento compartido, cuyo panel administra bases de datos mediante
@@ -51,9 +79,13 @@ de entorno; las migraciones de Laravel son independientes del motor.
 
 El requerimiento 8 del pliego exige impedir que un estudiante registre su ingreso más de
 una vez para el mismo examen. La verificación previa a la inserción no ofrece garantía
-suficiente ante lecturas simultáneas del mismo documento. En consecuencia, la restricción
-se implementa como índice único sobre el par examen–estudiante en la base de datos, de
-modo que el segundo intento sea rechazado por el motor.
+suficiente ante solicitudes concurrentes. Por tanto, la garantía debe existir también en
+la capa de persistencia mediante una restricción transaccional adecuada al modelo
+definitivo.
+
+La clave y el mecanismo físico concretos no se fijan mientras permanezca abierta la
+decisión sobre el efecto de una anulación y la posibilidad de registrar posteriormente
+un ingreso corregido.
 
 ### 4.2. Inmutabilidad del registro
 
@@ -62,37 +94,89 @@ sin los permisos correspondientes. La tabla de ingresos admite exclusivamente op
 de inserción. Toda corrección se materializa mediante un registro de anulación que
 conserva el original; ambos quedan asentados en la bitácora de auditoría.
 
+### 4.3. Logging técnico y bitácora de auditoría
+
+El logging técnico y la bitácora de auditoría son mecanismos distintos. Los logs se
+utilizan para diagnóstico operativo, errores de infraestructura y excepciones técnicas;
+no constituyen evidencia funcional ni reemplazan la auditoría.
+
+La bitácora registra hechos funcionales relevantes y trazables, como el actor, la
+operación realizada, la entidad afectada y el momento de ejecución. Su responsabilidad
+corresponde al módulo `Administracion`. Los demás módulos deberán consumir, cuando exista
+un caso de uso real que lo requiera, contratos públicos de
+`Administracion/Application/Contracts`, sin depender directamente de su infraestructura.
+
+Las capas `Domain` y `Application` no realizan logging técnico directo.
+
 ## 5. Organización del código
 
-La estructura sigue las convenciones de Laravel, con agrupación por módulo funcional
-dentro de cada capa.
+El backend se organiza como un monolito modular. Cada módulo posee cuatro capas con
+responsabilidades explícitas:
 
-```
+~~~text
 app/
-├── Models/                    entidades del dominio
-├── Http/
-│   ├── Controllers/
-│   │   ├── Estudiantes/       M1
-│   │   ├── Examenes/          M2
-│   │   ├── Habilitacion/      M3
-│   │   ├── Ingreso/           M4
-│   │   ├── Monitoreo/         M5
-│   │   ├── Reportes/          M6
-│   │   └── Admin/             M7
-│   ├── Requests/              validación de entrada
-│   └── Middleware/
-├── Services/                  lógica de negocio no atribuible a un controlador
-└── Policies/                  autorización por entidad
+├── Modules/
+│   ├── Administracion/
+│   ├── Estudiantes/
+│   ├── Examenes/
+│   ├── Habilitacion/
+│   ├── Ingreso/
+│   ├── Monitoreo/
+│   └── Reportes/
+│       ├── Domain/
+│       │   ├── Models/
+│       │   ├── Enums/
+│       │   ├── Rules/
+│       │   ├── Exceptions/
+│       │   └── ValueObjects/
+│       ├── Application/
+│       │   ├── Actions/
+│       │   ├── Queries/
+│       │   ├── DTOs/
+│       │   ├── Contracts/
+│       │   └── Authorization/
+│       ├── Infrastructure/
+│       │   ├── Import/
+│       │   ├── Export/
+│       │   ├── Files/
+│       │   ├── Persistence/
+│       │   ├── QR/
+│       │   └── Providers/
+│       └── Http/
+│           ├── Controllers/
+│           ├── Requests/
+│           ├── Resources/
+│           └── Middleware/
+└── Providers/
+    └── AppServiceProvider.php
+~~~
 
-resources/js/
-├── paginas/                   una carpeta por módulo
-├── componentes/               elementos compartidos
-└── app.jsx                    punto de entrada
+No es obligatorio que cada módulo contenga todas las categorías anteriores. Estas se
+crean únicamente cuando existe una responsabilidad real que las justifique.
 
-routes/
-├── web.php                    vista raíz y ruta de reserva del cliente
-└── api.php                    servicios consumidos por la capa de presentación
-```
+Las dependencias entre capas siguen estas reglas:
+
+~~~text
+Http           -> Application, Domain
+Infrastructure -> Application, Domain
+Application    -> Domain
+Domain         -> sin dependencias hacia las demás capas del sistema
+~~~
+
+Entre módulos, únicamente `Application/Contracts` constituye una API pública. Las
+implementaciones internas de `Application`, `Domain`, `Infrastructure` y `Http` de un
+módulo no pueden ser consumidas directamente por otro módulo.
+
+Los `ServiceProvider` propios de un módulo, cuando sean necesarios, se ubican
+exclusivamente en `Infrastructure/Providers`. El `AppServiceProvider` global no se utiliza
+como contenedor indiscriminado de bindings de todos los módulos.
+
+La estructura, las dependencias entre capas, los límites entre módulos y la superficie
+pública de contratos son verificadas automáticamente por los quality gates del
+repositorio.
+
+Los recursos de presentación se mantienen en `resources/js` y `resources/css`, y Vite
+genera los artefactos estáticos que Laravel sirve desde `public`.
 
 ## 6. Módulos y trazabilidad
 
@@ -101,7 +185,7 @@ routes/
 | M1 | Gestión de estudiantes | 1 |
 | M2 | Gestión de exámenes y ambientes | 2, 10 |
 | M3 | Habilitación | 3, 6 |
-| M4 | Control de ingreso | 4, 5, 6, 7, 8, 9, 14, 15 |
+| M4 | Control de ingreso | 4, 5, 6, 7, 8, 9, 10, 14, 15 |
 | M5 | Monitoreo en tiempo real | 11 |
 | M6 | Reportes | 12, 13 |
 | M7 | Administración y seguridad | 16 |

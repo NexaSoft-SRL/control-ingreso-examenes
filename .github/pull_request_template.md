@@ -10,16 +10,15 @@
 
 ## Verificación
 
-1.
-2.
+<!-- Pruebas funcionales o pasos relevantes realizados. -->
 
 ## Comprobaciones previas
 
-- [ ] `composer exec -- pint --test` sin observaciones
-- [ ] `npm run lint` sin observaciones
-- [ ] Pruebas correspondientes en estado satisfactorio
+- [ ] `composer quality:backend` satisfactorio
+- [ ] `npm run quality` satisfactorio
 - [ ] Sin credenciales ni datos personales reales en el código
+- [ ] El cambio respeta los límites entre módulos
 - [ ] Rama actualizada respecto de `main`
 
-> Artículo 19 del Reglamento Interno: toda integración a la rama principal requiere la
-> revisión de al menos otro socio.
+> Artículo 19 del Reglamento Interno: toda integración a la rama principal
+> requiere la revisión de al menos otro socio.

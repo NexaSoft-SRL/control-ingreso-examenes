@@ -11,7 +11,7 @@
 services:
   postgres:
     # Version equivalente a la del servidor de destino (15.10).
-    image: postgres:15-alpine
+    image: postgres:15.10-alpine
     container_name: control_ingreso_db
     restart: unless-stopped
     environment:
