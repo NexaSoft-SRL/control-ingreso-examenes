@@ -11,7 +11,11 @@
     "require": {
         "php": "^8.2",
         "laravel/framework": "^11.0",
+<<<<<<< HEAD
+        "laravel/tinker": "^2.10.1"
+=======
         "laravel/tinker": "^2.9"
+>>>>>>> 7d54faaffca0978fd6658fd5c066c723b1ff820b
     },
     "require-dev": {
         "deptrac/deptrac": "^4.7",
