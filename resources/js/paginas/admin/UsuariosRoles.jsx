@@ -45,11 +45,10 @@ const usuarios = [
     },
 ];
 
-function UsuariosRoles({ onNavigate }) {
+function UsuariosRoles() {
 
     const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
-    const [usuarioEditando, setUsuarioEditando] = React.useState(null);
-    
+
     const [nuevoUsuario, setNuevoUsuario] = React.useState({
         nombre: "",
         correo: "",
@@ -79,19 +78,9 @@ function UsuariosRoles({ onNavigate }) {
                     <div style={styles.menuTitle}>ADMINISTRADOR</div>
 
                     <MenuItem icon="♙" text="Padrón" />
-
-<MenuItem
-    icon="▤"
-    text="Asignaturas y ambientes"
-    onClick={() => onNavigate("asignaturas")}
-/>
+                    <MenuItem icon="▤" text="Asignaturas y ambientes" />
                     <MenuItem icon="⌗" text="Códigos QR" active />
-                    <MenuItem
-                     icon="♙"
-                     text="Usuarios y roles"
-                     selected
-                     onClick={() => onNavigate("usuarios")}
-                     />
+                    <MenuItem icon="♙" text="Usuarios y roles" selected />
                     <MenuItem icon="▧" text="Bitácora" />
                     <MenuItem icon="↻" text="Respaldo" />
                 </div>
@@ -206,21 +195,9 @@ function UsuariosRoles({ onNavigate }) {
 
                                 {/* ACCIONES */}
                                 <div>
-                                    <button 
-    style={styles.editButton}
-    onClick={() => {
-        setUsuarioEditando(usuario);
-        setNuevoUsuario({
-            nombre: usuario.nombre,
-            correo: usuario.correo,
-            rol: usuario.rol,
-        });
-        setMostrarFormulario(true);
-    }}
->
-    Editar
-</button>
-                                    
+                                    <button style={styles.editButton}>
+                                        Editar
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -354,15 +331,15 @@ function UsuariosRoles({ onNavigate }) {
 /* ================================
    COMPONENTE DEL MENU
 ================================ */
-function MenuItem({ icon, text, selected, onClick }) {
+
+function MenuItem({ icon, text, selected }) {
     return (
         <div
-    style={{
-        ...styles.menuItem,
-        ...(selected ? styles.menuSelected : {}),
-    }}
-    onClick={onClick}
->
+            style={{
+                ...styles.menuItem,
+                ...(selected ? styles.menuSelected : {}),
+            }}
+        >
             <span style={styles.menuIcon}>
                 {icon}
             </span>
