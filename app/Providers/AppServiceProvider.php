@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Modules\Administracion\Application\Contracts\AuthenticationSecurityGateway;
+use App\Modules\Administracion\Infrastructure\Persistence\EloquentAuthenticationSecurityGateway;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -11,6 +13,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(
+            AuthenticationSecurityGateway::class,
+            EloquentAuthenticationSecurityGateway::class,
+        );
         //
     }
 
