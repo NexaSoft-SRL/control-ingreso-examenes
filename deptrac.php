@@ -64,6 +64,47 @@ return static function (DeptracConfig $config): void {
                         )
                     ),
             ),
+
+            $laravelHttpSupport = Layer::withName(
+                'LaravelHttpSupport'
+            )->collectors(
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Http\\(?:JsonResponse|Request|Response)$#'
+                        )
+                    ),
+
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Foundation\\Http\\FormRequest$#'
+                        )
+                    ),
+            ),
+
+            $laravelAuthSupport = Layer::withName(
+                'LaravelAuthSupport'
+            )->collectors(
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Support\\Facades\\Auth$#'
+                        )
+                    ),
+            ),
         )
         ->rulesets(
             Ruleset::forLayer($domain)
@@ -82,8 +123,14 @@ return static function (DeptracConfig $config): void {
                 ->accesses(
                     $application,
                     $domain,
+                    $laravelHttpSupport,
+                    $laravelAuthSupport,
                 ),
 
             Ruleset::forLayer($laravelDomainSupport),
+
+            Ruleset::forLayer($laravelHttpSupport),
+
+            Ruleset::forLayer($laravelAuthSupport),
         );
 };
