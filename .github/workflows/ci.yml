@@ -1,6 +1,6 @@
 # Quality gates de integración continua.
 #
-# Se ejecutan en cada pull request y push sobre main.
+# Se ejecutan en cada push y en los pull requests dirigidos a main.
 # Para bloquear merges, estos checks deben configurarse como obligatorios
 # en la protección de la rama main.
 
@@ -12,7 +12,7 @@ on:
       - main
   push:
     branches:
-      - main
+      - '**'
 
 jobs:
   backend:
