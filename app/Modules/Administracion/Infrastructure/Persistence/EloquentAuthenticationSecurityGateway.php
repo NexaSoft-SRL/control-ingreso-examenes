@@ -11,6 +11,8 @@ use LogicException;
 
 final class EloquentAuthenticationSecurityGateway implements AuthenticationSecurityGateway
 {
+    private static ?string $dummyPasswordHash = null;
+
     public function authenticate(
         string $identifier,
         string $password,
@@ -27,6 +29,8 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
             15,
         );
 
+        $dummyPasswordHash = $this->dummyPasswordHash();
+
         /** @var User|null $authenticatedUser */
         $authenticatedUser = DB::transaction(
             function () use (
@@ -36,6 +40,7 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                 $userAgent,
                 $maxFailedAttempts,
                 $lockoutMinutes,
+                $dummyPasswordHash,
             ): ?User {
                 $user = User::query()
                     ->where('email', $identifier)
@@ -43,6 +48,11 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                     ->first();
 
                 if (! $user instanceof User) {
+                    Hash::check(
+                        $password,
+                        $dummyPasswordHash
+                    );
+
                     $this->recordAttempt(
                         null,
                         $identifier,
@@ -161,6 +171,17 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
         );
 
         return $authenticatedUser;
+    }
+
+    private function dummyPasswordHash(): string
+    {
+        if (self::$dummyPasswordHash === null) {
+            self::$dummyPasswordHash = Hash::make(
+                'authentication-dummy-password'
+            );
+        }
+
+        return self::$dummyPasswordHash;
     }
 
     private function positiveIntegerConfig(
