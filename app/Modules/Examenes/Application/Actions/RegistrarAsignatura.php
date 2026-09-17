@@ -16,7 +16,11 @@ final readonly class RegistrarAsignatura
 
     public function execute(
         RegistrarAsignaturaData $data,
+        int $usuarioId,
     ): Asignatura {
-        return $this->gateway->registrar($data);
+        return $this->gateway->registrar(
+            $data,
+            $usuarioId,
+        );
     }
 }
