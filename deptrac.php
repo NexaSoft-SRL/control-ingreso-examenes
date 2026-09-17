@@ -141,6 +141,17 @@ return static function (DeptracConfig $config): void {
                             '#^Illuminate\\Support\\Facades\\(?:DB|Hash)$#'
                         )
                     ),
+
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Database\\QueryException$#'
+                        )
+                    ),
             ),
         )
         ->rulesets(

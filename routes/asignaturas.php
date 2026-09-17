@@ -19,6 +19,13 @@ Route::prefix('api')
             [AsignaturaController::class, 'store']
         )->name('asignaturas.store');
 
+        Route::delete(
+            '/asignaturas/{asignatura}',
+            [AsignaturaController::class, 'destroy']
+        )
+            ->whereNumber('asignatura')
+            ->name('asignaturas.destroy');
+
         Route::get(
             '/docentes',
             [DocenteController::class, 'index']

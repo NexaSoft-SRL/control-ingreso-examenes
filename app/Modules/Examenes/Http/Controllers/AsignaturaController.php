@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\Examenes\Http\Controllers;
 
+use App\Modules\Examenes\Application\Actions\EliminarAsignatura;
 use App\Modules\Examenes\Application\Actions\ListarAsignaturas;
 use App\Modules\Examenes\Application\Actions\RegistrarAsignatura;
+use App\Modules\Examenes\Domain\Exceptions\AsignaturaTieneDependenciasException;
 use App\Modules\Examenes\Domain\Models\Asignatura;
 use App\Modules\Examenes\Domain\Models\Docente;
 use App\Modules\Examenes\Domain\Models\GrupoAsignatura;
@@ -42,6 +44,29 @@ final class AsignaturaController
         return response()->json([
             'data' => $this->serialize($asignatura),
         ], Response::HTTP_CREATED);
+    }
+
+    public function destroy(
+        int $asignatura,
+        EliminarAsignatura $eliminarAsignatura,
+    ): JsonResponse|Response {
+        try {
+            $eliminada = $eliminarAsignatura->execute(
+                $asignatura
+            );
+        } catch (AsignaturaTieneDependenciasException) {
+            return response()->json([
+                'message' => 'No se puede eliminar la asignatura porque tiene registros asociados.',
+            ], Response::HTTP_CONFLICT);
+        }
+
+        if (! $eliminada) {
+            return response()->json([
+                'message' => 'Asignatura no encontrada.',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        return response()->noContent();
     }
 
     /**
