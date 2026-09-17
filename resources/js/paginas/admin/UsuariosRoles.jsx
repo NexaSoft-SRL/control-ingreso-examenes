@@ -774,5 +774,8 @@ const styles = {
         fontSize: '7px',
     },
 };
+UsuariosRoles.propTypes = {
+    onNavigate: PropTypes.func,
+};
 
 export default UsuariosRoles;
