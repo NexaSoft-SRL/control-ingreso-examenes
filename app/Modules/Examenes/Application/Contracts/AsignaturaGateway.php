@@ -17,4 +17,6 @@ interface AsignaturaGateway
      * @return list<Asignatura>
      */
     public function listar(): array;
+
+    public function eliminar(int $asignaturaId): bool;
 }
