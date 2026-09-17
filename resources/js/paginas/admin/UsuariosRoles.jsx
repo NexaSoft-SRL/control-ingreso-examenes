@@ -46,15 +46,9 @@ const usuarios = [
     },
 ];
 
-<<<<<<< HEAD
-function UsuariosRoles() {
-
-    const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
-=======
 function UsuariosRoles({ onNavigate }) {
     const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
     const [, setUsuarioEditando] = React.useState(null);
->>>>>>> ffeb480cfb257eca3b52b96ed9ba0437e1320e55
 
     const [nuevoUsuario, setNuevoUsuario] = React.useState({
         nombre: '',
@@ -81,11 +75,6 @@ function UsuariosRoles({ onNavigate }) {
                     <div style={styles.menuTitle}>ADMINISTRADOR</div>
 
                     <MenuItem icon="♙" text="Padrón" />
-<<<<<<< HEAD
-                    <MenuItem icon="▤" text="Asignaturas y ambientes" />
-                    <MenuItem icon="⌗" text="Códigos QR" active />
-                    <MenuItem icon="♙" text="Usuarios y roles" selected />
-=======
 
                     <MenuItem
                         icon="▤"
@@ -99,7 +88,6 @@ function UsuariosRoles({ onNavigate }) {
                         selected
                         onClick={() => onNavigate('usuarios')}
                     />
->>>>>>> ffeb480cfb257eca3b52b96ed9ba0437e1320e55
                     <MenuItem icon="▧" text="Bitácora" />
                     <MenuItem icon="↻" text="Respaldo" />
                 </div>
@@ -194,9 +182,6 @@ function UsuariosRoles({ onNavigate }) {
 
                                 {/* ACCIONES */}
                                 <div>
-<<<<<<< HEAD
-                                    <button style={styles.editButton}>
-=======
                                     <button
                                         style={styles.editButton}
                                         onClick={() => {
@@ -209,7 +194,6 @@ function UsuariosRoles({ onNavigate }) {
                                             setMostrarFormulario(true);
                                         }}
                                     >
->>>>>>> ffeb480cfb257eca3b52b96ed9ba0437e1320e55
                                         Editar
                                     </button>
                                 </div>
@@ -333,23 +317,16 @@ UsuariosRoles.propTypes = {
    COMPONENTE DEL MENU
 ================================ */
 
-function MenuItem({ icon, text, selected }) {
+function MenuItem({ icon, text, selected, onClick }) {
     return (
         <div
             style={{
                 ...styles.menuItem,
                 ...(selected ? styles.menuSelected : {}),
             }}
-<<<<<<< HEAD
-        >
-            <span style={styles.menuIcon}>
-                {icon}
-            </span>
-=======
             onClick={onClick}
         >
             <span style={styles.menuIcon}>{icon}</span>
->>>>>>> ffeb480cfb257eca3b52b96ed9ba0437e1320e55
 
             <span>{text}</span>
         </div>
@@ -797,9 +774,6 @@ const styles = {
         color: '#788494',
         fontSize: '7px',
     },
-};
-UsuariosRoles.propTypes = {
-    onNavigate: PropTypes.func,
 };
 
 export default UsuariosRoles;
