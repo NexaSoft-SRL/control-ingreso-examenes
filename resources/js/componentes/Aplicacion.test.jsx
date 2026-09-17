@@ -3,16 +3,14 @@ import { describe, expect, it } from 'vitest';
 import Aplicacion from './Aplicacion';
 
 describe('Aplicacion', () => {
-    it('renderiza la identidad inicial del sistema', () => {
+    it('renderiza la página inicial de usuarios y roles', () => {
         render(<Aplicacion />);
 
         expect(
             screen.getByRole('heading', {
                 level: 1,
-                name: 'Control de ingreso a exámenes masivos',
+                name: 'Usuarios y roles',
             })
         ).toBeInTheDocument();
-
-        expect(screen.getByText('NexaSoft S.R.L. — CPTIS-452026-2026')).toBeInTheDocument();
     });
 });
