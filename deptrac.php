@@ -105,6 +105,21 @@ return static function (DeptracConfig $config): void {
                         )
                     ),
             ),
+
+            $laravelPersistenceSupport = Layer::withName(
+                'LaravelPersistenceSupport'
+            )->collectors(
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Support\\Facades\\(?:DB|Hash)$#'
+                        )
+                    ),
+            ),
         )
         ->rulesets(
             Ruleset::forLayer($domain)
@@ -117,6 +132,7 @@ return static function (DeptracConfig $config): void {
                 ->accesses(
                     $application,
                     $domain,
+                    $laravelPersistenceSupport,
                 ),
 
             Ruleset::forLayer($http)
@@ -132,5 +148,7 @@ return static function (DeptracConfig $config): void {
             Ruleset::forLayer($laravelHttpSupport),
 
             Ruleset::forLayer($laravelAuthSupport),
+
+            Ruleset::forLayer($laravelPersistenceSupport),
         );
 };
