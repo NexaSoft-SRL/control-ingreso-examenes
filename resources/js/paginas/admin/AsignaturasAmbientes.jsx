@@ -584,6 +584,10 @@ function AsignaturasAmbientes({ onNavigate }) {
     );
 }
 
+AsignaturasAmbientes.propTypes = {
+    onNavigate: PropTypes.func.isRequired,
+};
+
 /* ================================
    COMPONENTE DEL MENU
 ================================ */
@@ -603,6 +607,13 @@ function MenuItem({ icon, text, selected, onClick }) {
         </div>
     );
 }
+
+MenuItem.propTypes = {
+    icon: PropTypes.string.isRequired,
+    text: PropTypes.string.isRequired,
+    selected: PropTypes.bool,
+    onClick: PropTypes.func,
+};
 
 /* ================================
    ESTILOS
@@ -1009,17 +1020,6 @@ const styles = {
         fontWeight: '600',
         cursor: 'pointer',
     },
-};
-
-AsignaturasAmbientes.propTypes = {
-    onNavigate: PropTypes.func,
-};
-
-MenuItem.propTypes = {
-    icon: PropTypes.string,
-    text: PropTypes.string,
-    selected: PropTypes.bool,
-    onClick: PropTypes.func,
 };
 
 export default AsignaturasAmbientes;

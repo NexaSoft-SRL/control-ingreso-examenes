@@ -107,6 +107,60 @@ final class SessionInactivityTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_logged_out_session_cannot_be_reused(): void
+    {
+        $user = UserFactory::new()->createOne([
+            'email' => 'logout-replay@example.invalid',
+            'password' => 'CorrectPassword123!',
+            'is_active' => true,
+        ]);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'logout-replay@example.invalid',
+            'password' => 'CorrectPassword123!',
+        ])->assertOk();
+
+        $sessionId = $this->sessionIdForUser(
+            $this->userId($user)
+        );
+
+        $this->assertTrue(
+            DB::table('sessions')
+                ->where('id', $sessionId)
+                ->exists()
+        );
+
+        $this->forgetRequestAuthenticationState();
+
+        $this->withCredentials()
+            ->withCookie(
+                $this->sessionCookieName(),
+                $sessionId
+            )
+            ->postJson('/api/auth/logout')
+            ->assertNoContent();
+
+        $this->assertGuest();
+
+        $this->assertFalse(
+            DB::table('sessions')
+                ->where('id', $sessionId)
+                ->exists()
+        );
+
+        $this->forgetRequestAuthenticationState();
+
+        $this->withCredentials()
+            ->withCookie(
+                $this->sessionCookieName(),
+                $sessionId
+            )
+            ->postJson('/api/auth/logout')
+            ->assertUnauthorized();
+
+        $this->assertGuest();
+    }
+
     private function forgetRequestAuthenticationState(): void
     {
         Auth::forgetGuards();

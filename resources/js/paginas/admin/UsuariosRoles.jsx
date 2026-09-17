@@ -81,7 +81,7 @@ function UsuariosRoles({ onNavigate }) {
                         text="Asignaturas y ambientes"
                         onClick={() => onNavigate('asignaturas')}
                     />
-                    <MenuItem icon="⌗" text="Códigos QR" active />
+                    <MenuItem icon="⌗" text="Códigos QR" />
                     <MenuItem
                         icon="♙"
                         text="Usuarios y roles"
@@ -309,6 +309,10 @@ function UsuariosRoles({ onNavigate }) {
     );
 }
 
+UsuariosRoles.propTypes = {
+    onNavigate: PropTypes.func.isRequired,
+};
+
 /* ================================
    COMPONENTE DEL MENU
 ================================ */
@@ -327,6 +331,13 @@ function MenuItem({ icon, text, selected, onClick }) {
         </div>
     );
 }
+
+MenuItem.propTypes = {
+    icon: PropTypes.string.isRequired,
+    text: PropTypes.string.isRequired,
+    selected: PropTypes.bool,
+    onClick: PropTypes.func,
+};
 
 /* ================================
    ESTILOS
@@ -765,13 +776,6 @@ const styles = {
 };
 UsuariosRoles.propTypes = {
     onNavigate: PropTypes.func,
-};
-
-MenuItem.propTypes = {
-    icon: PropTypes.string,
-    text: PropTypes.string,
-    selected: PropTypes.bool,
-    onClick: PropTypes.func,
 };
 
 export default UsuariosRoles;
