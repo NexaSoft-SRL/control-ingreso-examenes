@@ -288,7 +288,7 @@ function AsignaturasAmbientes({ onNavigate }) {
                     <MenuItem
                         icon={<Users className="h-[18px] w-[18px]" />}
                         text="Padrón"
-                        onClick={() => alert('Padrón: próximamente')}
+                        onClick={() => navegar('padron')}
                     />
 
                     <MenuItem

@@ -2,17 +2,19 @@ import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-route
 import UsuariosRoles from '../paginas/admin/UsuariosRoles.jsx';
 import AsignaturasAmbientes from '../paginas/admin/AsignaturasAmbientes.jsx';
 import Bitacora from '../paginas/admin/Bitacora.jsx';
+import CargaMasiva from '../paginas/estudiantes/CargaMasiva.jsx';
 import Login from '../paginas/auth/Login.jsx';
 
 /**
  * Rutas reales por URL (antes era un switch en memoria sin cambiar la
  * direccion del navegador). Estructura minima por ahora: cuando se agreguen
- * las demas paginas (padron, examenes, etc.) esto se termina de definir.
+ * las demas paginas (examenes, etc.) esto se termina de definir.
  */
 const rutaPorClave = {
     usuarios: '/admin/usuarios',
     asignaturas: '/admin/asignaturas',
     bitacora: '/admin/bitacora',
+    padron: '/admin/padron',
 };
 
 function useNavegacionPorClave() {
@@ -39,6 +41,10 @@ function PaginaBitacora() {
     return <Bitacora onNavigate={useNavegacionPorClave()} />;
 }
 
+function PaginaPadron() {
+    return <CargaMasiva onNavigate={useNavegacionPorClave()} />;
+}
+
 function PaginaLogin() {
     const navigate = useNavigate();
 
@@ -53,6 +59,7 @@ export default function Aplicacion() {
                 <Route path="/admin/usuarios" element={<PaginaUsuarios />} />
                 <Route path="/admin/asignaturas" element={<PaginaAsignaturas />} />
                 <Route path="/admin/bitacora" element={<PaginaBitacora />} />
+                <Route path="/admin/padron" element={<PaginaPadron />} />
                 <Route path="/" element={<Navigate to="/admin/usuarios" replace />} />
                 <Route path="*" element={<Navigate to="/admin/usuarios" replace />} />
             </Routes>
