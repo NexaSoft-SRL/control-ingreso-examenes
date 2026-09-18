@@ -156,20 +156,32 @@ function Bitacora({ onNavigate }) {
                 <div style={styles.menuSection}>
                     <div style={styles.menuTitle}>ADMINISTRADOR</div>
 
-                    <MenuItem icon="♙" text="Padrón" onClick={() => onNavigate?.('padron')} />
+                    <MenuItem
+                        icon="♙"
+                        text="Padrón"
+                        onClick={() => alert('Padrón: próximamente')}
+                    />
                     <MenuItem
                         icon="▤"
                         text="Asignaturas y ambientes"
                         onClick={() => onNavigate?.('asignaturas')}
                     />
-                    <MenuItem icon="⌗" text="Códigos QR" onClick={() => onNavigate?.('qr')} />
+                    <MenuItem
+                        icon="⌗"
+                        text="Códigos QR"
+                        onClick={() => alert('Códigos QR: próximamente')}
+                    />
                     <MenuItem
                         icon="♙"
                         text="Usuarios y roles"
                         onClick={() => onNavigate?.('usuarios')}
                     />
                     <MenuItem icon="▧" text="Bitácora" selected />
-                    <MenuItem icon="↻" text="Respaldo" onClick={() => onNavigate?.('respaldo')} />
+                    <MenuItem
+                        icon="↻"
+                        text="Respaldo"
+                        onClick={() => alert('Respaldo: próximamente')}
+                    />
                 </div>
             </aside>
 
