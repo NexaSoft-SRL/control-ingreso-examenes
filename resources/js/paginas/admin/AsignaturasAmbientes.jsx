@@ -52,7 +52,7 @@ const ambientesIniciales = [
     },
 ];
 
-function AsignaturasAmbientes({ onNavigate }) {
+function AsignaturasAmbientes() {
     const [asignaturas, setAsignaturas] = React.useState(asignaturasIniciales);
 
     const [ambientes, setAmbientes] = React.useState(ambientesIniciales);
