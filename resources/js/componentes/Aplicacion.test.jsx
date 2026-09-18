@@ -9,7 +9,7 @@ describe('Aplicacion', () => {
         expect(
             screen.getByRole('heading', {
                 level: 1,
-                name: 'Usuarios y roles',
+                name: 'Asignatura y ambientes',
             })
         ).toBeInTheDocument();
 
