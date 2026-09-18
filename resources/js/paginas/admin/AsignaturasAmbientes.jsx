@@ -1,5 +1,19 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import {
+    CheckCircle2,
+    DatabaseBackup,
+    History,
+    LayoutGrid,
+    Menu,
+    MonitorCheck,
+    QrCode,
+    ShieldCheck,
+    User,
+    UserCog,
+    Users,
+    Wrench,
+} from 'lucide-react';
 
 const asignaturasIniciales = [
     {
@@ -53,6 +67,8 @@ const ambientesIniciales = [
 ];
 
 function AsignaturasAmbientes({ onNavigate }) {
+    const [menuAbierto, setMenuAbierto] = React.useState(false);
+
     const [asignaturas, setAsignaturas] = React.useState(asignaturasIniciales);
 
     const [ambientes, setAmbientes] = React.useState(ambientesIniciales);
@@ -229,142 +245,163 @@ function AsignaturasAmbientes({ onNavigate }) {
         cancelarAmbiente();
     };
 
+    function navegar(clave) {
+        setMenuAbierto(false);
+        onNavigate(clave);
+    }
+
     return (
-        <div style={styles.app}>
-            {/* =========================
-                BARRA LATERAL
-            ========================== */}
+        <div className="flex min-h-screen w-full bg-white font-sans text-slate-800">
+            {menuAbierto && (
+                <div
+                    className="fixed inset-0 z-30 bg-slate-900/40 md:hidden"
+                    onClick={() => setMenuAbierto(false)}
+                />
+            )}
 
-            <aside style={styles.sidebar}>
-                {/* LOGO */}
-
-                <div style={styles.logoContainer}>
-                    <div style={styles.logo}>✓</div>
+            {/* BARRA LATERAL */}
+            <aside
+                className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white transition-transform duration-200 md:static md:translate-x-0 ${
+                    menuAbierto ? 'translate-x-0' : '-translate-x-full'
+                }`}
+            >
+                <div className="flex h-16 items-center gap-3 border-b border-slate-100 px-5">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
+                        <ShieldCheck className="h-5 w-5" strokeWidth={2} />
+                    </div>
 
                     <div>
-                        <div style={styles.logoTitle}>UMSS FCyT</div>
-
-                        <div style={styles.logoSubtitle}>CONTROL DE INGRESO</div>
+                        <div className="text-sm leading-tight font-bold text-slate-800">
+                            UMSS FCyT
+                        </div>
+                        <div className="mt-0.5 text-[11px] tracking-wide text-slate-500">
+                            CONTROL DE INGRESO
+                        </div>
                     </div>
                 </div>
 
-                {/* MENU */}
-
-                <div style={styles.menuSection}>
-                    <div style={styles.menuTitle}>ADMINISTRADOR</div>
+                <div className="px-3 py-4">
+                    <div className="px-3 pb-2 text-[11px] font-semibold tracking-wide text-slate-400">
+                        ADMINISTRADOR
+                    </div>
 
                     <MenuItem
-                        icon="♙"
+                        icon={<Users className="h-[18px] w-[18px]" />}
                         text="Padrón"
-                        onClick={() => {
-                            alert('Padrón: próximamente');
-                        }}
+                        onClick={() => alert('Padrón: próximamente')}
                     />
 
                     <MenuItem
-                        icon="▤"
+                        icon={<LayoutGrid className="h-[18px] w-[18px]" />}
                         text="Asignaturas y ambientes"
                         selected
-                        onClick={() => onNavigate('asignaturas')}
+                        onClick={() => navegar('asignaturas')}
                     />
 
                     <MenuItem
-                        icon="⌗"
+                        icon={<QrCode className="h-[18px] w-[18px]" />}
                         text="Códigos QR"
-                        onClick={() => {
-                            alert('Códigos QR: próximamente');
-                        }}
+                        onClick={() => alert('Códigos QR: próximamente')}
                     />
 
                     <MenuItem
-                        icon="♙"
+                        icon={<UserCog className="h-[18px] w-[18px]" />}
                         text="Usuarios y roles"
-                        onClick={() => onNavigate('usuarios')}
+                        onClick={() => navegar('usuarios')}
                     />
 
                     <MenuItem
-                        icon="▧"
+                        icon={<History className="h-[18px] w-[18px]" />}
                         text="Bitácora"
-                        onClick={() => {
-                            alert('Bitácora: próximamente');
-                        }}
+                        onClick={() => navegar('bitacora')}
                     />
 
                     <MenuItem
-                        icon="↻"
+                        icon={<DatabaseBackup className="h-[18px] w-[18px]" />}
                         text="Respaldo"
-                        onClick={() => {
-                            alert('Respaldo: próximamente');
-                        }}
+                        onClick={() => alert('Respaldo: próximamente')}
                     />
                 </div>
             </aside>
 
-            {/* =========================
-                CONTENIDO PRINCIPAL
-            ========================== */}
+            {/* CONTENIDO PRINCIPAL */}
+            <main className="min-w-0 flex-1 bg-slate-50">
+                <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 md:px-6">
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:hidden"
+                            onClick={() => setMenuAbierto(true)}
+                            aria-label="Abrir menú"
+                        >
+                            <Menu className="h-5 w-5" strokeWidth={1.75} />
+                        </button>
 
-            <main style={styles.main}>
-                {/* BARRA SUPERIOR */}
-
-                <header style={styles.header}>
-                    <div style={styles.headerTitle}>
-                        <span style={styles.headerIcon}>♢</span>
-                        Sistema Institucional de Verificación
+                        <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                            <MonitorCheck className="h-[18px] w-[18px] text-blue-600" />
+                            <span className="hidden sm:inline">
+                                Sistema Institucional de Verificación
+                            </span>
+                        </div>
                     </div>
 
-                    <div style={styles.userCircle}>●</div>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white">
+                        <User className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                    </div>
                 </header>
 
-                {/* CONTENIDO */}
-
-                <section style={styles.content}>
-                    {/* TITULO */}
-
-                    <div style={styles.titleRow}>
+                <section className="p-4 md:p-6 lg:p-8">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <h1 style={styles.title}>Asignaturas y ambientes</h1>
+                            <h1 className="text-2xl font-bold text-slate-900">
+                                Asignaturas y ambientes
+                            </h1>
 
-                            <p style={styles.description}>
+                            <p className="mt-1 text-sm text-slate-500">
                                 Configuración de materias y aulas disponibles
                             </p>
                         </div>
                     </div>
 
-                    {/* =========================
-                        ASIGNATURAS
-                    ========================== */}
-
-                    <div style={styles.sectionHeader}>
-                        <div style={styles.sectionTitleContainer}>
-                            <span style={styles.blueLine}></span>
-
-                            <h2 style={styles.sectionTitle}>Asignaturas</h2>
-
-                            <span style={styles.count}>{asignaturas.length} registros</span>
+                    {/* ASIGNATURAS */}
+                    <div className="mt-7 mb-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <span className="h-3 w-1 rounded bg-blue-600" />
+                            <h2 className="text-base font-bold text-slate-800">Asignaturas</h2>
+                            <span className="rounded bg-blue-50 px-2 py-0.5 text-xs text-slate-500">
+                                {asignaturas.length} registros
+                            </span>
                         </div>
 
-                        <button style={styles.newButton} onClick={abrirNuevaAsignatura}>
+                        <button
+                            type="button"
+                            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                            onClick={abrirNuevaAsignatura}
+                        >
                             + Nueva
                         </button>
                     </div>
 
-                    <div style={styles.tableContainer}>
-                        <div style={styles.subjectHeader}>
+                    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <div className="grid min-w-[560px] grid-cols-[1.2fr_1.4fr_0.5fr] items-center gap-3 border-b border-slate-100 bg-blue-50/60 px-4 py-3 text-xs font-semibold tracking-wide text-slate-500">
                             <div>MATERIA</div>
                             <div>DOCENTE ASIGNADO</div>
                             <div>ACCIONES</div>
                         </div>
 
                         {asignaturas.map((asignatura, index) => (
-                            <div style={styles.subjectRow} key={index}>
-                                <div style={styles.name}>{asignatura.materia}</div>
-
-                                <div style={styles.teacher}>{asignatura.docente}</div>
-
+                            <div
+                                key={index}
+                                className="grid min-w-[560px] grid-cols-[1.2fr_1.4fr_0.5fr] items-center gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0"
+                            >
+                                <div className="font-semibold text-slate-800">
+                                    {asignatura.materia}
+                                </div>
+                                <div className="text-slate-500">{asignatura.docente}</div>
                                 <div>
                                     <button
-                                        style={styles.editButton}
+                                        type="button"
+                                        className="text-sm font-medium text-blue-600 hover:text-blue-700"
                                         onClick={() => abrirEditarAsignatura(index)}
                                     >
                                         Editar
@@ -375,64 +412,67 @@ function AsignaturasAmbientes({ onNavigate }) {
                     </div>
 
                     {/* SEPARADOR */}
-
-                    <div style={styles.infrastructure}>
+                    <div className="mt-9 mb-2 flex justify-between text-xs tracking-wide text-slate-400">
                         <span>● FCyT INFRAESTRUCTURA</span>
-
                         <span>EDIF. CENTRAL & NUEVO</span>
                     </div>
 
-                    {/* =========================
-                        AMBIENTES
-                    ========================== */}
-
-                    <div style={styles.sectionHeader}>
-                        <div style={styles.sectionTitleContainer}>
-                            <span style={styles.greenLine}></span>
-
-                            <h2 style={styles.sectionTitle}>Ambientes</h2>
-
-                            <span style={styles.count}>{ambientes.length} registros</span>
+                    {/* AMBIENTES */}
+                    <div className="mt-5 mb-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <span className="h-3 w-1 rounded bg-emerald-600" />
+                            <h2 className="text-base font-bold text-slate-800">Ambientes</h2>
+                            <span className="rounded bg-blue-50 px-2 py-0.5 text-xs text-slate-500">
+                                {ambientes.length} registros
+                            </span>
                         </div>
 
-                        <button style={styles.newButton} onClick={abrirNuevoAmbiente}>
+                        <button
+                            type="button"
+                            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                            onClick={abrirNuevoAmbiente}
+                        >
                             + Nuevo
                         </button>
                     </div>
 
-                    <div style={styles.tableContainer}>
-                        <div style={styles.environmentHeader}>
+                    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <div className="grid min-w-[620px] grid-cols-[1.3fr_0.7fr_0.8fr_0.5fr] items-center gap-3 border-b border-slate-100 bg-blue-50/60 px-4 py-3 text-xs font-semibold tracking-wide text-slate-500">
                             <div>NOMBRE DE AULA</div>
-
                             <div>CAPACIDAD</div>
-
                             <div>ESTADO</div>
-
                             <div>ACCIONES</div>
                         </div>
 
                         {ambientes.map((ambiente, index) => (
-                            <div style={styles.environmentRow} key={index}>
-                                <div style={styles.name}>{ambiente.nombre}</div>
-
-                                <div style={styles.capacity}>{ambiente.capacidad}</div>
-
+                            <div
+                                key={index}
+                                className="grid min-w-[620px] grid-cols-[1.3fr_0.7fr_0.8fr_0.5fr] items-center gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0"
+                            >
+                                <div className="font-semibold text-slate-800">
+                                    {ambiente.nombre}
+                                </div>
+                                <div className="text-slate-500">{ambiente.capacidad}</div>
                                 <div>
                                     <span
-                                        style={{
-                                            ...styles.status,
-                                            ...(ambiente.estado === 'Disponible'
-                                                ? styles.available
-                                                : styles.maintenance),
-                                        }}
+                                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+                                            ambiente.estado === 'Disponible'
+                                                ? 'bg-emerald-100 text-emerald-700'
+                                                : 'bg-rose-100 text-rose-700'
+                                        }`}
                                     >
-                                        ● {ambiente.estado}
+                                        {ambiente.estado === 'Disponible' ? (
+                                            <CheckCircle2 className="h-3.5 w-3.5" />
+                                        ) : (
+                                            <Wrench className="h-3.5 w-3.5" />
+                                        )}
+                                        {ambiente.estado}
                                     </span>
                                 </div>
-
                                 <div>
                                     <button
-                                        style={styles.editButton}
+                                        type="button"
+                                        className="text-sm font-medium text-blue-600 hover:text-blue-700"
                                         onClick={() => abrirEditarAmbiente(index)}
                                     >
                                         Editar
@@ -444,24 +484,23 @@ function AsignaturasAmbientes({ onNavigate }) {
                 </section>
             </main>
 
-            {/* =========================
-                MODAL ASIGNATURA
-            ========================== */}
-
+            {/* MODAL ASIGNATURA */}
             {mostrarFormularioAsignatura && (
-                <div style={styles.modalOverlay}>
-                    <div style={styles.modal}>
-                        <h2 style={styles.modalTitle}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+                    <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+                        <h2 className="text-lg font-bold text-slate-900">
                             {asignaturaEditando === null ? 'Nueva asignatura' : 'Editar asignatura'}
                         </h2>
 
-                        <p style={styles.modalDescription}>
+                        <p className="mt-1 mb-5 text-sm text-slate-500">
                             {asignaturaEditando === null
                                 ? 'Registra una nueva materia'
                                 : 'Modifica los datos de la asignatura'}
                         </p>
 
-                        <label style={styles.label}>Materia</label>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                            Materia
+                        </label>
 
                         <input
                             type="text"
@@ -473,10 +512,12 @@ function AsignaturasAmbientes({ onNavigate }) {
                                 })
                             }
                             placeholder="Ej. Redes de Computadoras"
-                            style={styles.input}
+                            className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
 
-                        <label style={styles.label}>Docente asignado</label>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                            Docente asignado
+                        </label>
 
                         <input
                             type="text"
@@ -488,15 +529,23 @@ function AsignaturasAmbientes({ onNavigate }) {
                                 })
                             }
                             placeholder="Ej. Ing. Juan Pérez"
-                            style={styles.input}
+                            className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
 
-                        <div style={styles.modalButtons}>
-                            <button style={styles.cancelButton} onClick={cancelarAsignatura}>
+                        <div className="mt-1 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                                onClick={cancelarAsignatura}
+                            >
                                 Cancelar
                             </button>
 
-                            <button style={styles.saveButton} onClick={guardarAsignatura}>
+                            <button
+                                type="button"
+                                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                                onClick={guardarAsignatura}
+                            >
                                 {asignaturaEditando === null ? 'Guardar' : 'Guardar cambios'}
                             </button>
                         </div>
@@ -504,24 +553,23 @@ function AsignaturasAmbientes({ onNavigate }) {
                 </div>
             )}
 
-            {/* =========================
-                MODAL AMBIENTE
-            ========================== */}
-
+            {/* MODAL AMBIENTE */}
             {mostrarFormularioAmbiente && (
-                <div style={styles.modalOverlay}>
-                    <div style={styles.modal}>
-                        <h2 style={styles.modalTitle}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+                    <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+                        <h2 className="text-lg font-bold text-slate-900">
                             {ambienteEditando === null ? 'Nuevo ambiente' : 'Editar ambiente'}
                         </h2>
 
-                        <p style={styles.modalDescription}>
+                        <p className="mt-1 mb-5 text-sm text-slate-500">
                             {ambienteEditando === null
                                 ? 'Registra un nuevo ambiente'
                                 : 'Modifica los datos del ambiente'}
                         </p>
 
-                        <label style={styles.label}>Nombre del aula</label>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                            Nombre del aula
+                        </label>
 
                         <input
                             type="text"
@@ -533,10 +581,12 @@ function AsignaturasAmbientes({ onNavigate }) {
                                 })
                             }
                             placeholder="Ej. Aula 302"
-                            style={styles.input}
+                            className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
 
-                        <label style={styles.label}>Capacidad</label>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                            Capacidad
+                        </label>
 
                         <input
                             type="text"
@@ -548,10 +598,12 @@ function AsignaturasAmbientes({ onNavigate }) {
                                 })
                             }
                             placeholder="Ej. 50"
-                            style={styles.input}
+                            className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
 
-                        <label style={styles.label}>Estado</label>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                            Estado
+                        </label>
 
                         <select
                             value={nuevoAmbiente.estado}
@@ -561,19 +613,26 @@ function AsignaturasAmbientes({ onNavigate }) {
                                     estado: e.target.value,
                                 })
                             }
-                            style={styles.input}
+                            className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         >
                             <option value="Disponible">Disponible</option>
-
                             <option value="Mantenimiento">Mantenimiento</option>
                         </select>
 
-                        <div style={styles.modalButtons}>
-                            <button style={styles.cancelButton} onClick={cancelarAmbiente}>
+                        <div className="mt-1 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                                onClick={cancelarAmbiente}
+                            >
                                 Cancelar
                             </button>
 
-                            <button style={styles.saveButton} onClick={guardarAmbiente}>
+                            <button
+                                type="button"
+                                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                                onClick={guardarAmbiente}
+                            >
                                 {ambienteEditando === null ? 'Guardar' : 'Guardar cambios'}
                             </button>
                         </div>
@@ -588,438 +647,27 @@ AsignaturasAmbientes.propTypes = {
     onNavigate: PropTypes.func.isRequired,
 };
 
-/* ================================
-   COMPONENTE DEL MENU
-================================ */
-
 function MenuItem({ icon, text, selected, onClick }) {
     return (
         <div
-            style={{
-                ...styles.menuItem,
-                ...(selected ? styles.menuSelected : {}),
-            }}
+            className={`mb-1 flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${
+                selected
+                    ? 'bg-blue-600 font-semibold text-white'
+                    : 'text-slate-600 hover:bg-slate-100'
+            }`}
             onClick={onClick}
         >
-            <span style={styles.menuIcon}>{icon}</span>
-
+            <span className="flex w-5 items-center justify-center">{icon}</span>
             <span>{text}</span>
         </div>
     );
 }
 
 MenuItem.propTypes = {
-    icon: PropTypes.string.isRequired,
+    icon: PropTypes.node.isRequired,
     text: PropTypes.string.isRequired,
     selected: PropTypes.bool,
     onClick: PropTypes.func,
-};
-
-/* ================================
-   ESTILOS
-================================ */
-
-const styles = {
-    app: {
-        display: 'flex',
-        minHeight: '100vh',
-        width: '100%',
-        backgroundColor: '#ffffff',
-        fontFamily:
-            "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        color: '#172033',
-    },
-
-    sidebar: {
-        width: '182px',
-        minWidth: '182px',
-        backgroundColor: '#ffffff',
-        borderRight: '1px solid #e5e9ef',
-        minHeight: '100vh',
-    },
-
-    logoContainer: {
-        height: '64px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '9px',
-        padding: '0 17px',
-        borderBottom: '1px solid #edf0f4',
-    },
-
-    logo: {
-        width: '30px',
-        height: '30px',
-        borderRadius: '7px',
-        backgroundColor: '#2563eb',
-        color: '#ffffff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '17px',
-        fontWeight: '700',
-    },
-
-    logoTitle: {
-        fontSize: '12px',
-        fontWeight: '700',
-        lineHeight: '14px',
-        color: '#1d2737',
-    },
-
-    logoSubtitle: {
-        fontSize: '7px',
-        letterSpacing: '0.4px',
-        color: '#687386',
-        marginTop: '2px',
-    },
-
-    menuSection: {
-        padding: '17px 10px',
-    },
-
-    menuTitle: {
-        fontSize: '7px',
-        fontWeight: '600',
-        color: '#8b95a5',
-        letterSpacing: '0.7px',
-        padding: '0 14px',
-        marginBottom: '9px',
-    },
-
-    menuItem: {
-        height: '30px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '9px',
-        padding: '0 10px',
-        marginBottom: '3px',
-        borderRadius: '6px',
-        fontSize: '10px',
-        color: '#536074',
-        cursor: 'pointer',
-    },
-
-    menuSelected: {
-        backgroundColor: '#2864df',
-        color: '#ffffff',
-        fontWeight: '600',
-    },
-
-    menuIcon: {
-        width: '16px',
-        textAlign: 'center',
-        fontSize: '13px',
-    },
-
-    main: {
-        flex: 1,
-        minWidth: 0,
-        backgroundColor: '#f8faff',
-    },
-
-    header: {
-        height: '45px',
-        borderBottom: '1px solid #e9edf2',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 20px',
-        backgroundColor: '#ffffff',
-    },
-
-    headerTitle: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        fontSize: '11px',
-        color: '#1e293b',
-        fontWeight: '500',
-    },
-
-    headerIcon: {
-        color: '#2563eb',
-        fontSize: '17px',
-    },
-
-    userCircle: {
-        width: '23px',
-        height: '23px',
-        borderRadius: '50%',
-        backgroundColor: '#2864df',
-        color: '#ffffff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '8px',
-    },
-
-    content: {
-        padding: '23px 22px',
-    },
-
-    titleRow: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-    },
-
-    title: {
-        margin: 0,
-        fontSize: '22px',
-        lineHeight: '26px',
-        fontWeight: '700',
-        color: '#182233',
-    },
-
-    description: {
-        margin: '3px 0 0',
-        fontSize: '9px',
-        color: '#7b8797',
-    },
-
-    sectionHeader: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginTop: '27px',
-        marginBottom: '8px',
-    },
-
-    sectionTitleContainer: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '7px',
-    },
-
-    blueLine: {
-        width: '4px',
-        height: '12px',
-        borderRadius: '4px',
-        backgroundColor: '#2864df',
-    },
-
-    greenLine: {
-        width: '4px',
-        height: '12px',
-        borderRadius: '4px',
-        backgroundColor: '#16866c',
-    },
-
-    sectionTitle: {
-        margin: 0,
-        fontSize: '12px',
-        fontWeight: '700',
-        color: '#263246',
-    },
-
-    count: {
-        backgroundColor: '#e9eef9',
-        color: '#8a96a9',
-        borderRadius: '4px',
-        padding: '3px 6px',
-        fontSize: '7px',
-    },
-
-    newButton: {
-        border: 'none',
-        borderRadius: '5px',
-        backgroundColor: '#2864df',
-        color: '#ffffff',
-        fontSize: '9px',
-        fontWeight: '600',
-        padding: '8px 13px',
-        cursor: 'pointer',
-    },
-
-    tableContainer: {
-        borderRadius: '9px',
-        overflow: 'hidden',
-        backgroundColor: '#ffffff',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-    },
-
-    subjectHeader: {
-        minHeight: '27px',
-        display: 'grid',
-        gridTemplateColumns: '1.05fr 1.2fr 0.2fr',
-        alignItems: 'center',
-        padding: '0 10px',
-        backgroundColor: '#eef3ff',
-        color: '#687486',
-        fontSize: '7px',
-        fontWeight: '600',
-        letterSpacing: '0.3px',
-    },
-
-    subjectRow: {
-        minHeight: '31px',
-        display: 'grid',
-        gridTemplateColumns: '1.05fr 1.2fr 0.2fr',
-        alignItems: 'center',
-        padding: '0 10px',
-        borderBottom: '1px solid #f0f2f5',
-        fontSize: '8px',
-    },
-
-    environmentHeader: {
-        minHeight: '27px',
-        display: 'grid',
-        gridTemplateColumns: '1.2fr 0.55fr 0.7fr 0.2fr',
-        alignItems: 'center',
-        padding: '0 10px',
-        backgroundColor: '#eef3ff',
-        color: '#687486',
-        fontSize: '7px',
-        fontWeight: '600',
-        letterSpacing: '0.3px',
-    },
-
-    environmentRow: {
-        minHeight: '31px',
-        display: 'grid',
-        gridTemplateColumns: '1.2fr 0.55fr 0.7fr 0.2fr',
-        alignItems: 'center',
-        padding: '0 10px',
-        borderBottom: '1px solid #f0f2f5',
-        fontSize: '8px',
-    },
-
-    name: {
-        fontWeight: '600',
-        color: '#263246',
-    },
-
-    teacher: {
-        color: '#6f7888',
-    },
-
-    capacity: {
-        color: '#6f7888',
-    },
-
-    status: {
-        display: 'inline-block',
-        padding: '3px 7px',
-        borderRadius: '10px',
-        fontSize: '7px',
-        fontWeight: '600',
-    },
-
-    available: {
-        backgroundColor: '#a9f3d1',
-        color: '#12855d',
-    },
-
-    maintenance: {
-        backgroundColor: '#ffd5dc',
-        color: '#b53b50',
-    },
-
-    editButton: {
-        border: 'none',
-        background: 'transparent',
-        color: '#2864df',
-        fontSize: '8px',
-        cursor: 'pointer',
-        padding: 0,
-    },
-
-    infrastructure: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        margin: '38px 5px 8px',
-        color: '#c0c6d0',
-        fontSize: '7px',
-        letterSpacing: '0.5px',
-    },
-
-    /* =========================
-       MODALES
-    ========================== */
-
-    modalOverlay: {
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.35)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-    },
-
-    modal: {
-        width: '360px',
-        backgroundColor: '#ffffff',
-        borderRadius: '10px',
-        padding: '22px',
-        boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
-    },
-
-    modalTitle: {
-        margin: 0,
-        fontSize: '17px',
-        fontWeight: '700',
-        color: '#182233',
-    },
-
-    modalDescription: {
-        margin: '5px 0 18px',
-        fontSize: '9px',
-        color: '#7b8797',
-    },
-
-    label: {
-        display: 'block',
-        marginBottom: '5px',
-        fontSize: '9px',
-        fontWeight: '600',
-        color: '#344054',
-    },
-
-    input: {
-        width: '100%',
-        boxSizing: 'border-box',
-        padding: '9px 10px',
-        marginBottom: '14px',
-        border: '1px solid #d9dee7',
-        borderRadius: '5px',
-        outline: 'none',
-        fontSize: '10px',
-        color: '#263246',
-        backgroundColor: '#ffffff',
-    },
-
-    modalButtons: {
-        display: 'flex',
-        justifyContent: 'flex-end',
-        gap: '8px',
-        marginTop: '5px',
-    },
-
-    cancelButton: {
-        border: '1px solid #d9dee7',
-        backgroundColor: '#ffffff',
-        color: '#536074',
-        borderRadius: '5px',
-        padding: '8px 13px',
-        fontSize: '9px',
-        cursor: 'pointer',
-    },
-
-    saveButton: {
-        border: 'none',
-        backgroundColor: '#2864df',
-        color: '#ffffff',
-        borderRadius: '5px',
-        padding: '8px 13px',
-        fontSize: '9px',
-        fontWeight: '600',
-        cursor: 'pointer',
-    },
 };
 
 export default AsignaturasAmbientes;

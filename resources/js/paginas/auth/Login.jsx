@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
 
 /**
  * Pantalla de inicio de sesion (HU-01). Consume el endpoint ya construido en
@@ -45,28 +46,37 @@ function Login({ onAutenticado }) {
     }
 
     return (
-        <div style={styles.fondo}>
-            <div style={styles.tarjeta}>
-                <div style={styles.insignia}>
-                    <ShieldIcon />
+        <div className="flex min-h-screen w-full flex-col items-center justify-center gap-5 bg-slate-100 px-4 py-10 font-sans sm:px-6">
+            <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-xl sm:p-10">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
+                    <ShieldCheck className="h-7 w-7 text-blue-600" strokeWidth={2} />
                 </div>
 
-                <p style={styles.institucion}>FCYT · UMSS</p>
+                <p className="text-center text-xs font-bold tracking-wide text-blue-600">
+                    FCYT · UMSS
+                </p>
 
-                <h1 style={styles.titulo}>Control de ingreso a exámenes</h1>
+                <h1 className="mt-2 text-center text-xl font-bold text-slate-900 sm:text-2xl">
+                    Control de ingreso a exámenes
+                </h1>
 
-                <p style={styles.subtitulo}>Ingresá con tu cuenta institucional</p>
+                <p className="mt-1.5 mb-6 text-center text-sm text-slate-500">
+                    Ingresá con tu cuenta institucional
+                </p>
 
                 <form onSubmit={manejarEnvio} noValidate>
-                    <div style={styles.grupoCampo}>
-                        <label style={styles.etiqueta} htmlFor="correo">
+                    <div className="mb-4 text-left">
+                        <label
+                            className="mb-1.5 block text-xs font-bold tracking-wide text-slate-700 uppercase"
+                            htmlFor="correo"
+                        >
                             Correo
                         </label>
 
                         <input
                             id="correo"
                             type="email"
-                            style={styles.campo}
+                            className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                             placeholder="usuario@fcyt.umss.edu.bo"
                             value={correo}
                             onChange={(evento) => setCorreo(evento.target.value)}
@@ -75,16 +85,19 @@ function Login({ onAutenticado }) {
                         />
                     </div>
 
-                    <div style={styles.grupoCampo}>
-                        <label style={styles.etiqueta} htmlFor="contrasena">
+                    <div className="mb-4 text-left">
+                        <label
+                            className="mb-1.5 block text-xs font-bold tracking-wide text-slate-700 uppercase"
+                            htmlFor="contrasena"
+                        >
                             Contraseña
                         </label>
 
-                        <div style={styles.campoConIcono}>
+                        <div className="relative flex items-center">
                             <input
                                 id="contrasena"
                                 type={mostrarContrasena ? 'text' : 'password'}
-                                style={styles.campoPassword}
+                                className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 pr-10 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 placeholder="••••••••"
                                 value={contrasena}
                                 onChange={(evento) => setContrasena(evento.target.value)}
@@ -94,45 +107,53 @@ function Login({ onAutenticado }) {
 
                             <button
                                 type="button"
-                                style={styles.botonOjo}
+                                className="absolute right-3 flex text-slate-400 hover:text-slate-600"
                                 onClick={() => setMostrarContrasena((valor) => !valor)}
                                 aria-label={
                                     mostrarContrasena ? 'Ocultar contraseña' : 'Mostrar contraseña'
                                 }
                             >
-                                <EyeIcon tachado={mostrarContrasena} />
+                                {mostrarContrasena ? (
+                                    <EyeOff className="h-4 w-4" strokeWidth={1.75} />
+                                ) : (
+                                    <Eye className="h-4 w-4" strokeWidth={1.75} />
+                                )}
                             </button>
                         </div>
                     </div>
 
                     {error && (
-                        <p role="alert" style={styles.error}>
+                        <p role="alert" className="mb-3 text-left text-sm text-red-600">
                             {error}
                         </p>
                     )}
 
-                    <button type="submit" style={styles.botonEnviar} disabled={cargando}>
+                    <button
+                        type="submit"
+                        className="mt-1 w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                        disabled={cargando}
+                    >
                         {cargando ? 'Ingresando…' : 'Iniciar sesión'}
                     </button>
                 </form>
 
                 <button
                     type="button"
-                    style={styles.enlaceOlvido}
+                    className="mt-4 w-full text-sm font-semibold text-blue-600 hover:text-blue-700"
                     onClick={() => setAyudaContrasena((valor) => !valor)}
                 >
                     ¿Olvidaste tu contraseña?
                 </button>
 
                 {ayudaContrasena && (
-                    <p style={styles.textoAyuda}>
+                    <p className="mx-auto mt-2.5 max-w-xs text-center text-xs text-slate-500">
                         Pídele al Administrador que te la restablezca; todavía no hay recuperación
                         automática.
                     </p>
                 )}
             </div>
 
-            <p style={styles.pie}>
+            <p className="text-center text-xs leading-relaxed text-slate-400">
                 Sin registro público. Las cuentas las crea el Administrador.
                 <br />
                 Bloqueo tras 5 intentos fallidos.
@@ -143,210 +164,6 @@ function Login({ onAutenticado }) {
 
 Login.propTypes = {
     onAutenticado: PropTypes.func.isRequired,
-};
-
-function ShieldIcon() {
-    return (
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-                d="M12 2.5 4.5 5.5v5.2c0 4.7 3.2 9 7.5 10.3 4.3-1.3 7.5-5.6 7.5-10.3V5.5L12 2.5Z"
-                fill="#2864df"
-            />
-            <path
-                d="m8.6 12 2.3 2.3 4.5-4.6"
-                stroke="#ffffff"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-            />
-        </svg>
-    );
-}
-
-function EyeIcon({ tachado }) {
-    return (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-                d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"
-                stroke="#8b95a5"
-                strokeWidth="1.4"
-            />
-            <circle cx="12" cy="12" r="3" stroke="#8b95a5" strokeWidth="1.4" />
-            {tachado && <line x1="3" y1="21" x2="21" y2="3" stroke="#8b95a5" strokeWidth="1.4" />}
-        </svg>
-    );
-}
-
-EyeIcon.propTypes = {
-    tachado: PropTypes.bool,
-};
-
-const styles = {
-    fondo: {
-        minHeight: '100vh',
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '18px',
-        padding: '24px',
-        backgroundColor: '#eef1f6',
-        fontFamily:
-            "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        boxSizing: 'border-box',
-    },
-
-    tarjeta: {
-        width: '100%',
-        maxWidth: '380px',
-        backgroundColor: '#ffffff',
-        borderRadius: '16px',
-        padding: '36px 32px',
-        boxShadow: '0 20px 45px rgba(15, 23, 42, 0.08)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        boxSizing: 'border-box',
-    },
-
-    insignia: {
-        width: '56px',
-        height: '56px',
-        borderRadius: '50%',
-        backgroundColor: '#eaf0fe',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: '14px',
-    },
-
-    institucion: {
-        margin: 0,
-        fontSize: '11px',
-        fontWeight: '700',
-        letterSpacing: '0.5px',
-        color: '#2864df',
-    },
-
-    titulo: {
-        margin: '8px 0 0',
-        fontSize: '20px',
-        fontWeight: '700',
-        color: '#182233',
-        textAlign: 'center',
-        lineHeight: '26px',
-    },
-
-    subtitulo: {
-        margin: '6px 0 24px',
-        fontSize: '12px',
-        color: '#7b8797',
-        textAlign: 'center',
-    },
-
-    grupoCampo: {
-        width: '100%',
-        marginBottom: '14px',
-        textAlign: 'left',
-    },
-
-    etiqueta: {
-        display: 'block',
-        marginBottom: '6px',
-        fontSize: '9px',
-        fontWeight: '700',
-        letterSpacing: '0.4px',
-        color: '#374151',
-        textTransform: 'uppercase',
-    },
-
-    campo: {
-        width: '100%',
-        boxSizing: 'border-box',
-        border: '1px solid #d9e0e8',
-        borderRadius: '8px',
-        padding: '10px 12px',
-        fontSize: '12px',
-        color: '#1f2937',
-        outline: 'none',
-        backgroundColor: '#fbfcfd',
-    },
-
-    campoConIcono: {
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center',
-    },
-
-    campoPassword: {
-        width: '100%',
-        boxSizing: 'border-box',
-        border: '1px solid #d9e0e8',
-        borderRadius: '8px',
-        padding: '10px 36px 10px 12px',
-        fontSize: '12px',
-        color: '#1f2937',
-        outline: 'none',
-        backgroundColor: '#fbfcfd',
-    },
-
-    botonOjo: {
-        position: 'absolute',
-        right: '10px',
-        border: 'none',
-        background: 'transparent',
-        padding: 0,
-        cursor: 'pointer',
-        display: 'flex',
-    },
-
-    error: {
-        margin: '0 0 12px',
-        fontSize: '11px',
-        color: '#c0392b',
-        textAlign: 'left',
-    },
-
-    botonEnviar: {
-        width: '100%',
-        border: 'none',
-        borderRadius: '8px',
-        backgroundColor: '#2864df',
-        color: '#ffffff',
-        fontSize: '13px',
-        fontWeight: '600',
-        padding: '11px 0',
-        cursor: 'pointer',
-        marginTop: '4px',
-    },
-
-    enlaceOlvido: {
-        border: 'none',
-        background: 'transparent',
-        color: '#2864df',
-        fontSize: '11px',
-        fontWeight: '600',
-        marginTop: '16px',
-        cursor: 'pointer',
-        padding: 0,
-    },
-
-    textoAyuda: {
-        marginTop: '10px',
-        fontSize: '10px',
-        color: '#7b8797',
-        textAlign: 'center',
-        maxWidth: '280px',
-    },
-
-    pie: {
-        margin: 0,
-        fontSize: '10px',
-        color: '#8b95a5',
-        textAlign: 'center',
-        lineHeight: '16px',
-    },
 };
 
 export default Login;

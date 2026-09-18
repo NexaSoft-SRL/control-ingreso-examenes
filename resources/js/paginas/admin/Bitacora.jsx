@@ -1,5 +1,17 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import {
+    DatabaseBackup,
+    History,
+    LayoutGrid,
+    Menu,
+    MonitorCheck,
+    QrCode,
+    ShieldCheck,
+    User,
+    UserCog,
+    Users,
+} from 'lucide-react';
 
 /**
  * Bitacora (HU-07), lado Frontend. El backend de esta historia (Jofre) hoy
@@ -102,6 +114,8 @@ function formatearFechaHora(isoFecha) {
 }
 
 function Bitacora({ onNavigate }) {
+    const [menuAbierto, setMenuAbierto] = React.useState(false);
+
     const usuarios = React.useMemo(
         () => [...new Set(eventosIniciales.map((evento) => evento.usuario))],
         []
@@ -141,73 +155,124 @@ function Bitacora({ onNavigate }) {
         setFiltrosAplicados({ usuario: usuarioFiltro, desde, hasta });
     }
 
+    function navegar(clave) {
+        setMenuAbierto(false);
+        onNavigate?.(clave);
+    }
+
     return (
-        <div style={styles.app}>
-            <aside style={styles.sidebar}>
-                <div style={styles.logoContainer}>
-                    <div style={styles.logo}>✓</div>
+        <div className="flex min-h-screen w-full bg-white font-sans text-slate-800">
+            {menuAbierto && (
+                <div
+                    className="fixed inset-0 z-30 bg-slate-900/40 md:hidden"
+                    onClick={() => setMenuAbierto(false)}
+                />
+            )}
+
+            <aside
+                className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white transition-transform duration-200 md:static md:translate-x-0 ${
+                    menuAbierto ? 'translate-x-0' : '-translate-x-full'
+                }`}
+            >
+                <div className="flex h-16 items-center gap-3 border-b border-slate-100 px-5">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
+                        <ShieldCheck className="h-5 w-5" strokeWidth={2} />
+                    </div>
 
                     <div>
-                        <div style={styles.logoTitle}>UMSS FCyT</div>
-                        <div style={styles.logoSubtitle}>CONTROL DE INGRESO</div>
+                        <div className="text-sm leading-tight font-bold text-slate-800">
+                            UMSS FCyT
+                        </div>
+                        <div className="mt-0.5 text-[11px] tracking-wide text-slate-500">
+                            CONTROL DE INGRESO
+                        </div>
                     </div>
                 </div>
 
-                <div style={styles.menuSection}>
-                    <div style={styles.menuTitle}>ADMINISTRADOR</div>
+                <div className="px-3 py-4">
+                    <div className="px-3 pb-2 text-[11px] font-semibold tracking-wide text-slate-400">
+                        ADMINISTRADOR
+                    </div>
 
                     <MenuItem
-                        icon="♙"
+                        icon={<Users className="h-[18px] w-[18px]" />}
                         text="Padrón"
                         onClick={() => alert('Padrón: próximamente')}
                     />
                     <MenuItem
-                        icon="▤"
+                        icon={<LayoutGrid className="h-[18px] w-[18px]" />}
                         text="Asignaturas y ambientes"
-                        onClick={() => onNavigate?.('asignaturas')}
+                        onClick={() => navegar('asignaturas')}
                     />
                     <MenuItem
-                        icon="⌗"
+                        icon={<QrCode className="h-[18px] w-[18px]" />}
                         text="Códigos QR"
                         onClick={() => alert('Códigos QR: próximamente')}
                     />
                     <MenuItem
-                        icon="♙"
+                        icon={<UserCog className="h-[18px] w-[18px]" />}
                         text="Usuarios y roles"
-                        onClick={() => onNavigate?.('usuarios')}
+                        onClick={() => navegar('usuarios')}
                     />
-                    <MenuItem icon="▧" text="Bitácora" selected />
                     <MenuItem
-                        icon="↻"
+                        icon={<History className="h-[18px] w-[18px]" />}
+                        text="Bitácora"
+                        selected
+                    />
+                    <MenuItem
+                        icon={<DatabaseBackup className="h-[18px] w-[18px]" />}
                         text="Respaldo"
                         onClick={() => alert('Respaldo: próximamente')}
                     />
                 </div>
             </aside>
 
-            <main style={styles.main}>
-                <header style={styles.header}>
-                    <div style={styles.headerTitle}>
-                        <span style={styles.headerIcon}>♢</span>
-                        Sistema Institucional de Verificación
+            <main className="min-w-0 flex-1 bg-slate-50">
+                <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 md:px-6">
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:hidden"
+                            onClick={() => setMenuAbierto(true)}
+                            aria-label="Abrir menú"
+                        >
+                            <Menu className="h-5 w-5" strokeWidth={1.75} />
+                        </button>
+
+                        <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                            <MonitorCheck className="h-[18px] w-[18px] text-blue-600" />
+                            <span className="hidden sm:inline">
+                                Sistema Institucional de Verificación
+                            </span>
+                        </div>
                     </div>
 
-                    <div style={styles.userCircle}>●</div>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white">
+                        <User className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                    </div>
                 </header>
 
-                <section style={styles.content}>
-                    <h1 style={styles.title}>Bitácora</h1>
-                    <p style={styles.description}>Registro de eventos y operaciones del sistema</p>
+                <section className="p-4 md:p-6 lg:p-8">
+                    <h1 className="text-2xl font-bold text-slate-900">Bitácora</h1>
+                    <p className="mt-1 text-sm text-slate-500">
+                        Registro de eventos y operaciones del sistema
+                    </p>
 
-                    <form style={styles.filtros} onSubmit={manejarFiltrar}>
-                        <div style={styles.campoFiltro}>
-                            <label style={styles.etiquetaFiltro} htmlFor="usuario-filtro">
+                    <form
+                        className="mt-5 flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:flex-wrap sm:items-end"
+                        onSubmit={manejarFiltrar}
+                    >
+                        <div className="flex flex-1 flex-col gap-1.5 sm:min-w-[220px]">
+                            <label
+                                className="text-xs font-semibold text-slate-700"
+                                htmlFor="usuario-filtro"
+                            >
                                 Usuario
                             </label>
 
                             <select
                                 id="usuario-filtro"
-                                style={styles.selectFiltro}
+                                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 value={usuarioFiltro}
                                 onChange={(e) => setUsuarioFiltro(e.target.value)}
                             >
@@ -220,41 +285,50 @@ function Bitacora({ onNavigate }) {
                             </select>
                         </div>
 
-                        <div style={styles.campoFiltro}>
-                            <label style={styles.etiquetaFiltro} htmlFor="desde-filtro">
+                        <div className="flex flex-col gap-1.5">
+                            <label
+                                className="text-xs font-semibold text-slate-700"
+                                htmlFor="desde-filtro"
+                            >
                                 Desde
                             </label>
 
                             <input
                                 id="desde-filtro"
                                 type="date"
-                                style={styles.inputFiltro}
+                                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 value={desde}
                                 onChange={(e) => setDesde(e.target.value)}
                             />
                         </div>
 
-                        <div style={styles.campoFiltro}>
-                            <label style={styles.etiquetaFiltro} htmlFor="hasta-filtro">
+                        <div className="flex flex-col gap-1.5">
+                            <label
+                                className="text-xs font-semibold text-slate-700"
+                                htmlFor="hasta-filtro"
+                            >
                                 Hasta
                             </label>
 
                             <input
                                 id="hasta-filtro"
                                 type="date"
-                                style={styles.inputFiltro}
+                                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 value={hasta}
                                 onChange={(e) => setHasta(e.target.value)}
                             />
                         </div>
 
-                        <button type="submit" style={styles.botonFiltrar}>
+                        <button
+                            type="submit"
+                            className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                        >
                             Filtrar
                         </button>
                     </form>
 
-                    <div style={styles.tableContainer}>
-                        <div style={styles.tableHeader}>
+                    <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <div className="grid min-w-[760px] grid-cols-[1fr_1.3fr_1.2fr_1.6fr] items-center gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-xs font-semibold tracking-wide text-slate-500">
                             <div>FECHA Y HORA</div>
                             <div>USUARIO</div>
                             <div>ACCIÓN</div>
@@ -262,18 +336,21 @@ function Bitacora({ onNavigate }) {
                         </div>
 
                         {eventosFiltrados.map((evento, indice) => (
-                            <div style={styles.tableRow} key={indice}>
-                                <div style={styles.celdaFecha}>
+                            <div
+                                key={indice}
+                                className="grid min-w-[760px] grid-cols-[1fr_1.3fr_1.2fr_1.6fr] items-center gap-3 border-b border-slate-100 px-4 py-3.5 text-sm last:border-b-0"
+                            >
+                                <div className="font-mono text-xs text-slate-500">
                                     {formatearFechaHora(evento.fecha)}
                                 </div>
-                                <div style={styles.celdaUsuario}>{evento.usuario}</div>
+                                <div className="font-semibold text-slate-800">{evento.usuario}</div>
                                 <div>{evento.accion}</div>
-                                <div style={styles.celdaEntidad}>{evento.entidad}</div>
+                                <div className="text-slate-600">{evento.entidad}</div>
                             </div>
                         ))}
                     </div>
 
-                    <p style={styles.pie}>
+                    <p className="mt-3 text-sm text-slate-500">
                         Mostrando {eventosFiltrados.length} de {totalEventosDelServidor} eventos
                     </p>
                 </section>
@@ -289,283 +366,24 @@ Bitacora.propTypes = {
 function MenuItem({ icon, text, selected, onClick }) {
     return (
         <div
-            style={{
-                ...styles.menuItem,
-                ...(selected ? styles.menuSelected : {}),
-            }}
+            className={`mb-1 flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${
+                selected
+                    ? 'bg-blue-600 font-semibold text-white'
+                    : 'text-slate-600 hover:bg-slate-100'
+            }`}
             onClick={onClick}
         >
-            <span style={styles.menuIcon}>{icon}</span>
+            <span className="flex w-5 items-center justify-center">{icon}</span>
             <span>{text}</span>
         </div>
     );
 }
 
 MenuItem.propTypes = {
-    icon: PropTypes.string.isRequired,
+    icon: PropTypes.node.isRequired,
     text: PropTypes.string.isRequired,
     selected: PropTypes.bool,
     onClick: PropTypes.func,
-};
-
-const styles = {
-    app: {
-        display: 'flex',
-        minHeight: '100vh',
-        width: '100%',
-        backgroundColor: '#ffffff',
-        fontFamily:
-            "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        color: '#172033',
-    },
-
-    sidebar: {
-        width: '182px',
-        minWidth: '182px',
-        backgroundColor: '#ffffff',
-        borderRight: '1px solid #e5e9ef',
-        minHeight: '100vh',
-    },
-
-    logoContainer: {
-        height: '64px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '9px',
-        padding: '0 17px',
-        borderBottom: '1px solid #edf0f4',
-    },
-
-    logo: {
-        width: '30px',
-        height: '30px',
-        borderRadius: '7px',
-        backgroundColor: '#2563eb',
-        color: '#ffffff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '17px',
-        fontWeight: '700',
-    },
-
-    logoTitle: {
-        fontSize: '12px',
-        fontWeight: '700',
-        lineHeight: '14px',
-        color: '#1d2737',
-    },
-
-    logoSubtitle: {
-        fontSize: '7px',
-        letterSpacing: '0.4px',
-        color: '#687386',
-        marginTop: '2px',
-    },
-
-    menuSection: {
-        padding: '17px 10px',
-    },
-
-    menuTitle: {
-        fontSize: '7px',
-        fontWeight: '600',
-        color: '#8b95a5',
-        letterSpacing: '0.7px',
-        padding: '0 14px',
-        marginBottom: '9px',
-    },
-
-    menuItem: {
-        height: '30px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '9px',
-        padding: '0 10px',
-        marginBottom: '3px',
-        borderRadius: '6px',
-        fontSize: '10px',
-        color: '#536074',
-        cursor: 'pointer',
-    },
-
-    menuSelected: {
-        backgroundColor: '#2864df',
-        color: '#ffffff',
-        fontWeight: '600',
-    },
-
-    menuIcon: {
-        width: '16px',
-        textAlign: 'center',
-        fontSize: '13px',
-    },
-
-    main: {
-        flex: 1,
-        minWidth: 0,
-        backgroundColor: '#f8faff',
-    },
-
-    header: {
-        height: '45px',
-        borderBottom: '1px solid #e9edf2',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 20px',
-        backgroundColor: '#ffffff',
-    },
-
-    headerTitle: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        fontSize: '11px',
-        color: '#1e293b',
-        fontWeight: '500',
-    },
-
-    headerIcon: {
-        color: '#2563eb',
-        fontSize: '17px',
-    },
-
-    userCircle: {
-        width: '23px',
-        height: '23px',
-        borderRadius: '50%',
-        backgroundColor: '#2864df',
-        color: '#ffffff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '8px',
-    },
-
-    content: {
-        padding: '23px 22px',
-    },
-
-    title: {
-        margin: 0,
-        fontSize: '22px',
-        lineHeight: '26px',
-        fontWeight: '700',
-        color: '#182233',
-    },
-
-    description: {
-        margin: '3px 0 0',
-        fontSize: '9px',
-        color: '#7b8797',
-    },
-
-    filtros: {
-        display: 'flex',
-        alignItems: 'flex-end',
-        gap: '14px',
-        marginTop: '20px',
-        padding: '16px',
-        backgroundColor: '#ffffff',
-        border: '1px solid #e1e6ec',
-        borderRadius: '9px',
-    },
-
-    campoFiltro: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '5px',
-    },
-
-    etiquetaFiltro: {
-        fontSize: '9px',
-        fontWeight: '600',
-        color: '#374151',
-    },
-
-    selectFiltro: {
-        border: '1px solid #d9e0e8',
-        borderRadius: '6px',
-        padding: '7px 9px',
-        fontSize: '9px',
-        color: '#1f2937',
-        backgroundColor: '#fbfcfd',
-        minWidth: '200px',
-    },
-
-    inputFiltro: {
-        border: '1px solid #d9e0e8',
-        borderRadius: '6px',
-        padding: '7px 9px',
-        fontSize: '9px',
-        color: '#1f2937',
-        backgroundColor: '#fbfcfd',
-    },
-
-    botonFiltrar: {
-        border: 'none',
-        borderRadius: '6px',
-        backgroundColor: '#2864df',
-        color: '#ffffff',
-        fontSize: '9px',
-        fontWeight: '600',
-        padding: '8px 16px',
-        cursor: 'pointer',
-    },
-
-    tableContainer: {
-        marginTop: '16px',
-        border: '1px solid #e1e6ec',
-        borderRadius: '9px',
-        overflow: 'hidden',
-    },
-
-    tableHeader: {
-        minHeight: '35px',
-        display: 'grid',
-        gridTemplateColumns: '1fr 1.3fr 1.2fr 1.6fr',
-        alignItems: 'center',
-        padding: '0 16px',
-        backgroundColor: '#fbfcfd',
-        borderBottom: '1px solid #e5e9ee',
-        color: '#687486',
-        fontSize: '7px',
-        fontWeight: '600',
-        letterSpacing: '0.4px',
-    },
-
-    tableRow: {
-        minHeight: '47px',
-        display: 'grid',
-        gridTemplateColumns: '1fr 1.3fr 1.2fr 1.6fr',
-        alignItems: 'center',
-        padding: '0 16px',
-        borderBottom: '1px solid #e7ebef',
-        fontSize: '9px',
-        gap: '8px',
-    },
-
-    celdaFecha: {
-        fontSize: '8px',
-        color: '#687486',
-        fontFamily: 'monospace',
-    },
-
-    celdaUsuario: {
-        fontWeight: '600',
-        color: '#1d2635',
-    },
-
-    celdaEntidad: {
-        color: '#4b5563',
-    },
-
-    pie: {
-        margin: '12px 3px',
-        color: '#788494',
-        fontSize: '9px',
-    },
 };
 
 export default Bitacora;

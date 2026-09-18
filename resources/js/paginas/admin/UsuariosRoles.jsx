@@ -1,5 +1,18 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import {
+    DatabaseBackup,
+    History,
+    LayoutGrid,
+    Menu,
+    MonitorCheck,
+    QrCode,
+    ShieldCheck,
+    User,
+    UserCog,
+    Users,
+    X,
+} from 'lucide-react';
 
 const usuarios = [
     {
@@ -46,7 +59,15 @@ const usuarios = [
     },
 ];
 
+const estilosPorRol = {
+    administrador: 'bg-slate-900 text-white',
+    academico: 'bg-purple-100 text-purple-700',
+    docente: 'bg-sky-100 text-sky-700',
+    control: 'bg-emerald-100 text-emerald-700',
+};
+
 function UsuariosRoles({ onNavigate }) {
+    const [menuAbierto, setMenuAbierto] = React.useState(false);
     const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
     const [, setUsuarioEditando] = React.useState(null);
 
@@ -56,82 +77,148 @@ function UsuariosRoles({ onNavigate }) {
         rol: 'Docente',
     });
 
+    function navegar(clave) {
+        setMenuAbierto(false);
+        onNavigate(clave);
+    }
+
     return (
-        <div style={styles.app}>
+        <div className="flex min-h-screen w-full bg-white font-sans text-slate-800">
+            {menuAbierto && (
+                <div
+                    className="fixed inset-0 z-30 bg-slate-900/40 md:hidden"
+                    onClick={() => setMenuAbierto(false)}
+                />
+            )}
+
             {/* BARRA LATERAL */}
-            <aside style={styles.sidebar}>
+            <aside
+                className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white transition-transform duration-200 md:static md:translate-x-0 ${
+                    menuAbierto ? 'translate-x-0' : '-translate-x-full'
+                }`}
+            >
                 {/* LOGO */}
-                <div style={styles.logoContainer}>
-                    <div style={styles.logo}>✓</div>
+                <div className="flex h-16 items-center gap-3 border-b border-slate-100 px-5">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
+                        <ShieldCheck className="h-5 w-5" strokeWidth={2} />
+                    </div>
 
                     <div>
-                        <div style={styles.logoTitle}>UMSS FCyT</div>
-                        <div style={styles.logoSubtitle}>CONTROL DE INGRESO</div>
+                        <div className="text-sm leading-tight font-bold text-slate-800">
+                            UMSS FCyT
+                        </div>
+                        <div className="mt-0.5 text-[11px] tracking-wide text-slate-500">
+                            CONTROL DE INGRESO
+                        </div>
                     </div>
                 </div>
 
                 {/* MENU */}
-                <div style={styles.menuSection}>
-                    <div style={styles.menuTitle}>ADMINISTRADOR</div>
-
-                    <MenuItem icon="♙" text="Padrón" />
+                <div className="px-3 py-4">
+                    <div className="px-3 pb-2 text-[11px] font-semibold tracking-wide text-slate-400">
+                        ADMINISTRADOR
+                    </div>
 
                     <MenuItem
-                        icon="▤"
-                        text="Asignaturas y ambientes"
-                        onClick={() => onNavigate('asignaturas')}
+                        icon={<Users className="h-[18px] w-[18px]" />}
+                        text="Padrón"
+                        onClick={() => alert('Padrón: próximamente')}
                     />
-                    <MenuItem icon="⌗" text="Códigos QR" />
+
                     <MenuItem
-                        icon="♙"
+                        icon={<LayoutGrid className="h-[18px] w-[18px]" />}
+                        text="Asignaturas y ambientes"
+                        onClick={() => navegar('asignaturas')}
+                    />
+                    <MenuItem
+                        icon={<QrCode className="h-[18px] w-[18px]" />}
+                        text="Códigos QR"
+                        onClick={() => alert('Códigos QR: próximamente')}
+                    />
+                    <MenuItem
+                        icon={<UserCog className="h-[18px] w-[18px]" />}
                         text="Usuarios y roles"
                         selected
-                        onClick={() => onNavigate('usuarios')}
+                        onClick={() => navegar('usuarios')}
                     />
-                    <MenuItem icon="▧" text="Bitácora" />
-                    <MenuItem icon="↻" text="Respaldo" />
+                    <MenuItem
+                        icon={<History className="h-[18px] w-[18px]" />}
+                        text="Bitácora"
+                        onClick={() => navegar('bitacora')}
+                    />
+                    <MenuItem
+                        icon={<DatabaseBackup className="h-[18px] w-[18px]" />}
+                        text="Respaldo"
+                        onClick={() => alert('Respaldo: próximamente')}
+                    />
                 </div>
             </aside>
 
             {/* CONTENIDO PRINCIPAL */}
-            <main style={styles.main}>
+            <main className="min-w-0 flex-1 bg-slate-50">
                 {/* BARRA SUPERIOR */}
-                <header style={styles.header}>
-                    <div style={styles.headerTitle}>
-                        <span style={styles.headerIcon}>♢</span>
-                        Sistema Institucional de Verificación
+                <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 md:px-6">
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:hidden"
+                            onClick={() => setMenuAbierto(true)}
+                            aria-label="Abrir menú"
+                        >
+                            <Menu className="h-5 w-5" strokeWidth={1.75} />
+                        </button>
+
+                        <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                            <MonitorCheck className="h-[18px] w-[18px] text-blue-600" />
+                            <span className="hidden sm:inline">
+                                Sistema Institucional de Verificación
+                            </span>
+                        </div>
                     </div>
 
-                    <div style={styles.userCircle}>●</div>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white">
+                        <User className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                    </div>
                 </header>
 
                 {/* CONTENIDO */}
-                <section style={styles.content}>
+                <section className="p-4 md:p-6 lg:p-8">
                     {/* TITULO Y BOTON */}
-                    <div style={styles.titleRow}>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <h1 style={styles.title}>Usuarios y roles</h1>
+                            <h1 className="text-2xl font-bold text-slate-900">Usuarios y roles</h1>
 
-                            <p style={styles.description}>
+                            <p className="mt-1 text-sm text-slate-500">
                                 Gestión de cuentas y permisos del sistema
                             </p>
                         </div>
 
-                        <button style={styles.newButton} onClick={() => setMostrarFormulario(true)}>
+                        <button
+                            type="button"
+                            className="self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 sm:self-auto"
+                            onClick={() => setMostrarFormulario(true)}
+                        >
                             + Nuevo usuario
                         </button>
                     </div>
 
                     {/* PESTAÑAS */}
-                    <div style={styles.tabs}>
-                        <button style={styles.tabActive}>Usuarios</button>
+                    <div className="mt-5 flex gap-6 border-b border-slate-200">
+                        <button
+                            type="button"
+                            className="border-b-2 border-blue-600 px-1 pb-2.5 text-sm font-semibold text-blue-600"
+                        >
+                            Usuarios
+                        </button>
 
-                        <button style={styles.tab}>Roles</button>
+                        <button type="button" className="px-1 pb-2.5 text-sm text-slate-500">
+                            Roles
+                        </button>
                     </div>
 
                     {/* TABLA */}
-                    <div style={styles.tableContainer}>
-                        <div style={styles.tableHeader}>
+                    <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+                        <div className="grid min-w-[720px] grid-cols-[1.25fr_1.15fr_0.95fr_0.55fr_0.5fr] items-center gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-xs font-semibold tracking-wide text-slate-500">
                             <div>NOMBRE</div>
                             <div>CORREO</div>
                             <div>ROL</div>
@@ -140,50 +227,42 @@ function UsuariosRoles({ onNavigate }) {
                         </div>
 
                         {usuarios.map((usuario, index) => (
-                            <div style={styles.tableRow} key={index}>
-                                {/* NOMBRE */}
-                                <div style={styles.name}>{usuario.nombre}</div>
+                            <div
+                                key={index}
+                                className="grid min-w-[720px] grid-cols-[1.25fr_1.15fr_0.95fr_0.55fr_0.5fr] items-center gap-3 border-b border-slate-100 px-4 py-3.5 text-sm last:border-b-0"
+                            >
+                                <div className="font-semibold text-slate-800">{usuario.nombre}</div>
 
-                                {/* CORREO */}
-                                <div style={styles.email}>{usuario.correo}</div>
+                                <div className="text-xs text-slate-500">{usuario.correo}</div>
 
-                                {/* ROL */}
                                 <div>
                                     <span
-                                        style={{
-                                            ...styles.role,
-                                            ...roleStyles[usuario.tipo],
-                                        }}
+                                        className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${estilosPorRol[usuario.tipo]}`}
                                     >
                                         {usuario.rol}
                                     </span>
                                 </div>
 
-                                {/* ESTADO */}
                                 <div>
-                                    <div
-                                        style={{
-                                            ...styles.switch,
-                                            ...(usuario.activo
-                                                ? styles.switchActive
-                                                : styles.switchInactive),
-                                        }}
+                                    <span
+                                        className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
+                                            usuario.activo ? 'bg-blue-600' : 'bg-slate-300'
+                                        }`}
                                     >
-                                        <div
-                                            style={{
-                                                ...styles.switchCircle,
-                                                ...(usuario.activo
-                                                    ? styles.circleActive
-                                                    : styles.circleInactive),
-                                            }}
+                                        <span
+                                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                                                usuario.activo
+                                                    ? 'translate-x-3.5'
+                                                    : 'translate-x-0.5'
+                                            }`}
                                         />
-                                    </div>
+                                    </span>
                                 </div>
 
-                                {/* ACCIONES */}
                                 <div>
                                     <button
-                                        style={styles.editButton}
+                                        type="button"
+                                        className="text-sm font-medium text-blue-600 hover:text-blue-700"
                                         onClick={() => {
                                             setUsuarioEditando(usuario);
                                             setNuevoUsuario({
@@ -202,33 +281,42 @@ function UsuariosRoles({ onNavigate }) {
                     </div>
 
                     {/* PIE */}
-                    <p style={styles.footerText}>Las cuentas las crea el Administrador.</p>
+                    <p className="mt-3 text-xs text-slate-400">
+                        Las cuentas las crea el Administrador.
+                    </p>
                 </section>
-                {mostrarFormulario && (
-                    <div style={styles.modalOverlay}>
-                        <div style={styles.modal}>
-                            <div style={styles.modalHeader}>
-                                <div>
-                                    <h2 style={styles.modalTitle}>Nuevo usuario</h2>
 
-                                    <p style={styles.modalDescription}>
+                {mostrarFormulario && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+                        <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+                            <div className="mb-5 flex items-start justify-between">
+                                <div>
+                                    <h2 className="text-lg font-bold text-slate-900">
+                                        Nuevo usuario
+                                    </h2>
+
+                                    <p className="mt-1 text-sm text-slate-500">
                                         Crear una nueva cuenta del sistema
                                     </p>
                                 </div>
 
                                 <button
-                                    style={styles.closeButton}
+                                    type="button"
+                                    className="text-slate-400 hover:text-slate-600"
                                     onClick={() => setMostrarFormulario(false)}
+                                    aria-label="Cerrar"
                                 >
-                                    ×
+                                    <X className="h-5 w-5" strokeWidth={1.75} />
                                 </button>
                             </div>
 
-                            <div style={styles.formGroup}>
-                                <label style={styles.label}>Nombre completo</label>
+                            <div className="mb-4">
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                                    Nombre completo
+                                </label>
 
                                 <input
-                                    style={styles.input}
+                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                     value={nuevoUsuario.nombre}
                                     onChange={(e) =>
                                         setNuevoUsuario({
@@ -240,11 +328,13 @@ function UsuariosRoles({ onNavigate }) {
                                 />
                             </div>
 
-                            <div style={styles.formGroup}>
-                                <label style={styles.label}>Correo</label>
+                            <div className="mb-4">
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                                    Correo
+                                </label>
 
                                 <input
-                                    style={styles.input}
+                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                     value={nuevoUsuario.correo}
                                     onChange={(e) =>
                                         setNuevoUsuario({
@@ -256,11 +346,13 @@ function UsuariosRoles({ onNavigate }) {
                                 />
                             </div>
 
-                            <div style={styles.formGroup}>
-                                <label style={styles.label}>Rol</label>
+                            <div className="mb-5">
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                                    Rol
+                                </label>
 
                                 <select
-                                    style={styles.input}
+                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                     value={nuevoUsuario.rol}
                                     onChange={(e) =>
                                         setNuevoUsuario({
@@ -276,16 +368,18 @@ function UsuariosRoles({ onNavigate }) {
                                 </select>
                             </div>
 
-                            <div style={styles.modalActions}>
+                            <div className="flex justify-end gap-2">
                                 <button
-                                    style={styles.cancelButton}
+                                    type="button"
+                                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
                                     onClick={() => setMostrarFormulario(false)}
                                 >
                                     Cancelar
                                 </button>
 
                                 <button
-                                    style={styles.saveButton}
+                                    type="button"
+                                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
                                     onClick={() => {
                                         alert('Usuario creado correctamente');
 
@@ -313,467 +407,27 @@ UsuariosRoles.propTypes = {
     onNavigate: PropTypes.func.isRequired,
 };
 
-/* ================================
-   COMPONENTE DEL MENU
-================================ */
-
 function MenuItem({ icon, text, selected, onClick }) {
     return (
         <div
-            style={{
-                ...styles.menuItem,
-                ...(selected ? styles.menuSelected : {}),
-            }}
+            className={`mb-1 flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${
+                selected
+                    ? 'bg-blue-600 font-semibold text-white'
+                    : 'text-slate-600 hover:bg-slate-100'
+            }`}
             onClick={onClick}
         >
-            <span style={styles.menuIcon}>{icon}</span>
-
+            <span className="flex w-5 items-center justify-center">{icon}</span>
             <span>{text}</span>
         </div>
     );
 }
 
 MenuItem.propTypes = {
-    icon: PropTypes.string.isRequired,
+    icon: PropTypes.node.isRequired,
     text: PropTypes.string.isRequired,
     selected: PropTypes.bool,
     onClick: PropTypes.func,
-};
-
-/* ================================
-   ESTILOS
-================================ */
-
-const roleStyles = {
-    administrador: {
-        backgroundColor: '#111827',
-        color: '#ffffff',
-    },
-
-    academico: {
-        backgroundColor: '#f1d9ff',
-        color: '#8b1dbd',
-    },
-
-    docente: {
-        backgroundColor: '#dcecff',
-        color: '#3977c5',
-    },
-
-    control: {
-        backgroundColor: '#d5f5e5',
-        color: '#15915b',
-    },
-};
-
-const styles = {
-    app: {
-        display: 'flex',
-        minHeight: '100vh',
-        width: '100%',
-        backgroundColor: '#ffffff',
-        fontFamily:
-            "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        color: '#172033',
-    },
-
-    modalOverlay: {
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.35)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-    },
-    modal: {
-        width: '420px',
-        backgroundColor: '#ffffff',
-        borderRadius: '10px',
-        padding: '22px',
-        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.18)',
-    },
-
-    modalHeader: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: '20px',
-    },
-
-    modalTitle: {
-        margin: 0,
-        fontSize: '18px',
-        fontWeight: '700',
-        color: '#182233',
-    },
-
-    modalDescription: {
-        margin: '4px 0 0',
-        fontSize: '9px',
-        color: '#7b8797',
-    },
-
-    closeButton: {
-        border: 'none',
-        background: 'transparent',
-        fontSize: '22px',
-        color: '#647084',
-        cursor: 'pointer',
-    },
-
-    formGroup: {
-        marginBottom: '15px',
-    },
-
-    label: {
-        display: 'block',
-        marginBottom: '6px',
-        fontSize: '9px',
-        fontWeight: '600',
-        color: '#374151',
-    },
-
-    input: {
-        width: '100%',
-        boxSizing: 'border-box',
-        border: '1px solid #d9e0e8',
-        borderRadius: '6px',
-        padding: '9px 10px',
-        fontSize: '10px',
-        color: '#1f2937',
-        outline: 'none',
-        backgroundColor: '#ffffff',
-    },
-
-    modalActions: {
-        display: 'flex',
-        justifyContent: 'flex-end',
-        gap: '8px',
-        marginTop: '20px',
-    },
-
-    cancelButton: {
-        border: '1px solid #d9e0e8',
-        backgroundColor: '#ffffff',
-        color: '#4b5563',
-        borderRadius: '6px',
-        padding: '8px 13px',
-        fontSize: '9px',
-        cursor: 'pointer',
-    },
-
-    saveButton: {
-        border: 'none',
-        backgroundColor: '#2864df',
-        color: '#ffffff',
-        borderRadius: '6px',
-        padding: '8px 13px',
-        fontSize: '9px',
-        fontWeight: '600',
-        cursor: 'pointer',
-    },
-
-    /* SIDEBAR */
-
-    sidebar: {
-        width: '182px',
-        minWidth: '182px',
-        backgroundColor: '#ffffff',
-        borderRight: '1px solid #e5e9ef',
-        minHeight: '100vh',
-    },
-
-    logoContainer: {
-        height: '64px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '9px',
-        padding: '0 17px',
-        borderBottom: '1px solid #edf0f4',
-    },
-
-    logo: {
-        width: '30px',
-        height: '30px',
-        borderRadius: '7px',
-        backgroundColor: '#2563eb',
-        color: '#ffffff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '17px',
-        fontWeight: '700',
-    },
-
-    logoTitle: {
-        fontSize: '12px',
-        fontWeight: '700',
-        lineHeight: '14px',
-        color: '#1d2737',
-    },
-
-    logoSubtitle: {
-        fontSize: '7px',
-        letterSpacing: '0.4px',
-        color: '#687386',
-        marginTop: '2px',
-    },
-
-    menuSection: {
-        padding: '17px 10px',
-    },
-
-    menuTitle: {
-        fontSize: '7px',
-        fontWeight: '600',
-        color: '#8b95a5',
-        letterSpacing: '0.7px',
-        padding: '0 14px',
-        marginBottom: '9px',
-    },
-
-    menuItem: {
-        height: '30px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '9px',
-        padding: '0 10px',
-        marginBottom: '3px',
-        borderRadius: '6px',
-        fontSize: '10px',
-        color: '#536074',
-        cursor: 'pointer',
-    },
-
-    menuSelected: {
-        backgroundColor: '#2864df',
-        color: '#ffffff',
-        fontWeight: '600',
-    },
-
-    menuIcon: {
-        width: '16px',
-        textAlign: 'center',
-        fontSize: '13px',
-    },
-
-    /* MAIN */
-
-    main: {
-        flex: 1,
-        minWidth: 0,
-        backgroundColor: '#ffffff',
-    },
-
-    header: {
-        height: '45px',
-        borderBottom: '1px solid #e9edf2',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 20px',
-    },
-
-    headerTitle: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        fontSize: '11px',
-        color: '#1e293b',
-        fontWeight: '500',
-    },
-
-    headerIcon: {
-        color: '#2563eb',
-        fontSize: '17px',
-    },
-
-    userCircle: {
-        width: '23px',
-        height: '23px',
-        borderRadius: '50%',
-        backgroundColor: '#2864df',
-        color: '#ffffff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '8px',
-    },
-
-    /* CONTENT */
-
-    content: {
-        padding: '23px 22px',
-    },
-
-    titleRow: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-    },
-
-    title: {
-        margin: 0,
-        fontSize: '18px',
-        lineHeight: '22px',
-        fontWeight: '700',
-        color: '#182233',
-    },
-
-    description: {
-        margin: '3px 0 0',
-        fontSize: '9px',
-        color: '#7b8797',
-    },
-
-    newButton: {
-        border: 'none',
-        borderRadius: '5px',
-        backgroundColor: '#2864df',
-        color: '#ffffff',
-        fontSize: '9px',
-        fontWeight: '600',
-        padding: '8px 13px',
-        cursor: 'pointer',
-        marginTop: '-1px',
-    },
-
-    /* TABS */
-
-    tabs: {
-        display: 'flex',
-        gap: '22px',
-        marginTop: '20px',
-        borderBottom: '1px solid #e9edf2',
-    },
-
-    tabActive: {
-        border: 'none',
-        borderBottom: '2px solid #2864df',
-        background: 'transparent',
-        color: '#2864df',
-        fontSize: '9px',
-        fontWeight: '600',
-        padding: '0 3px 10px',
-        cursor: 'pointer',
-    },
-
-    tab: {
-        border: 'none',
-        background: 'transparent',
-        color: '#647084',
-        fontSize: '9px',
-        padding: '0 3px 10px',
-        cursor: 'pointer',
-    },
-
-    /* TABLE */
-
-    tableContainer: {
-        marginTop: '12px',
-        border: '1px solid #e1e6ec',
-        borderRadius: '9px',
-        overflow: 'hidden',
-    },
-
-    tableHeader: {
-        minHeight: '35px',
-        display: 'grid',
-        gridTemplateColumns: '1.25fr 1.15fr 0.95fr 0.42fr 0.38fr',
-        alignItems: 'center',
-        padding: '0 16px',
-        backgroundColor: '#fbfcfd',
-        borderBottom: '1px solid #e5e9ee',
-        color: '#687486',
-        fontSize: '7px',
-        fontWeight: '600',
-        letterSpacing: '0.4px',
-    },
-
-    tableRow: {
-        minHeight: '47px',
-        display: 'grid',
-        gridTemplateColumns: '1.25fr 1.15fr 0.95fr 0.42fr 0.38fr',
-        alignItems: 'center',
-        padding: '0 16px',
-        borderBottom: '1px solid #e7ebef',
-        fontSize: '9px',
-    },
-
-    name: {
-        fontSize: '9px',
-        lineHeight: '12px',
-        fontWeight: '600',
-        color: '#1d2635',
-        paddingRight: '8px',
-    },
-
-    email: {
-        fontSize: '7px',
-        color: '#737e8d',
-        paddingRight: '8px',
-    },
-
-    role: {
-        display: 'inline-block',
-        padding: '4px 8px',
-        borderRadius: '12px',
-        fontSize: '7px',
-        fontWeight: '500',
-        lineHeight: '10px',
-    },
-
-    /* SWITCH */
-
-    switch: {
-        width: '28px',
-        height: '15px',
-        borderRadius: '15px',
-        position: 'relative',
-        transition: '0.2s',
-    },
-
-    switchActive: {
-        backgroundColor: '#2864df',
-    },
-
-    switchInactive: {
-        backgroundColor: '#d6dde6',
-    },
-
-    switchCircle: {
-        position: 'absolute',
-        width: '11px',
-        height: '11px',
-        top: '2px',
-        borderRadius: '50%',
-        backgroundColor: '#ffffff',
-        transition: '0.2s',
-    },
-
-    circleActive: {
-        right: '2px',
-    },
-
-    circleInactive: {
-        left: '2px',
-    },
-
-    editButton: {
-        border: 'none',
-        background: 'transparent',
-        color: '#2864df',
-        fontSize: '8px',
-        cursor: 'pointer',
-        padding: 0,
-    },
-
-    footerText: {
-        margin: '10px 3px',
-        color: '#788494',
-        fontSize: '7px',
-    },
 };
 
 export default UsuariosRoles;
