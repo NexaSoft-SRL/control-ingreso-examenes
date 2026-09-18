@@ -1,55 +1,85 @@
 import React, { useState } from 'react';
 
 const mockEstudiantesIniciales = [
-    { id: 1, codigo: '282104821', ci: '7928194-CBB', nombre: 'Alvarado Claros, Kevin René', carrera: 'Ingeniería de Sistemas', activo: true },
-    { id: 2, codigo: '202008472', ci: '8839210-CBB', nombre: 'Bustamante Torrico, Valeria', carrera: 'Ingeniería Informática', activo: true },
-    { id: 3, codigo: '281901349', ci: '6492819-LPZ', nombre: 'Camacho Zeballos, Diego Andrés', carrera: 'Ingeniería de Sistemas', activo: true },
-    { id: 4, codigo: '282201994', ci: '9348122-CBB', nombre: 'Fernández Rojas, Mariana Lucía', carrera: 'Ingeniería Electrónica', activo: true },
+    { id: 1, codigo: '282104821', ci: '7928194-CBB', nombre: 'Alvarado Claros, Kevin René', carrera: 'Ingeniería de Sistemas', estado: 'ACTIVO' },
+    { id: 2, codigo: '202008472', ci: '8839210-CBB', nombre: 'Bustamante Torrico, Valeria', carrera: 'Ingeniería Informática', estado: 'ACTIVO' },
+    { id: 3, codigo: '281901349', ci: '6492819-LPZ', nombre: 'Camacho Zeballos, Diego Andrés', carrera: 'Ingeniería de Sistemas', estado: 'ACTIVO' },
+    { id: 4, codigo: '282201994', ci: '9348122-CBB', nombre: 'Fernández Rojas, Mariana Lucía', carrera: 'Ingeniería Electrónica', estado: 'ACTIVO' },
 ];
 
-export default function RegistroEstudiantes({ onNavigate }) {
+export default function RegistroEstudiantes() {
     const [estudiantes, setEstudiantes] = useState(mockEstudiantesIniciales);
 
-    // Estados para el formulario rápido de "+ Nuevo estudiante"
+    // Estados para el formulario y edición
     const [mostrarModal, setMostrarModal] = useState(false);
+    const [estudianteEditando, setEstudianteEditando] = useState(null);
     const [codigo, setCodigo] = useState('');
     const [ci, setCi] = useState('');
     const [nombre, setNombre] = useState('');
     const [carrera, setCarrera] = useState('');
+    const [estadoEstudiante, setEstadoEstudiante] = useState('ACTIVO');
+
+    const abrirNuevoEstudiante = () => {
+        setEstudianteEditando(null);
+        setCodigo('');
+        setCi('');
+        setNombre('');
+        setCarrera('');
+        setEstadoEstudiante('ACTIVO');
+        setMostrarModal(true);
+    };
+
+    const abrirEditarEstudiante = (index) => {
+        const est = estudiantes[index];
+        setEstudianteEditando(index);
+        setCodigo(est.codigo);
+        setCi(est.ci);
+        setNombre(est.nombre);
+        setCarrera(est.carrera);
+        setEstadoEstudiante(est.estado || 'ACTIVO');
+        setMostrarModal(true);
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!codigo || !ci || !nombre || !carrera) return;
 
-        const nuevo = {
-            id: estudiantes.length + 1,
-            codigo,
-            ci,
-            nombre,
-            carrera,
-            activo: true
-        };
+        if (estudianteEditando === null) {
+            // Crear nuevo
+            const nuevo = {
+                id: estudiantes.length + 1,
+                codigo,
+                ci,
+                nombre,
+                carrera,
+                estado: estadoEstudiante
+            };
+            setEstudiantes([...estudiantes, nuevo]);
+        } else {
+            // Actualizar existente
+            const actualizados = [...estudiantes];
+            actualizados[estudianteEditando] = {
+                ...actualizados[estudianteEditando],
+                codigo,
+                ci,
+                nombre,
+                carrera,
+                estado: estadoEstudiante
+            };
+            setEstudiantes(actualizados);
+            setEstudianteEditando(null);
+        }
 
-        setEstudiantes([...estudiantes, nuevo]);
         setCodigo('');
         setCi('');
         setNombre('');
         setCarrera('');
+        setEstadoEstudiante('ACTIVO');
         setMostrarModal(false);
     };
 
     return (
-        <div className="p-8 bg-gray-50 min-h-screen">
-            {/* Botón de navegación temporal */}
-            {onNavigate && (
-                <button
-                    onClick={() => onNavigate('usuarios')}
-                    className="mb-4 bg-gray-200 px-4 py-2 rounded text-sm font-medium hover:bg-gray-300"
-                >
-                    ← Volver a Administración
-                </button>
-            )}
-
+        <div className="p-8">
             {/* Cabecera Padrón */}
             <div className="flex justify-between items-center mb-6">
                 <div>
@@ -57,7 +87,7 @@ export default function RegistroEstudiantes({ onNavigate }) {
                     <p className="text-sm text-gray-500">Gestión del padrón estudiantil</p>
                 </div>
                 <button
-                    onClick={() => setMostrarModal(!mostrarModal)}
+                    onClick={abrirNuevoEstudiante}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition flex items-center gap-2"
                 >
                     + Nuevo estudiante
@@ -88,11 +118,13 @@ export default function RegistroEstudiantes({ onNavigate }) {
                 </div>
             </div>
 
-            {/* Formulario desplegable para "+ Nuevo estudiante" */}
+            {/* Formulario desplegable para "+ Nuevo estudiante" o "Editar" */}
             {mostrarModal && (
                 <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-md mb-6 border border-blue-100">
-                    <h2 className="text-lg font-bold mb-4 text-gray-700">Registrar nuevo estudiante</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <h2 className="text-lg font-bold mb-4 text-gray-700">
+                        {estudianteEditando === null ? 'Registrar nuevo estudiante' : 'Editar estudiante'}
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
                         <div>
                             <label className="block text-xs font-semibold text-gray-600 mb-1">CÓDIGO</label>
                             <input type="text" value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="Ej. 282104821" className="w-full p-2 border rounded text-sm" required />
@@ -109,10 +141,20 @@ export default function RegistroEstudiantes({ onNavigate }) {
                             <label className="block text-xs font-semibold text-gray-600 mb-1">CARRERA</label>
                             <input type="text" value={carrera} onChange={(e) => setCarrera(e.target.value)} placeholder="Ej. Ingeniería de Sistemas" className="w-full p-2 border rounded text-sm" required />
                         </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-600 mb-1">ESTADO</label>
+                            <select value={estadoEstudiante} onChange={(e) => setEstadoEstudiante(e.target.value)} className="w-full p-2 border rounded text-sm bg-white">
+                                <option value="ACTIVO">ACTIVO</option>
+                                <option value="INACTIVO">INACTIVO</option>
+                                <option value="SUSPENDIDO">SUSPENDIDO</option>
+                            </select>
+                        </div>
                     </div>
                     <div className="flex justify-end gap-2">
                         <button type="button" onClick={() => setMostrarModal(false)} className="px-4 py-2 border rounded text-sm text-gray-600 hover:bg-gray-100">Cancelar</button>
-                        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 font-medium">Guardar Estudiante</button>
+                        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 font-medium">
+                            {estudianteEditando === null ? 'Guardar Estudiante' : 'Guardar Cambios'}
+                        </button>
                     </div>
                 </form>
             )}
@@ -131,19 +173,30 @@ export default function RegistroEstudiantes({ onNavigate }) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-sm text-gray-600">
-                        {estudiantes.map((est) => (
+                        {estudiantes.map((est, index) => (
                             <tr key={est.id} className="hover:bg-gray-50 transition">
                                 <td className="p-4 font-medium text-gray-700">{est.codigo}</td>
                                 <td className="p-4">{est.ci}</td>
                                 <td className="p-4 font-medium text-gray-900">{est.nombre}</td>
                                 <td className="p-4">{est.carrera}</td>
                                 <td className="p-4">
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-600">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> ACTIVO
+                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${est.estado === 'INACTIVO' ? 'bg-gray-100 text-gray-600' :
+                                        est.estado === 'SUSPENDIDO' ? 'bg-red-50 text-red-600' :
+                                            'bg-green-50 text-green-600'
+                                        }`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${est.estado === 'INACTIVO' ? 'bg-gray-400' :
+                                            est.estado === 'SUSPENDIDO' ? 'bg-red-500' :
+                                                'bg-green-500'
+                                            }`}></span> {est.estado || 'ACTIVO'}
                                     </span>
                                 </td>
                                 <td className="p-4 text-right">
-                                    <button className="text-blue-600 hover:text-blue-800 font-medium text-sm">Editar</button>
+                                    <button
+                                        onClick={() => abrirEditarEstudiante(index)}
+                                        className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                                    >
+                                        Editar
+                                    </button>
                                 </td>
                             </tr>
                         ))}
