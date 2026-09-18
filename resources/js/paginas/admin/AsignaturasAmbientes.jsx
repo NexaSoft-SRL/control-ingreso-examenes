@@ -231,77 +231,7 @@ function AsignaturasAmbientes({ onNavigate }) {
 
     return (
         <div style={styles.app}>
-            {/* =========================
-                BARRA LATERAL
-            ========================== */}
 
-            <aside style={styles.sidebar}>
-                {/* LOGO */}
-
-                <div style={styles.logoContainer}>
-                    <div style={styles.logo}>✓</div>
-
-                    <div>
-                        <div style={styles.logoTitle}>UMSS FCyT</div>
-
-                        <div style={styles.logoSubtitle}>CONTROL DE INGRESO</div>
-                    </div>
-                </div>
-
-                {/* MENU */}
-
-                <div style={styles.menuSection}>
-                    <div style={styles.menuTitle}>ADMINISTRADOR</div>
-
-                    <MenuItem
-                        icon="♙"
-                        text="Padrón"
-                        onClick={() => onNavigate('estudiantes')}
-
-                    />
-
-                    <MenuItem
-                        icon="▤"
-                        text="Asignaturas y ambientes"
-                        selected
-                        onClick={() => onNavigate('asignaturas')}
-                    />
-
-                    <MenuItem
-                        icon="⌗"
-                        text="Códigos QR"
-                        onClick={() => {
-                            alert('Códigos QR: próximamente');
-                        }}
-                    />
-
-                    <MenuItem
-                        icon="♙"
-                        text="Usuarios y roles"
-                        onClick={() => onNavigate('usuarios')}
-                    />
-
-                    <MenuItem
-                        icon="▧"
-                        text="Bitácora"
-                        onClick={() => {
-                            alert('Bitácora: próximamente');
-                        }}
-                    />
-
-                    <MenuItem
-                        icon="↻"
-                        text="Respaldo"
-                        onClick={() => {
-                            alert('Respaldo: próximamente');
-                        }}
-                    />
-                </div>
-            </aside>
-
-            {/* =========================
-                CONTENIDO PRINCIPAL
-            ========================== */}
 
             <main style={styles.main}>
                 {/* BARRA SUPERIOR */}
