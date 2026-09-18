@@ -231,8 +231,6 @@ function AsignaturasAmbientes() {
 
     return (
         <div style={styles.app}>
-
-
             <main style={styles.main}>
                 {/* BARRA SUPERIOR */}
 
