@@ -3,7 +3,6 @@
 namespace App\Modules\Administracion\Application\Actions;
 
 use App\Modules\Administracion\Application\Contracts\StudentRepository;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 final readonly class ListStudents
 {
@@ -11,7 +10,7 @@ final readonly class ListStudents
         private StudentRepository $repository,
     ) {}
 
-    public function execute(array $filters = [], int $perPage = 15): LengthAwarePaginator
+    public function execute(array $filters = [], int $perPage = 15): array
     {
         return $this->repository->paginate($filters, $perPage);
     }

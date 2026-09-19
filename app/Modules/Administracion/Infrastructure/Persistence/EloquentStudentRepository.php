@@ -4,11 +4,10 @@ namespace App\Modules\Administracion\Infrastructure\Persistence;
 
 use App\Modules\Administracion\Application\Contracts\StudentRepository;
 use App\Modules\Administracion\Domain\Models\Student;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 final readonly class EloquentStudentRepository implements StudentRepository
 {
-    public function paginate(array $filters = [], int $perPage = 15): LengthAwarePaginator
+    public function paginate(array $filters = [], int $perPage = 15): array
     {
         $query = Student::query()->with('carrera');
 
@@ -24,7 +23,17 @@ final readonly class EloquentStudentRepository implements StudentRepository
             $query->where('carrera_id', (int) $filters['carrera_id']);
         }
 
-        return $query->orderBy('apellidos')->orderBy('nombres')->paginate($perPage);
+        $paginator = $query->orderBy('apellidos')->orderBy('nombres')->paginate($perPage);
+
+        return [
+            'data' => $paginator->items(),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
+        ];
     }
 
     public function findById(int $id): ?Student

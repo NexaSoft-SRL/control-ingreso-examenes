@@ -2,7 +2,6 @@
 
 namespace App\Modules\Administracion\Domain\Models;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -35,14 +34,14 @@ class Student extends Model
         return $this->belongsTo(Carrera::class, 'carrera_id');
     }
 
-    public function scopeActivos(Builder $query): Builder
+    public function scopeActivos($query)
     {
         return $query->where('estado', 'ACTIVO');
     }
 
-    public function scopeBuscar(Builder $query, string $termino): Builder
+    public function scopeBuscar($query, string $termino)
     {
-        return $query->where(function (Builder $q) use ($termino) {
+        return $query->where(function ($q) use ($termino) {
             $q->where('codigo_sis', 'ILIKE', '%' . $termino . '%')
                 ->orWhere('ci', 'ILIKE', '%' . $termino . '%')
                 ->orWhere('nombres', 'ILIKE', '%' . $termino . '%')
