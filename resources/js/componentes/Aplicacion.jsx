@@ -94,7 +94,9 @@ export default function Aplicacion() {
                             if (opcion === 'estudiantes' || opcion === 'asignaturas') {
                                 setVistaActiva(opcion);
                             } else {
-                                alert(`${e.target.options[e.target.selectedIndex].text}: próximamente`);
+                                alert(
+                                    `${e.target.options[e.target.selectedIndex].text}: próximamente`
+                                );
                             }
                         }}
                         className="max-w-[75%] rounded-lg border border-blue-200 bg-white px-3 py-2 text-right text-xs font-medium text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"

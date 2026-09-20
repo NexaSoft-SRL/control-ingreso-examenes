@@ -127,8 +127,18 @@ export default function RegistroEstudiantes() {
             <div className="mb-6 flex flex-col items-stretch justify-between gap-4 rounded-xl border-2 border-dashed border-blue-200 bg-white p-4 shadow-sm sm:p-6">
                 <div className="flex min-w-0 items-start gap-4">
                     <div className="bg-blue-50 p-3 rounded-lg text-blue-600 shrink-0">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        <svg
+                            className="w-6 h-6"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                            />
                         </svg>
                     </div>
                     <div className="min-w-0">
@@ -144,7 +154,7 @@ export default function RegistroEstudiantes() {
                     Cargar
                 </button>
             </div>
-                
+
             {/* Alerta de errores de carga (Mockup) */}
             <div className="mb-6 flex items-start rounded-r-lg border-l-4 border-amber-400 bg-amber-50 p-4 shadow-sm">
                 <div className="flex items-start gap-3 text-sm font-medium text-amber-800">
@@ -259,56 +269,60 @@ export default function RegistroEstudiantes() {
             <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-225 border-collapse text-left">
-                    <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100">
-                        <tr>
-                            <th className="w-36 whitespace-nowrap p-4 font-semibold">Código</th>
-                            <th className="w-40 whitespace-nowrap p-4 font-semibold">C.I.</th>
-                            <th className="min-w-64 p-4 font-semibold">Nombre</th>
-                            <th className="min-w-64 p-4 font-semibold">Carrera</th>
-                            <th className="min-w-32 p-4 font-semibold">Estado</th>
-                            <th className="min-w-32 p-4 text-right font-semibold">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 text-sm text-gray-600">
-                        {estudiantes.map((est, index) => (
-                            <tr key={est.id} className="hover:bg-gray-50 transition">
-                                <td className="whitespace-nowrap p-4 font-medium text-gray-700">{est.codigo}</td>
-                                <td className="whitespace-nowrap p-4">{est.ci}</td>
-                                <td className="min-w-64 p-4 font-medium text-gray-900">{est.nombre}</td>
-                                <td className="min-w-64 p-4">{est.carrera}</td>
-                                <td className="p-4">
-                                    <span
-                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                            est.estado === 'INACTIVO'
-                                                ? 'bg-gray-100 text-gray-600'
-                                                : est.estado === 'SUSPENDIDO'
-                                                  ? 'bg-red-50 text-red-600'
-                                                  : 'bg-green-50 text-green-600'
-                                        }`}
-                                    >
-                                        <span
-                                            className={`w-1.5 h-1.5 rounded-full ${
-                                                est.estado === 'INACTIVO'
-                                                    ? 'bg-gray-400'
-                                                    : est.estado === 'SUSPENDIDO'
-                                                      ? 'bg-red-500'
-                                                      : 'bg-green-500'
-                                            }`}
-                                        ></span>{' '}
-                                        {est.estado || 'ACTIVO'}
-                                    </span>
-                                </td>
-                                <td className="p-4 text-right">
-                                    <button
-                                        onClick={() => abrirEditarEstudiante(index)}
-                                        className="text-blue-600 hover:text-blue-800 font-medium text-sm"
-                                    >
-                                        Editar
-                                    </button>
-                                </td>
+                        <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100">
+                            <tr>
+                                <th className="w-36 whitespace-nowrap p-4 font-semibold">Código</th>
+                                <th className="w-40 whitespace-nowrap p-4 font-semibold">C.I.</th>
+                                <th className="min-w-64 p-4 font-semibold">Nombre</th>
+                                <th className="min-w-64 p-4 font-semibold">Carrera</th>
+                                <th className="min-w-32 p-4 font-semibold">Estado</th>
+                                <th className="min-w-32 p-4 text-right font-semibold">Acciones</th>
                             </tr>
-                        ))}
-                    </tbody>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 text-sm text-gray-600">
+                            {estudiantes.map((est, index) => (
+                                <tr key={est.id} className="hover:bg-gray-50 transition">
+                                    <td className="whitespace-nowrap p-4 font-medium text-gray-700">
+                                        {est.codigo}
+                                    </td>
+                                    <td className="whitespace-nowrap p-4">{est.ci}</td>
+                                    <td className="min-w-64 p-4 font-medium text-gray-900">
+                                        {est.nombre}
+                                    </td>
+                                    <td className="min-w-64 p-4">{est.carrera}</td>
+                                    <td className="p-4">
+                                        <span
+                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                                est.estado === 'INACTIVO'
+                                                    ? 'bg-gray-100 text-gray-600'
+                                                    : est.estado === 'SUSPENDIDO'
+                                                      ? 'bg-red-50 text-red-600'
+                                                      : 'bg-green-50 text-green-600'
+                                            }`}
+                                        >
+                                            <span
+                                                className={`w-1.5 h-1.5 rounded-full ${
+                                                    est.estado === 'INACTIVO'
+                                                        ? 'bg-gray-400'
+                                                        : est.estado === 'SUSPENDIDO'
+                                                          ? 'bg-red-500'
+                                                          : 'bg-green-500'
+                                                }`}
+                                            ></span>{' '}
+                                            {est.estado || 'ACTIVO'}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-right">
+                                        <button
+                                            onClick={() => abrirEditarEstudiante(index)}
+                                            className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                                        >
+                                            Editar
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
                     </table>
                 </div>
                 <div className="p-4 bg-gray-50 text-xs text-gray-400 border-t border-gray-100">
