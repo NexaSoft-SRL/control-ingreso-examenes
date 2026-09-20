@@ -7,9 +7,9 @@ export default function Aplicacion() {
     const [vistaActiva, setVistaActiva] = useState('asignaturas');
 
     return (
-        <div className="flex min-h-screen bg-gray-50 text-gray-900 font-sans">
+        <div className="flex min-h-screen min-w-0 flex-col bg-gray-50 font-sans text-gray-900 md:flex-row">
             {/* 1. MENÚ LATERAL FIJO */}
-            <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
+            <aside className="hidden w-64 shrink-0 flex-col border-r border-gray-200 bg-white md:flex">
                 <div className="h-16 flex items-center gap-3 px-6 border-b border-gray-200">
                     <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
                         ✓
@@ -85,8 +85,32 @@ export default function Aplicacion() {
             {/* 2. CONTENIDO DINÁMICO DE LA DERECHA */}
             <main className="flex-1 flex flex-col min-w-0">
                 {/* Cabecera superior común */}
-                <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8">
-                    <div className="text-xs font-medium text-gray-700 flex items-center gap-2">
+                <nav className="flex items-center justify-start gap-3 border-b border-gray-200 bg-white px-4 py-3 md:hidden">
+                    <span className="text-xs font-semibold text-gray-500">Sección</span>
+                    <select
+                        value={vistaActiva}
+                        onChange={(e) => {
+                            const opcion = e.target.value;
+                            if (opcion === 'estudiantes' || opcion === 'asignaturas') {
+                                setVistaActiva(opcion);
+                            } else {
+                                alert(`${e.target.options[e.target.selectedIndex].text}: próximamente`);
+                            }
+                        }}
+                        className="max-w-[75%] rounded-lg border border-blue-200 bg-white px-3 py-2 text-right text-xs font-medium text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        aria-label="Seleccionar sección"
+                    >
+                        <option value="estudiantes">Padrón</option>
+                        <option value="asignaturas">Asignaturas y ambientes</option>
+                        <option value="qr">Códigos QR</option>
+                        <option value="usuarios">Usuarios y roles</option>
+                        <option value="bitacora">Bitácora</option>
+                        <option value="respaldo">Respaldo</option>
+                    </select>
+                </nav>
+
+                <header className="flex min-h-16 items-center justify-between border-b border-gray-200 bg-white px-4 py-3 sm:px-8">
+                    <div className="flex min-w-0 items-center gap-2 text-xs font-medium text-gray-700">
                         <span className="text-blue-600 text-lg">◇</span> Sistema Institucional de
                         Verificación
                     </div>
@@ -96,7 +120,7 @@ export default function Aplicacion() {
                 </header>
 
                 {/* Renderizado condicional de las vistas */}
-                <div className="flex-1 overflow-y-auto">
+                <div className="min-w-0 flex-1 overflow-y-auto">
                     {vistaActiva === 'asignaturas' && <AsignaturasAmbientes />}
                     {vistaActiva === 'estudiantes' && <RegistroEstudiantes />}
                 </div>

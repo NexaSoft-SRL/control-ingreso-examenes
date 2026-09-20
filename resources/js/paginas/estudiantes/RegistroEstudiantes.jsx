@@ -107,56 +107,47 @@ export default function RegistroEstudiantes() {
     };
 
     return (
-        <div className="p-8">
+        <div className="min-w-0 p-4 sm:p-8">
             {/* Cabecera Padrón */}
-            <div className="flex justify-between items-center mb-6">
+            <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800">Padrón</h1>
                     <p className="text-sm text-gray-500">Gestión del padrón estudiantil</p>
                 </div>
                 <button
                     onClick={abrirNuevoEstudiante}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition flex items-center gap-2"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 sm:w-auto sm:text-base"
                 >
                     + Nuevo estudiante
                 </button>
             </div>
 
             {/* Caja de Carga CSV (Mockup) */}
-            <div className="bg-white border-2 border-dashed border-blue-200 rounded-xl p-6 mb-6 flex justify-between items-center shadow-sm">
-                <div className="flex items-center gap-4">
-                    <div className="bg-blue-50 p-3 rounded-lg text-blue-600">
-                        <svg
-                            className="w-6 h-6"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                            />
+            {/* Caja de Carga CSV (Mockup) */}
+            <div className="mb-6 flex flex-col items-stretch justify-between gap-4 rounded-xl border-2 border-dashed border-blue-200 bg-white p-4 shadow-sm sm:p-6">
+                <div className="flex min-w-0 items-start gap-4">
+                    <div className="bg-blue-50 p-3 rounded-lg text-blue-600 shrink-0">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                         </svg>
                     </div>
-                    <div>
-                        <p className="text-sm font-medium text-gray-700">
+                    <div className="min-w-0">
+                        <p className="wrap-break-word text-sm font-medium text-gray-700">
                             Arrastrá tu archivo CSV o hacé clic para subir
                         </p>
-                        <p className="text-xs text-gray-400">
+                        <p className="mt-1 wrap-break-word text-xs leading-5 text-gray-400">
                             Formato delimitado por comas con codificación UTF-8
                         </p>
                     </div>
                 </div>
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium">
+                <button className="w-full rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 sm:w-auto">
                     Cargar
                 </button>
             </div>
-
+                
             {/* Alerta de errores de carga (Mockup) */}
-            <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6 rounded-r-lg flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-2 text-amber-800 text-sm font-medium">
+            <div className="mb-6 flex items-start rounded-r-lg border-l-4 border-amber-400 bg-amber-50 p-4 shadow-sm">
+                <div className="flex items-start gap-3 text-sm font-medium text-amber-800">
                     <span>⚠️</span>
                     <span>
                         3 registros no se pudieron cargar{' '}
@@ -265,25 +256,26 @@ export default function RegistroEstudiantes() {
             )}
 
             {/* Tabla Estilo Mockup */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <table className="w-full text-left border-collapse">
+            <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+                <div className="overflow-x-auto">
+                    <table className="w-full min-w-225 border-collapse text-left">
                     <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100">
                         <tr>
-                            <th className="p-4 font-semibold">Código</th>
-                            <th className="p-4 font-semibold">C.I.</th>
-                            <th className="p-4 font-semibold">Nombre</th>
-                            <th className="p-4 font-semibold">Carrera</th>
-                            <th className="p-4 font-semibold">Estado</th>
-                            <th className="p-4 font-semibold text-right">Acciones</th>
+                            <th className="w-36 whitespace-nowrap p-4 font-semibold">Código</th>
+                            <th className="w-40 whitespace-nowrap p-4 font-semibold">C.I.</th>
+                            <th className="min-w-64 p-4 font-semibold">Nombre</th>
+                            <th className="min-w-64 p-4 font-semibold">Carrera</th>
+                            <th className="min-w-32 p-4 font-semibold">Estado</th>
+                            <th className="min-w-32 p-4 text-right font-semibold">Acciones</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-sm text-gray-600">
                         {estudiantes.map((est, index) => (
                             <tr key={est.id} className="hover:bg-gray-50 transition">
-                                <td className="p-4 font-medium text-gray-700">{est.codigo}</td>
-                                <td className="p-4">{est.ci}</td>
-                                <td className="p-4 font-medium text-gray-900">{est.nombre}</td>
-                                <td className="p-4">{est.carrera}</td>
+                                <td className="whitespace-nowrap p-4 font-medium text-gray-700">{est.codigo}</td>
+                                <td className="whitespace-nowrap p-4">{est.ci}</td>
+                                <td className="min-w-64 p-4 font-medium text-gray-900">{est.nombre}</td>
+                                <td className="min-w-64 p-4">{est.carrera}</td>
                                 <td className="p-4">
                                     <span
                                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
@@ -317,7 +309,8 @@ export default function RegistroEstudiantes() {
                             </tr>
                         ))}
                     </tbody>
-                </table>
+                    </table>
+                </div>
                 <div className="p-4 bg-gray-50 text-xs text-gray-400 border-t border-gray-100">
                     Mostrando {estudiantes.length} de 145 estudiantes
                 </div>
