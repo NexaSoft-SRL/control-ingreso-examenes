@@ -3,7 +3,6 @@
 use Illuminate\Support\Facades\Route;
 
 require __DIR__.'/auth.php';
-require __DIR__.'/asignaturas.php';
 require __DIR__.'/students.php';
 /*
  * El cliente es una aplicacion de pagina unica: cualquier direccion que no sea

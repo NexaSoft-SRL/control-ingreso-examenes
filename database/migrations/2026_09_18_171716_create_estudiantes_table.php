@@ -10,37 +10,33 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('estudiantes', function (Blueprint $table) {
-            $table->id();
+    $table->id();
+    $table->foreignId('carrera_id')
+        ->constrained('carreras')
+        ->restrictOnDelete()
+        ->cascadeOnUpdate();
+    $table->string('codigo_sis', 30)->unique();
+    $table->string('ci', 30)->unique();
+    $table->string('nombres', 100);
+    $table->string('apellidos', 100);
+    $table->string('correo', 150)->nullable()->unique();
+    $table->string('telefono', 30)->nullable();
+    $table->string('estado', 20)->default('ACTIVO');
+    $table->timestamps();
 
-            $table->foreignId('carrera_id')
-                ->constrained('carreras')
-                ->restrictOnDelete()
-                ->cascadeOnUpdate();
+    $table->index('codigo_sis');
+    $table->index('ci');
+    $table->index('estado');
+    $table->index(['nombres', 'apellidos']);
+});
 
-            $table->string('codigo_sis', 30)->unique();
-            $table->string('ci', 30)->unique();
-            $table->string('nombres', 100);
-            $table->string('apellidos', 100);
-            $table->string('correo', 150)->nullable()->unique();
-            $table->string('telefono', 30)->nullable();
-            $table->string('estado', 20)->default('ACTIVO');
-
-            $table->timestamps();
-
-            $table->index('codigo_sis');
-            $table->index('ci');
-            $table->index('estado');
-            $table->index(['nombres', 'apellidos']);
-        });
-
-        if (DB::connection()->getDriverName() === 'pgsql') {
-            DB::statement(
-                "ALTER TABLE estudiantes
-                 ADD CONSTRAINT estudiantes_estado_valid
-                 CHECK (estado IN ('ACTIVO', 'INACTIVO'))"
-            );
-        }
-    }
+if (DB::connection()->getDriverName() === 'pgsql') {
+    DB::statement(
+        "ALTER TABLE estudiantes
+         ADD CONSTRAINT estudiantes_estado_valid
+         CHECK (estado IN ('ACTIVO', 'INACTIVO'))"
+    );
+}
 
     public function down(): void
     {
