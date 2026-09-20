@@ -1,17 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
 use App\Modules\Administracion\Application\Contracts\AuthenticationSecurityGateway;
-<<<<<<< HEAD
+use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Application\Contracts\StudentRepository;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentAuthenticationSecurityGateway;
-use App\Modules\Administracion\Infrastructure\Persistence\EloquentStudentRepository;
-=======
-use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
-use App\Modules\Administracion\Infrastructure\Persistence\EloquentAuthenticationSecurityGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentBitacoraGateway;
->>>>>>> develop
+use App\Modules\Administracion\Infrastructure\Persistence\EloquentStudentRepository;
 use App\Modules\Examenes\Application\Contracts\AsignaturaGateway;
 use App\Modules\Examenes\Application\Contracts\DocenteGateway;
 use App\Modules\Examenes\Infrastructure\Persistence\EloquentAsignaturaGateway;
@@ -25,24 +23,21 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-       
         $this->app->bind(
             AuthenticationSecurityGateway::class,
             EloquentAuthenticationSecurityGateway::class,
         );
 
         $this->app->bind(
-<<<<<<< HEAD
-            StudentRepository::class,
-            EloquentStudentRepository::class,
-        );
-        
-=======
             BitacoraGateway::class,
             EloquentBitacoraGateway::class,
         );
 
->>>>>>> develop
+        $this->app->bind(
+            StudentRepository::class,
+            EloquentStudentRepository::class,
+        );
+
         $this->app->bind(
             AsignaturaGateway::class,
             EloquentAsignaturaGateway::class,
@@ -62,3 +57,4 @@ class AppServiceProvider extends ServiceProvider
         //
     }
 }
+
