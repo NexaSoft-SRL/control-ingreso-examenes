@@ -14,6 +14,7 @@ use App\Modules\Examenes\Domain\Models\GrupoAsignatura;
 use App\Modules\Examenes\Http\Requests\RegistrarAsignaturaRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use LogicException;
 
 final class AsignaturaController
@@ -38,7 +39,8 @@ final class AsignaturaController
         RegistrarAsignatura $registrarAsignatura,
     ): JsonResponse {
         $asignatura = $registrarAsignatura->execute(
-            $request->toData()
+            $request->toData(),
+            $this->authenticatedUserId(),
         );
 
         return response()->json([
@@ -52,7 +54,8 @@ final class AsignaturaController
     ): JsonResponse|Response {
         try {
             $eliminada = $eliminarAsignatura->execute(
-                $asignatura
+                $asignatura,
+                $this->authenticatedUserId(),
             );
         } catch (AsignaturaTieneDependenciasException) {
             return response()->json([
@@ -112,5 +115,18 @@ final class AsignaturaController
             'estado' => $asignatura->estado,
             'grupos' => $grupos,
         ];
+    }
+
+    private function authenticatedUserId(): int
+    {
+        $userId = Auth::id();
+
+        if (! is_int($userId)) {
+            throw new LogicException(
+                'No existe un usuario autenticado con identificador válido.'
+            );
+        }
+
+        return $userId;
     }
 }

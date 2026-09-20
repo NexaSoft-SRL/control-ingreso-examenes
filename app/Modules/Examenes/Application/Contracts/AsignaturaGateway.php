@@ -11,6 +11,7 @@ interface AsignaturaGateway
 {
     public function registrar(
         RegistrarAsignaturaData $data,
+        int $usuarioId,
     ): Asignatura;
 
     /**
@@ -18,5 +19,8 @@ interface AsignaturaGateway
      */
     public function listar(): array;
 
-    public function eliminar(int $asignaturaId): bool;
+    public function eliminar(
+        int $asignaturaId,
+        int $usuarioId,
+    ): bool;
 }

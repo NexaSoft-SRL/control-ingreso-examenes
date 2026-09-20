@@ -8,6 +8,7 @@ use App\Modules\Examenes\Application\Contracts\AsignaturaGateway;
 use App\Modules\Examenes\Application\DTOs\GrupoAsignaturaData;
 use App\Modules\Examenes\Application\DTOs\RegistrarAsignaturaData;
 use App\Modules\Examenes\Domain\Models\Docente;
+use Database\Factories\UserFactory;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -18,6 +19,16 @@ final class AsignaturaGatewayTransactionTest extends TestCase
 
     public function test_registration_rolls_back_everything_when_one_group_cannot_be_persisted(): void
     {
+        $user = UserFactory::new()->createOne();
+
+        $userId = $user->getKey();
+
+        if (! is_int($userId)) {
+            $this->fail(
+                'El identificador PostgreSQL del usuario debía ser un entero.'
+            );
+        }
+
         $docente = Docente::query()->create([
             'codigo_docente' => 'DOC-ROLLBACK-001',
             'nombres' => 'Ana',
@@ -56,7 +67,10 @@ final class AsignaturaGatewayTransactionTest extends TestCase
         );
 
         try {
-            $gateway->registrar($data);
+            $gateway->registrar(
+                $data,
+                $userId,
+            );
 
             $this->fail(
                 'PostgreSQL debía rechazar el segundo grupo por su docente inexistente.'
@@ -69,9 +83,20 @@ final class AsignaturaGatewayTransactionTest extends TestCase
             'codigo' => 'INF-ROLLBACK',
         ]);
 
-        $this->assertDatabaseCount('asignaturas', 0);
+        $this->assertDatabaseCount(
+            'asignaturas',
+            0
+        );
 
-        $this->assertDatabaseCount('grupos_asignatura', 0);
+        $this->assertDatabaseCount(
+            'grupos_asignatura',
+            0
+        );
+
+        $this->assertDatabaseCount(
+            'bitacora_operaciones',
+            0
+        );
 
         $this->assertDatabaseHas('docentes', [
             'id' => $docenteId,
