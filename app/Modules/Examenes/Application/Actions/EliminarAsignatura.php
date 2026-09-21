@@ -12,8 +12,13 @@ final readonly class EliminarAsignatura
         private AsignaturaGateway $gateway,
     ) {}
 
-    public function execute(int $asignaturaId): bool
-    {
-        return $this->gateway->eliminar($asignaturaId);
+    public function execute(
+        int $asignaturaId,
+        int $usuarioId,
+    ): bool {
+        return $this->gateway->eliminar(
+            $asignaturaId,
+            $usuarioId,
+        );
     }
 }
