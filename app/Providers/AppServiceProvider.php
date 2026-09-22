@@ -6,8 +6,10 @@ namespace App\Providers;
 
 use App\Modules\Administracion\Application\Contracts\AuthenticationSecurityGateway;
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
+use App\Modules\Administracion\Application\Contracts\ConsultaBitacoraGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentAuthenticationSecurityGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentBitacoraGateway;
+use App\Modules\Administracion\Infrastructure\Persistence\EloquentConsultaBitacoraGateway;
 use App\Modules\Examenes\Application\Contracts\AsignaturaGateway;
 use App\Modules\Examenes\Application\Contracts\DocenteGateway;
 use App\Modules\Examenes\Infrastructure\Persistence\EloquentAsignaturaGateway;
@@ -29,6 +31,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             BitacoraGateway::class,
             EloquentBitacoraGateway::class,
+        );
+
+        $this->app->bind(
+            ConsultaBitacoraGateway::class,
+            EloquentConsultaBitacoraGateway::class,
         );
 
         $this->app->bind(
