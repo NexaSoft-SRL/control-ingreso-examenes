@@ -5,7 +5,10 @@ import UsuariosRoles from '../paginas/admin/UsuariosRoles.jsx';
 import AsignaturasAmbientes from '../paginas/admin/AsignaturasAmbientes.jsx';
 import Bitacora from '../paginas/admin/Bitacora.jsx';
 import CargaMasiva from '../paginas/estudiantes/CargaMasiva.jsx';
+import RegistroEstudiantes from '../paginas/estudiantes/RegistroEstudiantes.jsx';
 import Login from '../paginas/auth/Login.jsx';
+import LayoutAdmin from './LayoutAdmin.jsx';
+import PestanasPadron from './PestanasPadron.jsx';
 import { guardarSesion, limpiarSesion, obtenerSesion } from './sesion.js';
 
 /**
@@ -17,6 +20,7 @@ const rutaPorClave = {
     asignaturas: '/admin/asignaturas',
     bitacora: '/admin/bitacora',
     padron: '/admin/padron',
+    cargaMasiva: '/admin/padron/carga-masiva',
     login: '/login',
 };
 
@@ -108,6 +112,17 @@ function PaginaBitacora() {
 }
 
 function PaginaPadron() {
+    const navegar = useNavegacionPorClave();
+
+    return (
+        <LayoutAdmin seleccionado="padron" onNavigate={navegar}>
+            <PestanasPadron activa="padron" onNavigate={navegar} />
+            <RegistroEstudiantes />
+        </LayoutAdmin>
+    );
+}
+
+function PaginaCargaMasiva() {
     return <CargaMasiva onNavigate={useNavegacionPorClave()} />;
 }
 
@@ -164,6 +179,14 @@ export default function Aplicacion() {
                     element={
                         <RutaProtegida>
                             <PaginaPadron />
+                        </RutaProtegida>
+                    }
+                />
+                <Route
+                    path="/admin/padron/carga-masiva"
+                    element={
+                        <RutaProtegida>
+                            <PaginaCargaMasiva />
                         </RutaProtegida>
                     }
                 />

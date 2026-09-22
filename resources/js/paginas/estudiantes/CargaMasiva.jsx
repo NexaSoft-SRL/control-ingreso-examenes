@@ -15,6 +15,7 @@ import {
     UserCog,
     Users,
 } from 'lucide-react';
+import PestanasPadron from '../../componentes/PestanasPadron.jsx';
 
 /**
  * Carga masiva de estudiantes (HU-04), lado Frontend. Solo frontend: no hay
@@ -296,6 +297,8 @@ function CargaMasiva({ onNavigate }) {
                         </div>
                     </div>
                 </header>
+
+                <PestanasPadron activa="cargaMasiva" onNavigate={navegar} />
 
                 <section className="p-4 md:p-6 lg:p-8">
                     <h1 className="text-2xl font-bold text-slate-900">Padrón</h1>
