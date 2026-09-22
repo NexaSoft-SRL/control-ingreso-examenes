@@ -4,6 +4,7 @@ import {
     DatabaseBackup,
     History,
     LayoutGrid,
+    LogOut,
     Menu,
     MonitorCheck,
     QrCode,
@@ -176,8 +177,20 @@ function UsuariosRoles({ onNavigate }) {
                         </div>
                     </div>
 
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white">
-                        <User className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+                            onClick={() => navegar('salir')}
+                            aria-label="Cerrar sesión"
+                        >
+                            <LogOut className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                            <span className="hidden sm:inline">Cerrar sesión</span>
+                        </button>
+
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white">
+                            <User className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                        </div>
                     </div>
                 </header>
 
