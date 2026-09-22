@@ -1,132 +1,198 @@
-import React, { useState } from 'react';
-import AsignaturasAmbientes from '../paginas/admin/AsignaturasAmbientes';
-import RegistroEstudiantes from '../paginas/estudiantes/RegistroEstudiantes';
+import React from 'react';
+import PropTypes from 'prop-types';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import UsuariosRoles from '../paginas/admin/UsuariosRoles.jsx';
+import AsignaturasAmbientes from '../paginas/admin/AsignaturasAmbientes.jsx';
+import Bitacora from '../paginas/admin/Bitacora.jsx';
+import CargaMasiva from '../paginas/estudiantes/CargaMasiva.jsx';
+import RegistroEstudiantes from '../paginas/estudiantes/RegistroEstudiantes.jsx';
+import Login from '../paginas/auth/Login.jsx';
+import LayoutAdmin from './LayoutAdmin.jsx';
+import PestanasPadron from './PestanasPadron.jsx';
+import { guardarSesion, limpiarSesion, obtenerSesion } from './sesion.js';
 
-export default function Aplicacion() {
-    // Estado para controlar qué vista se muestra ('asignaturas' o 'estudiantes')
-    const [vistaActiva, setVistaActiva] = useState('asignaturas');
+/**
+ * Rutas reales por URL. Las de /admin exigen haber iniciado sesion; si la
+ * API responde 401 en cualquier pantalla, se vuelve al login.
+ */
+const rutaPorClave = {
+    usuarios: '/admin/usuarios',
+    asignaturas: '/admin/asignaturas',
+    bitacora: '/admin/bitacora',
+    padron: '/admin/padron',
+    cargaMasiva: '/admin/padron/carga-masiva',
+    login: '/login',
+};
+
+const rutaInicial = '/admin/usuarios';
+
+function useNavegacionPorClave() {
+    const navigate = useNavigate();
+
+    return async (clave) => {
+        if (clave === 'salir') {
+            try {
+                await window.axios.post('/api/auth/logout');
+            } catch {
+                // Aunque falle la llamada, en este navegador la sesion se cierra igual.
+            }
+
+            limpiarSesion();
+            navigate('/login', { replace: true });
+            return;
+        }
+
+        if (clave === 'login') {
+            limpiarSesion();
+        }
+
+        const ruta = rutaPorClave[clave];
+
+        if (ruta) {
+            navigate(ruta);
+        }
+    };
+}
+
+function ManejadorSesionExpirada() {
+    const navigate = useNavigate();
+
+    React.useEffect(() => {
+        const interceptores = window.axios?.interceptors?.response;
+
+        if (!interceptores) {
+            return undefined;
+        }
+
+        const id = interceptores.use(
+            (respuesta) => respuesta,
+            (error) => {
+                const estado = error.response?.status;
+                const url = error.config?.url ?? '';
+
+                if ((estado === 401 || estado === 419) && !url.includes('/api/auth/')) {
+                    limpiarSesion();
+                    navigate('/login', { replace: true });
+                }
+
+                return Promise.reject(error);
+            }
+        );
+
+        return () => interceptores.eject(id);
+    }, [navigate]);
+
+    return null;
+}
+
+function RutaProtegida({ children }) {
+    const ubicacion = useLocation();
+
+    if (!obtenerSesion()) {
+        return <Navigate to="/login" replace state={{ desde: ubicacion.pathname }} />;
+    }
+
+    return children;
+}
+
+RutaProtegida.propTypes = {
+    children: PropTypes.node.isRequired,
+};
+
+function PaginaUsuarios() {
+    return <UsuariosRoles onNavigate={useNavegacionPorClave()} />;
+}
+
+function PaginaAsignaturas() {
+    return <AsignaturasAmbientes onNavigate={useNavegacionPorClave()} />;
+}
+
+function PaginaBitacora() {
+    return <Bitacora onNavigate={useNavegacionPorClave()} />;
+}
+
+function PaginaPadron() {
+    const navegar = useNavegacionPorClave();
 
     return (
-        <div className="flex min-h-screen min-w-0 flex-col bg-gray-50 font-sans text-gray-900 md:flex-row">
-            {/* 1. MENÚ LATERAL FIJO */}
-            <aside className="hidden w-64 shrink-0 flex-col border-r border-gray-200 bg-white md:flex">
-                <div className="h-16 flex items-center gap-3 px-6 border-b border-gray-200">
-                    <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                        ✓
-                    </div>
-                    <div>
-                        <div className="text-xs font-bold text-gray-800">UMSS FCyT</div>
-                        <div className="text-[9px] tracking-wider text-gray-400 font-semibold">
-                            CONTROL DE INGRESO
-                        </div>
-                    </div>
-                </div>
+        <LayoutAdmin seleccionado="padron" onNavigate={navegar}>
+            <PestanasPadron activa="padron" onNavigate={navegar} />
+            <RegistroEstudiantes />
+        </LayoutAdmin>
+    );
+}
 
-                <div className="p-4 flex-1">
-                    <div className="text-[10px] font-bold text-gray-400 tracking-wider px-3 mb-2">
-                        ADMINISTRADOR
-                    </div>
+function PaginaCargaMasiva() {
+    return <CargaMasiva onNavigate={useNavegacionPorClave()} />;
+}
 
-                    {/* Botón Padrón */}
-                    <button
-                        onClick={() => setVistaActiva('estudiantes')}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition ${
-                            vistaActiva === 'estudiantes'
-                                ? 'bg-blue-600 text-white shadow-sm'
-                                : 'text-gray-600 hover:bg-gray-100'
-                        }`}
-                    >
-                        <span>♙</span> Padrón
-                    </button>
+function PaginaLogin() {
+    const navigate = useNavigate();
+    const ubicacion = useLocation();
 
-                    {/* Botón Asignaturas y ambientes */}
-                    <button
-                        onClick={() => setVistaActiva('asignaturas')}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition mt-1 ${
-                            vistaActiva === 'asignaturas'
-                                ? 'bg-blue-600 text-white shadow-sm'
-                                : 'text-gray-600 hover:bg-gray-100'
-                        }`}
-                    >
-                        <span>▤</span> Asignaturas y ambientes
-                    </button>
+    if (obtenerSesion()) {
+        return <Navigate to={rutaInicial} replace />;
+    }
 
-                    {/* Resto de opciones con su funcionalidad original */}
-                    <button
-                        onClick={() => alert('Códigos QR: próximamente')}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 transition mt-1"
-                    >
-                        <span>#</span> Códigos QR
-                    </button>
+    return (
+        <Login
+            onAutenticado={(usuario) => {
+                guardarSesion(usuario);
+                navigate(ubicacion.state?.desde ?? rutaInicial, { replace: true });
+            }}
+        />
+    );
+}
 
-                    <button
-                        onClick={() => alert('Usuarios y roles: próximamente')}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 transition mt-1"
-                    >
-                        <span>👤</span> Usuarios y roles
-                    </button>
-
-                    <button
-                        onClick={() => alert('Bitácora: próximamente')}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 transition mt-1"
-                    >
-                        <span>📋</span> Bitácora
-                    </button>
-
-                    <button
-                        onClick={() => alert('Respaldo: próximamente')}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 transition mt-1"
-                    >
-                        <span>🔄</span> Respaldo
-                    </button>
-                </div>
-            </aside>
-
-            {/* 2. CONTENIDO DINÁMICO DE LA DERECHA */}
-            <main className="flex-1 flex flex-col min-w-0">
-                {/* Cabecera superior común */}
-                <nav className="flex items-center justify-start gap-3 border-b border-gray-200 bg-white px-4 py-3 md:hidden">
-                    <span className="text-xs font-semibold text-gray-500">Sección</span>
-                    <select
-                        value={vistaActiva}
-                        onChange={(e) => {
-                            const opcion = e.target.value;
-                            if (opcion === 'estudiantes' || opcion === 'asignaturas') {
-                                setVistaActiva(opcion);
-                            } else {
-                                alert(
-                                    `${e.target.options[e.target.selectedIndex].text}: próximamente`
-                                );
-                            }
-                        }}
-                        className="max-w-[75%] rounded-lg border border-blue-200 bg-white px-3 py-2 text-right text-xs font-medium text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                        aria-label="Seleccionar sección"
-                    >
-                        <option value="estudiantes">Padrón</option>
-                        <option value="asignaturas">Asignaturas y ambientes</option>
-                        <option value="qr">Códigos QR</option>
-                        <option value="usuarios">Usuarios y roles</option>
-                        <option value="bitacora">Bitácora</option>
-                        <option value="respaldo">Respaldo</option>
-                    </select>
-                </nav>
-
-                <header className="flex min-h-16 items-center justify-between border-b border-gray-200 bg-white px-4 py-3 sm:px-8">
-                    <div className="flex min-w-0 items-center gap-2 text-xs font-medium text-gray-700">
-                        <span className="text-blue-600 text-lg">◇</span> Sistema Institucional de
-                        Verificación
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">
-                        ●
-                    </div>
-                </header>
-
-                {/* Renderizado condicional de las vistas */}
-                <div className="min-w-0 flex-1 overflow-y-auto">
-                    {vistaActiva === 'asignaturas' && <AsignaturasAmbientes />}
-                    {vistaActiva === 'estudiantes' && <RegistroEstudiantes />}
-                </div>
-            </main>
-        </div>
+export default function Aplicacion() {
+    return (
+        <BrowserRouter>
+            <ManejadorSesionExpirada />
+            <Routes>
+                <Route path="/login" element={<PaginaLogin />} />
+                <Route
+                    path="/admin/usuarios"
+                    element={
+                        <RutaProtegida>
+                            <PaginaUsuarios />
+                        </RutaProtegida>
+                    }
+                />
+                <Route
+                    path="/admin/asignaturas"
+                    element={
+                        <RutaProtegida>
+                            <PaginaAsignaturas />
+                        </RutaProtegida>
+                    }
+                />
+                <Route
+                    path="/admin/bitacora"
+                    element={
+                        <RutaProtegida>
+                            <PaginaBitacora />
+                        </RutaProtegida>
+                    }
+                />
+                <Route
+                    path="/admin/padron"
+                    element={
+                        <RutaProtegida>
+                            <PaginaPadron />
+                        </RutaProtegida>
+                    }
+                />
+                <Route
+                    path="/admin/padron/carga-masiva"
+                    element={
+                        <RutaProtegida>
+                            <PaginaCargaMasiva />
+                        </RutaProtegida>
+                    }
+                />
+                <Route path="/" element={<Navigate to={rutaInicial} replace />} />
+                <Route path="*" element={<Navigate to={rutaInicial} replace />} />
+            </Routes>
+        </BrowserRouter>
     );
 }
