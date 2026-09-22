@@ -70,10 +70,29 @@ const ambientesIniciales = [
 function AsignaturasAmbientes({ onNavigate }) {
     const [menuAbierto, setMenuAbierto] = React.useState(false);
 
-    const [asignaturas, setAsignaturas] = React.useState(asignaturasIniciales);
+    const [asignaturas, setAsignaturas] = React.useState([]);
 
     const [ambientes, setAmbientes] = React.useState(ambientesIniciales);
 
+    React.useEffect(() => {
+    cargarAsignaturas();
+}, []);
+
+async function cargarAsignaturas() {
+    try {
+        const respuesta = await window.axios.get('/api/asignaturas');
+
+        setAsignaturas(
+            respuesta.data.map((asignatura) => ({
+                materia: asignatura.nombre,
+                docente: asignatura.docente,
+            }))
+        );
+
+    } catch (error) {
+        console.error('Error cargando asignaturas:', error);
+    }
+}
     /* =========================
        ESTADO ASIGNATURAS
     ========================== */

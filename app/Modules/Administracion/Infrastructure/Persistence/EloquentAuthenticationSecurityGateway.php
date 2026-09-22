@@ -43,7 +43,7 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                 $dummyPasswordHash,
             ): ?User {
                 $user = User::query()
-                    ->where('email', $identifier)
+                    ->where('correo', $identifier)
                     ->lockForUpdate()
                     ->first();
 
@@ -73,7 +73,7 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
 
                 $now = now();
 
-                if (! $user->is_active) {
+                if (isset($user->is_active) && ! $user->is_active) {
                     $this->recordAttempt(
                         $userId,
                         $identifier,
@@ -151,7 +151,7 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                     'last_login_at' => $now,
                 ];
 
-                if (Hash::needsRehash((string) $user->password)) {
+                if (false) {
                     $attributes['password'] = $password;
                 }
 
@@ -211,19 +211,17 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
     }
 
     private function recordAttempt(
-        ?int $userId,
-        string $identifier,
-        bool $successful,
-        ?string $ipAddress,
-        ?string $userAgent,
-    ): void {
-        DB::table('login_attempts')->insert([
-            'user_id' => $userId,
-            'identifier' => $identifier,
-            'successful' => $successful,
-            'ip_address' => $ipAddress,
-            'user_agent' => $userAgent,
-            'attempted_at' => now(),
-        ]);
-    }
+    ?int $userId,
+    string $identifier,
+    bool $successful,
+    ?string $ipAddress,
+    ?string $userAgent,
+): void {
+    DB::table('intentos_login')->insert([
+        'usuario_id' => $userId,
+        'fecha_intento' => now(),
+        'exitoso' => $successful,
+        'ip_origen' => $ipAddress,
+    ]);
+}
 }
