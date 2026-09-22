@@ -25,8 +25,8 @@ import PestanasPadron from '../../componentes/PestanasPadron.jsx';
  * mismo flujo (elegir archivo -> parsear -> mostrar resultado) se reutiliza,
  * solo cambia de donde sale la validacion.
  *
- * HU-03 (registro individual de estudiantes, el resto del "Padron") no es
- * parte de esta tarea y no esta implementado aca.
+ * El registro individual de estudiantes (HU-03) es otra pantalla, en la
+ * pestana vecina del Padron.
  *
  * Plantilla esperada, en este orden de columnas:
  * codigo_universitario, documento_identidad, nombres, apellidos, carrera
@@ -403,8 +403,7 @@ function CargaMasiva({ onNavigate }) {
 
                     <p className="mt-6 text-xs text-slate-400">
                         Esta pantalla valida el archivo en el navegador, contra un padrón de
-                        ejemplo: todavía no hay un backend real para HU-04. El registro individual
-                        de estudiantes (HU-03) es una pantalla aparte, sin construir todavía.
+                        ejemplo: todavía no hay un backend real para HU-04.
                     </p>
                 </section>
             </main>
