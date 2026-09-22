@@ -3,28 +3,46 @@
 namespace App\Modules\Administracion\Infrastructure\Persistence;
 
 use App\Modules\Administracion\Application\Contracts\StudentRepository;
-use App\Modules\Administracion\Infrastructure\Persistence\EloquentStudent;
+use App\Modules\Administracion\Domain\Models\Student;
+use App\Modules\Administracion\Domain\Models\EloquentStudent;
 
 class EloquentStudentRepository implements StudentRepository
 {
-    public function create(array $data): EloquentStudent
+    public function create(array $data): Student
     {
-        return EloquentStudent::create($data);
+        $eloquent = EloquentStudent::create($data);
+        return $this->toDomain($eloquent);
     }
 
-    public function all()
+    public function all(): array
     {
-        return EloquentStudent::all();
+        return EloquentStudent::all()
+            ->map(fn ($eloquent) => $this->toDomain($eloquent))
+            ->toArray();
     }
 
-    public function update(EloquentStudent $student, array $data): EloquentStudent
+    public function update(Student $student, array $data): Student
     {
-        $student->update($data);
-        return $student;
+        $eloquent = EloquentStudent::findOrFail($student->id);
+        $eloquent->update($data);
+        return $this->toDomain($eloquent);
     }
 
-    public function delete(EloquentStudent $student): void
+    public function delete(Student $student): void
     {
-        $student->delete();
+        $eloquent = EloquentStudent::findOrFail($student->id);
+        $eloquent->delete();
+    }
+
+    private function toDomain(EloquentStudent $eloquent): Student
+    {
+        return new Student(
+            id: $eloquent->id,
+            nombre: $eloquent->nombre,
+            apellido: $eloquent->apellido,
+            ci: $eloquent->ci,
+            correo: $eloquent->correo,
+            activo: $eloquent->activo,
+        );
     }
 }

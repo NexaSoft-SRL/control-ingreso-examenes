@@ -7,7 +7,8 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 
 class StudentFactory extends Factory
 {
-    protected $model = EloquentStudent::class;
+    
+protected $model = \App\Modules\Administracion\Domain\Models\EloquentStudent::class;
 
     public function definition()
     {

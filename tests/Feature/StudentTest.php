@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Modules\Administracion\Domain\Models\EloquentStudent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use App\Modules\Administracion\Infrastructure\Persistence\EloquentStudent;
 
 class StudentTest extends TestCase
 {

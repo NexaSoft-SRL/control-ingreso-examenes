@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Modules\Administracion\Infrastructure\Persistence;
+namespace App\Modules\Administracion\Domain\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,7 +20,6 @@ class EloquentStudent extends Model
         'activo',
     ];
 
-    
     protected static function newFactory()
     {
         return StudentFactory::new();

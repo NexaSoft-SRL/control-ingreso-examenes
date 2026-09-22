@@ -9,9 +9,8 @@ use App\Modules\Administracion\Application\Actions\DeleteStudent;
 use App\Modules\Administracion\Domain\Models\Student;
 use App\Modules\Administracion\Http\Requests\StoreStudentRequest;
 use App\Modules\Administracion\Http\Requests\UpdateStudentRequest;
-use App\Modules\Administracion\Infrastructure\Persistence\EloquentStudent;
 
-class StudentController 
+class StudentController
 {
     public function index(ListStudents $action)
     {
@@ -23,14 +22,39 @@ class StudentController
         return response()->json($action->execute($request->validated()), 201);
     }
 
-    public function update(UpdateStudentRequest $request, EloquentStudent $student, UpdateStudent $action)
-{
-    return response()->json($action->execute($student, $request->validated()));
-}
+    public function update(UpdateStudentRequest $request, int $id, UpdateStudent $action)
+    {
+        $validated = $request->validated();
 
- public function destroy(EloquentStudent $student, DeleteStudent $action)
-{
-    $action->execute($student);
-    return response()->json(null, 204);
-}
+        
+        $domainStudent = new Student(
+            id: $id,
+            nombre: $validated['nombre'],
+            apellido: $validated['apellido'],
+            ci: $validated['ci'],
+            correo: $validated['correo'],
+            activo: $validated['activo'],
+        );
+
+        return response()->json(
+            $action->execute($domainStudent, $validated)
+        );
+    }
+
+    public function destroy(int $id, DeleteStudent $action)
+    {
+         
+        $domainStudent = new Student(
+            id: $id,
+            nombre: '',
+            apellido: '',
+            ci: '',
+            correo: '',
+            activo: true,
+        );
+
+        $action->execute($domainStudent);
+
+        return response()->json(null, 204);
+    }
 }
