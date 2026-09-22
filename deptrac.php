@@ -63,6 +63,17 @@ return static function (DeptracConfig $config): void {
                             '#^Illuminate\Notifications\Notifiable$#'
                         )
                     ),
+
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Database\\Eloquent\\(?:Model|Relations\\(?:HasMany|BelongsTo))$#'
+                        )
+                    ),
             ),
 
             $laravelHttpSupport = Layer::withName(
@@ -87,6 +98,17 @@ return static function (DeptracConfig $config): void {
                     ->must(
                         ClassNameRegexConfig::create(
                             '#^Illuminate\\Foundation\\Http\\FormRequest$#'
+                        )
+                    ),
+
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Validation\\Rule$#'
                         )
                     ),
             ),
@@ -117,6 +139,17 @@ return static function (DeptracConfig $config): void {
                     ->must(
                         ClassNameRegexConfig::create(
                             '#^Illuminate\\Support\\Facades\\(?:DB|Hash)$#'
+                        )
+                    ),
+
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Database\\QueryException$#'
                         )
                     ),
             ),
