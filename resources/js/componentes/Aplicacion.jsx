@@ -15,6 +15,7 @@ const rutaPorClave = {
     asignaturas: '/admin/asignaturas',
     bitacora: '/admin/bitacora',
     padron: '/admin/padron',
+    login: '/login',
 };
 
 function useNavegacionPorClave() {

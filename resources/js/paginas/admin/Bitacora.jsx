@@ -14,145 +14,133 @@ import {
 } from 'lucide-react';
 
 /**
- * Bitacora (HU-07), lado Frontend. El backend de esta historia (Jofre) hoy
- * solo registra operaciones automaticamente; todavia no existe un endpoint
- * para listarlas ni filtrarlas (no hay BitacoraController ni ruta GET). Esto
- * es el esqueleto de la pantalla con datos de ejemplo, listo para cambiar la
- * fuente de datos por una llamada real en cuanto ese endpoint exista.
- *
- * El filtro por usuario y por rango de fechas ya funciona sobre estos datos
- * de ejemplo, para no tener que rehacer esa logica despues.
+ * Bitacora (HU-07), lado Frontend. Consume GET /api/bitacora (backend de
+ * Jofre), que filtra por usuario_id, fecha (un solo dia, Y-m-d) y operacion.
  */
-const eventosIniciales = [
-    {
-        fecha: '2026-11-18T10:14:00',
-        usuario: 'Dr. Rolando J. Torrico Mendoza',
-        accion: 'Generación de códigos QR',
-        entidad: 'Redes de Computadoras - Examen Final',
-    },
-    {
-        fecha: '2026-11-18T09:45:00',
-        usuario: 'Ing. Patricia Villarroel Siles',
-        accion: 'Habilitación de estudiante',
-        entidad: 'Estudiante 202104821 (Alvarado Claros)',
-    },
-    {
-        fecha: '2026-11-18T08:30:00',
-        usuario: 'Dr. Rolando J. Torrico Mendoza',
-        accion: 'Inicio de sesión',
-        entidad: 'Cuenta Administrador',
-    },
-    {
-        fecha: '2026-11-17T16:20:00',
-        usuario: 'Lic. Marco Antonio Arnez Claros',
-        accion: 'Registro de examen',
-        entidad: 'Base de Datos I - 2do Parcial',
-    },
-    {
-        fecha: '2026-11-17T14:15:00',
-        usuario: 'Dr. Rolando J. Torrico Mendoza',
-        accion: 'Carga masiva de padrón',
-        entidad: 'Archivo padron_2026_fcyt.csv (184 reg.)',
-    },
-    {
-        fecha: '2026-11-16T11:05:00',
-        usuario: 'Dr. Carlos Eduardo Vargas Rojas',
-        accion: 'Modificación de aula',
-        entidad: 'Laboratorio de Sistemas 1 (Mantenimiento)',
-    },
-    {
-        fecha: '2026-11-16T09:12:00',
-        usuario: 'Ing. Marcelo Guzmán Flores',
-        accion: 'Habilitación de estudiante',
-        entidad: 'Estudiante 201901349 (Camacho Zeballos)',
-    },
-    {
-        fecha: '2026-11-15T17:50:00',
-        usuario: 'Dr. Rolando J. Torrico Mendoza',
-        accion: 'Actualización de rol',
-        entidad: 'Lic. Valeria Bustamante Torrico (Personal de control)',
-    },
-    {
-        fecha: '2026-11-15T15:30:00',
-        usuario: 'Ing. Patricia Villarroel Siles',
-        accion: 'Inicio de sesión',
-        entidad: 'Cuenta Docente',
-    },
-    {
-        fecha: '2026-11-14T10:00:00',
-        usuario: 'Dr. Rolando J. Torrico Mendoza',
-        accion: 'Respaldo del sistema',
-        entidad: 'Backup_FCyT_20261114.sql',
-    },
-];
+const etiquetaOperacion = {
+    'asignatura.registrar': 'Registro de asignatura',
+    'asignatura.eliminar': 'Eliminación de asignatura',
+};
 
-const totalEventosDelServidor = 248;
+const etiquetaTabla = {
+    asignaturas: 'Asignatura',
+};
 
-function formatearFechaHora(isoFecha) {
-    const fecha = new Date(isoFecha);
-    const meses = [
-        'Ene',
-        'Feb',
-        'Mar',
-        'Abr',
-        'May',
-        'Jun',
-        'Jul',
-        'Ago',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dic',
-    ];
+const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-    const dia = String(fecha.getDate()).padStart(2, '0');
-    const mes = meses[fecha.getMonth()];
-    const horas = String(fecha.getHours()).padStart(2, '0');
-    const minutos = String(fecha.getMinutes()).padStart(2, '0');
+// Se parsea el texto tal cual llega para no correr la hora por la zona horaria del navegador.
+function formatearFechaHora(fecha) {
+    const partes = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(fecha ?? '');
 
-    return `${dia}/${mes}/${fecha.getFullYear()} ${horas}:${minutos}`;
+    if (!partes) {
+        return fecha ?? '';
+    }
+
+    const [, anio, mes, dia, horas, minutos] = partes;
+
+    return `${dia}/${meses[Number(mes) - 1]}/${anio} ${horas}:${minutos}`;
+}
+
+function describirEntidad(operacion) {
+    if (operacion.descripcion) {
+        return operacion.descripcion;
+    }
+
+    if (!operacion.tabla_afectada) {
+        return '—';
+    }
+
+    const tabla = etiquetaTabla[operacion.tabla_afectada] ?? operacion.tabla_afectada;
+
+    return operacion.registro_id === null ? tabla : `${tabla} #${operacion.registro_id}`;
 }
 
 function Bitacora({ onNavigate }) {
     const [menuAbierto, setMenuAbierto] = React.useState(false);
 
-    const usuarios = React.useMemo(
-        () => [...new Set(eventosIniciales.map((evento) => evento.usuario))],
-        []
+    const [operaciones, setOperaciones] = React.useState([]);
+    const [cargando, setCargando] = React.useState(true);
+    const [error, setError] = React.useState(null);
+    const [usuariosConocidos, setUsuariosConocidos] = React.useState([]);
+    const [operacionesConocidas, setOperacionesConocidas] = React.useState(
+        Object.keys(etiquetaOperacion)
     );
 
     const [usuarioFiltro, setUsuarioFiltro] = React.useState('');
-    const [desde, setDesde] = React.useState('');
-    const [hasta, setHasta] = React.useState('');
-    const [filtrosAplicados, setFiltrosAplicados] = React.useState({
-        usuario: '',
-        desde: '',
-        hasta: '',
-    });
+    const [fechaFiltro, setFechaFiltro] = React.useState('');
+    const [operacionFiltro, setOperacionFiltro] = React.useState('');
 
-    const eventosFiltrados = React.useMemo(() => {
-        return eventosIniciales.filter((evento) => {
-            if (filtrosAplicados.usuario && evento.usuario !== filtrosAplicados.usuario) {
-                return false;
+    const ultimaConsulta = React.useRef(0);
+
+    const consultar = React.useCallback(
+        async (filtros) => {
+            const numeroConsulta = ++ultimaConsulta.current;
+            const params = {};
+
+            if (filtros.usuario) params.usuario_id = filtros.usuario;
+            if (filtros.fecha) params.fecha = filtros.fecha;
+            if (filtros.operacion) params.operacion = filtros.operacion;
+
+            setCargando(true);
+            setError(null);
+
+            try {
+                const respuesta = await window.axios.get('/api/bitacora', { params });
+
+                if (numeroConsulta !== ultimaConsulta.current) {
+                    return;
+                }
+
+                const datos = respuesta.data.data;
+                setOperaciones(datos);
+
+                setUsuariosConocidos((anteriores) => {
+                    const porId = new Map(anteriores.map((usuario) => [usuario.id, usuario]));
+                    datos.forEach((operacion) => {
+                        if (operacion.usuario) {
+                            porId.set(operacion.usuario.id, operacion.usuario);
+                        }
+                    });
+                    return [...porId.values()].sort((a, b) => a.name.localeCompare(b.name));
+                });
+
+                setOperacionesConocidas((anteriores) => [
+                    ...new Set([...anteriores, ...datos.map((operacion) => operacion.operacion)]),
+                ]);
+            } catch (excepcion) {
+                if (numeroConsulta !== ultimaConsulta.current) {
+                    return;
+                }
+
+                const estado = excepcion.response?.status;
+
+                if (estado === 401 || estado === 419) {
+                    onNavigate?.('login');
+                    return;
+                }
+
+                setOperaciones([]);
+                setError(
+                    estado === 422
+                        ? 'Los filtros no son válidos. Revisa la fecha y vuelve a intentar.'
+                        : 'No se pudo cargar la bitácora. Intenta de nuevo.'
+                );
+            } finally {
+                if (numeroConsulta === ultimaConsulta.current) {
+                    setCargando(false);
+                }
             }
+        },
+        [onNavigate]
+    );
 
-            const fechaEvento = evento.fecha.slice(0, 10);
-
-            if (filtrosAplicados.desde && fechaEvento < filtrosAplicados.desde) {
-                return false;
-            }
-
-            if (filtrosAplicados.hasta && fechaEvento > filtrosAplicados.hasta) {
-                return false;
-            }
-
-            return true;
-        });
-    }, [filtrosAplicados]);
+    React.useEffect(() => {
+        consultar({});
+    }, [consultar]);
 
     function manejarFiltrar(evento) {
         evento.preventDefault();
-        setFiltrosAplicados({ usuario: usuarioFiltro, desde, hasta });
+        consultar({ usuario: usuarioFiltro, fecha: fechaFiltro, operacion: operacionFiltro });
     }
 
     function navegar(clave) {
@@ -180,9 +168,7 @@ function Bitacora({ onNavigate }) {
                     </div>
 
                     <div>
-                        <div className="text-sm leading-tight font-bold text-slate-800">
-                            UMSS FCyT
-                        </div>
+                        <div className="text-sm leading-tight font-bold text-slate-800">UMSS</div>
                         <div className="mt-0.5 text-[11px] tracking-wide text-slate-500">
                             CONTROL DE INGRESO
                         </div>
@@ -277,9 +263,9 @@ function Bitacora({ onNavigate }) {
                                 onChange={(e) => setUsuarioFiltro(e.target.value)}
                             >
                                 <option value="">Todos los usuarios</option>
-                                {usuarios.map((usuario) => (
-                                    <option key={usuario} value={usuario}>
-                                        {usuario}
+                                {usuariosConocidos.map((usuario) => (
+                                    <option key={usuario.id} value={usuario.id}>
+                                        {usuario.name}
                                     </option>
                                 ))}
                             </select>
@@ -288,40 +274,47 @@ function Bitacora({ onNavigate }) {
                         <div className="flex flex-col gap-1.5">
                             <label
                                 className="text-xs font-semibold text-slate-700"
-                                htmlFor="desde-filtro"
+                                htmlFor="fecha-filtro"
                             >
-                                Desde
+                                Fecha
                             </label>
 
                             <input
-                                id="desde-filtro"
+                                id="fecha-filtro"
                                 type="date"
                                 className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                value={desde}
-                                onChange={(e) => setDesde(e.target.value)}
+                                value={fechaFiltro}
+                                onChange={(e) => setFechaFiltro(e.target.value)}
                             />
                         </div>
 
-                        <div className="flex flex-col gap-1.5">
+                        <div className="flex flex-col gap-1.5 sm:min-w-[200px]">
                             <label
                                 className="text-xs font-semibold text-slate-700"
-                                htmlFor="hasta-filtro"
+                                htmlFor="operacion-filtro"
                             >
-                                Hasta
+                                Operación
                             </label>
 
-                            <input
-                                id="hasta-filtro"
-                                type="date"
+                            <select
+                                id="operacion-filtro"
                                 className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                value={hasta}
-                                onChange={(e) => setHasta(e.target.value)}
-                            />
+                                value={operacionFiltro}
+                                onChange={(e) => setOperacionFiltro(e.target.value)}
+                            >
+                                <option value="">Todas las operaciones</option>
+                                {operacionesConocidas.map((codigo) => (
+                                    <option key={codigo} value={codigo}>
+                                        {etiquetaOperacion[codigo] ?? codigo}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
 
                         <button
                             type="submit"
-                            className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                            className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                            disabled={cargando}
                         >
                             Filtrar
                         </button>
@@ -335,24 +328,60 @@ function Bitacora({ onNavigate }) {
                             <div>ENTIDAD AFECTADA</div>
                         </div>
 
-                        {eventosFiltrados.map((evento, indice) => (
-                            <div
-                                key={indice}
-                                className="grid min-w-[760px] grid-cols-[1fr_1.3fr_1.2fr_1.6fr] items-center gap-3 border-b border-slate-100 px-4 py-3.5 text-sm last:border-b-0"
-                            >
-                                <div className="font-mono text-xs text-slate-500">
-                                    {formatearFechaHora(evento.fecha)}
+                        {cargando && (
+                            <p className="px-4 py-6 text-center text-sm text-slate-500">
+                                Cargando operaciones…
+                            </p>
+                        )}
+
+                        {!cargando && error && (
+                            <p role="alert" className="px-4 py-6 text-center text-sm text-red-600">
+                                {error}
+                            </p>
+                        )}
+
+                        {!cargando && !error && operaciones.length === 0 && (
+                            <p className="px-4 py-6 text-center text-sm text-slate-500">
+                                No hay eventos para los filtros seleccionados.
+                            </p>
+                        )}
+
+                        {!cargando &&
+                            !error &&
+                            operaciones.map((operacion) => (
+                                <div
+                                    key={operacion.id}
+                                    className="grid min-w-[760px] grid-cols-[1fr_1.3fr_1.2fr_1.6fr] items-center gap-3 border-b border-slate-100 px-4 py-3.5 text-sm last:border-b-0"
+                                >
+                                    <div className="font-mono text-xs text-slate-500">
+                                        {formatearFechaHora(operacion.fecha_operacion)}
+                                    </div>
+                                    <div className="font-semibold text-slate-800">
+                                        {operacion.usuario ? (
+                                            operacion.usuario.name
+                                        ) : (
+                                            <span className="font-normal text-slate-400 italic">
+                                                Usuario eliminado
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div>
+                                        {etiquetaOperacion[operacion.operacion] ??
+                                            operacion.operacion}
+                                    </div>
+                                    <div className="text-slate-600">
+                                        {describirEntidad(operacion)}
+                                    </div>
                                 </div>
-                                <div className="font-semibold text-slate-800">{evento.usuario}</div>
-                                <div>{evento.accion}</div>
-                                <div className="text-slate-600">{evento.entidad}</div>
-                            </div>
-                        ))}
+                            ))}
                     </div>
 
-                    <p className="mt-3 text-sm text-slate-500">
-                        Mostrando {eventosFiltrados.length} de {totalEventosDelServidor} eventos
-                    </p>
+                    {!cargando && !error && (
+                        <p className="mt-3 text-sm text-slate-500">
+                            Mostrando {operaciones.length}{' '}
+                            {operaciones.length === 1 ? 'evento' : 'eventos'}
+                        </p>
+                    )}
                 </section>
             </main>
         </div>
