@@ -214,9 +214,7 @@ function CargaMasiva({ onNavigate }) {
                     </div>
 
                     <div>
-                        <div className="text-sm leading-tight font-bold text-slate-800">
-                            UMSS FCyT
-                        </div>
+                        <div className="text-sm leading-tight font-bold text-slate-800">UMSS</div>
                         <div className="mt-0.5 text-[11px] tracking-wide text-slate-500">
                             CONTROL DE INGRESO
                         </div>

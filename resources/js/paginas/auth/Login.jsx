@@ -52,9 +52,7 @@ function Login({ onAutenticado }) {
                     <ShieldCheck className="h-7 w-7 text-blue-600" strokeWidth={2} />
                 </div>
 
-                <p className="text-center text-xs font-bold tracking-wide text-blue-600">
-                    FCYT · UMSS
-                </p>
+                <p className="text-center text-xs font-bold tracking-wide text-blue-600">UMSS</p>
 
                 <h1 className="mt-2 text-center text-xl font-bold text-slate-900 sm:text-2xl">
                     Control de ingreso a exámenes
@@ -77,7 +75,7 @@ function Login({ onAutenticado }) {
                             id="correo"
                             type="email"
                             className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            placeholder="usuario@fcyt.umss.edu.bo"
+                            placeholder="usuario@umss.edu.bo"
                             value={correo}
                             onChange={(evento) => setCorreo(evento.target.value)}
                             autoComplete="username"
