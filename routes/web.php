@@ -8,7 +8,9 @@ require __DIR__.'/bitacora.php';
 
 Route::prefix('api')->group(function () {
     require __DIR__.'/students.php';
+    require __DIR__.'/ambientes.php';
 });
+
 /*
  * El cliente es una aplicacion de pagina unica: cualquier direccion que no sea
  * de la API devuelve la misma vista y React resuelve el enrutado.
