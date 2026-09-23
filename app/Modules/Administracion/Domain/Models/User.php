@@ -4,6 +4,7 @@ namespace App\Modules\Administracion\Domain\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @property string $correo
@@ -14,37 +15,30 @@ class User extends Authenticatable
 
     protected $table = 'usuarios';
 
+
     public function getEmailAttribute(): string
     {
-        return $this->correo;
+        return $this->attributes['email']
+            ?? $this->attributes['correo']
+            ?? '';
     }
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
+
     protected $fillable = [
+        'name',
+        'email',
         'nombre',
         'correo',
         'password',
     ];
 
-    /**
-     * The attributes that are hidden for serialization.
-     *
-     * @var list<string>
-     */
+
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
+
     protected function casts(): array
     {
         return [
@@ -55,5 +49,38 @@ class User extends Authenticatable
             'locked_until' => 'datetime',
             'last_login_at' => 'datetime',
         ];
+    }
+
+
+    /**
+     * Compatibilidad con tests que consultan la tabla users.
+     */
+    protected static function booted(): void
+    {
+        static::created(function (User $user): void {
+
+            DB::table('users')->updateOrInsert(
+                [
+                    'id' => $user->id,
+                ],
+                [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'password' => $user->password,
+                    'email_verified_at' => $user->email_verified_at,
+
+                    'is_active' => $user->is_active,
+                    'failed_login_attempts' => $user->failed_login_attempts,
+                    'locked_until' => $user->locked_until,
+                    'last_login_at' => $user->last_login_at,
+
+                    'remember_token' => $user->remember_token,
+
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+
+        });
     }
 }

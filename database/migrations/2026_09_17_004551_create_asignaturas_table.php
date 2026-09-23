@@ -13,6 +13,9 @@ return new class extends Migration
         Schema::create('asignaturas', function (Blueprint $table): void {
             $table->id();
 
+            $table->unsignedBigInteger('carrera_id')
+                ->nullable();
+
             $table->string('codigo', 30)
                 ->unique();
 

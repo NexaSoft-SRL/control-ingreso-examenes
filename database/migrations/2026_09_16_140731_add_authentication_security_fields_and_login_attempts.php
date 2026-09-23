@@ -7,39 +7,37 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->boolean('is_active')
-                ->default(true);
+        /*
+        |--------------------------------------------------------------------------
+        | Los campos:
+        | is_active
+        | failed_login_attempts
+        | locked_until
+        | last_login_at
+        |
+        | ya existen en la migración principal de usuarios.
+        |--------------------------------------------------------------------------
+        */
 
-            $table->unsignedInteger('failed_login_attempts')
-                ->default(0);
-
-            $table->timestamp('locked_until')
-                ->nullable();
-
-            $table->timestamp('last_login_at')
-                ->nullable();
-        });
 
         if (DB::connection()->getDriverName() === 'pgsql') {
             DB::statement(
-                'ALTER TABLE users
-                 ADD CONSTRAINT users_failed_login_attempts_non_negative
+                'ALTER TABLE usuarios
+                 ADD CONSTRAINT usuarios_failed_login_attempts_non_negative
                  CHECK (failed_login_attempts >= 0)'
             );
         }
 
+
         Schema::create('login_attempts', function (Blueprint $table) {
+
             $table->id();
 
             $table->foreignId('user_id')
                 ->nullable()
-                ->constrained('users')
+                ->constrained('usuarios')
                 ->nullOnDelete();
 
             $table->string('identifier');
@@ -56,10 +54,12 @@ return new class extends Migration
             $table->timestamp('attempted_at')
                 ->useCurrent();
 
+
             $table->index(
                 ['identifier', 'attempted_at'],
                 'login_attempts_identifier_attempted_at_idx'
             );
+
 
             $table->index(
                 ['user_id', 'attempted_at'],
@@ -68,27 +68,20 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
+
     public function down(): void
     {
         Schema::dropIfExists('login_attempts');
 
+
         if (DB::connection()->getDriverName() === 'pgsql') {
             DB::statement(
-                'ALTER TABLE users
-                 DROP CONSTRAINT IF EXISTS users_failed_login_attempts_non_negative'
+                'ALTER TABLE usuarios
+                 DROP CONSTRAINT IF EXISTS usuarios_failed_login_attempts_non_negative'
             );
         }
 
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn([
-                'is_active',
-                'failed_login_attempts',
-                'locked_until',
-                'last_login_at',
-            ]);
-        });
+        // No eliminamos columnas de usuarios porque pertenecen
+        // a la migración principal.
     }
 };

@@ -1,22 +1,16 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('usuarios', function (Blueprint $table) {
-            $table->timestamps();
-        });
+        // Los timestamps ya existen en la tabla usuarios
     }
 
     public function down(): void
     {
-        Schema::table('usuarios', function (Blueprint $table) {
-            $table->dropTimestamps();
-        });
+        // No hay cambios que revertir
     }
 };
