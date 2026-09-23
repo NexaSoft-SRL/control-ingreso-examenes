@@ -260,7 +260,9 @@ export default function RegistroEstudiantes() {
                     <table className="w-full min-w-225 border-collapse text-left">
                         <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100">
                             <tr>
-                                <th className="w-36 whitespace-nowrap p-4 font-semibold">Apellido</th>
+                                <th className="w-36 whitespace-nowrap p-4 font-semibold">
+                                    Apellido
+                                </th>
                                 <th className="w-40 whitespace-nowrap p-4 font-semibold">C.I.</th>
                                 <th className="min-w-64 p-4 font-semibold">Nombre</th>
                                 <th className="min-w-64 p-4 font-semibold">Correo</th>
@@ -277,42 +279,40 @@ export default function RegistroEstudiantes() {
                                 </tr>
                             ) : (
                                 estudiantes.map((est, index) => (
-                                <tr key={est.id} className="hover:bg-gray-50 transition">
-                                    <td className="whitespace-nowrap p-4 font-medium text-gray-700">
-                                        {est.apellido}
-                                    </td>
-                                    <td className="whitespace-nowrap p-4">{est.ci}</td>
-                                    <td className="min-w-64 p-4 font-medium text-gray-900">
-                                        {est.nombre}
-                                    </td>
-                                    <td className="min-w-64 p-4">{est.correo}</td>
-                                    <td className="p-4">
-                                        <span
-                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                                !est.activo
-                                                    ? 'bg-gray-100 text-gray-600'
-                                                    : 'bg-green-50 text-green-600'
-                                            }`}
-                                        >
+                                    <tr key={est.id} className="hover:bg-gray-50 transition">
+                                        <td className="whitespace-nowrap p-4 font-medium text-gray-700">
+                                            {est.apellido}
+                                        </td>
+                                        <td className="whitespace-nowrap p-4">{est.ci}</td>
+                                        <td className="min-w-64 p-4 font-medium text-gray-900">
+                                            {est.nombre}
+                                        </td>
+                                        <td className="min-w-64 p-4">{est.correo}</td>
+                                        <td className="p-4">
                                             <span
-                                                className={`w-1.5 h-1.5 rounded-full ${
+                                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
                                                     !est.activo
-                                                        ? 'bg-gray-400'
-                                                        : 'bg-green-500'
+                                                        ? 'bg-gray-100 text-gray-600'
+                                                        : 'bg-green-50 text-green-600'
                                                 }`}
-                                            ></span>{' '}
-                                            {est.activo ? 'ACTIVO' : 'INACTIVO'}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 text-right">
-                                        <button
-                                            onClick={() => abrirEditarEstudiante(index)}
-                                            className="text-blue-600 hover:text-blue-800 font-medium text-sm"
-                                        >
-                                            Editar
-                                        </button>
-                                    </td>
-                                </tr>
+                                            >
+                                                <span
+                                                    className={`w-1.5 h-1.5 rounded-full ${
+                                                        !est.activo ? 'bg-gray-400' : 'bg-green-500'
+                                                    }`}
+                                                ></span>{' '}
+                                                {est.activo ? 'ACTIVO' : 'INACTIVO'}
+                                            </span>
+                                        </td>
+                                        <td className="p-4 text-right">
+                                            <button
+                                                onClick={() => abrirEditarEstudiante(index)}
+                                                className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                                            >
+                                                Editar
+                                            </button>
+                                        </td>
+                                    </tr>
                                 ))
                             )}
                         </tbody>
