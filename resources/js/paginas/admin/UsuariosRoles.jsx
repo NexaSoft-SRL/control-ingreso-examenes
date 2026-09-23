@@ -444,4 +444,3 @@ MenuItem.propTypes = {
 };
 
 export default UsuariosRoles;
-

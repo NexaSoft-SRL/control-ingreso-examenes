@@ -52,30 +52,29 @@ function AsignaturasAmbientes({ onNavigate }) {
     const [ambientes, setAmbientes] = React.useState(ambientesIniciales);
 
     React.useEffect(() => {
-    cargarAsignaturas();
-}, []);
+        cargarAsignaturas();
+    }, []);
 
-async function cargarAsignaturas() {
-    try {
-        const respuesta = await window.axios.get('/api/asignaturas');
+    async function cargarAsignaturas() {
+        try {
+            const respuesta = await window.axios.get('/api/asignaturas');
 
-        setAsignaturas(
-    respuesta.data.data.map((asignatura) => {
-        const grupo = asignatura.grupos?.[0];
+            setAsignaturas(
+                respuesta.data.data.map((asignatura) => {
+                    const grupo = asignatura.grupos?.[0];
 
-        return {
-            materia: asignatura.nombre,
-            docente: grupo?.docente
-                ? `${grupo.docente.nombres} ${grupo.docente.apellidos}`
-                : 'Sin docente asignado',
-        };
-    })
-);
-
-    } catch (error) {
-        console.error('Error cargando asignaturas:', error);
+                    return {
+                        materia: asignatura.nombre,
+                        docente: grupo?.docente
+                            ? `${grupo.docente.nombres} ${grupo.docente.apellidos}`
+                            : 'Sin docente asignado',
+                    };
+                })
+            );
+        } catch (error) {
+            console.error('Error cargando asignaturas:', error);
+        }
     }
-}
     /* =========================
        ESTADO ASIGNATURAS
     ========================== */
@@ -142,40 +141,36 @@ async function cargarAsignaturas() {
     };
 
     const guardarAsignatura = async () => {
-    if (
-        nuevaAsignatura.materia.trim() === '' ||
-        nuevaAsignatura.docente.trim() === ''
-    ) {
-        alert('Completa todos los campos de la asignatura.');
-        return;
-    }
+        if (nuevaAsignatura.materia.trim() === '' || nuevaAsignatura.docente.trim() === '') {
+            alert('Completa todos los campos de la asignatura.');
+            return;
+        }
 
-    try {
-        await window.axios.post('/api/asignaturas', {
-            codigo: 'ASIG-' + Date.now(),
-            nombre: nuevaAsignatura.materia.trim(),
-            semestre: '1',
-            descripcion: null,
-            grupos: [
-                {
-                    codigo_grupo: 'A',
-                    docente_id: 1,
-                    cupo: 40,
-                },
-            ],
-        });
+        try {
+            await window.axios.post('/api/asignaturas', {
+                codigo: 'ASIG-' + Date.now(),
+                nombre: nuevaAsignatura.materia.trim(),
+                semestre: '1',
+                descripcion: null,
+                grupos: [
+                    {
+                        codigo_grupo: 'A',
+                        docente_id: 1,
+                        cupo: 40,
+                    },
+                ],
+            });
 
-        await cargarAsignaturas();
+            await cargarAsignaturas();
 
-        alert('Asignatura creada correctamente.');
+            alert('Asignatura creada correctamente.');
 
-        cancelarAsignatura();
-
-    } catch (error) {
-        console.error(error);
-        alert('Error al guardar la asignatura.');
-    }
-};
+            cancelarAsignatura();
+        } catch (error) {
+            console.error(error);
+            alert('Error al guardar la asignatura.');
+        }
+    };
 
     /* =========================
        FUNCIONES AMBIENTES
