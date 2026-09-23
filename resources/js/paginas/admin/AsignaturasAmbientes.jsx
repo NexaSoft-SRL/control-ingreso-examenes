@@ -83,11 +83,17 @@ async function cargarAsignaturas() {
         const respuesta = await window.axios.get('/api/asignaturas');
 
         setAsignaturas(
-            respuesta.data.map((asignatura) => ({
-                materia: asignatura.nombre,
-                docente: asignatura.docente,
-            }))
-        );
+    respuesta.data.data.map((asignatura) => {
+        const grupo = asignatura.grupos?.[0];
+
+        return {
+            materia: asignatura.nombre,
+            docente: grupo?.docente
+                ? `${grupo.docente.nombres} ${grupo.docente.apellidos}`
+                : 'Sin docente asignado',
+        };
+    })
+);
 
     } catch (error) {
         console.error('Error cargando asignaturas:', error);
@@ -158,37 +164,41 @@ async function cargarAsignaturas() {
         });
     };
 
-    const guardarAsignatura = () => {
-        if (nuevaAsignatura.materia.trim() === '' || nuevaAsignatura.docente.trim() === '') {
-            alert('Completa todos los campos de la asignatura.');
-            return;
-        }
+    const guardarAsignatura = async () => {
+    if (
+        nuevaAsignatura.materia.trim() === '' ||
+        nuevaAsignatura.docente.trim() === ''
+    ) {
+        alert('Completa todos los campos de la asignatura.');
+        return;
+    }
 
-        if (asignaturaEditando === null) {
-            setAsignaturas([
-                ...asignaturas,
+    try {
+        await window.axios.post('/api/asignaturas', {
+            codigo: 'ASIG-' + Date.now(),
+            nombre: nuevaAsignatura.materia.trim(),
+            semestre: '1',
+            descripcion: null,
+            grupos: [
                 {
-                    materia: nuevaAsignatura.materia.trim(),
-                    docente: nuevaAsignatura.docente.trim(),
+                    codigo_grupo: 'A',
+                    docente_id: 1,
+                    cupo: 40,
                 },
-            ]);
+            ],
+        });
 
-            alert('Asignatura creada correctamente.');
-        } else {
-            const asignaturasActualizadas = [...asignaturas];
+        await cargarAsignaturas();
 
-            asignaturasActualizadas[asignaturaEditando] = {
-                materia: nuevaAsignatura.materia.trim(),
-                docente: nuevaAsignatura.docente.trim(),
-            };
-
-            setAsignaturas(asignaturasActualizadas);
-
-            alert('Asignatura actualizada correctamente.');
-        }
+        alert('Asignatura creada correctamente.');
 
         cancelarAsignatura();
-    };
+
+    } catch (error) {
+        console.error(error);
+        alert('Error al guardar la asignatura.');
+    }
+};
 
     /* =========================
        FUNCIONES AMBIENTES
