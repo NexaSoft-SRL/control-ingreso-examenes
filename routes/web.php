@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 
 require __DIR__.'/auth.php';
 require __DIR__.'/asignaturas.php';
+require __DIR__.'/bitacora.php';
 
 Route::prefix('api')->group(function () {
     require __DIR__.'/students.php';

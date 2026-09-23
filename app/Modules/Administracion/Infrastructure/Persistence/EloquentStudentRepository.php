@@ -1,48 +1,55 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Administracion\Infrastructure\Persistence;
 
 use App\Modules\Administracion\Application\Contracts\StudentRepository;
 use App\Modules\Administracion\Domain\Models\Student;
-use App\Modules\Administracion\Domain\Models\EloquentStudent;
 
-class EloquentStudentRepository implements StudentRepository
+final class EloquentStudentRepository implements StudentRepository
 {
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public function create(array $data): Student
     {
-        $eloquent = EloquentStudent::create($data);
-        return $this->toDomain($eloquent);
+        return Student::query()->create($data);
     }
 
+    /**
+     * @return list<Student>
+     */
     public function all(): array
     {
-        return EloquentStudent::all()
-            ->map(fn ($eloquent) => $this->toDomain($eloquent))
-            ->toArray();
+        /** @var list<Student> $students */
+        $students = Student::query()
+            ->orderBy('apellido')
+            ->orderBy('nombre')
+            ->get()
+            ->all();
+
+        return $students;
     }
 
+    public function findById(int $id): ?Student
+    {
+        return Student::query()->find($id);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public function update(Student $student, array $data): Student
     {
-        $eloquent = EloquentStudent::findOrFail($student->id);
-        $eloquent->update($data);
-        return $this->toDomain($eloquent);
+        $student->fill($data);
+        $student->save();
+
+        return $student->refresh();
     }
 
     public function delete(Student $student): void
     {
-        $eloquent = EloquentStudent::findOrFail($student->id);
-        $eloquent->delete();
-    }
-
-    private function toDomain(EloquentStudent $eloquent): Student
-    {
-        return new Student(
-            id: $eloquent->id,
-            nombre: $eloquent->nombre,
-            apellido: $eloquent->apellido,
-            ci: $eloquent->ci,
-            correo: $eloquent->correo,
-            activo: $eloquent->activo,
-        );
+        $student->delete();
     }
 }

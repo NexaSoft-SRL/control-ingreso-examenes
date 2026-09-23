@@ -1,15 +1,33 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Administracion\Domain\Models;
 
-class Student
+use Illuminate\Database\Eloquent\Model;
+
+final class Student extends Model
 {
-    public function __construct(
-        public int $id,
-        public string $nombre,
-        public string $apellido,
-        public string $ci,
-        public string $correo,
-        public bool $activo = true,
-    ) {}
+    protected $table = 'students';
+
+    /**
+     * @var list<string>
+     */
+    protected $fillable = [
+        'nombre',
+        'apellido',
+        'ci',
+        'correo',
+        'activo',
+    ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'activo' => 'boolean',
+        ];
+    }
 }

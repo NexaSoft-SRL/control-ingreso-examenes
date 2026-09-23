@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Administracion\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
@@ -12,27 +14,29 @@ class UpdateStudentRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
-        
-        $studentId = $this->route('student');
+        $studentId = (int) $this->route('student');
 
         return [
-            'nombre'   => 'required|string|max:100',
-            'apellido' => 'required|string|max:100',
-            'ci'       => [
+            'nombre' => ['required', 'string', 'max:100'],
+            'apellido' => ['required', 'string', 'max:100'],
+            'ci' => [
                 'required',
                 'string',
                 'max:30',
                 Rule::unique('students', 'ci')->ignore($studentId),
             ],
-            'correo'   => [
+            'correo' => [
                 'required',
                 'email',
                 'max:150',
                 Rule::unique('students', 'correo')->ignore($studentId),
             ],
-            'activo'   => 'boolean',
+            'activo' => ['sometimes', 'boolean'],
         ];
     }
 }

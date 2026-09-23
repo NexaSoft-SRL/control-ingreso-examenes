@@ -1,60 +1,95 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Administracion\Http\Controllers;
 
 use App\Modules\Administracion\Application\Actions\CreateStudent;
+use App\Modules\Administracion\Application\Actions\DeleteStudent;
+use App\Modules\Administracion\Application\Actions\FindStudent;
 use App\Modules\Administracion\Application\Actions\ListStudents;
 use App\Modules\Administracion\Application\Actions\UpdateStudent;
-use App\Modules\Administracion\Application\Actions\DeleteStudent;
-use App\Modules\Administracion\Domain\Models\Student;
 use App\Modules\Administracion\Http\Requests\StoreStudentRequest;
 use App\Modules\Administracion\Http\Requests\UpdateStudentRequest;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 
-class StudentController
+final class StudentController
 {
-    public function index(ListStudents $action)
-    {
-        return response()->json($action->execute());
-    }
+    public function __construct(
+        private readonly CreateStudent $createStudent,
+        private readonly UpdateStudent $updateStudent,
+        private readonly DeleteStudent $deleteStudent,
+        private readonly FindStudent $findStudent,
+        private readonly ListStudents $listStudents,
+    ) {}
 
-    public function store(StoreStudentRequest $request, CreateStudent $action)
+    public function index(): JsonResponse
     {
-        return response()->json($action->execute($request->validated()), 201);
-    }
-
-    public function update(UpdateStudentRequest $request, int $id, UpdateStudent $action)
-    {
-        $validated = $request->validated();
-
-        
-        $domainStudent = new Student(
-            id: $id,
-            nombre: $validated['nombre'],
-            apellido: $validated['apellido'],
-            ci: $validated['ci'],
-            correo: $validated['correo'],
-            activo: $validated['activo'],
+        return response()->json(
+            $this->listStudents->execute(),
+            Response::HTTP_OK,
         );
+    }
+
+    public function store(StoreStudentRequest $request): JsonResponse
+    {
+        /** @var array<string, mixed> $data */
+        $data = $request->validated();
 
         return response()->json(
-            $action->execute($domainStudent, $validated)
+            $this->createStudent->execute($data),
+            Response::HTTP_CREATED,
         );
     }
 
-    public function destroy(int $id, DeleteStudent $action)
+    public function show(int $student): JsonResponse
     {
-         
-        $domainStudent = new Student(
-            id: $id,
-            nombre: '',
-            apellido: '',
-            ci: '',
-            correo: '',
-            activo: true,
+        $found = $this->findStudent->execute($student);
+
+        if ($found === null) {
+            return response()->json(
+                ['message' => 'Estudiante no encontrado.'],
+                Response::HTTP_NOT_FOUND,
+            );
+        }
+
+        return response()->json($found, Response::HTTP_OK);
+    }
+
+    public function update(UpdateStudentRequest $request, int $student): JsonResponse
+    {
+        $found = $this->findStudent->execute($student);
+
+        if ($found === null) {
+            return response()->json(
+                ['message' => 'Estudiante no encontrado.'],
+                Response::HTTP_NOT_FOUND,
+            );
+        }
+
+        /** @var array<string, mixed> $data */
+        $data = $request->validated();
+
+        return response()->json(
+            $this->updateStudent->execute($found, $data),
+            Response::HTTP_OK,
         );
+    }
 
-        $action->execute($domainStudent);
+    public function destroy(int $student): JsonResponse
+    {
+        $found = $this->findStudent->execute($student);
 
-        return response()->json(null, 204);
+        if ($found === null) {
+            return response()->json(
+                ['message' => 'Estudiante no encontrado.'],
+                Response::HTTP_NOT_FOUND,
+            );
+        }
+
+        $this->deleteStudent->execute($found);
+
+        return response()->json(null, Response::HTTP_NO_CONTENT);
     }
 }

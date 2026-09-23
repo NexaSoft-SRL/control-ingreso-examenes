@@ -1,7 +1,7 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Modules\Administracion\Http\Controllers\StudentController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/students', [StudentController::class, 'index']);
 Route::post('/students', [StudentController::class, 'store']);

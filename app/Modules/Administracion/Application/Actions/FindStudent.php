@@ -7,17 +7,14 @@ namespace App\Modules\Administracion\Application\Actions;
 use App\Modules\Administracion\Application\Contracts\StudentRepository;
 use App\Modules\Administracion\Domain\Models\Student;
 
-final readonly class ListStudents
+final readonly class FindStudent
 {
     public function __construct(
         private StudentRepository $repository,
     ) {}
 
-    /**
-     * @return list<Student>
-     */
-    public function execute(): array
+    public function execute(int $id): ?Student
     {
-        return $this->repository->all();
+        return $this->repository->findById($id);
     }
 }
