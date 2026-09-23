@@ -66,9 +66,17 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
 
                 $userId = $this->userId($user);
 
+                $passwordHash = $user->getAttribute('password');
+
+                if (! is_string($passwordHash)) {
+                    throw new LogicException(
+                        'La contraseña del usuario no tiene un formato válido.'
+                    );
+                }
+
                 $passwordIsValid = Hash::check(
                     $password,
-                    (string) $user->password
+                    $passwordHash
                 );
 
                 $now = now();
@@ -97,7 +105,7 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                 }
 
                 if (
-                    $lockedUntil !== null
+                    $lockedUntil instanceof DateTimeInterface
                     && $lockedUntil->getTimestamp() > $now->getTimestamp()
                 ) {
                     $this->recordAttempt(
@@ -111,49 +119,52 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                     return null;
                 }
 
-                if ($lockedUntil !== null) {
+                if ($lockedUntil instanceof DateTimeInterface) {
                     $user->forceFill([
                         'failed_login_attempts' => 0,
                         'locked_until' => null,
                     ]);
                 }
-
+               
                 if (! $passwordIsValid) {
-                    $failedAttempts =
-                        $user->failed_login_attempts + 1;
+    $failedLoginAttempts = $user->getAttribute('failed_login_attempts');
 
-                    $attributes = [
-                        'failed_login_attempts' => $failedAttempts,
-                    ];
+    if (! is_int($failedLoginAttempts)) {
+        throw new LogicException(
+            'El contador de intentos fallidos no tiene un formato válido.'
+        );
+    }
 
-                    if ($failedAttempts >= $maxFailedAttempts) {
-                        $attributes['locked_until'] = $now
-                            ->copy()
-                            ->addMinutes($lockoutMinutes);
-                    }
+    $failedAttempts = $failedLoginAttempts + 1;
 
-                    $user->forceFill($attributes)->save();
+    $attributes = [
+        'failed_login_attempts' => $failedAttempts,
+    ];
 
-                    $this->recordAttempt(
-                        $userId,
-                        $identifier,
-                        false,
-                        $ipAddress,
-                        $userAgent,
-                    );
+    if ($failedAttempts >= $maxFailedAttempts) {
+        $attributes['locked_until'] = $now
+            ->copy()
+            ->addMinutes($lockoutMinutes);
+    }
 
-                    return null;
-                }
+    $user->forceFill($attributes)->save();
 
+    $this->recordAttempt(
+        $userId,
+        $identifier,
+        false,
+        $ipAddress,
+        $userAgent,
+    );
+
+    return null;
+}
+                   
                 $attributes = [
                     'failed_login_attempts' => 0,
                     'locked_until' => null,
                     'last_login_at' => $now,
                 ];
-
-                if (false) {
-                    $attributes['password'] = $password;
-                }
 
                 $user->forceFill($attributes)->save();
 
@@ -211,17 +222,17 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
     }
 
     private function recordAttempt(
-    ?int $userId,
-    string $identifier,
-    bool $successful,
-    ?string $ipAddress,
-    ?string $userAgent,
-): void {
-    DB::table('intentos_login')->insert([
-        'usuario_id' => $userId,
-        'fecha_intento' => now(),
-        'exitoso' => $successful,
-        'ip_origen' => $ipAddress,
-    ]);
-}
+        ?int $userId,
+        string $identifier,
+        bool $successful,
+        ?string $ipAddress,
+        ?string $userAgent,
+    ): void {
+        DB::table('intentos_login')->insert([
+            'usuario_id' => $userId,
+            'fecha_intento' => now(),
+            'exitoso' => $successful,
+            'ip_origen' => $ipAddress,
+        ]);
+    }
 }
