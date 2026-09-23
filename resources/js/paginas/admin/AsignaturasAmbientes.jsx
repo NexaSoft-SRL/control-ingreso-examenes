@@ -16,29 +16,6 @@ import {
     Wrench,
 } from 'lucide-react';
 
-const asignaturasIniciales = [
-    {
-        materia: 'Redes de Computadoras',
-        docente: 'Ing. Rolando J. Torrico Mendoza',
-    },
-    {
-        materia: 'Base de Datos I',
-        docente: 'Lic. Marco Antonio Arnez Claros',
-    },
-    {
-        materia: 'Sistemas Operativos',
-        docente: 'Ing. Patricia Villarroel Siles',
-    },
-    {
-        materia: 'Inteligencia Artificial',
-        docente: 'Dr. Carlos Eduardo Vargas Rojas',
-    },
-    {
-        materia: 'Taller de Ingeniería de Software',
-        docente: 'Ing. Marcelo Guzmán Flores',
-    },
-];
-
 const ambientesIniciales = [
     {
         nombre: 'Aula Magna - FCyT',
