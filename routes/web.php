@@ -2,6 +2,10 @@
 
 use Illuminate\Support\Facades\Route;
 
+require __DIR__.'/auth.php';
+require __DIR__.'/asignaturas.php';
+require __DIR__.'/bitacora.php';
+
 /*
  * El cliente es una aplicacion de pagina unica: cualquier direccion que no sea
  * de la API devuelve la misma vista y React resuelve el enrutado.

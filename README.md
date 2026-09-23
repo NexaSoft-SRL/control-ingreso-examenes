@@ -101,7 +101,7 @@ incorporación a la rama principal requiere la revisión de al menos otro socio.
 | Wilber Lancea Mamani | |
 | Alberto Quispe Ramírez | |
 | Jofre Ticona Plata | |
-| Rodrigo Velásquez Ricaldez | |
+| Rodrigo Velasquez Ricaldez | |
 | Neida Zeballos Tejada | |
 
 Cinco iteraciones de dos semanas, del 14 de septiembre al 22 de noviembre de 2026.

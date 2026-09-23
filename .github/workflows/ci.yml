@@ -1,6 +1,6 @@
 # Quality gates de integración continua.
 #
-# Se ejecutan en cada pull request y push sobre main.
+# Se ejecutan en cada push y en los pull requests dirigidos a main.
 # Para bloquear merges, estos checks deben configurarse como obligatorios
 # en la protección de la rama main.
 
@@ -12,22 +12,37 @@ on:
       - main
   push:
     branches:
-      - main
+      - '**'
 
 jobs:
   backend:
     name: Backend Quality
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:15.10-alpine
+        env:
+          POSTGRES_DB: control_ingreso_testing
+          POSTGRES_USER: nexasoft
+          POSTGRES_PASSWORD: nexasoft
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U nexasoft -d control_ingreso_testing"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: PHP 8.2
+      - name: PHP 8.2 con PostgreSQL
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: pdo_sqlite, mbstring, bcmath
+          extensions: pdo_pgsql, pgsql, mbstring, bcmath
           coverage: none
 
       - name: Instalar dependencias PHP
@@ -37,6 +52,11 @@ jobs:
         run: |
           cp .env.example .env
           php artisan key:generate
+
+      - name: Preparar entorno PostgreSQL de testing
+        run: |
+          cp .env.testing.example .env.testing
+          php artisan key:generate --env=testing
 
       # Los feature tests actuales renderizan vistas con @vite.
       # Se necesita el manifest antes de ejecutar PHPUnit.

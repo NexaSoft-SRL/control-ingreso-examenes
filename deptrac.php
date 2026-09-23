@@ -63,6 +63,95 @@ return static function (DeptracConfig $config): void {
                             '#^Illuminate\Notifications\Notifiable$#'
                         )
                     ),
+
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Database\\Eloquent\\(?:Model|Relations\\(?:HasMany|BelongsTo))$#'
+                        )
+                    ),
+            ),
+
+            $laravelHttpSupport = Layer::withName(
+                'LaravelHttpSupport'
+            )->collectors(
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Http\\(?:JsonResponse|Request|Response)$#'
+                        )
+                    ),
+
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Foundation\\Http\\FormRequest$#'
+                        )
+                    ),
+
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Validation\\Rule$#'
+                        )
+                    ),
+            ),
+
+            $laravelAuthSupport = Layer::withName(
+                'LaravelAuthSupport'
+            )->collectors(
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Support\\Facades\\Auth$#'
+                        )
+                    ),
+            ),
+
+            $laravelPersistenceSupport = Layer::withName(
+                'LaravelPersistenceSupport'
+            )->collectors(
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Support\\Facades\\(?:DB|Hash)$#'
+                        )
+                    ),
+
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Database\\QueryException$#'
+                        )
+                    ),
             ),
         )
         ->rulesets(
@@ -76,14 +165,23 @@ return static function (DeptracConfig $config): void {
                 ->accesses(
                     $application,
                     $domain,
+                    $laravelPersistenceSupport,
                 ),
 
             Ruleset::forLayer($http)
                 ->accesses(
                     $application,
                     $domain,
+                    $laravelHttpSupport,
+                    $laravelAuthSupport,
                 ),
 
             Ruleset::forLayer($laravelDomainSupport),
+
+            Ruleset::forLayer($laravelHttpSupport),
+
+            Ruleset::forLayer($laravelAuthSupport),
+
+            Ruleset::forLayer($laravelPersistenceSupport),
         );
 };
