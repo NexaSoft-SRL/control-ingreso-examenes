@@ -125,41 +125,41 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                         'locked_until' => null,
                     ]);
                 }
-               
+
                 if (! $passwordIsValid) {
-    $failedLoginAttempts = $user->getAttribute('failed_login_attempts');
+                    $failedLoginAttempts = $user->getAttribute('failed_login_attempts');
 
-    if (! is_int($failedLoginAttempts)) {
-        throw new LogicException(
-            'El contador de intentos fallidos no tiene un formato válido.'
-        );
-    }
+                    if (! is_int($failedLoginAttempts)) {
+                        throw new LogicException(
+                            'El contador de intentos fallidos no tiene un formato válido.'
+                        );
+                    }
 
-    $failedAttempts = $failedLoginAttempts + 1;
+                    $failedAttempts = $failedLoginAttempts + 1;
 
-    $attributes = [
-        'failed_login_attempts' => $failedAttempts,
-    ];
+                    $attributes = [
+                        'failed_login_attempts' => $failedAttempts,
+                    ];
 
-    if ($failedAttempts >= $maxFailedAttempts) {
-        $attributes['locked_until'] = $now
-            ->copy()
-            ->addMinutes($lockoutMinutes);
-    }
+                    if ($failedAttempts >= $maxFailedAttempts) {
+                        $attributes['locked_until'] = $now
+                            ->copy()
+                            ->addMinutes($lockoutMinutes);
+                    }
 
-    $user->forceFill($attributes)->save();
+                    $user->forceFill($attributes)->save();
 
-    $this->recordAttempt(
-        $userId,
-        $identifier,
-        false,
-        $ipAddress,
-        $userAgent,
-    );
+                    $this->recordAttempt(
+                        $userId,
+                        $identifier,
+                        false,
+                        $ipAddress,
+                        $userAgent,
+                    );
 
-    return null;
-}
-                   
+                    return null;
+                }
+
                 $attributes = [
                     'failed_login_attempts' => 0,
                     'locked_until' => null,
