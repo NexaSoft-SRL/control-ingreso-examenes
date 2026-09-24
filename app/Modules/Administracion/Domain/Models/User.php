@@ -47,4 +47,8 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
         ];
     }
+    public function role()
+    {
+        return $this->belongsTo(Role::class);
+    }
 }

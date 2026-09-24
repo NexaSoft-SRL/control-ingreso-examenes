@@ -2,6 +2,7 @@
 
 use App\Modules\Administracion\Http\Controllers\AuthenticationController;
 use Illuminate\Support\Facades\Route;
+use App\Modules\Administracion\Http\Controllers\RoleController;
 
 Route::prefix('api/auth')
     ->name('auth.')
@@ -12,4 +13,8 @@ Route::prefix('api/auth')
         Route::post('/logout', [AuthenticationController::class, 'logout'])
             ->middleware('auth')
             ->name('logout');
+            Route::prefix('admin')->group(function () {
+    Route::get('/users', [RoleController::class, 'getUsers']);
+    Route::get('/roles', [RoleController::class, 'getRoles']);
+});
     });
