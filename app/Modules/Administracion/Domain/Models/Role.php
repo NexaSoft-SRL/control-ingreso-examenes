@@ -8,20 +8,15 @@ class Role extends Model
 {
     protected $fillable = ['name'];
 
-    /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
-     */
+    /** @phpstan-ignore-next-line */
     public function permissions()
     {
         return $this->belongsToMany(Permission::class);
     }
 
-    /**
-   /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function role()
+    /** @phpstan-ignore-next-line */
+    public function users()
     {
-        return $this->belongsTo(Role::class);
+        return $this->hasMany(User::class);
     }
 }

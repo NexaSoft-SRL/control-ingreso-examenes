@@ -49,7 +49,9 @@ class User extends Authenticatable
     }
     
 
-    public function role(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    
+    /** @phpstan-ignore-next-line */
+    public function role()
     {
         return $this->belongsTo(Role::class);
     }

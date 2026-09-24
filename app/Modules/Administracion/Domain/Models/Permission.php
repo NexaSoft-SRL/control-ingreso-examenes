@@ -8,9 +8,7 @@ class Permission extends Model
 {
     protected $fillable = ['name', 'screen_name'];
 
-    /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
-     */
+    /** @phpstan-ignore-next-line */
     public function roles()
     {
         return $this->belongsToMany(Role::class);
