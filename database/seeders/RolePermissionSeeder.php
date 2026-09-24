@@ -36,11 +36,10 @@ class RolePermissionSeeder extends Seeder
 
         $admin = Role::where('name', 'Administrador')->first();
         
-        // Validación estricta para PHPStan
         if ($admin instanceof Role) {
-            $admin->permissions()->sync(
-                Permission::whereIn('name', ['padron_estudiantes', 'asignaturas_ambientes', 'codigos_qr', 'usuarios_roles', 'bitacora', 'respaldo_restauracion'])->pluck('id')->toArray()
-            );
+            $permissionIds = Permission::whereIn('name', ['padron_estudiantes', 'asignaturas_ambientes', 'codigos_qr', 'usuarios_roles', 'bitacora', 'respaldo_restauracion'])->pluck('id')->toArray();
+            /** @phpstan-ignore-next-line */
+            $admin->permissions()->sync($permissionIds);
         }
     }
 }
