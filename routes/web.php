@@ -6,8 +6,9 @@ require __DIR__.'/auth.php';
 require __DIR__.'/asignaturas.php';
 require __DIR__.'/bitacora.php';
 
-Route::prefix('api')->group(function (): void {
+Route::prefix('api')->group(function () {
     require __DIR__.'/students.php';
+    require __DIR__.'/ambientes.php';
 });
 
 /*
