@@ -14,28 +14,24 @@ class UserFactory extends Factory
 {
     protected $model = User::class;
 
-    protected static ?string $password;
+    protected static ?string $password = null;
 
     public function definition(): array
     {
         return [
             'nombre' => fake()->name(),
+
             'correo' => fake()->unique()->safeEmail(),
-
-            // compatibilidad con tests Laravel
-            'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
-
-            'email_verified_at' => now(),
 
             'password' => static::$password ??= Hash::make('password'),
 
             'is_active' => true,
-            'failed_login_attempts' => 0,
-            'locked_until' => null,
-            'last_login_at' => null,
 
-            'remember_token' => Str::random(10),
+            'failed_login_attempts' => 0,
+
+            'locked_until' => null,
+
+            'last_login_at' => null,
         ];
     }
 

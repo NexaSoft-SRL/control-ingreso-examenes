@@ -42,11 +42,10 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                 $lockoutMinutes,
                 $dummyPasswordHash,
             ): ?User {
-                $user = User::query()
-    ->where('email', $identifier)
+              $user = User::query()
+    ->where('correo', $identifier)
     ->lockForUpdate()
     ->first();
-    
 
                 if (! $user instanceof User) {
                     Hash::check(

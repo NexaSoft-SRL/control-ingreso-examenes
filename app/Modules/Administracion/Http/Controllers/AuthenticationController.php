@@ -38,13 +38,13 @@ class AuthenticationController
         $request->session()->regenerate();
 
         return response()->json([
-            'message' => 'Autenticación correcta.',
-            'user' => [
-                'id' => $user->getKey(),
-                'name' => $user->name,
-                'email' => $user->email,
-            ],
-        ]);
+    'message' => 'Autenticación correcta.',
+    'user' => [
+        'id' => $user->getKey(),
+        'name' => $user->nombre,
+        'email' => $user->correo,
+    ],
+]);
     }
 
     public function logout(Request $request): Response

@@ -4,45 +4,32 @@ namespace App\Modules\Administracion\Domain\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\DB;
 
-/**
- * @property string $correo
- */
 class User extends Authenticatable
 {
     use Notifiable;
 
     protected $table = 'usuarios';
 
-
-    public function getEmailAttribute(): string
-    {
-        return $this->attributes['email']
-            ?? $this->attributes['correo']
-            ?? '';
-    }
-
-
     protected $fillable = [
-        'name',
-        'email',
         'nombre',
         'correo',
         'password',
+        'rol_id',
+        'is_active',
+        'failed_login_attempts',
+        'locked_until',
+        'last_login_at',
     ];
-
 
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
             'failed_login_attempts' => 'integer',
@@ -52,35 +39,34 @@ class User extends Authenticatable
     }
 
 
-    /**
-     * Compatibilidad con tests que consultan la tabla users.
-     */
-    protected static function booted(): void
+    public function getAuthIdentifierName()
     {
-        static::created(function (User $user): void {
+        return 'correo';
+    }
 
-            DB::table('users')->updateOrInsert(
-                [
-                    'id' => $user->id,
-                ],
-                [
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'password' => $user->password,
-                    'email_verified_at' => $user->email_verified_at,
 
-                    'is_active' => $user->is_active,
-                    'failed_login_attempts' => $user->failed_login_attempts,
-                    'locked_until' => $user->locked_until,
-                    'last_login_at' => $user->last_login_at,
+    // AGREGA ESTO
 
-                    'remember_token' => $user->remember_token,
+    public function getEmailAttribute()
+    {
+        return $this->correo;
+    }
 
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]
-            );
 
-        });
+    public function getNameAttribute()
+    {
+        return $this->nombre;
+    }
+
+
+    public function setEmailAttribute($value)
+    {
+        $this->attributes['correo'] = $value;
+    }
+
+
+    public function setNameAttribute($value)
+    {
+        $this->attributes['nombre'] = $value;
     }
 }

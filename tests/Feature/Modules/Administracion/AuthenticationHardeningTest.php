@@ -24,7 +24,7 @@ final class AuthenticationHardeningTest extends TestCase
             'password' => $plainPassword,
         ]);
 
-        $persistedPassword = DB::table('users')
+        $persistedPassword = DB::table('usuarios')
             ->where('id', $user->getKey())
             ->value('password');
 
@@ -77,7 +77,7 @@ final class AuthenticationHardeningTest extends TestCase
             'is_active' => true,
         ]);
 
-        $storedBeforeLogin = DB::table('users')
+        $storedBeforeLogin = DB::table('usuarios')
             ->where('id', $user->getKey())
             ->value('password');
 
@@ -93,7 +93,7 @@ final class AuthenticationHardeningTest extends TestCase
             'password' => $plainPassword,
         ])->assertOk();
 
-        $storedAfterLogin = DB::table('users')
+        $storedAfterLogin = DB::table('usuarios')
             ->where('id', $user->getKey())
             ->value('password');
 
