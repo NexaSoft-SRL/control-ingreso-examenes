@@ -127,6 +127,14 @@ final class AsignaturaController
         );
     }
 
-    return (int) $user->getKey();
+    $id = $user->getKey();
+
+    if (! is_int($id) && ! is_string($id)) {
+        throw new LogicException(
+            'El usuario autenticado no tiene un identificador válido.'
+        );
+    }
+
+    return (int) $id;
 }
 }
