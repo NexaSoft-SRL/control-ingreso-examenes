@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Modules\Administracion\Application\Actions;
 
 use App\Modules\Administracion\Application\Contracts\StudentRepository;
-use Illuminate\Support\Facades\Validator;
 
 final readonly class ImportStudents
 {
@@ -57,16 +56,9 @@ final readonly class ImportStudents
                 'activo' => $activo === '' ? true : filter_var($activo, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE),
             ];
 
-            $validator = Validator::make($data, [
-                'nombre' => ['required', 'string', 'max:100'],
-                'apellido' => ['required', 'string', 'max:100'],
-                'ci' => ['required', 'string', 'max:30'],
-                'correo' => ['required', 'email', 'max:150'],
-                'activo' => ['required', 'boolean'],
-            ]);
-
-            if ($validator->fails()) {
-                $details[] = ['fila' => $row['fila'], 'motivo' => $validator->errors()->first(), 'tipo' => 'rechazado'];
+            $validationError = $this->validationError($data);
+            if ($validationError !== null) {
+                $details[] = ['fila' => $row['fila'], 'motivo' => $validationError, 'tipo' => 'rechazado'];
                 continue;
             }
 
@@ -105,5 +97,32 @@ final readonly class ImportStudents
             'rechazados' => count(array_filter($details, static fn (array $detail): bool => $detail['tipo'] === 'rechazado')),
             'detalles' => $details,
         ];
+    }
+
+    /**
+     * @param  array{nombre: string, apellido: string, ci: string, correo: string, activo: bool|null}  $data
+     */
+    private function validationError(array $data): ?string
+    {
+        foreach (['nombre' => 100, 'apellido' => 100, 'ci' => 30, 'correo' => 150] as $field => $maxLength) {
+            if ($data[$field] === '') {
+                return "El campo {$field} es obligatorio.";
+            }
+
+            $length = function_exists('mb_strlen') ? mb_strlen($data[$field]) : strlen($data[$field]);
+            if ($length > $maxLength) {
+                return "El campo {$field} no puede superar {$maxLength} caracteres.";
+            }
+        }
+
+        if (filter_var($data['correo'], FILTER_VALIDATE_EMAIL) === false) {
+            return 'El correo no tiene un formato válido.';
+        }
+
+        if ($data['activo'] === null) {
+            return 'El campo activo debe ser true o false.';
+        }
+
+        return null;
     }
 }
