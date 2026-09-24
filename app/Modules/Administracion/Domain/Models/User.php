@@ -47,7 +47,9 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
         ];
     }
-    public function role()
+    
+
+    public function role(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Role::class);
     }

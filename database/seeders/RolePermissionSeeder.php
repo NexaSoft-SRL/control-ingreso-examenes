@@ -10,13 +10,11 @@ class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Crear los 4 roles base
         $roles = ['Administrador', 'Docente', 'Personal', 'Responsable'];
         foreach ($roles as $roleName) {
             Role::firstOrCreate(['name' => $roleName]);
         }
 
-        // 2. Crear los 12 permisos de pantalla
         $permissions = [
             ['name' => 'padron_estudiantes', 'screen_name' => 'Padrón de estudiantes'],
             ['name' => 'asignaturas_ambientes', 'screen_name' => 'Asignaturas y ambientes'],
@@ -36,11 +34,12 @@ class RolePermissionSeeder extends Seeder
             Permission::firstOrCreate($perm);
         }
 
-        // 3. Asignar los permisos iniciales al Administrador
         $admin = Role::where('name', 'Administrador')->first();
-        if ($admin) {
+        
+        // Validación estricta para PHPStan
+        if ($admin instanceof Role) {
             $admin->permissions()->sync(
-                Permission::whereIn('name', ['padron_estudiantes', 'asignaturas_ambientes', 'codigos_qr', 'usuarios_roles', 'bitacora', 'respaldo_restauracion'])->pluck('id')
+                Permission::whereIn('name', ['padron_estudiantes', 'asignaturas_ambientes', 'codigos_qr', 'usuarios_roles', 'bitacora', 'respaldo_restauracion'])->pluck('id')->toArray()
             );
         }
     }
