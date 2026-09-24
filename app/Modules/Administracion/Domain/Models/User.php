@@ -47,26 +47,25 @@ class User extends Authenticatable
 
     // AGREGA ESTO
 
-    public function getEmailAttribute()
-    {
-        return $this->correo;
-    }
+   public function getEmailAttribute(): string
+{
+    return $this->correo ?? '';
+}
 
 
-    public function getNameAttribute()
-    {
-        return $this->nombre;
-    }
+public function getNameAttribute(): string
+{
+    return $this->nombre ?? '';
+}
+
+    public function setEmailAttribute(string $value): void
+{
+    $this->attributes['correo'] = $value;
+}
 
 
-    public function setEmailAttribute($value)
-    {
-        $this->attributes['correo'] = $value;
-    }
-
-
-    public function setNameAttribute($value)
-    {
-        $this->attributes['nombre'] = $value;
-    }
+    public function setNameAttribute(string $value): void
+{
+    $this->attributes['nombre'] = $value;
+}
 }

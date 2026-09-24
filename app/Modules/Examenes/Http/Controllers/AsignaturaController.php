@@ -123,7 +123,7 @@ final class AsignaturaController
 
     if ($user === null) {
         throw new LogicException(
-            'No existe un usuario autenticado.'
+            'No existe usuario autenticado.'
         );
     }
 
