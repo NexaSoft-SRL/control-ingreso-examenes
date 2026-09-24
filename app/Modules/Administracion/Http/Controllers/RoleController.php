@@ -12,6 +12,7 @@ class RoleController
     {
         /** @phpstan-ignore-next-line */
         $users = User::with('role')->get();
+
         return response()->json($users);
     }
 
@@ -19,6 +20,7 @@ class RoleController
     {
         /** @phpstan-ignore-next-line */
         $roles = Role::with('permissions')->get();
+
         return response()->json($roles);
     }
 }

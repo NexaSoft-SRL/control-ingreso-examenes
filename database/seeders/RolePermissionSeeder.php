@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Modules\Administracion\Domain\Models\Role;
 use App\Modules\Administracion\Domain\Models\Permission;
+use App\Modules\Administracion\Domain\Models\Role;
+use Illuminate\Database\Seeder;
 
 class RolePermissionSeeder extends Seeder
 {
@@ -35,7 +35,7 @@ class RolePermissionSeeder extends Seeder
         }
 
         $admin = Role::where('name', 'Administrador')->first();
-        
+
         if ($admin instanceof Role) {
             $permissionIds = Permission::whereIn('name', ['padron_estudiantes', 'asignaturas_ambientes', 'codigos_qr', 'usuarios_roles', 'bitacora', 'respaldo_restauracion'])->pluck('id')->toArray();
             /** @phpstan-ignore-next-line */
