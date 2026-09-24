@@ -35,14 +35,12 @@ class AuthenticationController
 
         Auth::login($user);
 
-        $request->session()->regenerate();
-
-        return response()->json([
+return response()->json([
     'message' => 'Autenticación correcta.',
     'user' => [
         'id' => $user->getKey(),
-        'name' => $user->nombre,
-        'email' => $user->correo,
+        'name' => $user->name,
+        'email' => $user->email,
     ],
 ]);
     }

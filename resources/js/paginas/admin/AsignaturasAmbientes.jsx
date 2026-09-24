@@ -155,7 +155,7 @@ function AsignaturasAmbientes({ onNavigate }) {
                 grupos: [
                     {
                         codigo_grupo: 'A',
-                        docente_id: 1,
+                        docente_id: 2,
                         cupo: 40,
                     },
                 ],
