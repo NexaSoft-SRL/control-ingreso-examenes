@@ -129,5 +129,4 @@ final class AsignaturaController
 
     return (int) $user->getKey();
 }
-
 }
