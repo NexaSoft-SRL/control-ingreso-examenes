@@ -3,20 +3,25 @@
 namespace App\Modules\Administracion\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Role extends Model
 {
     protected $fillable = ['name'];
 
-    public function permissions(): BelongsToMany
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
+    public function permissions()
     {
         return $this->belongsToMany(Permission::class);
     }
 
-    public function users(): HasMany
+    /**
+   /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function role()
     {
-        return $this->hasMany(User::class);
+        return $this->belongsTo(Role::class);
     }
 }
