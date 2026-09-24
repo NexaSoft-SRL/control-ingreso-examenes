@@ -11,6 +11,12 @@ class User extends Authenticatable
 
     protected $table = 'usuarios';
 
+protected $primaryKey = 'id';
+
+public $incrementing = true;
+
+protected $keyType = 'int';
+
     protected $fillable = [
         'nombre',
         'correo',
