@@ -31,13 +31,13 @@ final class EloquentAsignaturaGateway implements AsignaturaGateway
                 $usuarioId,
             ): Asignatura {
                 $asignatura = Asignatura::query()->create([
+                    'carrera_id' => 1,
                     'codigo' => $data->codigo,
                     'nombre' => $data->nombre,
                     'semestre' => $data->semestre,
                     'descripcion' => $data->descripcion,
                     'estado' => true,
                 ]);
-
                 foreach ($data->grupos as $grupo) {
                     $asignatura->grupos()->create([
                         'docente_id' => $grupo->docenteId,

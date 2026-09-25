@@ -16,29 +16,6 @@ import {
     Wrench,
 } from 'lucide-react';
 
-const asignaturasIniciales = [
-    {
-        materia: 'Redes de Computadoras',
-        docente: 'Ing. Rolando J. Torrico Mendoza',
-    },
-    {
-        materia: 'Base de Datos I',
-        docente: 'Lic. Marco Antonio Arnez Claros',
-    },
-    {
-        materia: 'Sistemas Operativos',
-        docente: 'Ing. Patricia Villarroel Siles',
-    },
-    {
-        materia: 'Inteligencia Artificial',
-        docente: 'Dr. Carlos Eduardo Vargas Rojas',
-    },
-    {
-        materia: 'Taller de Ingeniería de Software',
-        docente: 'Ing. Marcelo Guzmán Flores',
-    },
-];
-
 const ambientesIniciales = [
     {
         nombre: 'Aula Magna - FCyT',
@@ -70,10 +47,34 @@ const ambientesIniciales = [
 function AsignaturasAmbientes({ onNavigate }) {
     const [menuAbierto, setMenuAbierto] = React.useState(false);
 
-    const [asignaturas, setAsignaturas] = React.useState(asignaturasIniciales);
+    const [asignaturas, setAsignaturas] = React.useState([]);
 
     const [ambientes, setAmbientes] = React.useState(ambientesIniciales);
 
+    React.useEffect(() => {
+        cargarAsignaturas();
+    }, []);
+
+    async function cargarAsignaturas() {
+        try {
+            const respuesta = await window.axios.get('/api/asignaturas');
+
+            setAsignaturas(
+                respuesta.data.data.map((asignatura) => {
+                    const grupo = asignatura.grupos?.[0];
+
+                    return {
+                        materia: asignatura.nombre,
+                        docente: grupo?.docente
+                            ? `${grupo.docente.nombres} ${grupo.docente.apellidos}`
+                            : 'Sin docente asignado',
+                    };
+                })
+            );
+        } catch (error) {
+            console.error('Error cargando asignaturas:', error);
+        }
+    }
     /* =========================
        ESTADO ASIGNATURAS
     ========================== */
@@ -139,36 +140,36 @@ function AsignaturasAmbientes({ onNavigate }) {
         });
     };
 
-    const guardarAsignatura = () => {
+    const guardarAsignatura = async () => {
         if (nuevaAsignatura.materia.trim() === '' || nuevaAsignatura.docente.trim() === '') {
             alert('Completa todos los campos de la asignatura.');
             return;
         }
 
-        if (asignaturaEditando === null) {
-            setAsignaturas([
-                ...asignaturas,
-                {
-                    materia: nuevaAsignatura.materia.trim(),
-                    docente: nuevaAsignatura.docente.trim(),
-                },
-            ]);
+        try {
+            await window.axios.post('/api/asignaturas', {
+                codigo: 'ASIG-' + Date.now(),
+                nombre: nuevaAsignatura.materia.trim(),
+                semestre: '1',
+                descripcion: null,
+                grupos: [
+                    {
+                        codigo_grupo: 'A',
+                        docente_id: 2,
+                        cupo: 40,
+                    },
+                ],
+            });
+
+            await cargarAsignaturas();
 
             alert('Asignatura creada correctamente.');
-        } else {
-            const asignaturasActualizadas = [...asignaturas];
 
-            asignaturasActualizadas[asignaturaEditando] = {
-                materia: nuevaAsignatura.materia.trim(),
-                docente: nuevaAsignatura.docente.trim(),
-            };
-
-            setAsignaturas(asignaturasActualizadas);
-
-            alert('Asignatura actualizada correctamente.');
+            cancelarAsignatura();
+        } catch (error) {
+            console.error(error);
+            alert('Error al guardar la asignatura.');
         }
-
-        cancelarAsignatura();
     };
 
     /* =========================

@@ -11,19 +11,14 @@ final class GrupoAsignatura extends Model
 {
     protected $table = 'grupos_asignatura';
 
+    public $timestamps = false;
+
     protected $fillable = [
         'asignatura_id',
         'docente_id',
         'codigo_grupo',
         'cupo',
     ];
-
-    protected function casts(): array
-    {
-        return [
-            'cupo' => 'integer',
-        ];
-    }
 
     /**
      * @return BelongsTo<Asignatura, $this>
