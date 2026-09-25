@@ -27,13 +27,15 @@ class AuthenticationController
             $request->userAgent(),
         );
 
-        if ($user === null) {
+                if ($user === null) {
             return response()->json([
                 'message' => 'Credenciales incorrectas.',
             ], Response::HTTP_UNAUTHORIZED);
         }
 
         Auth::login($user);
+
+        $request->session()->regenerate();
 
         return response()->json([
             'message' => 'Autenticación correcta.',

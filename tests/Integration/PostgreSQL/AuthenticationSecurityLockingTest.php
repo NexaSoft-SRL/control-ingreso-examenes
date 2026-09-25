@@ -31,16 +31,16 @@ final class AuthenticationSecurityLockingTest extends TestCase
 
         try {
             $this->assertTrue(
-                DB::table('users')
-                    ->where('id', $userId)
-                    ->exists()
-            );
+    DB::table('usuarios')
+        ->where('id', $userId)
+        ->exists()
+);
 
             $lockingConnection->beginTransaction();
 
             $statement = $lockingConnection->prepare(
-                'SELECT id FROM users WHERE id = :id FOR UPDATE'
-            );
+    'SELECT id FROM usuarios WHERE id = :id FOR UPDATE'
+);
 
             if ($statement === false) {
                 throw new RuntimeException(
@@ -203,9 +203,9 @@ final class AuthenticationSecurityLockingTest extends TestCase
     ): int {
         $statement = $connection->prepare(
             <<<'SQL'
-            INSERT INTO users (
-                name,
-                email,
+            INSERT INTO usuarios (
+                nombre,
+                correo,
                 password,
                 created_at,
                 updated_at
@@ -253,7 +253,7 @@ final class AuthenticationSecurityLockingTest extends TestCase
         int $userId,
     ): void {
         $statement = $connection->prepare(
-            'DELETE FROM users WHERE id = :id'
+            'DELETE FROM usuarios WHERE id = :id'
         );
 
         if ($statement === false) {
