@@ -27,7 +27,7 @@ class AuthenticationController
             $request->userAgent(),
         );
 
-                if ($user === null) {
+        if ($user === null) {
             return response()->json([
                 'message' => 'Credenciales incorrectas.',
             ], Response::HTTP_UNAUTHORIZED);

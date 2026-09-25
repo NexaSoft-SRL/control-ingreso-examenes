@@ -105,8 +105,8 @@ return new class extends Migration
                 ->primary();
 
             $table->string('user_id')
-    ->nullable()
-    ->index();
+                ->nullable()
+                ->index();
 
             $table->string('ip_address', 45)
                 ->nullable();

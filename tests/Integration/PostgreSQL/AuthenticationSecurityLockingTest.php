@@ -31,16 +31,16 @@ final class AuthenticationSecurityLockingTest extends TestCase
 
         try {
             $this->assertTrue(
-    DB::table('usuarios')
-        ->where('id', $userId)
-        ->exists()
-);
+                DB::table('usuarios')
+                    ->where('id', $userId)
+                    ->exists()
+            );
 
             $lockingConnection->beginTransaction();
 
             $statement = $lockingConnection->prepare(
-    'SELECT id FROM usuarios WHERE id = :id FOR UPDATE'
-);
+                'SELECT id FROM usuarios WHERE id = :id FOR UPDATE'
+            );
 
             if ($statement === false) {
                 throw new RuntimeException(

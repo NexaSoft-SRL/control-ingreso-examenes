@@ -45,9 +45,9 @@ class User extends Authenticatable
     }
 
     public function getAuthIdentifierName()
-{
-    return $this->getKeyName();
-}
+    {
+        return $this->getKeyName();
+    }
 
     // AGREGA ESTO
 
