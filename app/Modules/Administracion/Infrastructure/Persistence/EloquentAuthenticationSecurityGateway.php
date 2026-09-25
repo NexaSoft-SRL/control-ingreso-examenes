@@ -43,7 +43,7 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                 $dummyPasswordHash,
             ): ?User {
                 $user = User::query()
-                    ->where('email', $identifier)
+                    ->where('correo', $identifier)
                     ->lockForUpdate()
                     ->first();
 
@@ -66,14 +66,22 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
 
                 $userId = $this->userId($user);
 
+                $passwordHash = $user->getAttribute('password');
+
+                if (! is_string($passwordHash)) {
+                    throw new LogicException(
+                        'La contraseña del usuario no tiene un formato válido.'
+                    );
+                }
+
                 $passwordIsValid = Hash::check(
                     $password,
-                    (string) $user->password
+                    $passwordHash
                 );
 
                 $now = now();
 
-                if (! $user->is_active) {
+                if (isset($user->is_active) && ! $user->is_active) {
                     $this->recordAttempt(
                         $userId,
                         $identifier,
@@ -97,7 +105,7 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                 }
 
                 if (
-                    $lockedUntil !== null
+                    $lockedUntil instanceof DateTimeInterface
                     && $lockedUntil->getTimestamp() > $now->getTimestamp()
                 ) {
                     $this->recordAttempt(
@@ -111,7 +119,7 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                     return null;
                 }
 
-                if ($lockedUntil !== null) {
+                if ($lockedUntil instanceof DateTimeInterface) {
                     $user->forceFill([
                         'failed_login_attempts' => 0,
                         'locked_until' => null,
@@ -119,8 +127,15 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                 }
 
                 if (! $passwordIsValid) {
-                    $failedAttempts =
-                        $user->failed_login_attempts + 1;
+                    $failedLoginAttempts = $user->getAttribute('failed_login_attempts');
+
+                    if (! is_int($failedLoginAttempts)) {
+                        throw new LogicException(
+                            'El contador de intentos fallidos no tiene un formato válido.'
+                        );
+                    }
+
+                    $failedAttempts = $failedLoginAttempts + 1;
 
                     $attributes = [
                         'failed_login_attempts' => $failedAttempts,
@@ -151,8 +166,8 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                     'last_login_at' => $now,
                 ];
 
-                if (Hash::needsRehash((string) $user->password)) {
-                    $attributes['password'] = $password;
+                if (Hash::needsRehash($passwordHash)) {
+                    $user->password = Hash::make($password);
                 }
 
                 $user->forceFill($attributes)->save();
