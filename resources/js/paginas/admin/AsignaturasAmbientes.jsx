@@ -16,43 +16,24 @@ import {
     Wrench,
 } from 'lucide-react';
 
-const ambientesIniciales = [
-    {
-        nombre: 'Aula Magna - FCyT',
-        capacidad: '120 personas',
-        estado: 'Disponible',
-    },
-    {
-        nombre: 'Módulo 3 - Aula 205',
-        capacidad: '60',
-        estado: 'Disponible',
-    },
-    {
-        nombre: 'Laboratorio de Sistemas 1',
-        capacidad: '45',
-        estado: 'Mantenimiento',
-    },
-    {
-        nombre: 'Aula 691B',
-        capacidad: '88',
-        estado: 'Disponible',
-    },
-    {
-        nombre: 'Auditorio Edificio Nuevo',
-        capacidad: '150',
-        estado: 'Disponible',
-    },
-];
+const etiquetasEstado = {
+    DISPONIBLE: 'Disponible',
+    MANTENIMIENTO: 'Mantenimiento',
+    OCUPADO: 'Ocupado',
+};
 
 function AsignaturasAmbientes({ onNavigate }) {
     const [menuAbierto, setMenuAbierto] = React.useState(false);
 
     const [asignaturas, setAsignaturas] = React.useState([]);
 
-    const [ambientes, setAmbientes] = React.useState(ambientesIniciales);
+    const [ambientes, setAmbientes] = React.useState([]);
+    const [cargandoAmbientes, setCargandoAmbientes] = React.useState(true);
+    const [errorAmbientes, setErrorAmbientes] = React.useState('');
 
     React.useEffect(() => {
         cargarAsignaturas();
+        cargarAmbientes();
     }, []);
 
     async function cargarAsignaturas() {
@@ -75,6 +56,20 @@ function AsignaturasAmbientes({ onNavigate }) {
             console.error('Error cargando asignaturas:', error);
         }
     }
+    async function cargarAmbientes() {
+        setErrorAmbientes('');
+
+        try {
+            const respuesta = await window.axios.get('/api/admin/ambientes');
+            setAmbientes(respuesta.data);
+        } catch (error) {
+            console.error('Error cargando ambientes:', error);
+            setErrorAmbientes('No se pudieron cargar los ambientes.');
+        } finally {
+            setCargandoAmbientes(false);
+        }
+    }
+
     /* =========================
        ESTADO ASIGNATURAS
     ========================== */
@@ -458,7 +453,19 @@ function AsignaturasAmbientes({ onNavigate }) {
                             <div>ACCIONES</div>
                         </div>
 
-                        {ambientes.map((ambiente, index) => (
+                        {cargandoAmbientes ? (
+                            <div className="px-4 py-6 text-center text-sm text-slate-500">
+                                Cargando ambientes...
+                            </div>
+                        ) : errorAmbientes ? (
+                            <div role="alert" className="px-4 py-6 text-center text-sm text-rose-600">
+                                {errorAmbientes}
+                            </div>
+                        ) : ambientes.length === 0 ? (
+                            <div className="px-4 py-6 text-center text-sm text-slate-500">
+                                No hay ambientes registrados todavia.
+                            </div>
+                        ) : ambientes.map((ambiente, index) => (
                             <div
                                 key={index}
                                 className="grid min-w-[620px] grid-cols-[1.3fr_0.7fr_0.8fr_0.5fr] items-center gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0"
@@ -470,17 +477,19 @@ function AsignaturasAmbientes({ onNavigate }) {
                                 <div>
                                     <span
                                         className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
-                                            ambiente.estado === 'Disponible'
+                                            ambiente.estado === 'DISPONIBLE'
                                                 ? 'bg-emerald-100 text-emerald-700'
-                                                : 'bg-rose-100 text-rose-700'
+                                                : ambiente.estado === 'OCUPADO'
+                                                  ? 'bg-amber-100 text-amber-700'
+                                                  : 'bg-rose-100 text-rose-700'
                                         }`}
                                     >
-                                        {ambiente.estado === 'Disponible' ? (
+                                        {ambiente.estado === 'DISPONIBLE' ? (
                                             <CheckCircle2 className="h-3.5 w-3.5" />
                                         ) : (
                                             <Wrench className="h-3.5 w-3.5" />
                                         )}
-                                        {ambiente.estado}
+                                        {etiquetasEstado[ambiente.estado] ?? ambiente.estado}
                                     </span>
                                 </div>
                                 <div>
