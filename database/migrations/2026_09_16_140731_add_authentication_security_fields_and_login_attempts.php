@@ -21,7 +21,6 @@ return new class extends Migration
         |--------------------------------------------------------------------------
         */
 
-
         if (DB::connection()->getDriverName() === 'pgsql') {
             DB::statement(
                 'ALTER TABLE usuarios
@@ -29,7 +28,6 @@ return new class extends Migration
                  CHECK (failed_login_attempts >= 0)'
             );
         }
-
 
         Schema::create('login_attempts', function (Blueprint $table) {
 
@@ -54,12 +52,10 @@ return new class extends Migration
             $table->timestamp('attempted_at')
                 ->useCurrent();
 
-
             $table->index(
                 ['identifier', 'attempted_at'],
                 'login_attempts_identifier_attempted_at_idx'
             );
-
 
             $table->index(
                 ['user_id', 'attempted_at'],
@@ -68,11 +64,9 @@ return new class extends Migration
         });
     }
 
-
     public function down(): void
     {
         Schema::dropIfExists('login_attempts');
-
 
         if (DB::connection()->getDriverName() === 'pgsql') {
             DB::statement(

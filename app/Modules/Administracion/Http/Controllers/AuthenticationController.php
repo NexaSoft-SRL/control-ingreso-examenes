@@ -35,14 +35,14 @@ class AuthenticationController
 
         Auth::login($user);
 
-return response()->json([
-    'message' => 'Autenticación correcta.',
-    'user' => [
-        'id' => $user->getKey(),
-        'name' => $user->name,
-        'email' => $user->email,
-    ],
-]);
+        return response()->json([
+            'message' => 'Autenticación correcta.',
+            'user' => [
+                'id' => $user->getKey(),
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
+        ]);
     }
 
     public function logout(Request $request): Response

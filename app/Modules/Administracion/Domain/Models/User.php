@@ -11,11 +11,11 @@ class User extends Authenticatable
 
     protected $table = 'usuarios';
 
-protected $primaryKey = 'id';
+    protected $primaryKey = 'id';
 
-public $incrementing = true;
+    public $incrementing = true;
 
-protected $keyType = 'int';
+    protected $keyType = 'int';
 
     protected $fillable = [
         'nombre',
@@ -44,34 +44,30 @@ protected $keyType = 'int';
         ];
     }
 
-
     public function getAuthIdentifierName()
     {
         return 'correo';
     }
 
-
     // AGREGA ESTO
 
-   public function getEmailAttribute(): string
-{
-    return $this->correo ?? '';
-}
+    public function getEmailAttribute(): string
+    {
+        return $this->correo ?? '';
+    }
 
-
-public function getNameAttribute(): string
-{
-    return $this->nombre ?? '';
-}
+    public function getNameAttribute(): string
+    {
+        return $this->nombre ?? '';
+    }
 
     public function setEmailAttribute(string $value): void
-{
-    $this->attributes['correo'] = $value;
-}
-
+    {
+        $this->attributes['correo'] = $value;
+    }
 
     public function setNameAttribute(string $value): void
-{
-    $this->attributes['nombre'] = $value;
-}
+    {
+        $this->attributes['nombre'] = $value;
+    }
 }

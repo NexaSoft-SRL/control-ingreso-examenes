@@ -22,22 +22,22 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
     ): array {
         $query = DB::table('bitacora_operaciones as bitacora')
             ->leftJoin(
-    'usuarios as usuario',
-    'usuario.id',
-    '=',
-    'bitacora.usuario_id',
-)
-->select([
-    'bitacora.id',
-    'bitacora.usuario_id',
-    'usuario.nombre as usuario_nombre',
-    'usuario.correo as usuario_email',
-                'bitacora.operacion',
-                'bitacora.tabla_afectada',
-                'bitacora.registro_id',
-                'bitacora.descripcion',
-                'bitacora.fecha_operacion',
-            ]);
+                'usuarios as usuario',
+                'usuario.id',
+                '=',
+                'bitacora.usuario_id',
+            )
+            ->select([
+                            'bitacora.id',
+                            'bitacora.usuario_id',
+                            'usuario.nombre as usuario_nombre',
+                            'usuario.correo as usuario_email',
+                            'bitacora.operacion',
+                            'bitacora.tabla_afectada',
+                            'bitacora.registro_id',
+                            'bitacora.descripcion',
+                            'bitacora.fecha_operacion',
+                        ]);
 
         if ($filtros->usuarioId !== null) {
             $query->where(

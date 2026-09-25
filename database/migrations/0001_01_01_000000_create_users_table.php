@@ -45,7 +45,6 @@ return new class extends Migration
             $table->timestamps();
         });
 
-
         /*
         |--------------------------------------------------------------------------
         | Tabla de compatibilidad para tests que usan users
@@ -82,7 +81,6 @@ return new class extends Migration
             $table->timestamps();
         });
 
-
         /*
         |--------------------------------------------------------------------------
         | Recuperación de contraseña
@@ -96,7 +94,6 @@ return new class extends Migration
             $table->timestamp('created_at')
                 ->nullable();
         });
-
 
         /*
         |--------------------------------------------------------------------------
@@ -123,7 +120,6 @@ return new class extends Migration
                 ->index();
         });
     }
-
 
     public function down(): void
     {

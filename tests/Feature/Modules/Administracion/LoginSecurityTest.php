@@ -75,7 +75,6 @@ class LoginSecurityTest extends TestCase
         );
     }
 
-
     public function test_locked_account_rejects_correct_password_without_extending_lock(): void
     {
         $user = UserFactory::new()->createOne([
@@ -89,13 +88,11 @@ class LoginSecurityTest extends TestCase
             ->where('id', $user->getKey())
             ->value('locked_until');
 
-
         $this->postJson('/api/auth/login', [
             'email' => 'locked-user@example.invalid',
             'password' => 'CorrectPassword123!',
         ])
-        ->assertUnauthorized();
-
+            ->assertUnauthorized();
 
         $this->assertSame(
             3,
@@ -112,14 +109,12 @@ class LoginSecurityTest extends TestCase
         );
     }
 
-
     public function test_success_before_threshold_resets_failed_attempts(): void
     {
         $user = UserFactory::new()->createOne([
             'correo' => 'reset-counter@example.invalid',
             'password' => 'CorrectPassword123!',
         ]);
-
 
         for ($attempt = 1; $attempt <= 2; $attempt++) {
             $this->postJson('/api/auth/login', [
@@ -128,7 +123,6 @@ class LoginSecurityTest extends TestCase
             ])->assertUnauthorized();
         }
 
-
         $this->assertSame(
             2,
             DB::table('usuarios')
@@ -136,12 +130,10 @@ class LoginSecurityTest extends TestCase
                 ->value('failed_login_attempts')
         );
 
-
         $this->postJson('/api/auth/login', [
             'email' => 'reset-counter@example.invalid',
             'password' => 'CorrectPassword123!',
         ])->assertOk();
-
 
         $this->assertSame(
             0,
@@ -150,7 +142,6 @@ class LoginSecurityTest extends TestCase
                 ->value('failed_login_attempts')
         );
     }
-
 
     public function test_user_can_login_after_temporary_lock_expires(): void
     {
@@ -161,12 +152,10 @@ class LoginSecurityTest extends TestCase
             'locked_until' => now()->subMinutes(1),
         ]);
 
-
         $this->postJson('/api/auth/login', [
             'email' => 'expired-lock@example.invalid',
             'password' => 'CorrectPassword123!',
         ])->assertOk();
-
 
         $this->assertSame(
             0,
@@ -176,7 +165,6 @@ class LoginSecurityTest extends TestCase
         );
     }
 
-
     public function test_unknown_identifier_is_recorded_without_user_reference(): void
     {
         $this->postJson('/api/auth/login', [
@@ -184,13 +172,11 @@ class LoginSecurityTest extends TestCase
             'password' => 'IncorrectPassword123!',
         ])->assertUnauthorized();
 
-
         $attempt = DB::table('login_attempts')
             ->where(
                 'identifier',
                 'unknown-security@example.invalid'
             );
-
 
         $this->assertTrue($attempt->exists());
 
@@ -198,7 +184,6 @@ class LoginSecurityTest extends TestCase
             $attempt->value('user_id')
         );
     }
-
 
     public function test_inactive_user_attempt_does_not_increment_lock_counter(): void
     {
@@ -208,12 +193,10 @@ class LoginSecurityTest extends TestCase
             'is_active' => false,
         ]);
 
-
         $this->postJson('/api/auth/login', [
             'email' => 'inactive-security@example.invalid',
             'password' => 'CorrectPassword123!',
         ])->assertUnauthorized();
-
 
         $this->assertSame(
             0,

@@ -528,26 +528,26 @@ final class StructureChecker
         return $result;
     }
 
-   private function relativePath(string $path): string
-{
-    $root = str_replace(
-        '\\',
-        '/',
-        rtrim($this->root, '\\/')
-    );
+    private function relativePath(string $path): string
+    {
+        $root = str_replace(
+            '\\',
+            '/',
+            rtrim($this->root, '\\/')
+        );
 
-    $path = str_replace(
-        '\\',
-        '/',
-        $path
-    );
+        $path = str_replace(
+            '\\',
+            '/',
+            $path
+        );
 
-    if (str_starts_with($path, $root.'/')) {
-        return substr($path, strlen($root) + 1);
+        if (str_starts_with($path, $root.'/')) {
+            return substr($path, strlen($root) + 1);
+        }
+
+        return $path;
     }
-
-    return $path;
-}
 
     private function matches(string $pattern, string $value): bool
     {

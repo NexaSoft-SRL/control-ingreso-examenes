@@ -118,23 +118,23 @@ final class AsignaturaController
     }
 
     private function authenticatedUserId(): int
-{
-    $user = Auth::guard('web')->user();
+    {
+        $user = Auth::guard('web')->user();
 
-    if ($user === null) {
-        throw new LogicException(
-            'No existe usuario autenticado.'
-        );
+        if ($user === null) {
+            throw new LogicException(
+                'No existe usuario autenticado.'
+            );
+        }
+
+        $id = $user->getKey();
+
+        if (! is_int($id) && ! is_string($id)) {
+            throw new LogicException(
+                'El usuario autenticado no tiene un identificador válido.'
+            );
+        }
+
+        return (int) $id;
     }
-
-    $id = $user->getKey();
-
-    if (! is_int($id) && ! is_string($id)) {
-        throw new LogicException(
-            'El usuario autenticado no tiene un identificador válido.'
-        );
-    }
-
-    return (int) $id;
-}
 }
