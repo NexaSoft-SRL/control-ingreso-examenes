@@ -49,8 +49,6 @@ class User extends Authenticatable
         return $this->getKeyName();
     }
 
-    // AGREGA ESTO
-
     public function getEmailAttribute(): string
     {
         return $this->correo ?? '';
@@ -69,5 +67,11 @@ class User extends Authenticatable
     public function setNameAttribute(string $value): void
     {
         $this->attributes['nombre'] = $value;
+    }
+
+    /** @phpstan-ignore-next-line */
+    public function role()
+    {
+        return $this->belongsTo(Role::class, 'rol_id');
     }
 }
