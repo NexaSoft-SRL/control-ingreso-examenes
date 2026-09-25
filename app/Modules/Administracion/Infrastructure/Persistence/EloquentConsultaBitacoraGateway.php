@@ -28,16 +28,16 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
                 'bitacora.usuario_id',
             )
             ->select([
-                            'bitacora.id',
-                            'bitacora.usuario_id',
-                            'usuario.nombre as usuario_nombre',
-                            'usuario.correo as usuario_email',
-                            'bitacora.operacion',
-                            'bitacora.tabla_afectada',
-                            'bitacora.registro_id',
-                            'bitacora.descripcion',
-                            'bitacora.fecha_operacion',
-                        ]);
+                'bitacora.id',
+                'bitacora.usuario_id',
+                'usuario.nombre as usuario_nombre',
+                'usuario.correo as usuario_email',
+                'bitacora.operacion',
+                'bitacora.tabla_afectada',
+                'bitacora.registro_id',
+                'bitacora.descripcion',
+                'bitacora.fecha_operacion',
+            ]);
 
         if ($filtros->usuarioId !== null) {
             $query->where(
