@@ -72,6 +72,6 @@ class User extends Authenticatable
     /** @phpstan-ignore-next-line */
     public function role()
     {
-        return $this->belongsTo(Role::class, 'rol_id');
+        return $this->belongsTo(Role::class, 'role_id');
     }
 }
