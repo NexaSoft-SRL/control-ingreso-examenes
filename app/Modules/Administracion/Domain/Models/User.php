@@ -21,7 +21,7 @@ class User extends Authenticatable
         'nombre',
         'correo',
         'password',
-        'rol_id',
+        'role_id',
         'is_active',
         'failed_login_attempts',
         'locked_until',
