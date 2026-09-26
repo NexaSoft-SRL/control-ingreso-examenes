@@ -40,6 +40,7 @@ final readonly class ImportStudents
                     'motivo' => 'La fila debe tener exactamente cinco columnas.',
                     'tipo' => 'rechazado',
                 ];
+
                 continue;
             }
 
@@ -59,12 +60,14 @@ final readonly class ImportStudents
             $validationError = $this->validationError($data);
             if ($validationError !== null) {
                 $details[] = ['fila' => $row['fila'], 'motivo' => $validationError, 'tipo' => 'rechazado'];
+
                 continue;
             }
 
             $normalizedEmail = strtolower($correo);
             if (isset($seenCi[$ci]) || isset($seenEmails[$normalizedEmail])) {
                 $details[] = ['fila' => $row['fila'], 'motivo' => 'CI o correo repetido en el archivo.', 'tipo' => 'rechazado'];
+
                 continue;
             }
             $seenCi[$ci] = true;
@@ -74,6 +77,7 @@ final readonly class ImportStudents
             $emailOwnerId = $emailOwners[$normalizedEmail] ?? null;
             if ($emailOwnerId !== null && $emailOwnerId !== $student?->id) {
                 $details[] = ['fila' => $row['fila'], 'motivo' => 'El correo ya pertenece a otro estudiante.', 'tipo' => 'rechazado'];
+
                 continue;
             }
 
