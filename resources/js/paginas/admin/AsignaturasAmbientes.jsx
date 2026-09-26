@@ -254,9 +254,7 @@ function AsignaturasAmbientes({ onNavigate }) {
             await cargarAmbientes();
         } catch (error) {
             console.error('Error eliminando ambiente:', error);
-            setErrorAmbientes(
-                error.response?.data?.message ?? 'No se pudo eliminar el ambiente.'
-            );
+            setErrorAmbientes(error.response?.data?.message ?? 'No se pudo eliminar el ambiente.');
         } finally {
             setEliminandoAmbiente(null);
         }
@@ -478,60 +476,65 @@ function AsignaturasAmbientes({ onNavigate }) {
                                 Cargando ambientes...
                             </div>
                         ) : errorAmbientes ? (
-                            <div role="alert" className="px-4 py-6 text-center text-sm text-rose-600">
+                            <div
+                                role="alert"
+                                className="px-4 py-6 text-center text-sm text-rose-600"
+                            >
                                 {errorAmbientes}
                             </div>
                         ) : ambientes.length === 0 ? (
                             <div className="px-4 py-6 text-center text-sm text-slate-500">
                                 No hay ambientes registrados todavia.
                             </div>
-                        ) : ambientes.map((ambiente, index) => (
-                            <div
-                                key={index}
-                                className="grid min-w-[620px] grid-cols-[1.3fr_0.7fr_0.8fr_0.5fr] items-center gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0"
-                            >
-                                <div className="font-semibold text-slate-800">
-                                    {ambiente.nombre}
+                        ) : (
+                            ambientes.map((ambiente, index) => (
+                                <div
+                                    key={index}
+                                    className="grid min-w-[620px] grid-cols-[1.3fr_0.7fr_0.8fr_0.5fr] items-center gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0"
+                                >
+                                    <div className="font-semibold text-slate-800">
+                                        {ambiente.nombre}
+                                    </div>
+                                    <div className="text-slate-500">{ambiente.capacidad}</div>
+                                    <div>
+                                        <span
+                                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+                                                ambiente.estado === 'DISPONIBLE'
+                                                    ? 'bg-emerald-100 text-emerald-700'
+                                                    : ambiente.estado === 'OCUPADO'
+                                                      ? 'bg-amber-100 text-amber-700'
+                                                      : 'bg-rose-100 text-rose-700'
+                                            }`}
+                                        >
+                                            {ambiente.estado === 'DISPONIBLE' ? (
+                                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                            ) : (
+                                                <Wrench className="h-3.5 w-3.5" />
+                                            )}
+                                            {etiquetasEstado[ambiente.estado] ?? ambiente.estado}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            type="button"
+                                            className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                                            onClick={() => abrirEditarAmbiente(index)}
+                                        >
+                                            Editar
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="text-sm font-medium text-rose-600 hover:text-rose-700 disabled:opacity-50"
+                                            onClick={() => eliminarAmbiente(ambiente)}
+                                            disabled={eliminandoAmbiente === ambiente.id}
+                                            aria-label={`Eliminar ${ambiente.nombre}`}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="text-slate-500">{ambiente.capacidad}</div>
-                                <div>
-                                    <span
-                                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
-                                            ambiente.estado === 'DISPONIBLE'
-                                                ? 'bg-emerald-100 text-emerald-700'
-                                                : ambiente.estado === 'OCUPADO'
-                                                  ? 'bg-amber-100 text-amber-700'
-                                                  : 'bg-rose-100 text-rose-700'
-                                        }`}
-                                    >
-                                        {ambiente.estado === 'DISPONIBLE' ? (
-                                            <CheckCircle2 className="h-3.5 w-3.5" />
-                                        ) : (
-                                            <Wrench className="h-3.5 w-3.5" />
-                                        )}
-                                        {etiquetasEstado[ambiente.estado] ?? ambiente.estado}
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        type="button"
-                                        className="text-sm font-medium text-blue-600 hover:text-blue-700"
-                                        onClick={() => abrirEditarAmbiente(index)}
-                                    >
-                                        Editar
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="text-sm font-medium text-rose-600 hover:text-rose-700 disabled:opacity-50"
-                                        onClick={() => eliminarAmbiente(ambiente)}
-                                        disabled={eliminandoAmbiente === ambiente.id}
-                                        aria-label={`Eliminar ${ambiente.nombre}`}
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            ))
+                        )}
                     </div>
                 </section>
             </main>
