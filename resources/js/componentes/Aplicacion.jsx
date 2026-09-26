@@ -100,7 +100,13 @@ RutaProtegida.propTypes = {
 };
 
 function PaginaUsuarios() {
-    return <UsuariosRoles onNavigate={useNavegacionPorClave()} />;
+    const navegar = useNavegacionPorClave();
+
+    return (
+        <LayoutAdmin seleccionado="usuarios" onNavigate={navegar}>
+            <UsuariosRoles onNavigate={navegar} />
+        </LayoutAdmin>
+    );
 }
 
 function PaginaAsignaturas() {
