@@ -62,7 +62,7 @@ final class StudentController
             $line = 1;
             while (($values = fgetcsv($handle)) !== false) {
                 $line++;
-                if ($values === [null] || $values === []) {
+                if ($values === [null]) {
                     continue;
                 }
 
