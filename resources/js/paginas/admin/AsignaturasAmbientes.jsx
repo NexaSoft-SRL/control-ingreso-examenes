@@ -10,6 +10,7 @@ import {
     MonitorCheck,
     QrCode,
     ShieldCheck,
+    Trash2,
     User,
     UserCog,
     Users,
@@ -30,6 +31,7 @@ function AsignaturasAmbientes({ onNavigate }) {
     const [ambientes, setAmbientes] = React.useState([]);
     const [cargandoAmbientes, setCargandoAmbientes] = React.useState(true);
     const [errorAmbientes, setErrorAmbientes] = React.useState('');
+    const [eliminandoAmbiente, setEliminandoAmbiente] = React.useState(null);
 
     React.useEffect(() => {
         cargarAsignaturas();
@@ -236,6 +238,27 @@ function AsignaturasAmbientes({ onNavigate }) {
             );
         } finally {
             setGuardandoAmbiente(false);
+        }
+    };
+
+    const eliminarAmbiente = async (ambiente) => {
+        if (!window.confirm(`¿Eliminar el ambiente "${ambiente.nombre}"?`)) {
+            return;
+        }
+
+        setEliminandoAmbiente(ambiente.id);
+        setErrorAmbientes('');
+
+        try {
+            await window.axios.delete(`/api/admin/ambientes/${ambiente.id}`);
+            await cargarAmbientes();
+        } catch (error) {
+            console.error('Error eliminando ambiente:', error);
+            setErrorAmbientes(
+                error.response?.data?.message ?? 'No se pudo eliminar el ambiente.'
+            );
+        } finally {
+            setEliminandoAmbiente(null);
         }
     };
 
@@ -489,13 +512,22 @@ function AsignaturasAmbientes({ onNavigate }) {
                                         {etiquetasEstado[ambiente.estado] ?? ambiente.estado}
                                     </span>
                                 </div>
-                                <div>
+                                <div className="flex items-center gap-3">
                                     <button
                                         type="button"
                                         className="text-sm font-medium text-blue-600 hover:text-blue-700"
                                         onClick={() => abrirEditarAmbiente(index)}
                                     >
                                         Editar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="text-sm font-medium text-rose-600 hover:text-rose-700 disabled:opacity-50"
+                                        onClick={() => eliminarAmbiente(ambiente)}
+                                        disabled={eliminandoAmbiente === ambiente.id}
+                                        aria-label={`Eliminar ${ambiente.nombre}`}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
                                     </button>
                                 </div>
                             </div>
