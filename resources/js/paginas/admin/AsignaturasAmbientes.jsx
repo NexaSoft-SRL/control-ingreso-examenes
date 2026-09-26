@@ -90,11 +90,14 @@ function AsignaturasAmbientes({ onNavigate }) {
     const [mostrarFormularioAmbiente, setMostrarFormularioAmbiente] = React.useState(false);
 
     const [ambienteEditando, setAmbienteEditando] = React.useState(null);
+    const [guardandoAmbiente, setGuardandoAmbiente] = React.useState(false);
+    const [errorFormularioAmbiente, setErrorFormularioAmbiente] = React.useState('');
 
     const [nuevoAmbiente, setNuevoAmbiente] = React.useState({
         nombre: '',
+        ubicacion: '',
         capacidad: '',
-        estado: 'Disponible',
+        estado: 'DISPONIBLE',
     });
 
     /* =========================
@@ -173,73 +176,67 @@ function AsignaturasAmbientes({ onNavigate }) {
 
     const abrirNuevoAmbiente = () => {
         setAmbienteEditando(null);
-
-        setNuevoAmbiente({
-            nombre: '',
-            capacidad: '',
-            estado: 'Disponible',
-        });
-
+        setNuevoAmbiente({ nombre: '', ubicacion: '', capacidad: '', estado: 'DISPONIBLE' });
+        setErrorFormularioAmbiente('');
         setMostrarFormularioAmbiente(true);
     };
 
     const abrirEditarAmbiente = (index) => {
         const ambiente = ambientes[index];
-
         setAmbienteEditando(index);
-
         setNuevoAmbiente({
             nombre: ambiente.nombre,
-            capacidad: ambiente.capacidad,
+            ubicacion: ambiente.ubicacion ?? '',
+            capacidad: String(ambiente.capacidad),
             estado: ambiente.estado,
         });
-
+        setErrorFormularioAmbiente('');
         setMostrarFormularioAmbiente(true);
     };
 
     const cancelarAmbiente = () => {
         setMostrarFormularioAmbiente(false);
         setAmbienteEditando(null);
-
-        setNuevoAmbiente({
-            nombre: '',
-            capacidad: '',
-            estado: 'Disponible',
-        });
+        setNuevoAmbiente({ nombre: '', ubicacion: '', capacidad: '', estado: 'DISPONIBLE' });
+        setErrorFormularioAmbiente('');
     };
 
-    const guardarAmbiente = () => {
-        if (nuevoAmbiente.nombre.trim() === '' || nuevoAmbiente.capacidad.trim() === '') {
-            alert('Completa todos los campos del ambiente.');
+    const guardarAmbiente = async () => {
+        const capacidad = Number(nuevoAmbiente.capacidad);
+        if (!nuevoAmbiente.nombre.trim() || !Number.isInteger(capacidad) || capacidad < 1) {
+            setErrorFormularioAmbiente('Ingresa el nombre y una capacidad entera mayor que cero.');
             return;
         }
 
-        if (ambienteEditando === null) {
-            setAmbientes([
-                ...ambientes,
-                {
-                    nombre: nuevoAmbiente.nombre.trim(),
-                    capacidad: nuevoAmbiente.capacidad.trim(),
-                    estado: nuevoAmbiente.estado,
-                },
-            ]);
+        const datos = {
+            nombre: nuevoAmbiente.nombre.trim(),
+            ubicacion: nuevoAmbiente.ubicacion.trim() || null,
+            capacidad,
+            estado: nuevoAmbiente.estado,
+        };
 
-            alert('Ambiente creado correctamente.');
-        } else {
-            const ambientesActualizados = [...ambientes];
+        setGuardandoAmbiente(true);
+        setErrorFormularioAmbiente('');
 
-            ambientesActualizados[ambienteEditando] = {
-                nombre: nuevoAmbiente.nombre.trim(),
-                capacidad: nuevoAmbiente.capacidad.trim(),
-                estado: nuevoAmbiente.estado,
-            };
+        try {
+            if (ambienteEditando === null) {
+                await window.axios.post('/api/admin/ambientes', datos);
+            } else {
+                const ambiente = ambientes[ambienteEditando];
+                await window.axios.put(`/api/admin/ambientes/${ambiente.id}`, datos);
+            }
 
-            setAmbientes(ambientesActualizados);
-
-            alert('Ambiente actualizado correctamente.');
+            await cargarAmbientes();
+            cancelarAmbiente();
+        } catch (error) {
+            console.error('Error guardando ambiente:', error);
+            const errores = error.response?.data?.errors;
+            setErrorFormularioAmbiente(
+                errores ? Object.values(errores).flat()[0] : 'No se pudo guardar el ambiente.'
+            );
+        } finally {
+            setGuardandoAmbiente(false);
         }
-
-        cancelarAmbiente();
     };
 
     function navegar(clave) {
@@ -608,11 +605,30 @@ function AsignaturasAmbientes({ onNavigate }) {
                         />
 
                         <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                            Capacidad
+                            Ubicación (opcional)
                         </label>
 
                         <input
                             type="text"
+                            value={nuevoAmbiente.ubicacion}
+                            onChange={(e) =>
+                                setNuevoAmbiente({
+                                    ...nuevoAmbiente,
+                                    ubicacion: e.target.value,
+                                })
+                            }
+                            placeholder="Ej. Edificio central, segundo piso"
+                            className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
+
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                            Capacidad
+                        </label>
+
+                        <input
+                            type="number"
+                            min="1"
+                            step="1"
                             value={nuevoAmbiente.capacidad}
                             onChange={(e) =>
                                 setNuevoAmbiente({
@@ -638,9 +654,16 @@ function AsignaturasAmbientes({ onNavigate }) {
                             }
                             className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         >
-                            <option value="Disponible">Disponible</option>
-                            <option value="Mantenimiento">Mantenimiento</option>
+                            <option value="DISPONIBLE">Disponible</option>
+                            <option value="MANTENIMIENTO">Mantenimiento</option>
+                            <option value="OCUPADO">Ocupado</option>
                         </select>
+
+                        {errorFormularioAmbiente && (
+                            <p role="alert" className="mb-4 text-sm text-rose-600">
+                                {errorFormularioAmbiente}
+                            </p>
+                        )}
 
                         <div className="mt-1 flex justify-end gap-2">
                             <button
@@ -653,10 +676,15 @@ function AsignaturasAmbientes({ onNavigate }) {
 
                             <button
                                 type="button"
-                                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                                disabled={guardandoAmbiente}
+                                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
                                 onClick={guardarAmbiente}
                             >
-                                {ambienteEditando === null ? 'Guardar' : 'Guardar cambios'}
+                                {guardandoAmbiente
+                                    ? 'Guardando...'
+                                    : ambienteEditando === null
+                                      ? 'Guardar'
+                                      : 'Guardar cambios'}
                             </button>
                         </div>
                     </div>
