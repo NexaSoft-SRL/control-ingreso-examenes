@@ -1,17 +1,17 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-function UsuariosRoles({ onNavigate }) {
+function UsuariosRoles() {
     const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
     const [usuarios, setUsuarios] = React.useState([]);
     const [nuevoUsuario, setNuevoUsuario] = React.useState({
-    nombre: '',
-    correo: '',
-    rol: 'Docente',
-});
-    const [cargandoUsuarios, setCargandoUsuarios] = React.useState(true);
+        nombre: '',
+        correo: '',
+        rol: 'Docente',
+    });
+    const [, setCargandoUsuarios] = React.useState(true);
 
-        React.useEffect(() => {
+    React.useEffect(() => {
         cargarUsuarios();
     }, []);
 
@@ -27,280 +27,213 @@ function UsuariosRoles({ onNavigate }) {
         }
     }
     async function crearUsuario() {
-    try {
-        await window.axios.post('/api/auth/admin/users', {
-            nombre: nuevoUsuario.nombre,
-            correo: nuevoUsuario.correo,
-            rol: nuevoUsuario.rol,
-        });
+        try {
+            await window.axios.post('/api/auth/admin/users', {
+                nombre: nuevoUsuario.nombre,
+                correo: nuevoUsuario.correo,
+                rol: nuevoUsuario.rol,
+            });
 
-        await cargarUsuarios();
+            await cargarUsuarios();
 
-        setMostrarFormulario(false);
+            setMostrarFormulario(false);
 
-        setNuevoUsuario({
-            nombre: '',
-            correo: '',
-            rol: 'Docente',
-        });
-
-    } catch (error) {
-        console.error('Error creando usuario:', error);
+            setNuevoUsuario({
+                nombre: '',
+                correo: '',
+                rol: 'Docente',
+            });
+        } catch (error) {
+            console.error('Error creando usuario:', error);
+        }
     }
-}
     const [, setUsuarioEditando] = React.useState(null);
 
     return (
-        <div style={styles.app}>
-            {/* BARRA LATERAL */}
-            <aside style={styles.sidebar}>
-                {/* LOGO */}
-                <div style={styles.logoContainer}>
-                    <div style={styles.logo}>✓</div>
-
-                    <div>
-                        <div style={styles.logoTitle}>UMSS FCyT</div>
-                        <div style={styles.logoSubtitle}>CONTROL DE INGRESO</div>
-                    </div>
-                </div>
-
-                {/* MENU */}
-                <div style={styles.menuSection}>
-                    <div style={styles.menuTitle}>ADMINISTRADOR</div>
-
-                    <MenuItem icon="♙" text="Padrón" />
-
-                    <MenuItem
-                        icon="▤"
-                        text="Asignaturas y ambientes"
-                        onClick={() => onNavigate('asignaturas')}
-                    />
-                    <MenuItem icon="⌗" text="Códigos QR" />
-                    <MenuItem
-                        icon="♙"
-                        text="Usuarios y roles"
-                        selected
-                        onClick={() => onNavigate('usuarios')}
-                    />
-                    <MenuItem icon="▧" text="Bitácora" />
-                    <MenuItem icon="↻" text="Respaldo" />
-                </div>
-            </aside>
-
-            {/* CONTENIDO PRINCIPAL */}
-            <main style={styles.main}>
-                {/* BARRA SUPERIOR */}
-                <header style={styles.header}>
-                    <div style={styles.headerTitle}>
-                        <span style={styles.headerIcon}>♢</span>
-                        Sistema Institucional de Verificación
-                    </div>
-
-                    <div style={styles.userCircle}>●</div>
-                </header>
-
-                {/* CONTENIDO */}
-                <section style={styles.content}>
-                    {/* TITULO Y BOTON */}
-                    <div style={styles.titleRow}>
-                        <div>
-                            <h1 style={styles.title}>Usuarios y roles</h1>
-
-                            <p style={styles.description}>
-                                Gestión de cuentas y permisos del sistema
-                            </p>
-                        </div>
-
-                        <button style={styles.newButton} onClick={() => setMostrarFormulario(true)}>
-                            + Nuevo usuario
-                        </button>
-                    </div>
-
-                    {/* PESTAÑAS */}
-                    <div style={styles.tabs}>
-                        <button style={styles.tabActive}>Usuarios</button>
-
-                        <button style={styles.tab}>Roles</button>
-                    </div>
-
-                    {/* TABLA */}
-                    <div style={styles.tableContainer}>
-                        <div style={styles.tableHeader}>
-                            <div>NOMBRE</div>
-                            <div>CORREO</div>
-                            <div>ROL</div>
-                            <div>ESTADO</div>
-                            <div>ACCIONES</div>
-                        </div>
-
-                        {usuarios.map((usuario, index) => (
-                            <div style={styles.tableRow} key={index}>
-                                {/* NOMBRE */}
-                                <div style={styles.name}>{usuario.nombre}</div>
-
-                                {/* CORREO */}
-                                <div style={styles.email}>{usuario.correo}</div>
-
-                                {/* ROL */}
-                                <div>
-                                    <span
-                                        style={{
-                                            ...styles.role,
-                                            ...roleStyles[usuario.rol?.toLowerCase()],
-                                        }}
-                                    >
-                                        {usuario.rol}
-                                    </span>
-                                </div>
-
-                                {/* ESTADO */}
-<div>
-    <div
-        style={{
-            ...styles.switch,
-            ...(usuario.is_active
-                ? styles.switchActive
-                : styles.switchInactive),
-        }}
-    >
-        <div
-            style={{
-                ...styles.switchCircle,
-                ...(usuario.is_active
-                    ? styles.circleActive
-                    : styles.circleInactive),
-            }}
-        ></div>
-    </div>
-</div>
-
-                                {/* ACCIONES */}
-                                <div>
-                                    <button
-                                        style={styles.editButton}
-                                        onClick={() => {
-                                            setUsuarioEditando(usuario);
-                                            setNuevoUsuario({
-                                                nombre: usuario.nombre,
-                                                correo: usuario.correo,
-                                                rol: usuario.rol,
-                                            });
-                                            setMostrarFormulario(true);
-                                        }}
-                                    >
-                                        Editar
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* PIE */}
-                    <p style={styles.footerText}>Las cuentas las crea el Administrador.</p>
-                </section>
-              {mostrarFormulario && (
-    <div style={styles.modalOverlay}>
-        <div style={styles.modal}>
-
-            <div style={styles.modalHeader}>
+        <section style={styles.content}>
+            {/* CONTENIDO */}
+            {/* TITULO Y BOTON */}
+            <div style={styles.titleRow}>
                 <div>
-                    <h2 style={styles.modalTitle}>
-                        Nuevo usuario
-                    </h2>
+                    <h1 style={styles.title}>Usuarios y roles</h1>
 
-                    <p style={styles.modalDescription}>
-                        Crear una nueva cuenta del sistema
-                    </p>
+                    <p style={styles.description}>Gestión de cuentas y permisos del sistema</p>
                 </div>
 
-                <button
-                    style={styles.closeButton}
-                    onClick={() => setMostrarFormulario(false)}
-                >
-                    ×
+                <button style={styles.newButton} onClick={() => setMostrarFormulario(true)}>
+                    + Nuevo usuario
                 </button>
             </div>
 
-            <div style={styles.formGroup}>
-                <label style={styles.label}>
-                    Nombre completo
-                </label>
+            {/* PESTAÑAS */}
+            <div style={styles.tabs}>
+                <button style={styles.tabActive}>Usuarios</button>
 
-                <input
-                    style={styles.input}
-                    value={nuevoUsuario.nombre}
-                    onChange={(e) =>
-                        setNuevoUsuario({
-                            ...nuevoUsuario,
-                            nombre: e.target.value,
-                        })
-                    }
-                    placeholder="Ingrese el nombre completo"
-                />
+                <button style={styles.tab}>Roles</button>
             </div>
 
-            <div style={styles.formGroup}>
-                <label style={styles.label}>
-                    Correo
-                </label>
-
-                <input
-                    style={styles.input}
-                    value={nuevoUsuario.correo}
-                    onChange={(e) =>
-                        setNuevoUsuario({
-                            ...nuevoUsuario,
-                            correo: e.target.value,
-                        })
-                    }
-                    placeholder="correo@fcyt.umss.edu.bo"
-                />
-            </div>
-
-            <div style={styles.formGroup}>
-                <label style={styles.label}>
-                    Rol
-                </label>
-
-                <select
-                    style={styles.input}
-                    value={nuevoUsuario.rol}
-                    onChange={(e) =>
-                        setNuevoUsuario({
-                            ...nuevoUsuario,
-                            rol: e.target.value,
-                        })
-                    }
-                >
-                    <option>Administrador</option>
-                    <option>Responsable académico</option>
-                    <option>Docente</option>
-                    <option>Personal de control</option>
-                </select>
-            </div>
-
-            <div style={styles.modalActions}>
-                <button
-                    style={styles.cancelButton}
-                    onClick={() => setMostrarFormulario(false)}
-                >
-                    Cancelar
-                </button>
-
-                <button
-                    style={styles.saveButton}
-                    onClick={crearUsuario}
-                >
-                    Crear usuario
-                </button>
-            </div>
-
+            {/* TABLA */}
+            <div style={styles.tableContainer}>
+                <div style={styles.tableHeader}>
+                    <div>NOMBRE</div>
+                    <div>CORREO</div>
+                    <div>ROL</div>
+                    <div>ESTADO</div>
+                    <div>ACCIONES</div>
                 </div>
-    </div>
-)}
 
-        </main>
-    </div>
+                {usuarios.map((usuario, index) => (
+                    <div style={styles.tableRow} key={index}>
+                        {/* NOMBRE */}
+                        <div style={styles.name}>{usuario.nombre}</div>
+
+                        {/* CORREO */}
+                        <div style={styles.email}>{usuario.correo}</div>
+
+                        {/* ROL */}
+                        <div>
+                            <span
+                                style={{
+                                    ...styles.role,
+                                    ...roleStyles[usuario.rol?.toLowerCase()],
+                                }}
+                            >
+                                {usuario.rol}
+                            </span>
+                        </div>
+
+                        {/* ESTADO */}
+                        <div>
+                            <div
+                                style={{
+                                    ...styles.switch,
+                                    ...(usuario.is_active
+                                        ? styles.switchActive
+                                        : styles.switchInactive),
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        ...styles.switchCircle,
+                                        ...(usuario.is_active
+                                            ? styles.circleActive
+                                            : styles.circleInactive),
+                                    }}
+                                ></div>
+                            </div>
+                        </div>
+
+                        {/* ACCIONES */}
+                        <div>
+                            <button
+                                style={styles.editButton}
+                                onClick={() => {
+                                    setUsuarioEditando(usuario);
+                                    setNuevoUsuario({
+                                        nombre: usuario.nombre,
+                                        correo: usuario.correo,
+                                        rol: usuario.rol,
+                                    });
+                                    setMostrarFormulario(true);
+                                }}
+                            >
+                                Editar
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* PIE */}
+            <p style={styles.footerText}>Las cuentas las crea el Administrador.</p>
+            {mostrarFormulario && (
+                <div style={styles.modalOverlay}>
+                    <div style={styles.modal}>
+                        <div style={styles.modalHeader}>
+                            <div>
+                                <h2 style={styles.modalTitle}>Nuevo usuario</h2>
+
+                                <p style={styles.modalDescription}>
+                                    Crear una nueva cuenta del sistema
+                                </p>
+                            </div>
+
+                            <button
+                                style={styles.closeButton}
+                                onClick={() => setMostrarFormulario(false)}
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Nombre completo</label>
+
+                            <input
+                                style={styles.input}
+                                value={nuevoUsuario.nombre}
+                                onChange={(e) =>
+                                    setNuevoUsuario({
+                                        ...nuevoUsuario,
+                                        nombre: e.target.value,
+                                    })
+                                }
+                                placeholder="Ingrese el nombre completo"
+                            />
+                        </div>
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Correo</label>
+
+                            <input
+                                style={styles.input}
+                                value={nuevoUsuario.correo}
+                                onChange={(e) =>
+                                    setNuevoUsuario({
+                                        ...nuevoUsuario,
+                                        correo: e.target.value,
+                                    })
+                                }
+                                placeholder="correo@fcyt.umss.edu.bo"
+                            />
+                        </div>
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Rol</label>
+
+                            <select
+                                style={styles.input}
+                                value={nuevoUsuario.rol}
+                                onChange={(e) =>
+                                    setNuevoUsuario({
+                                        ...nuevoUsuario,
+                                        rol: e.target.value,
+                                    })
+                                }
+                            >
+                                <option>Administrador</option>
+                                <option>Responsable académico</option>
+                                <option>Docente</option>
+                                <option>Personal de control</option>
+                            </select>
+                        </div>
+
+                        <div style={styles.modalActions}>
+                            <button
+                                style={styles.cancelButton}
+                                onClick={() => setMostrarFormulario(false)}
+                            >
+                                Cancelar
+                            </button>
+
+                            <button style={styles.saveButton} onClick={crearUsuario}>
+                                Crear usuario
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </section>
     );
 }
 
@@ -772,4 +705,3 @@ const styles = {
 };
 
 export default UsuariosRoles;
-
