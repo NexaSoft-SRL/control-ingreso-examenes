@@ -21,7 +21,7 @@ class User extends Authenticatable
         'nombre',
         'correo',
         'password',
-        'rol_id',
+        'role_id',
         'is_active',
         'failed_login_attempts',
         'locked_until',
@@ -49,8 +49,6 @@ class User extends Authenticatable
         return $this->getKeyName();
     }
 
-    // AGREGA ESTO
-
     public function getEmailAttribute(): string
     {
         return $this->correo ?? '';
@@ -69,5 +67,11 @@ class User extends Authenticatable
     public function setNameAttribute(string $value): void
     {
         $this->attributes['nombre'] = $value;
+    }
+
+    /** @phpstan-ignore-next-line */
+    public function role()
+    {
+        return $this->belongsTo(Role::class, 'role_id');
     }
 }
