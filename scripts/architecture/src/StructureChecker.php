@@ -530,14 +530,23 @@ final class StructureChecker
 
     private function relativePath(string $path): string
     {
-        $prefix = rtrim(
-            $this->root,
-            DIRECTORY_SEPARATOR
-        ).DIRECTORY_SEPARATOR;
+        $root = str_replace(
+            '\\',
+            '/',
+            rtrim($this->root, '\\/')
+        );
 
-        return str_starts_with($path, $prefix)
-            ? substr($path, strlen($prefix))
-            : $path;
+        $path = str_replace(
+            '\\',
+            '/',
+            $path
+        );
+
+        if (str_starts_with($path, $root.'/')) {
+            return substr($path, strlen($root) + 1);
+        }
+
+        return $path;
     }
 
     private function matches(string $pattern, string $value): bool

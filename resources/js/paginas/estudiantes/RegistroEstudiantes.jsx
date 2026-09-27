@@ -1,109 +1,93 @@
-import React, { useState } from 'react';
-
-const mockEstudiantesIniciales = [
-    {
-        id: 1,
-        codigo: '282104821',
-        ci: '7928194-CBB',
-        nombre: 'Alvarado Claros, Kevin René',
-        carrera: 'Ingeniería de Sistemas',
-        estado: 'ACTIVO',
-    },
-    {
-        id: 2,
-        codigo: '202008472',
-        ci: '8839210-CBB',
-        nombre: 'Bustamante Torrico, Valeria',
-        carrera: 'Ingeniería Informática',
-        estado: 'ACTIVO',
-    },
-    {
-        id: 3,
-        codigo: '281901349',
-        ci: '6492819-LPZ',
-        nombre: 'Camacho Zeballos, Diego Andrés',
-        carrera: 'Ingeniería de Sistemas',
-        estado: 'ACTIVO',
-    },
-    {
-        id: 4,
-        codigo: '282201994',
-        ci: '9348122-CBB',
-        nombre: 'Fernández Rojas, Mariana Lucía',
-        carrera: 'Ingeniería Electrónica',
-        estado: 'ACTIVO',
-    },
-];
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 
 export default function RegistroEstudiantes() {
-    const [estudiantes, setEstudiantes] = useState(mockEstudiantesIniciales);
+    const [estudiantes, setEstudiantes] = useState([]);
+    const [cargando, setCargando] = useState(true);
+    const [error, setError] = useState('');
 
     // Estados para el formulario y edición
     const [mostrarModal, setMostrarModal] = useState(false);
     const [estudianteEditando, setEstudianteEditando] = useState(null);
-    const [codigo, setCodigo] = useState('');
+    const [apellido, setApellido] = useState('');
     const [ci, setCi] = useState('');
     const [nombre, setNombre] = useState('');
-    const [carrera, setCarrera] = useState('');
-    const [estadoEstudiante, setEstadoEstudiante] = useState('ACTIVO');
+    const [correo, setCorreo] = useState('');
+    const [activo, setActivo] = useState(true);
+
+    useEffect(() => {
+        const cargarEstudiantes = async () => {
+            try {
+                const response = await axios.get('/api/students');
+                setEstudiantes(response.data);
+            } catch {
+                setError('No se pudo cargar el padrón estudiantil.');
+            } finally {
+                setCargando(false);
+            }
+        };
+
+        cargarEstudiantes();
+    }, []);
 
     const abrirNuevoEstudiante = () => {
         setEstudianteEditando(null);
-        setCodigo('');
+        setApellido('');
         setCi('');
         setNombre('');
-        setCarrera('');
-        setEstadoEstudiante('ACTIVO');
+        setCorreo('');
+        setActivo(true);
+        setError('');
         setMostrarModal(true);
     };
 
     const abrirEditarEstudiante = (index) => {
         const est = estudiantes[index];
         setEstudianteEditando(index);
-        setCodigo(est.codigo);
+        setApellido(est.apellido);
         setCi(est.ci);
         setNombre(est.nombre);
-        setCarrera(est.carrera);
-        setEstadoEstudiante(est.estado || 'ACTIVO');
+        setCorreo(est.correo);
+        setActivo(est.activo);
+        setError('');
         setMostrarModal(true);
     };
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!codigo || !ci || !nombre || !carrera) return;
-
-        if (estudianteEditando === null) {
-            // Crear nuevo
-            const nuevo = {
-                id: estudiantes.length + 1,
-                codigo,
-                ci,
-                nombre,
-                carrera,
-                estado: estadoEstudiante,
-            };
-            setEstudiantes([...estudiantes, nuevo]);
-        } else {
-            // Actualizar existente
-            const actualizados = [...estudiantes];
-            actualizados[estudianteEditando] = {
-                ...actualizados[estudianteEditando],
-                codigo,
-                ci,
-                nombre,
-                carrera,
-                estado: estadoEstudiante,
-            };
-            setEstudiantes(actualizados);
-            setEstudianteEditando(null);
-        }
-
-        setCodigo('');
+    const limpiarFormulario = () => {
+        setEstudianteEditando(null);
+        setApellido('');
         setCi('');
         setNombre('');
-        setCarrera('');
-        setEstadoEstudiante('ACTIVO');
+        setCorreo('');
+        setActivo(true);
         setMostrarModal(false);
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+
+        const datos = { nombre, apellido, ci, correo, activo };
+
+        try {
+            if (estudianteEditando === null) {
+                const response = await axios.post('/api/students', datos);
+                setEstudiantes((actuales) => [...actuales, response.data]);
+            } else {
+                const estudiante = estudiantes[estudianteEditando];
+                const response = await axios.put(`/api/students/${estudiante.id}`, datos);
+                setEstudiantes((actuales) =>
+                    actuales.map((actual, index) =>
+                        index === estudianteEditando ? response.data : actual
+                    )
+                );
+            }
+
+            limpiarFormulario();
+        } catch (submitError) {
+            const mensaje = submitError.response?.data?.message;
+            setError(mensaje || 'No se pudo guardar el estudiante.');
+        }
     };
 
     return (
@@ -121,6 +105,12 @@ export default function RegistroEstudiantes() {
                     + Nuevo estudiante
                 </button>
             </div>
+
+            {error && (
+                <div className="mb-6 rounded-lg border-l-4 border-red-400 bg-red-50 p-4 text-sm text-red-700">
+                    {error}
+                </div>
+            )}
 
             {/* Caja de Carga CSV (Mockup) */}
             {/* Caja de Carga CSV (Mockup) */}
@@ -179,16 +169,16 @@ export default function RegistroEstudiantes() {
                             ? 'Registrar nuevo estudiante'
                             : 'Editar estudiante'}
                     </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+                    <div className="grid grid-cols-1 gap-4 mb-4 md:grid-cols-5">
                         <div>
                             <label className="block text-xs font-semibold text-gray-600 mb-1">
-                                CÓDIGO
+                                APELLIDO
                             </label>
                             <input
                                 type="text"
-                                value={codigo}
-                                onChange={(e) => setCodigo(e.target.value)}
-                                placeholder="Ej. 282104821"
+                                value={apellido}
+                                onChange={(e) => setApellido(e.target.value)}
+                                placeholder="Ej. Pérez"
                                 className="w-full p-2 border rounded text-sm"
                                 required
                             />
@@ -208,26 +198,26 @@ export default function RegistroEstudiantes() {
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-600 mb-1">
-                                NOMBRE (Apellido, Nombre)
+                                NOMBRE
                             </label>
                             <input
                                 type="text"
                                 value={nombre}
                                 onChange={(e) => setNombre(e.target.value)}
-                                placeholder="Ej. Pérez, Juan"
+                                placeholder="Ej. Juan"
                                 className="w-full p-2 border rounded text-sm"
                                 required
                             />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-600 mb-1">
-                                CARRERA
+                                CORREO
                             </label>
                             <input
-                                type="text"
-                                value={carrera}
-                                onChange={(e) => setCarrera(e.target.value)}
-                                placeholder="Ej. Ingeniería de Sistemas"
+                                type="email"
+                                value={correo}
+                                onChange={(e) => setCorreo(e.target.value)}
+                                placeholder="Ej. juan@umss.edu"
                                 className="w-full p-2 border rounded text-sm"
                                 required
                             />
@@ -237,20 +227,19 @@ export default function RegistroEstudiantes() {
                                 ESTADO
                             </label>
                             <select
-                                value={estadoEstudiante}
-                                onChange={(e) => setEstadoEstudiante(e.target.value)}
+                                value={activo ? 'ACTIVO' : 'INACTIVO'}
+                                onChange={(e) => setActivo(e.target.value === 'ACTIVO')}
                                 className="w-full p-2 border rounded text-sm bg-white"
                             >
                                 <option value="ACTIVO">ACTIVO</option>
                                 <option value="INACTIVO">INACTIVO</option>
-                                <option value="SUSPENDIDO">SUSPENDIDO</option>
                             </select>
                         </div>
                     </div>
                     <div className="flex justify-end gap-2">
                         <button
                             type="button"
-                            onClick={() => setMostrarModal(false)}
+                            onClick={limpiarFormulario}
                             className="px-4 py-2 border rounded text-sm text-gray-600 hover:bg-gray-100"
                         >
                             Cancelar
@@ -271,57 +260,61 @@ export default function RegistroEstudiantes() {
                     <table className="w-full min-w-225 border-collapse text-left">
                         <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100">
                             <tr>
-                                <th className="w-36 whitespace-nowrap p-4 font-semibold">Código</th>
+                                <th className="w-36 whitespace-nowrap p-4 font-semibold">
+                                    Apellido
+                                </th>
                                 <th className="w-40 whitespace-nowrap p-4 font-semibold">C.I.</th>
                                 <th className="min-w-64 p-4 font-semibold">Nombre</th>
-                                <th className="min-w-64 p-4 font-semibold">Carrera</th>
+                                <th className="min-w-64 p-4 font-semibold">Correo</th>
                                 <th className="min-w-32 p-4 font-semibold">Estado</th>
                                 <th className="min-w-32 p-4 text-right font-semibold">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 text-sm text-gray-600">
-                            {estudiantes.map((est, index) => (
-                                <tr key={est.id} className="hover:bg-gray-50 transition">
-                                    <td className="whitespace-nowrap p-4 font-medium text-gray-700">
-                                        {est.codigo}
-                                    </td>
-                                    <td className="whitespace-nowrap p-4">{est.ci}</td>
-                                    <td className="min-w-64 p-4 font-medium text-gray-900">
-                                        {est.nombre}
-                                    </td>
-                                    <td className="min-w-64 p-4">{est.carrera}</td>
-                                    <td className="p-4">
-                                        <span
-                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                                est.estado === 'INACTIVO'
-                                                    ? 'bg-gray-100 text-gray-600'
-                                                    : est.estado === 'SUSPENDIDO'
-                                                      ? 'bg-red-50 text-red-600'
-                                                      : 'bg-green-50 text-green-600'
-                                            }`}
-                                        >
-                                            <span
-                                                className={`w-1.5 h-1.5 rounded-full ${
-                                                    est.estado === 'INACTIVO'
-                                                        ? 'bg-gray-400'
-                                                        : est.estado === 'SUSPENDIDO'
-                                                          ? 'bg-red-500'
-                                                          : 'bg-green-500'
-                                                }`}
-                                            ></span>{' '}
-                                            {est.estado || 'ACTIVO'}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 text-right">
-                                        <button
-                                            onClick={() => abrirEditarEstudiante(index)}
-                                            className="text-blue-600 hover:text-blue-800 font-medium text-sm"
-                                        >
-                                            Editar
-                                        </button>
+                            {cargando ? (
+                                <tr>
+                                    <td colSpan="6" className="p-6 text-center text-gray-400">
+                                        Cargando estudiantes...
                                     </td>
                                 </tr>
-                            ))}
+                            ) : (
+                                estudiantes.map((est, index) => (
+                                    <tr key={est.id} className="hover:bg-gray-50 transition">
+                                        <td className="whitespace-nowrap p-4 font-medium text-gray-700">
+                                            {est.apellido}
+                                        </td>
+                                        <td className="whitespace-nowrap p-4">{est.ci}</td>
+                                        <td className="min-w-64 p-4 font-medium text-gray-900">
+                                            {est.nombre}
+                                        </td>
+                                        <td className="min-w-64 p-4">{est.correo}</td>
+                                        <td className="p-4">
+                                            <span
+                                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                                    !est.activo
+                                                        ? 'bg-gray-100 text-gray-600'
+                                                        : 'bg-green-50 text-green-600'
+                                                }`}
+                                            >
+                                                <span
+                                                    className={`w-1.5 h-1.5 rounded-full ${
+                                                        !est.activo ? 'bg-gray-400' : 'bg-green-500'
+                                                    }`}
+                                                ></span>{' '}
+                                                {est.activo ? 'ACTIVO' : 'INACTIVO'}
+                                            </span>
+                                        </td>
+                                        <td className="p-4 text-right">
+                                            <button
+                                                onClick={() => abrirEditarEstudiante(index)}
+                                                className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                                            >
+                                                Editar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>

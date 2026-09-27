@@ -12,6 +12,7 @@ final class Asignatura extends Model
     protected $table = 'asignaturas';
 
     protected $fillable = [
+        'carrera_id',
         'codigo',
         'nombre',
         'semestre',

@@ -13,13 +13,13 @@ class AuthenticationSchemaTest extends TestCase
 
     public function test_user_security_fields_have_safe_defaults(): void
     {
-        $userId = DB::table('users')->insertGetId([
+        $userId = DB::table('usuarios')->insertGetId([
             'name' => 'Auth Schema Test',
             'email' => 'auth-schema@example.invalid',
             'password' => 'not-used-in-schema-test',
         ]);
 
-        $userQuery = DB::table('users')
+        $userQuery = DB::table('usuarios')
             ->where('id', $userId);
 
         $this->assertTrue($userQuery->exists());
@@ -46,7 +46,7 @@ class AuthenticationSchemaTest extends TestCase
     {
         $this->expectException(QueryException::class);
 
-        DB::table('users')->insert([
+        DB::table('usuarios')->insert([
             'name' => 'Invalid Counter Test',
             'email' => 'negative-counter@example.invalid',
             'password' => 'not-used-in-schema-test',
@@ -88,7 +88,7 @@ class AuthenticationSchemaTest extends TestCase
 
     public function test_login_attempt_accepts_existing_user_reference(): void
     {
-        $userId = DB::table('users')->insertGetId([
+        $userId = DB::table('usuarios')->insertGetId([
             'name' => 'Known User Test',
             'email' => 'known-user@example.invalid',
             'password' => 'not-used-in-schema-test',
@@ -127,7 +127,7 @@ class AuthenticationSchemaTest extends TestCase
 
     public function test_deleting_user_preserves_login_attempt_and_nulls_reference(): void
     {
-        $userId = DB::table('users')->insertGetId([
+        $userId = DB::table('usuarios')->insertGetId([
             'name' => 'Deleted User Test',
             'email' => 'deleted-user@example.invalid',
             'password' => 'not-used-in-schema-test',
@@ -139,7 +139,7 @@ class AuthenticationSchemaTest extends TestCase
             'successful' => false,
         ]);
 
-        DB::table('users')
+        DB::table('usuarios')
             ->where('id', $userId)
             ->delete();
 
