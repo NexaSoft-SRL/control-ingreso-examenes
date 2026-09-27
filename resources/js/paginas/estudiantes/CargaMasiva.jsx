@@ -1,4 +1,5 @@
 import React from 'react';
+import axios from 'axios';
 import PropTypes from 'prop-types';
 import {
     DatabaseBackup,
@@ -17,26 +18,8 @@ import {
 } from 'lucide-react';
 import PestanasPadron from '../../componentes/PestanasPadron.jsx';
 
-/**
- * Carga masiva de estudiantes (HU-04), lado Frontend. Solo frontend: no hay
- * backend todavia para esta historia (no existe rama ni endpoint), asi que
- * el parseo y la validacion del archivo se hacen aca mismo, en el navegador,
- * contra un padron de ejemplo. El dia que exista el endpoint real, este
- * mismo flujo (elegir archivo -> parsear -> mostrar resultado) se reutiliza,
- * solo cambia de donde sale la validacion.
- *
- * El registro individual de estudiantes (HU-03) es otra pantalla, en la
- * pestana vecina del Padron.
- *
- * Plantilla esperada, en este orden de columnas:
- * codigo_universitario, documento_identidad, nombres, apellidos, carrera
- */
-const columnas = ['codigo_universitario', 'documento_identidad', 'nombres', 'apellidos', 'carrera'];
-
-const padronExistente = [
-    { codigo_universitario: '201901349', documento_identidad: '8452110' },
-    { codigo_universitario: '202104821', documento_identidad: '9013452' },
-];
+// Plantilla con el mismo contrato que el registro individual de estudiantes.
+const columnas = ['nombre', 'apellido', 'ci', 'correo', 'activo'];
 
 function descargarPlantilla() {
     const contenido = columnas.join(',') + '\n';
@@ -45,95 +28,6 @@ function descargarPlantilla() {
     enlace.download = 'plantilla_padron.csv';
     enlace.click();
     URL.revokeObjectURL(enlace.href);
-}
-
-function parsearLineaCsv(linea) {
-    return linea.split(',').map((valor) => valor.trim().replace(/^"|"$/g, ''));
-}
-
-function procesarContenido(texto) {
-    const lineas = texto
-        .split(/\r?\n/)
-        .map((linea) => linea.trim())
-        .filter((linea) => linea.length > 0);
-
-    if (lineas.length === 0) {
-        return { aceptados: 0, actualizados: 0, detalles: [] };
-    }
-
-    const primeraFilaEsEncabezado = parsearLineaCsv(lineas[0])
-        .map((valor) => valor.toLowerCase())
-        .join(',')
-        .includes('codigo');
-
-    const filas = primeraFilaEsEncabezado ? lineas.slice(1) : lineas;
-
-    const codigosVistos = new Set();
-    const documentosVistos = new Set();
-    let aceptados = 0;
-    let actualizados = 0;
-    const detalles = [];
-
-    filas.forEach((linea, indice) => {
-        const numeroFila = indice + (primeraFilaEsEncabezado ? 2 : 1);
-        const valores = parsearLineaCsv(linea);
-        const [codigo, documento, nombres, apellidos, carrera] = valores;
-
-        if (
-            !codigo?.trim() ||
-            !documento?.trim() ||
-            !nombres?.trim() ||
-            !apellidos?.trim() ||
-            !carrera?.trim()
-        ) {
-            detalles.push({
-                fila: numeroFila,
-                motivo: 'Faltan campos obligatorios (se esperan 5 columnas).',
-                tipo: 'rechazado',
-            });
-            return;
-        }
-
-        if (codigosVistos.has(codigo)) {
-            detalles.push({
-                fila: numeroFila,
-                motivo: `Código universitario "${codigo}" repetido en el archivo.`,
-                tipo: 'rechazado',
-            });
-            return;
-        }
-
-        if (documentosVistos.has(documento)) {
-            detalles.push({
-                fila: numeroFila,
-                motivo: `Documento de identidad "${documento}" repetido en el archivo.`,
-                tipo: 'rechazado',
-            });
-            return;
-        }
-
-        codigosVistos.add(codigo);
-        documentosVistos.add(documento);
-
-        const yaExiste = padronExistente.some(
-            (estudiante) =>
-                estudiante.codigo_universitario === codigo ||
-                estudiante.documento_identidad === documento
-        );
-
-        if (yaExiste) {
-            actualizados += 1;
-            detalles.push({
-                fila: numeroFila,
-                motivo: `Estudiante ya registrado: se actualiza en vez de duplicarse.`,
-                tipo: 'actualizado',
-            });
-        } else {
-            aceptados += 1;
-        }
-    });
-
-    return { aceptados, actualizados, detalles };
 }
 
 function CargaMasiva({ onNavigate }) {
@@ -155,43 +49,36 @@ function CargaMasiva({ onNavigate }) {
         setError(null);
     }
 
-    function manejarCargar() {
+    async function manejarCargar() {
         if (!archivo) {
             setError('Selecciona un archivo antes de cargarlo.');
             return;
         }
 
         const extension = archivo.name.split('.').pop()?.toLowerCase();
-
-        if (!['csv', 'xlsx', 'xls'].includes(extension ?? '')) {
-            setError('El archivo debe ser una hoja de cálculo (.xlsx, .xls) o CSV.');
-            return;
-        }
-
         if (extension !== 'csv') {
-            setError(
-                'La vista previa en el navegador por ahora solo procesa CSV; .xlsx/.xls quedan para cuando exista el backend real.'
-            );
+            setError('El archivo debe tener formato CSV (.csv).');
             return;
         }
 
         setProcesando(true);
         setError(null);
+        setResultado(null);
 
-        const lector = new FileReader();
-
-        lector.onload = () => {
-            const resultadoProcesado = procesarContenido(String(lector.result ?? ''));
-            setResultado(resultadoProcesado);
+        try {
+            const datos = new FormData();
+            datos.append('archivo', archivo);
+            const response = await axios.post('/api/students/import', datos);
+            setResultado(response.data);
+        } catch (submitError) {
+            const mensaje =
+                submitError.response?.data?.message ??
+                submitError.response?.data?.errors?.archivo?.[0] ??
+                'No se pudo procesar el archivo. Intenta de nuevo.';
+            setError(mensaje);
+        } finally {
             setProcesando(false);
-        };
-
-        lector.onerror = () => {
-            setError('No se pudo leer el archivo. Intenta de nuevo.');
-            setProcesando(false);
-        };
-
-        lector.readAsText(archivo);
+        }
     }
 
     const rechazados = resultado?.detalles.filter((d) => d.tipo === 'rechazado') ?? [];
@@ -322,7 +209,7 @@ function CargaMasiva({ onNavigate }) {
                                 Elegir archivo
                                 <input
                                     type="file"
-                                    accept=".csv,.xlsx,.xls"
+                                    accept=".csv"
                                     className="hidden"
                                     onChange={manejarSeleccionArchivo}
                                 />
@@ -360,7 +247,7 @@ function CargaMasiva({ onNavigate }) {
                         <div className="mt-6">
                             <div className="flex flex-wrap gap-3">
                                 <span className="rounded-lg bg-emerald-100 px-4 py-2 text-sm font-semibold text-emerald-700">
-                                    {resultado.aceptados} nuevos
+                                    {resultado.creados} nuevos
                                 </span>
                                 <span className="rounded-lg bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-700">
                                     {resultado.actualizados} actualizados
@@ -402,8 +289,8 @@ function CargaMasiva({ onNavigate }) {
                     )}
 
                     <p className="mt-6 text-xs text-slate-400">
-                        Esta pantalla valida el archivo en el navegador, contra un padrón de
-                        ejemplo: todavía no hay un backend real para HU-04.
+                        Las filas se validan y registran en el padron del sistema. Si el CI ya
+                        existe, se actualiza el estudiante; las filas invalidas se informan abajo.
                     </p>
                 </section>
             </main>
