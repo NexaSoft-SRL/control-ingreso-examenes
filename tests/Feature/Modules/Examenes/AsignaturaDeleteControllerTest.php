@@ -68,8 +68,6 @@ final class AsignaturaDeleteControllerTest extends TestCase
             ->actingAs($user)
             ->deleteJson("/api/asignaturas/{$asignaturaId}");
 
-        $response->dump();
-
         $response->assertNoContent();
 
         $this->assertDatabaseMissing('asignaturas', [
