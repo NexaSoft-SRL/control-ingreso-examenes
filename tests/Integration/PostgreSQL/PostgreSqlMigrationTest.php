@@ -67,6 +67,7 @@ final class PostgreSqlMigrationTest extends TestCase
             'password_reset_tokens',
             'sessions',
             'users',
+            'usuarios',
         ] as $expectedTable) {
             $this->assertContains(
                 $expectedTable,

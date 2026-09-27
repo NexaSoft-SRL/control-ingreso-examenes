@@ -69,6 +69,7 @@
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
         ],
         "quality:composer": "@composer validate --strict",
+        "quality:migrations": "bash scripts/quality/check-migration-history.sh",
         "quality:structure": "@php scripts/architecture/check-structure.php",
         "quality:layers": "@php vendor/bin/deptrac analyse --config-file=deptrac.php --no-cache --report-uncovered --fail-on-uncovered",
         "quality:modules": [
@@ -80,6 +81,7 @@
         "quality:autoload": "@composer dump-autoload --optimize --strict-psr --strict-ambiguous",
         "quality:backend": [
             "@quality:composer",
+            "@quality:migrations",
             "@quality:structure",
             "@quality:layers",
             "@quality:modules",
