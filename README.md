@@ -38,6 +38,7 @@ php artisan key:generate
 
 docker compose up -d          # PostgreSQL 15 en localhost:5432
 php artisan migrate
+php artisan db:seed --class=DemoSeeder   # datos de demostración (ver abajo)
 
 composer run dev
 ```
@@ -48,6 +49,34 @@ eventos y el compilador de recursos. La aplicación queda disponible en
 
 El puerto 5173 corresponde al servidor de recursos y no se accede directamente: la
 aplicación se sirve desde el puerto 8000.
+
+## Datos de demostración
+
+`DemoSeeder` deja la base con los mismos datos para todo el equipo: una cuenta por rol,
+el padrón con ocho estudiantes (uno dado de baja), tres docentes, cuatro ambientes y tres
+asignaturas. Se puede volver a ejecutar cuantas veces haga falta: no duplica nada.
+
+```sh
+php artisan db:seed --class=DemoSeeder
+```
+
+| Rol                  | Correo                      | Contraseña        |
+| -------------------- | --------------------------- | ----------------- |
+| Administrador        | `admin@umss.edu.bo`         | `Admin12345`      |
+| Docente              | `docente@umss.edu.bo`       | `Docente12345`    |
+| Personal de control  | `control@umss.edu.bo`       | `Control12345`    |
+| Responsable académico| `responsable@umss.edu.bo`   | `Responsable12345`|
+
+Cada rol ve únicamente las secciones que tiene habilitadas; el Administrador las ve
+todas. Las contraseñas de una cuenta que ya existe no se modifican.
+
+Para probar la carga masiva hay dos archivos en `docs/ejemplos/`:
+
+- `padron_ejemplo.csv`: los mismos ocho estudiantes del seeder, para comprobar que una
+  segunda carga actualiza en vez de duplicar.
+- `padron_con_errores.csv`: cinco filas de las que entran dos y se rechazan tres —un
+  código repetido dentro del archivo, una fila sin documento y otra sin código—, para ver
+  el informe de rechazos con su fila y su motivo.
 
 ## Estructura
 
