@@ -6,9 +6,11 @@ namespace App\Modules\Examenes\Infrastructure\Persistence;
 
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Examenes\Application\Contracts\AsignaturaGateway;
+use App\Modules\Examenes\Application\DTOs\GrupoAsignaturaData;
 use App\Modules\Examenes\Application\DTOs\RegistrarAsignaturaData;
 use App\Modules\Examenes\Domain\Exceptions\AsignaturaTieneDependenciasException;
 use App\Modules\Examenes\Domain\Models\Asignatura;
+use App\Modules\Examenes\Domain\Models\GrupoAsignatura;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -66,6 +68,77 @@ final class EloquentAsignaturaGateway implements AsignaturaGateway
             },
             3
         );
+
+        $asignatura->load([
+            'grupos.docente',
+        ]);
+
+        return $asignatura;
+    }
+
+    public function actualizar(
+        int $asignaturaId,
+        RegistrarAsignaturaData $data,
+        int $usuarioId,
+    ): ?Asignatura {
+        /** @var Asignatura|null $asignatura */
+        $asignatura = DB::transaction(
+            function () use (
+                $asignaturaId,
+                $data,
+                $usuarioId,
+            ): ?Asignatura {
+                $asignatura = Asignatura::query()
+                    ->lockForUpdate()
+                    ->find($asignaturaId);
+
+                if (! $asignatura instanceof Asignatura) {
+                    return null;
+                }
+
+                $asignatura->update([
+                    'codigo' => $data->codigo,
+                    'nombre' => $data->nombre,
+                    'semestre' => $data->semestre,
+                    'descripcion' => $data->descripcion,
+                ]);
+
+                /** @var GrupoAsignaturaData $grupoData */
+                $grupoData = $data->grupos[0];
+                $grupo = $asignatura->grupos()
+                    ->orderBy('codigo_grupo')
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($grupo instanceof GrupoAsignatura) {
+                    $grupo->update([
+                        'docente_id' => $grupoData->docenteId,
+                        'cupo' => $grupoData->cupo,
+                    ]);
+                } else {
+                    $asignatura->grupos()->create([
+                        'docente_id' => $grupoData->docenteId,
+                        'codigo_grupo' => $grupoData->codigoGrupo,
+                        'cupo' => $grupoData->cupo,
+                    ]);
+                }
+
+                $this->bitacora->registrar(
+                    $usuarioId,
+                    'asignatura.actualizar',
+                    'asignaturas',
+                    $asignaturaId,
+                    null,
+                );
+
+                return $asignatura;
+            },
+            3
+        );
+
+        if (! $asignatura instanceof Asignatura) {
+            return null;
+        }
 
         $asignatura->load([
             'grupos.docente',
