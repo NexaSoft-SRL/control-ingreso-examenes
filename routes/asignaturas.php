@@ -19,6 +19,13 @@ Route::prefix('api')
             [AsignaturaController::class, 'store']
         )->name('asignaturas.store');
 
+        Route::put(
+            '/asignaturas/{asignatura}',
+            [AsignaturaController::class, 'update']
+        )
+            ->whereNumber('asignatura')
+            ->name('asignaturas.update');
+
         Route::delete(
             '/asignaturas/{asignatura}',
             [AsignaturaController::class, 'destroy']
