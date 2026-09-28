@@ -6,8 +6,29 @@ namespace App\Modules\Administracion\Application\Actions;
 
 use App\Modules\Administracion\Application\Contracts\StudentRepository;
 
+/**
+ * Carga masiva del padron (HU-04). Las columnas son las cinco del backlog,
+ * en este orden:
+ *
+ *   codigo_universitario, documento_identidad, nombres, apellidos, carrera
+ *
+ * Un error en una fila no interrumpe la carga: esa fila se rechaza con su
+ * numero y su motivo, y el resto continua. Quien ya esta en el padron se
+ * actualiza en lugar de duplicarse.
+ */
 final readonly class ImportStudents
 {
+    /**
+     * @var list<string>
+     */
+    public const COLUMNAS = [
+        'codigo_universitario',
+        'documento_identidad',
+        'nombres',
+        'apellidos',
+        'carrera',
+    ];
+
     public function __construct(
         private StudentRepository $repository,
     ) {}
@@ -18,113 +39,134 @@ final readonly class ImportStudents
      */
     public function execute(array $rows): array
     {
-        $existingStudents = $this->repository->all();
-        $byCi = [];
-        $emailOwners = [];
+        $porCodigo = [];
+        $porDocumento = [];
 
-        foreach ($existingStudents as $student) {
-            $byCi[$student->ci] = $student;
-            $emailOwners[strtolower($student->correo)] = $student->id;
+        foreach ($this->repository->all() as $student) {
+            $codigo = $student->codigo_universitario;
+
+            if (is_string($codigo) && $codigo !== '') {
+                $porCodigo[$codigo] = $student;
+            }
+
+            $porDocumento[$student->ci] = $student;
         }
 
-        $seenCi = [];
-        $seenEmails = [];
-        $created = 0;
-        $updated = 0;
-        $details = [];
+        $codigosVistos = [];
+        $documentosVistos = [];
+        $creados = 0;
+        $actualizados = 0;
+        $detalles = [];
 
         foreach ($rows as $row) {
-            if (count($row['valores']) !== 5) {
-                $details[] = [
+            if (count($row['valores']) < count(self::COLUMNAS)) {
+                $detalles[] = [
                     'fila' => $row['fila'],
-                    'motivo' => 'La fila debe tener exactamente cinco columnas.',
+                    'motivo' => 'La fila no tiene las cinco columnas esperadas.',
                     'tipo' => 'rechazado',
                 ];
 
                 continue;
             }
 
-            [$nombre, $apellido, $ci, $correo, $activo] = array_map(
+            [$codigo, $documento, $nombres, $apellidos, $carrera] = array_map(
                 static fn (?string $value): string => trim((string) $value),
                 array_slice($row['valores'], 0, 5),
             );
 
-            $data = [
-                'nombre' => $nombre,
-                'apellido' => $apellido,
-                'ci' => $ci,
-                'correo' => $correo,
-                'activo' => $activo === '' ? true : filter_var($activo, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE),
+            $motivo = $this->motivoDeRechazo($codigo, $documento, $nombres, $apellidos, $carrera);
+
+            if ($motivo !== null) {
+                $detalles[] = ['fila' => $row['fila'], 'motivo' => $motivo, 'tipo' => 'rechazado'];
+
+                continue;
+            }
+
+            if (isset($codigosVistos[$codigo])) {
+                $detalles[] = [
+                    'fila' => $row['fila'],
+                    'motivo' => "El código universitario {$codigo} se repite en el archivo.",
+                    'tipo' => 'rechazado',
+                ];
+
+                continue;
+            }
+
+            if (isset($documentosVistos[$documento])) {
+                $detalles[] = [
+                    'fila' => $row['fila'],
+                    'motivo' => "El documento de identidad {$documento} se repite en el archivo.",
+                    'tipo' => 'rechazado',
+                ];
+
+                continue;
+            }
+
+            $codigosVistos[$codigo] = true;
+            $documentosVistos[$documento] = true;
+
+            $datos = [
+                'codigo_universitario' => $codigo,
+                'ci' => $documento,
+                'nombre' => $nombres,
+                'apellido' => $apellidos,
+                'carrera' => $carrera,
             ];
 
-            $validationError = $this->validationError($data);
-            if ($validationError !== null) {
-                $details[] = ['fila' => $row['fila'], 'motivo' => $validationError, 'tipo' => 'rechazado'];
+            $existente = $porCodigo[$codigo] ?? $porDocumento[$documento] ?? null;
 
-                continue;
-            }
-
-            $normalizedEmail = strtolower($correo);
-            if (isset($seenCi[$ci]) || isset($seenEmails[$normalizedEmail])) {
-                $details[] = ['fila' => $row['fila'], 'motivo' => 'CI o correo repetido en el archivo.', 'tipo' => 'rechazado'];
-
-                continue;
-            }
-            $seenCi[$ci] = true;
-            $seenEmails[$normalizedEmail] = true;
-
-            $student = $byCi[$ci] ?? null;
-            $emailOwnerId = $emailOwners[$normalizedEmail] ?? null;
-            if ($emailOwnerId !== null && $emailOwnerId !== $student?->id) {
-                $details[] = ['fila' => $row['fila'], 'motivo' => 'El correo ya pertenece a otro estudiante.', 'tipo' => 'rechazado'];
-
-                continue;
-            }
-
-            if ($student === null) {
-                $student = $this->repository->create($data);
-                $created++;
+            if ($existente === null) {
+                $student = $this->repository->create($datos + ['activo' => true]);
+                $creados++;
             } else {
-                unset($emailOwners[strtolower($student->correo)]);
-                $student = $this->repository->update($student, $data);
-                $updated++;
-                $details[] = ['fila' => $row['fila'], 'motivo' => 'Estudiante actualizado por coincidencia de CI.', 'tipo' => 'actualizado'];
+                $student = $this->repository->update($existente, $datos);
+                $actualizados++;
+
+                $detalles[] = [
+                    'fila' => $row['fila'],
+                    'motivo' => 'Estudiante ya registrado: se actualizaron sus datos.',
+                    'tipo' => 'actualizado',
+                ];
             }
 
-            $byCi[$ci] = $student;
-            $emailOwners[$normalizedEmail] = $student->id;
+            $porCodigo[$codigo] = $student;
+            $porDocumento[$documento] = $student;
         }
 
         return [
-            'creados' => $created,
-            'actualizados' => $updated,
-            'rechazados' => count(array_filter($details, static fn (array $detail): bool => $detail['tipo'] === 'rechazado')),
-            'detalles' => $details,
+            'creados' => $creados,
+            'actualizados' => $actualizados,
+            'rechazados' => count(array_filter(
+                $detalles,
+                static fn (array $detalle): bool => $detalle['tipo'] === 'rechazado',
+            )),
+            'detalles' => $detalles,
         ];
     }
 
-    /**
-     * @param  array{nombre: string, apellido: string, ci: string, correo: string, activo: bool|null}  $data
-     */
-    private function validationError(array $data): ?string
-    {
-        foreach (['nombre' => 100, 'apellido' => 100, 'ci' => 30, 'correo' => 150] as $field => $maxLength) {
-            if ($data[$field] === '') {
-                return "El campo {$field} es obligatorio.";
+    private function motivoDeRechazo(
+        string $codigo,
+        string $documento,
+        string $nombres,
+        string $apellidos,
+        string $carrera,
+    ): ?string {
+        $limites = [
+            'código universitario' => [$codigo, 20],
+            'documento de identidad' => [$documento, 30],
+            'nombres' => [$nombres, 100],
+            'apellidos' => [$apellidos, 100],
+            'carrera' => [$carrera, 120],
+        ];
+
+        foreach ($limites as $campo => [$valor, $maximo]) {
+            if ($valor === '') {
+                return "Falta el dato obligatorio: {$campo}.";
             }
 
-            $length = function_exists('mb_strlen') ? mb_strlen($data[$field]) : strlen($data[$field]);
-            if ($length > $maxLength) {
-                return "El campo {$field} no puede superar {$maxLength} caracteres.";
+            if (mb_strlen($valor) > $maximo) {
+                return "El campo {$campo} no puede superar {$maximo} caracteres.";
             }
-        }
-
-        if (filter_var($data['correo'], FILTER_VALIDATE_EMAIL) === false) {
-            return 'El correo no tiene un formato válido.';
-        }
-
-        if ($data['activo'] === null) {
-            return 'El campo activo debe ser true o false.';
         }
 
         return null;

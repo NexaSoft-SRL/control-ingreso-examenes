@@ -14,6 +14,8 @@ final class Student extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'codigo_universitario',
+        'carrera',
         'nombre',
         'apellido',
         'ci',

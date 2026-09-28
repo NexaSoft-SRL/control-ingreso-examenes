@@ -1,13 +1,6 @@
 ﻿import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import axios from 'axios';
 import CargaMasiva from './CargaMasiva';
-
-vi.mock('axios', () => ({
-    default: {
-        post: vi.fn(),
-    },
-}));
 
 function crearArchivoCsv(contenido, nombre = 'padron.csv') {
     return new File([contenido], nombre, { type: 'text/csv' });
@@ -20,7 +13,7 @@ function seleccionarArchivo(contenido, nombre) {
 
 describe('CargaMasiva', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        window.axios = { post: vi.fn() };
     });
 
     it('muestra el formulario de carga', () => {
@@ -38,11 +31,11 @@ describe('CargaMasiva', () => {
         expect(screen.getByRole('alert')).toHaveTextContent(
             'Selecciona un archivo antes de cargarlo.'
         );
-        expect(axios.post).not.toHaveBeenCalled();
+        expect(window.axios.post).not.toHaveBeenCalled();
     });
 
     it('envia el CSV al endpoint y muestra el resultado del backend', async () => {
-        axios.post.mockResolvedValue({
+        window.axios.post.mockResolvedValue({
             data: {
                 creados: 1,
                 actualizados: 1,
@@ -60,7 +53,7 @@ describe('CargaMasiva', () => {
                     },
                     {
                         fila: 5,
-                        motivo: 'El campo ci es obligatorio.',
+                        motivo: 'Falta el dato obligatorio: documento de identidad.',
                         tipo: 'rechazado',
                     },
                 ],
@@ -70,9 +63,9 @@ describe('CargaMasiva', () => {
         render(<CargaMasiva onNavigate={vi.fn()} />);
         seleccionarArchivo(
             [
-                'nombre,apellido,ci,correo,activo',
-                'Ana,Perez,1234567,ana@example.edu,true',
-                'Luis,Gomez,7654321,luis@example.edu,true',
+                'codigo_universitario,documento_identidad,nombres,apellidos,carrera',
+                '202104821,7928194,Kevin,Alvarado,Ingeniería de Sistemas',
+                '201901349,6492819,Diego,Camacho,Ingeniería Informática',
             ].join('\\n')
         );
         fireEvent.click(screen.getByRole('button', { name: 'Cargar archivo' }));
@@ -83,14 +76,19 @@ describe('CargaMasiva', () => {
 
         expect(screen.getByText('1 actualizados')).toBeInTheDocument();
         expect(screen.getByText('2 rechazados')).toBeInTheDocument();
-        expect(screen.getByText('El campo ci es obligatorio.')).toBeInTheDocument();
-        expect(axios.post).toHaveBeenCalledWith('/api/students/import', expect.any(FormData));
-        const formData = axios.post.mock.calls[0][1];
+        expect(
+            screen.getByText('Falta el dato obligatorio: documento de identidad.')
+        ).toBeInTheDocument();
+        expect(window.axios.post).toHaveBeenCalledWith(
+            '/api/students/import',
+            expect.any(FormData)
+        );
+        const formData = window.axios.post.mock.calls[0][1];
         expect(formData.get('archivo').name).toBe('padron.csv');
     });
 
     it('muestra un error cuando el backend rechaza el archivo', async () => {
-        axios.post.mockRejectedValue({
+        window.axios.post.mockRejectedValue({
             response: {
                 data: {
                     message: 'Las columnas del archivo no son válidas.',
@@ -115,6 +113,6 @@ describe('CargaMasiva', () => {
         expect(screen.getByRole('alert')).toHaveTextContent(
             'El archivo debe tener formato CSV (.csv).'
         );
-        expect(axios.post).not.toHaveBeenCalled();
+        expect(window.axios.post).not.toHaveBeenCalled();
     });
 });

@@ -36,6 +36,8 @@ class StudentFactory
     {
         /** @var array<string, mixed> $data */
         $data = array_merge([
+            'codigo_universitario' => $this->faker->unique()->numerify('20######'),
+            'carrera' => 'Ingeniería de Sistemas',
             'nombre' => $this->faker->firstName(),
             'apellido' => $this->faker->lastName(),
             'ci' => $this->faker->unique()->numerify('########'),

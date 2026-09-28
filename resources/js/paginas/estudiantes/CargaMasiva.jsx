@@ -1,5 +1,4 @@
 import React from 'react';
-import axios from 'axios';
 import PropTypes from 'prop-types';
 import {
     DatabaseBackup,
@@ -18,8 +17,8 @@ import {
 } from 'lucide-react';
 import PestanasPadron from '../../componentes/PestanasPadron.jsx';
 
-// Plantilla con el mismo contrato que el registro individual de estudiantes.
-const columnas = ['nombre', 'apellido', 'ci', 'correo', 'activo'];
+// Las cinco columnas que pide HU-04, en este orden.
+const columnas = ['codigo_universitario', 'documento_identidad', 'nombres', 'apellidos', 'carrera'];
 
 function descargarPlantilla() {
     const contenido = columnas.join(',') + '\n';
@@ -68,7 +67,7 @@ function CargaMasiva({ onNavigate }) {
         try {
             const datos = new FormData();
             datos.append('archivo', archivo);
-            const response = await axios.post('/api/students/import', datos);
+            const response = await window.axios.post('/api/students/import', datos);
             setResultado(response.data);
         } catch (submitError) {
             const mensaje =
