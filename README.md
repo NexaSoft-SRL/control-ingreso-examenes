@@ -57,8 +57,12 @@ el padrón con ocho estudiantes (uno dado de baja), tres docentes, cuatro ambien
 asignaturas. Se puede volver a ejecutar cuantas veces haga falta: no duplica nada.
 
 ```sh
-php artisan db:seed --class=DemoSeeder
+php artisan db:seed --class=DemoSeeder   # agrega lo que falte a la base actual
+composer datos:demo                      # rehace la base desde cero y la siembra
 ```
+
+El primero respeta lo que ya tengas cargado; el segundo **borra la base** y la deja
+idéntica a la del resto del equipo.
 
 | Rol                  | Correo                      | Contraseña        |
 | -------------------- | --------------------------- | ----------------- |
