@@ -16,7 +16,10 @@ function limpiarCi(valor) {
         return digitos;
     }
 
-    const extension = entrada.slice(indiceGuion + 1).replace(/[^A-Z]/g, '').slice(0, 3);
+    const extension = entrada
+        .slice(indiceGuion + 1)
+        .replace(/[^A-Z]/g, '')
+        .slice(0, 3);
 
     return `${digitos}-${extension}`;
 }
@@ -89,7 +92,9 @@ export default function RegistroEstudiantes() {
 
         const ciNormalizado = ci.trim().toUpperCase();
         if (!FORMATO_CI.test(ciNormalizado)) {
-            setError('Formato de C.I. inválido. Usa 5 a 10 dígitos y, opcionalmente, una extensión (ej. 7928194-CB).');
+            setError(
+                'Formato de C.I. inválido. Usa 5 a 10 dígitos y, opcionalmente, una extensión (ej. 7928194-CB).'
+            );
             return;
         }
 
@@ -219,12 +224,16 @@ export default function RegistroEstudiantes() {
                                 onChange={(e) => setCi(limpiarCi(e.target.value))}
                                 placeholder="Ej. 7928194-CBB"
                                 maxLength={14}
-                                aria-invalid={Boolean(error && !FORMATO_CI.test(ci.trim().toUpperCase()))}
+                                aria-invalid={Boolean(
+                                    error && !FORMATO_CI.test(ci.trim().toUpperCase())
+                                )}
                                 aria-describedby="ci-ayuda"
                                 className="w-full p-2 border rounded text-sm"
                                 required
                             />
-                            <p id="ci-ayuda" className="mt-1 text-xs text-gray-500">5 a 10 dígitos; extensión opcional, por ejemplo CB, LP o SC.</p>
+                            <p id="ci-ayuda" className="mt-1 text-xs text-gray-500">
+                                5 a 10 dígitos; extensión opcional, por ejemplo CB, LP o SC.
+                            </p>
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-600 mb-1">

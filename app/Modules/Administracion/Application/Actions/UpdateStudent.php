@@ -16,8 +16,8 @@ final readonly class UpdateStudent
     /**
      * @param  array<string, mixed>  $data
      */
-    public function execute(Student $student, array $data): Student
+    public function execute(Student $student, array $data, ?int $usuarioId): Student
     {
-        return $this->repository->update($student, $data);
+        return $this->repository->update($student, $data, $usuarioId);
     }
 }

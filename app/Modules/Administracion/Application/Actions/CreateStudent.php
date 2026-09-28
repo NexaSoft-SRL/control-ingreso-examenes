@@ -16,8 +16,8 @@ final readonly class CreateStudent
     /**
      * @param  array<string, mixed>  $data
      */
-    public function execute(array $data): Student
+    public function execute(array $data, ?int $usuarioId): Student
     {
-        return $this->repository->create($data);
+        return $this->repository->create($data, $usuarioId);
     }
 }
