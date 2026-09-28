@@ -35,12 +35,19 @@ final class AdministracionCuentasYPermisosTest extends TestCase
         $this->seed(RolePermissionSeeder::class);
 
         $rol = Role::where('name', 'Docente')->firstOrFail();
-        $usuario = UserFactory::new()->createOne(['role_id' => $rol->getKey()]);
 
-        $this->actingAs($usuario)
+        UserFactory::new()->createOne([
+            'nombre' => 'Aaa Docente',
+            'role_id' => $this->identificador($rol),
+        ]);
+
+        $administrador = UserFactory::new()->createOne(['nombre' => 'Zzz Administrador']);
+
+        $this->actingAs($administrador)
             ->getJson('/api/auth/admin/users')
             ->assertOk()
-            ->assertJsonPath('0.rol', 'Docente');
+            ->assertJsonPath('0.rol', 'Docente')
+            ->assertJsonPath('1.rol', 'Administrador');
     }
 
     public function test_an_account_can_be_edited(): void

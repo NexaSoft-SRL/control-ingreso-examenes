@@ -25,14 +25,21 @@ class AuthenticationControllerTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertExactJson([
-                'message' => 'Autenticación correcta.',
-                'user' => [
-                    'id' => $user->getKey(),
-                    'name' => $user->name,
-                    'email' => $user->email,
-                ],
+            ->assertJsonPath('message', 'Autenticación correcta.')
+            ->assertJsonPath('user.id', $user->getKey())
+            ->assertJsonPath('user.name', $user->name)
+            ->assertJsonPath('user.email', $user->email)
+            // El cliente arma su menu con el rol y sus permisos (HU-02).
+            ->assertJsonPath('user.rol', 'Administrador')
+            ->assertJsonStructure([
+                'message',
+                'user' => ['id', 'name', 'email', 'rol', 'permisos'],
             ]);
+
+        $permisos = $response->json('user.permisos');
+
+        self::assertIsArray($permisos);
+        self::assertContains('usuarios_roles', $permisos);
 
         $this->assertAuthenticatedAs($user);
 

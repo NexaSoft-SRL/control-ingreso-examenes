@@ -65,6 +65,13 @@ class AuthenticationController
                 'id' => $user->getKey(),
                 'name' => $user->name,
                 'email' => $user->email,
+                'rol' => $user->role?->name,
+                // El cliente oculta con esto las secciones que el rol no
+                // puede abrir; quien las fuerce igual recibe un 403.
+                'permisos' => $user->role?->permissions
+                    ->pluck('name')
+                    ->values()
+                    ->all() ?? [],
             ],
         ]);
     }
