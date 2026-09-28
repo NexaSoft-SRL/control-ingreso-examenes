@@ -16,6 +16,7 @@ use App\Modules\Administracion\Http\Requests\UpdateStudentRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use LogicException;
 
 final class StudentController
 {
