@@ -16,9 +16,14 @@ Route::prefix('api/auth')
             ->middleware('auth')
             ->name('logout');
 
-        Route::prefix('admin')->group(function () {
-            Route::get('/users', [RoleController::class, 'getUsers']);
-            Route::get('/roles', [RoleController::class, 'getRoles']);
-            Route::post('/users', [UserController::class, 'store']);
+        // La administracion de usuarios y roles exige sesion iniciada: la
+        // lista de usuarios quedaba accesible para cualquiera.
+        Route::prefix('admin')->middleware('auth')->group(function (): void {
+            Route::get('/users', [RoleController::class, 'getUsers'])
+                ->name('admin.users.index');
+            Route::get('/roles', [RoleController::class, 'getRoles'])
+                ->name('admin.roles.index');
+            Route::post('/users', [UserController::class, 'store'])
+                ->name('admin.users.store');
         });
     });
