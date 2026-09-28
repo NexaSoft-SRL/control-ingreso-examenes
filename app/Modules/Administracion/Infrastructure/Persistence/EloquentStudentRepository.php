@@ -18,17 +18,20 @@ final class EloquentStudentRepository implements StudentRepository
     /**
      * @param  array<string, mixed>  $data
      */
-    public function create(array $data, ?int $usuarioId): Student
+    public function create(array $data, ?int $usuarioId = null, bool $registrarBitacora = true): Student
     {
-        return DB::transaction(function () use ($data, $usuarioId): Student {
+        return DB::transaction(function () use ($data, $usuarioId, $registrarBitacora): Student {
             $student = Student::query()->create($data);
-            $this->bitacora->registrar(
-                $usuarioId,
-                'Registro de nuevo estudiante',
-                'students',
-                $student->id,
-                'Registro de nuevo estudiante en Padrón / Estudiantes.',
-            );
+
+            if ($registrarBitacora) {
+                $this->bitacora->registrar(
+                    $usuarioId,
+                    'estudiante.registrar',
+                    'students',
+                    $student->id,
+                    'Registro de nuevo estudiante en el padron.',
+                );
+            }
 
             return $student;
         });
@@ -57,22 +60,34 @@ final class EloquentStudentRepository implements StudentRepository
     /**
      * @param  array<string, mixed>  $data
      */
-    public function update(Student $student, array $data, ?int $usuarioId): Student
-    {
-        return DB::transaction(function () use ($student, $data, $usuarioId): Student {
+    public function update(
+        Student $student,
+        array $data,
+        ?int $usuarioId = null,
+        bool $registrarBitacora = true,
+        string $operacion = 'estudiante.actualizar',
+    ): Student {
+        return DB::transaction(function () use ($student, $data, $usuarioId, $registrarBitacora, $operacion): Student {
             $student->fill($data);
             $student->save();
             $student->refresh();
 
-            $this->bitacora->registrar(
-                $usuarioId,
-                'Actualización de estudiante',
-                'students',
-                $student->id,
-                'Actualización de estudiante en Padrón / Estudiantes.',
-            );
+            if ($registrarBitacora) {
+                $this->bitacora->registrar(
+                    $usuarioId,
+                    $operacion,
+                    'students',
+                    $student->id,
+                    'Actualizacion de estudiante en el padron.',
+                );
+            }
 
             return $student;
         });
+    }
+
+    public function delete(Student $student): void
+    {
+        $student->delete();
     }
 }

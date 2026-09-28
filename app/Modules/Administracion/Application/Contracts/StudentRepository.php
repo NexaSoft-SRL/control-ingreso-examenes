@@ -11,7 +11,7 @@ interface StudentRepository
     /**
      * @param  array<string, mixed>  $data
      */
-    public function create(array $data, ?int $usuarioId): Student;
+    public function create(array $data, ?int $usuarioId = null, bool $registrarBitacora = true): Student;
 
     /**
      * @return list<Student>
@@ -23,7 +23,13 @@ interface StudentRepository
     /**
      * @param  array<string, mixed>  $data
      */
-    public function update(Student $student, array $data, ?int $usuarioId): Student;
+    public function update(
+        Student $student,
+        array $data,
+        ?int $usuarioId = null,
+        bool $registrarBitacora = true,
+        string $operacion = 'estudiante.actualizar',
+    ): Student;
 
     public function delete(Student $student): void;
 }
