@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -19,7 +20,7 @@ return new class extends Migration
 
         DB::table('bitacora_operaciones')
             ->whereNotNull('usuario_id')
-            ->whereNotExists(function ($query): void {
+            ->whereNotExists(function (Builder $query): void {
                 $query->select(DB::raw('1'))
                     ->from('usuarios')
                     ->whereColumn('usuarios.id', 'bitacora_operaciones.usuario_id');
@@ -47,7 +48,7 @@ return new class extends Migration
 
         DB::table('bitacora_operaciones')
             ->whereNotNull('usuario_id')
-            ->whereNotExists(function ($query): void {
+            ->whereNotExists(function (Builder $query): void {
                 $query->select(DB::raw('1'))
                     ->from('users')
                     ->whereColumn('users.id', 'bitacora_operaciones.usuario_id');
