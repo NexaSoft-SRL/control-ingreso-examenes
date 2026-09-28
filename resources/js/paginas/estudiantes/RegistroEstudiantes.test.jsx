@@ -22,6 +22,22 @@ beforeEach(() => {
 });
 
 describe('RegistroEstudiantes', () => {
+    it('muestra las columnas que pide el backlog, en orden', async () => {
+        render(<RegistroEstudiantes />);
+        await screen.findByText('Fernández');
+
+        const celdas = screen.getAllByRole('cell').map((celda) => celda.textContent.trim());
+
+        expect(celdas.slice(0, 5)).toEqual([
+            '201900123',
+            'Fernández',
+            'Lucía',
+            '7788990',
+            'Ingeniería de Sistemas',
+        ]);
+        expect(celdas).toHaveLength(7);
+    });
+
     it('da de baja al estudiante sin sacarlo del padrón', async () => {
         axios.delete.mockResolvedValue({ data: { ...estudiante, activo: false } });
 

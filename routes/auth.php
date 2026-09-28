@@ -25,5 +25,16 @@ Route::prefix('api/auth')
                 ->name('admin.roles.index');
             Route::post('/users', [UserController::class, 'store'])
                 ->name('admin.users.store');
+            Route::put('/users/{user}', [UserController::class, 'update'])
+                ->whereNumber('user')
+                ->name('admin.users.update');
+            Route::patch('/users/{user}/estado', [UserController::class, 'estado'])
+                ->whereNumber('user')
+                ->name('admin.users.estado');
+            Route::get('/permissions', [RoleController::class, 'getPermissions'])
+                ->name('admin.permissions.index');
+            Route::put('/roles/{role}/permisos', [RoleController::class, 'updatePermissions'])
+                ->whereNumber('role')
+                ->name('admin.roles.permisos');
         });
     });

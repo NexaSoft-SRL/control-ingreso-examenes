@@ -2,6 +2,7 @@
 
 namespace App\Modules\Administracion\Domain\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -69,8 +70,10 @@ class User extends Authenticatable
         $this->attributes['nombre'] = $value;
     }
 
-    /** @phpstan-ignore-next-line */
-    public function role()
+    /**
+     * @return BelongsTo<Role, $this>
+     */
+    public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class, 'role_id');
     }

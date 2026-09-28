@@ -38,7 +38,6 @@ class RolePermissionSeeder extends Seeder
 
         if ($admin instanceof Role) {
             $permissionIds = Permission::whereIn('name', ['padron_estudiantes', 'asignaturas_ambientes', 'codigos_qr', 'usuarios_roles', 'bitacora', 'respaldo_restauracion'])->pluck('id')->toArray();
-            /** @phpstan-ignore-next-line */
             $admin->permissions()->sync($permissionIds);
         }
     }
