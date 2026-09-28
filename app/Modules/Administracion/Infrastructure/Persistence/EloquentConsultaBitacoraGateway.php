@@ -53,25 +53,34 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
             );
         }
 
-        if ($filtros->fecha !== null) {
+        // Un solo dia es el rango que empieza y termina en el mismo dia.
+        $desde = $filtros->desde ?? $filtros->fecha;
+        $hasta = $filtros->hasta ?? $filtros->fecha;
+
+        if ($desde !== null) {
             $inicio = new DateTimeImmutable(
-                $filtros->fecha.' 00:00:00',
+                $desde.' 00:00:00',
                 new DateTimeZone('UTC'),
             );
 
-            $fin = $inicio->modify('+1 day');
+            $query->where(
+                'bitacora.fecha_operacion',
+                '>=',
+                $inicio->format('Y-m-d H:i:s'),
+            );
+        }
 
-            $query
-                ->where(
-                    'bitacora.fecha_operacion',
-                    '>=',
-                    $inicio->format('Y-m-d H:i:s'),
-                )
-                ->where(
-                    'bitacora.fecha_operacion',
-                    '<',
-                    $fin->format('Y-m-d H:i:s'),
-                );
+        if ($hasta !== null) {
+            $fin = (new DateTimeImmutable(
+                $hasta.' 00:00:00',
+                new DateTimeZone('UTC'),
+            ))->modify('+1 day');
+
+            $query->where(
+                'bitacora.fecha_operacion',
+                '<',
+                $fin->format('Y-m-d H:i:s'),
+            );
         }
 
         $rows = $query

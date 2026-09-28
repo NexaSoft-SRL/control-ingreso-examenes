@@ -29,6 +29,15 @@ final class ConsultarBitacoraRequest extends FormRequest
                 'sometimes',
                 'date_format:Y-m-d',
             ],
+            'desde' => [
+                'sometimes',
+                'date_format:Y-m-d',
+            ],
+            'hasta' => [
+                'sometimes',
+                'date_format:Y-m-d',
+                'after_or_equal:desde',
+            ],
             'operacion' => [
                 'sometimes',
                 'string',
@@ -45,6 +54,8 @@ final class ConsultarBitacoraRequest extends FormRequest
 
         $fecha = $this->validated('fecha');
         $operacion = $this->validated('operacion');
+        $desde = $this->validated('desde');
+        $hasta = $this->validated('hasta');
 
         return new ConsultarBitacoraData(
             usuarioId: $usuarioId,
@@ -53,6 +64,12 @@ final class ConsultarBitacoraRequest extends FormRequest
                 : null,
             operacion: is_string($operacion)
                 ? $operacion
+                : null,
+            desde: is_string($desde)
+                ? $desde
+                : null,
+            hasta: is_string($hasta)
+                ? $hasta
                 : null,
         );
     }
