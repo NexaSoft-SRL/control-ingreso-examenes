@@ -9,10 +9,13 @@ use App\Modules\Administracion\Application\Actions\DeleteStudent;
 use App\Modules\Administracion\Application\Actions\FindStudent;
 use App\Modules\Administracion\Application\Actions\ListStudents;
 use App\Modules\Administracion\Application\Actions\UpdateStudent;
+use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Http\Requests\StoreStudentRequest;
 use App\Modules\Administracion\Http\Requests\UpdateStudentRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 final class StudentController
 {
@@ -22,6 +25,7 @@ final class StudentController
         private readonly DeleteStudent $deleteStudent,
         private readonly FindStudent $findStudent,
         private readonly ListStudents $listStudents,
+        private readonly BitacoraGateway $bitacora,
     ) {}
 
     public function index(): JsonResponse
@@ -37,10 +41,14 @@ final class StudentController
         /** @var array<string, mixed> $data */
         $data = $request->validated();
 
-        return response()->json(
-            $this->createStudent->execute($data),
-            Response::HTTP_CREATED,
-        );
+        $student = DB::transaction(function () use ($data) {
+            $student = $this->createStudent->execute($data);
+            $this->bitacora->registrar(Auth::id(), 'Registro de nuevo estudiante', 'students', $student->id, 'Registro de nuevo estudiante en Padrón / Estudiantes.');
+
+            return $student;
+        });
+
+        return response()->json($student, Response::HTTP_CREATED);
     }
 
     public function show(int $student): JsonResponse
@@ -71,10 +79,14 @@ final class StudentController
         /** @var array<string, mixed> $data */
         $data = $request->validated();
 
-        return response()->json(
-            $this->updateStudent->execute($found, $data),
-            Response::HTTP_OK,
-        );
+        $student = DB::transaction(function () use ($found, $data) {
+            $student = $this->updateStudent->execute($found, $data);
+            $this->bitacora->registrar(Auth::id(), 'Actualización de estudiante', 'students', $student->id, 'Actualización de estudiante en Padrón / Estudiantes.');
+
+            return $student;
+        });
+
+        return response()->json($student, Response::HTTP_OK);
     }
 
     public function destroy(int $student): JsonResponse

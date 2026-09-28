@@ -27,7 +27,8 @@ class UpdateStudentRequest extends FormRequest
             'ci' => [
                 'required',
                 'string',
-                'max:30',
+                'max:14',
+                'regex:/^\d{5,10}(?:-[A-Z]{2,3})?$/',
                 Rule::unique('students', 'ci')->ignore($studentId),
             ],
             'correo' => [
@@ -38,5 +39,11 @@ class UpdateStudentRequest extends FormRequest
             ],
             'activo' => ['sometimes', 'boolean'],
         ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return ['ci.regex' => 'Formato de C.I. inválido. Usa 5 a 10 dígitos y una extensión opcional (CB, LP, SC, etc.).'];
     }
 }
