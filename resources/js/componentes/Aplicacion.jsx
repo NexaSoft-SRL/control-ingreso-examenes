@@ -9,7 +9,14 @@ import RegistroEstudiantes from '../paginas/estudiantes/RegistroEstudiantes.jsx'
 import Login from '../paginas/auth/Login.jsx';
 import LayoutAdmin from './LayoutAdmin.jsx';
 import PestanasPadron from './PestanasPadron.jsx';
-import { guardarSesion, limpiarSesion, obtenerSesion } from './sesion.js';
+import SinPermiso from './SinPermiso.jsx';
+import {
+    guardarSesion,
+    limpiarSesion,
+    obtenerSesion,
+    rolDeSesion,
+    tienePermiso,
+} from './sesion.js';
 
 /**
  * Rutas reales por URL. Las de /admin exigen haber iniciado sesion; si la
@@ -24,7 +31,24 @@ const rutaPorClave = {
     login: '/login',
 };
 
-const rutaInicial = '/admin/usuarios';
+// Permiso que exige el backend en cada pantalla (HU-02).
+const permisoPorClave = {
+    usuarios: 'usuarios_roles',
+    asignaturas: 'asignaturas_ambientes',
+    bitacora: 'bitacora',
+    padron: 'padron_estudiantes',
+    cargaMasiva: 'padron_estudiantes',
+};
+
+const ordenDeEntrada = ['usuarios', 'padron', 'asignaturas', 'bitacora'];
+
+// Tras iniciar sesion se entra por la primera pantalla que el rol tenga
+// habilitada, no siempre por la de usuarios.
+function rutaDeEntrada() {
+    const clave = ordenDeEntrada.find((c) => tienePermiso(permisoPorClave[c]));
+
+    return clave ? rutaPorClave[clave] : '/sin-permiso';
+}
 
 function useNavegacionPorClave() {
     const navigate = useNavigate();
@@ -73,6 +97,17 @@ function ManejadorSesionExpirada() {
                 if ((estado === 401 || estado === 419) && !url.includes('/api/auth/')) {
                     limpiarSesion();
                     navigate('/login', { replace: true });
+                }
+
+                // El rol no alcanza: se explica en pantalla en vez de dejar
+                // la vista vacia (HU-02).
+                if (estado === 403) {
+                    navigate('/sin-permiso', {
+                        state: {
+                            mensaje: error.response?.data?.message,
+                            permiso: error.response?.data?.permiso_requerido,
+                        },
+                    });
                 }
 
                 return Promise.reject(error);
@@ -132,19 +167,47 @@ function PaginaCargaMasiva() {
     return <CargaMasiva onNavigate={useNavegacionPorClave()} />;
 }
 
+function PaginaSinPermiso() {
+    const navigate = useNavigate();
+    const navegar = useNavegacionPorClave();
+    const ubicacion = useLocation();
+    const destino = rutaDeEntrada();
+
+    // Si el rol no tiene ninguna pantalla de este sprint, no hay adonde
+    // volver: lo unico sensato es cerrar la sesion.
+    const sinNingunaSeccion = destino === '/sin-permiso';
+
+    const mensaje =
+        ubicacion.state?.mensaje ??
+        (sinNingunaSeccion
+            ? `Tu rol (${rolDeSesion() ?? 'sin rol asignado'}) todavía no tiene ninguna sección habilitada. Pide al administrador que revise sus permisos.`
+            : undefined);
+
+    return (
+        <SinPermiso
+            mensaje={mensaje}
+            permiso={ubicacion.state?.permiso}
+            textoBoton={sinNingunaSeccion ? 'Cerrar sesión' : 'Volver'}
+            onVolver={() =>
+                sinNingunaSeccion ? navegar('salir') : navigate(destino, { replace: true })
+            }
+        />
+    );
+}
+
 function PaginaLogin() {
     const navigate = useNavigate();
     const ubicacion = useLocation();
 
     if (obtenerSesion()) {
-        return <Navigate to={rutaInicial} replace />;
+        return <Navigate to={rutaDeEntrada()} replace />;
     }
 
     return (
         <Login
             onAutenticado={(usuario) => {
                 guardarSesion(usuario);
-                navigate(ubicacion.state?.desde ?? rutaInicial, { replace: true });
+                navigate(ubicacion.state?.desde ?? rutaDeEntrada(), { replace: true });
             }}
         />
     );
@@ -196,8 +259,16 @@ export default function Aplicacion() {
                         </RutaProtegida>
                     }
                 />
-                <Route path="/" element={<Navigate to={rutaInicial} replace />} />
-                <Route path="*" element={<Navigate to={rutaInicial} replace />} />
+                <Route
+                    path="/sin-permiso"
+                    element={
+                        <RutaProtegida>
+                            <PaginaSinPermiso />
+                        </RutaProtegida>
+                    }
+                />
+                <Route path="/" element={<Navigate to={rutaDeEntrada()} replace />} />
+                <Route path="*" element={<Navigate to={rutaDeEntrada()} replace />} />
             </Routes>
         </BrowserRouter>
     );

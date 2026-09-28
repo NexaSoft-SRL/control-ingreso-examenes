@@ -20,6 +20,20 @@ export function obtenerSesion() {
     }
 }
 
+// Las secciones que el rol puede abrir. El backend vuelve a comprobarlo en
+// cada peticion: esto solo evita ofrecer puertas cerradas.
+export function permisosDeSesion() {
+    return obtenerSesion()?.permisos ?? [];
+}
+
+export function rolDeSesion() {
+    return obtenerSesion()?.rol ?? null;
+}
+
+export function tienePermiso(permiso) {
+    return permisosDeSesion().includes(permiso);
+}
+
 export function limpiarSesion() {
     try {
         sessionStorage.removeItem(CLAVE);
