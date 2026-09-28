@@ -10,5 +10,9 @@ final readonly class ConsultarBitacoraData
         public ?int $usuarioId,
         public ?string $fecha,
         public ?string $operacion,
+        // El backlog pide filtrar por rango de fechas; "fecha" se mantiene
+        // para quien ya consultaba por un solo dia.
+        public ?string $desde = null,
+        public ?string $hasta = null,
     ) {}
 }

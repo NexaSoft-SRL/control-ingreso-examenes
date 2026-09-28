@@ -8,9 +8,20 @@ afterEach(() => {
     window.history.pushState({}, '', '/');
 });
 
+const TODOS_LOS_PERMISOS = [
+    'padron_estudiantes',
+    'asignaturas_ambientes',
+    'usuarios_roles',
+    'bitacora',
+];
+
+function iniciarSesion(permisos = TODOS_LOS_PERMISOS) {
+    guardarSesion({ id: 1, name: 'Administrador', permisos });
+}
+
 describe('Aplicacion', () => {
     it('renderiza la pantalla inicial de usuarios y roles', () => {
-        guardarSesion({ id: 1, name: 'Administrador' });
+        iniciarSesion();
         render(<Aplicacion />);
 
         expect(
@@ -36,7 +47,7 @@ describe('Aplicacion', () => {
     });
 
     it('el padrón reúne el registro de estudiantes y la carga masiva', () => {
-        guardarSesion({ id: 1, name: 'Administrador' });
+        iniciarSesion();
         window.history.pushState({}, '', '/admin/padron');
         render(<Aplicacion />);
 
@@ -51,9 +62,48 @@ describe('Aplicacion', () => {
     });
 
     it('muestra la opción de cerrar sesión en las pantallas de administración', () => {
-        guardarSesion({ id: 1, name: 'Administrador' });
+        iniciarSesion();
         render(<Aplicacion />);
 
         expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
+    });
+
+    it('el menú solo ofrece las secciones que el rol puede abrir', () => {
+        iniciarSesion(['padron_estudiantes']);
+        window.history.pushState({}, '', '/admin/padron');
+        render(<Aplicacion />);
+
+        expect(screen.getByRole('button', { name: 'Padrón' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Usuarios y roles' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Bitácora' })).toBeNull();
+    });
+
+    it('entra por la primera pantalla habilitada para el rol', () => {
+        iniciarSesion(['bitacora']);
+        render(<Aplicacion />);
+
+        expect(window.location.pathname).toBe('/admin/bitacora');
+    });
+
+    it('al rol sin ninguna sección habilitada se lo dice y le ofrece salir', () => {
+        guardarSesion({ id: 2, name: 'Docente', rol: 'Docente', permisos: ['habilitacion'] });
+        render(<Aplicacion />);
+
+        expect(window.location.pathname).toBe('/sin-permiso');
+        expect(screen.getByRole('alert')).toHaveTextContent(
+            'Tu rol (Docente) todavía no tiene ninguna sección habilitada.'
+        );
+        expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
+    });
+
+    it('la negativa por falta de permiso se explica en pantalla', () => {
+        iniciarSesion(['bitacora']);
+        window.history.pushState({}, '', '/sin-permiso');
+        render(<Aplicacion />);
+
+        expect(screen.getByRole('heading', { name: 'Sección no habilitada' })).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveTextContent(
+            'Tu rol no tiene acceso a esta sección.'
+        );
     });
 });

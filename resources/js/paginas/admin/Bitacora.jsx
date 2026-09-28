@@ -13,18 +13,36 @@ import {
     UserCog,
     Users,
 } from 'lucide-react';
+import { tienePermiso } from '../../componentes/sesion.js';
 
 /**
  * Bitacora (HU-07), lado Frontend. Consume GET /api/bitacora (backend de
  * Jofre), que filtra por usuario_id, fecha (un solo dia, Y-m-d) y operacion.
  */
 const etiquetaOperacion = {
+    'sesion.iniciar': 'Inicio de sesión',
+    'sesion.cerrar': 'Cierre de sesión',
+    'sesion.fallida': 'Intento de sesión fallido',
+    'usuario.registrar': 'Creación de cuenta',
+    'estudiante.registrar': 'Registro de estudiante',
+    'estudiante.actualizar': 'Edición de estudiante',
+    'estudiante.baja': 'Baja de estudiante',
+    'estudiante.reactivar': 'Reactivación de estudiante',
+    'padron.importar': 'Carga masiva del padrón',
+    'docente.registrar': 'Alta de docente',
     'asignatura.registrar': 'Registro de asignatura',
     'asignatura.eliminar': 'Eliminación de asignatura',
+    'ambiente.registrar': 'Registro de ambiente',
+    'ambiente.actualizar': 'Edición de ambiente',
+    'ambiente.eliminar': 'Eliminación de ambiente',
 };
 
 const etiquetaTabla = {
     asignaturas: 'Asignatura',
+    ambientes: 'Ambiente',
+    docentes: 'Docente',
+    students: 'Estudiante',
+    usuarios: 'Usuario',
 };
 
 const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -70,6 +88,7 @@ function Bitacora({ onNavigate }) {
     const [usuarioFiltro, setUsuarioFiltro] = React.useState('');
     const [fechaFiltro, setFechaFiltro] = React.useState('');
     const [operacionFiltro, setOperacionFiltro] = React.useState('');
+    const [hastaFiltro, setHastaFiltro] = React.useState('');
 
     const ultimaConsulta = React.useRef(0);
 
@@ -79,7 +98,10 @@ function Bitacora({ onNavigate }) {
             const params = {};
 
             if (filtros.usuario) params.usuario_id = filtros.usuario;
-            if (filtros.fecha) params.fecha = filtros.fecha;
+            // El backlog pide rango de fechas: "desde" solo ya acota, y
+            // "hasta" solo lista todo lo anterior a esa fecha.
+            if (filtros.desde) params.desde = filtros.desde;
+            if (filtros.hasta) params.hasta = filtros.hasta;
             if (filtros.operacion) params.operacion = filtros.operacion;
 
             setCargando(true);
@@ -141,7 +163,12 @@ function Bitacora({ onNavigate }) {
 
     function manejarFiltrar(evento) {
         evento.preventDefault();
-        consultar({ usuario: usuarioFiltro, fecha: fechaFiltro, operacion: operacionFiltro });
+        consultar({
+            usuario: usuarioFiltro,
+            desde: fechaFiltro,
+            hasta: hastaFiltro,
+            operacion: operacionFiltro,
+        });
     }
 
     function navegar(clave) {
@@ -184,11 +211,13 @@ function Bitacora({ onNavigate }) {
                     <MenuItem
                         icon={<Users className="h-[18px] w-[18px]" />}
                         text="Padrón"
+                        permiso="padron_estudiantes"
                         onClick={() => navegar('padron')}
                     />
                     <MenuItem
                         icon={<LayoutGrid className="h-[18px] w-[18px]" />}
                         text="Asignaturas y ambientes"
+                        permiso="asignaturas_ambientes"
                         onClick={() => navegar('asignaturas')}
                     />
                     <MenuItem
@@ -199,11 +228,13 @@ function Bitacora({ onNavigate }) {
                     <MenuItem
                         icon={<UserCog className="h-[18px] w-[18px]" />}
                         text="Usuarios y roles"
+                        permiso="usuarios_roles"
                         onClick={() => navegar('usuarios')}
                     />
                     <MenuItem
                         icon={<History className="h-[18px] w-[18px]" />}
                         text="Bitácora"
+                        permiso="bitacora"
                         selected
                     />
                     <MenuItem
@@ -289,7 +320,7 @@ function Bitacora({ onNavigate }) {
                                 className="text-xs font-semibold text-slate-700"
                                 htmlFor="fecha-filtro"
                             >
-                                Fecha
+                                Desde
                             </label>
 
                             <input
@@ -298,6 +329,23 @@ function Bitacora({ onNavigate }) {
                                 className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 value={fechaFiltro}
                                 onChange={(e) => setFechaFiltro(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                            <label
+                                className="text-xs font-semibold text-slate-700"
+                                htmlFor="hasta-filtro"
+                            >
+                                Hasta
+                            </label>
+
+                            <input
+                                id="hasta-filtro"
+                                type="date"
+                                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                value={hastaFiltro}
+                                onChange={(e) => setHastaFiltro(e.target.value)}
                             />
                         </div>
 
@@ -374,7 +422,9 @@ function Bitacora({ onNavigate }) {
                                             operacion.usuario.name
                                         ) : (
                                             <span className="font-normal text-slate-400 italic">
-                                                Usuario eliminado
+                                                {operacion.operacion === 'sesion.fallida'
+                                                    ? 'Sin identificar'
+                                                    : 'Usuario eliminado'}
                                             </span>
                                         )}
                                     </div>
@@ -405,7 +455,12 @@ Bitacora.propTypes = {
     onNavigate: PropTypes.func,
 };
 
-function MenuItem({ icon, text, selected, onClick }) {
+function MenuItem({ icon, text, selected, onClick, permiso }) {
+    // El rol que no tiene el permiso tampoco ve la entrada del menú (HU-02).
+    if (permiso && !tienePermiso(permiso)) {
+        return null;
+    }
+
     return (
         <div
             className={`mb-1 flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${
@@ -426,6 +481,7 @@ MenuItem.propTypes = {
     text: PropTypes.string.isRequired,
     selected: PropTypes.bool,
     onClick: PropTypes.func,
+    permiso: PropTypes.string,
 };
 
 export default Bitacora;

@@ -9,6 +9,8 @@ export default function RegistroEstudiantes() {
     // Estados para el formulario y edición
     const [mostrarModal, setMostrarModal] = useState(false);
     const [estudianteEditando, setEstudianteEditando] = useState(null);
+    const [codigoUniversitario, setCodigoUniversitario] = useState('');
+    const [carrera, setCarrera] = useState('');
     const [apellido, setApellido] = useState('');
     const [ci, setCi] = useState('');
     const [nombre, setNombre] = useState('');
@@ -32,6 +34,8 @@ export default function RegistroEstudiantes() {
 
     const abrirNuevoEstudiante = () => {
         setEstudianteEditando(null);
+        setCodigoUniversitario('');
+        setCarrera('');
         setApellido('');
         setCi('');
         setNombre('');
@@ -44,6 +48,8 @@ export default function RegistroEstudiantes() {
     const abrirEditarEstudiante = (index) => {
         const est = estudiantes[index];
         setEstudianteEditando(index);
+        setCodigoUniversitario(est.codigo_universitario ?? '');
+        setCarrera(est.carrera ?? '');
         setApellido(est.apellido);
         setCi(est.ci);
         setNombre(est.nombre);
@@ -55,6 +61,8 @@ export default function RegistroEstudiantes() {
 
     const limpiarFormulario = () => {
         setEstudianteEditando(null);
+        setCodigoUniversitario('');
+        setCarrera('');
         setApellido('');
         setCi('');
         setNombre('');
@@ -63,11 +71,49 @@ export default function RegistroEstudiantes() {
         setMostrarModal(false);
     };
 
+    // HU-03: la baja no borra al estudiante, lo deja inactivo. Reactivarlo
+    // es el mismo camino que una edicion.
+    const cambiarEstado = async (index) => {
+        const est = estudiantes[index];
+        setError('');
+
+        try {
+            const response = est.activo
+                ? await axios.delete(`/api/students/${est.id}`)
+                : await axios.put(`/api/students/${est.id}`, {
+                      nombre: est.nombre,
+                      apellido: est.apellido,
+                      ci: est.ci,
+                      correo: est.correo,
+                      codigo_universitario: est.codigo_universitario,
+                      carrera: est.carrera,
+                      activo: true,
+                  });
+
+            setEstudiantes((actuales) =>
+                actuales.map((actual, posicion) => (posicion === index ? response.data : actual))
+            );
+        } catch (estadoError) {
+            const mensaje = estadoError.response?.data?.message;
+            setError(mensaje || 'No se pudo cambiar el estado del estudiante.');
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
 
-        const datos = { nombre, apellido, ci, correo, activo };
+        // El backlog pide codigo universitario, documento, nombres,
+        // apellidos y carrera: los dos primeros faltaban en el formulario.
+        const datos = {
+            codigo_universitario: codigoUniversitario.trim() || null,
+            carrera: carrera.trim() || null,
+            nombre,
+            apellido,
+            ci,
+            correo: correo.trim() || null,
+            activo,
+        };
 
         try {
             if (estudianteEditando === null) {
@@ -112,52 +158,6 @@ export default function RegistroEstudiantes() {
                 </div>
             )}
 
-            {/* Caja de Carga CSV (Mockup) */}
-            {/* Caja de Carga CSV (Mockup) */}
-            <div className="mb-6 flex flex-col items-stretch justify-between gap-4 rounded-xl border-2 border-dashed border-blue-200 bg-white p-4 shadow-sm sm:p-6">
-                <div className="flex min-w-0 items-start gap-4">
-                    <div className="bg-blue-50 p-3 rounded-lg text-blue-600 shrink-0">
-                        <svg
-                            className="w-6 h-6"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                            />
-                        </svg>
-                    </div>
-                    <div className="min-w-0">
-                        <p className="wrap-break-word text-sm font-medium text-gray-700">
-                            Arrastrá tu archivo CSV o hacé clic para subir
-                        </p>
-                        <p className="mt-1 wrap-break-word text-xs leading-5 text-gray-400">
-                            Formato delimitado por comas con codificación UTF-8
-                        </p>
-                    </div>
-                </div>
-                <button className="w-full rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 sm:w-auto">
-                    Cargar
-                </button>
-            </div>
-
-            {/* Alerta de errores de carga (Mockup) */}
-            <div className="mb-6 flex items-start rounded-r-lg border-l-4 border-amber-400 bg-amber-50 p-4 shadow-sm">
-                <div className="flex items-start gap-3 text-sm font-medium text-amber-800">
-                    <span>⚠️</span>
-                    <span>
-                        3 registros no se pudieron cargar{' '}
-                        <a href="#detalle" className="underline font-bold hover:text-amber-900">
-                            (ver detalle)
-                        </a>
-                    </span>
-                </div>
-            </div>
-
             {/* Formulario desplegable para "+ Nuevo estudiante" o "Editar" */}
             {mostrarModal && (
                 <form
@@ -169,7 +169,31 @@ export default function RegistroEstudiantes() {
                             ? 'Registrar nuevo estudiante'
                             : 'Editar estudiante'}
                     </h2>
-                    <div className="grid grid-cols-1 gap-4 mb-4 md:grid-cols-5">
+                    <div className="grid grid-cols-1 gap-4 mb-4 md:grid-cols-4">
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-600 mb-1">
+                                CÓDIGO UNIVERSITARIO
+                            </label>
+                            <input
+                                type="text"
+                                value={codigoUniversitario}
+                                onChange={(e) => setCodigoUniversitario(e.target.value)}
+                                placeholder="Ej. 201900123"
+                                className="w-full p-2 border rounded text-sm"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-600 mb-1">
+                                CARRERA
+                            </label>
+                            <input
+                                type="text"
+                                value={carrera}
+                                onChange={(e) => setCarrera(e.target.value)}
+                                placeholder="Ej. Ingeniería de Sistemas"
+                                className="w-full p-2 border rounded text-sm"
+                            />
+                        </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-600 mb-1">
                                 APELLIDO
@@ -211,7 +235,7 @@ export default function RegistroEstudiantes() {
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-600 mb-1">
-                                CORREO
+                                CORREO (OPCIONAL)
                             </label>
                             <input
                                 type="email"
@@ -219,7 +243,6 @@ export default function RegistroEstudiantes() {
                                 onChange={(e) => setCorreo(e.target.value)}
                                 placeholder="Ej. juan@umss.edu"
                                 className="w-full p-2 border rounded text-sm"
-                                required
                             />
                         </div>
                         <div>
@@ -260,34 +283,38 @@ export default function RegistroEstudiantes() {
                     <table className="w-full min-w-225 border-collapse text-left">
                         <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100">
                             <tr>
+                                <th className="w-32 whitespace-nowrap p-4 font-semibold">Código</th>
                                 <th className="w-36 whitespace-nowrap p-4 font-semibold">
                                     Apellido
                                 </th>
-                                <th className="w-40 whitespace-nowrap p-4 font-semibold">C.I.</th>
-                                <th className="min-w-64 p-4 font-semibold">Nombre</th>
-                                <th className="min-w-64 p-4 font-semibold">Correo</th>
+                                <th className="min-w-48 p-4 font-semibold">Nombre</th>
+                                <th className="w-36 whitespace-nowrap p-4 font-semibold">C.I.</th>
+                                <th className="min-w-48 p-4 font-semibold">Carrera</th>
                                 <th className="min-w-32 p-4 font-semibold">Estado</th>
-                                <th className="min-w-32 p-4 text-right font-semibold">Acciones</th>
+                                <th className="min-w-40 p-4 text-right font-semibold">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 text-sm text-gray-600">
                             {cargando ? (
                                 <tr>
-                                    <td colSpan="6" className="p-6 text-center text-gray-400">
+                                    <td colSpan="7" className="p-6 text-center text-gray-400">
                                         Cargando estudiantes...
                                     </td>
                                 </tr>
                             ) : (
                                 estudiantes.map((est, index) => (
                                     <tr key={est.id} className="hover:bg-gray-50 transition">
+                                        <td className="p-4 font-mono text-xs whitespace-nowrap text-gray-500">
+                                            {est.codigo_universitario || '—'}
+                                        </td>
                                         <td className="whitespace-nowrap p-4 font-medium text-gray-700">
                                             {est.apellido}
                                         </td>
-                                        <td className="whitespace-nowrap p-4">{est.ci}</td>
-                                        <td className="min-w-64 p-4 font-medium text-gray-900">
+                                        <td className="min-w-48 p-4 font-medium text-gray-900">
                                             {est.nombre}
                                         </td>
-                                        <td className="min-w-64 p-4">{est.correo}</td>
+                                        <td className="whitespace-nowrap p-4">{est.ci}</td>
+                                        <td className="min-w-48 p-4">{est.carrera || '—'}</td>
                                         <td className="p-4">
                                             <span
                                                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
@@ -311,6 +338,16 @@ export default function RegistroEstudiantes() {
                                             >
                                                 Editar
                                             </button>
+                                            <button
+                                                onClick={() => cambiarEstado(index)}
+                                                className={`ml-3 text-sm font-medium ${
+                                                    est.activo
+                                                        ? 'text-gray-500 hover:text-gray-700'
+                                                        : 'text-green-600 hover:text-green-800'
+                                                }`}
+                                            >
+                                                {est.activo ? 'Dar de baja' : 'Reactivar'}
+                                            </button>
                                         </td>
                                     </tr>
                                 ))
@@ -319,7 +356,8 @@ export default function RegistroEstudiantes() {
                     </table>
                 </div>
                 <div className="p-4 bg-gray-50 text-xs text-gray-400 border-t border-gray-100">
-                    Mostrando {estudiantes.length} de 145 estudiantes
+                    Mostrando {estudiantes.length}{' '}
+                    {estudiantes.length === 1 ? 'estudiante' : 'estudiantes'}
                 </div>
             </div>
         </div>

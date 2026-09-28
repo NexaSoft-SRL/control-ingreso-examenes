@@ -19,10 +19,14 @@ class StoreStudentRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'codigo_universitario' => [
+                'nullable', 'string', 'max:20', 'unique:students,codigo_universitario',
+            ],
+            'carrera' => ['nullable', 'string', 'max:120'],
             'nombre' => ['required', 'string', 'max:100'],
             'apellido' => ['required', 'string', 'max:100'],
             'ci' => ['required', 'string', 'max:30', 'unique:students,ci'],
-            'correo' => ['required', 'email', 'max:150', 'unique:students,correo'],
+            'correo' => ['nullable', 'email', 'max:150', 'unique:students,correo'],
             'activo' => ['sometimes', 'boolean'],
         ];
     }

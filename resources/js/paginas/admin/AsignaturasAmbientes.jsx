@@ -15,66 +15,90 @@ import {
     Users,
     Wrench,
 } from 'lucide-react';
+import { tienePermiso } from '../../componentes/sesion.js';
 
-const ambientesIniciales = [
-    {
-        nombre: 'Aula Magna - FCyT',
-        capacidad: '120 personas',
-        estado: 'Disponible',
-    },
-    {
-        nombre: 'Módulo 3 - Aula 205',
-        capacidad: '60',
-        estado: 'Disponible',
-    },
-    {
-        nombre: 'Laboratorio de Sistemas 1',
-        capacidad: '45',
-        estado: 'Mantenimiento',
-    },
-    {
-        nombre: 'Aula 691B',
-        capacidad: '88',
-        estado: 'Disponible',
-    },
-    {
-        nombre: 'Auditorio Edificio Nuevo',
-        capacidad: '150',
-        estado: 'Disponible',
-    },
+// El backend acepta estos tres estados (StoreAmbienteRequest).
+const ESTADOS_AMBIENTE = [
+    { valor: 'DISPONIBLE', etiqueta: 'Disponible' },
+    { valor: 'MANTENIMIENTO', etiqueta: 'Mantenimiento' },
+    { valor: 'OCUPADO', etiqueta: 'Ocupado' },
 ];
+
+const AMBIENTE_VACIO = {
+    nombre: '',
+    ubicacion: '',
+    capacidad: '',
+    estado: 'DISPONIBLE',
+};
+
+const ASIGNATURA_VACIA = {
+    codigo: '',
+    materia: '',
+    semestre: null,
+    descripcion: null,
+    docente_id: '',
+    cupo: '40',
+};
+
+function mensajeDeError(error, respaldo) {
+    const datos = error?.response?.data;
+    const errores = datos?.errors ? Object.values(datos.errors)[0] : null;
+
+    return errores?.[0] ?? datos?.message ?? respaldo;
+}
 
 function AsignaturasAmbientes({ onNavigate }) {
     const [menuAbierto, setMenuAbierto] = React.useState(false);
 
     const [asignaturas, setAsignaturas] = React.useState([]);
-
-    const [ambientes, setAmbientes] = React.useState(ambientesIniciales);
+    const [ambientes, setAmbientes] = React.useState([]);
+    const [docentes, setDocentes] = React.useState([]);
+    const [aviso, setAviso] = React.useState(null);
 
     React.useEffect(() => {
         cargarAsignaturas();
+        cargarAmbientes();
+        cargarDocentes();
     }, []);
+
+    function avisar(texto, tipo = 'error') {
+        setAviso({ texto, tipo });
+    }
 
     async function cargarAsignaturas() {
         try {
             const respuesta = await window.axios.get('/api/asignaturas');
 
-            setAsignaturas(
-                respuesta.data.data.map((asignatura) => {
-                    const grupo = asignatura.grupos?.[0];
-
-                    return {
-                        materia: asignatura.nombre,
-                        docente: grupo?.docente
-                            ? `${grupo.docente.nombres} ${grupo.docente.apellidos}`
-                            : 'Sin docente asignado',
-                    };
-                })
-            );
+            setAsignaturas(respuesta.data.data ?? []);
         } catch (error) {
             console.error('Error cargando asignaturas:', error);
+            avisar('No se pudieron cargar las asignaturas.');
         }
     }
+
+    // Los ambientes viven en la base (HU-06): la pantalla los leia de una
+    // lista escrita en el codigo y lo registrado se perdia al recargar.
+    async function cargarAmbientes() {
+        try {
+            const respuesta = await window.axios.get('/api/admin/ambientes');
+
+            setAmbientes(respuesta.data ?? []);
+        } catch (error) {
+            console.error('Error cargando ambientes:', error);
+            avisar('No se pudieron cargar los ambientes.');
+        }
+    }
+
+    async function cargarDocentes() {
+        try {
+            const respuesta = await window.axios.get('/api/docentes');
+
+            setDocentes(respuesta.data.data ?? []);
+        } catch (error) {
+            console.error('Error cargando docentes:', error);
+        }
+    }
+
     /* =========================
        ESTADO ASIGNATURAS
     ========================== */
@@ -83,10 +107,7 @@ function AsignaturasAmbientes({ onNavigate }) {
 
     const [asignaturaEditando, setAsignaturaEditando] = React.useState(null);
 
-    const [nuevaAsignatura, setNuevaAsignatura] = React.useState({
-        materia: '',
-        docente: '',
-    });
+    const [nuevaAsignatura, setNuevaAsignatura] = React.useState(ASIGNATURA_VACIA);
 
     /* =========================
        ESTADO AMBIENTES
@@ -96,11 +117,7 @@ function AsignaturasAmbientes({ onNavigate }) {
 
     const [ambienteEditando, setAmbienteEditando] = React.useState(null);
 
-    const [nuevoAmbiente, setNuevoAmbiente] = React.useState({
-        nombre: '',
-        capacidad: '',
-        estado: 'Disponible',
-    });
+    const [nuevoAmbiente, setNuevoAmbiente] = React.useState(AMBIENTE_VACIO);
 
     /* =========================
        FUNCIONES ASIGNATURAS
@@ -108,67 +125,96 @@ function AsignaturasAmbientes({ onNavigate }) {
 
     const abrirNuevaAsignatura = () => {
         setAsignaturaEditando(null);
-
-        setNuevaAsignatura({
-            materia: '',
-            docente: '',
-        });
-
+        setNuevaAsignatura(ASIGNATURA_VACIA);
+        setAviso(null);
         setMostrarFormularioAsignatura(true);
     };
 
-    const abrirEditarAsignatura = (index) => {
-        const asignatura = asignaturas[index];
+    const abrirEditarAsignatura = (asignatura) => {
+        const grupo = asignatura.grupos?.[0];
 
-        setAsignaturaEditando(index);
-
+        setAsignaturaEditando(asignatura.id);
         setNuevaAsignatura({
-            materia: asignatura.materia,
-            docente: asignatura.docente,
+            codigo: asignatura.codigo,
+            materia: asignatura.nombre,
+            semestre: asignatura.semestre,
+            descripcion: asignatura.descripcion,
+            docente_id: grupo?.docente?.id ? String(grupo.docente.id) : '',
+            cupo: String(grupo?.cupo ?? 40),
         });
-
+        setAviso(null);
         setMostrarFormularioAsignatura(true);
     };
 
     const cancelarAsignatura = () => {
         setMostrarFormularioAsignatura(false);
         setAsignaturaEditando(null);
-
-        setNuevaAsignatura({
-            materia: '',
-            docente: '',
-        });
+        setNuevaAsignatura(ASIGNATURA_VACIA);
     };
 
     const guardarAsignatura = async () => {
-        if (nuevaAsignatura.materia.trim() === '' || nuevaAsignatura.docente.trim() === '') {
-            alert('Completa todos los campos de la asignatura.');
+        if (
+            nuevaAsignatura.codigo.trim() === '' ||
+            nuevaAsignatura.materia.trim() === '' ||
+            nuevaAsignatura.docente_id === ''
+        ) {
+            avisar('La sigla, el nombre y el docente responsable son obligatorios.');
+
             return;
         }
 
+        const editando = asignaturaEditando !== null;
+        const datos = {
+            codigo: nuevaAsignatura.codigo.trim(),
+            nombre: nuevaAsignatura.materia.trim(),
+            semestre: nuevaAsignatura.semestre,
+            descripcion: nuevaAsignatura.descripcion,
+            grupos: [
+                {
+                    codigo_grupo: 'A',
+                    docente_id: Number(nuevaAsignatura.docente_id),
+                    cupo: Number(nuevaAsignatura.cupo) || 0,
+                },
+            ],
+        };
+
         try {
-            await window.axios.post('/api/asignaturas', {
-                codigo: 'ASIG-' + Date.now(),
-                nombre: nuevaAsignatura.materia.trim(),
-                semestre: '1',
-                descripcion: null,
-                grupos: [
-                    {
-                        codigo_grupo: 'A',
-                        docente_id: 2,
-                        cupo: 40,
-                    },
-                ],
-            });
+            if (editando) {
+                await window.axios.put(`/api/asignaturas/${asignaturaEditando}`, datos);
+            } else {
+                await window.axios.post('/api/asignaturas', datos);
+            }
 
             await cargarAsignaturas();
 
-            alert('Asignatura creada correctamente.');
+            avisar(editando ? 'Asignatura actualizada.' : 'Asignatura registrada.', 'exito');
 
             cancelarAsignatura();
         } catch (error) {
             console.error(error);
-            alert('Error al guardar la asignatura.');
+            avisar(
+                mensajeDeError(
+                    error,
+                    editando
+                        ? 'No se pudo actualizar la asignatura.'
+                        : 'No se pudo guardar la asignatura.'
+                )
+            );
+        }
+    };
+
+    const eliminarAsignatura = async (asignatura) => {
+        setAviso(null);
+
+        try {
+            await window.axios.delete(`/api/asignaturas/${asignatura.id}`);
+
+            await cargarAsignaturas();
+
+            avisar('Asignatura eliminada.', 'exito');
+        } catch (error) {
+            // El backend responde 409 cuando la asignatura tiene examenes.
+            avisar(mensajeDeError(error, 'No se pudo eliminar la asignatura.'));
         }
     };
 
@@ -178,73 +224,78 @@ function AsignaturasAmbientes({ onNavigate }) {
 
     const abrirNuevoAmbiente = () => {
         setAmbienteEditando(null);
-
-        setNuevoAmbiente({
-            nombre: '',
-            capacidad: '',
-            estado: 'Disponible',
-        });
-
+        setNuevoAmbiente(AMBIENTE_VACIO);
+        setAviso(null);
         setMostrarFormularioAmbiente(true);
     };
 
-    const abrirEditarAmbiente = (index) => {
-        const ambiente = ambientes[index];
-
-        setAmbienteEditando(index);
+    const abrirEditarAmbiente = (ambiente) => {
+        setAmbienteEditando(ambiente.id);
 
         setNuevoAmbiente({
             nombre: ambiente.nombre,
-            capacidad: ambiente.capacidad,
-            estado: ambiente.estado,
+            ubicacion: ambiente.ubicacion ?? '',
+            capacidad: String(ambiente.capacidad ?? ''),
+            estado: ambiente.estado ?? 'DISPONIBLE',
         });
 
+        setAviso(null);
         setMostrarFormularioAmbiente(true);
     };
 
     const cancelarAmbiente = () => {
         setMostrarFormularioAmbiente(false);
         setAmbienteEditando(null);
-
-        setNuevoAmbiente({
-            nombre: '',
-            capacidad: '',
-            estado: 'Disponible',
-        });
+        setNuevoAmbiente(AMBIENTE_VACIO);
     };
 
-    const guardarAmbiente = () => {
-        if (nuevoAmbiente.nombre.trim() === '' || nuevoAmbiente.capacidad.trim() === '') {
-            alert('Completa todos los campos del ambiente.');
+    const guardarAmbiente = async () => {
+        if (nuevoAmbiente.nombre.trim() === '' || nuevoAmbiente.capacidad === '') {
+            avisar('El nombre y la capacidad del ambiente son obligatorios.');
+
             return;
         }
 
-        if (ambienteEditando === null) {
-            setAmbientes([
-                ...ambientes,
-                {
-                    nombre: nuevoAmbiente.nombre.trim(),
-                    capacidad: nuevoAmbiente.capacidad.trim(),
-                    estado: nuevoAmbiente.estado,
-                },
-            ]);
+        const datos = {
+            nombre: nuevoAmbiente.nombre.trim(),
+            ubicacion: nuevoAmbiente.ubicacion.trim() || null,
+            capacidad: Number(nuevoAmbiente.capacidad),
+            estado: nuevoAmbiente.estado,
+        };
 
-            alert('Ambiente creado correctamente.');
-        } else {
-            const ambientesActualizados = [...ambientes];
+        try {
+            if (ambienteEditando === null) {
+                await window.axios.post('/api/admin/ambientes', datos);
+            } else {
+                await window.axios.put(`/api/admin/ambientes/${ambienteEditando}`, datos);
+            }
 
-            ambientesActualizados[ambienteEditando] = {
-                nombre: nuevoAmbiente.nombre.trim(),
-                capacidad: nuevoAmbiente.capacidad.trim(),
-                estado: nuevoAmbiente.estado,
-            };
+            await cargarAmbientes();
 
-            setAmbientes(ambientesActualizados);
+            avisar(
+                ambienteEditando === null ? 'Ambiente registrado.' : 'Ambiente actualizado.',
+                'exito'
+            );
 
-            alert('Ambiente actualizado correctamente.');
+            cancelarAmbiente();
+        } catch (error) {
+            console.error(error);
+            avisar(mensajeDeError(error, 'No se pudo guardar el ambiente.'));
         }
+    };
 
-        cancelarAmbiente();
+    const eliminarAmbiente = async (ambiente) => {
+        setAviso(null);
+
+        try {
+            await window.axios.delete(`/api/admin/ambientes/${ambiente.id}`);
+
+            await cargarAmbientes();
+
+            avisar('Ambiente eliminado.', 'exito');
+        } catch (error) {
+            avisar(mensajeDeError(error, 'No se pudo eliminar el ambiente.'));
+        }
     };
 
     function navegar(clave) {
@@ -290,12 +341,14 @@ function AsignaturasAmbientes({ onNavigate }) {
                     <MenuItem
                         icon={<Users className="h-[18px] w-[18px]" />}
                         text="Padrón"
+                        permiso="padron_estudiantes"
                         onClick={() => navegar('padron')}
                     />
 
                     <MenuItem
                         icon={<LayoutGrid className="h-[18px] w-[18px]" />}
                         text="Asignaturas y ambientes"
+                        permiso="asignaturas_ambientes"
                         selected
                         onClick={() => navegar('asignaturas')}
                     />
@@ -309,12 +362,14 @@ function AsignaturasAmbientes({ onNavigate }) {
                     <MenuItem
                         icon={<UserCog className="h-[18px] w-[18px]" />}
                         text="Usuarios y roles"
+                        permiso="usuarios_roles"
                         onClick={() => navegar('usuarios')}
                     />
 
                     <MenuItem
                         icon={<History className="h-[18px] w-[18px]" />}
                         text="Bitácora"
+                        permiso="bitacora"
                         onClick={() => navegar('bitacora')}
                     />
 
@@ -377,6 +432,19 @@ function AsignaturasAmbientes({ onNavigate }) {
                         </div>
                     </div>
 
+                    {aviso && (
+                        <div
+                            role="alert"
+                            className={`mt-5 rounded-lg px-4 py-3 text-sm ${
+                                aviso.tipo === 'exito'
+                                    ? 'bg-emerald-50 text-emerald-700'
+                                    : 'bg-rose-50 text-rose-700'
+                            }`}
+                        >
+                            {aviso.texto}
+                        </div>
+                    )}
+
                     {/* ASIGNATURAS */}
                     <div className="mt-7 mb-2 flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -397,32 +465,57 @@ function AsignaturasAmbientes({ onNavigate }) {
                     </div>
 
                     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-                        <div className="grid min-w-[560px] grid-cols-[1.2fr_1.4fr_0.5fr] items-center gap-3 border-b border-slate-100 bg-blue-50/60 px-4 py-3 text-xs font-semibold tracking-wide text-slate-500">
+                        <div className="grid min-w-[700px] grid-cols-[0.6fr_1.2fr_1.4fr_0.8fr] items-center gap-3 border-b border-slate-100 bg-blue-50/60 px-4 py-3 text-xs font-semibold tracking-wide text-slate-500">
+                            <div>SIGLA</div>
                             <div>MATERIA</div>
-                            <div>DOCENTE ASIGNADO</div>
+                            <div>DOCENTE RESPONSABLE</div>
                             <div>ACCIONES</div>
                         </div>
 
-                        {asignaturas.map((asignatura, index) => (
-                            <div
-                                key={index}
-                                className="grid min-w-[560px] grid-cols-[1.2fr_1.4fr_0.5fr] items-center gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0"
-                            >
-                                <div className="font-semibold text-slate-800">
-                                    {asignatura.materia}
-                                </div>
-                                <div className="text-slate-500">{asignatura.docente}</div>
-                                <div>
-                                    <button
-                                        type="button"
-                                        className="text-sm font-medium text-blue-600 hover:text-blue-700"
-                                        onClick={() => abrirEditarAsignatura(index)}
-                                    >
-                                        Editar
-                                    </button>
-                                </div>
+                        {asignaturas.length === 0 && (
+                            <div className="px-4 py-6 text-center text-sm text-slate-400">
+                                Todavía no hay asignaturas registradas.
                             </div>
-                        ))}
+                        )}
+
+                        {asignaturas.map((asignatura) => {
+                            const docente = asignatura.grupos?.[0]?.docente;
+
+                            return (
+                                <div
+                                    key={asignatura.id}
+                                    className="grid min-w-[700px] grid-cols-[0.6fr_1.2fr_1.4fr_0.8fr] items-center gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0"
+                                >
+                                    <div className="font-mono text-xs text-slate-500">
+                                        {asignatura.codigo}
+                                    </div>
+                                    <div className="font-semibold text-slate-800">
+                                        {asignatura.nombre}
+                                    </div>
+                                    <div className="text-slate-500">
+                                        {docente
+                                            ? `${docente.nombres} ${docente.apellidos}`
+                                            : 'Sin docente asignado'}
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button
+                                            type="button"
+                                            className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                                            onClick={() => abrirEditarAsignatura(asignatura)}
+                                        >
+                                            Editar
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="text-sm font-medium text-rose-600 hover:text-rose-700"
+                                            onClick={() => eliminarAsignatura(asignatura)}
+                                        >
+                                            Eliminar
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
 
                     {/* SEPARADOR */}
@@ -451,45 +544,62 @@ function AsignaturasAmbientes({ onNavigate }) {
                     </div>
 
                     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-                        <div className="grid min-w-[620px] grid-cols-[1.3fr_0.7fr_0.8fr_0.5fr] items-center gap-3 border-b border-slate-100 bg-blue-50/60 px-4 py-3 text-xs font-semibold tracking-wide text-slate-500">
+                        <div className="grid min-w-[720px] grid-cols-[1.3fr_1fr_0.7fr_0.8fr_0.7fr] items-center gap-3 border-b border-slate-100 bg-blue-50/60 px-4 py-3 text-xs font-semibold tracking-wide text-slate-500">
                             <div>NOMBRE DE AULA</div>
+                            <div>EDIFICIO</div>
                             <div>CAPACIDAD</div>
                             <div>ESTADO</div>
                             <div>ACCIONES</div>
                         </div>
 
-                        {ambientes.map((ambiente, index) => (
+                        {ambientes.length === 0 && (
+                            <div className="px-4 py-6 text-center text-sm text-slate-400">
+                                Todavía no hay ambientes registrados.
+                            </div>
+                        )}
+
+                        {ambientes.map((ambiente) => (
                             <div
-                                key={index}
-                                className="grid min-w-[620px] grid-cols-[1.3fr_0.7fr_0.8fr_0.5fr] items-center gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0"
+                                key={ambiente.id}
+                                className="grid min-w-[720px] grid-cols-[1.3fr_1fr_0.7fr_0.8fr_0.7fr] items-center gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0"
                             >
                                 <div className="font-semibold text-slate-800">
                                     {ambiente.nombre}
                                 </div>
+                                <div className="text-slate-500">{ambiente.ubicacion || '—'}</div>
                                 <div className="text-slate-500">{ambiente.capacidad}</div>
                                 <div>
                                     <span
                                         className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
-                                            ambiente.estado === 'Disponible'
+                                            ambiente.estado === 'DISPONIBLE'
                                                 ? 'bg-emerald-100 text-emerald-700'
                                                 : 'bg-rose-100 text-rose-700'
                                         }`}
                                     >
-                                        {ambiente.estado === 'Disponible' ? (
+                                        {ambiente.estado === 'DISPONIBLE' ? (
                                             <CheckCircle2 className="h-3.5 w-3.5" />
                                         ) : (
                                             <Wrench className="h-3.5 w-3.5" />
                                         )}
-                                        {ambiente.estado}
+                                        {ESTADOS_AMBIENTE.find(
+                                            (estado) => estado.valor === ambiente.estado
+                                        )?.etiqueta ?? ambiente.estado}
                                     </span>
                                 </div>
-                                <div>
+                                <div className="flex gap-3">
                                     <button
                                         type="button"
                                         className="text-sm font-medium text-blue-600 hover:text-blue-700"
-                                        onClick={() => abrirEditarAmbiente(index)}
+                                        onClick={() => abrirEditarAmbiente(ambiente)}
                                     >
                                         Editar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="text-sm font-medium text-rose-600 hover:text-rose-700"
+                                        onClick={() => eliminarAmbiente(ambiente)}
+                                    >
+                                        Eliminar
                                     </button>
                                 </div>
                             </div>
@@ -508,15 +618,40 @@ function AsignaturasAmbientes({ onNavigate }) {
 
                         <p className="mt-1 mb-5 text-sm text-slate-500">
                             {asignaturaEditando === null
-                                ? 'Registra una nueva materia'
-                                : 'Modifica los datos de la asignatura'}
+                                ? 'Registra una nueva materia con su docente responsable'
+                                : 'Actualiza los datos de la materia y su docente responsable'}
                         </p>
 
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                        <label
+                            htmlFor="sigla"
+                            className="mb-1.5 block text-xs font-semibold text-slate-700"
+                        >
+                            Sigla
+                        </label>
+
+                        <input
+                            id="sigla"
+                            type="text"
+                            value={nuevaAsignatura.codigo}
+                            onChange={(e) =>
+                                setNuevaAsignatura({
+                                    ...nuevaAsignatura,
+                                    codigo: e.target.value,
+                                })
+                            }
+                            placeholder="Ej. INF-342"
+                            className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
+
+                        <label
+                            htmlFor="materia"
+                            className="mb-1.5 block text-xs font-semibold text-slate-700"
+                        >
                             Materia
                         </label>
 
                         <input
+                            id="materia"
                             type="text"
                             value={nuevaAsignatura.materia}
                             onChange={(e) =>
@@ -529,20 +664,57 @@ function AsignaturasAmbientes({ onNavigate }) {
                             className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
 
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                            Docente asignado
+                        <label
+                            htmlFor="docente"
+                            className="mb-1.5 block text-xs font-semibold text-slate-700"
+                        >
+                            Docente responsable
                         </label>
 
-                        <input
-                            type="text"
-                            value={nuevaAsignatura.docente}
+                        <select
+                            id="docente"
+                            value={nuevaAsignatura.docente_id}
                             onChange={(e) =>
                                 setNuevaAsignatura({
                                     ...nuevaAsignatura,
-                                    docente: e.target.value,
+                                    docente_id: e.target.value,
                                 })
                             }
-                            placeholder="Ej. Ing. Juan Pérez"
+                            className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        >
+                            <option value="">Selecciona un docente</option>
+                            {docentes.map((docente) => (
+                                <option key={docente.id} value={docente.id}>
+                                    {docente.apellidos}, {docente.nombres} ({docente.codigo_docente}
+                                    )
+                                </option>
+                            ))}
+                        </select>
+
+                        {docentes.length === 0 && (
+                            <p className="mb-4 text-xs text-rose-600">
+                                No hay docentes registrados. Se dan de alta en Usuarios y roles.
+                            </p>
+                        )}
+
+                        <label
+                            htmlFor="cupo"
+                            className="mb-1.5 block text-xs font-semibold text-slate-700"
+                        >
+                            Cupo del grupo
+                        </label>
+
+                        <input
+                            id="cupo"
+                            type="number"
+                            min="0"
+                            value={nuevaAsignatura.cupo}
+                            onChange={(e) =>
+                                setNuevaAsignatura({
+                                    ...nuevaAsignatura,
+                                    cupo: e.target.value,
+                                })
+                            }
                             className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
 
@@ -581,11 +753,15 @@ function AsignaturasAmbientes({ onNavigate }) {
                                 : 'Modifica los datos del ambiente'}
                         </p>
 
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                        <label
+                            htmlFor="nombre-aula"
+                            className="mb-1.5 block text-xs font-semibold text-slate-700"
+                        >
                             Nombre del aula
                         </label>
 
                         <input
+                            id="nombre-aula"
                             type="text"
                             value={nuevoAmbiente.nombre}
                             onChange={(e) =>
@@ -598,12 +774,38 @@ function AsignaturasAmbientes({ onNavigate }) {
                             className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
 
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                        <label
+                            htmlFor="edificio"
+                            className="mb-1.5 block text-xs font-semibold text-slate-700"
+                        >
+                            Edificio
+                        </label>
+
+                        <input
+                            id="edificio"
+                            type="text"
+                            value={nuevoAmbiente.ubicacion}
+                            onChange={(e) =>
+                                setNuevoAmbiente({
+                                    ...nuevoAmbiente,
+                                    ubicacion: e.target.value,
+                                })
+                            }
+                            placeholder="Ej. Edificio Nuevo, planta baja"
+                            className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
+
+                        <label
+                            htmlFor="capacidad"
+                            className="mb-1.5 block text-xs font-semibold text-slate-700"
+                        >
                             Capacidad
                         </label>
 
                         <input
-                            type="text"
+                            id="capacidad"
+                            type="number"
+                            min="1"
                             value={nuevoAmbiente.capacidad}
                             onChange={(e) =>
                                 setNuevoAmbiente({
@@ -615,11 +817,15 @@ function AsignaturasAmbientes({ onNavigate }) {
                             className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
 
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                        <label
+                            htmlFor="estado"
+                            className="mb-1.5 block text-xs font-semibold text-slate-700"
+                        >
                             Estado
                         </label>
 
                         <select
+                            id="estado"
                             value={nuevoAmbiente.estado}
                             onChange={(e) =>
                                 setNuevoAmbiente({
@@ -629,8 +835,11 @@ function AsignaturasAmbientes({ onNavigate }) {
                             }
                             className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         >
-                            <option value="Disponible">Disponible</option>
-                            <option value="Mantenimiento">Mantenimiento</option>
+                            {ESTADOS_AMBIENTE.map((estado) => (
+                                <option key={estado.valor} value={estado.valor}>
+                                    {estado.etiqueta}
+                                </option>
+                            ))}
                         </select>
 
                         <div className="mt-1 flex justify-end gap-2">
@@ -661,7 +870,12 @@ AsignaturasAmbientes.propTypes = {
     onNavigate: PropTypes.func.isRequired,
 };
 
-function MenuItem({ icon, text, selected, onClick }) {
+function MenuItem({ icon, text, selected, onClick, permiso }) {
+    // El rol que no tiene el permiso tampoco ve la entrada del menú (HU-02).
+    if (permiso && !tienePermiso(permiso)) {
+        return null;
+    }
+
     return (
         <div
             className={`mb-1 flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${
@@ -682,6 +896,7 @@ MenuItem.propTypes = {
     text: PropTypes.string.isRequired,
     selected: PropTypes.bool,
     onClick: PropTypes.func,
+    permiso: PropTypes.string,
 };
 
 export default AsignaturasAmbientes;

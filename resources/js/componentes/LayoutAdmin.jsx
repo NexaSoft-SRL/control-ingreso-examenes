@@ -13,6 +13,7 @@ import {
     UserCog,
     Users,
 } from 'lucide-react';
+import { tienePermiso } from './sesion.js';
 
 // Menu lateral y encabezado del administrador, para pantallas que solo traen
 // su contenido (p. ej. el registro de estudiantes de HU-03).
@@ -24,14 +25,21 @@ export default function LayoutAdmin({ seleccionado, onNavigate, children }) {
         onNavigate?.(clave);
     }
 
+    // Cada entrada declara el permiso que el backend exige detras (HU-02);
+    // el rol que no lo tiene ni siquiera ve la puerta.
     const items = [
-        { clave: 'padron', texto: 'Padrón', Icono: Users },
-        { clave: 'asignaturas', texto: 'Asignaturas y ambientes', Icono: LayoutGrid },
+        { clave: 'padron', texto: 'Padrón', Icono: Users, permiso: 'padron_estudiantes' },
+        {
+            clave: 'asignaturas',
+            texto: 'Asignaturas y ambientes',
+            Icono: LayoutGrid,
+            permiso: 'asignaturas_ambientes',
+        },
         { clave: 'qr', texto: 'Códigos QR', Icono: QrCode, proximamente: true },
-        { clave: 'usuarios', texto: 'Usuarios y roles', Icono: UserCog },
-        { clave: 'bitacora', texto: 'Bitácora', Icono: History },
+        { clave: 'usuarios', texto: 'Usuarios y roles', Icono: UserCog, permiso: 'usuarios_roles' },
+        { clave: 'bitacora', texto: 'Bitácora', Icono: History, permiso: 'bitacora' },
         { clave: 'respaldo', texto: 'Respaldo', Icono: DatabaseBackup, proximamente: true },
-    ];
+    ].filter((item) => !item.permiso || tienePermiso(item.permiso));
 
     return (
         <div className="flex min-h-screen w-full bg-white font-sans text-slate-800">
