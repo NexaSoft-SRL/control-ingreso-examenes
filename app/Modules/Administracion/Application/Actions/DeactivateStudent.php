@@ -8,30 +8,32 @@ use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Application\Contracts\StudentRepository;
 use App\Modules\Administracion\Domain\Models\Student;
 
-final readonly class CreateStudent
+/**
+ * Baja de un estudiante (HU-03). El backlog pide darlo de baja "sin borrar su
+ * historial": el registro se conserva y solo deja de estar activo, porque de
+ * el cuelgan habilitaciones e ingresos de examenes anteriores.
+ */
+final readonly class DeactivateStudent
 {
     public function __construct(
         private StudentRepository $repository,
         private BitacoraGateway $bitacora,
     ) {}
 
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    public function execute(array $data, int $usuarioId): Student
+    public function execute(Student $student, int $usuarioId): Student
     {
-        $student = $this->repository->create($data);
+        $dadoDeBaja = $this->repository->update($student, ['activo' => false]);
 
-        $id = $student->getKey();
+        $id = $dadoDeBaja->getKey();
 
         $this->bitacora->registrar(
             $usuarioId,
-            'estudiante.registrar',
+            'estudiante.baja',
             'students',
             is_int($id) ? $id : null,
             null,
         );
 
-        return $student;
+        return $dadoDeBaja;
     }
 }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Administracion\Http\Controllers;
 
 use App\Modules\Administracion\Application\Actions\CreateStudent;
-use App\Modules\Administracion\Application\Actions\DeleteStudent;
+use App\Modules\Administracion\Application\Actions\DeactivateStudent;
 use App\Modules\Administracion\Application\Actions\FindStudent;
 use App\Modules\Administracion\Application\Actions\ImportStudents;
 use App\Modules\Administracion\Application\Actions\ListStudents;
@@ -15,13 +15,15 @@ use App\Modules\Administracion\Http\Requests\StoreStudentRequest;
 use App\Modules\Administracion\Http\Requests\UpdateStudentRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
+use LogicException;
 
 final class StudentController
 {
     public function __construct(
         private readonly CreateStudent $createStudent,
         private readonly UpdateStudent $updateStudent,
-        private readonly DeleteStudent $deleteStudent,
+        private readonly DeactivateStudent $deactivateStudent,
         private readonly FindStudent $findStudent,
         private readonly ListStudents $listStudents,
         private readonly ImportStudents $importStudents,
@@ -71,7 +73,10 @@ final class StudentController
             fclose($handle);
         }
 
-        return response()->json($this->importStudents->execute($rows), Response::HTTP_OK);
+        return response()->json(
+            $this->importStudents->execute($rows, $this->usuarioAutenticado()),
+            Response::HTTP_OK,
+        );
     }
 
     /**
@@ -90,7 +95,7 @@ final class StudentController
         $data = $request->validated();
 
         return response()->json(
-            $this->createStudent->execute($data),
+            $this->createStudent->execute($data, $this->usuarioAutenticado()),
             Response::HTTP_CREATED,
         );
     }
@@ -124,7 +129,7 @@ final class StudentController
         $data = $request->validated();
 
         return response()->json(
-            $this->updateStudent->execute($found, $data),
+            $this->updateStudent->execute($found, $data, $this->usuarioAutenticado()),
             Response::HTTP_OK,
         );
     }
@@ -140,8 +145,36 @@ final class StudentController
             );
         }
 
-        $this->deleteStudent->execute($found);
+        // HU-03: la baja no borra al estudiante, lo deja inactivo para no
+        // perder su historial de examenes.
+        return response()->json(
+            $this->deactivateStudent->execute($found, $this->usuarioAutenticado()),
+            Response::HTTP_OK,
+        );
+    }
 
-        return response()->json(null, Response::HTTP_NO_CONTENT);
+    /**
+     * La bitacora (HU-07) necesita saber quien hizo la operacion. Las rutas
+     * de este controlador exigen sesion, asi que siempre hay usuario.
+     */
+    private function usuarioAutenticado(): int
+    {
+        $user = Auth::guard('web')->user();
+
+        if ($user === null) {
+            throw new LogicException(
+                'No existe usuario autenticado.'
+            );
+        }
+
+        $id = $user->getKey();
+
+        if (! is_int($id) && ! is_string($id)) {
+            throw new LogicException(
+                'El usuario autenticado no tiene un identificador válido.'
+            );
+        }
+
+        return (int) $id;
     }
 }
