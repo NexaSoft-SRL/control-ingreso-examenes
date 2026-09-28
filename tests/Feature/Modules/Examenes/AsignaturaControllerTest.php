@@ -147,9 +147,17 @@ final class AsignaturaControllerTest extends TestCase
             'cupo' => 30,
         ]);
 
+        $asignaturaId = $asignatura->getKey();
+
+        if (! is_int($asignaturaId)) {
+            $this->fail(
+                'El identificador PostgreSQL de la asignatura debía ser entero.'
+            );
+        }
+
         $response = $this
             ->actingAs($user)
-            ->putJson("/api/asignaturas/{$asignatura->getKey()}", [
+            ->putJson("/api/asignaturas/{$asignaturaId}", [
                 'codigo' => 'INF-UPDATE-001',
                 'nombre' => 'Materia actualizada',
                 'semestre' => '5',
@@ -176,7 +184,7 @@ final class AsignaturaControllerTest extends TestCase
             ->assertJsonPath('data.grupos.0.cupo', 40);
 
         $this->assertDatabaseHas('asignaturas', [
-            'id' => $asignatura->getKey(),
+            'id' => $asignaturaId,
             'nombre' => 'Materia actualizada',
             'semestre' => '5',
         ]);
