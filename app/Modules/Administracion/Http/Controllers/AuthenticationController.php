@@ -3,6 +3,7 @@
 namespace App\Modules\Administracion\Http\Controllers;
 
 use App\Modules\Administracion\Application\Actions\AuthenticateUser;
+use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Http\Requests\LoginRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,7 @@ class AuthenticationController
 {
     public function __construct(
         private readonly AuthenticateUser $authenticateUser,
+        private readonly BitacoraGateway $bitacora,
     ) {}
 
     public function login(LoginRequest $request): JsonResponse
@@ -28,6 +30,16 @@ class AuthenticationController
         );
 
         if ($user === null) {
+            // Sin usuario no hay a quien atribuir el intento: queda
+            // asentado con el identificador que se probo.
+            $this->bitacora->registrar(
+                null,
+                'sesion.fallida',
+                'usuarios',
+                null,
+                sprintf('Intento fallido con el identificador %s.', $credentials['email']),
+            );
+
             return response()->json([
                 'message' => 'Credenciales incorrectas.',
             ], Response::HTTP_UNAUTHORIZED);
@@ -36,6 +48,16 @@ class AuthenticationController
         Auth::login($user);
 
         $request->session()->regenerate();
+
+        $id = $user->getKey();
+
+        $this->bitacora->registrar(
+            is_int($id) ? $id : null,
+            'sesion.iniciar',
+            'usuarios',
+            is_int($id) ? $id : null,
+            null,
+        );
 
         return response()->json([
             'message' => 'Autenticación correcta.',
@@ -49,7 +71,20 @@ class AuthenticationController
 
     public function logout(Request $request): Response
     {
+        // El identificador se toma antes de cerrar la sesion: despues ya no
+        // hay usuario a quien atribuir la operacion.
+        $user = Auth::guard('web')->user();
+        $id = $user?->getKey();
+
         Auth::logout();
+
+        $this->bitacora->registrar(
+            is_int($id) ? $id : null,
+            'sesion.cerrar',
+            'usuarios',
+            is_int($id) ? $id : null,
+            null,
+        );
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

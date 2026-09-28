@@ -2,13 +2,19 @@
 
 namespace App\Modules\Administracion\Http\Controllers;
 
+use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Domain\Models\Role;
 use App\Modules\Administracion\Domain\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class UserController
 {
+    public function __construct(
+        private readonly BitacoraGateway $bitacora,
+    ) {}
+
     public function store(Request $request): JsonResponse
     {
         /** @var array{nombre:string, correo:string, rol:string} $data */
@@ -33,6 +39,17 @@ class UserController
             'role_id' => $role->id,
             'is_active' => true,
         ]);
+
+        $id = $user->getKey();
+        $autor = Auth::guard('web')->user()?->getKey();
+
+        $this->bitacora->registrar(
+            is_int($autor) ? $autor : null,
+            'usuario.registrar',
+            'usuarios',
+            is_int($id) ? $id : null,
+            sprintf('Cuenta creada con el rol %s.', $data['rol']),
+        );
 
         return response()->json([
             'message' => 'Usuario creado correctamente.',
