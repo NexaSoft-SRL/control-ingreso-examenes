@@ -30,13 +30,16 @@ Route::prefix('api')
             '/docentes',
             [DocenteController::class, 'index']
         )->name('docentes.index');
+    });
 
-        // El alta del docente se hace desde Usuarios y roles: ese es el
-        // permiso que corresponde, no el de asignaturas.
+// El alta del docente se hace desde la pantalla de usuarios y roles, no
+// desde la de asignaturas: por eso va en su propio grupo, con su permiso.
+// Dentro del grupo anterior exigiria los dos permisos a la vez.
+Route::prefix('api')
+    ->middleware(['auth', 'permiso:usuarios_roles'])
+    ->group(function (): void {
         Route::post(
             '/docentes',
             [DocenteController::class, 'store']
-        )
-            ->middleware('permiso:usuarios_roles')
-            ->name('docentes.store');
+        )->name('docentes.store');
     });

@@ -144,4 +144,37 @@ final class PermisosPorRolTest extends TestCase
         $this->getJson('/api/students')->assertUnauthorized();
         $this->getJson('/api/bitacora')->assertUnauthorized();
     }
+
+    public function test_the_teacher_registration_only_needs_the_accounts_permission(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+
+        $rol = Role::where('name', 'Personal')->firstOrFail();
+
+        /** @var list<int> $permisos */
+        $permisos = Permission::where(
+            'name',
+            'usuarios_roles',
+        )->pluck('id')->all();
+
+        $rol->permissions()->sync($permisos);
+
+        $soloCuentas = UserFactory::new()->createOne([
+            'role_id' => $this->identificador($rol),
+        ]);
+
+        // Sin el permiso de asignaturas, el alta del docente igual pasa.
+        $this->actingAs($soloCuentas)
+            ->postJson('/api/docentes', [
+                'codigo_docente' => 'DOC-950',
+                'nombres' => 'Marcela',
+                'apellidos' => 'Quiroga',
+            ])
+            ->assertCreated();
+
+        $this->actingAs($soloCuentas)
+            ->getJson('/api/docentes')
+            ->assertForbidden()
+            ->assertJsonPath('permiso_requerido', 'asignaturas_ambientes');
+    }
 }
