@@ -10,6 +10,9 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        // Sin roles ni permisos cargados, HU-02 no tiene con que trabajar.
+        $this->call(RolePermissionSeeder::class);
+
         User::create([
             'nombre' => 'Administrador',
             'correo' => 'admin@test.com',
