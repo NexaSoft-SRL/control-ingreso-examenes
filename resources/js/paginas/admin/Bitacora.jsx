@@ -19,12 +19,29 @@ import {
  * Jofre), que filtra por usuario_id, fecha (un solo dia, Y-m-d) y operacion.
  */
 const etiquetaOperacion = {
+    'sesion.iniciar': 'Inicio de sesión',
+    'sesion.cerrar': 'Cierre de sesión',
+    'sesion.fallida': 'Intento de sesión fallido',
+    'usuario.registrar': 'Creación de cuenta',
+    'estudiante.registrar': 'Registro de estudiante',
+    'estudiante.actualizar': 'Edición de estudiante',
+    'estudiante.baja': 'Baja de estudiante',
+    'estudiante.reactivar': 'Reactivación de estudiante',
+    'padron.importar': 'Carga masiva del padrón',
+    'docente.registrar': 'Alta de docente',
     'asignatura.registrar': 'Registro de asignatura',
     'asignatura.eliminar': 'Eliminación de asignatura',
+    'ambiente.registrar': 'Registro de ambiente',
+    'ambiente.actualizar': 'Edición de ambiente',
+    'ambiente.eliminar': 'Eliminación de ambiente',
 };
 
 const etiquetaTabla = {
     asignaturas: 'Asignatura',
+    ambientes: 'Ambiente',
+    docentes: 'Docente',
+    students: 'Estudiante',
+    usuarios: 'Usuario',
 };
 
 const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -374,7 +391,9 @@ function Bitacora({ onNavigate }) {
                                             operacion.usuario.name
                                         ) : (
                                             <span className="font-normal text-slate-400 italic">
-                                                Usuario eliminado
+                                                {operacion.operacion === 'sesion.fallida'
+                                                    ? 'Sin identificar'
+                                                    : 'Usuario eliminado'}
                                             </span>
                                         )}
                                     </div>

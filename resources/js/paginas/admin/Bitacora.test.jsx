@@ -82,6 +82,41 @@ describe('Bitacora', () => {
         );
     });
 
+    it('nombra las operaciones nuevas y el intento sin identificar', async () => {
+        window.axios.get.mockResolvedValue({
+            data: {
+                data: [
+                    {
+                        id: 3,
+                        usuario: null,
+                        operacion: 'sesion.fallida',
+                        tabla_afectada: 'usuarios',
+                        registro_id: null,
+                        descripcion: 'Intento fallido con el identificador ana@umss.edu.bo.',
+                        fecha_operacion: '2026-09-28 08:10:00',
+                    },
+                    {
+                        id: 4,
+                        usuario: { id: 7, name: 'Jofre Ticona', email: 'jofre@umss.edu.bo' },
+                        operacion: 'estudiante.baja',
+                        tabla_afectada: 'students',
+                        registro_id: 15,
+                        descripcion: null,
+                        fecha_operacion: '2026-09-28 08:12:00',
+                    },
+                ],
+            },
+        });
+
+        render(<Bitacora onNavigate={vi.fn()} />);
+
+        // La etiqueta sale dos veces: en la fila y en el filtro de operaciones.
+        expect(await screen.findAllByText('Intento de sesión fallido')).not.toHaveLength(0);
+        expect(screen.getByText('Sin identificar')).toBeInTheDocument();
+        expect(screen.getAllByText('Baja de estudiante')).not.toHaveLength(0);
+        expect(screen.getByText('Estudiante #15')).toBeInTheDocument();
+    });
+
     it('marca Bitácora como seleccionada en el menú', async () => {
         render(<Bitacora onNavigate={vi.fn()} />);
         await screen.findByText('Mostrando 2 eventos');
