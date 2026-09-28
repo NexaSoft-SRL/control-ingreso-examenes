@@ -51,15 +51,14 @@ final class StudentController
             }
 
             $header[0] = preg_replace('/^\\xEF\\xBB\\xBF/', '', (string) $header[0]);
-            $expectedHeader = ['nombre', 'apellido', 'ci', 'correo', 'activo'];
-            if ($header !== $expectedHeader) {
-                return response()->json([
-                    'message' => 'Las columnas deben ser: nombre, apellido, ci, correo, activo.',
-                ], Response::HTTP_UNPROCESSABLE_ENTITY);
-            }
 
             $rows = [];
             $line = 1;
+
+            // La primera fila puede ser el encabezado o ya un estudiante.
+            if (! $this->esEncabezado($header)) {
+                $rows[] = ['fila' => 1, 'valores' => $header];
+            }
             while (($values = fgetcsv($handle)) !== false) {
                 $line++;
                 if ($values === [null]) {
@@ -73,6 +72,16 @@ final class StudentController
         }
 
         return response()->json($this->importStudents->execute($rows), Response::HTTP_OK);
+    }
+
+    /**
+     * @param  array<int, string|null>  $fila
+     */
+    private function esEncabezado(array $fila): bool
+    {
+        $primera = mb_strtolower(trim((string) ($fila[0] ?? '')));
+
+        return str_contains($primera, 'codigo') || str_contains($primera, 'código');
     }
 
     public function store(StoreStudentRequest $request): JsonResponse
