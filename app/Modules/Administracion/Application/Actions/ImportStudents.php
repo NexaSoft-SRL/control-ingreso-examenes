@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Administracion\Application\Actions;
 
+use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Application\Contracts\StudentRepository;
 
 /**
@@ -31,13 +32,14 @@ final readonly class ImportStudents
 
     public function __construct(
         private StudentRepository $repository,
+        private BitacoraGateway $bitacora,
     ) {}
 
     /**
      * @param  list<array{fila: int, valores: array<int, string|null>}>  $rows
      * @return array{creados: int, actualizados: int, rechazados: int, detalles: list<array{fila: int, motivo: string, tipo: string}>}
      */
-    public function execute(array $rows): array
+    public function execute(array $rows, int $usuarioId): array
     {
         $porCodigo = [];
         $porDocumento = [];
@@ -133,13 +135,30 @@ final readonly class ImportStudents
             $porDocumento[$documento] = $student;
         }
 
+        $rechazados = count(array_filter(
+            $detalles,
+            static fn (array $detalle): bool => $detalle['tipo'] === 'rechazado',
+        ));
+
+        // La carga toca muchas filas de una vez: en la bitacora se asienta
+        // como una sola operacion con su resumen.
+        $this->bitacora->registrar(
+            $usuarioId,
+            'padron.importar',
+            'students',
+            null,
+            sprintf(
+                'Carga masiva: %d nuevos, %d actualizados, %d rechazados.',
+                $creados,
+                $actualizados,
+                $rechazados,
+            ),
+        );
+
         return [
             'creados' => $creados,
             'actualizados' => $actualizados,
-            'rechazados' => count(array_filter(
-                $detalles,
-                static fn (array $detalle): bool => $detalle['tipo'] === 'rechazado',
-            )),
+            'rechazados' => $rechazados,
             'detalles' => $detalles,
         ];
     }

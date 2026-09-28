@@ -63,6 +63,34 @@ export default function RegistroEstudiantes() {
         setMostrarModal(false);
     };
 
+    // HU-03: la baja no borra al estudiante, lo deja inactivo. Reactivarlo
+    // es el mismo camino que una edicion.
+    const cambiarEstado = async (index) => {
+        const est = estudiantes[index];
+        setError('');
+
+        try {
+            const response = est.activo
+                ? await axios.delete(`/api/students/${est.id}`)
+                : await axios.put(`/api/students/${est.id}`, {
+                      nombre: est.nombre,
+                      apellido: est.apellido,
+                      ci: est.ci,
+                      correo: est.correo,
+                      codigo_universitario: est.codigo_universitario,
+                      carrera: est.carrera,
+                      activo: true,
+                  });
+
+            setEstudiantes((actuales) =>
+                actuales.map((actual, posicion) => (posicion === index ? response.data : actual))
+            );
+        } catch (estadoError) {
+            const mensaje = estadoError.response?.data?.message;
+            setError(mensaje || 'No se pudo cambiar el estado del estudiante.');
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
@@ -311,6 +339,16 @@ export default function RegistroEstudiantes() {
                                             >
                                                 Editar
                                             </button>
+                                            <button
+                                                onClick={() => cambiarEstado(index)}
+                                                className={`ml-3 text-sm font-medium ${
+                                                    est.activo
+                                                        ? 'text-gray-500 hover:text-gray-700'
+                                                        : 'text-green-600 hover:text-green-800'
+                                                }`}
+                                            >
+                                                {est.activo ? 'Dar de baja' : 'Reactivar'}
+                                            </button>
                                         </td>
                                     </tr>
                                 ))
@@ -319,7 +357,8 @@ export default function RegistroEstudiantes() {
                     </table>
                 </div>
                 <div className="p-4 bg-gray-50 text-xs text-gray-400 border-t border-gray-100">
-                    Mostrando {estudiantes.length} de 145 estudiantes
+                    Mostrando {estudiantes.length}{' '}
+                    {estudiantes.length === 1 ? 'estudiante' : 'estudiantes'}
                 </div>
             </div>
         </div>

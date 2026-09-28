@@ -47,9 +47,4 @@ final class EloquentStudentRepository implements StudentRepository
 
         return $student->refresh();
     }
-
-    public function delete(Student $student): void
-    {
-        $student->delete();
-    }
 }
