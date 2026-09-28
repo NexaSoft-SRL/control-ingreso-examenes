@@ -111,6 +111,19 @@ return static function (DeptracConfig $config): void {
                             '#^Illuminate\\Validation\\Rule$#'
                         )
                     ),
+
+                // Un middleware declara su retorno con la respuesta de
+                // Symfony, que es la que Laravel tipa en la cadena.
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('symfony/http-foundation')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Symfony\\Component\\HttpFoundation\\Response$#'
+                        )
+                    ),
             ),
 
             $laravelAuthSupport = Layer::withName(

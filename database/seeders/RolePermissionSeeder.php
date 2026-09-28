@@ -34,11 +34,50 @@ class RolePermissionSeeder extends Seeder
             Permission::firstOrCreate($perm);
         }
 
-        $admin = Role::where('name', 'Administrador')->first();
+        // Cada rol opera dentro de sus atribuciones (HU-02). Este es el
+        // reparto del pliego; desde la pantalla de roles se puede cambiar.
+        $porRol = [
+            'Administrador' => [
+                'padron_estudiantes',
+                'asignaturas_ambientes',
+                'examenes_normas',
+                'habilitacion',
+                'codigos_qr',
+                'punto_control',
+                'monitoreo_tiempo_real',
+                'reportes_consolidados',
+                'reportes_asignatura',
+                'usuarios_roles',
+                'bitacora',
+                'respaldo_restauracion',
+            ],
+            'Docente' => [
+                'examenes_normas',
+                'habilitacion',
+                'reportes_asignatura',
+            ],
+            'Personal' => [
+                'punto_control',
+                'codigos_qr',
+            ],
+            'Responsable' => [
+                'monitoreo_tiempo_real',
+                'reportes_consolidados',
+            ],
+        ];
 
-        if ($admin instanceof Role) {
-            $permissionIds = Permission::whereIn('name', ['padron_estudiantes', 'asignaturas_ambientes', 'codigos_qr', 'usuarios_roles', 'bitacora', 'respaldo_restauracion'])->pluck('id')->toArray();
-            $admin->permissions()->sync($permissionIds);
+        foreach ($porRol as $nombre => $permisos) {
+            $rol = Role::where('name', $nombre)->first();
+
+            if (! $rol instanceof Role) {
+                continue;
+            }
+
+            /** @var list<int> $ids */
+            $ids = Permission::whereIn('name', $permisos)->pluck('id')->all();
+
+            $rol->permissions()->sync($ids);
         }
+
     }
 }

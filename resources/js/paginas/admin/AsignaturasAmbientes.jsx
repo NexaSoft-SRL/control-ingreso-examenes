@@ -15,6 +15,7 @@ import {
     Users,
     Wrench,
 } from 'lucide-react';
+import { tienePermiso } from '../../componentes/sesion.js';
 
 // El backend acepta estos tres estados (StoreAmbienteRequest).
 const ESTADOS_AMBIENTE = [
@@ -304,12 +305,14 @@ function AsignaturasAmbientes({ onNavigate }) {
                     <MenuItem
                         icon={<Users className="h-[18px] w-[18px]" />}
                         text="Padrón"
+                        permiso="padron_estudiantes"
                         onClick={() => navegar('padron')}
                     />
 
                     <MenuItem
                         icon={<LayoutGrid className="h-[18px] w-[18px]" />}
                         text="Asignaturas y ambientes"
+                        permiso="asignaturas_ambientes"
                         selected
                         onClick={() => navegar('asignaturas')}
                     />
@@ -323,12 +326,14 @@ function AsignaturasAmbientes({ onNavigate }) {
                     <MenuItem
                         icon={<UserCog className="h-[18px] w-[18px]" />}
                         text="Usuarios y roles"
+                        permiso="usuarios_roles"
                         onClick={() => navegar('usuarios')}
                     />
 
                     <MenuItem
                         icon={<History className="h-[18px] w-[18px]" />}
                         text="Bitácora"
+                        permiso="bitacora"
                         onClick={() => navegar('bitacora')}
                     />
 
@@ -818,7 +823,12 @@ AsignaturasAmbientes.propTypes = {
     onNavigate: PropTypes.func.isRequired,
 };
 
-function MenuItem({ icon, text, selected, onClick }) {
+function MenuItem({ icon, text, selected, onClick, permiso }) {
+    // El rol que no tiene el permiso tampoco ve la entrada del menú (HU-02).
+    if (permiso && !tienePermiso(permiso)) {
+        return null;
+    }
+
     return (
         <div
             className={`mb-1 flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${
@@ -839,6 +849,7 @@ MenuItem.propTypes = {
     text: PropTypes.string.isRequired,
     selected: PropTypes.bool,
     onClick: PropTypes.func,
+    permiso: PropTypes.string,
 };
 
 export default AsignaturasAmbientes;

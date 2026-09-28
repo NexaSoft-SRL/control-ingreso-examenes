@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Bitacora from './Bitacora';
+import { guardarSesion, limpiarSesion } from '../../componentes/sesion.js';
 
 const operaciones = [
     {
@@ -24,7 +25,13 @@ const operaciones = [
 ];
 
 beforeEach(() => {
+    // El menu lateral se dibuja segun los permisos del rol (HU-02).
+    guardarSesion({ id: 1, name: 'Administrador', permisos: ['bitacora'] });
     window.axios = { get: vi.fn().mockResolvedValue({ data: { data: operaciones } }) };
+});
+
+afterEach(() => {
+    limpiarSesion();
 });
 
 describe('Bitacora', () => {

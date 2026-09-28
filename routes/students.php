@@ -3,8 +3,9 @@
 use App\Modules\Administracion\Http\Controllers\StudentController;
 use Illuminate\Support\Facades\Route;
 
-// El padron es informacion de estudiantes: exige sesion iniciada.
-Route::middleware('auth')->group(function (): void {
+// El padron es informacion de estudiantes: exige sesion iniciada y el
+// permiso del rol sobre esa pantalla.
+Route::middleware(['auth', 'permiso:padron_estudiantes'])->group(function (): void {
     Route::get('/students', [StudentController::class, 'index']);
     Route::post('/students/import', [StudentController::class, 'import']);
     Route::post('/students', [StudentController::class, 'store']);
