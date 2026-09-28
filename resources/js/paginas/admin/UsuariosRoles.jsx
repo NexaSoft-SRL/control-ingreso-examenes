@@ -1,18 +1,39 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
+const USUARIO_VACIO = {
+    nombre: '',
+    apellidos: '',
+    correo: '',
+    rol: 'Docente',
+    codigo_docente: '',
+    telefono: '',
+};
+
+// Si la API no responde, el formulario sigue ofreciendo los roles del pliego.
+const ROLES_DEL_PLIEGO = ['Administrador', 'Docente', 'Personal', 'Responsable'];
+
+function mensajeDeError(error, respaldo) {
+    const datos = error?.response?.data;
+    const errores = datos?.errors ? Object.values(datos.errors)[0] : null;
+
+    return errores?.[0] ?? datos?.message ?? respaldo;
+}
+
 function UsuariosRoles() {
     const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
     const [usuarios, setUsuarios] = React.useState([]);
-    const [nuevoUsuario, setNuevoUsuario] = React.useState({
-        nombre: '',
-        correo: '',
-        rol: 'Docente',
-    });
+    const [roles, setRoles] = React.useState(ROLES_DEL_PLIEGO);
+    const [error, setError] = React.useState('');
+    const [guardando, setGuardando] = React.useState(false);
+    const [nuevoUsuario, setNuevoUsuario] = React.useState(USUARIO_VACIO);
     const [, setCargandoUsuarios] = React.useState(true);
+
+    const esDocente = nuevoUsuario.rol === 'Docente';
 
     React.useEffect(() => {
         cargarUsuarios();
+        cargarRoles();
     }, []);
 
     async function cargarUsuarios() {
@@ -26,27 +47,86 @@ function UsuariosRoles() {
             setCargandoUsuarios(false);
         }
     }
-    async function crearUsuario() {
+
+    // Los roles se leen de la base: el formulario ofrecia nombres que no
+    // existian y la creacion terminaba en 422.
+    async function cargarRoles() {
         try {
-            await window.axios.post('/api/auth/admin/users', {
-                nombre: nuevoUsuario.nombre,
-                correo: nuevoUsuario.correo,
+            const respuesta = await window.axios.get('/api/auth/admin/roles');
+            const nombres = (respuesta.data ?? []).map((rol) => rol.name).filter(Boolean);
+
+            if (nombres.length > 0) {
+                setRoles(nombres);
+            }
+        } catch (error) {
+            console.error('Error cargando roles:', error);
+        }
+    }
+
+    async function crearUsuario() {
+        setError('');
+
+        if (!nuevoUsuario.nombre.trim() || !nuevoUsuario.correo.trim()) {
+            setError('El nombre y el correo son obligatorios.');
+
+            return;
+        }
+
+        if (esDocente && (!nuevoUsuario.codigo_docente.trim() || !nuevoUsuario.apellidos.trim())) {
+            setError('Para dar de alta a un docente hacen falta su código y sus apellidos.');
+
+            return;
+        }
+
+        setGuardando(true);
+
+        let cuentaId = null;
+
+        try {
+            const respuesta = await window.axios.post('/api/auth/admin/users', {
+                nombre: nuevoUsuario.nombre.trim(),
+                correo: nuevoUsuario.correo.trim(),
                 rol: nuevoUsuario.rol,
             });
+
+            cuentaId = respuesta.data?.user?.id ?? null;
+
+            // El alta del docente acompaña a la cuenta: sin ella no se le
+            // puede asignar un grupo de asignatura (HU-05).
+            if (esDocente) {
+                await window.axios.post('/api/docentes', {
+                    codigo_docente: nuevoUsuario.codigo_docente.trim(),
+                    nombres: nuevoUsuario.nombre.trim(),
+                    apellidos: nuevoUsuario.apellidos.trim(),
+                    correo: nuevoUsuario.correo.trim(),
+                    telefono: nuevoUsuario.telefono.trim() || null,
+                    user_id: cuentaId,
+                });
+            }
 
             await cargarUsuarios();
 
             setMostrarFormulario(false);
 
-            setNuevoUsuario({
-                nombre: '',
-                correo: '',
-                rol: 'Docente',
-            });
+            setNuevoUsuario(USUARIO_VACIO);
         } catch (error) {
             console.error('Error creando usuario:', error);
+
+            if (cuentaId !== null) {
+                await cargarUsuarios();
+
+                setError(
+                    mensajeDeError(error, 'No se pudo registrar al docente.') +
+                        ' La cuenta sí quedó creada.'
+                );
+            } else {
+                setError(mensajeDeError(error, 'No se pudo crear el usuario.'));
+            }
+        } finally {
+            setGuardando(false);
         }
     }
+
     const [, setUsuarioEditando] = React.useState(null);
 
     return (
@@ -130,9 +210,10 @@ function UsuariosRoles() {
                                 onClick={() => {
                                     setUsuarioEditando(usuario);
                                     setNuevoUsuario({
+                                        ...USUARIO_VACIO,
                                         nombre: usuario.nombre,
                                         correo: usuario.correo,
-                                        rol: usuario.rol,
+                                        rol: usuario.rol ?? USUARIO_VACIO.rol,
                                     });
                                     setMostrarFormulario(true);
                                 }}
@@ -160,16 +241,22 @@ function UsuariosRoles() {
 
                             <button
                                 style={styles.closeButton}
-                                onClick={() => setMostrarFormulario(false)}
+                                onClick={() => {
+                                    setMostrarFormulario(false);
+                                    setError('');
+                                }}
                             >
                                 ×
                             </button>
                         </div>
 
                         <div style={styles.formGroup}>
-                            <label style={styles.label}>Nombre completo</label>
+                            <label style={styles.label} htmlFor="nombre">
+                                {esDocente ? 'Nombres' : 'Nombre completo'}
+                            </label>
 
                             <input
+                                id="nombre"
                                 style={styles.input}
                                 value={nuevoUsuario.nombre}
                                 onChange={(e) =>
@@ -178,14 +265,19 @@ function UsuariosRoles() {
                                         nombre: e.target.value,
                                     })
                                 }
-                                placeholder="Ingrese el nombre completo"
+                                placeholder={
+                                    esDocente ? 'Ingrese los nombres' : 'Ingrese el nombre completo'
+                                }
                             />
                         </div>
 
                         <div style={styles.formGroup}>
-                            <label style={styles.label}>Correo</label>
+                            <label style={styles.label} htmlFor="correo">
+                                Correo
+                            </label>
 
                             <input
+                                id="correo"
                                 style={styles.input}
                                 value={nuevoUsuario.correo}
                                 onChange={(e) =>
@@ -199,9 +291,12 @@ function UsuariosRoles() {
                         </div>
 
                         <div style={styles.formGroup}>
-                            <label style={styles.label}>Rol</label>
+                            <label style={styles.label} htmlFor="rol">
+                                Rol
+                            </label>
 
                             <select
+                                id="rol"
                                 style={styles.input}
                                 value={nuevoUsuario.rol}
                                 onChange={(e) =>
@@ -211,23 +306,106 @@ function UsuariosRoles() {
                                     })
                                 }
                             >
-                                <option>Administrador</option>
-                                <option>Responsable académico</option>
-                                <option>Docente</option>
-                                <option>Personal de control</option>
+                                {roles.map((rol) => (
+                                    <option key={rol} value={rol}>
+                                        {rol}
+                                    </option>
+                                ))}
                             </select>
                         </div>
+
+                        {/* ALTA DEL DOCENTE */}
+                        {esDocente && (
+                            <div style={styles.docenteBlock}>
+                                <p style={styles.docenteTitle}>Datos del docente</p>
+
+                                <p style={styles.docenteHint}>
+                                    Con estos datos el docente queda disponible para hacerse
+                                    responsable de un grupo de asignatura.
+                                </p>
+
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label} htmlFor="codigo_docente">
+                                        Código de docente
+                                    </label>
+
+                                    <input
+                                        id="codigo_docente"
+                                        style={styles.input}
+                                        value={nuevoUsuario.codigo_docente}
+                                        onChange={(e) =>
+                                            setNuevoUsuario({
+                                                ...nuevoUsuario,
+                                                codigo_docente: e.target.value,
+                                            })
+                                        }
+                                        placeholder="DOC-001"
+                                    />
+                                </div>
+
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label} htmlFor="apellidos">
+                                        Apellidos
+                                    </label>
+
+                                    <input
+                                        id="apellidos"
+                                        style={styles.input}
+                                        value={nuevoUsuario.apellidos}
+                                        onChange={(e) =>
+                                            setNuevoUsuario({
+                                                ...nuevoUsuario,
+                                                apellidos: e.target.value,
+                                            })
+                                        }
+                                        placeholder="Ingrese los apellidos"
+                                    />
+                                </div>
+
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label} htmlFor="telefono">
+                                        Teléfono (opcional)
+                                    </label>
+
+                                    <input
+                                        id="telefono"
+                                        style={styles.input}
+                                        value={nuevoUsuario.telefono}
+                                        onChange={(e) =>
+                                            setNuevoUsuario({
+                                                ...nuevoUsuario,
+                                                telefono: e.target.value,
+                                            })
+                                        }
+                                        placeholder="70000000"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {error && (
+                            <p role="alert" style={styles.error}>
+                                {error}
+                            </p>
+                        )}
 
                         <div style={styles.modalActions}>
                             <button
                                 style={styles.cancelButton}
-                                onClick={() => setMostrarFormulario(false)}
+                                onClick={() => {
+                                    setMostrarFormulario(false);
+                                    setError('');
+                                }}
                             >
                                 Cancelar
                             </button>
 
-                            <button style={styles.saveButton} onClick={crearUsuario}>
-                                Crear usuario
+                            <button
+                                style={styles.saveButton}
+                                onClick={crearUsuario}
+                                disabled={guardando}
+                            >
+                                {guardando ? 'Creando…' : 'Crear usuario'}
                             </button>
                         </div>
                     </div>
@@ -372,6 +550,34 @@ const styles = {
         color: '#1f2937',
         outline: 'none',
         backgroundColor: '#ffffff',
+    },
+
+    docenteBlock: {
+        borderTop: '1px solid #e9edf2',
+        paddingTop: '13px',
+        marginBottom: '4px',
+    },
+
+    docenteTitle: {
+        margin: '0 0 3px',
+        fontSize: '10px',
+        fontWeight: '700',
+        color: '#182233',
+    },
+
+    docenteHint: {
+        margin: '0 0 12px',
+        fontSize: '8px',
+        color: '#7b8797',
+    },
+
+    error: {
+        margin: '0',
+        padding: '8px 10px',
+        borderRadius: '6px',
+        backgroundColor: '#fdecec',
+        color: '#b42318',
+        fontSize: '9px',
     },
 
     modalActions: {
