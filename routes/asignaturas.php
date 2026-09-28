@@ -30,4 +30,9 @@ Route::prefix('api')
             '/docentes',
             [DocenteController::class, 'index']
         )->name('docentes.index');
+
+        Route::post(
+            '/docentes',
+            [DocenteController::class, 'store']
+        )->name('docentes.store');
     });
