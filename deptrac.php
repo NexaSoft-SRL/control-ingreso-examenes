@@ -71,7 +71,7 @@ return static function (DeptracConfig $config): void {
                     )
                     ->must(
                         ClassNameRegexConfig::create(
-                            '#^Illuminate\\Database\\Eloquent\\(?:Model|Relations\\(?:HasMany|BelongsTo))$#'
+                            '#^Illuminate\\Database\\Eloquent\\(?:Model|Relations\\(?:HasMany|BelongsTo|BelongsToMany))$#'
                         )
                     ),
             ),
@@ -109,6 +109,19 @@ return static function (DeptracConfig $config): void {
                     ->must(
                         ClassNameRegexConfig::create(
                             '#^Illuminate\\Validation\\Rule$#'
+                        )
+                    ),
+
+                // Un middleware declara su retorno con la respuesta de
+                // Symfony, que es la que Laravel tipa en la cadena.
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('symfony/http-foundation')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Symfony\\Component\\HttpFoundation\\Response$#'
                         )
                     ),
             ),

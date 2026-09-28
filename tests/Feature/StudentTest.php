@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Database\Factories\StudentFactory;
+use Database\Factories\UserFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -14,7 +15,7 @@ class StudentTest extends TestCase
 
     public function test_crear_estudiante(): void
     {
-        $response = $this->postJson('/api/students', [
+        $response = $this->actingAs(UserFactory::new()->createOne())->postJson('/api/students', [
             'nombre' => 'Juan',
             'apellido' => 'Perez',
             'ci' => '123456',
@@ -36,7 +37,7 @@ class StudentTest extends TestCase
     {
         StudentFactory::new()->create(['nombre' => 'Maria']);
 
-        $response = $this->getJson('/api/students');
+        $response = $this->actingAs(UserFactory::new()->createOne())->getJson('/api/students');
 
         $response
             ->assertStatus(200)
@@ -53,7 +54,7 @@ class StudentTest extends TestCase
             'activo' => true,
         ]);
 
-        $response = $this->putJson("/api/students/{$student->id}", [
+        $response = $this->actingAs(UserFactory::new()->createOne())->putJson("/api/students/{$student->id}", [
             'nombre' => 'Carlos',
             'apellido' => 'Lopez',
             'ci' => '789012',

@@ -24,6 +24,4 @@ interface StudentRepository
      * @param  array<string, mixed>  $data
      */
     public function update(Student $student, array $data): Student;
-
-    public function delete(Student $student): void;
 }

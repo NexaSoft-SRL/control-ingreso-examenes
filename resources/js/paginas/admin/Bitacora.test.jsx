@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Bitacora from './Bitacora';
+import { guardarSesion, limpiarSesion } from '../../componentes/sesion.js';
 
 const operaciones = [
     {
@@ -24,7 +25,13 @@ const operaciones = [
 ];
 
 beforeEach(() => {
+    // El menu lateral se dibuja segun los permisos del rol (HU-02).
+    guardarSesion({ id: 1, name: 'Administrador', permisos: ['bitacora'] });
     window.axios = { get: vi.fn().mockResolvedValue({ data: { data: operaciones } }) };
+});
+
+afterEach(() => {
+    limpiarSesion();
 });
 
 describe('Bitacora', () => {
@@ -43,7 +50,8 @@ describe('Bitacora', () => {
         await screen.findByText('Mostrando 2 eventos');
 
         fireEvent.change(screen.getByLabelText('Usuario'), { target: { value: '7' } });
-        fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2026-09-17' } });
+        fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-09-17' } });
+        fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-09-20' } });
         fireEvent.change(screen.getByLabelText('Operación'), {
             target: { value: 'asignatura.eliminar' },
         });
@@ -51,7 +59,12 @@ describe('Bitacora', () => {
 
         await waitFor(() =>
             expect(window.axios.get).toHaveBeenLastCalledWith('/api/bitacora', {
-                params: { usuario_id: '7', fecha: '2026-09-17', operacion: 'asignatura.eliminar' },
+                params: {
+                    usuario_id: '7',
+                    desde: '2026-09-17',
+                    hasta: '2026-09-20',
+                    operacion: 'asignatura.eliminar',
+                },
             })
         );
     });
@@ -80,6 +93,41 @@ describe('Bitacora', () => {
         expect(await screen.findByRole('alert')).toHaveTextContent(
             'No se pudo cargar la bitácora. Intenta de nuevo.'
         );
+    });
+
+    it('nombra las operaciones nuevas y el intento sin identificar', async () => {
+        window.axios.get.mockResolvedValue({
+            data: {
+                data: [
+                    {
+                        id: 3,
+                        usuario: null,
+                        operacion: 'sesion.fallida',
+                        tabla_afectada: 'usuarios',
+                        registro_id: null,
+                        descripcion: 'Intento fallido con el identificador ana@umss.edu.bo.',
+                        fecha_operacion: '2026-09-28 08:10:00',
+                    },
+                    {
+                        id: 4,
+                        usuario: { id: 7, name: 'Jofre Ticona', email: 'jofre@umss.edu.bo' },
+                        operacion: 'estudiante.baja',
+                        tabla_afectada: 'students',
+                        registro_id: 15,
+                        descripcion: null,
+                        fecha_operacion: '2026-09-28 08:12:00',
+                    },
+                ],
+            },
+        });
+
+        render(<Bitacora onNavigate={vi.fn()} />);
+
+        // La etiqueta sale dos veces: en la fila y en el filtro de operaciones.
+        expect(await screen.findAllByText('Intento de sesión fallido')).not.toHaveLength(0);
+        expect(screen.getByText('Sin identificar')).toBeInTheDocument();
+        expect(screen.getAllByText('Baja de estudiante')).not.toHaveLength(0);
+        expect(screen.getByText('Estudiante #15')).toBeInTheDocument();
     });
 
     it('marca Bitácora como seleccionada en el menú', async () => {

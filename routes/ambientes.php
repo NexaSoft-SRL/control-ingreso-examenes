@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin/ambientes')
     ->name('ambientes.')
-    ->middleware('auth')
+    ->middleware(['auth', 'permiso:asignaturas_ambientes'])
     ->group(function (): void {
         Route::get('/', [AmbienteController::class, 'index'])->name('index');
         Route::post('/', [AmbienteController::class, 'store'])->name('store');
