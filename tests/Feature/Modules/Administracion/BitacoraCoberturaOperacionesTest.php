@@ -126,7 +126,7 @@ final class BitacoraCoberturaOperacionesTest extends TestCase
         $this->assertDatabaseHas('bitacora_operaciones', [
             'operacion' => 'padron.importar',
             'tabla_afectada' => 'students',
-            'descripcion' => 'Carga masiva: 1 nuevos, 0 actualizados, 1 rechazados.',
+            'descripcion' => 'Carga masiva de padron.csv: 1 nuevos, 0 actualizados, 1 rechazados.',
         ]);
     }
 

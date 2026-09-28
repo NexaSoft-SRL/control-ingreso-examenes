@@ -50,7 +50,8 @@ describe('Bitacora', () => {
         await screen.findByText('Mostrando 2 eventos');
 
         fireEvent.change(screen.getByLabelText('Usuario'), { target: { value: '7' } });
-        fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2026-09-17' } });
+        fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-09-17' } });
+        fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-09-20' } });
         fireEvent.change(screen.getByLabelText('Operación'), {
             target: { value: 'asignatura.eliminar' },
         });
@@ -58,7 +59,12 @@ describe('Bitacora', () => {
 
         await waitFor(() =>
             expect(window.axios.get).toHaveBeenLastCalledWith('/api/bitacora', {
-                params: { usuario_id: '7', fecha: '2026-09-17', operacion: 'asignatura.eliminar' },
+                params: {
+                    usuario_id: '7',
+                    desde: '2026-09-17',
+                    hasta: '2026-09-20',
+                    operacion: 'asignatura.eliminar',
+                },
             })
         );
     });

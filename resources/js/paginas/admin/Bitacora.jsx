@@ -88,6 +88,7 @@ function Bitacora({ onNavigate }) {
     const [usuarioFiltro, setUsuarioFiltro] = React.useState('');
     const [fechaFiltro, setFechaFiltro] = React.useState('');
     const [operacionFiltro, setOperacionFiltro] = React.useState('');
+    const [hastaFiltro, setHastaFiltro] = React.useState('');
 
     const ultimaConsulta = React.useRef(0);
 
@@ -97,7 +98,10 @@ function Bitacora({ onNavigate }) {
             const params = {};
 
             if (filtros.usuario) params.usuario_id = filtros.usuario;
-            if (filtros.fecha) params.fecha = filtros.fecha;
+            // El backlog pide rango de fechas: "desde" solo ya acota, y
+            // "hasta" solo lista todo lo anterior a esa fecha.
+            if (filtros.desde) params.desde = filtros.desde;
+            if (filtros.hasta) params.hasta = filtros.hasta;
             if (filtros.operacion) params.operacion = filtros.operacion;
 
             setCargando(true);
@@ -159,7 +163,12 @@ function Bitacora({ onNavigate }) {
 
     function manejarFiltrar(evento) {
         evento.preventDefault();
-        consultar({ usuario: usuarioFiltro, fecha: fechaFiltro, operacion: operacionFiltro });
+        consultar({
+            usuario: usuarioFiltro,
+            desde: fechaFiltro,
+            hasta: hastaFiltro,
+            operacion: operacionFiltro,
+        });
     }
 
     function navegar(clave) {
@@ -311,7 +320,7 @@ function Bitacora({ onNavigate }) {
                                 className="text-xs font-semibold text-slate-700"
                                 htmlFor="fecha-filtro"
                             >
-                                Fecha
+                                Desde
                             </label>
 
                             <input
@@ -320,6 +329,23 @@ function Bitacora({ onNavigate }) {
                                 className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 value={fechaFiltro}
                                 onChange={(e) => setFechaFiltro(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                            <label
+                                className="text-xs font-semibold text-slate-700"
+                                htmlFor="hasta-filtro"
+                            >
+                                Hasta
+                            </label>
+
+                            <input
+                                id="hasta-filtro"
+                                type="date"
+                                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                value={hastaFiltro}
+                                onChange={(e) => setHastaFiltro(e.target.value)}
                             />
                         </div>
 
