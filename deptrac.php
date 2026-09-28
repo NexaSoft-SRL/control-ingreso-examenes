@@ -71,7 +71,7 @@ return static function (DeptracConfig $config): void {
                     )
                     ->must(
                         ClassNameRegexConfig::create(
-                            '#^Illuminate\\Database\\Eloquent\\(?:Model|Relations\\(?:HasMany|BelongsTo))$#'
+                            '#^Illuminate\\Database\\Eloquent\\(?:Model|Relations\\(?:HasMany|BelongsTo|BelongsToMany))$#'
                         )
                     ),
             ),
