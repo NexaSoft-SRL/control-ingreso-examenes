@@ -74,7 +74,11 @@ final class StudentController
         }
 
         return response()->json(
-            $this->importStudents->execute($rows, $this->usuarioAutenticado()),
+            $this->importStudents->execute(
+                $rows,
+                $this->usuarioAutenticado(),
+                $file->getClientOriginalName(),
+            ),
             Response::HTTP_OK,
         );
     }

@@ -37,9 +37,10 @@ final readonly class ImportStudents
 
     /**
      * @param  list<array{fila: int, valores: array<int, string|null>}>  $rows
+     * @param  string|null  $archivo  Nombre del archivo cargado, para la bitácora
      * @return array{creados: int, actualizados: int, rechazados: int, detalles: list<array{fila: int, motivo: string, tipo: string}>}
      */
-    public function execute(array $rows, int $usuarioId): array
+    public function execute(array $rows, int $usuarioId, ?string $archivo = null): array
     {
         $porCodigo = [];
         $porDocumento = [];
@@ -148,7 +149,8 @@ final readonly class ImportStudents
             'students',
             null,
             sprintf(
-                'Carga masiva: %d nuevos, %d actualizados, %d rechazados.',
+                'Carga masiva de %s: %d nuevos, %d actualizados, %d rechazados.',
+                $archivo ?? 'archivo sin nombre',
                 $creados,
                 $actualizados,
                 $rechazados,
