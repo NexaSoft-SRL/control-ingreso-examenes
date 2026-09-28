@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Examenes\Http\Controllers;
 
+use App\Modules\Examenes\Application\Actions\ActualizarAsignatura;
 use App\Modules\Examenes\Application\Actions\EliminarAsignatura;
 use App\Modules\Examenes\Application\Actions\ListarAsignaturas;
 use App\Modules\Examenes\Application\Actions\RegistrarAsignatura;
@@ -46,6 +47,28 @@ final class AsignaturaController
         return response()->json([
             'data' => $this->serialize($asignatura),
         ], Response::HTTP_CREATED);
+    }
+
+    public function update(
+        RegistrarAsignaturaRequest $request,
+        int $asignatura,
+        ActualizarAsignatura $actualizarAsignatura,
+    ): JsonResponse {
+        $actualizada = $actualizarAsignatura->execute(
+            $asignatura,
+            $request->toData(),
+            $this->authenticatedUserId(),
+        );
+
+        if (! $actualizada instanceof Asignatura) {
+            return response()->json([
+                'message' => 'Asignatura no encontrada.',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        return response()->json([
+            'data' => $this->serialize($actualizada),
+        ], Response::HTTP_OK);
     }
 
     public function destroy(
@@ -119,14 +142,22 @@ final class AsignaturaController
 
     private function authenticatedUserId(): int
     {
-        $userId = Auth::id();
+        $user = Auth::guard('web')->user();
 
-        if (! is_int($userId)) {
+        if ($user === null) {
             throw new LogicException(
-                'No existe un usuario autenticado con identificador válido.'
+                'No existe usuario autenticado.'
             );
         }
 
-        return $userId;
+        $id = $user->getKey();
+
+        if (! is_int($id) && ! is_string($id)) {
+            throw new LogicException(
+                'El usuario autenticado no tiene un identificador válido.'
+            );
+        }
+
+        return (int) $id;
     }
 }

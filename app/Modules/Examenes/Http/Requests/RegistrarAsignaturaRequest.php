@@ -21,12 +21,19 @@ final class RegistrarAsignaturaRequest extends FormRequest
      */
     public function rules(): array
     {
+        $codigoUnico = Rule::unique('asignaturas', 'codigo');
+        $asignaturaId = $this->route('asignatura');
+
+        if ($asignaturaId !== null) {
+            $codigoUnico->ignore($asignaturaId);
+        }
+
         return [
             'codigo' => [
                 'required',
                 'string',
                 'max:30',
-                Rule::unique('asignaturas', 'codigo'),
+                $codigoUnico,
             ],
             'nombre' => [
                 'required',

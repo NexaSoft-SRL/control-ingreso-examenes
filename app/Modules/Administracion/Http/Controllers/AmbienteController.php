@@ -13,6 +13,8 @@ use App\Modules\Administracion\Http\Requests\StoreAmbienteRequest;
 use App\Modules\Administracion\Http\Requests\UpdateAmbienteRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
+use LogicException;
 
 final class AmbienteController
 {
@@ -38,7 +40,7 @@ final class AmbienteController
         $data = $request->validated();
 
         return response()->json(
-            $this->createAmbiente->execute($data),
+            $this->createAmbiente->execute($data, $this->usuarioAutenticado()),
             Response::HTTP_CREATED,
         );
     }
@@ -72,7 +74,7 @@ final class AmbienteController
         $data = $request->validated();
 
         return response()->json(
-            $this->updateAmbiente->execute($found, $data),
+            $this->updateAmbiente->execute($found, $data, $this->usuarioAutenticado()),
             Response::HTTP_OK,
         );
     }
@@ -88,8 +90,33 @@ final class AmbienteController
             );
         }
 
-        $this->deleteAmbiente->execute($found);
+        $this->deleteAmbiente->execute($found, $this->usuarioAutenticado());
 
         return response()->json(null, Response::HTTP_NO_CONTENT);
+    }
+
+    /**
+     * La bitacora (HU-07) necesita saber quien hizo la operacion. Las rutas
+     * de este controlador exigen sesion, asi que siempre hay usuario.
+     */
+    private function usuarioAutenticado(): int
+    {
+        $user = Auth::guard('web')->user();
+
+        if ($user === null) {
+            throw new LogicException(
+                'No existe usuario autenticado.'
+            );
+        }
+
+        $id = $user->getKey();
+
+        if (! is_int($id) && ! is_string($id)) {
+            throw new LogicException(
+                'El usuario autenticado no tiene un identificador válido.'
+            );
+        }
+
+        return (int) $id;
     }
 }

@@ -75,9 +75,4 @@ final class EloquentStudentRepository implements StudentRepository
             return $student;
         });
     }
-
-    public function delete(Student $student): void
-    {
-        $student->delete();
-    }
 }

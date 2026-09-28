@@ -152,7 +152,7 @@ final class PostgreSqlTransactionIsolationTest extends TestCase
     ): void {
         $statement = $connection->prepare(
             <<<'SQL'
-            INSERT INTO users (
+            INSERT INTO usuarios (
                 name,
                 email,
                 password,
@@ -191,7 +191,7 @@ final class PostgreSqlTransactionIsolationTest extends TestCase
         string $email
     ): int {
         $statement = $connection->prepare(
-            'SELECT COUNT(*) FROM users WHERE email = :email'
+            'SELECT COUNT(*) FROM usuarios WHERE email = :email'
         );
 
         if ($statement === false) {

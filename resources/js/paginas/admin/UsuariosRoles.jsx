@@ -1,418 +1,575 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import {
-    DatabaseBackup,
-    History,
-    LayoutGrid,
-    LogOut,
-    Menu,
-    MonitorCheck,
-    QrCode,
-    ShieldCheck,
-    User,
-    UserCog,
-    Users,
-    X,
-} from 'lucide-react';
 
-const usuarios = [
-    {
-        nombre: 'Dr. Rolando J. Torrico Mendoza',
-        correo: 'rolando.torrico@fcyt.umss.edu.bo',
-        rol: 'Administrador',
-        tipo: 'administrador',
-        activo: true,
-    },
-    {
-        nombre: 'Lic. Marco Antonio Arnez',
-        correo: 'marco.arnez@fcyt.umss.edu.bo',
-        rol: 'Responsable académico',
-        tipo: 'academico',
-        activo: true,
-    },
-    {
-        nombre: 'Ing. Patricia Villarroel Siles',
-        correo: 'patricia.villarroel@fcyt.umss.edu.bo',
-        rol: 'Docente',
-        tipo: 'docente',
-        activo: true,
-    },
-    {
-        nombre: 'Ing. Marcelo Guzmán Flores',
-        correo: 'marcelo.guzman@fcyt.umss.edu.bo',
-        rol: 'Personal de control',
-        tipo: 'control',
-        activo: true,
-    },
-    {
-        nombre: 'Dr. Carlos Eduardo Vargas',
-        correo: 'carlos.vargas@fcyt.umss.edu.bo',
-        rol: 'Docente',
-        tipo: 'docente',
-        activo: false,
-    },
-    {
-        nombre: 'Lic. Valeria Bustamante Torrico',
-        correo: 'valeria.bustamante@fcyt.umss.edu.bo',
-        rol: 'Personal de control',
-        tipo: 'control',
-        activo: true,
-    },
-];
-
-const estilosPorRol = {
-    administrador: 'bg-slate-900 text-white',
-    academico: 'bg-purple-100 text-purple-700',
-    docente: 'bg-sky-100 text-sky-700',
-    control: 'bg-emerald-100 text-emerald-700',
+const USUARIO_VACIO = {
+    nombre: '',
+    apellidos: '',
+    correo: '',
+    rol: 'Docente',
+    codigo_docente: '',
+    telefono: '',
 };
 
-function UsuariosRoles({ onNavigate }) {
-    const [menuAbierto, setMenuAbierto] = React.useState(false);
+// Si la API no responde, el formulario sigue ofreciendo los roles del pliego.
+const ROLES_DEL_PLIEGO = ['Administrador', 'Docente', 'Personal', 'Responsable'];
+
+function mensajeDeError(error, respaldo) {
+    const datos = error?.response?.data;
+    const errores = datos?.errors ? Object.values(datos.errors)[0] : null;
+
+    return errores?.[0] ?? datos?.message ?? respaldo;
+}
+
+function UsuariosRoles() {
+    const [pestana, setPestana] = React.useState('usuarios');
     const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
-    const [, setUsuarioEditando] = React.useState(null);
+    const [usuarios, setUsuarios] = React.useState([]);
+    const [roles, setRoles] = React.useState([]);
+    const [permisos, setPermisos] = React.useState([]);
+    const [permisosPorRol, setPermisosPorRol] = React.useState({});
+    const [error, setError] = React.useState('');
+    const [avisoRoles, setAvisoRoles] = React.useState('');
+    const [guardando, setGuardando] = React.useState(false);
+    const [usuarioEditando, setUsuarioEditando] = React.useState(null);
+    const [nuevoUsuario, setNuevoUsuario] = React.useState(USUARIO_VACIO);
+    const [, setCargandoUsuarios] = React.useState(true);
 
-    const [nuevoUsuario, setNuevoUsuario] = React.useState({
-        nombre: '',
-        correo: '',
-        rol: 'Docente',
-    });
+    const nombresDeRoles = roles.length > 0 ? roles.map((rol) => rol.name) : ROLES_DEL_PLIEGO;
 
-    function navegar(clave) {
-        setMenuAbierto(false);
-        onNavigate(clave);
+    // Al editar no se piden otra vez los datos del docente: su registro ya
+    // existe desde el alta.
+    const esDocente = usuarioEditando === null && nuevoUsuario.rol === 'Docente';
+
+    React.useEffect(() => {
+        cargarUsuarios();
+        cargarRoles();
+        cargarPermisos();
+    }, []);
+
+    async function cargarUsuarios() {
+        try {
+            const respuesta = await window.axios.get('/api/auth/admin/users');
+
+            setUsuarios(respuesta.data);
+        } catch (error) {
+            console.error('Error cargando usuarios:', error);
+        } finally {
+            setCargandoUsuarios(false);
+        }
+    }
+
+    // Los roles se leen de la base: el formulario ofrecia nombres que no
+    // existian y la creacion terminaba en 422.
+    async function cargarRoles() {
+        try {
+            const respuesta = await window.axios.get('/api/auth/admin/roles');
+            const datos = respuesta.data ?? [];
+
+            setRoles(datos);
+
+            setPermisosPorRol(
+                Object.fromEntries(
+                    datos.map((rol) => [rol.id, (rol.permissions ?? []).map((p) => p.id)])
+                )
+            );
+        } catch (error) {
+            console.error('Error cargando roles:', error);
+        }
+    }
+
+    async function cargarPermisos() {
+        try {
+            const respuesta = await window.axios.get('/api/auth/admin/permissions');
+
+            setPermisos(respuesta.data ?? []);
+        } catch (error) {
+            console.error('Error cargando permisos:', error);
+        }
+    }
+
+    function abrirNuevoUsuario() {
+        setUsuarioEditando(null);
+        setNuevoUsuario(USUARIO_VACIO);
+        setError('');
+        setMostrarFormulario(true);
+    }
+
+    function abrirEditarUsuario(usuario) {
+        setUsuarioEditando(usuario.id);
+
+        setNuevoUsuario({
+            ...USUARIO_VACIO,
+            nombre: usuario.nombre,
+            correo: usuario.correo,
+            rol: usuario.rol ?? USUARIO_VACIO.rol,
+        });
+
+        setError('');
+        setMostrarFormulario(true);
+    }
+
+    function cerrarFormulario() {
+        setMostrarFormulario(false);
+        setUsuarioEditando(null);
+        setError('');
+    }
+
+    async function guardarUsuario() {
+        setError('');
+
+        if (!nuevoUsuario.nombre.trim() || !nuevoUsuario.correo.trim()) {
+            setError('El nombre y el correo son obligatorios.');
+
+            return;
+        }
+
+        if (esDocente && (!nuevoUsuario.codigo_docente.trim() || !nuevoUsuario.apellidos.trim())) {
+            setError('Para dar de alta a un docente hacen falta su código y sus apellidos.');
+
+            return;
+        }
+
+        setGuardando(true);
+
+        const cuenta = {
+            nombre: nuevoUsuario.nombre.trim(),
+            correo: nuevoUsuario.correo.trim(),
+            rol: nuevoUsuario.rol,
+        };
+
+        let cuentaId = null;
+
+        try {
+            if (usuarioEditando !== null) {
+                await window.axios.put(`/api/auth/admin/users/${usuarioEditando}`, cuenta);
+            } else {
+                const respuesta = await window.axios.post('/api/auth/admin/users', cuenta);
+
+                cuentaId = respuesta.data?.user?.id ?? null;
+
+                // El alta del docente acompaña a la cuenta: sin ella no se le
+                // puede asignar un grupo de asignatura (HU-05).
+                if (esDocente) {
+                    await window.axios.post('/api/docentes', {
+                        codigo_docente: nuevoUsuario.codigo_docente.trim(),
+                        nombres: nuevoUsuario.nombre.trim(),
+                        apellidos: nuevoUsuario.apellidos.trim(),
+                        correo: nuevoUsuario.correo.trim(),
+                        telefono: nuevoUsuario.telefono.trim() || null,
+                        user_id: cuentaId,
+                    });
+                }
+            }
+
+            await cargarUsuarios();
+
+            cerrarFormulario();
+
+            setNuevoUsuario(USUARIO_VACIO);
+        } catch (error) {
+            console.error('Error guardando el usuario:', error);
+
+            if (cuentaId !== null) {
+                await cargarUsuarios();
+
+                setError(
+                    mensajeDeError(error, 'No se pudo registrar al docente.') +
+                        ' La cuenta sí quedó creada.'
+                );
+            } else {
+                setError(mensajeDeError(error, 'No se pudo guardar el usuario.'));
+            }
+        } finally {
+            setGuardando(false);
+        }
+    }
+
+    // La cuenta no se borra: se deja sin acceso y puede reactivarse.
+    async function cambiarEstado(usuario) {
+        setError('');
+
+        try {
+            await window.axios.patch(`/api/auth/admin/users/${usuario.id}/estado`, {
+                is_active: !usuario.is_active,
+            });
+
+            await cargarUsuarios();
+        } catch (error) {
+            setError(mensajeDeError(error, 'No se pudo cambiar el estado de la cuenta.'));
+        }
+    }
+
+    function alternarPermiso(rolId, permisoId) {
+        setPermisosPorRol((actuales) => {
+            const asignados = actuales[rolId] ?? [];
+
+            return {
+                ...actuales,
+                [rolId]: asignados.includes(permisoId)
+                    ? asignados.filter((id) => id !== permisoId)
+                    : [...asignados, permisoId],
+            };
+        });
+    }
+
+    async function guardarPermisos(rol) {
+        setAvisoRoles('');
+
+        try {
+            await window.axios.put(`/api/auth/admin/roles/${rol.id}/permisos`, {
+                permisos: permisosPorRol[rol.id] ?? [],
+            });
+
+            await cargarRoles();
+
+            setAvisoRoles(`Permisos del rol ${rol.name} actualizados.`);
+        } catch (error) {
+            setAvisoRoles(mensajeDeError(error, 'No se pudieron guardar los permisos.'));
+        }
     }
 
     return (
-        <div className="flex min-h-screen w-full bg-white font-sans text-slate-800">
-            {menuAbierto && (
-                <div
-                    className="fixed inset-0 z-30 bg-slate-900/40 md:hidden"
-                    onClick={() => setMenuAbierto(false)}
-                />
+        <section style={styles.content}>
+            {/* CONTENIDO */}
+            {/* TITULO Y BOTON */}
+            <div style={styles.titleRow}>
+                <div>
+                    <h1 style={styles.title}>Usuarios y roles</h1>
+
+                    <p style={styles.description}>Gestión de cuentas y permisos del sistema</p>
+                </div>
+
+                {pestana === 'usuarios' && (
+                    <button style={styles.newButton} onClick={abrirNuevoUsuario}>
+                        + Nuevo usuario
+                    </button>
+                )}
+            </div>
+
+            {/* PESTAÑAS */}
+            <div style={styles.tabs}>
+                <button
+                    style={pestana === 'usuarios' ? styles.tabActive : styles.tab}
+                    onClick={() => setPestana('usuarios')}
+                >
+                    Usuarios
+                </button>
+
+                <button
+                    style={pestana === 'roles' ? styles.tabActive : styles.tab}
+                    onClick={() => setPestana('roles')}
+                >
+                    Roles
+                </button>
+            </div>
+
+            {error && !mostrarFormulario && (
+                <p role="alert" style={{ ...styles.error, marginTop: '12px' }}>
+                    {error}
+                </p>
             )}
 
-            {/* BARRA LATERAL */}
-            <aside
-                className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white transition-transform duration-200 md:static md:translate-x-0 ${
-                    menuAbierto ? 'translate-x-0' : '-translate-x-full'
-                }`}
-            >
-                {/* LOGO */}
-                <div className="flex h-16 items-center gap-3 border-b border-slate-100 px-5">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
-                        <ShieldCheck className="h-5 w-5" strokeWidth={2} />
+            {/* TABLA */}
+            {pestana === 'usuarios' && (
+                <div style={styles.tableContainer}>
+                    <div style={styles.tableHeader}>
+                        <div>NOMBRE</div>
+                        <div>CORREO</div>
+                        <div>ROL</div>
+                        <div>ESTADO</div>
+                        <div>ACCIONES</div>
                     </div>
 
-                    <div>
-                        <div className="text-sm leading-tight font-bold text-slate-800">
-                            UMSS FCyT
-                        </div>
-                        <div className="mt-0.5 text-[11px] tracking-wide text-slate-500">
-                            CONTROL DE INGRESO
-                        </div>
-                    </div>
-                </div>
+                    {usuarios.map((usuario, index) => (
+                        <div style={styles.tableRow} key={index}>
+                            {/* NOMBRE */}
+                            <div style={styles.name}>{usuario.nombre}</div>
 
-                {/* MENU */}
-                <div className="px-3 py-4">
-                    <div className="px-3 pb-2 text-[11px] font-semibold tracking-wide text-slate-400">
-                        ADMINISTRADOR
-                    </div>
+                            {/* CORREO */}
+                            <div style={styles.email}>{usuario.correo}</div>
 
-                    <MenuItem
-                        icon={<Users className="h-[18px] w-[18px]" />}
-                        text="Padrón"
-                        onClick={() => navegar('padron')}
-                    />
-
-                    <MenuItem
-                        icon={<LayoutGrid className="h-[18px] w-[18px]" />}
-                        text="Asignaturas y ambientes"
-                        onClick={() => navegar('asignaturas')}
-                    />
-                    <MenuItem
-                        icon={<QrCode className="h-[18px] w-[18px]" />}
-                        text="Códigos QR"
-                        onClick={() => alert('Códigos QR: próximamente')}
-                    />
-                    <MenuItem
-                        icon={<UserCog className="h-[18px] w-[18px]" />}
-                        text="Usuarios y roles"
-                        selected
-                        onClick={() => navegar('usuarios')}
-                    />
-                    <MenuItem
-                        icon={<History className="h-[18px] w-[18px]" />}
-                        text="Bitácora"
-                        onClick={() => navegar('bitacora')}
-                    />
-                    <MenuItem
-                        icon={<DatabaseBackup className="h-[18px] w-[18px]" />}
-                        text="Respaldo"
-                        onClick={() => alert('Respaldo: próximamente')}
-                    />
-                </div>
-            </aside>
-
-            {/* CONTENIDO PRINCIPAL */}
-            <main className="min-w-0 flex-1 bg-slate-50">
-                {/* BARRA SUPERIOR */}
-                <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 md:px-6">
-                    <div className="flex items-center gap-3">
-                        <button
-                            type="button"
-                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:hidden"
-                            onClick={() => setMenuAbierto(true)}
-                            aria-label="Abrir menú"
-                        >
-                            <Menu className="h-5 w-5" strokeWidth={1.75} />
-                        </button>
-
-                        <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
-                            <MonitorCheck className="h-[18px] w-[18px] text-blue-600" />
-                            <span className="hidden sm:inline">
-                                Sistema Institucional de Verificación
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <button
-                            type="button"
-                            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
-                            onClick={() => navegar('salir')}
-                            aria-label="Cerrar sesión"
-                        >
-                            <LogOut className="h-[18px] w-[18px]" strokeWidth={1.75} />
-                            <span className="hidden sm:inline">Cerrar sesión</span>
-                        </button>
-
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-white">
-                            <User className="h-[18px] w-[18px]" strokeWidth={1.75} />
-                        </div>
-                    </div>
-                </header>
-
-                {/* CONTENIDO */}
-                <section className="p-4 md:p-6 lg:p-8">
-                    {/* TITULO Y BOTON */}
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <h1 className="text-2xl font-bold text-slate-900">Usuarios y roles</h1>
-
-                            <p className="mt-1 text-sm text-slate-500">
-                                Gestión de cuentas y permisos del sistema
-                            </p>
-                        </div>
-
-                        <button
-                            type="button"
-                            className="self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 sm:self-auto"
-                            onClick={() => setMostrarFormulario(true)}
-                        >
-                            + Nuevo usuario
-                        </button>
-                    </div>
-
-                    {/* PESTAÑAS */}
-                    <div className="mt-5 flex gap-6 border-b border-slate-200">
-                        <button
-                            type="button"
-                            className="border-b-2 border-blue-600 px-1 pb-2.5 text-sm font-semibold text-blue-600"
-                        >
-                            Usuarios
-                        </button>
-
-                        <button type="button" className="px-1 pb-2.5 text-sm text-slate-500">
-                            Roles
-                        </button>
-                    </div>
-
-                    {/* TABLA */}
-                    <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-                        <div className="grid min-w-[720px] grid-cols-[1.25fr_1.15fr_0.95fr_0.55fr_0.5fr] items-center gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-xs font-semibold tracking-wide text-slate-500">
-                            <div>NOMBRE</div>
-                            <div>CORREO</div>
-                            <div>ROL</div>
-                            <div>ESTADO</div>
-                            <div>ACCIONES</div>
-                        </div>
-
-                        {usuarios.map((usuario, index) => (
-                            <div
-                                key={index}
-                                className="grid min-w-[720px] grid-cols-[1.25fr_1.15fr_0.95fr_0.55fr_0.5fr] items-center gap-3 border-b border-slate-100 px-4 py-3.5 text-sm last:border-b-0"
-                            >
-                                <div className="font-semibold text-slate-800">{usuario.nombre}</div>
-
-                                <div className="text-xs text-slate-500">{usuario.correo}</div>
-
-                                <div>
-                                    <span
-                                        className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${estilosPorRol[usuario.tipo]}`}
-                                    >
-                                        {usuario.rol}
-                                    </span>
-                                </div>
-
-                                <div>
-                                    <span
-                                        className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
-                                            usuario.activo ? 'bg-blue-600' : 'bg-slate-300'
-                                        }`}
-                                    >
-                                        <span
-                                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                                                usuario.activo
-                                                    ? 'translate-x-3.5'
-                                                    : 'translate-x-0.5'
-                                            }`}
-                                        />
-                                    </span>
-                                </div>
-
-                                <div>
-                                    <button
-                                        type="button"
-                                        className="text-sm font-medium text-blue-600 hover:text-blue-700"
-                                        onClick={() => {
-                                            setUsuarioEditando(usuario);
-                                            setNuevoUsuario({
-                                                nombre: usuario.nombre,
-                                                correo: usuario.correo,
-                                                rol: usuario.rol,
-                                            });
-                                            setMostrarFormulario(true);
-                                        }}
-                                    >
-                                        Editar
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* PIE */}
-                    <p className="mt-3 text-xs text-slate-400">
-                        Las cuentas las crea el Administrador.
-                    </p>
-                </section>
-
-                {mostrarFormulario && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-                        <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-                            <div className="mb-5 flex items-start justify-between">
-                                <div>
-                                    <h2 className="text-lg font-bold text-slate-900">
-                                        Nuevo usuario
-                                    </h2>
-
-                                    <p className="mt-1 text-sm text-slate-500">
-                                        Crear una nueva cuenta del sistema
-                                    </p>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    className="text-slate-400 hover:text-slate-600"
-                                    onClick={() => setMostrarFormulario(false)}
-                                    aria-label="Cerrar"
-                                >
-                                    <X className="h-5 w-5" strokeWidth={1.75} />
-                                </button>
-                            </div>
-
-                            <div className="mb-4">
-                                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                                    Nombre completo
-                                </label>
-
-                                <input
-                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                    value={nuevoUsuario.nombre}
-                                    onChange={(e) =>
-                                        setNuevoUsuario({
-                                            ...nuevoUsuario,
-                                            nombre: e.target.value,
-                                        })
-                                    }
-                                    placeholder="Ingrese el nombre completo"
-                                />
-                            </div>
-
-                            <div className="mb-4">
-                                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                                    Correo
-                                </label>
-
-                                <input
-                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                    value={nuevoUsuario.correo}
-                                    onChange={(e) =>
-                                        setNuevoUsuario({
-                                            ...nuevoUsuario,
-                                            correo: e.target.value,
-                                        })
-                                    }
-                                    placeholder="correo@fcyt.umss.edu.bo"
-                                />
-                            </div>
-
-                            <div className="mb-5">
-                                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
-                                    Rol
-                                </label>
-
-                                <select
-                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                    value={nuevoUsuario.rol}
-                                    onChange={(e) =>
-                                        setNuevoUsuario({
-                                            ...nuevoUsuario,
-                                            rol: e.target.value,
-                                        })
-                                    }
-                                >
-                                    <option>Administrador</option>
-                                    <option>Responsable académico</option>
-                                    <option>Docente</option>
-                                    <option>Personal de control</option>
-                                </select>
-                            </div>
-
-                            <div className="flex justify-end gap-2">
-                                <button
-                                    type="button"
-                                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
-                                    onClick={() => setMostrarFormulario(false)}
-                                >
-                                    Cancelar
-                                </button>
-
-                                <button
-                                    type="button"
-                                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-                                    onClick={() => {
-                                        alert('Usuario creado correctamente');
-
-                                        setMostrarFormulario(false);
-
-                                        setNuevoUsuario({
-                                            nombre: '',
-                                            correo: '',
-                                            rol: 'Docente',
-                                        });
+                            {/* ROL */}
+                            <div>
+                                <span
+                                    style={{
+                                        ...styles.role,
+                                        ...roleStyles[usuario.rol?.toLowerCase()],
                                     }}
                                 >
-                                    Crear usuario
+                                    {usuario.rol ?? 'Sin rol'}
+                                </span>
+                            </div>
+
+                            {/* ESTADO */}
+                            <div>
+                                <button
+                                    onClick={() => cambiarEstado(usuario)}
+                                    aria-label={
+                                        usuario.is_active
+                                            ? `Desactivar a ${usuario.nombre}`
+                                            : `Activar a ${usuario.nombre}`
+                                    }
+                                    style={{
+                                        ...styles.switch,
+                                        ...(usuario.is_active
+                                            ? styles.switchActive
+                                            : styles.switchInactive),
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            ...styles.switchCircle,
+                                            ...(usuario.is_active
+                                                ? styles.circleActive
+                                                : styles.circleInactive),
+                                        }}
+                                    ></div>
+                                </button>
+                            </div>
+
+                            {/* ACCIONES */}
+                            <div>
+                                <button
+                                    style={styles.editButton}
+                                    onClick={() => abrirEditarUsuario(usuario)}
+                                >
+                                    Editar
                                 </button>
                             </div>
                         </div>
+                    ))}
+                </div>
+            )}
+
+            {pestana === 'usuarios' && (
+                <p style={styles.footerText}>Las cuentas las crea el Administrador.</p>
+            )}
+
+            {/* ROLES Y PERMISOS */}
+            {pestana === 'roles' && (
+                <div style={styles.rolesContainer}>
+                    <p style={styles.rolesHint}>
+                        Marca las pantallas a las que accede cada rol y guarda los cambios.
+                    </p>
+
+                    {avisoRoles && (
+                        <p role="status" style={styles.aviso}>
+                            {avisoRoles}
+                        </p>
+                    )}
+
+                    {roles.map((rol) => (
+                        <div key={rol.id} style={styles.rolCard}>
+                            <div style={styles.rolHeader}>
+                                <span style={styles.rolNombre}>{rol.name}</span>
+
+                                <button
+                                    style={styles.saveButton}
+                                    onClick={() => guardarPermisos(rol)}
+                                >
+                                    Guardar permisos
+                                </button>
+                            </div>
+
+                            <div style={styles.permisosGrid}>
+                                {permisos.map((permiso) => (
+                                    <label key={permiso.id} style={styles.permisoItem}>
+                                        <input
+                                            type="checkbox"
+                                            checked={(permisosPorRol[rol.id] ?? []).includes(
+                                                permiso.id
+                                            )}
+                                            onChange={() => alternarPermiso(rol.id, permiso.id)}
+                                        />
+                                        {permiso.screen_name}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+            {mostrarFormulario && (
+                <div style={styles.modalOverlay}>
+                    <div style={styles.modal}>
+                        <div style={styles.modalHeader}>
+                            <div>
+                                <h2 style={styles.modalTitle}>
+                                    {usuarioEditando === null ? 'Nuevo usuario' : 'Editar usuario'}
+                                </h2>
+
+                                <p style={styles.modalDescription}>
+                                    {usuarioEditando === null
+                                        ? 'Crear una nueva cuenta del sistema'
+                                        : 'Modificar los datos de la cuenta'}
+                                </p>
+                            </div>
+
+                            <button style={styles.closeButton} onClick={cerrarFormulario}>
+                                ×
+                            </button>
+                        </div>
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label} htmlFor="nombre">
+                                {esDocente ? 'Nombres' : 'Nombre completo'}
+                            </label>
+
+                            <input
+                                id="nombre"
+                                style={styles.input}
+                                value={nuevoUsuario.nombre}
+                                onChange={(e) =>
+                                    setNuevoUsuario({
+                                        ...nuevoUsuario,
+                                        nombre: e.target.value,
+                                    })
+                                }
+                                placeholder={
+                                    esDocente ? 'Ingrese los nombres' : 'Ingrese el nombre completo'
+                                }
+                            />
+                        </div>
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label} htmlFor="correo">
+                                Correo
+                            </label>
+
+                            <input
+                                id="correo"
+                                style={styles.input}
+                                value={nuevoUsuario.correo}
+                                onChange={(e) =>
+                                    setNuevoUsuario({
+                                        ...nuevoUsuario,
+                                        correo: e.target.value,
+                                    })
+                                }
+                                placeholder="correo@fcyt.umss.edu.bo"
+                            />
+                        </div>
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label} htmlFor="rol">
+                                Rol
+                            </label>
+
+                            <select
+                                id="rol"
+                                style={styles.input}
+                                value={nuevoUsuario.rol}
+                                onChange={(e) =>
+                                    setNuevoUsuario({
+                                        ...nuevoUsuario,
+                                        rol: e.target.value,
+                                    })
+                                }
+                            >
+                                {nombresDeRoles.map((rol) => (
+                                    <option key={rol} value={rol}>
+                                        {rol}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* ALTA DEL DOCENTE */}
+                        {esDocente && (
+                            <div style={styles.docenteBlock}>
+                                <p style={styles.docenteTitle}>Datos del docente</p>
+
+                                <p style={styles.docenteHint}>
+                                    Con estos datos el docente queda disponible para hacerse
+                                    responsable de un grupo de asignatura.
+                                </p>
+
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label} htmlFor="codigo_docente">
+                                        Código de docente
+                                    </label>
+
+                                    <input
+                                        id="codigo_docente"
+                                        style={styles.input}
+                                        value={nuevoUsuario.codigo_docente}
+                                        onChange={(e) =>
+                                            setNuevoUsuario({
+                                                ...nuevoUsuario,
+                                                codigo_docente: e.target.value,
+                                            })
+                                        }
+                                        placeholder="DOC-001"
+                                    />
+                                </div>
+
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label} htmlFor="apellidos">
+                                        Apellidos
+                                    </label>
+
+                                    <input
+                                        id="apellidos"
+                                        style={styles.input}
+                                        value={nuevoUsuario.apellidos}
+                                        onChange={(e) =>
+                                            setNuevoUsuario({
+                                                ...nuevoUsuario,
+                                                apellidos: e.target.value,
+                                            })
+                                        }
+                                        placeholder="Ingrese los apellidos"
+                                    />
+                                </div>
+
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label} htmlFor="telefono">
+                                        Teléfono (opcional)
+                                    </label>
+
+                                    <input
+                                        id="telefono"
+                                        style={styles.input}
+                                        value={nuevoUsuario.telefono}
+                                        onChange={(e) =>
+                                            setNuevoUsuario({
+                                                ...nuevoUsuario,
+                                                telefono: e.target.value,
+                                            })
+                                        }
+                                        placeholder="70000000"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {error && (
+                            <p role="alert" style={styles.error}>
+                                {error}
+                            </p>
+                        )}
+
+                        <div style={styles.modalActions}>
+                            <button style={styles.cancelButton} onClick={cerrarFormulario}>
+                                Cancelar
+                            </button>
+
+                            <button
+                                style={styles.saveButton}
+                                onClick={guardarUsuario}
+                                disabled={guardando}
+                            >
+                                {guardando
+                                    ? 'Guardando…'
+                                    : usuarioEditando === null
+                                      ? 'Crear usuario'
+                                      : 'Guardar cambios'}
+                            </button>
+                        </div>
                     </div>
-                )}
-            </main>
-        </div>
+                </div>
+            )}
+        </section>
     );
 }
 
@@ -420,27 +577,551 @@ UsuariosRoles.propTypes = {
     onNavigate: PropTypes.func.isRequired,
 };
 
+/* ================================
+   COMPONENTE DEL MENU
+================================ */
+
 function MenuItem({ icon, text, selected, onClick }) {
     return (
         <div
-            className={`mb-1 flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${
-                selected
-                    ? 'bg-blue-600 font-semibold text-white'
-                    : 'text-slate-600 hover:bg-slate-100'
-            }`}
+            style={{
+                ...styles.menuItem,
+                ...(selected ? styles.menuSelected : {}),
+            }}
             onClick={onClick}
         >
-            <span className="flex w-5 items-center justify-center">{icon}</span>
+            <span style={styles.menuIcon}>{icon}</span>
+
             <span>{text}</span>
         </div>
     );
 }
 
 MenuItem.propTypes = {
-    icon: PropTypes.node.isRequired,
+    icon: PropTypes.string.isRequired,
     text: PropTypes.string.isRequired,
     selected: PropTypes.bool,
     onClick: PropTypes.func,
+};
+
+/* ================================
+   ESTILOS
+================================ */
+
+const roleStyles = {
+    administrador: {
+        backgroundColor: '#111827',
+        color: '#ffffff',
+    },
+
+    responsable: {
+        backgroundColor: '#f1d9ff',
+        color: '#8b1dbd',
+    },
+
+    docente: {
+        backgroundColor: '#dcecff',
+        color: '#3977c5',
+    },
+
+    personal: {
+        backgroundColor: '#d5f5e5',
+        color: '#15915b',
+    },
+};
+
+const styles = {
+    app: {
+        display: 'flex',
+        minHeight: '100vh',
+        width: '100%',
+        backgroundColor: '#ffffff',
+        fontFamily:
+            "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        color: '#172033',
+    },
+
+    modalOverlay: {
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.35)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+    },
+    modal: {
+        width: '420px',
+        backgroundColor: '#ffffff',
+        borderRadius: '10px',
+        padding: '22px',
+        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.18)',
+    },
+
+    modalHeader: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: '20px',
+    },
+
+    modalTitle: {
+        margin: 0,
+        fontSize: '18px',
+        fontWeight: '700',
+        color: '#182233',
+    },
+
+    modalDescription: {
+        margin: '4px 0 0',
+        fontSize: '9px',
+        color: '#7b8797',
+    },
+
+    closeButton: {
+        border: 'none',
+        background: 'transparent',
+        fontSize: '22px',
+        color: '#647084',
+        cursor: 'pointer',
+    },
+
+    formGroup: {
+        marginBottom: '15px',
+    },
+
+    label: {
+        display: 'block',
+        marginBottom: '6px',
+        fontSize: '9px',
+        fontWeight: '600',
+        color: '#374151',
+    },
+
+    input: {
+        width: '100%',
+        boxSizing: 'border-box',
+        border: '1px solid #d9e0e8',
+        borderRadius: '6px',
+        padding: '9px 10px',
+        fontSize: '10px',
+        color: '#1f2937',
+        outline: 'none',
+        backgroundColor: '#ffffff',
+    },
+
+    rolesContainer: {
+        marginTop: '16px',
+    },
+
+    rolesHint: {
+        margin: '0 0 10px',
+        fontSize: '9px',
+        color: '#7b8797',
+    },
+
+    aviso: {
+        margin: '0 0 10px',
+        padding: '8px 10px',
+        borderRadius: '6px',
+        backgroundColor: '#eaf3ff',
+        color: '#1d4ed8',
+        fontSize: '9px',
+    },
+
+    rolCard: {
+        border: '1px solid #e1e6ec',
+        borderRadius: '9px',
+        padding: '14px 16px',
+        marginBottom: '10px',
+    },
+
+    rolHeader: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '10px',
+    },
+
+    rolNombre: {
+        fontSize: '11px',
+        fontWeight: '700',
+        color: '#182233',
+    },
+
+    permisosGrid: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
+        gap: '7px',
+    },
+
+    permisoItem: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        fontSize: '9px',
+        color: '#374151',
+    },
+
+    docenteBlock: {
+        borderTop: '1px solid #e9edf2',
+        paddingTop: '13px',
+        marginBottom: '4px',
+    },
+
+    docenteTitle: {
+        margin: '0 0 3px',
+        fontSize: '10px',
+        fontWeight: '700',
+        color: '#182233',
+    },
+
+    docenteHint: {
+        margin: '0 0 12px',
+        fontSize: '8px',
+        color: '#7b8797',
+    },
+
+    error: {
+        margin: '0',
+        padding: '8px 10px',
+        borderRadius: '6px',
+        backgroundColor: '#fdecec',
+        color: '#b42318',
+        fontSize: '9px',
+    },
+
+    modalActions: {
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: '8px',
+        marginTop: '20px',
+    },
+
+    cancelButton: {
+        border: '1px solid #d9e0e8',
+        backgroundColor: '#ffffff',
+        color: '#4b5563',
+        borderRadius: '6px',
+        padding: '8px 13px',
+        fontSize: '9px',
+        cursor: 'pointer',
+    },
+
+    saveButton: {
+        border: 'none',
+        backgroundColor: '#2864df',
+        color: '#ffffff',
+        borderRadius: '6px',
+        padding: '8px 13px',
+        fontSize: '9px',
+        fontWeight: '600',
+        cursor: 'pointer',
+    },
+
+    /* SIDEBAR */
+
+    sidebar: {
+        width: '182px',
+        minWidth: '182px',
+        backgroundColor: '#ffffff',
+        borderRight: '1px solid #e5e9ef',
+        minHeight: '100vh',
+    },
+
+    logoContainer: {
+        height: '64px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '9px',
+        padding: '0 17px',
+        borderBottom: '1px solid #edf0f4',
+    },
+
+    logo: {
+        width: '30px',
+        height: '30px',
+        borderRadius: '7px',
+        backgroundColor: '#2563eb',
+        color: '#ffffff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '17px',
+        fontWeight: '700',
+    },
+
+    logoTitle: {
+        fontSize: '12px',
+        fontWeight: '700',
+        lineHeight: '14px',
+        color: '#1d2737',
+    },
+
+    logoSubtitle: {
+        fontSize: '7px',
+        letterSpacing: '0.4px',
+        color: '#687386',
+        marginTop: '2px',
+    },
+
+    menuSection: {
+        padding: '17px 10px',
+    },
+
+    menuTitle: {
+        fontSize: '7px',
+        fontWeight: '600',
+        color: '#8b95a5',
+        letterSpacing: '0.7px',
+        padding: '0 14px',
+        marginBottom: '9px',
+    },
+
+    menuItem: {
+        height: '30px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '9px',
+        padding: '0 10px',
+        marginBottom: '3px',
+        borderRadius: '6px',
+        fontSize: '10px',
+        color: '#536074',
+        cursor: 'pointer',
+    },
+
+    menuSelected: {
+        backgroundColor: '#2864df',
+        color: '#ffffff',
+        fontWeight: '600',
+    },
+
+    menuIcon: {
+        width: '16px',
+        textAlign: 'center',
+        fontSize: '13px',
+    },
+
+    /* MAIN */
+
+    main: {
+        flex: 1,
+        minWidth: 0,
+        backgroundColor: '#ffffff',
+    },
+
+    header: {
+        height: '45px',
+        borderBottom: '1px solid #e9edf2',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 20px',
+    },
+
+    headerTitle: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        fontSize: '11px',
+        color: '#1e293b',
+        fontWeight: '500',
+    },
+
+    headerIcon: {
+        color: '#2563eb',
+        fontSize: '17px',
+    },
+
+    userCircle: {
+        width: '23px',
+        height: '23px',
+        borderRadius: '50%',
+        backgroundColor: '#2864df',
+        color: '#ffffff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '8px',
+    },
+
+    /* CONTENT */
+
+    content: {
+        padding: '23px 22px',
+    },
+
+    titleRow: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+    },
+
+    title: {
+        margin: 0,
+        fontSize: '18px',
+        lineHeight: '22px',
+        fontWeight: '700',
+        color: '#182233',
+    },
+
+    description: {
+        margin: '3px 0 0',
+        fontSize: '9px',
+        color: '#7b8797',
+    },
+
+    newButton: {
+        border: 'none',
+        borderRadius: '5px',
+        backgroundColor: '#2864df',
+        color: '#ffffff',
+        fontSize: '9px',
+        fontWeight: '600',
+        padding: '8px 13px',
+        cursor: 'pointer',
+        marginTop: '-1px',
+    },
+
+    /* TABS */
+
+    tabs: {
+        display: 'flex',
+        gap: '22px',
+        marginTop: '20px',
+        borderBottom: '1px solid #e9edf2',
+    },
+
+    tabActive: {
+        border: 'none',
+        borderBottom: '2px solid #2864df',
+        background: 'transparent',
+        color: '#2864df',
+        fontSize: '9px',
+        fontWeight: '600',
+        padding: '0 3px 10px',
+        cursor: 'pointer',
+    },
+
+    tab: {
+        border: 'none',
+        background: 'transparent',
+        color: '#647084',
+        fontSize: '9px',
+        padding: '0 3px 10px',
+        cursor: 'pointer',
+    },
+
+    /* TABLE */
+
+    tableContainer: {
+        marginTop: '12px',
+        border: '1px solid #e1e6ec',
+        borderRadius: '9px',
+        overflow: 'hidden',
+    },
+
+    tableHeader: {
+        minHeight: '35px',
+        display: 'grid',
+        gridTemplateColumns: '1.25fr 1.15fr 0.95fr 0.42fr 0.38fr',
+        alignItems: 'center',
+        padding: '0 16px',
+        backgroundColor: '#fbfcfd',
+        borderBottom: '1px solid #e5e9ee',
+        color: '#687486',
+        fontSize: '7px',
+        fontWeight: '600',
+        letterSpacing: '0.4px',
+    },
+
+    tableRow: {
+        minHeight: '47px',
+        display: 'grid',
+        gridTemplateColumns: '1.25fr 1.15fr 0.95fr 0.42fr 0.38fr',
+        alignItems: 'center',
+        padding: '0 16px',
+        borderBottom: '1px solid #e7ebef',
+        fontSize: '9px',
+    },
+
+    name: {
+        fontSize: '9px',
+        lineHeight: '12px',
+        fontWeight: '600',
+        color: '#1d2635',
+        paddingRight: '8px',
+    },
+
+    email: {
+        fontSize: '7px',
+        color: '#737e8d',
+        paddingRight: '8px',
+    },
+
+    role: {
+        display: 'inline-block',
+        padding: '4px 8px',
+        borderRadius: '12px',
+        fontSize: '7px',
+        fontWeight: '500',
+        lineHeight: '10px',
+    },
+
+    /* SWITCH */
+
+    switch: {
+        border: 'none',
+        padding: 0,
+        cursor: 'pointer',
+        width: '28px',
+        height: '15px',
+        borderRadius: '15px',
+        position: 'relative',
+        transition: '0.2s',
+    },
+
+    switchActive: {
+        backgroundColor: '#2864df',
+    },
+
+    switchInactive: {
+        backgroundColor: '#d6dde6',
+    },
+
+    switchCircle: {
+        position: 'absolute',
+        width: '11px',
+        height: '11px',
+        top: '2px',
+        borderRadius: '50%',
+        backgroundColor: '#ffffff',
+        transition: '0.2s',
+    },
+
+    circleActive: {
+        right: '2px',
+    },
+
+    circleInactive: {
+        left: '2px',
+    },
+
+    editButton: {
+        border: 'none',
+        background: 'transparent',
+        color: '#2864df',
+        fontSize: '8px',
+        cursor: 'pointer',
+        padding: 0,
+    },
+
+    footerText: {
+        margin: '10px 3px',
+        color: '#788494',
+        fontSize: '7px',
+    },
 };
 
 export default UsuariosRoles;

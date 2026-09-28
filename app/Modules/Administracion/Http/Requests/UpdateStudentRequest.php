@@ -22,6 +22,13 @@ class UpdateStudentRequest extends FormRequest
         $studentId = (int) $this->route('student');
 
         return [
+            'codigo_universitario' => [
+                'nullable',
+                'string',
+                'max:20',
+                Rule::unique('students', 'codigo_universitario')->ignore($studentId),
+            ],
+            'carrera' => ['nullable', 'string', 'max:120'],
             'nombre' => ['required', 'string', 'max:100'],
             'apellido' => ['required', 'string', 'max:100'],
             'ci' => [
@@ -32,7 +39,7 @@ class UpdateStudentRequest extends FormRequest
                 Rule::unique('students', 'ci')->ignore($studentId),
             ],
             'correo' => [
-                'required',
+                'nullable',
                 'email',
                 'max:150',
                 Rule::unique('students', 'correo')->ignore($studentId),

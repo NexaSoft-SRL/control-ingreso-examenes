@@ -7,7 +7,7 @@ use App\Modules\Examenes\Http\Controllers\DocenteController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api')
-    ->middleware('auth')
+    ->middleware(['auth', 'permiso:asignaturas_ambientes'])
     ->group(function (): void {
         Route::get(
             '/asignaturas',
@@ -18,6 +18,13 @@ Route::prefix('api')
             '/asignaturas',
             [AsignaturaController::class, 'store']
         )->name('asignaturas.store');
+
+        Route::put(
+            '/asignaturas/{asignatura}',
+            [AsignaturaController::class, 'update']
+        )
+            ->whereNumber('asignatura')
+            ->name('asignaturas.update');
 
         Route::delete(
             '/asignaturas/{asignatura}',
@@ -30,4 +37,16 @@ Route::prefix('api')
             '/docentes',
             [DocenteController::class, 'index']
         )->name('docentes.index');
+    });
+
+// El alta del docente se hace desde la pantalla de usuarios y roles, no
+// desde la de asignaturas: por eso va en su propio grupo, con su permiso.
+// Dentro del grupo anterior exigiria los dos permisos a la vez.
+Route::prefix('api')
+    ->middleware(['auth', 'permiso:usuarios_roles'])
+    ->group(function (): void {
+        Route::post(
+            '/docentes',
+            [DocenteController::class, 'store']
+        )->name('docentes.store');
     });
