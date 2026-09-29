@@ -256,10 +256,21 @@ function AsignaturasAmbientes({ onNavigate }) {
             return;
         }
 
+        const capacidad = Number(nuevoAmbiente.capacidad);
+
+        // TN-52: el campo es numerico, pero un "-60" escrito a mano pasaba
+        // el filtro del navegador y llegaba al backend. Se rechaza aca con
+        // el mismo mensaje que devuelve la validacion del servidor.
+        if (!Number.isInteger(capacidad) || capacidad < 1) {
+            avisar('La capacidad debe ser un número entero positivo superior a 0.');
+
+            return;
+        }
+
         const datos = {
             nombre: nuevoAmbiente.nombre.trim(),
             ubicacion: nuevoAmbiente.ubicacion.trim() || null,
-            capacidad: Number(nuevoAmbiente.capacidad),
+            capacidad,
             estado: nuevoAmbiente.estado,
         };
 
@@ -806,6 +817,7 @@ function AsignaturasAmbientes({ onNavigate }) {
                             id="capacidad"
                             type="number"
                             min="1"
+                            step="1"
                             value={nuevoAmbiente.capacidad}
                             onChange={(e) =>
                                 setNuevoAmbiente({
@@ -813,6 +825,13 @@ function AsignaturasAmbientes({ onNavigate }) {
                                     capacidad: e.target.value,
                                 })
                             }
+                            // TN-52: el input numerico del navegador acepta "-" y "e". Se
+                            // descartan para que no llegue al estado un valor no entero.
+                            onKeyDown={(e) => {
+                                if (['-', '+', 'e', 'E', '.', ','].includes(e.key)) {
+                                    e.preventDefault();
+                                }
+                            }}
                             placeholder="Ej. 50"
                             className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
