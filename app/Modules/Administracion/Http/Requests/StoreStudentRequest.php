@@ -26,7 +26,7 @@ class StoreStudentRequest extends FormRequest
             'nombre' => ['required', 'string', 'max:100'],
             'apellido' => ['required', 'string', 'max:100'],
             'ci' => ['required', 'string', 'max:14', 'regex:/^\d{5,10}(?:-[A-Z]{2,3})?$/', 'unique:students,ci'],
-            'correo' => ['required', 'email', 'max:150', 'unique:students,correo'],
+            'correo' => ['nullable', 'email', 'max:150', 'unique:students,correo'],
             'activo' => ['sometimes', 'boolean'],
         ];
     }
