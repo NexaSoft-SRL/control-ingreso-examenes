@@ -249,7 +249,7 @@ function AsignaturasAmbientes({ onNavigate }) {
         setNuevoAmbiente(AMBIENTE_VACIO);
     };
 
-        const guardarAmbiente = async () => {
+    const guardarAmbiente = async () => {
         if (nuevoAmbiente.nombre.trim() === '' || nuevoAmbiente.capacidad === '') {
             avisar('El nombre y la capacidad del ambiente son obligatorios.');
 

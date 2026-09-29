@@ -96,7 +96,7 @@ describe('AsignaturasAmbientes', () => {
         );
     });
 
-         it('rechaza una capacidad negativa sin llamar al backend', async () => {
+    it('rechaza una capacidad negativa sin llamar al backend', async () => {
         render(<AsignaturasAmbientes onNavigate={vi.fn()} />);
 
         await screen.findByText('Materia inicial');
@@ -181,5 +181,5 @@ describe('AsignaturasAmbientes', () => {
                 screen.getByText('Ya existe un ambiente registrado con el nombre Aula 690.')
             ).toBeInTheDocument();
         });
-    });   
+    });
 });
