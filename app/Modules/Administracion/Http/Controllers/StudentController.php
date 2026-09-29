@@ -98,10 +98,9 @@ final class StudentController
         /** @var array<string, mixed> $data */
         $data = $request->validated();
 
-        return response()->json(
-            $this->createStudent->execute($data, $this->usuarioAutenticado()),
-            Response::HTTP_CREATED,
-        );
+        $student = $this->createStudent->execute($data, $this->authenticatedUserId());
+
+        return response()->json($student, Response::HTTP_CREATED);
     }
 
     public function show(int $student): JsonResponse
@@ -132,10 +131,9 @@ final class StudentController
         /** @var array<string, mixed> $data */
         $data = $request->validated();
 
-        return response()->json(
-            $this->updateStudent->execute($found, $data, $this->usuarioAutenticado()),
-            Response::HTTP_OK,
-        );
+        $student = $this->updateStudent->execute($found, $data, $this->authenticatedUserId());
+
+        return response()->json($student, Response::HTTP_OK);
     }
 
     public function destroy(int $student): JsonResponse
@@ -180,5 +178,12 @@ final class StudentController
         }
 
         return (int) $id;
+    }
+
+    private function authenticatedUserId(): ?int
+    {
+        $userId = Auth::id();
+
+        return is_int($userId) ? $userId : null;
     }
 }

@@ -119,10 +119,10 @@ final readonly class ImportStudents
             $existente = $porCodigo[$codigo] ?? $porDocumento[$documento] ?? null;
 
             if ($existente === null) {
-                $student = $this->repository->create($datos + ['activo' => true]);
+                $student = $this->repository->create($datos + ['activo' => true], $usuarioId, false);
                 $creados++;
             } else {
-                $student = $this->repository->update($existente, $datos);
+                $student = $this->repository->update($existente, $datos, $usuarioId, false);
                 $actualizados++;
 
                 $detalles[] = [
