@@ -95,4 +95,91 @@ describe('AsignaturasAmbientes', () => {
             })
         );
     });
+
+         it('rechaza una capacidad negativa sin llamar al backend', async () => {
+        render(<AsignaturasAmbientes onNavigate={vi.fn()} />);
+
+        await screen.findByText('Materia inicial');
+
+        fireEvent.click(screen.getByRole('button', { name: '+ Nuevo' }));
+
+        fireEvent.change(screen.getByLabelText('Nombre del aula'), {
+            target: { value: 'Aula Negativa' },
+        });
+        fireEvent.change(screen.getByLabelText('Capacidad'), {
+            target: { value: '-60' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('La capacidad debe ser un número entero positivo superior a 0.')
+            ).toBeInTheDocument();
+        });
+
+        expect(window.axios.post).not.toHaveBeenCalledWith(
+            '/api/admin/ambientes',
+            expect.anything()
+        );
+    });
+
+    it('rechaza una capacidad cero sin llamar al backend', async () => {
+        render(<AsignaturasAmbientes onNavigate={vi.fn()} />);
+
+        await screen.findByText('Materia inicial');
+
+        fireEvent.click(screen.getByRole('button', { name: '+ Nuevo' }));
+
+        fireEvent.change(screen.getByLabelText('Nombre del aula'), {
+            target: { value: 'Aula Cero' },
+        });
+        fireEvent.change(screen.getByLabelText('Capacidad'), {
+            target: { value: '0' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('La capacidad debe ser un número entero positivo superior a 0.')
+            ).toBeInTheDocument();
+        });
+
+        expect(window.axios.post).not.toHaveBeenCalled();
+    });
+
+    it('muestra el mensaje del backend cuando el nombre de ambiente ya existe', async () => {
+        window.axios.post = vi.fn().mockRejectedValueOnce({
+            response: {
+                status: 422,
+                data: {
+                    errors: {
+                        nombre: ['Ya existe un ambiente registrado con el nombre Aula 690.'],
+                    },
+                },
+            },
+        });
+
+        render(<AsignaturasAmbientes onNavigate={vi.fn()} />);
+
+        await screen.findByText('Materia inicial');
+
+        fireEvent.click(screen.getByRole('button', { name: '+ Nuevo' }));
+
+        fireEvent.change(screen.getByLabelText('Nombre del aula'), {
+            target: { value: 'Aula 690' },
+        });
+        fireEvent.change(screen.getByLabelText('Capacidad'), {
+            target: { value: '70' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+
+        await waitFor(() => {
+            expect(
+                screen.getByText('Ya existe un ambiente registrado con el nombre Aula 690.')
+            ).toBeInTheDocument();
+        });
+    });   
 });
