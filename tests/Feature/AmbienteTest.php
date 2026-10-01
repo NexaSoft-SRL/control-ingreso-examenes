@@ -99,4 +99,93 @@ class AmbienteTest extends TestCase
             'id' => $ambiente->id,
         ]);
     }
+
+    public function test_no_permite_capacidad_negativa(): void
+    {
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/admin/ambientes', [
+                'nombre' => 'Aula Negativa',
+                'ubicacion' => 'Edificio X',
+                'capacidad' => -60,
+                'estado' => 'DISPONIBLE',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['capacidad']);
+    }
+
+    public function test_no_permite_capacidad_cero(): void
+    {
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/admin/ambientes', [
+                'nombre' => 'Aula Cero',
+                'ubicacion' => 'Edificio X',
+                'capacidad' => 0,
+                'estado' => 'DISPONIBLE',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['capacidad']);
+    }
+
+    public function test_no_permite_nombre_duplicado_al_crear(): void
+    {
+        AmbienteFactory::new()->create(['nombre' => 'Aula 690']);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/admin/ambientes', [
+                'nombre' => 'Aula 690',
+                'ubicacion' => 'Piso 2',
+                'capacidad' => 70,
+                'estado' => 'DISPONIBLE',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['nombre']);
+    }
+
+    public function test_permite_actualizar_sin_cambiar_nombre(): void
+    {
+        AmbienteFactory::new()->create(['nombre' => 'Aula Base 1']);
+        AmbienteFactory::new()->create(['nombre' => 'Aula Base 2']);
+
+        $ambiente = AmbienteFactory::new()->create([
+            'nombre' => 'Aula 690',
+            'capacidad' => 70,
+        ]);
+
+        self::assertNotSame(1, $ambiente->id);
+
+        $response = $this->actingAs($this->user)
+            ->putJson("/api/admin/ambientes/{$ambiente->id}", [
+                'nombre' => 'Aula 690',
+                'ubicacion' => 'Piso 3',
+                'capacidad' => 80,
+                'estado' => 'DISPONIBLE',
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonFragment(['capacidad' => 80]);
+
+        $this->assertDatabaseHas('ambientes', [
+            'id' => $ambiente->id,
+            'capacidad' => 80,
+        ]);
+    }
+
+    public function test_no_permite_nombre_duplicado_al_editar(): void
+    {
+        AmbienteFactory::new()->create(['nombre' => 'Aula Base']);
+        $ambiente = AmbienteFactory::new()->create(['nombre' => 'Aula 690']);
+
+        $response = $this->actingAs($this->user)
+            ->putJson("/api/admin/ambientes/{$ambiente->id}", [
+                'nombre' => 'Aula Base',
+                'capacidad' => 70,
+                'estado' => 'DISPONIBLE',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['nombre']);
+    }
 }

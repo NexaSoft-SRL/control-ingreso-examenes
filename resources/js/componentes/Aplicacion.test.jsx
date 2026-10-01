@@ -11,6 +11,7 @@ afterEach(() => {
 const TODOS_LOS_PERMISOS = [
     'padron_estudiantes',
     'asignaturas_ambientes',
+    'habilitacion',
     'usuarios_roles',
     'bitacora',
 ];
@@ -85,8 +86,16 @@ describe('Aplicacion', () => {
         expect(window.location.pathname).toBe('/admin/bitacora');
     });
 
-    it('al rol sin ninguna sección habilitada se lo dice y le ofrece salir', () => {
+    it('el docente con permiso entra a Habilitación', async () => {
         guardarSesion({ id: 2, name: 'Docente', rol: 'Docente', permisos: ['habilitacion'] });
+        render(<Aplicacion />);
+
+        expect(window.location.pathname).toBe('/admin/habilitacion');
+        expect(await screen.findByRole('heading', { name: 'Habilitación' })).toBeInTheDocument();
+    });
+
+    it('al rol sin ninguna sección habilitada se lo dice y le ofrece salir', () => {
+        guardarSesion({ id: 2, name: 'Docente', rol: 'Docente', permisos: [] });
         render(<Aplicacion />);
 
         expect(window.location.pathname).toBe('/sin-permiso');

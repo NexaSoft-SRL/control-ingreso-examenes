@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Administracion\Http\Requests;
 
+use App\Modules\Administracion\Domain\Models\Ambiente;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -19,7 +20,11 @@ class UpdateAmbienteRequest extends FormRequest
      */
     public function rules(): array
     {
-        $ambienteId = (int) $this->route('ambiente');
+        $ambiente = $this->route('ambiente');
+
+        $ambienteId = $ambiente instanceof Ambiente
+            ? $ambiente->getKey()
+            : (int) $ambiente;
 
         return [
             'nombre' => [

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Administracion\Application\Actions;
 
-use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Application\Contracts\StudentRepository;
 use App\Modules\Administracion\Domain\Models\Student;
 
@@ -12,26 +11,13 @@ final readonly class CreateStudent
 {
     public function __construct(
         private StudentRepository $repository,
-        private BitacoraGateway $bitacora,
     ) {}
 
     /**
      * @param  array<string, mixed>  $data
      */
-    public function execute(array $data, int $usuarioId): Student
+    public function execute(array $data, ?int $usuarioId): Student
     {
-        $student = $this->repository->create($data);
-
-        $id = $student->getKey();
-
-        $this->bitacora->registrar(
-            $usuarioId,
-            'estudiante.registrar',
-            'students',
-            is_int($id) ? $id : null,
-            null,
-        );
-
-        return $student;
+        return $this->repository->create($data, $usuarioId);
     }
 }
