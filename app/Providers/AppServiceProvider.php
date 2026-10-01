@@ -18,6 +18,8 @@ use App\Modules\Examenes\Application\Contracts\AsignaturaGateway;
 use App\Modules\Examenes\Application\Contracts\DocenteGateway;
 use App\Modules\Examenes\Infrastructure\Persistence\EloquentAsignaturaGateway;
 use App\Modules\Examenes\Infrastructure\Persistence\EloquentDocenteGateway;
+use App\Modules\Habilitacion\Application\Contracts\HabilitacionGateway;
+use App\Modules\Habilitacion\Infrastructure\Persistence\EloquentHabilitacionGateway;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -57,6 +59,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             AmbienteRepository::class,
             EloquentAmbienteRepository::class,
+        );
+
+        $this->app->bind(
+            HabilitacionGateway::class,
+            EloquentHabilitacionGateway::class,
         );
     }
 

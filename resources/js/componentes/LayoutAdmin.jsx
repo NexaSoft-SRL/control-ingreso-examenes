@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import {
     DatabaseBackup,
     History,
+    ListChecks,
     LayoutGrid,
     LogOut,
     Menu,
@@ -34,6 +35,12 @@ export default function LayoutAdmin({ seleccionado, onNavigate, children }) {
             texto: 'Asignaturas y ambientes',
             Icono: LayoutGrid,
             permiso: 'asignaturas_ambientes',
+        },
+        {
+            clave: 'habilitacion',
+            texto: 'Habilitación',
+            Icono: ListChecks,
+            permiso: 'habilitacion',
         },
         { clave: 'qr', texto: 'Códigos QR', Icono: QrCode, proximamente: true },
         { clave: 'usuarios', texto: 'Usuarios y roles', Icono: UserCog, permiso: 'usuarios_roles' },
