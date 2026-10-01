@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import {
+    ClipboardList,
     DatabaseBackup,
     History,
     LayoutGrid,
@@ -34,6 +35,12 @@ export default function LayoutAdmin({ seleccionado, onNavigate, children }) {
             texto: 'Asignaturas y ambientes',
             Icono: LayoutGrid,
             permiso: 'asignaturas_ambientes',
+        },
+        {
+            clave: 'examenes',
+            texto: 'Exámenes y normas',
+            Icono: ClipboardList,
+            permiso: 'examenes_normas',
         },
         { clave: 'qr', texto: 'Códigos QR', Icono: QrCode, proximamente: true },
         { clave: 'usuarios', texto: 'Usuarios y roles', Icono: UserCog, permiso: 'usuarios_roles' },

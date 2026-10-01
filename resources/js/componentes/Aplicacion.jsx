@@ -6,6 +6,7 @@ import AsignaturasAmbientes from '../paginas/admin/AsignaturasAmbientes.jsx';
 import Bitacora from '../paginas/admin/Bitacora.jsx';
 import CargaMasiva from '../paginas/estudiantes/CargaMasiva.jsx';
 import RegistroEstudiantes from '../paginas/estudiantes/RegistroEstudiantes.jsx';
+import ExamenesNormas from '../paginas/examenes/ExamenesNormas.jsx';
 import Login from '../paginas/auth/Login.jsx';
 import LayoutAdmin from './LayoutAdmin.jsx';
 import PestanasPadron from './PestanasPadron.jsx';
@@ -25,6 +26,7 @@ import {
 const rutaPorClave = {
     usuarios: '/admin/usuarios',
     asignaturas: '/admin/asignaturas',
+    examenes: '/admin/examenes',
     bitacora: '/admin/bitacora',
     padron: '/admin/padron',
     cargaMasiva: '/admin/padron/carga-masiva',
@@ -35,12 +37,13 @@ const rutaPorClave = {
 const permisoPorClave = {
     usuarios: 'usuarios_roles',
     asignaturas: 'asignaturas_ambientes',
+    examenes: 'examenes_normas',
     bitacora: 'bitacora',
     padron: 'padron_estudiantes',
     cargaMasiva: 'padron_estudiantes',
 };
 
-const ordenDeEntrada = ['usuarios', 'padron', 'asignaturas', 'bitacora'];
+const ordenDeEntrada = ['usuarios', 'padron', 'asignaturas', 'examenes', 'bitacora'];
 
 // Tras iniciar sesion se entra por la primera pantalla que el rol tenga
 // habilitada, no siempre por la de usuarios.
@@ -130,7 +133,27 @@ function RutaProtegida({ children }) {
     return children;
 }
 
+function RutaConPermiso({ permiso, children }) {
+    const navigate = useNavigate();
+
+    if (!tienePermiso(permiso)) {
+        return (
+            <SinPermiso
+                permiso={permiso}
+                onVolver={() => navigate(rutaDeEntrada(), { replace: true })}
+            />
+        );
+    }
+
+    return children;
+}
+
 RutaProtegida.propTypes = {
+    children: PropTypes.node.isRequired,
+};
+
+RutaConPermiso.propTypes = {
+    permiso: PropTypes.string.isRequired,
     children: PropTypes.node.isRequired,
 };
 
@@ -146,6 +169,16 @@ function PaginaUsuarios() {
 
 function PaginaAsignaturas() {
     return <AsignaturasAmbientes onNavigate={useNavegacionPorClave()} />;
+}
+
+function PaginaExamenes() {
+    const navegar = useNavegacionPorClave();
+
+    return (
+        <LayoutAdmin seleccionado="examenes" onNavigate={navegar}>
+            <ExamenesNormas />
+        </LayoutAdmin>
+    );
 }
 
 function PaginaBitacora() {
@@ -232,6 +265,16 @@ export default function Aplicacion() {
                     element={
                         <RutaProtegida>
                             <PaginaAsignaturas />
+                        </RutaProtegida>
+                    }
+                />
+                <Route
+                    path="/admin/examenes"
+                    element={
+                        <RutaProtegida>
+                            <RutaConPermiso permiso="examenes_normas">
+                                <PaginaExamenes />
+                            </RutaConPermiso>
                         </RutaProtegida>
                     }
                 />
