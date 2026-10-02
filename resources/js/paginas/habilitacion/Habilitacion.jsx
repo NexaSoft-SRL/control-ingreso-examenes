@@ -447,13 +447,14 @@ function Habilitacion({ onNavigate }) {
                                                     />
                                                     <DatoEstudiante
                                                         etiqueta="Registró"
-                                                        valor={estudiante.registrado_por}
-                                                    />
-                                                    <DatoEstudiante
-                                                        etiqueta="Fecha de registro"
-                                                        valor={formatearFechaRegistro(
-                                                            estudiante.fecha_habilitacion
-                                                        )}
+                                                        valor={[
+                                                            estudiante.registrado_por,
+                                                            formatearFechaRegistro(
+                                                                estudiante.fecha_habilitacion
+                                                            ),
+                                                        ]
+                                                            .filter(Boolean)
+                                                            .join(' · ')}
                                                     />
                                                     <div className="col-span-2">
                                                         <DatoEstudiante
