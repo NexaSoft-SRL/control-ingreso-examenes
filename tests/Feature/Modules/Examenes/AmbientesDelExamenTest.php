@@ -8,6 +8,7 @@ use App\Modules\Administracion\Domain\Models\Ambiente;
 use App\Modules\Examenes\Domain\Models\Asignatura;
 use App\Modules\Examenes\Domain\Models\Docente;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -16,7 +17,7 @@ final class AmbientesDelExamenTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function id(\Illuminate\Database\Eloquent\Model $modelo): int
+    private function id(Model $modelo): int
     {
         $id = $modelo->getKey();
 
