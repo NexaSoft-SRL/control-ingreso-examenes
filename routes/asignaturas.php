@@ -55,6 +55,27 @@ Route::prefix('api')
         )->name('examenes.index');
 
         Route::get(
+            '/examenes/{examen}/asignaciones',
+            [ExamenController::class, 'asignaciones']
+        )
+            ->whereNumber('examen')
+            ->name('examenes.asignaciones.index');
+
+        Route::post(
+            '/examenes/{examen}/asignaciones',
+            [ExamenController::class, 'asignarEstudiantes']
+        )
+            ->whereNumber('examen')
+            ->name('examenes.asignaciones.store');
+
+        Route::delete(
+            '/examenes/{examen}/asignaciones',
+            [ExamenController::class, 'quitarEstudiante']
+        )
+            ->whereNumber('examen')
+            ->name('examenes.asignaciones.destroy');
+
+        Route::get(
             '/examenes/{examen}/normas',
             [NormaExamenController::class, 'index']
         )

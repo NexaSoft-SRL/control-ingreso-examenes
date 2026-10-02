@@ -93,8 +93,11 @@ export default function ExamenesNormasApi() {
     }, []);
 
     React.useEffect(() => {
-        if (examenId !== null) cargarNormas(examenId);
-        else setNormas([]);
+        if (examenId !== null) {
+            cargarNormas(examenId);
+        } else {
+            setNormas([]);
+        }
     }, [examenId, cargarNormas]);
 
     async function agregar(event) {
@@ -296,169 +299,172 @@ export default function ExamenesNormasApi() {
             </div>
 
             {examen && (
-                <section
-                    aria-labelledby="normas-titulo"
-                    className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-                >
-                    <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                        <div>
-                            <h2 id="normas-titulo" className="text-lg font-bold text-slate-900">
-                                Normas del examen
-                            </h2>
-                            <p className="mt-1 text-sm text-slate-500">
-                                {examen.asignatura} · {examen.nombre} · {examen.grupoTexto}
-                            </p>
-                            <p className="mt-1 text-xs text-slate-500">
-                                Las generales aplican a todo el examen; las particulares nombran a
-                                un estudiante y explican el motivo.
-                            </p>
+                <>
+                    <section
+                        aria-labelledby="normas-titulo"
+                        className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+                    >
+                        <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                            <div>
+                                <h2 id="normas-titulo" className="text-lg font-bold text-slate-900">
+                                    Normas del examen
+                                </h2>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    {examen.asignatura} · {examen.nombre} · {examen.grupoTexto}
+                                </p>
+                                <p className="mt-1 text-xs text-slate-500">
+                                    Las generales aplican a todo el examen; las particulares nombran a
+                                    un estudiante y explican el motivo.
+                                </p>
+                            </div>
+                            <div className="flex shrink-0 items-center justify-between gap-4 sm:justify-start">
+                                <span className="text-xs font-medium text-slate-500">
+                                    {normas.length} {normas.length === 1 ? 'norma' : 'normas'}
+                                </span>
+                                <button
+                                    type="button"
+                                    className="text-sm font-medium text-slate-500 hover:text-slate-800"
+                                    onClick={() => setExamenId(null)}
+                                >
+                                    Cerrar
+                                </button>
+                            </div>
                         </div>
-                        <div className="flex shrink-0 items-center justify-between gap-4 sm:justify-start">
-                            <span className="text-xs font-medium text-slate-500">
-                                {normas.length} {normas.length === 1 ? 'norma' : 'normas'}
-                            </span>
-                            <button
-                                type="button"
-                                className="text-sm font-medium text-slate-500 hover:text-slate-800"
-                                onClick={() => setExamenId(null)}
-                            >
-                                Cerrar
-                            </button>
-                        </div>
-                    </div>
 
-                    {cargandoNormas ? (
-                        <p className="py-6 text-sm text-slate-500">Cargando normas…</p>
-                    ) : normas.length ? (
-                        <ol className="divide-y divide-slate-100">
-                            {normas.map((norma) => {
-                                const particular = norma.alcance === 'particular';
-                                return (
-                                    <li
-                                        key={norma.id}
-                                        className="flex items-start justify-between gap-4 border-b border-slate-100 py-4 last:border-b-0"
-                                    >
-                                        <div className="min-w-0">
-                                            <span
-                                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${particular ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}
+                        {cargandoNormas ? (
+                            <p className="py-6 text-sm text-slate-500">Cargando normas…</p>
+                        ) : normas.length ? (
+                            <ol className="divide-y divide-slate-100">
+                                {normas.map((norma) => {
+                                    const particular = norma.alcance === 'particular';
+                                    return (
+                                        <li
+                                            key={norma.id}
+                                            className="flex items-start justify-between gap-4 border-b border-slate-100 py-4 last:border-b-0"
+                                        >
+                                            <div className="min-w-0">
+                                                <span
+                                                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${particular ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}
+                                                >
+                                                    {particular ? 'Particular' : 'General'}
+                                                </span>
+                                                <p className="mt-2 text-sm font-medium text-slate-800">
+                                                    {norma.texto}
+                                                </p>
+                                                {particular && (
+                                                    <>
+                                                        <p className="mt-1 text-xs text-slate-600">
+                                                            {norma.estudianteTexto} ·{' '}
+                                                            {norma.estudiante_codigo}
+                                                        </p>
+                                                        <p className="mt-1 text-xs text-slate-500">
+                                                            Motivo: {norma.motivo}
+                                                        </p>
+                                                    </>
+                                                )}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                disabled={quitandoId === norma.id}
+                                                className="shrink-0 text-xs font-semibold text-red-600 disabled:opacity-50"
+                                                onClick={() => quitar(norma.id)}
                                             >
-                                                {particular ? 'Particular' : 'General'}
-                                            </span>
-                                            <p className="mt-2 text-sm font-medium text-slate-800">
-                                                {norma.texto}
-                                            </p>
-                                            {particular && (
-                                                <>
-                                                    <p className="mt-1 text-xs text-slate-600">
-                                                        {norma.estudianteTexto} ·{' '}
-                                                        {norma.estudiante_codigo}
-                                                    </p>
-                                                    <p className="mt-1 text-xs text-slate-500">
-                                                        Motivo: {norma.motivo}
-                                                    </p>
-                                                </>
+                                                {quitandoId === norma.id ? 'Quitando…' : 'Quitar'}
+                                            </button>
+                                        </li>
+                                    );
+                                })}
+                            </ol>
+                        ) : (
+                            <p className="py-6 text-sm text-slate-500">
+                                Este examen todavía no tiene normas registradas.
+                            </p>
+                        )}
+
+                        <form
+                            className="mt-4 border-t border-slate-100 pt-4"
+                            onSubmit={agregar}
+                            noValidate
+                        >
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <label className="block text-xs font-semibold text-slate-600">
+                                    Alcance
+                                    <select
+                                        value={alcance}
+                                        onChange={(event) => {
+                                            setAlcance(event.target.value);
+                                            setErrores({});
+                                            setMensaje('');
+                                        }}
+                                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"
+                                    >
+                                        <option value="general">General</option>
+                                        <option value="particular">Particular</option>
+                                    </select>
+                                </label>
+                                <label className="block text-xs font-semibold text-slate-600">
+                                    Norma
+                                    <input
+                                        value={texto}
+                                        aria-invalid={Boolean(errores.texto)}
+                                        onChange={(event) => setTexto(event.target.value)}
+                                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"
+                                    />
+                                    {errores.texto && (
+                                        <span className="mt-1 block text-red-600">{errores.texto}</span>
+                                    )}
+                                </label>
+                                {alcance === 'particular' && (
+                                    <>
+                                        <div className="min-w-0 text-xs font-semibold text-slate-600">
+                                            <label htmlFor="norma-estudiante">Estudiante</label>
+                                            <SelectorEstudiante
+                                                id="norma-estudiante"
+                                                estudiantes={estudiantes}
+                                                value={estudianteId}
+                                                onChange={setEstudianteId}
+                                                invalid={Boolean(errores.estudiante)}
+                                            />
+                                            {errores.estudiante && (
+                                                <span className="mt-1 block text-red-600">
+                                                    {errores.estudiante}
+                                                </span>
                                             )}
                                         </div>
-                                        <button
-                                            type="button"
-                                            disabled={quitandoId === norma.id}
-                                            className="shrink-0 text-xs font-semibold text-red-600 disabled:opacity-50"
-                                            onClick={() => quitar(norma.id)}
-                                        >
-                                            {quitandoId === norma.id ? 'Quitando…' : 'Quitar'}
-                                        </button>
-                                    </li>
-                                );
-                            })}
-                        </ol>
-                    ) : (
-                        <p className="py-6 text-sm text-slate-500">
-                            Este examen todavía no tiene normas registradas.
-                        </p>
-                    )}
-
-                    <form
-                        className="mt-4 border-t border-slate-100 pt-4"
-                        onSubmit={agregar}
-                        noValidate
-                    >
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <label className="block text-xs font-semibold text-slate-600">
-                                Alcance
-                                <select
-                                    value={alcance}
-                                    onChange={(event) => {
-                                        setAlcance(event.target.value);
-                                        setErrores({});
-                                        setMensaje('');
-                                    }}
-                                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"
-                                >
-                                    <option value="general">General</option>
-                                    <option value="particular">Particular</option>
-                                </select>
-                            </label>
-                            <label className="block text-xs font-semibold text-slate-600">
-                                Norma
-                                <input
-                                    value={texto}
-                                    aria-invalid={Boolean(errores.texto)}
-                                    onChange={(event) => setTexto(event.target.value)}
-                                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"
-                                />
-                                {errores.texto && (
-                                    <span className="mt-1 block text-red-600">{errores.texto}</span>
+                                        <label className="block text-xs font-semibold text-slate-600 md:col-span-2">
+                                            Motivo
+                                            <textarea
+                                                rows="2"
+                                                value={motivo}
+                                                aria-invalid={Boolean(errores.motivo)}
+                                                onChange={(event) => setMotivo(event.target.value)}
+                                                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"
+                                            />
+                                            {errores.motivo && (
+                                                <span className="mt-1 block text-red-600">
+                                                    {errores.motivo}
+                                                </span>
+                                            )}
+                                        </label>
+                                    </>
                                 )}
-                            </label>
-                            {alcance === 'particular' && (
-                                <>
-                                    <div className="min-w-0 text-xs font-semibold text-slate-600">
-                                        <label htmlFor="norma-estudiante">Estudiante</label>
-                                        <SelectorEstudiante
-                                            id="norma-estudiante"
-                                            estudiantes={estudiantes}
-                                            value={estudianteId}
-                                            onChange={setEstudianteId}
-                                            invalid={Boolean(errores.estudiante)}
-                                        />
-                                        {errores.estudiante && (
-                                            <span className="mt-1 block text-red-600">
-                                                {errores.estudiante}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <label className="block text-xs font-semibold text-slate-600 md:col-span-2">
-                                        Motivo
-                                        <textarea
-                                            rows="2"
-                                            value={motivo}
-                                            aria-invalid={Boolean(errores.motivo)}
-                                            onChange={(event) => setMotivo(event.target.value)}
-                                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"
-                                        />
-                                        {errores.motivo && (
-                                            <span className="mt-1 block text-red-600">
-                                                {errores.motivo}
-                                            </span>
-                                        )}
-                                    </label>
-                                </>
-                            )}
-                        </div>
-                        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                            <p role="status" className="break-words text-xs text-emerald-700">
-                                {mensaje}
-                            </p>
-                            <button
-                                type="submit"
-                                disabled={guardando}
-                                className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto"
-                            >
-                                {guardando ? 'Guardando…' : 'Agregar norma'}
-                            </button>
-                        </div>
-                    </form>
-                </section>
+                            </div>
+                            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                                <p role="status" className="break-words text-xs text-emerald-700">
+                                    {mensaje}
+                                </p>
+                                <button
+                                    type="submit"
+                                    disabled={guardando}
+                                    className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto"
+                                >
+                                    {guardando ? 'Guardando…' : 'Agregar norma'}
+                                </button>
+                            </div>
+                        </form>
+                    </section>
+
+                </>
             )}
         </section>
     );
