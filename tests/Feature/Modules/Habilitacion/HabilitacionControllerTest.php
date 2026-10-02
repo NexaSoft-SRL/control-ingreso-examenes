@@ -78,6 +78,74 @@ final class HabilitacionControllerTest extends TestCase
             ->assertJsonPath('data.0.registrado_por', $usuario->nombre);
     }
 
+    public function test_the_reason_is_mandatory_when_disabling_a_student(): void
+    {
+        $usuario = UserFactory::new()->createOne();
+        $examen = $this->crearExamen();
+        $estudiante = StudentFactory::new()->create();
+        $url = "/api/habilitacion/examenes/{$examen}/condiciones";
+
+        $this->actingAs($usuario)
+            ->postJson($url, [
+                'estudiante_ids' => [$estudiante->getKey()],
+                'condicion' => 'NO_HABILITADO',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.motivo.0', 'El motivo es obligatorio para inhabilitar.');
+
+        $this->actingAs($usuario)
+            ->postJson($url, [
+                'estudiante_ids' => [$estudiante->getKey()],
+                'condicion' => 'NO_HABILITADO',
+                'motivo' => '     ',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('motivo');
+
+        $this->actingAs($usuario)
+            ->postJson($url, [
+                'estudiante_ids' => [$estudiante->getKey()],
+                'condicion' => 'NO_HABILITADO',
+                'motivo' => 'no',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath(
+                'errors.motivo.0',
+                'El motivo debe explicar la inhabilitación con al menos 5 caracteres.',
+            );
+
+        $this->assertDatabaseCount('habilitaciones_examen', 0);
+        $this->assertDatabaseCount('bitacora_operaciones', 0);
+    }
+
+    public function test_the_reason_is_cleared_when_the_student_is_enabled_again(): void
+    {
+        $usuario = UserFactory::new()->createOne();
+        $examen = $this->crearExamen();
+        $estudiante = StudentFactory::new()->create();
+        $url = "/api/habilitacion/examenes/{$examen}/condiciones";
+
+        $this->actingAs($usuario)->postJson($url, [
+            'estudiante_ids' => [$estudiante->getKey()],
+            'condicion' => 'NO_HABILITADO',
+            'motivo' => 'Adeuda la matrícula del semestre',
+        ])->assertOk();
+
+        // Aunque el cliente reenvíe el motivo anterior, al habilitar no se guarda.
+        $this->actingAs($usuario)->postJson($url, [
+            'estudiante_ids' => [$estudiante->getKey()],
+            'condicion' => 'HABILITADO',
+            'motivo' => 'Adeuda la matrícula del semestre',
+        ])->assertOk()->assertJsonPath('data.0.motivo', null);
+
+        $this->assertDatabaseHas('habilitaciones_examen', [
+            'examen_id' => $examen,
+            'estudiante_id' => $estudiante->getKey(),
+            'estado' => 'HABILITADO',
+            'motivo' => null,
+        ]);
+    }
+
     public function test_it_rejects_missing_students_and_reports_unknown_exams(): void
     {
         $usuario = UserFactory::new()->createOne();

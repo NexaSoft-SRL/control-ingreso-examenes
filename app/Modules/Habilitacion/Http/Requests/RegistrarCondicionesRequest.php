@@ -26,7 +26,7 @@ final class RegistrarCondicionesRequest extends FormRequest
                 Rule::exists('students', 'id')->where('activo', true),
             ],
             'condicion' => ['required', 'in:HABILITADO,NO_HABILITADO'],
-            'motivo' => ['nullable', 'required_if:condicion,NO_HABILITADO', 'string', 'max:1000'],
+            'motivo' => ['nullable', 'required_if:condicion,NO_HABILITADO', 'string', 'min:5', 'max:1000'],
         ];
     }
 
@@ -38,6 +38,8 @@ final class RegistrarCondicionesRequest extends FormRequest
             'estudiante_ids.*.exists' => 'El estudiante indicado debe existir y estar activo en el padrón.',
             'condicion.in' => 'La condición debe ser HABILITADO o NO_HABILITADO.',
             'motivo.required_if' => 'El motivo es obligatorio para inhabilitar.',
+            'motivo.min' => 'El motivo debe explicar la inhabilitación con al menos 5 caracteres.',
+            'motivo.max' => 'El motivo no puede superar los 1000 caracteres.',
         ];
     }
 
@@ -50,7 +52,11 @@ final class RegistrarCondicionesRequest extends FormRequest
         return [
             'estudiante_ids' => array_map(static fn (int|string $id): int => (int) $id, $data['estudiante_ids']),
             'condicion' => $data['condicion'],
-            'motivo' => isset($data['motivo']) ? trim($data['motivo']) : null,
+            // HU-12: el motivo explica una inhabilitación. Al habilitar se
+            // descarta, para que no quede una explicación que ya no aplica.
+            'motivo' => $data['condicion'] === 'NO_HABILITADO' && isset($data['motivo'])
+                ? trim($data['motivo'])
+                : null,
         ];
     }
 }
