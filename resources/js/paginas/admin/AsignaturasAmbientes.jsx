@@ -55,10 +55,23 @@ function AsignaturasAmbientes({ onNavigate }) {
     const [docentes, setDocentes] = React.useState([]);
     const [aviso, setAviso] = React.useState(null);
 
+    const [examenesAsignacion, setExamenesAsignacion] = React.useState([]);
+    const [examenAsignacionId, setExamenAsignacionId] = React.useState('');
+    const [ambienteAsignacionId, setAmbienteAsignacionId] = React.useState('');
+    const [ambientesAsignacion, setAmbientesAsignacion] = React.useState([]);
+    const [candidatosAsignacion, setCandidatosAsignacion] = React.useState([]);
+    const [seleccionadosAsignacion, setSeleccionadosAsignacion] = React.useState([]);
+    const [cargandoAsignacion, setCargandoAsignacion] = React.useState(false);
+    const [guardandoAsignacion, setGuardandoAsignacion] = React.useState(false);
+    const [quitandoAsignacionId, setQuitandoAsignacionId] = React.useState(null);
+    const [mensajeAsignacion, setMensajeAsignacion] = React.useState('');
+    const [errorAsignacion, setErrorAsignacion] = React.useState('');
+
     React.useEffect(() => {
         cargarAsignaturas();
         cargarAmbientes();
         cargarDocentes();
+        cargarExamenesAsignacion();
     }, []);
 
     function avisar(texto, tipo = 'error') {
@@ -96,6 +109,161 @@ function AsignaturasAmbientes({ onNavigate }) {
             setDocentes(respuesta.data.data ?? []);
         } catch (error) {
             console.error('Error cargando docentes:', error);
+        }
+    }
+
+    async function cargarExamenesAsignacion() {
+        try {
+            const respuesta = await window.axios.get('/api/examenes');
+            const lista = respuesta.data.data ?? [];
+            setExamenesAsignacion(lista);
+
+            if (lista.length > 0) {
+                setExamenAsignacionId(String(lista[0].id));
+            } else {
+                setExamenAsignacionId('');
+                setAmbientesAsignacion([]);
+                setCandidatosAsignacion([]);
+                setSeleccionadosAsignacion([]);
+            }
+        } catch (error) {
+            console.error('Error cargando exámenes para asignación:', error);
+            setExamenesAsignacion([]);
+            setExamenAsignacionId('');
+            setAmbientesAsignacion([]);
+            setCandidatosAsignacion([]);
+            setSeleccionadosAsignacion([]);
+        }
+    }
+
+    const examenAsignacionSeleccionado =
+        examenesAsignacion.find((examen) => String(examen.id) === String(examenAsignacionId)) ?? null;
+
+    const ambienteAsignacionSeleccionado =
+        ambientesAsignacion.find(
+            (ambiente) => String(ambiente.id) === String(ambienteAsignacionId)
+        ) ?? null;
+
+    const cargarAsignaciones = React.useCallback(async (id) => {
+        if (!id) {
+            setAmbientesAsignacion([]);
+            setCandidatosAsignacion([]);
+            setSeleccionadosAsignacion([]);
+            return;
+        }
+
+        setCargandoAsignacion(true);
+        setErrorAsignacion('');
+        setMensajeAsignacion('');
+
+        try {
+            const respuesta = await window.axios.get(`/api/examenes/${id}/asignaciones`);
+            const datos = respuesta.data.data ?? {};
+            const listaAmbientes = datos.ambientes ?? [];
+
+            setAmbientesAsignacion(listaAmbientes);
+            setAmbienteAsignacionId(
+                listaAmbientes[0]?.id ? String(listaAmbientes[0].id) : ''
+            );
+            setCandidatosAsignacion(datos.candidatos ?? []);
+            setSeleccionadosAsignacion([]);
+        } catch (error) {
+            console.error('Error cargando asignaciones de ambiente:', error);
+            setAmbientesAsignacion([]);
+            setAmbienteAsignacionId('');
+            setCandidatosAsignacion([]);
+            setSeleccionadosAsignacion([]);
+            setErrorAsignacion(mensajeDeError(error, 'No se pudieron cargar las asignaciones.'));
+        } finally {
+            setCargandoAsignacion(false);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        if (examenAsignacionId) {
+            cargarAsignaciones(examenAsignacionId);
+        } else {
+            setAmbientesAsignacion([]);
+            setCandidatosAsignacion([]);
+            setSeleccionadosAsignacion([]);
+        }
+    }, [examenAsignacionId, cargarAsignaciones]);
+
+    function cambiarSeleccionAsignacion(estudianteId) {
+        setSeleccionadosAsignacion((prev) =>
+            prev.includes(estudianteId)
+                ? prev.filter((id) => id !== estudianteId)
+                : [...prev, estudianteId]
+        );
+    }
+
+    async function guardarAsignacion() {
+        if (!examenAsignacionId) {
+            setErrorAsignacion('Selecciona un examen para asignar estudiantes.');
+            return;
+        }
+
+        if (!ambientesAsignacion.length) {
+            setErrorAsignacion('No hay ambientes disponibles para este examen.');
+            return;
+        }
+
+        const ambienteSeleccionado = ambienteAsignacionSeleccionado;
+
+        if (!ambienteSeleccionado) {
+            setErrorAsignacion('Selecciona un ambiente válido.');
+            return;
+        }
+
+        if (seleccionadosAsignacion.length === 0) {
+            setErrorAsignacion('Selecciona al menos un estudiante habilitado.');
+            return;
+        }
+
+        setGuardandoAsignacion(true);
+        setErrorAsignacion('');
+        setMensajeAsignacion('');
+
+        try {
+            const respuesta = await window.axios.post(`/api/examenes/${examenAsignacionId}/asignaciones`, {
+                ambiente_id: Number(ambienteSeleccionado.id),
+                estudiante_ids: seleccionadosAsignacion,
+            });
+
+            setMensajeAsignacion(respuesta.data.message ?? 'Estudiantes asignados.');
+            setSeleccionadosAsignacion([]);
+            await cargarAsignaciones(examenAsignacionId);
+        } catch (error) {
+            setErrorAsignacion(mensajeDeError(error, 'No se pudo guardar la asignación.'));
+        } finally {
+            setGuardandoAsignacion(false);
+        }
+    }
+
+    async function quitarAsignacion(estudianteId) {
+        if (!examenAsignacionId || !ambienteAsignacionId) {
+            setErrorAsignacion('Selecciona un examen y un ambiente antes de quitar al estudiante.');
+            return;
+        }
+
+        setQuitandoAsignacionId(estudianteId);
+        setErrorAsignacion('');
+        setMensajeAsignacion('');
+
+        try {
+            const respuesta = await window.axios.delete(`/api/examenes/${examenAsignacionId}/asignaciones`, {
+                data: {
+                    ambiente_id: Number(ambienteAsignacionId),
+                    estudiante_id: Number(estudianteId),
+                },
+            });
+
+            setMensajeAsignacion(respuesta.data.message ?? 'Estudiante quitado del ambiente.');
+            await cargarAsignaciones(examenAsignacionId);
+        } catch (error) {
+            setErrorAsignacion(mensajeDeError(error, 'No se pudo quitar al estudiante.'));
+        } finally {
+            setQuitandoAsignacionId(null);
         }
     }
 
@@ -615,6 +783,218 @@ function AsignaturasAmbientes({ onNavigate }) {
                                 </div>
                             </div>
                         ))}
+                    </div>
+
+                    <div className="mt-8 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                            <div>
+                                <h2 className="text-[18px] font-bold text-slate-800">
+                                    Asignación de estudiantes a ambientes
+                                </h2>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    Seleccione el examen y el ambiente para asignar a los estudiantes habilitados.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
+                                    {candidatosAsignacion.length} habilitados pendientes
+                                </span>
+                            </div>
+                        </div>
+
+                        {examenesAsignacion.length === 0 ? (
+                            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                                No hay exámenes registrados para asignar estudiantes a ambientes.
+                            </div>
+                        ) : (
+                            <>
+                                <div className="mb-5 grid gap-4 md:grid-cols-2">
+                                    <label className="block text-sm font-medium text-slate-700">
+                                        Examen
+                                        <select
+                                            value={examenAsignacionId}
+                                            onChange={(event) => setExamenAsignacionId(event.target.value)}
+                                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                        >
+                                            {examenesAsignacion.map((examen) => (
+                                                <option key={examen.id} value={examen.id}>
+                                                    {examen.grupo?.asignatura?.nombre ?? 'Asignatura'} · {examen.grupo?.codigo_grupo ?? 'Grupo'}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
+
+                                    <label className="block text-sm font-medium text-slate-700">
+                                        Ambiente
+                                        <div className="mt-1 flex items-center gap-2">
+                                            <select
+                                                value={ambienteAsignacionId}
+                                                onChange={(event) => {
+                                                    setAmbienteAsignacionId(event.target.value);
+                                                    setMensajeAsignacion('');
+                                                    setErrorAsignacion('');
+                                                }}
+                                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                            >
+                                                {ambientesAsignacion.length === 0 ? (
+                                                    <option value="">Sin ambientes disponibles</option>
+                                                ) : (
+                                                    ambientesAsignacion.map((ambiente) => (
+                                                        <option key={ambiente.id} value={ambiente.id}>
+                                                            {ambiente.nombre}
+                                                        </option>
+                                                    ))
+                                                )}
+                                            </select>
+                                            {ambienteAsignacionSeleccionado && (
+                                                <span className="whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                                                    Capacidad: {ambienteAsignacionSeleccionado.disponible ?? 0} | Asignados: {ambienteAsignacionSeleccionado.ocupados ?? 0}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <h3 className="text-base font-bold text-slate-800">
+                                            Estudiantes habilitados
+                                        </h3>
+                                        <span className="text-xs text-slate-500">
+                                            {seleccionadosAsignacion.length} seleccionados
+                                        </span>
+                                    </div>
+
+                                    <div className="mb-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                        <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4 text-slate-400" aria-hidden="true">
+                                            <path d="M13.5 13.5L17 17M8.75 14.5a5.75 5.75 0 1 1 0-11.5 5.75 5.75 0 0 1 0 11.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar por código o nombre"
+                                            className="w-full border-0 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                                        />
+                                    </div>
+
+                                    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                                        <div className="grid grid-cols-[52px_1.1fr_1.4fr_0.8fr] items-center gap-3 border-b border-slate-200 bg-slate-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                            <span className="flex justify-center">
+                                                <input
+                                                    type="checkbox"
+                                                    className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                                                    readOnly
+                                                    checked={false}
+                                                    aria-label="Seleccionar todos"
+                                                />
+                                            </span>
+                                            <span>Código universitario</span>
+                                            <span>Nombre completo</span>
+                                            <span>Estado</span>
+                                        </div>
+
+                                        {cargandoAsignacion ? (
+                                            <div className="px-4 py-6 text-sm text-slate-500">Cargando asignaciones…</div>
+                                        ) : candidatosAsignacion.length === 0 ? (
+                                            <div className="px-4 py-6 text-sm text-slate-500">
+                                                No hay estudiantes habilitados pendientes para este examen.
+                                            </div>
+                                        ) : (
+                                            candidatosAsignacion.map((estudiante) => (
+                                                <div
+                                                    key={estudiante.id}
+                                                    className="grid grid-cols-[52px_1.1fr_1.4fr_0.8fr] items-center gap-3 border-b border-slate-100 px-3 py-3 last:border-b-0"
+                                                >
+                                                    <div className="flex justify-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={seleccionadosAsignacion.includes(estudiante.id)}
+                                                            onChange={() => cambiarSeleccionAsignacion(estudiante.id)}
+                                                            className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                                                        />
+                                                    </div>
+                                                    <div className="text-sm font-medium text-slate-700">
+                                                        {estudiante.codigo_universitario ?? '—'}
+                                                    </div>
+                                                    <div className="text-sm text-slate-700">
+                                                        {estudiante.apellido}, {estudiante.nombre}
+                                                    </div>
+                                                    <div>
+                                                        <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                                            Habilitado
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={guardarAsignacion}
+                                        disabled={guardandoAsignacion || ambientesAsignacion.length === 0 || seleccionadosAsignacion.length === 0}
+                                        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden="true">
+                                            <path d="M7.5 10.5 9.2 12.2 13 8.5M10 2.5a7.5 7.5 0 1 1 0 15 7.5 7.5 0 0 1 0-15Z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                        {guardandoAsignacion ? 'Asignando…' : 'Asignar estudiantes'}
+                                    </button>
+
+                                    {(errorAsignacion || mensajeAsignacion) && (
+                                        <p
+                                            role={errorAsignacion ? 'alert' : 'status'}
+                                            className={`mt-4 rounded-lg px-3 py-2 text-sm ${
+                                                errorAsignacion
+                                                    ? 'bg-red-50 text-red-700'
+                                                    : 'bg-emerald-50 text-emerald-800'
+                                            }`}
+                                        >
+                                            {errorAsignacion || mensajeAsignacion}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+                                    <h3 className="mb-3 text-base font-bold text-slate-800">
+                                        Estudiantes asignados al ambiente
+                                    </h3>
+
+                                    <div className="overflow-hidden rounded-lg border border-slate-200">
+                                        <div className="grid grid-cols-[1.1fr_1.6fr_1.1fr_auto] gap-3 bg-slate-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                            <span>Código universitario</span>
+                                            <span>Nombre completo</span>
+                                            <span>Fecha de asignación</span>
+                                            <span>Acciones</span>
+                                        </div>
+
+                                        {ambienteAsignacionSeleccionado?.estudiantes?.length ? (
+                                            ambienteAsignacionSeleccionado.estudiantes.map((estudiante) => (
+                                                <div
+                                                    key={estudiante.id}
+                                                    className="grid grid-cols-[1.1fr_1.6fr_1.1fr_auto] items-center gap-3 border-t border-slate-200 px-3 py-3 text-sm text-slate-700"
+                                                >
+                                                    <span>{estudiante.codigo_universitario ?? '—'}</span>
+                                                    <span>{estudiante.apellido}, {estudiante.nombre}</span>
+                                                    <span>12/09/2025 10:24</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => quitarAsignacion(estudiante.id)}
+                                                        disabled={quitandoAsignacionId === estudiante.id}
+                                                        className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                                    >
+                                                        {quitandoAsignacionId === estudiante.id ? 'Quitando...' : 'Quitar'}
+                                                    </button>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="px-4 py-6 text-sm text-slate-500">
+                                                Aún no hay estudiantes asignados a este ambiente.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </section>
             </main>
