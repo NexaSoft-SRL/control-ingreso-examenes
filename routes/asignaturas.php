@@ -55,6 +55,27 @@ Route::prefix('api')
             [ExamenController::class, 'index']
         )->name('examenes.index');
 
+        // --- NUEVAS RUTAS HU-08 ---
+        Route::post(
+            '/examenes',
+            [ExamenController::class, 'store']
+        )->name('examenes.store');
+
+        Route::put(
+            '/examenes/{examen}',
+            [ExamenController::class, 'update']
+        )
+            ->whereNumber('examen')
+            ->name('examenes.update');
+
+        Route::delete(
+            '/examenes/{examen}',
+            [ExamenController::class, 'destroy']
+        )
+            ->whereNumber('examen')
+            ->name('examenes.destroy');
+        // --------------------------
+
         Route::get(
             '/examenes/{examen}/asignaciones',
             [ExamenController::class, 'asignaciones']
