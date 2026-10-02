@@ -313,8 +313,8 @@ export default function ExamenesNormasApi() {
                                     {examen.asignatura} · {examen.nombre} · {examen.grupoTexto}
                                 </p>
                                 <p className="mt-1 text-xs text-slate-500">
-                                    Las generales aplican a todo el examen; las particulares nombran a
-                                    un estudiante y explican el motivo.
+                                    Las generales aplican a todo el examen; las particulares nombran
+                                    a un estudiante y explican el motivo.
                                 </p>
                             </div>
                             <div className="flex shrink-0 items-center justify-between gap-4 sm:justify-start">
@@ -411,7 +411,9 @@ export default function ExamenesNormasApi() {
                                         className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"
                                     />
                                     {errores.texto && (
-                                        <span className="mt-1 block text-red-600">{errores.texto}</span>
+                                        <span className="mt-1 block text-red-600">
+                                            {errores.texto}
+                                        </span>
                                     )}
                                 </label>
                                 {alcance === 'particular' && (
@@ -463,7 +465,6 @@ export default function ExamenesNormasApi() {
                             </div>
                         </form>
                     </section>
-
                 </>
             )}
         </section>

@@ -159,9 +159,7 @@ function AsignaturasAmbientes({ onNavigate }) {
             const listaAmbientes = datos.ambientes ?? [];
 
             setAmbientesAsignacion(listaAmbientes);
-            setAmbienteAsignacionId(
-                listaAmbientes[0]?.id ? String(listaAmbientes[0].id) : ''
-            );
+            setAmbienteAsignacionId(listaAmbientes[0]?.id ? String(listaAmbientes[0].id) : '');
             setCandidatosAsignacion(datos.candidatos ?? []);
             setSeleccionadosAsignacion([]);
         } catch (error) {
@@ -222,10 +220,13 @@ function AsignaturasAmbientes({ onNavigate }) {
         setMensajeAsignacion('');
 
         try {
-            const respuesta = await window.axios.post(`/api/examenes/${examenAsignacionId}/asignaciones`, {
-                ambiente_id: Number(ambienteSeleccionado.id),
-                estudiante_ids: seleccionadosAsignacion,
-            });
+            const respuesta = await window.axios.post(
+                `/api/examenes/${examenAsignacionId}/asignaciones`,
+                {
+                    ambiente_id: Number(ambienteSeleccionado.id),
+                    estudiante_ids: seleccionadosAsignacion,
+                }
+            );
 
             setMensajeAsignacion(respuesta.data.message ?? 'Estudiantes asignados.');
             setSeleccionadosAsignacion([]);
@@ -248,12 +249,15 @@ function AsignaturasAmbientes({ onNavigate }) {
         setMensajeAsignacion('');
 
         try {
-            const respuesta = await window.axios.delete(`/api/examenes/${examenAsignacionId}/asignaciones`, {
-                data: {
-                    ambiente_id: Number(ambienteAsignacionId),
-                    estudiante_id: Number(estudianteId),
-                },
-            });
+            const respuesta = await window.axios.delete(
+                `/api/examenes/${examenAsignacionId}/asignaciones`,
+                {
+                    data: {
+                        ambiente_id: Number(ambienteAsignacionId),
+                        estudiante_id: Number(estudianteId),
+                    },
+                }
+            );
 
             setMensajeAsignacion(respuesta.data.message ?? 'Estudiante quitado del ambiente.');
             await cargarAsignaciones(examenAsignacionId);
@@ -789,7 +793,8 @@ function AsignaturasAmbientes({ onNavigate }) {
                                     Asignación de estudiantes a ambientes
                                 </h2>
                                 <p className="mt-1 text-sm text-slate-500">
-                                    Seleccione el examen y el ambiente para asignar a los estudiantes habilitados.
+                                    Seleccione el examen y el ambiente para asignar a los
+                                    estudiantes habilitados.
                                 </p>
                             </div>
                             <div className="flex items-center gap-3">
@@ -810,12 +815,16 @@ function AsignaturasAmbientes({ onNavigate }) {
                                         Examen
                                         <select
                                             value={examenAsignacionId}
-                                            onChange={(event) => setExamenAsignacionId(event.target.value)}
+                                            onChange={(event) =>
+                                                setExamenAsignacionId(event.target.value)
+                                            }
                                             className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                         >
                                             {examenesAsignacion.map((examen) => (
                                                 <option key={examen.id} value={examen.id}>
-                                                    {examen.grupo?.asignatura?.nombre ?? 'Asignatura'} · {examen.grupo?.codigo_grupo ?? 'Grupo'}
+                                                    {examen.grupo?.asignatura?.nombre ??
+                                                        'Asignatura'}{' '}
+                                                    · {examen.grupo?.codigo_grupo ?? 'Grupo'}
                                                 </option>
                                             ))}
                                         </select>
@@ -834,10 +843,15 @@ function AsignaturasAmbientes({ onNavigate }) {
                                                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                             >
                                                 {ambientesAsignacion.length === 0 ? (
-                                                    <option value="">Sin ambientes disponibles</option>
+                                                    <option value="">
+                                                        Sin ambientes disponibles
+                                                    </option>
                                                 ) : (
                                                     ambientesAsignacion.map((ambiente) => (
-                                                        <option key={ambiente.id} value={ambiente.id}>
+                                                        <option
+                                                            key={ambiente.id}
+                                                            value={ambiente.id}
+                                                        >
                                                             {ambiente.nombre}
                                                         </option>
                                                     ))
@@ -845,7 +859,10 @@ function AsignaturasAmbientes({ onNavigate }) {
                                             </select>
                                             {ambienteAsignacionSeleccionado && (
                                                 <span className="whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                                                    Capacidad: {ambienteAsignacionSeleccionado.disponible ?? 0} | Asignados: {ambienteAsignacionSeleccionado.ocupados ?? 0}
+                                                    Capacidad:{' '}
+                                                    {ambienteAsignacionSeleccionado.disponible ?? 0}{' '}
+                                                    | Asignados:{' '}
+                                                    {ambienteAsignacionSeleccionado.ocupados ?? 0}
                                                 </span>
                                             )}
                                         </div>
@@ -863,8 +880,19 @@ function AsignaturasAmbientes({ onNavigate }) {
                                     </div>
 
                                     <div className="mb-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                                        <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4 text-slate-400" aria-hidden="true">
-                                            <path d="M13.5 13.5L17 17M8.75 14.5a5.75 5.75 0 1 1 0-11.5 5.75 5.75 0 0 1 0 11.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                                        <svg
+                                            viewBox="0 0 20 20"
+                                            fill="none"
+                                            className="h-4 w-4 text-slate-400"
+                                            aria-hidden="true"
+                                        >
+                                            <path
+                                                d="M13.5 13.5L17 17M8.75 14.5a5.75 5.75 0 1 1 0-11.5 5.75 5.75 0 0 1 0 11.5Z"
+                                                stroke="currentColor"
+                                                strokeWidth="1.6"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            />
                                         </svg>
                                         <input
                                             type="text"
@@ -890,10 +918,13 @@ function AsignaturasAmbientes({ onNavigate }) {
                                         </div>
 
                                         {cargandoAsignacion ? (
-                                            <div className="px-4 py-6 text-sm text-slate-500">Cargando asignaciones…</div>
+                                            <div className="px-4 py-6 text-sm text-slate-500">
+                                                Cargando asignaciones…
+                                            </div>
                                         ) : candidatosAsignacion.length === 0 ? (
                                             <div className="px-4 py-6 text-sm text-slate-500">
-                                                No hay estudiantes habilitados pendientes para este examen.
+                                                No hay estudiantes habilitados pendientes para este
+                                                examen.
                                             </div>
                                         ) : (
                                             candidatosAsignacion.map((estudiante) => (
@@ -904,8 +935,14 @@ function AsignaturasAmbientes({ onNavigate }) {
                                                     <div className="flex justify-center">
                                                         <input
                                                             type="checkbox"
-                                                            checked={seleccionadosAsignacion.includes(estudiante.id)}
-                                                            onChange={() => cambiarSeleccionAsignacion(estudiante.id)}
+                                                            checked={seleccionadosAsignacion.includes(
+                                                                estudiante.id
+                                                            )}
+                                                            onChange={() =>
+                                                                cambiarSeleccionAsignacion(
+                                                                    estudiante.id
+                                                                )
+                                                            }
                                                             className="h-4 w-4 rounded border-slate-300 text-blue-600"
                                                         />
                                                     </div>
@@ -928,11 +965,26 @@ function AsignaturasAmbientes({ onNavigate }) {
                                     <button
                                         type="button"
                                         onClick={guardarAsignacion}
-                                        disabled={guardandoAsignacion || ambientesAsignacion.length === 0 || seleccionadosAsignacion.length === 0}
+                                        disabled={
+                                            guardandoAsignacion ||
+                                            ambientesAsignacion.length === 0 ||
+                                            seleccionadosAsignacion.length === 0
+                                        }
                                         className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
-                                        <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden="true">
-                                            <path d="M7.5 10.5 9.2 12.2 13 8.5M10 2.5a7.5 7.5 0 1 1 0 15 7.5 7.5 0 0 1 0-15Z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+                                        <svg
+                                            viewBox="0 0 20 20"
+                                            fill="none"
+                                            className="h-4 w-4"
+                                            aria-hidden="true"
+                                        >
+                                            <path
+                                                d="M7.5 10.5 9.2 12.2 13 8.5M10 2.5a7.5 7.5 0 1 1 0 15 7.5 7.5 0 0 1 0-15Z"
+                                                stroke="currentColor"
+                                                strokeWidth="1.7"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            />
                                         </svg>
                                         {guardandoAsignacion ? 'Asignando…' : 'Asignar estudiantes'}
                                     </button>
@@ -965,24 +1017,38 @@ function AsignaturasAmbientes({ onNavigate }) {
                                         </div>
 
                                         {ambienteAsignacionSeleccionado?.estudiantes?.length ? (
-                                            ambienteAsignacionSeleccionado.estudiantes.map((estudiante) => (
-                                                <div
-                                                    key={estudiante.id}
-                                                    className="grid grid-cols-[1.1fr_1.6fr_1.1fr_auto] items-center gap-3 border-t border-slate-200 px-3 py-3 text-sm text-slate-700"
-                                                >
-                                                    <span>{estudiante.codigo_universitario ?? '—'}</span>
-                                                    <span>{estudiante.apellido}, {estudiante.nombre}</span>
-                                                    <span>12/09/2025 10:24</span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => quitarAsignacion(estudiante.id)}
-                                                        disabled={quitandoAsignacionId === estudiante.id}
-                                                        className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                            ambienteAsignacionSeleccionado.estudiantes.map(
+                                                (estudiante) => (
+                                                    <div
+                                                        key={estudiante.id}
+                                                        className="grid grid-cols-[1.1fr_1.6fr_1.1fr_auto] items-center gap-3 border-t border-slate-200 px-3 py-3 text-sm text-slate-700"
                                                     >
-                                                        {quitandoAsignacionId === estudiante.id ? 'Quitando...' : 'Quitar'}
-                                                    </button>
-                                                </div>
-                                            ))
+                                                        <span>
+                                                            {estudiante.codigo_universitario ?? '—'}
+                                                        </span>
+                                                        <span>
+                                                            {estudiante.apellido},{' '}
+                                                            {estudiante.nombre}
+                                                        </span>
+                                                        <span>12/09/2025 10:24</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                quitarAsignacion(estudiante.id)
+                                                            }
+                                                            disabled={
+                                                                quitandoAsignacionId ===
+                                                                estudiante.id
+                                                            }
+                                                            className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                                        >
+                                                            {quitandoAsignacionId === estudiante.id
+                                                                ? 'Quitando...'
+                                                                : 'Quitar'}
+                                                        </button>
+                                                    </div>
+                                                )
+                                            )
                                         ) : (
                                             <div className="px-4 py-6 text-sm text-slate-500">
                                                 Aún no hay estudiantes asignados a este ambiente.
