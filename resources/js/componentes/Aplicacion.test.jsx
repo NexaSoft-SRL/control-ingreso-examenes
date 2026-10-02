@@ -94,9 +94,10 @@ describe('Aplicacion', () => {
         expect(await screen.findByRole('heading', { name: 'Habilitación' })).toBeInTheDocument();
     });
 
-    it('el personal de control entra directo a la consulta en puerta', async () => {
+    it('el personal de control abre la consulta en puerta y no ve Habilitación', async () => {
         guardarSesion({ id: 3, name: 'Personal', rol: 'Personal', permisos: ['punto_control'] });
         window.axios = { get: () => Promise.resolve({ data: { data: [] } }) };
+        window.history.pushState({}, '', '/control/consulta');
         render(<Aplicacion />);
 
         expect(window.location.pathname).toBe('/control/consulta');

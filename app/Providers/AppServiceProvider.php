@@ -16,8 +16,14 @@ use App\Modules\Administracion\Infrastructure\Persistence\EloquentConsultaBitaco
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentStudentRepository;
 use App\Modules\Examenes\Application\Contracts\AsignaturaGateway;
 use App\Modules\Examenes\Application\Contracts\DocenteGateway;
+use App\Modules\Examenes\Application\Contracts\EstudianteExamenGateway;
+use App\Modules\Examenes\Application\Contracts\ExamenGateway;
+use App\Modules\Examenes\Application\Contracts\NormaExamenGateway;
 use App\Modules\Examenes\Infrastructure\Persistence\EloquentAsignaturaGateway;
 use App\Modules\Examenes\Infrastructure\Persistence\EloquentDocenteGateway;
+use App\Modules\Examenes\Infrastructure\Persistence\EloquentEstudianteExamenGateway;
+use App\Modules\Examenes\Infrastructure\Persistence\EloquentExamenGateway;
+use App\Modules\Examenes\Infrastructure\Persistence\EloquentNormaExamenGateway;
 use App\Modules\Habilitacion\Application\Contracts\HabilitacionGateway;
 use App\Modules\Habilitacion\Infrastructure\Persistence\EloquentHabilitacionGateway;
 use Illuminate\Support\ServiceProvider;
@@ -49,6 +55,21 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             DocenteGateway::class,
             EloquentDocenteGateway::class,
+        );
+
+        $this->app->bind(
+            ExamenGateway::class,
+            EloquentExamenGateway::class,
+        );
+
+        $this->app->bind(
+            EstudianteExamenGateway::class,
+            EloquentEstudianteExamenGateway::class,
+        );
+
+        $this->app->bind(
+            NormaExamenGateway::class,
+            EloquentNormaExamenGateway::class,
         );
 
         $this->app->bind(
