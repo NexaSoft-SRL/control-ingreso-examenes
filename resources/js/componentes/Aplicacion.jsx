@@ -8,6 +8,7 @@ import CargaMasiva from '../paginas/estudiantes/CargaMasiva.jsx';
 import RegistroEstudiantes from '../paginas/estudiantes/RegistroEstudiantes.jsx';
 import ExamenesNormas from '../paginas/examenes/ExamenesNormasApi.jsx';
 import ConsultaNormasControl from '../paginas/examenes/ConsultaNormasControl.jsx';
+import Habilitacion from '../paginas/habilitacion/Habilitacion.jsx';
 import Login from '../paginas/auth/Login.jsx';
 import LayoutAdmin from './LayoutAdmin.jsx';
 import PestanasPadron from './PestanasPadron.jsx';
@@ -32,6 +33,7 @@ const rutaPorClave = {
     bitacora: '/admin/bitacora',
     padron: '/admin/padron',
     cargaMasiva: '/admin/padron/carga-masiva',
+    habilitacion: '/admin/habilitacion',
     login: '/login',
 };
 
@@ -44,6 +46,7 @@ const permisoPorClave = {
     bitacora: 'bitacora',
     padron: 'padron_estudiantes',
     cargaMasiva: 'padron_estudiantes',
+    habilitacion: 'habilitacion',
 };
 
 const ordenDeEntrada = [
@@ -54,6 +57,7 @@ const ordenDeEntrada = [
     'controlNormas',
     'bitacora',
 ];
+const ordenDeEntrada = ['usuarios', 'habilitacion', 'padron', 'asignaturas', 'bitacora'];
 
 // Tras iniciar sesion se entra por la primera pantalla que el rol tenga
 // habilitada, no siempre por la de usuarios.
@@ -220,6 +224,10 @@ function PaginaCargaMasiva() {
     return <CargaMasiva onNavigate={useNavegacionPorClave()} />;
 }
 
+function PaginaHabilitacion() {
+    return <Habilitacion onNavigate={useNavegacionPorClave()} />;
+}
+
 function PaginaSinPermiso() {
     const navigate = useNavigate();
     const navegar = useNavegacionPorClave();
@@ -329,6 +337,14 @@ export default function Aplicacion() {
                     element={
                         <RutaProtegida>
                             <PaginaCargaMasiva />
+                        </RutaProtegida>
+                    }
+                />
+                <Route
+                    path="/admin/habilitacion"
+                    element={
+                        <RutaProtegida>
+                            <PaginaHabilitacion />
                         </RutaProtegida>
                     }
                 />

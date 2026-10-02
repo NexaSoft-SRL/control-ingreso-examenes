@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Examenes\Http\Controllers;
 
+use App\Modules\Examenes\Application\Actions\ActualizarAsignatura;
 use App\Modules\Examenes\Application\Actions\EliminarAsignatura;
 use App\Modules\Examenes\Application\Actions\ListarAsignaturas;
 use App\Modules\Examenes\Application\Actions\RegistrarAsignatura;
@@ -46,6 +47,28 @@ final class AsignaturaController
         return response()->json([
             'data' => $this->serialize($asignatura),
         ], Response::HTTP_CREATED);
+    }
+
+    public function update(
+        RegistrarAsignaturaRequest $request,
+        int $asignatura,
+        ActualizarAsignatura $actualizarAsignatura,
+    ): JsonResponse {
+        $actualizada = $actualizarAsignatura->execute(
+            $asignatura,
+            $request->toData(),
+            $this->authenticatedUserId(),
+        );
+
+        if (! $actualizada instanceof Asignatura) {
+            return response()->json([
+                'message' => 'Asignatura no encontrada.',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        return response()->json([
+            'data' => $this->serialize($actualizada),
+        ], Response::HTTP_OK);
     }
 
     public function destroy(

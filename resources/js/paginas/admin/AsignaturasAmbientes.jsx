@@ -34,6 +34,8 @@ const AMBIENTE_VACIO = {
 const ASIGNATURA_VACIA = {
     codigo: '',
     materia: '',
+    semestre: null,
+    descripcion: null,
     docente_id: '',
     cupo: '40',
 };
@@ -103,6 +105,8 @@ function AsignaturasAmbientes({ onNavigate }) {
 
     const [mostrarFormularioAsignatura, setMostrarFormularioAsignatura] = React.useState(false);
 
+    const [asignaturaEditando, setAsignaturaEditando] = React.useState(null);
+
     const [nuevaAsignatura, setNuevaAsignatura] = React.useState(ASIGNATURA_VACIA);
 
     /* =========================
@@ -120,13 +124,31 @@ function AsignaturasAmbientes({ onNavigate }) {
     ========================== */
 
     const abrirNuevaAsignatura = () => {
+        setAsignaturaEditando(null);
         setNuevaAsignatura(ASIGNATURA_VACIA);
+        setAviso(null);
+        setMostrarFormularioAsignatura(true);
+    };
+
+    const abrirEditarAsignatura = (asignatura) => {
+        const grupo = asignatura.grupos?.[0];
+
+        setAsignaturaEditando(asignatura.id);
+        setNuevaAsignatura({
+            codigo: asignatura.codigo,
+            materia: asignatura.nombre,
+            semestre: asignatura.semestre,
+            descripcion: asignatura.descripcion,
+            docente_id: grupo?.docente?.id ? String(grupo.docente.id) : '',
+            cupo: String(grupo?.cupo ?? 40),
+        });
         setAviso(null);
         setMostrarFormularioAsignatura(true);
     };
 
     const cancelarAsignatura = () => {
         setMostrarFormularioAsignatura(false);
+        setAsignaturaEditando(null);
         setNuevaAsignatura(ASIGNATURA_VACIA);
     };
 
@@ -141,29 +163,43 @@ function AsignaturasAmbientes({ onNavigate }) {
             return;
         }
 
+        const editando = asignaturaEditando !== null;
+        const datos = {
+            codigo: nuevaAsignatura.codigo.trim(),
+            nombre: nuevaAsignatura.materia.trim(),
+            semestre: nuevaAsignatura.semestre,
+            descripcion: nuevaAsignatura.descripcion,
+            grupos: [
+                {
+                    codigo_grupo: 'A',
+                    docente_id: Number(nuevaAsignatura.docente_id),
+                    cupo: Number(nuevaAsignatura.cupo) || 0,
+                },
+            ],
+        };
+
         try {
-            await window.axios.post('/api/asignaturas', {
-                codigo: nuevaAsignatura.codigo.trim(),
-                nombre: nuevaAsignatura.materia.trim(),
-                semestre: null,
-                descripcion: null,
-                grupos: [
-                    {
-                        codigo_grupo: 'A',
-                        docente_id: Number(nuevaAsignatura.docente_id),
-                        cupo: Number(nuevaAsignatura.cupo) || 0,
-                    },
-                ],
-            });
+            if (editando) {
+                await window.axios.put(`/api/asignaturas/${asignaturaEditando}`, datos);
+            } else {
+                await window.axios.post('/api/asignaturas', datos);
+            }
 
             await cargarAsignaturas();
 
-            avisar('Asignatura registrada.', 'exito');
+            avisar(editando ? 'Asignatura actualizada.' : 'Asignatura registrada.', 'exito');
 
             cancelarAsignatura();
         } catch (error) {
             console.error(error);
-            avisar(mensajeDeError(error, 'No se pudo guardar la asignatura.'));
+            avisar(
+                mensajeDeError(
+                    error,
+                    editando
+                        ? 'No se pudo actualizar la asignatura.'
+                        : 'No se pudo guardar la asignatura.'
+                )
+            );
         }
     };
 
@@ -220,10 +256,21 @@ function AsignaturasAmbientes({ onNavigate }) {
             return;
         }
 
+        const capacidad = Number(nuevoAmbiente.capacidad);
+
+        // TN-52: el campo es numerico, pero un "-60" escrito a mano pasaba
+        // el filtro del navegador y llegaba al backend. Se rechaza aca con
+        // el mismo mensaje que devuelve la validacion del servidor.
+        if (!Number.isInteger(capacidad) || capacidad < 1) {
+            avisar('La capacidad debe ser un número entero positivo superior a 0.');
+
+            return;
+        }
+
         const datos = {
             nombre: nuevoAmbiente.nombre.trim(),
             ubicacion: nuevoAmbiente.ubicacion.trim() || null,
-            capacidad: Number(nuevoAmbiente.capacidad),
+            capacidad,
             estado: nuevoAmbiente.estado,
         };
 
@@ -429,7 +476,7 @@ function AsignaturasAmbientes({ onNavigate }) {
                     </div>
 
                     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-                        <div className="grid min-w-[620px] grid-cols-[0.6fr_1.2fr_1.4fr_0.5fr] items-center gap-3 border-b border-slate-100 bg-blue-50/60 px-4 py-3 text-xs font-semibold tracking-wide text-slate-500">
+                        <div className="grid min-w-[700px] grid-cols-[0.6fr_1.2fr_1.4fr_0.8fr] items-center gap-3 border-b border-slate-100 bg-blue-50/60 px-4 py-3 text-xs font-semibold tracking-wide text-slate-500">
                             <div>SIGLA</div>
                             <div>MATERIA</div>
                             <div>DOCENTE RESPONSABLE</div>
@@ -448,7 +495,7 @@ function AsignaturasAmbientes({ onNavigate }) {
                             return (
                                 <div
                                     key={asignatura.id}
-                                    className="grid min-w-[620px] grid-cols-[0.6fr_1.2fr_1.4fr_0.5fr] items-center gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0"
+                                    className="grid min-w-[700px] grid-cols-[0.6fr_1.2fr_1.4fr_0.8fr] items-center gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0"
                                 >
                                     <div className="font-mono text-xs text-slate-500">
                                         {asignatura.codigo}
@@ -461,7 +508,14 @@ function AsignaturasAmbientes({ onNavigate }) {
                                             ? `${docente.nombres} ${docente.apellidos}`
                                             : 'Sin docente asignado'}
                                     </div>
-                                    <div>
+                                    <div className="flex gap-3">
+                                        <button
+                                            type="button"
+                                            className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                                            onClick={() => abrirEditarAsignatura(asignatura)}
+                                        >
+                                            Editar
+                                        </button>
                                         <button
                                             type="button"
                                             className="text-sm font-medium text-rose-600 hover:text-rose-700"
@@ -569,10 +623,14 @@ function AsignaturasAmbientes({ onNavigate }) {
             {mostrarFormularioAsignatura && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
                     <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-                        <h2 className="text-lg font-bold text-slate-900">Nueva asignatura</h2>
+                        <h2 className="text-lg font-bold text-slate-900">
+                            {asignaturaEditando === null ? 'Nueva asignatura' : 'Editar asignatura'}
+                        </h2>
 
                         <p className="mt-1 mb-5 text-sm text-slate-500">
-                            Registra una nueva materia con su docente responsable
+                            {asignaturaEditando === null
+                                ? 'Registra una nueva materia con su docente responsable'
+                                : 'Actualiza los datos de la materia y su docente responsable'}
                         </p>
 
                         <label
@@ -685,7 +743,7 @@ function AsignaturasAmbientes({ onNavigate }) {
                                 className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
                                 onClick={guardarAsignatura}
                             >
-                                Guardar
+                                {asignaturaEditando === null ? 'Guardar' : 'Guardar cambios'}
                             </button>
                         </div>
                     </div>
@@ -759,6 +817,7 @@ function AsignaturasAmbientes({ onNavigate }) {
                             id="capacidad"
                             type="number"
                             min="1"
+                            step="1"
                             value={nuevoAmbiente.capacidad}
                             onChange={(e) =>
                                 setNuevoAmbiente({
@@ -766,6 +825,13 @@ function AsignaturasAmbientes({ onNavigate }) {
                                     capacidad: e.target.value,
                                 })
                             }
+                            // TN-52: el input numerico del navegador acepta "-" y "e". Se
+                            // descartan para que no llegue al estado un valor no entero.
+                            onKeyDown={(e) => {
+                                if (['-', '+', 'e', 'E', '.', ','].includes(e.key)) {
+                                    e.preventDefault();
+                                }
+                            }}
                             placeholder="Ej. 50"
                             className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />

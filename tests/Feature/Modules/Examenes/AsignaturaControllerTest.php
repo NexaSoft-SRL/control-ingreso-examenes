@@ -115,6 +115,89 @@ final class AsignaturaControllerTest extends TestCase
         $this->assertDatabaseCount('asignaturas', 0);
     }
 
+    public function test_authenticated_user_can_update_subject_and_responsible_teacher(): void
+    {
+        $user = UserFactory::new()->createOne();
+
+        $docenteAnterior = Docente::query()->create([
+            'codigo_docente' => 'DOC-UPDATE-001',
+            'nombres' => 'Ana',
+            'apellidos' => 'Pérez',
+            'estado' => true,
+        ]);
+
+        $docenteNuevo = Docente::query()->create([
+            'codigo_docente' => 'DOC-UPDATE-002',
+            'nombres' => 'Luis',
+            'apellidos' => 'Rojas',
+            'estado' => true,
+        ]);
+
+        $asignatura = Asignatura::query()->create([
+            'codigo' => 'INF-UPDATE-001',
+            'nombre' => 'Materia anterior',
+            'semestre' => '4',
+            'descripcion' => null,
+            'estado' => true,
+        ]);
+
+        $grupo = $asignatura->grupos()->create([
+            'docente_id' => $docenteAnterior->getKey(),
+            'codigo_grupo' => 'A',
+            'cupo' => 30,
+        ]);
+
+        $asignaturaId = $asignatura->getKey();
+
+        if (! is_int($asignaturaId)) {
+            $this->fail(
+                'El identificador PostgreSQL de la asignatura debía ser entero.'
+            );
+        }
+
+        $response = $this
+            ->actingAs($user)
+            ->putJson("/api/asignaturas/{$asignaturaId}", [
+                'codigo' => 'INF-UPDATE-001',
+                'nombre' => 'Materia actualizada',
+                'semestre' => '5',
+                'descripcion' => 'Descripción actualizada.',
+                'grupos' => [
+                    [
+                        'codigo_grupo' => 'A',
+                        'docente_id' => $docenteNuevo->getKey(),
+                        'cupo' => 40,
+                    ],
+                ],
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.codigo', 'INF-UPDATE-001')
+            ->assertJsonPath('data.nombre', 'Materia actualizada')
+            ->assertJsonPath('data.semestre', '5')
+            ->assertJsonPath('data.descripcion', 'Descripción actualizada.')
+            ->assertJsonPath(
+                'data.grupos.0.docente.id',
+                $docenteNuevo->getKey()
+            )
+            ->assertJsonPath('data.grupos.0.cupo', 40);
+
+        $this->assertDatabaseHas('asignaturas', [
+            'id' => $asignaturaId,
+            'nombre' => 'Materia actualizada',
+            'semestre' => '5',
+        ]);
+
+        $this->assertDatabaseHas('grupos_asignatura', [
+            'id' => $grupo->getKey(),
+            'docente_id' => $docenteNuevo->getKey(),
+            'cupo' => 40,
+        ]);
+        $this->assertDatabaseCount('asignaturas', 1);
+        $this->assertDatabaseCount('grupos_asignatura', 1);
+    }
+
     public function test_subject_code_must_be_unique(): void
     {
         $user = UserFactory::new()->createOne();

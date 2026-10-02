@@ -123,8 +123,7 @@ describe('Bitacora', () => {
 
         render(<Bitacora onNavigate={vi.fn()} />);
 
-        // La etiqueta sale dos veces: en la fila y en el filtro de operaciones.
-        expect(await screen.findAllByText('Intento de sesión fallido')).not.toHaveLength(0);
+        expect(await screen.findByText('Mostrando 2 eventos')).toBeInTheDocument();
         expect(screen.getByText('Sin identificar')).toBeInTheDocument();
         expect(screen.getAllByText('Baja de estudiante')).not.toHaveLength(0);
         expect(screen.getByText('Estudiante #15')).toBeInTheDocument();
