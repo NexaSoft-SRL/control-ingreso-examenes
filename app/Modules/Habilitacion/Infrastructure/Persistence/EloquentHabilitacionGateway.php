@@ -6,6 +6,7 @@ namespace App\Modules\Habilitacion\Infrastructure\Persistence;
 
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Habilitacion\Application\Contracts\HabilitacionGateway;
+use App\Modules\Habilitacion\Application\DTOs\ConsultaHabilitacionData;
 use App\Modules\Habilitacion\Application\DTOs\EstudianteHabilitacionData;
 use App\Modules\Habilitacion\Application\DTOs\ExamenHabilitacionData;
 use DateTimeImmutable;
@@ -81,6 +82,41 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
         }
 
         return $estudiantes;
+    }
+
+    /** @return list<ConsultaHabilitacionData> */
+    public function consultarPorIdentificador(int $examenId, string $identificador): array
+    {
+        // En la puerta se teclea lo que el estudiante muestre: su código
+        // universitario o su documento. Las dos columnas tienen índice único.
+        $filas = $this->consultaEstudiantes($examenId)
+            ->where(function (Builder $consulta) use ($identificador): void {
+                $consulta->where('students.codigo_universitario', $identificador)
+                    ->orWhere('students.ci', $identificador);
+            })
+            ->get();
+
+        $coincidencias = [];
+
+        foreach ($filas as $estudiante) {
+            $coincidencias[] = new ConsultaHabilitacionData(
+                self::entero($estudiante->id),
+                self::textoOpcional($estudiante->codigo_universitario),
+                self::texto($estudiante->ci),
+                self::texto($estudiante->nombre),
+                self::texto($estudiante->apellido),
+                self::textoOpcional($estudiante->carrera),
+                self::texto($estudiante->condicion),
+                self::textoOpcional($estudiante->motivo),
+                // La distribución de estudiantes por ambiente llega con la
+                // HU-14: hasta entonces nadie tiene uno asignado.
+                null,
+                self::textoOpcional($estudiante->registrado_por),
+                self::fechaIso($estudiante->fecha_habilitacion),
+            );
+        }
+
+        return $coincidencias;
     }
 
     /** @param list<int> $estudianteIds */
