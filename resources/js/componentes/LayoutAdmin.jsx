@@ -48,6 +48,8 @@ export default function LayoutAdmin({ seleccionado, onNavigate, children }) {
             texto: 'Normas en puerta',
             Icono: ClipboardList,
             permiso: 'punto_control',
+        },
+        {
             clave: 'habilitacion',
             texto: 'Habilitación',
             Icono: ListChecks,

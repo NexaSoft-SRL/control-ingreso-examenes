@@ -51,13 +51,13 @@ const permisoPorClave = {
 
 const ordenDeEntrada = [
     'usuarios',
+    'habilitacion',
     'padron',
     'asignaturas',
     'examenes',
     'controlNormas',
     'bitacora',
 ];
-const ordenDeEntrada = ['usuarios', 'habilitacion', 'padron', 'asignaturas', 'bitacora'];
 
 // Tras iniciar sesion se entra por la primera pantalla que el rol tenga
 // habilitada, no siempre por la de usuarios.
