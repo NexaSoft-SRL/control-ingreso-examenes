@@ -6,6 +6,7 @@ namespace App\Modules\Examenes\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class GrupoAsignatura extends Model
 {
@@ -40,5 +41,13 @@ final class GrupoAsignatura extends Model
             Docente::class,
             'docente_id'
         );
+    }
+
+    /**
+     * @return HasMany<Examen, $this>
+     */
+    public function examenes(): HasMany
+    {
+        return $this->hasMany(Examen::class, 'grupo_id');
     }
 }

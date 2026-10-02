@@ -14,7 +14,7 @@ import {
     UserCog,
     Users,
 } from 'lucide-react';
-import { tienePermiso } from './sesion.js';
+import { rolDeSesion, tienePermiso } from './sesion.js';
 
 // Menu lateral y encabezado del administrador, para pantallas que solo traen
 // su contenido (p. ej. el registro de estudiantes de HU-03).
@@ -41,6 +41,12 @@ export default function LayoutAdmin({ seleccionado, onNavigate, children }) {
             texto: 'Exámenes y normas',
             Icono: ClipboardList,
             permiso: 'examenes_normas',
+        },
+        {
+            clave: 'controlNormas',
+            texto: 'Normas en puerta',
+            Icono: ClipboardList,
+            permiso: 'punto_control',
         },
         { clave: 'qr', texto: 'Códigos QR', Icono: QrCode, proximamente: true },
         { clave: 'usuarios', texto: 'Usuarios y roles', Icono: UserCog, permiso: 'usuarios_roles' },
@@ -81,7 +87,7 @@ export default function LayoutAdmin({ seleccionado, onNavigate, children }) {
 
                 <nav className="px-3 py-4">
                     <div className="px-3 pb-2 text-[11px] font-semibold tracking-wide text-slate-400">
-                        ADMINISTRADOR
+                        {rolDeSesion()?.toLocaleUpperCase('es') ?? 'SISTEMA'}
                     </div>
 
                     {items.map(({ clave, texto, Icono, proximamente }) => (

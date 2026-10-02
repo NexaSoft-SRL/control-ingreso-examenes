@@ -6,7 +6,8 @@ import AsignaturasAmbientes from '../paginas/admin/AsignaturasAmbientes.jsx';
 import Bitacora from '../paginas/admin/Bitacora.jsx';
 import CargaMasiva from '../paginas/estudiantes/CargaMasiva.jsx';
 import RegistroEstudiantes from '../paginas/estudiantes/RegistroEstudiantes.jsx';
-import ExamenesNormas from '../paginas/examenes/ExamenesNormas.jsx';
+import ExamenesNormas from '../paginas/examenes/ExamenesNormasApi.jsx';
+import ConsultaNormasControl from '../paginas/examenes/ConsultaNormasControl.jsx';
 import Login from '../paginas/auth/Login.jsx';
 import LayoutAdmin from './LayoutAdmin.jsx';
 import PestanasPadron from './PestanasPadron.jsx';
@@ -27,6 +28,7 @@ const rutaPorClave = {
     usuarios: '/admin/usuarios',
     asignaturas: '/admin/asignaturas',
     examenes: '/admin/examenes',
+    controlNormas: '/control/normas',
     bitacora: '/admin/bitacora',
     padron: '/admin/padron',
     cargaMasiva: '/admin/padron/carga-masiva',
@@ -38,12 +40,20 @@ const permisoPorClave = {
     usuarios: 'usuarios_roles',
     asignaturas: 'asignaturas_ambientes',
     examenes: 'examenes_normas',
+    controlNormas: 'punto_control',
     bitacora: 'bitacora',
     padron: 'padron_estudiantes',
     cargaMasiva: 'padron_estudiantes',
 };
 
-const ordenDeEntrada = ['usuarios', 'padron', 'asignaturas', 'examenes', 'bitacora'];
+const ordenDeEntrada = [
+    'usuarios',
+    'padron',
+    'asignaturas',
+    'examenes',
+    'controlNormas',
+    'bitacora',
+];
 
 // Tras iniciar sesion se entra por la primera pantalla que el rol tenga
 // habilitada, no siempre por la de usuarios.
@@ -181,6 +191,16 @@ function PaginaExamenes() {
     );
 }
 
+function PaginaConsultaNormasControl() {
+    const navegar = useNavegacionPorClave();
+
+    return (
+        <LayoutAdmin seleccionado="controlNormas" onNavigate={navegar}>
+            <ConsultaNormasControl />
+        </LayoutAdmin>
+    );
+}
+
 function PaginaBitacora() {
     return <Bitacora onNavigate={useNavegacionPorClave()} />;
 }
@@ -274,6 +294,16 @@ export default function Aplicacion() {
                         <RutaProtegida>
                             <RutaConPermiso permiso="examenes_normas">
                                 <PaginaExamenes />
+                            </RutaConPermiso>
+                        </RutaProtegida>
+                    }
+                />
+                <Route
+                    path="/control/normas"
+                    element={
+                        <RutaProtegida>
+                            <RutaConPermiso permiso="punto_control">
+                                <PaginaConsultaNormasControl />
                             </RutaConPermiso>
                         </RutaProtegida>
                     }
