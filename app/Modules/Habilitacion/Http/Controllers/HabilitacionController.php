@@ -8,6 +8,8 @@ use App\Modules\Habilitacion\Application\Actions\GestionarHabilitacion;
 use App\Modules\Habilitacion\Application\DTOs\EstudianteHabilitacionData;
 use App\Modules\Habilitacion\Application\DTOs\ExamenHabilitacionData;
 use App\Modules\Habilitacion\Http\Requests\RegistrarCondicionesRequest;
+use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use LogicException;
@@ -95,7 +97,10 @@ final class HabilitacionController
                 return;
             }
 
-            fputcsv($salida, ['Código', 'Documento', 'Nombre', 'Carrera', 'Condición', 'Motivo']);
+            fputcsv($salida, [
+                'Código', 'Documento', 'Nombre', 'Carrera', 'Condición', 'Motivo',
+                'Registrado por', 'Fecha de registro',
+            ]);
 
             foreach ($estudiantes as $estudiante) {
                 fputcsv($salida, [
@@ -105,6 +110,8 @@ final class HabilitacionController
                     $estudiante->carrera,
                     $estudiante->condicion,
                     $estudiante->motivo,
+                    $estudiante->registradoPor,
+                    self::fechaLocal($estudiante->fechaHabilitacion),
                 ]);
             }
 
@@ -112,6 +119,21 @@ final class HabilitacionController
         }, "habilitacion-examen-{$examen}.csv", [
             'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
+    }
+
+    /**
+     * El listado exportado lo lee una persona: la fecha de registro va en la
+     * hora de Bolivia y no en el formato técnico de la API.
+     */
+    private static function fechaLocal(?string $fecha): ?string
+    {
+        if ($fecha === null) {
+            return null;
+        }
+
+        return (new DateTimeImmutable($fecha))
+            ->setTimezone(new DateTimeZone('America/La_Paz'))
+            ->format('d/m/Y H:i');
     }
 
     private function asegurarExamenExiste(int $examen, GestionarHabilitacion $gestionar): void

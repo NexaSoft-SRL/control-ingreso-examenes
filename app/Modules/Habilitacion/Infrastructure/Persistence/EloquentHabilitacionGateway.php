@@ -8,6 +8,8 @@ use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Habilitacion\Application\Contracts\HabilitacionGateway;
 use App\Modules\Habilitacion\Application\DTOs\EstudianteHabilitacionData;
 use App\Modules\Habilitacion\Application\DTOs\ExamenHabilitacionData;
+use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
@@ -74,7 +76,7 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                 self::texto($estudiante->condicion),
                 self::textoOpcional($estudiante->motivo),
                 self::textoOpcional($estudiante->registrado_por),
-                self::textoOpcional($estudiante->fecha_habilitacion),
+                self::fechaIso($estudiante->fecha_habilitacion),
             );
         }
 
@@ -122,7 +124,7 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                         : 'habilitacion.estudiante.inhabilitar',
                     'habilitaciones_examen',
                     self::entero($habilitacionId),
-                    sprintf('Condición %s registrada para el estudiante %d en el examen %d.', $condicion, $estudianteId, $examenId),
+                    self::descripcionBitacora($condicion, $estudianteId, $examenId, $motivo),
                 );
             }
         });
@@ -151,6 +153,39 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
             ])
             ->orderBy('students.apellido')
             ->orderBy('students.nombre');
+    }
+
+    private static function descripcionBitacora(string $condicion, int $estudianteId, int $examenId, ?string $motivo): string
+    {
+        $descripcion = sprintf(
+            'Condición %s registrada para el estudiante %d en el examen %d.',
+            $condicion,
+            $estudianteId,
+            $examenId,
+        );
+
+        // HU-12: la bitácora conserva el motivo de cada inhabilitación,
+        // aunque después la condición cambie.
+        if ($motivo === null) {
+            return $descripcion;
+        }
+
+        return $descripcion.' Motivo: '.$motivo;
+    }
+
+    /**
+     * La constancia de cuándo se registró viaja con su zona horaria, para
+     * que el navegador la muestre en hora local sin adivinar.
+     */
+    private static function fechaIso(mixed $valor): ?string
+    {
+        $texto = self::textoOpcional($valor);
+
+        if ($texto === null) {
+            return null;
+        }
+
+        return (new DateTimeImmutable($texto, new DateTimeZone('UTC')))->format(DATE_ATOM);
     }
 
     private static function textoOpcional(mixed $valor): ?string

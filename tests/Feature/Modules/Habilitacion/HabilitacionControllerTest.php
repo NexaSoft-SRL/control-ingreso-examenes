@@ -78,6 +78,140 @@ final class HabilitacionControllerTest extends TestCase
             ->assertJsonPath('data.0.registrado_por', $usuario->nombre);
     }
 
+    public function test_the_reason_is_mandatory_when_disabling_a_student(): void
+    {
+        $usuario = UserFactory::new()->createOne();
+        $examen = $this->crearExamen();
+        $estudiante = StudentFactory::new()->create();
+        $url = "/api/habilitacion/examenes/{$examen}/condiciones";
+
+        $this->actingAs($usuario)
+            ->postJson($url, [
+                'estudiante_ids' => [$estudiante->getKey()],
+                'condicion' => 'NO_HABILITADO',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.motivo.0', 'El motivo es obligatorio para inhabilitar.');
+
+        $this->actingAs($usuario)
+            ->postJson($url, [
+                'estudiante_ids' => [$estudiante->getKey()],
+                'condicion' => 'NO_HABILITADO',
+                'motivo' => '     ',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('motivo');
+
+        $this->actingAs($usuario)
+            ->postJson($url, [
+                'estudiante_ids' => [$estudiante->getKey()],
+                'condicion' => 'NO_HABILITADO',
+                'motivo' => 'no',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath(
+                'errors.motivo.0',
+                'El motivo debe explicar la inhabilitación con al menos 5 caracteres.',
+            );
+
+        $this->assertDatabaseCount('habilitaciones_examen', 0);
+        $this->assertDatabaseCount('bitacora_operaciones', 0);
+    }
+
+    public function test_the_reason_is_cleared_when_the_student_is_enabled_again(): void
+    {
+        $usuario = UserFactory::new()->createOne();
+        $examen = $this->crearExamen();
+        $estudiante = StudentFactory::new()->create();
+        $url = "/api/habilitacion/examenes/{$examen}/condiciones";
+
+        $this->actingAs($usuario)->postJson($url, [
+            'estudiante_ids' => [$estudiante->getKey()],
+            'condicion' => 'NO_HABILITADO',
+            'motivo' => 'Adeuda la matrícula del semestre',
+        ])->assertOk();
+
+        // Aunque el cliente reenvíe el motivo anterior, al habilitar no se guarda.
+        $this->actingAs($usuario)->postJson($url, [
+            'estudiante_ids' => [$estudiante->getKey()],
+            'condicion' => 'HABILITADO',
+            'motivo' => 'Adeuda la matrícula del semestre',
+        ])->assertOk()->assertJsonPath('data.0.motivo', null);
+
+        $this->assertDatabaseHas('habilitaciones_examen', [
+            'examen_id' => $examen,
+            'estudiante_id' => $estudiante->getKey(),
+            'estado' => 'HABILITADO',
+            'motivo' => null,
+        ]);
+    }
+
+    public function test_it_keeps_a_record_of_who_registered_the_reason_and_when(): void
+    {
+        $this->travelTo('2026-10-02 14:30:00');
+        $docente = UserFactory::new()->createOne(['nombre' => 'Docente Constancia']);
+        $examen = $this->crearExamen();
+        $estudiante = StudentFactory::new()->create(['codigo_universitario' => '202600777']);
+
+        $this->actingAs($docente)
+            ->postJson("/api/habilitacion/examenes/{$examen}/condiciones", [
+                'estudiante_ids' => [$estudiante->getKey()],
+                'condicion' => 'NO_HABILITADO',
+                'motivo' => 'No presentó el proyecto final',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.0.motivo', 'No presentó el proyecto final')
+            ->assertJsonPath('data.0.registrado_por', 'Docente Constancia')
+            ->assertJsonPath('data.0.fecha_habilitacion', '2026-10-02T14:30:00+00:00');
+
+        $descripcion = DB::table('bitacora_operaciones')
+            ->where('usuario_id', $docente->getKey())
+            ->where('operacion', 'habilitacion.estudiante.inhabilitar')
+            ->value('descripcion');
+
+        $this->assertIsString($descripcion);
+        $this->assertStringContainsString('Condición NO_HABILITADO registrada', $descripcion);
+        $this->assertStringEndsWith('Motivo: No presentó el proyecto final', $descripcion);
+
+        $contenido = $this->actingAs($docente)
+            ->get("/api/habilitacion/examenes/{$examen}/exportar")
+            ->assertOk()
+            ->streamedContent();
+
+        $this->assertStringContainsString('"Registrado por","Fecha de registro"', $contenido);
+        $this->assertStringContainsString(
+            '"No presentó el proyecto final","Docente Constancia","02/10/2026 10:30"',
+            $contenido,
+        );
+    }
+
+    public function test_the_record_follows_the_last_person_who_changed_the_condition(): void
+    {
+        $primero = UserFactory::new()->createOne(['nombre' => 'Primer Docente']);
+        $segundo = UserFactory::new()->createOne(['nombre' => 'Segundo Docente']);
+        $examen = $this->crearExamen();
+        $estudiante = StudentFactory::new()->create();
+        $url = "/api/habilitacion/examenes/{$examen}/condiciones";
+
+        $this->travelTo('2026-10-02 08:00:00');
+        $this->actingAs($primero)->postJson($url, [
+            'estudiante_ids' => [$estudiante->getKey()],
+            'condicion' => 'NO_HABILITADO',
+            'motivo' => 'Falta el pago de la matrícula',
+        ])->assertOk();
+
+        $this->travelTo('2026-10-03 09:15:00');
+        $this->actingAs($segundo)->postJson($url, [
+            'estudiante_ids' => [$estudiante->getKey()],
+            'condicion' => 'NO_HABILITADO',
+            'motivo' => 'Sigue sin regularizar la matrícula',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.0.motivo', 'Sigue sin regularizar la matrícula')
+            ->assertJsonPath('data.0.registrado_por', 'Segundo Docente')
+            ->assertJsonPath('data.0.fecha_habilitacion', '2026-10-03T09:15:00+00:00');
+    }
+
     public function test_it_rejects_missing_students_and_reports_unknown_exams(): void
     {
         $usuario = UserFactory::new()->createOne();
