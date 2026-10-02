@@ -10,6 +10,45 @@ function mensajeError(error, respaldo) {
     return primero ?? error?.response?.data?.message ?? respaldo;
 }
 
+// Mismos límites que valida el backend (HU-12).
+const MOTIVO_MINIMO = 5;
+const MOTIVO_MAXIMO = 1000;
+
+function errorDeMotivo(motivo) {
+    const texto = motivo.trim();
+
+    if (texto === '') {
+        return 'El motivo es obligatorio para inhabilitar.';
+    }
+
+    if (texto.length < MOTIVO_MINIMO) {
+        return `El motivo debe explicar la inhabilitación con al menos ${MOTIVO_MINIMO} caracteres.`;
+    }
+
+    return null;
+}
+
+const formatoFecha = new Intl.DateTimeFormat('es-BO', {
+    timeZone: 'America/La_Paz',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+});
+
+// La constancia de cuándo se registró la condición, en hora de Bolivia.
+function formatearFechaRegistro(fecha) {
+    if (!fecha) {
+        return null;
+    }
+
+    const instante = new Date(fecha);
+
+    return Number.isNaN(instante.getTime()) ? null : formatoFecha.format(instante);
+}
+
 function Habilitacion({ onNavigate }) {
     const [examenes, setExamenes] = React.useState([]);
     const [examenSeleccionado, setExamenSeleccionado] = React.useState('');
@@ -17,6 +56,7 @@ function Habilitacion({ onNavigate }) {
     const [totales, setTotales] = React.useState({ total: 0, habilitados: 0, no_habilitados: 0 });
     const [seleccionados, setSeleccionados] = React.useState([]);
     const [motivo, setMotivo] = React.useState('');
+    const [motivoTocado, setMotivoTocado] = React.useState(false);
     const [cargando, setCargando] = React.useState(true);
     const [guardando, setGuardando] = React.useState(false);
     const [aviso, setAviso] = React.useState(null);
@@ -106,8 +146,9 @@ function Habilitacion({ onNavigate }) {
             return;
         }
 
-        if (condicion === 'NO_HABILITADO' && motivo.trim() === '') {
-            setAviso({ tipo: 'error', texto: 'El motivo es obligatorio para inhabilitar.' });
+        if (condicion === 'NO_HABILITADO' && errorDeMotivo(motivo)) {
+            setMotivoTocado(true);
+            setAviso({ tipo: 'error', texto: errorDeMotivo(motivo) });
             return;
         }
 
@@ -126,6 +167,7 @@ function Habilitacion({ onNavigate }) {
 
             await cargarEstudiantes(examenSeleccionado);
             setMotivo('');
+            setMotivoTocado(false);
             setAviso({
                 tipo: 'exito',
                 texto: 'Condición registrada para los estudiantes seleccionados.',
@@ -139,6 +181,9 @@ function Habilitacion({ onNavigate }) {
             setGuardando(false);
         }
     }
+
+    // El error se muestra mientras se escribe, no recién al enviar.
+    const avisoMotivo = motivoTocado ? errorDeMotivo(motivo) : null;
 
     function etiquetaExamen(examen) {
         return `${examen.asignatura_codigo} - ${examen.nombre} - ${examen.fecha}`;
@@ -182,6 +227,8 @@ function Habilitacion({ onNavigate }) {
                         onChange={(evento) => {
                             setExamenSeleccionado(evento.target.value);
                             setAviso(null);
+                            setMotivo('');
+                            setMotivoTocado(false);
                             cargarEstudiantes(evento.target.value);
                         }}
                         disabled={examenes.length === 0}
@@ -214,15 +261,44 @@ function Habilitacion({ onNavigate }) {
                         className="mb-2 block text-xs font-semibold text-slate-600"
                         htmlFor="motivo"
                     >
-                        Motivo de la inhabilitación
+                        Motivo de la inhabilitación{' '}
+                        <span className="text-red-600" aria-hidden="true">
+                            *
+                        </span>
                     </label>
-                    <input
+                    <textarea
                         id="motivo"
-                        className="mb-3 min-h-10 w-full rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                        placeholder="Obligatorio para inhabilitar"
+                        rows={2}
+                        maxLength={MOTIVO_MAXIMO}
+                        required
+                        aria-required="true"
+                        aria-invalid={avisoMotivo ? 'true' : 'false'}
+                        aria-describedby="motivo-ayuda"
+                        className={`w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-1 ${
+                            avisoMotivo
+                                ? 'border-red-400 focus:border-red-500 focus:ring-red-500'
+                                : 'border-slate-300 focus:border-blue-500 focus:ring-blue-500'
+                        }`}
+                        placeholder="Obligatorio para inhabilitar: se le dirá al estudiante en la puerta"
                         value={motivo}
-                        onChange={(evento) => setMotivo(evento.target.value)}
+                        onChange={(evento) => {
+                            setMotivo(evento.target.value);
+                            setMotivoTocado(true);
+                        }}
+                        onBlur={() => setMotivoTocado(true)}
                     />
+                    <div
+                        id="motivo-ayuda"
+                        className="mb-3 mt-1 flex items-start justify-between gap-3 text-xs"
+                    >
+                        <span className={avisoMotivo ? 'text-red-600' : 'text-slate-500'}>
+                            {avisoMotivo ??
+                                'Solo se guarda al inhabilitar. Queda registrado con tu nombre y la fecha.'}
+                        </span>
+                        <span className="shrink-0 text-slate-400">
+                            {motivo.length}/{MOTIVO_MAXIMO}
+                        </span>
+                    </div>
                     <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                         <button
                             type="button"
@@ -328,7 +404,7 @@ function Habilitacion({ onNavigate }) {
                                                     {estudiante.motivo ?? '—'}
                                                 </td>
                                                 <td className="px-3 py-3">
-                                                    {estudiante.registrado_por ?? '—'}
+                                                    <ConstanciaRegistro estudiante={estudiante} />
                                                 </td>
                                             </tr>
                                         ))}
@@ -373,6 +449,12 @@ function Habilitacion({ onNavigate }) {
                                                         etiqueta="Registró"
                                                         valor={estudiante.registrado_por}
                                                     />
+                                                    <DatoEstudiante
+                                                        etiqueta="Fecha de registro"
+                                                        valor={formatearFechaRegistro(
+                                                            estudiante.fecha_habilitacion
+                                                        )}
+                                                    />
                                                     <div className="col-span-2">
                                                         <DatoEstudiante
                                                             etiqueta="Motivo"
@@ -414,6 +496,29 @@ function EtiquetaCondicion({ condicion }) {
 
 EtiquetaCondicion.propTypes = {
     condicion: PropTypes.string.isRequired,
+};
+
+// Quién registró la condición y cuándo (HU-12).
+function ConstanciaRegistro({ estudiante }) {
+    const fecha = formatearFechaRegistro(estudiante.fecha_habilitacion);
+
+    if (!estudiante.registrado_por && !fecha) {
+        return '—';
+    }
+
+    return (
+        <>
+            <span className="block text-slate-800">{estudiante.registrado_por ?? '—'}</span>
+            {fecha && <span className="block text-xs text-slate-500">{fecha}</span>}
+        </>
+    );
+}
+
+ConstanciaRegistro.propTypes = {
+    estudiante: PropTypes.shape({
+        registrado_por: PropTypes.string,
+        fecha_habilitacion: PropTypes.string,
+    }).isRequired,
 };
 
 function DatoEstudiante({ etiqueta, valor }) {
