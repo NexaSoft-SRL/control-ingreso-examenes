@@ -161,6 +161,20 @@ final class ConsultaHabilitacionControllerTest extends TestCase
             ->assertJsonPath('data.0.codigo_universitario', '202600606');
     }
 
+    public function test_a_document_with_a_complement_is_found_in_lowercase(): void
+    {
+        $personal = $this->usuarioConRol('Personal');
+        $examen = $this->crearExamen();
+        StudentFactory::new()->create(['ci' => '7003003-1A', 'apellido' => 'Complemento']);
+
+        $this->actingAs($personal)
+            ->getJson("/api/consulta-habilitacion/examenes/{$examen}?identificador=7003003-1a")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.ci', '7003003-1A')
+            ->assertJsonPath('data.0.apellido', 'Complemento');
+    }
+
     public function test_control_staff_can_consult_but_not_change_the_roster(): void
     {
         $personal = $this->usuarioConRol('Personal');

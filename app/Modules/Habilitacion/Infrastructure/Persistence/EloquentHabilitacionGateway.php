@@ -89,10 +89,15 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
     {
         // En la puerta se teclea lo que el estudiante muestre: su código
         // universitario o su documento. Las dos columnas tienen índice único.
+        // El complemento del documento se guarda en mayúsculas, pero en la
+        // puerta se teclea como salga. Se comparan valores exactos para no
+        // perder el índice.
+        $valores = array_values(array_unique([$identificador, mb_strtoupper($identificador)]));
+
         $filas = $this->consultaEstudiantes($examenId)
-            ->where(function (Builder $consulta) use ($identificador): void {
-                $consulta->where('students.codigo_universitario', $identificador)
-                    ->orWhere('students.ci', $identificador);
+            ->where(function (Builder $consulta) use ($valores): void {
+                $consulta->whereIn('students.codigo_universitario', $valores)
+                    ->orWhereIn('students.ci', $valores);
             })
             ->get();
 
