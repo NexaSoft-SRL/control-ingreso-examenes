@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import PropTypes from 'prop-types';
 
-// --- 1. MODAL INTEGRADO (Evita errores de archivos separados) ---
+// --- 1. MODAL INTEGRADO ---
 const FormularioExamenModal = ({ isOpen, onClose, examenEditar, alGuardar }) => {
     const [formData, setFormData] = useState({
         grupo_id: '',
@@ -42,8 +43,8 @@ const FormularioExamenModal = ({ isOpen, onClose, examenEditar, alGuardar }) => 
         request.then(() => {
             alGuardar();
             onClose();
-        }).catch(err => {
-            setError(err.response?.data?.message || 'Error al guardar');
+        }).catch(errorRespuesta => {
+            setError(errorRespuesta.response?.data?.message || 'Error al guardar');
         }).finally(() => setCargando(false));
     };
 
@@ -90,6 +91,14 @@ const FormularioExamenModal = ({ isOpen, onClose, examenEditar, alGuardar }) => 
     );
 };
 
+// Validación requerida por ESLint para los props
+FormularioExamenModal.propTypes = {
+    isOpen: PropTypes.bool.isRequired,
+    onClose: PropTypes.func.isRequired,
+    examenEditar: PropTypes.object,
+    alGuardar: PropTypes.func.isRequired
+};
+
 // --- 2. PANTALLA PRINCIPAL ---
 export default function ExamenesNormasApi() {
     const [examenes, setExamenes] = useState([]);
@@ -105,7 +114,8 @@ export default function ExamenesNormasApi() {
 
     const handleEliminar = (id) => {
         if (confirm("¿Eliminar examen?")) {
-            axios.delete(`/api/examenes/${id}`).then(() => cargarExamenes()).catch(err => alert("Error"));
+            // Se quitó la variable "err" sin usar para satisfacer a ESLint
+            axios.delete(`/api/examenes/${id}`).then(() => cargarExamenes()).catch(() => alert("Error"));
         }
     };
 

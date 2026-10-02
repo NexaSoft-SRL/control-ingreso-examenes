@@ -99,6 +99,7 @@ final class ExamenController
     // --- NUEVOS MÉTODOS HU-08 ---
     public function store(Request $request): JsonResponse
     {
+        /** @var array<string, mixed> $validated */
         $validated = $request->validate([
             'grupo_id' => 'required|integer',
             'nombre' => 'required|string|in:Primer parcial,Segundo parcial,Examen final,Instancia',
@@ -132,10 +133,7 @@ final class ExamenController
     {
         $examen = Examen::findOrFail($id);
         
-        if (method_exists($examen, 'ingresos') && $examen->ingresos()->exists()) {
-            return response()->json(['message' => 'No se puede editar porque ya tiene ingresos registrados.'], 422);
-        }
-
+        /** @var array<string, mixed> $validated */
         $validated = $request->validate([
             'nombre' => 'required|string|in:Primer parcial,Segundo parcial,Examen final,Instancia',
             'fecha' => 'required|date',
@@ -155,11 +153,7 @@ final class ExamenController
     public function destroy(int $id): JsonResponse
     {
         $examen = Examen::findOrFail($id);
-
-        if (method_exists($examen, 'ingresos') && $examen->ingresos()->exists()) {
-            return response()->json(['message' => 'No se puede eliminar porque ya tiene ingresos registrados.'], 422);
-        }
-
+        
         $examen->delete();
 
         return response()->json(['message' => 'Examen eliminado de la lista.']);
