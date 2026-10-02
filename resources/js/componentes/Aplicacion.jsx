@@ -6,9 +6,13 @@ import AsignaturasAmbientes from '../paginas/admin/AsignaturasAmbientes.jsx';
 import Bitacora from '../paginas/admin/Bitacora.jsx';
 import CargaMasiva from '../paginas/estudiantes/CargaMasiva.jsx';
 import RegistroEstudiantes from '../paginas/estudiantes/RegistroEstudiantes.jsx';
+import ExamenesNormas from '../paginas/examenes/ExamenesNormasApi.jsx';
+import ConsultaNormasControl from '../paginas/examenes/ConsultaNormasControl.jsx';
 import Habilitacion from '../paginas/habilitacion/Habilitacion.jsx';
+import ConsultaHabilitacion from '../paginas/ingreso/ConsultaHabilitacion.jsx';
 import Login from '../paginas/auth/Login.jsx';
 import LayoutAdmin from './LayoutAdmin.jsx';
+import ExamenesNormasApi from '../paginas/admin/ExamenesNormasApi.jsx';
 import PestanasPadron from './PestanasPadron.jsx';
 import SinPermiso from './SinPermiso.jsx';
 import {
@@ -26,10 +30,13 @@ import {
 const rutaPorClave = {
     usuarios: '/admin/usuarios',
     asignaturas: '/admin/asignaturas',
+    examenes: '/admin/examenes',
+    controlNormas: '/control/normas',
     bitacora: '/admin/bitacora',
     padron: '/admin/padron',
     cargaMasiva: '/admin/padron/carga-masiva',
     habilitacion: '/admin/habilitacion',
+    consulta: '/control/consulta',
     login: '/login',
 };
 
@@ -37,13 +44,25 @@ const rutaPorClave = {
 const permisoPorClave = {
     usuarios: 'usuarios_roles',
     asignaturas: 'asignaturas_ambientes',
+    examenes: 'examenes_normas',
+    controlNormas: 'punto_control',
     bitacora: 'bitacora',
     padron: 'padron_estudiantes',
     cargaMasiva: 'padron_estudiantes',
     habilitacion: 'habilitacion',
+    consulta: 'punto_control',
 };
 
-const ordenDeEntrada = ['usuarios', 'habilitacion', 'padron', 'asignaturas', 'bitacora'];
+const ordenDeEntrada = [
+    'usuarios',
+    'habilitacion',
+    'padron',
+    'asignaturas',
+    'examenes',
+    'controlNormas',
+    'bitacora',
+    'consulta',
+];
 
 // Tras iniciar sesion se entra por la primera pantalla que el rol tenga
 // habilitada, no siempre por la de usuarios.
@@ -133,7 +152,27 @@ function RutaProtegida({ children }) {
     return children;
 }
 
+function RutaConPermiso({ permiso, children }) {
+    const navigate = useNavigate();
+
+    if (!tienePermiso(permiso)) {
+        return (
+            <SinPermiso
+                permiso={permiso}
+                onVolver={() => navigate(rutaDeEntrada(), { replace: true })}
+            />
+        );
+    }
+
+    return children;
+}
+
 RutaProtegida.propTypes = {
+    children: PropTypes.node.isRequired,
+};
+
+RutaConPermiso.propTypes = {
+    permiso: PropTypes.string.isRequired,
     children: PropTypes.node.isRequired,
 };
 
@@ -149,6 +188,26 @@ function PaginaUsuarios() {
 
 function PaginaAsignaturas() {
     return <AsignaturasAmbientes onNavigate={useNavegacionPorClave()} />;
+}
+
+function PaginaExamenes() {
+    const navegar = useNavegacionPorClave();
+
+    return (
+        <LayoutAdmin seleccionado="examenes" onNavigate={navegar}>
+            <ExamenesNormas />
+        </LayoutAdmin>
+    );
+}
+
+function PaginaConsultaNormasControl() {
+    const navegar = useNavegacionPorClave();
+
+    return (
+        <LayoutAdmin seleccionado="controlNormas" onNavigate={navegar}>
+            <ConsultaNormasControl />
+        </LayoutAdmin>
+    );
 }
 
 function PaginaBitacora() {
@@ -172,6 +231,10 @@ function PaginaCargaMasiva() {
 
 function PaginaHabilitacion() {
     return <Habilitacion onNavigate={useNavegacionPorClave()} />;
+}
+
+function PaginaConsulta() {
+    return <ConsultaHabilitacion onNavigate={useNavegacionPorClave()} />;
 }
 
 function PaginaSinPermiso() {
@@ -243,6 +306,26 @@ export default function Aplicacion() {
                     }
                 />
                 <Route
+                    path="/admin/examenes"
+                    element={
+                        <RutaProtegida>
+                            <RutaConPermiso permiso="examenes_normas">
+                                <PaginaExamenes />
+                            </RutaConPermiso>
+                        </RutaProtegida>
+                    }
+                />
+                <Route
+                    path="/control/normas"
+                    element={
+                        <RutaProtegida>
+                            <RutaConPermiso permiso="punto_control">
+                                <PaginaConsultaNormasControl />
+                            </RutaConPermiso>
+                        </RutaProtegida>
+                    }
+                />
+                <Route
                     path="/admin/bitacora"
                     element={
                         <RutaProtegida>
@@ -274,6 +357,15 @@ export default function Aplicacion() {
                         </RutaProtegida>
                     }
                 />
+                <Route
+                    path="/control/consulta"
+                    element={
+                        <RutaProtegida>
+                            <PaginaConsulta />
+                        </RutaProtegida>
+                    }
+                />
+                <Route path="/examenes" element={<ExamenesNormasApi />} />
                 <Route
                     path="/sin-permiso"
                     element={

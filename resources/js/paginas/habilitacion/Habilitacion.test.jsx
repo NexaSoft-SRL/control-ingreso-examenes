@@ -29,6 +29,7 @@ const estudiantes = [
         condicion: 'NO_HABILITADO',
         motivo: 'Deuda pendiente',
         registrado_por: 'Docente UMSS',
+        fecha_habilitacion: '2026-10-02T14:30:00+00:00',
     },
 ];
 
@@ -116,6 +117,79 @@ describe('Habilitacion', () => {
             'El motivo es obligatorio para inhabilitar.'
         );
         expect(window.axios.post).not.toHaveBeenCalled();
+    });
+
+    it('marca el motivo como obligatorio y avisa mientras se escribe', async () => {
+        render(<Habilitacion />);
+        await screen.findAllByText('Alvarado, Kevin');
+
+        const motivo = screen.getByLabelText(/Motivo de la inhabilitación/);
+
+        expect(motivo).toBeRequired();
+        expect(motivo).toHaveAttribute('aria-invalid', 'false');
+
+        fireEvent.change(motivo, { target: { value: 'no' } });
+
+        expect(motivo).toHaveAttribute('aria-invalid', 'true');
+        expect(
+            screen.getByText('El motivo debe explicar la inhabilitación con al menos 5 caracteres.')
+        ).toBeInTheDocument();
+        expect(screen.getByText('2/1000')).toBeInTheDocument();
+
+        fireEvent.change(motivo, { target: { value: 'Adeuda la matrícula' } });
+
+        expect(motivo).toHaveAttribute('aria-invalid', 'false');
+        expect(
+            screen.queryByText(
+                'El motivo debe explicar la inhabilitación con al menos 5 caracteres.'
+            )
+        ).not.toBeInTheDocument();
+    });
+
+    it('no envía la inhabilitación con un motivo demasiado corto', async () => {
+        render(<Habilitacion />);
+        await screen.findAllByText('Alvarado, Kevin');
+
+        fireEvent.click(screen.getAllByRole('checkbox', { name: 'Seleccionar Kevin Alvarado' })[0]);
+        fireEvent.change(screen.getByLabelText(/Motivo de la inhabilitación/), {
+            target: { value: 'no' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /Inhabilitar seleccionados/ }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'El motivo debe explicar la inhabilitación con al menos 5 caracteres.'
+        );
+        expect(window.axios.post).not.toHaveBeenCalled();
+    });
+
+    it('envía el motivo sin espacios sobrantes al inhabilitar', async () => {
+        render(<Habilitacion />);
+        await screen.findAllByText('Alvarado, Kevin');
+
+        fireEvent.click(screen.getAllByRole('checkbox', { name: 'Seleccionar Kevin Alvarado' })[0]);
+        fireEvent.change(screen.getByLabelText(/Motivo de la inhabilitación/), {
+            target: { value: '  Adeuda la matrícula  ' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /Inhabilitar seleccionados/ }));
+
+        await waitFor(() =>
+            expect(window.axios.post).toHaveBeenCalledWith(
+                '/api/habilitacion/examenes/7/condiciones',
+                {
+                    estudiante_ids: [15],
+                    condicion: 'NO_HABILITADO',
+                    motivo: 'Adeuda la matrícula',
+                }
+            )
+        );
+    });
+
+    it('muestra quién registró la condición y cuándo, en hora de Bolivia', async () => {
+        render(<Habilitacion />);
+        await screen.findAllByText('Bustamante, Valeria');
+
+        expect(screen.getAllByText('Docente UMSS')).not.toHaveLength(0);
+        expect(screen.getAllByText(/02\/10\/2026,? 10:30/)).not.toHaveLength(0);
     });
 
     it('expone la descarga para el examen seleccionado', async () => {
