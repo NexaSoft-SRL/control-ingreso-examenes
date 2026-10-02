@@ -94,6 +94,20 @@ describe('Aplicacion', () => {
         expect(await screen.findByRole('heading', { name: 'Habilitación' })).toBeInTheDocument();
     });
 
+    it('el personal de control abre la consulta en puerta y no ve Habilitación', async () => {
+        guardarSesion({ id: 3, name: 'Personal', rol: 'Personal', permisos: ['punto_control'] });
+        window.axios = { get: () => Promise.resolve({ data: { data: [] } }) };
+        window.history.pushState({}, '', '/control/consulta');
+        render(<Aplicacion />);
+
+        expect(window.location.pathname).toBe('/control/consulta');
+        expect(
+            await screen.findByRole('heading', { name: 'Consulta de habilitación' })
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Consulta en puerta' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Habilitación' })).toBeNull();
+    });
+
     it('al rol sin ninguna sección habilitada se lo dice y le ofrece salir', () => {
         guardarSesion({ id: 2, name: 'Docente', rol: 'Docente', permisos: [] });
         render(<Aplicacion />);
