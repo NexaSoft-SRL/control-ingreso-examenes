@@ -1,6 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
+const FORMATO_CI = /^\d{5,10}(?:-[A-Z]{2,3})?$/;
+
+function limpiarCi(valor) {
+    const entrada = valor.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    const indiceGuion = entrada.indexOf('-');
+
+    if (indiceGuion === -1) {
+        return entrada.replace(/\D/g, '').slice(0, 10);
+    }
+
+    const digitos = entrada.slice(0, indiceGuion).replace(/\D/g, '').slice(0, 10);
+    if (digitos.length < 5) {
+        return digitos;
+    }
+
+    const extension = entrada
+        .slice(indiceGuion + 1)
+        .replace(/[^A-Z]/g, '')
+        .slice(0, 3);
+
+    return `${digitos}-${extension}`;
+}
+
 export default function RegistroEstudiantes() {
     const [estudiantes, setEstudiantes] = useState([]);
     const [cargando, setCargando] = useState(true);
@@ -103,17 +126,15 @@ export default function RegistroEstudiantes() {
         e.preventDefault();
         setError('');
 
-        // El backlog pide codigo universitario, documento, nombres,
-        // apellidos y carrera: los dos primeros faltaban en el formulario.
-        const datos = {
-            codigo_universitario: codigoUniversitario.trim() || null,
-            carrera: carrera.trim() || null,
-            nombre,
-            apellido,
-            ci,
-            correo: correo.trim() || null,
-            activo,
-        };
+        const ciNormalizado = ci.trim().toUpperCase();
+        if (!FORMATO_CI.test(ciNormalizado)) {
+            setError(
+                'Formato de C.I. inválido. Usa 5 a 10 dígitos y, opcionalmente, una extensión (ej. 7928194-CB).'
+            );
+            return;
+        }
+
+        const datos = { nombre, apellido, ci: ciNormalizado, correo, activo };
 
         try {
             if (estudianteEditando === null) {
@@ -214,11 +235,19 @@ export default function RegistroEstudiantes() {
                             <input
                                 type="text"
                                 value={ci}
-                                onChange={(e) => setCi(e.target.value)}
+                                onChange={(e) => setCi(limpiarCi(e.target.value))}
                                 placeholder="Ej. 7928194-CBB"
+                                maxLength={14}
+                                aria-invalid={Boolean(
+                                    error && !FORMATO_CI.test(ci.trim().toUpperCase())
+                                )}
+                                aria-describedby="ci-ayuda"
                                 className="w-full p-2 border rounded text-sm"
                                 required
                             />
+                            <p id="ci-ayuda" className="mt-1 text-xs text-gray-500">
+                                5 a 10 dígitos; extensión opcional, por ejemplo CB, LP o SC.
+                            </p>
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-600 mb-1">
@@ -319,13 +348,13 @@ export default function RegistroEstudiantes() {
                                             <span
                                                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
                                                     !est.activo
-                                                        ? 'bg-gray-100 text-gray-600'
+                                                        ? 'bg-red-50 text-red-600'
                                                         : 'bg-green-50 text-green-600'
                                                 }`}
                                             >
                                                 <span
                                                     className={`w-1.5 h-1.5 rounded-full ${
-                                                        !est.activo ? 'bg-gray-400' : 'bg-green-500'
+                                                        !est.activo ? 'bg-red-500' : 'bg-green-500'
                                                     }`}
                                                 ></span>{' '}
                                                 {est.activo ? 'ACTIVO' : 'INACTIVO'}
@@ -333,6 +362,7 @@ export default function RegistroEstudiantes() {
                                         </td>
                                         <td className="p-4 text-right">
                                             <button
+                                                type="button"
                                                 onClick={() => abrirEditarEstudiante(index)}
                                                 className="text-blue-600 hover:text-blue-800 font-medium text-sm"
                                             >

@@ -14,6 +14,12 @@ interface AsignaturaGateway
         int $usuarioId,
     ): Asignatura;
 
+    public function actualizar(
+        int $asignaturaId,
+        RegistrarAsignaturaData $data,
+        int $usuarioId,
+    ): ?Asignatura;
+
     /**
      * @return list<Asignatura>
      */

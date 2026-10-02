@@ -15,13 +15,15 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * Datos de demostración del sprint 1, iguales para todo el equipo.
+ * Datos de demostración, iguales para todo el equipo.
  *
  *   php artisan db:seed --class=DemoSeeder
  *
  * Deja una cuenta por rol, el padrón con un estudiante dado de baja, los
  * docentes, los ambientes y las asignaturas con las que se ven las
  * pantallas de HU-02 a HU-06, más unos asientos de bitácora para HU-07.
+ * Del sprint 2 agrega dos exámenes con sus condiciones de habilitación
+ * (HU-11 a HU-13), mientras no exista la pantalla de registro de exámenes.
  * Se puede volver a ejecutar: no duplica nada.
  */
 final class DemoSeeder extends Seeder
@@ -37,6 +39,7 @@ final class DemoSeeder extends Seeder
         $this->ambientes();
         $this->asignaturas($docentes);
         $this->bitacora($usuarios['Administrador']);
+        $this->habilitaciones($this->examenes(), $usuarios['Docente']);
 
         $this->command->info('Datos de demostración cargados.');
     }
@@ -198,6 +201,99 @@ final class DemoSeeder extends Seeder
                     'cupo' => $cupo,
                 ],
             );
+        }
+    }
+
+    /**
+     * Un examen para hoy y otro para la semana que viene.
+     *
+     * @return list<int>
+     */
+    private function examenes(): array
+    {
+        $examenes = [
+            ['INF-342', 'Primer parcial', now()->toDateString(), '08:15:00', 90],
+            ['INF-271', 'Examen final', now()->addWeek()->toDateString(), '14:15:00', 120],
+        ];
+
+        $ids = [];
+
+        foreach ($examenes as [$codigo, $nombre, $fecha, $hora, $duracion]) {
+            $grupoId = DB::table('grupos_asignatura')
+                ->join('asignaturas', 'asignaturas.id', '=', 'grupos_asignatura.asignatura_id')
+                ->where('asignaturas.codigo', $codigo)
+                ->where('grupos_asignatura.codigo_grupo', 'A')
+                ->value('grupos_asignatura.id');
+
+            if (! is_int($grupoId)) {
+                continue;
+            }
+
+            $existente = DB::table('examenes')
+                ->where('grupo_id', $grupoId)
+                ->where('nombre', $nombre)
+                ->value('id');
+
+            $ids[] = is_int($existente)
+                ? $existente
+                : (int) DB::table('examenes')->insertGetId([
+                    'grupo_id' => $grupoId,
+                    'nombre' => $nombre,
+                    'fecha' => $fecha,
+                    'hora_inicio' => $hora,
+                    'duracion_minutos' => $duracion,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+        }
+
+        return $ids;
+    }
+
+    /**
+     * En el primer examen quedan los tres casos que se consultan en la
+     * puerta: habilitado, no habilitado con su motivo y sin condición.
+     *
+     * @param  list<int>  $examenes
+     */
+    private function habilitaciones(array $examenes, User $docente): void
+    {
+        $examenId = $examenes[0] ?? null;
+        $docenteId = $docente->getKey();
+
+        if ($examenId === null || ! is_int($docenteId)) {
+            return;
+        }
+
+        $condiciones = [
+            '202104821' => ['HABILITADO', null],
+            '202008472' => ['HABILITADO', null],
+            '201901349' => ['HABILITADO', null],
+            '202201994' => ['HABILITADO', null],
+            '202105533' => ['NO_HABILITADO', 'Adeuda la matrícula del semestre'],
+            '202207781' => ['NO_HABILITADO', 'No presentó el proyecto que habilita al examen'],
+            // 202302256 queda sin condición registrada.
+        ];
+
+        foreach ($condiciones as $codigo => [$estado, $motivo]) {
+            $estudianteId = DB::table('students')
+                ->where('codigo_universitario', (string) $codigo)
+                ->value('id');
+
+            if (! is_int($estudianteId)) {
+                continue;
+            }
+
+            DB::table('habilitaciones_examen')->insertOrIgnore([
+                'examen_id' => $examenId,
+                'estudiante_id' => $estudianteId,
+                'estado' => $estado,
+                'motivo' => $motivo,
+                'usuario_id' => $docenteId,
+                'fecha_habilitacion' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         }
     }
 
