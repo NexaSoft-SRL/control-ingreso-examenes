@@ -12,7 +12,7 @@ import Habilitacion from '../paginas/habilitacion/Habilitacion.jsx';
 import ConsultaHabilitacion from '../paginas/ingreso/ConsultaHabilitacion.jsx';
 import Login from '../paginas/auth/Login.jsx';
 import LayoutAdmin from './LayoutAdmin.jsx';
-import ExamenesNormasApi from "../paginas/admin/ExamenesNormasApi.jsx";
+import ExamenesNormasApi from '../paginas/admin/ExamenesNormasApi.jsx';
 import PestanasPadron from './PestanasPadron.jsx';
 import SinPermiso from './SinPermiso.jsx';
 import {

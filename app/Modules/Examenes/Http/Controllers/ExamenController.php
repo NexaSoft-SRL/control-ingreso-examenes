@@ -125,14 +125,14 @@ final class ExamenController
 
         return response()->json([
             'message' => 'Examen registrado correctamente.',
-            'data' => $this->serializar($examen)
+            'data' => $this->serializar($examen),
         ], 201);
     }
 
     public function update(Request $request, int $id): JsonResponse
     {
         $examen = Examen::findOrFail($id);
-        
+
         /** @var array<string, mixed> $validated */
         $validated = $request->validate([
             'nombre' => 'required|string|in:Primer parcial,Segundo parcial,Examen final,Instancia',
@@ -153,7 +153,7 @@ final class ExamenController
     public function destroy(int $id): JsonResponse
     {
         $examen = Examen::findOrFail($id);
-        
+
         $examen->delete();
 
         return response()->json(['message' => 'Examen eliminado de la lista.']);
