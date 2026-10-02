@@ -14,11 +14,13 @@ use App\Modules\Administracion\Infrastructure\Persistence\EloquentAuthentication
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentBitacoraGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentConsultaBitacoraGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentStudentRepository;
+use App\Modules\Examenes\Application\Contracts\AsignacionAmbienteGateway;
 use App\Modules\Examenes\Application\Contracts\AsignaturaGateway;
 use App\Modules\Examenes\Application\Contracts\DocenteGateway;
 use App\Modules\Examenes\Application\Contracts\EstudianteExamenGateway;
 use App\Modules\Examenes\Application\Contracts\ExamenGateway;
 use App\Modules\Examenes\Application\Contracts\NormaExamenGateway;
+use App\Modules\Examenes\Infrastructure\Persistence\EloquentAsignacionAmbienteGateway;
 use App\Modules\Examenes\Infrastructure\Persistence\EloquentAsignaturaGateway;
 use App\Modules\Examenes\Infrastructure\Persistence\EloquentDocenteGateway;
 use App\Modules\Examenes\Infrastructure\Persistence\EloquentEstudianteExamenGateway;
@@ -80,6 +82,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             AmbienteRepository::class,
             EloquentAmbienteRepository::class,
+        );
+
+        $this->app->bind(
+            AsignacionAmbienteGateway::class,
+            EloquentAsignacionAmbienteGateway::class,
         );
 
         $this->app->bind(
