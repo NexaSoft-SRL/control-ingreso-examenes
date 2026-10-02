@@ -72,6 +72,8 @@ describe('ConsultaHabilitacion', () => {
 
         expect(campo).toHaveFocus();
         expect(campo).toBeRequired();
+        // El documento puede llevar complemento con letras: nada de teclado numérico.
+        expect(campo).not.toHaveAttribute('inputmode');
         expect(screen.getByLabelText('Examen')).toHaveValue('7');
         expect(window.axios.get).toHaveBeenCalledWith('/api/consulta-habilitacion/examenes');
     });

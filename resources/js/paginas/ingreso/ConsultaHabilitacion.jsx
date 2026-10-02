@@ -187,7 +187,6 @@ function ConsultaHabilitacion({ onNavigate }) {
                                 id="identificador"
                                 ref={campo}
                                 type="text"
-                                inputMode="numeric"
                                 autoComplete="off"
                                 autoFocus
                                 required
