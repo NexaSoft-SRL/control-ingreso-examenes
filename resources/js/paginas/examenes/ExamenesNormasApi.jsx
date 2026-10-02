@@ -159,7 +159,6 @@ export default function ExamenesNormasApi() {
         }
     }
 
-    
     // =========================
     // HU-10: Ambientes del examen
     // =========================
@@ -360,7 +359,7 @@ export default function ExamenesNormasApi() {
                                         </p>
                                     </td>
                                     <td className="px-4 py-4">{item.docenteTexto}</td>
-                                                                        <td className="px-4 py-4">
+                                    <td className="px-4 py-4">
                                         <div className="flex gap-3">
                                             <button
                                                 type="button"
@@ -572,8 +571,8 @@ export default function ExamenesNormasApi() {
                                 Ambientes del examen
                             </h2>
                             <p className="mt-1 text-sm text-slate-500">
-                                Un examen admite varios ambientes. No se ofrece uno en
-                                mantenimiento ni uno con otro examen a la misma hora.
+                                Un examen admite varios ambientes. No se ofrece uno en mantenimiento
+                                ni uno con otro examen a la misma hora.
                             </p>
                         </div>
                         <div className="flex shrink-0 items-center justify-between gap-4 sm:justify-start">
@@ -674,4 +673,3 @@ export default function ExamenesNormasApi() {
         </section>
     );
 }
-    
