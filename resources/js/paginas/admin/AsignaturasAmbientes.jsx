@@ -136,9 +136,6 @@ function AsignaturasAmbientes({ onNavigate }) {
         }
     }
 
-    const examenAsignacionSeleccionado =
-        examenesAsignacion.find((examen) => String(examen.id) === String(examenAsignacionId)) ?? null;
-
     const ambienteAsignacionSeleccionado =
         ambientesAsignacion.find(
             (ambiente) => String(ambiente.id) === String(ambienteAsignacionId)
