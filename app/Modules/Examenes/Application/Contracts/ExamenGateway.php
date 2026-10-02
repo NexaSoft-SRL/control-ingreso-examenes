@@ -12,4 +12,6 @@ interface ExamenGateway
      * @return list<Examen>
      */
     public function listar(): array;
+
+    public function buscar(int $examenId): ?Examen;
 }
