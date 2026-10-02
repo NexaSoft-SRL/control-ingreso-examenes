@@ -85,6 +85,40 @@ final class ConsultaHabilitacionControllerTest extends TestCase
             ->assertJsonPath('data.0.registrado_por', null);
     }
 
+    public function test_it_shows_the_room_assigned_to_the_student_for_that_exam(): void
+    {
+        $personal = $this->usuarioConRol('Personal');
+        $parcial = $this->crearExamen('Primer parcial');
+        $final = $this->crearExamen('Examen final');
+        $estudiante = StudentFactory::new()->create(['codigo_universitario' => '202600808']);
+        $this->registrarCondicion($parcial, $estudiante->getKey(), 'HABILITADO', null);
+
+        $ambienteId = DB::table('ambientes')->insertGetId([
+            'nombre' => 'Aula 691B',
+            'ubicacion' => 'Edificio Nuevo',
+            'capacidad' => 88,
+            'estado' => 'DISPONIBLE',
+        ]);
+        DB::table('asignaciones_ambiente')->insert([
+            'examen_id' => $parcial,
+            'ambiente_id' => $ambienteId,
+            'estudiante_id' => $estudiante->getKey(),
+        ]);
+
+        $this->actingAs($personal)
+            ->getJson("/api/consulta-habilitacion/examenes/{$parcial}?identificador=202600808")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.habilitado', true)
+            ->assertJsonPath('data.0.ambiente', 'Aula 691B (Edificio Nuevo)');
+
+        // La asignación es de ese examen: en otro, el estudiante no tiene ambiente.
+        $this->actingAs($personal)
+            ->getJson("/api/consulta-habilitacion/examenes/{$final}?identificador=202600808")
+            ->assertOk()
+            ->assertJsonPath('data.0.ambiente', null);
+    }
+
     public function test_the_condition_belongs_to_the_exam_that_is_consulted(): void
     {
         $personal = $this->usuarioConRol('Personal');

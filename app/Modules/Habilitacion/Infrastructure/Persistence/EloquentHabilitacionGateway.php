@@ -95,6 +95,14 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
         $valores = array_values(array_unique([$identificador, mb_strtoupper($identificador)]));
 
         $filas = $this->consultaEstudiantes($examenId)
+            // El ambiente sale de la distribución de la HU-14; quien todavía
+            // no fue distribuido queda sin ambiente.
+            ->leftJoin('asignaciones_ambiente as asignacion', function (JoinClause $join) use ($examenId): void {
+                $join->on('asignacion.estudiante_id', '=', 'students.id')
+                    ->where('asignacion.examen_id', '=', $examenId);
+            })
+            ->leftJoin('ambientes', 'ambientes.id', '=', 'asignacion.ambiente_id')
+            ->addSelect(['ambientes.nombre as ambiente_nombre', 'ambientes.ubicacion as ambiente_ubicacion'])
             ->where(function (Builder $consulta) use ($valores): void {
                 $consulta->whereIn('students.codigo_universitario', $valores)
                     ->orWhereIn('students.ci', $valores);
@@ -113,9 +121,7 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                 self::textoOpcional($estudiante->carrera),
                 self::texto($estudiante->condicion),
                 self::textoOpcional($estudiante->motivo),
-                // La distribución de estudiantes por ambiente llega con la
-                // HU-14: hasta entonces nadie tiene uno asignado.
-                null,
+                self::ambiente($estudiante->ambiente_nombre, $estudiante->ambiente_ubicacion),
                 self::textoOpcional($estudiante->registrado_por),
                 self::fechaIso($estudiante->fecha_habilitacion),
             );
@@ -227,6 +233,18 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
         }
 
         return (new DateTimeImmutable($texto, new DateTimeZone('UTC')))->format(DATE_ATOM);
+    }
+
+    private static function ambiente(mixed $nombre, mixed $ubicacion): ?string
+    {
+        $nombre = self::textoOpcional($nombre);
+        $ubicacion = self::textoOpcional($ubicacion);
+
+        if ($nombre === null || $ubicacion === null || $ubicacion === '') {
+            return $nombre;
+        }
+
+        return sprintf('%s (%s)', $nombre, $ubicacion);
     }
 
     private static function textoOpcional(mixed $valor): ?string
