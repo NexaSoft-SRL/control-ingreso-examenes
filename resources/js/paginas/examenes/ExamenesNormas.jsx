@@ -61,7 +61,12 @@ const NORMAS_EJEMPLO = {
     3: [],
 };
 
-function NormaItem({ norma }) {
+const ESTUDIANTES_EJEMPLO = [
+    { id: 1, nombre: 'Alvarado Claros, Kevin Ren?', codigoUniversitario: '202104821' },
+    { id: 2, nombre: 'Camacho Zeballos, Diego', codigoUniversitario: '201901349' },
+];
+
+function NormaItem({ norma, onQuitar }) {
     const particular = norma.alcance === 'particular';
 
     return (
@@ -84,27 +89,97 @@ function NormaItem({ norma }) {
                     </>
                 )}
             </div>
+            <button
+                type="button"
+                aria-label={`Quitar norma: ${norma.texto}`}
+                className="shrink-0 text-xs font-semibold text-red-600 hover:text-red-800"
+                onClick={() => onQuitar(norma.id)}
+            >
+                Quitar
+            </button>
         </li>
     );
 }
 
 NormaItem.propTypes = {
     norma: PropTypes.shape({
+        id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
         alcance: PropTypes.oneOf(['general', 'particular']).isRequired,
         texto: PropTypes.string.isRequired,
         estudiante: PropTypes.string,
         codigoUniversitario: PropTypes.string,
         motivo: PropTypes.string,
     }).isRequired,
+    onQuitar: PropTypes.func.isRequired,
 };
 
 function ExamenesNormas() {
     const [examenSeleccionado, setExamenSeleccionado] = React.useState(EXAMENES_EJEMPLO[0].id);
+    const [normasPorExamen, setNormasPorExamen] = React.useState(() =>
+        Object.fromEntries(Object.entries(NORMAS_EJEMPLO).map(([id, normas]) => [id, [...normas]]))
+    );
+    const [alcance, setAlcance] = React.useState('general');
+    const [texto, setTexto] = React.useState('');
+    const [estudianteId, setEstudianteId] = React.useState('');
+    const [motivo, setMotivo] = React.useState('');
+    const [errores, setErrores] = React.useState({});
+    const [aviso, setAviso] = React.useState('');
 
     const examen = EXAMENES_EJEMPLO.find((item) => item.id === examenSeleccionado);
-    const normas = [...(NORMAS_EJEMPLO[examenSeleccionado] ?? [])].sort(
+    const normas = [...(normasPorExamen[examenSeleccionado] ?? [])].sort(
         (a, b) => Number(a.alcance !== 'general') - Number(b.alcance !== 'general')
     );
+
+    function guardarNorma(evento) {
+        evento.preventDefault();
+
+        const nuevosErrores = {};
+        if (!texto.trim()) nuevosErrores.texto = 'Escribe el texto de la norma.';
+        if (alcance === 'particular' && !estudianteId) {
+            nuevosErrores.estudiante = 'Selecciona el estudiante.';
+        }
+        if (alcance === 'particular' && !motivo.trim()) {
+            nuevosErrores.motivo = 'Escribe el motivo de la norma particular.';
+        }
+
+        setErrores(nuevosErrores);
+        setAviso('');
+        if (Object.keys(nuevosErrores).length > 0) return;
+
+        const estudiante = ESTUDIANTES_EJEMPLO.find((item) => item.id === Number(estudianteId));
+        const nuevaNorma = {
+            id: Date.now(),
+            alcance,
+            texto: texto.trim(),
+            ...(alcance === 'particular'
+                ? {
+                      estudiante: estudiante.nombre,
+                      codigoUniversitario: estudiante.codigoUniversitario,
+                      motivo: motivo.trim(),
+                  }
+                : {}),
+        };
+
+        setNormasPorExamen((actuales) => ({
+            ...actuales,
+            [examenSeleccionado]: [...(actuales[examenSeleccionado] ?? []), nuevaNorma],
+        }));
+        setTexto('');
+        setEstudianteId('');
+        setMotivo('');
+        setErrores({});
+        setAviso('Norma agregada en esta demostraci?n.');
+    }
+
+    function quitarNorma(id) {
+        setNormasPorExamen((actuales) => ({
+            ...actuales,
+            [examenSeleccionado]: (actuales[examenSeleccionado] ?? []).filter(
+                (norma) => norma.id !== id
+            ),
+        }));
+        setAviso('Norma quitada de esta demostraci?n.');
+    }
 
     return (
         <section className="min-w-0 p-4 sm:p-8">
@@ -213,7 +288,7 @@ function ExamenesNormas() {
                     {normas.length > 0 ? (
                         <ol className="divide-y divide-slate-100">
                             {normas.map((norma) => (
-                                <NormaItem key={norma.id} norma={norma} />
+                                <NormaItem key={norma.id} norma={norma} onQuitar={quitarNorma} />
                             ))}
                         </ol>
                     ) : (
@@ -221,6 +296,95 @@ function ExamenesNormas() {
                             Este examen todavía no tiene normas registradas.
                         </p>
                     )}
+                    <form
+                        className="mt-4 border-t border-slate-100 pt-4"
+                        onSubmit={guardarNorma}
+                        noValidate
+                    >
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <label className="block text-xs font-semibold text-slate-600">
+                                Alcance
+                                <select
+                                    value={alcance}
+                                    onChange={(evento) => {
+                                        setAlcance(evento.target.value);
+                                        setErrores({});
+                                        setAviso('');
+                                    }}
+                                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"
+                                >
+                                    <option value="general">General</option>
+                                    <option value="particular">Particular</option>
+                                </select>
+                            </label>
+                            <label className="block text-xs font-semibold text-slate-600">
+                                Norma
+                                <input
+                                    type="text"
+                                    value={texto}
+                                    aria-invalid={Boolean(errores.texto)}
+                                    onChange={(evento) => setTexto(evento.target.value)}
+                                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"
+                                />
+                                {errores.texto && (
+                                    <span className="mt-1 block text-red-600">{errores.texto}</span>
+                                )}
+                            </label>
+                            {alcance === 'particular' && (
+                                <>
+                                    <label className="block text-xs font-semibold text-slate-600">
+                                        Estudiante
+                                        <select
+                                            value={estudianteId}
+                                            aria-invalid={Boolean(errores.estudiante)}
+                                            onChange={(evento) =>
+                                                setEstudianteId(evento.target.value)
+                                            }
+                                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"
+                                        >
+                                            <option value="">Selecciona un estudiante</option>
+                                            {ESTUDIANTES_EJEMPLO.map((item) => (
+                                                <option key={item.id} value={item.id}>
+                                                    {item.nombre} ? {item.codigoUniversitario}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {errores.estudiante && (
+                                            <span className="mt-1 block text-red-600">
+                                                {errores.estudiante}
+                                            </span>
+                                        )}
+                                    </label>
+                                    <label className="block text-xs font-semibold text-slate-600 md:col-span-2">
+                                        Motivo
+                                        <textarea
+                                            rows="2"
+                                            value={motivo}
+                                            aria-invalid={Boolean(errores.motivo)}
+                                            onChange={(evento) => setMotivo(evento.target.value)}
+                                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"
+                                        />
+                                        {errores.motivo && (
+                                            <span className="mt-1 block text-red-600">
+                                                {errores.motivo}
+                                            </span>
+                                        )}
+                                    </label>
+                                </>
+                            )}
+                        </div>
+                        <div className="mt-4 flex items-center justify-between gap-4">
+                            <p role="status" className="text-xs text-emerald-700">
+                                {aviso}
+                            </p>
+                            <button
+                                type="submit"
+                                className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                            >
+                                Agregar norma
+                            </button>
+                        </div>
+                    </form>
                 </section>
             )}
         </section>
