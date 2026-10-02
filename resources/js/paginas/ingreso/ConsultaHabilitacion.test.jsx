@@ -163,6 +163,20 @@ describe('ConsultaHabilitacion', () => {
         expect(window.axios.get).toHaveBeenCalledTimes(1);
     });
 
+    it('al enviar el campo vacío no deja el tiempo de la consulta anterior', async () => {
+        render(<ConsultaHabilitacion />);
+        await consultar('202104821');
+        await screen.findByRole('article', { name: 'Resultado de Kevin Alvarado' });
+        expect(screen.getByText(/Respondió en/)).toBeInTheDocument();
+
+        await consultar('');
+
+        expect(await screen.findByRole('alert')).toBeInTheDocument();
+        expect(screen.queryByRole('article')).not.toBeInTheDocument();
+        expect(screen.queryByText(/Respondió en/)).not.toBeInTheDocument();
+        expect(screen.getByLabelText(/Código universitario o documento/)).toHaveFocus();
+    });
+
     it('consulta sobre el examen elegido y muestra todas las coincidencias', async () => {
         simularApi(() => Promise.resolve({ data: { data: [habilitado, noHabilitado] } }));
         render(<ConsultaHabilitacion />);

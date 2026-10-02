@@ -97,7 +97,9 @@ function ConsultaHabilitacion({ onNavigate }) {
 
         if (valor === '') {
             setResultados(null);
+            setSegundos(null);
             setError('Escribe el código universitario o el documento de identidad.');
+            campo.current?.focus();
             return;
         }
 
