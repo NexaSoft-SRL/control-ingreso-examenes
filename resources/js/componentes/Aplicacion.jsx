@@ -158,11 +158,18 @@ function RutaConPermiso({ permiso, children }) {
 }
 
 RutaProtegida.propTypes = { children: PropTypes.node.isRequired };
-RutaConPermiso.propTypes = { permiso: PropTypes.string.isRequired, children: PropTypes.node.isRequired };
+RutaConPermiso.propTypes = {
+    permiso: PropTypes.string.isRequired,
+    children: PropTypes.node.isRequired,
+};
 
 function PaginaUsuarios() {
     const navegar = useNavegacionPorClave();
-    return <LayoutAdmin seleccionado="usuarios" onNavigate={navegar}><UsuariosRoles onNavigate={navegar} /></LayoutAdmin>;
+    return (
+        <LayoutAdmin seleccionado="usuarios" onNavigate={navegar}>
+            <UsuariosRoles onNavigate={navegar} />
+        </LayoutAdmin>
+    );
 }
 
 function PaginaAsignaturas() {
@@ -174,26 +181,43 @@ function PaginaExamenes() {
     const navegar = useNavegacionPorClave();
     return (
         <LayoutAdmin seleccionado="examenes" onNavigate={navegar}>
-            <ExamenesNormasApi /> 
+            <ExamenesNormasApi />
         </LayoutAdmin>
     );
 }
 
 function PaginaConsultaNormasControl() {
     const navegar = useNavegacionPorClave();
-    return <LayoutAdmin seleccionado="controlNormas" onNavigate={navegar}><ConsultaNormasControl /></LayoutAdmin>;
+    return (
+        <LayoutAdmin seleccionado="controlNormas" onNavigate={navegar}>
+            <ConsultaNormasControl />
+        </LayoutAdmin>
+    );
 }
 
-function PaginaBitacora() { return <Bitacora onNavigate={useNavegacionPorClave()} />; }
+function PaginaBitacora() {
+    return <Bitacora onNavigate={useNavegacionPorClave()} />;
+}
 
 function PaginaPadron() {
     const navegar = useNavegacionPorClave();
-    return <LayoutAdmin seleccionado="padron" onNavigate={navegar}><PestanasPadron activa="padron" onNavigate={navegar} /><RegistroEstudiantes /></LayoutAdmin>;
+    return (
+        <LayoutAdmin seleccionado="padron" onNavigate={navegar}>
+            <PestanasPadron activa="padron" onNavigate={navegar} />
+            <RegistroEstudiantes />
+        </LayoutAdmin>
+    );
 }
 
-function PaginaCargaMasiva() { return <CargaMasiva onNavigate={useNavegacionPorClave()} />; }
-function PaginaHabilitacion() { return <Habilitacion onNavigate={useNavegacionPorClave()} />; }
-function PaginaConsulta() { return <ConsultaHabilitacion onNavigate={useNavegacionPorClave()} />; }
+function PaginaCargaMasiva() {
+    return <CargaMasiva onNavigate={useNavegacionPorClave()} />;
+}
+function PaginaHabilitacion() {
+    return <Habilitacion onNavigate={useNavegacionPorClave()} />;
+}
+function PaginaConsulta() {
+    return <ConsultaHabilitacion onNavigate={useNavegacionPorClave()} />;
+}
 
 function PaginaSinPermiso() {
     const navigate = useNavigate();
@@ -202,14 +226,20 @@ function PaginaSinPermiso() {
     const destino = rutaDeEntrada();
     const sinNingunaSeccion = destino === '/sin-permiso';
 
-    const mensaje = ubicacion.state?.mensaje ?? (sinNingunaSeccion ? `Tu rol (${rolDeSesion() ?? 'sin rol asignado'}) todavía no tiene ninguna sección habilitada. Pide al administrador que revise sus permisos.` : undefined);
+    const mensaje =
+        ubicacion.state?.mensaje ??
+        (sinNingunaSeccion
+            ? `Tu rol (${rolDeSesion() ?? 'sin rol asignado'}) todavía no tiene ninguna sección habilitada. Pide al administrador que revise sus permisos.`
+            : undefined);
 
     return (
         <SinPermiso
             mensaje={mensaje}
             permiso={ubicacion.state?.permiso}
             textoBoton={sinNingunaSeccion ? 'Cerrar sesión' : 'Volver'}
-            onVolver={() => sinNingunaSeccion ? navegar('salir') : navigate(destino, { replace: true })}
+            onVolver={() =>
+                sinNingunaSeccion ? navegar('salir') : navigate(destino, { replace: true })
+            }
         />
     );
 }
@@ -238,20 +268,94 @@ export default function Aplicacion() {
             <ManejadorSesionExpirada />
             <Routes>
                 <Route path="/login" element={<PaginaLogin />} />
-                <Route path="/admin/usuarios" element={<RutaProtegida><PaginaUsuarios /></RutaProtegida>} />
-                <Route path="/admin/asignaturas" element={<RutaProtegida><PaginaAsignaturas /></RutaProtegida>} />
-                <Route path="/admin/examenes" element={<RutaProtegida><RutaConPermiso permiso="examenes_normas"><PaginaExamenes /></RutaConPermiso></RutaProtegida>} />
-                <Route path="/control/normas" element={<RutaProtegida><RutaConPermiso permiso="punto_control"><PaginaConsultaNormasControl /></RutaConPermiso></RutaProtegida>} />
-                <Route path="/admin/bitacora" element={<RutaProtegida><PaginaBitacora /></RutaProtegida>} />
-                <Route path="/admin/padron" element={<RutaProtegida><PaginaPadron /></RutaProtegida>} />
-                <Route path="/admin/padron/carga-masiva" element={<RutaProtegida><PaginaCargaMasiva /></RutaProtegida>} />
-                <Route path="/admin/habilitacion" element={<RutaProtegida><PaginaHabilitacion /></RutaProtegida>} />
-                <Route path="/control/consulta" element={<RutaProtegida><PaginaConsulta /></RutaProtegida>} />
-                
+                <Route
+                    path="/admin/usuarios"
+                    element={
+                        <RutaProtegida>
+                            <PaginaUsuarios />
+                        </RutaProtegida>
+                    }
+                />
+                <Route
+                    path="/admin/asignaturas"
+                    element={
+                        <RutaProtegida>
+                            <PaginaAsignaturas />
+                        </RutaProtegida>
+                    }
+                />
+                <Route
+                    path="/admin/examenes"
+                    element={
+                        <RutaProtegida>
+                            <RutaConPermiso permiso="examenes_normas">
+                                <PaginaExamenes />
+                            </RutaConPermiso>
+                        </RutaProtegida>
+                    }
+                />
+                <Route
+                    path="/control/normas"
+                    element={
+                        <RutaProtegida>
+                            <RutaConPermiso permiso="punto_control">
+                                <PaginaConsultaNormasControl />
+                            </RutaConPermiso>
+                        </RutaProtegida>
+                    }
+                />
+                <Route
+                    path="/admin/bitacora"
+                    element={
+                        <RutaProtegida>
+                            <PaginaBitacora />
+                        </RutaProtegida>
+                    }
+                />
+                <Route
+                    path="/admin/padron"
+                    element={
+                        <RutaProtegida>
+                            <PaginaPadron />
+                        </RutaProtegida>
+                    }
+                />
+                <Route
+                    path="/admin/padron/carga-masiva"
+                    element={
+                        <RutaProtegida>
+                            <PaginaCargaMasiva />
+                        </RutaProtegida>
+                    }
+                />
+                <Route
+                    path="/admin/habilitacion"
+                    element={
+                        <RutaProtegida>
+                            <PaginaHabilitacion />
+                        </RutaProtegida>
+                    }
+                />
+                <Route
+                    path="/control/consulta"
+                    element={
+                        <RutaProtegida>
+                            <PaginaConsulta />
+                        </RutaProtegida>
+                    }
+                />
+
                 {/* CORRECCIÓN: La ruta pública /examenes ahora carga la vista de lectura (ExamenesNormas) */}
                 <Route path="/examenes" element={<ExamenesNormas />} />
-                
-                <Route path="/sin-permiso" element={<RutaProtegida><PaginaSinPermiso /></RutaProtegida>} />
+
+                <Route
+                    path="/sin-permiso"
+                    element={
+                        <RutaProtegida>
+                            <PaginaSinPermiso />
+                        </RutaProtegida>
+                    }
+                />
                 <Route path="/" element={<Navigate to={rutaDeEntrada()} replace />} />
                 <Route path="*" element={<Navigate to={rutaDeEntrada()} replace />} />
             </Routes>
