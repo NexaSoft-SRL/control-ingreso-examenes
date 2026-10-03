@@ -99,7 +99,7 @@ final class ExamenController
     // --- NUEVOS MÉTODOS HU-08 ---
     public function store(Request $request): JsonResponse
     {
-    /** @var array<string, mixed> $validated */
+        /** @var array<string, mixed> $validated */
         $validated = $request->validate([
             'grupo_id' => 'required|integer|exists:grupos_asignatura,id',
             'nombre' => 'required|string|in:Primer parcial,Segundo parcial,Examen final,Instancia',
