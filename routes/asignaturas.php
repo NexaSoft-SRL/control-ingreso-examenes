@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\Examenes\Http\Controllers\AmbienteExamenController;
 use App\Modules\Examenes\Http\Controllers\AsignaturaController;
 use App\Modules\Examenes\Http\Controllers\DocenteController;
 use App\Modules\Examenes\Http\Controllers\ExamenController;
@@ -117,6 +118,28 @@ Route::prefix('api')
             ->whereNumber('examen')
             ->whereNumber('norma')
             ->name('examenes.normas.destroy');
+
+        Route::get(
+            '/examenes/{examen}/ambientes',
+            [AmbienteExamenController::class, 'index']
+        )
+            ->whereNumber('examen')
+            ->name('examenes.ambientes.index');
+
+        Route::post(
+            '/examenes/{examen}/ambientes',
+            [AmbienteExamenController::class, 'store']
+        )
+            ->whereNumber('examen')
+            ->name('examenes.ambientes.store');
+
+        Route::delete(
+            '/examenes/{examen}/ambientes/{ambiente}',
+            [AmbienteExamenController::class, 'destroy']
+        )
+            ->whereNumber('examen')
+            ->whereNumber('ambiente')
+            ->name('examenes.ambientes.destroy');
     });
 
 Route::prefix('api/control')

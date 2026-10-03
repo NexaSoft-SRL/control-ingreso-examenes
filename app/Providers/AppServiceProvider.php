@@ -14,12 +14,14 @@ use App\Modules\Administracion\Infrastructure\Persistence\EloquentAuthentication
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentBitacoraGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentConsultaBitacoraGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentStudentRepository;
+use App\Modules\Examenes\Application\Contracts\AmbienteExamenGateway;
 use App\Modules\Examenes\Application\Contracts\AsignacionAmbienteGateway;
 use App\Modules\Examenes\Application\Contracts\AsignaturaGateway;
 use App\Modules\Examenes\Application\Contracts\DocenteGateway;
 use App\Modules\Examenes\Application\Contracts\EstudianteExamenGateway;
 use App\Modules\Examenes\Application\Contracts\ExamenGateway;
 use App\Modules\Examenes\Application\Contracts\NormaExamenGateway;
+use App\Modules\Examenes\Infrastructure\Persistence\EloquentAmbienteExamenGateway;
 use App\Modules\Examenes\Infrastructure\Persistence\EloquentAsignacionAmbienteGateway;
 use App\Modules\Examenes\Infrastructure\Persistence\EloquentAsignaturaGateway;
 use App\Modules\Examenes\Infrastructure\Persistence\EloquentDocenteGateway;
@@ -85,13 +87,18 @@ class AppServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(
-            AsignacionAmbienteGateway::class,
-            EloquentAsignacionAmbienteGateway::class,
+            AmbienteExamenGateway::class,
+            EloquentAmbienteExamenGateway::class,
         );
 
         $this->app->bind(
             HabilitacionGateway::class,
             EloquentHabilitacionGateway::class,
+        );
+
+        $this->app->bind(
+            AsignacionAmbienteGateway::class,
+            EloquentAsignacionAmbienteGateway::class,
         );
     }
 

@@ -45,7 +45,11 @@ export default function ExamenesNormasApi() {
     const [cargandoNormas, setCargandoNormas] = React.useState(false);
     const [guardando, setGuardando] = React.useState(false);
     const [quitandoId, setQuitandoId] = React.useState(null);
-
+    const [ambientesDe, setAmbientesDe] = React.useState(null);
+    const [ambientesAsignados, setAmbientesAsignados] = React.useState([]);
+    const [ocupacion, setOcupacion] = React.useState(null);
+    const [catalogoAmbientes, setCatalogoAmbientes] = React.useState([]);
+    const [ambienteElegido, setAmbienteElegido] = React.useState('');
     const examen = examenes.find((item) => item.id === examenId) ?? null;
 
     const cargarNormas = React.useCallback(async (id) => {
@@ -152,6 +156,83 @@ export default function ExamenesNormasApi() {
             setMensaje(mensajeDeError(error, 'No se pudo eliminar la norma.'));
         } finally {
             setQuitandoId(null);
+        }
+    }
+
+    // =========================
+    // HU-10: Ambientes del examen
+    // =========================
+
+    async function abrirAmbientes(examen) {
+        setExamenId(null);
+        setAmbientesDe(examen.id);
+        setAmbienteElegido('');
+        setErrorCarga('');
+        setMensaje('');
+
+        try {
+            const response = await window.axios.get(`/api/examenes/${examen.id}/ambientes`);
+            setAmbientesAsignados(response.data.data ?? []);
+            setOcupacion(response.data.ocupacion ?? null);
+        } catch (error) {
+            setAmbientesAsignados([]);
+            setOcupacion(null);
+            setErrorCarga(mensajeDeError(error, 'No se pudieron cargar los ambientes.'));
+        }
+
+        if (catalogoAmbientes.length === 0) {
+            try {
+                const response = await window.axios.get('/api/admin/ambientes');
+                setCatalogoAmbientes(response.data.data ?? response.data ?? []);
+            } catch {
+                setCatalogoAmbientes([]);
+            }
+        }
+    }
+
+    function cerrarAmbientes() {
+        setAmbientesDe(null);
+        setAmbientesAsignados([]);
+        setOcupacion(null);
+        setAmbienteElegido('');
+    }
+
+    async function refrescarAmbientes() {
+        const response = await window.axios.get(`/api/examenes/${ambientesDe}/ambientes`);
+        setAmbientesAsignados(response.data.data ?? []);
+        setOcupacion(response.data.ocupacion ?? null);
+    }
+
+    async function asignarAmbiente(event) {
+        event.preventDefault();
+        setErrorCarga('');
+        setMensaje('');
+
+        try {
+            await window.axios.post(`/api/examenes/${ambientesDe}/ambientes`, {
+                ambiente_id: Number(ambienteElegido),
+            });
+
+            await refrescarAmbientes();
+            setAmbienteElegido('');
+            setMensaje('Ambiente asignado.');
+        } catch (error) {
+            setErrorCarga(mensajeDeError(error, 'No se pudo asignar el ambiente.'));
+        }
+    }
+
+    async function quitarAmbiente(asignado) {
+        setErrorCarga('');
+        setMensaje('');
+
+        try {
+            await window.axios.delete(
+                `/api/examenes/${ambientesDe}/ambientes/${asignado.ambiente_id}`
+            );
+            await refrescarAmbientes();
+            setMensaje('Ambiente quitado.');
+        } catch (error) {
+            setErrorCarga(mensajeDeError(error, 'No se pudo quitar el ambiente.'));
         }
     }
 
@@ -279,17 +360,28 @@ export default function ExamenesNormasApi() {
                                     </td>
                                     <td className="px-4 py-4">{item.docenteTexto}</td>
                                     <td className="px-4 py-4">
-                                        <button
-                                            type="button"
-                                            aria-pressed={examenId === item.id}
-                                            className="font-medium text-blue-600 hover:text-blue-800"
-                                            onClick={() => {
-                                                setExamenId(item.id);
-                                                setMensaje('');
-                                            }}
-                                        >
-                                            Normas
-                                        </button>
+                                        <div className="flex gap-3">
+                                            <button
+                                                type="button"
+                                                aria-pressed={examenId === item.id}
+                                                className="font-medium text-blue-600 hover:text-blue-800"
+                                                onClick={() => {
+                                                    setExamenId(item.id);
+                                                    setMensaje('');
+                                                }}
+                                            >
+                                                Normas
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                aria-pressed={ambientesDe === item.id}
+                                                className="font-medium text-emerald-600 hover:text-emerald-800"
+                                                onClick={() => abrirAmbientes(item)}
+                                            >
+                                                Ambientes
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))
@@ -466,6 +558,117 @@ export default function ExamenesNormasApi() {
                         </form>
                     </section>
                 </>
+            )}
+
+            {ambientesDe !== null && (
+                <section
+                    aria-labelledby="ambientes-titulo"
+                    className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+                >
+                    <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                        <div>
+                            <h2 id="ambientes-titulo" className="text-lg font-bold text-slate-900">
+                                Ambientes del examen
+                            </h2>
+                            <p className="mt-1 text-sm text-slate-500">
+                                Un examen admite varios ambientes. No se ofrece uno en mantenimiento
+                                ni uno con otro examen a la misma hora.
+                            </p>
+                        </div>
+                        <div className="flex shrink-0 items-center justify-between gap-4 sm:justify-start">
+                            <span className="text-xs font-medium text-slate-500">
+                                {ambientesAsignados.length}{' '}
+                                {ambientesAsignados.length === 1 ? 'ambiente' : 'ambientes'}
+                            </span>
+                            <button
+                                type="button"
+                                className="text-sm font-medium text-slate-500 hover:text-slate-800"
+                                onClick={cerrarAmbientes}
+                            >
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+
+                    {ocupacion && (
+                        <p
+                            className={`mt-4 inline-block rounded-lg px-3 py-2 text-sm ${
+                                ocupacion.alcanza
+                                    ? 'bg-emerald-50 text-emerald-700'
+                                    : 'bg-amber-50 text-amber-700'
+                            }`}
+                        >
+                            Capacidad asignada: {ocupacion.capacidad_asignada} · Habilitados:{' '}
+                            {ocupacion.habilitados}
+                            {!ocupacion.alcanza && ' · falta capacidad'}
+                        </p>
+                    )}
+
+                    {ambientesAsignados.length === 0 ? (
+                        <p className="py-6 text-sm text-slate-500">
+                            Este examen todavía no tiene ambientes asignados.
+                        </p>
+                    ) : (
+                        <ul className="divide-y divide-slate-100">
+                            {ambientesAsignados.map((asignado) => (
+                                <li
+                                    key={asignado.id}
+                                    className="flex items-start justify-between gap-4 border-b border-slate-100 py-4 last:border-b-0"
+                                >
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-slate-800">
+                                            {asignado.nombre}
+                                        </p>
+                                        <p className="mt-1 text-xs text-slate-500">
+                                            {asignado.ubicacion ?? 'Sin edificio'} ·{' '}
+                                            {asignado.capacidad} lugares
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="shrink-0 text-xs font-semibold text-red-600"
+                                        onClick={() => quitarAmbiente(asignado)}
+                                    >
+                                        Quitar
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+
+                    <form
+                        className="mt-4 border-t border-slate-100 pt-4"
+                        onSubmit={asignarAmbiente}
+                    >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                            <label className="flex-1 text-xs font-semibold text-slate-600">
+                                Ambiente
+                                <select
+                                    required
+                                    value={ambienteElegido}
+                                    onChange={(event) => setAmbienteElegido(event.target.value)}
+                                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"
+                                >
+                                    <option value="">Selecciona un ambiente</option>
+                                    {catalogoAmbientes
+                                        .filter((ambiente) => ambiente.estado === 'DISPONIBLE')
+                                        .map((ambiente) => (
+                                            <option key={ambiente.id} value={ambiente.id}>
+                                                {ambiente.nombre} · {ambiente.capacidad} lugares
+                                            </option>
+                                        ))}
+                                </select>
+                            </label>
+
+                            <button
+                                type="submit"
+                                className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white sm:w-auto"
+                            >
+                                Asignar ambiente
+                            </button>
+                        </div>
+                    </form>
+                </section>
             )}
         </section>
     );

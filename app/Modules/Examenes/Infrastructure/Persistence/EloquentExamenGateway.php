@@ -23,4 +23,12 @@ final class EloquentExamenGateway implements ExamenGateway
 
         return array_values($examenes);
     }
+
+    public function buscar(int $examenId): ?Examen
+    {
+        return Examen::query()
+            ->with(['grupo.asignatura', 'grupo.docente'])
+            ->whereKey($examenId)
+            ->first();
+    }
 }
