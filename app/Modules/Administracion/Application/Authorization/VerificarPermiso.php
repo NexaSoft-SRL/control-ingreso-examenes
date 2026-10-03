@@ -26,4 +26,22 @@ final class VerificarPermiso
         return $rol->permissions
             ->contains(static fn (Permission $asignado): bool => $asignado->name === $permiso);
     }
+
+    /**
+     * HU-10: el docente lista ambientes para asignarlos a su examen, pero
+     * no tiene el permiso de asignaturas. Se admite que la ruta acepte
+     * uno de varios permisos separados por "|".
+     *
+     * @param  list<string>  $permisos
+     */
+    public function puedeAlguno(User $usuario, array $permisos): bool
+    {
+        foreach ($permisos as $permiso) {
+            if ($this->puede($usuario, $permiso)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
