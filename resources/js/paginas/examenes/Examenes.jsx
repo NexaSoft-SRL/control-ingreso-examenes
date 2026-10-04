@@ -4,19 +4,25 @@ import { Building2, CalendarClock, ListChecks, Pencil, Plus, Trash2 } from 'luci
 import LayoutAdmin from '../../componentes/LayoutAdmin.jsx';
 
 const normaVacia = {
-    alcance: 'GENERAL',
+    alcance: 'general',
     texto: '',
     student_id: '',
     motivo: '',
 };
 
+const tiposExamen = [
+    { valor: 'Primer parcial', etiqueta: 'Primer parcial' },
+    { valor: 'Segundo parcial', etiqueta: 'Segundo parcial' },
+    { valor: 'Examen final', etiqueta: 'Examen final' },
+    { valor: 'Instancia', etiqueta: 'Instancia' },
+];
+
 const examenVacio = {
-    grupo_asignatura_id: '',
+    grupo_id: '',
     fecha: '',
     hora_inicio: '',
     duracion_minutos: '90',
-    tipo: 'PRIMER_PARCIAL',
-    descripcion: '',
+    nombre: 'Primer parcial',
 };
 
 function mensajeDeError(excepcion, respaldo) {
@@ -34,7 +40,6 @@ function mensajeDeError(excepcion, respaldo) {
 function Examenes({ onNavigate }) {
     const [examenes, setExamenes] = React.useState([]);
     const [grupos, setGrupos] = React.useState([]);
-    const [tipos, setTipos] = React.useState([]);
     const [cargando, setCargando] = React.useState(true);
     const [error, setError] = React.useState(null);
     const [aviso, setAviso] = React.useState(null);
@@ -55,13 +60,9 @@ function Examenes({ onNavigate }) {
         setError(null);
 
         try {
-            const [respExamenes, respTipos] = await Promise.all([
-                window.axios.get('/api/examenes'),
-                window.axios.get('/api/examenes/tipos'),
-            ]);
+            const respExamenes = await window.axios.get('/api/examenes');
 
             setExamenes(respExamenes.data.data);
-            setTipos(respTipos.data.data);
 
             // Las asignaturas traen sus grupos: de ahí sale el selector.
             try {
@@ -115,7 +116,7 @@ function Examenes({ onNavigate }) {
 
         if (estudiantes.length === 0) {
             try {
-                const respuesta = await window.axios.get('/api/students');
+                const respuesta = await window.axios.get('/api/examenes/estudiantes');
 
                 setEstudiantes(respuesta.data.data ?? respuesta.data ?? []);
             } catch {
@@ -137,14 +138,18 @@ function Examenes({ onNavigate }) {
         setError(null);
         setAviso(null);
 
-        const esParticular = norma.alcance === 'PARTICULAR';
+        const esParticular = norma.alcance === 'particular';
 
         try {
             await window.axios.post(`/api/examenes/${normasDe}/normas`, {
                 alcance: norma.alcance,
                 texto: norma.texto.trim(),
-                student_id: esParticular ? Number(norma.student_id) : null,
-                motivo: esParticular ? norma.motivo.trim() : null,
+                ...(esParticular
+                    ? {
+                          estudiante_id: Number(norma.student_id),
+                          motivo: norma.motivo.trim(),
+                      }
+                    : {}),
             });
 
             const respuesta = await window.axios.get(`/api/examenes/${normasDe}/normas`);
@@ -261,12 +266,11 @@ function Examenes({ onNavigate }) {
     function abrirEdicion(examen) {
         setFormulario(examen.id);
         setCampos({
-            grupo_asignatura_id: String(examen.grupo?.id ?? ''),
-            fecha: examen.fecha,
-            hora_inicio: examen.hora_inicio,
+            grupo_id: String(examen.grupo?.id ?? ''),
+            fecha: String(examen.fecha).slice(0, 10),
+            hora_inicio: String(examen.hora_inicio).slice(0, 5),
             duracion_minutos: String(examen.duracion_minutos),
-            tipo: examen.tipo,
-            descripcion: examen.descripcion ?? '',
+            nombre: examen.nombre,
         });
         setError(null);
         setAviso(null);
@@ -283,12 +287,11 @@ function Examenes({ onNavigate }) {
         setAviso(null);
 
         const cuerpo = {
-            grupo_asignatura_id: Number(campos.grupo_asignatura_id),
+            grupo_id: Number(campos.grupo_id),
             fecha: campos.fecha,
             hora_inicio: campos.hora_inicio,
             duracion_minutos: Number(campos.duracion_minutos),
-            tipo: campos.tipo,
-            descripcion: campos.descripcion.trim() || null,
+            nombre: campos.nombre,
         };
 
         try {
@@ -378,12 +381,13 @@ function Examenes({ onNavigate }) {
                                 <select
                                     id="examen-grupo"
                                     required
+                                    disabled={formulario !== 'nuevo'}
                                     className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800"
-                                    value={campos.grupo_asignatura_id}
+                                    value={campos.grupo_id}
                                     onChange={(evento) =>
                                         setCampos({
                                             ...campos,
-                                            grupo_asignatura_id: evento.target.value,
+                                            grupo_id: evento.target.value,
                                         })
                                     }
                                 >
@@ -407,12 +411,12 @@ function Examenes({ onNavigate }) {
                                 <select
                                     id="examen-tipo"
                                     className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800"
-                                    value={campos.tipo}
+                                    value={campos.nombre}
                                     onChange={(evento) =>
-                                        setCampos({ ...campos, tipo: evento.target.value })
+                                        setCampos({ ...campos, nombre: evento.target.value })
                                     }
                                 >
-                                    {tipos.map((tipo) => (
+                                    {tiposExamen.map((tipo) => (
                                         <option key={tipo.valor} value={tipo.valor}>
                                             {tipo.etiqueta}
                                         </option>
@@ -484,25 +488,6 @@ function Examenes({ onNavigate }) {
                                     }
                                 />
                             </div>
-
-                            <div className="flex flex-col gap-1.5">
-                                <label
-                                    className="text-xs font-semibold text-slate-700"
-                                    htmlFor="examen-descripcion"
-                                >
-                                    Descripción (opcional)
-                                </label>
-
-                                <input
-                                    id="examen-descripcion"
-                                    type="text"
-                                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800"
-                                    value={campos.descripcion}
-                                    onChange={(evento) =>
-                                        setCampos({ ...campos, descripcion: evento.target.value })
-                                    }
-                                />
-                            </div>
                         </div>
 
                         <div className="mt-4 flex justify-end gap-2">
@@ -534,7 +519,7 @@ function Examenes({ onNavigate }) {
 
                 {!cargando && examenes.length > 0 && (
                     <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-                        <div className="grid min-w-[1000px] grid-cols-[1.3fr_0.9fr_0.85fr_0.65fr_1fr_1.3fr] items-center gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-xs font-semibold tracking-wide text-slate-500">
+                        <div className="grid min-w-[920px] grid-cols-[minmax(155px,1.25fr)_minmax(125px,1fr)_minmax(115px,0.9fr)_minmax(90px,0.7fr)_minmax(130px,1fr)_minmax(205px,1.5fr)] items-center gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-xs font-semibold tracking-wide text-slate-500">
                             <div>ASIGNATURA</div>
                             <div>TIPO</div>
                             <div>FECHA</div>
@@ -546,9 +531,9 @@ function Examenes({ onNavigate }) {
                         {examenes.map((examen) => (
                             <div
                                 key={examen.id}
-                                className="grid min-w-[1000px] grid-cols-[1.3fr_0.9fr_0.85fr_0.65fr_1fr_1.3fr] items-center gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0"
+                                className="grid min-w-[920px] grid-cols-[minmax(155px,1.25fr)_minmax(125px,1fr)_minmax(115px,0.9fr)_minmax(90px,0.7fr)_minmax(130px,1fr)_minmax(205px,1.5fr)] items-center gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0"
                             >
-                                <div>
+                                <div className="min-w-0">
                                     <p className="font-semibold text-slate-800">
                                         {examen.grupo?.asignatura?.nombre ?? 'Sin asignatura'}
                                     </p>
@@ -558,27 +543,27 @@ function Examenes({ onNavigate }) {
                                     </p>
                                 </div>
 
-                                <div className="text-slate-600">{examen.tipo_etiqueta}</div>
+                                <div className="min-w-0 text-slate-600">{examen.nombre}</div>
 
-                                <div className="flex items-center gap-1.5 text-slate-600">
+                                <div className="flex items-center gap-1.5 whitespace-nowrap text-slate-600">
                                     <CalendarClock className="h-3.5 w-3.5 text-slate-400" />
-                                    {examen.fecha}
+                                    {String(examen.fecha).slice(0, 10)}
                                 </div>
 
-                                <div className="text-slate-600">
-                                    {examen.hora_inicio}
+                                <div className="whitespace-nowrap text-slate-600">
+                                    {String(examen.hora_inicio).slice(0, 5)}
                                     <span className="block text-xs text-slate-400">
                                         {examen.duracion_minutos} min
                                     </span>
                                 </div>
 
-                                <div className="text-xs text-slate-500">
+                                <div className="min-w-0 break-words text-xs text-slate-500">
                                     {examen.grupo?.docente
                                         ? `${examen.grupo.docente.apellidos}, ${examen.grupo.docente.nombres}`
                                         : 'Sin docente'}
                                 </div>
 
-                                <div className="flex gap-2">
+                                <div className="grid grid-cols-2 gap-1">
                                     <button
                                         type="button"
                                         aria-label={`Editar examen ${examen.id}`}
@@ -774,12 +759,12 @@ function Examenes({ onNavigate }) {
                                         <div>
                                             <span
                                                 className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                                                    registro.alcance === 'GENERAL'
+                                                    registro.alcance === 'general'
                                                         ? 'bg-blue-100 text-blue-700'
                                                         : 'bg-amber-100 text-amber-700'
                                                 }`}
                                             >
-                                                {registro.alcance === 'GENERAL'
+                                                {registro.alcance === 'general'
                                                     ? 'General'
                                                     : 'Particular'}
                                             </span>
@@ -788,10 +773,11 @@ function Examenes({ onNavigate }) {
                                                 {registro.texto}
                                             </p>
 
-                                            {registro.estudiante && (
+                                            {registro.estudiante_id && (
                                                 <p className="text-xs text-slate-500">
-                                                    {registro.estudiante.nombre} ·{' '}
-                                                    {registro.estudiante.codigo_universitario}
+                                                    {registro.estudiante_apellido},{' '}
+                                                    {registro.estudiante_nombre} ·{' '}
+                                                    {registro.estudiante_codigo}
                                                 </p>
                                             )}
 
@@ -837,8 +823,8 @@ function Examenes({ onNavigate }) {
                                             setNorma({ ...norma, alcance: evento.target.value })
                                         }
                                     >
-                                        <option value="GENERAL">General</option>
-                                        <option value="PARTICULAR">Particular</option>
+                                        <option value="general">General</option>
+                                        <option value="particular">Particular</option>
                                     </select>
                                 </div>
 
@@ -862,7 +848,7 @@ function Examenes({ onNavigate }) {
                                     />
                                 </div>
 
-                                {norma.alcance === 'PARTICULAR' && (
+                                {norma.alcance === 'particular' && (
                                     <>
                                         <div className="flex flex-col gap-1.5">
                                             <label
@@ -889,8 +875,8 @@ function Examenes({ onNavigate }) {
                                                         key={estudiante.id}
                                                         value={estudiante.id}
                                                     >
-                                                        {estudiante.apellidos}, {estudiante.nombres}{' '}
-                                                        · {estudiante.codigo_universitario}
+                                                        {estudiante.nombre} ·{' '}
+                                                        {estudiante.codigo_universitario}
                                                     </option>
                                                 ))}
                                             </select>
