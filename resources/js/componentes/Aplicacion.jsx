@@ -6,13 +6,13 @@ import AsignaturasAmbientes from '../paginas/admin/AsignaturasAmbientes.jsx';
 import Bitacora from '../paginas/admin/Bitacora.jsx';
 import CargaMasiva from '../paginas/estudiantes/CargaMasiva.jsx';
 import RegistroEstudiantes from '../paginas/estudiantes/RegistroEstudiantes.jsx';
+import Examenes from '../paginas/examenes/Examenes.jsx';
 import ExamenesNormas from '../paginas/examenes/ExamenesNormas.jsx';
 import ConsultaNormasControl from '../paginas/examenes/ConsultaNormasControl.jsx';
 import Habilitacion from '../paginas/habilitacion/Habilitacion.jsx';
 import ConsultaHabilitacion from '../paginas/ingreso/ConsultaHabilitacion.jsx';
 import Login from '../paginas/auth/Login.jsx';
 import LayoutAdmin from './LayoutAdmin.jsx';
-import ExamenesNormasApi from '../paginas/admin/ExamenesNormasApi.jsx';
 import PestanasPadron from './PestanasPadron.jsx';
 import SinPermiso from './SinPermiso.jsx';
 import {
@@ -176,14 +176,10 @@ function PaginaAsignaturas() {
     return <AsignaturasAmbientes onNavigate={useNavegacionPorClave()} />;
 }
 
-// CORRECCIÓN: Ahora carga ExamenesNormasApi (el CRUD con tu botón) en la ruta /admin/examenes
 function PaginaExamenes() {
     const navegar = useNavegacionPorClave();
-    return (
-        <LayoutAdmin seleccionado="examenes" onNavigate={navegar}>
-            <ExamenesNormasApi />
-        </LayoutAdmin>
-    );
+
+    return <Examenes onNavigate={navegar} />;
 }
 
 function PaginaConsultaNormasControl() {
