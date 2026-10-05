@@ -44,7 +44,7 @@ class UpdateAmbienteRequest extends FormRequest
              * Coordinacion pendiente con el responsable de HU-08.
              */
             'capacidad' => ['required', 'integer', 'min:1'],
-            'estado' => ['sometimes', 'string', Rule::in(['DISPONIBLE', 'MANTENIMIENTO', 'OCUPADO'])],
+            'estado' => ['sometimes', 'string', Rule::in(['DISPONIBLE', 'MANTENIMIENTO', 'OCUPADO', 'INACTIVO'])],
         ];
     }
 }

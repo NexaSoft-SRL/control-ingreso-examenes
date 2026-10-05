@@ -188,4 +188,22 @@ class AmbienteTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['nombre']);
     }
+
+    public function test_puede_crearse_un_ambiente_inactivo(): void
+    {
+        $usuario = UserFactory::new()->createOne();
+
+        $response = $this->actingAs($usuario)->postJson('/api/admin/ambientes', [
+            'nombre' => 'Aula Inactiva',
+            'ubicacion' => 'Edificio Central',
+            'capacidad' => 30,
+            'estado' => 'INACTIVO',
+        ]);
+
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('ambientes', [
+            'nombre' => 'Aula Inactiva',
+            'estado' => 'INACTIVO',
+        ]);
+    }
 }

@@ -138,6 +138,21 @@ final class AmbientesDelExamenTest extends TestCase
         $this->assertSame(0, DB::table('examen_ambiente')->count());
     }
 
+    public function test_ambiente_inactivo_no_puede_asignarse_a_un_examen(): void
+    {
+        $usuario = UserFactory::new()->createOne();
+        $examen = $this->crearExamen();
+        $inactivo = $this->crearAmbiente('Aula Inactiva', 'INACTIVO');
+
+        $this->actingAs($usuario)
+            ->postJson("/api/examenes/{$examen}/ambientes", [
+                'ambiente_id' => $inactivo->getKey(),
+            ])
+            ->assertStatus(409);
+
+        $this->assertSame(0, DB::table('examen_ambiente')->count());
+    }
+
     public function test_un_ambiente_no_se_comparte_entre_examenes_solapados(): void
     {
         $usuario = UserFactory::new()->createOne();

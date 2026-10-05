@@ -17,11 +17,12 @@ import {
 } from 'lucide-react';
 import { tienePermiso } from '../../componentes/sesion.js';
 
-// El backend acepta estos tres estados (StoreAmbienteRequest).
+// El backend acepta estos cuatro estados (StoreAmbienteRequest).
 const ESTADOS_AMBIENTE = [
     { valor: 'DISPONIBLE', etiqueta: 'Disponible' },
     { valor: 'MANTENIMIENTO', etiqueta: 'Mantenimiento' },
     { valor: 'OCUPADO', etiqueta: 'Ocupado' },
+    { valor: 'INACTIVO', etiqueta: 'Inactivo' },
 ];
 
 const AMBIENTE_VACIO = {
@@ -67,55 +68,24 @@ function AsignaturasAmbientes({ onNavigate }) {
     const [mensajeAsignacion, setMensajeAsignacion] = React.useState('');
     const [errorAsignacion, setErrorAsignacion] = React.useState('');
 
-    React.useEffect(() => {
-        cargarAsignaturas();
-        cargarAmbientes();
-        cargarDocentes();
-        cargarExamenesAsignacion();
+    const avisar = React.useCallback((texto, tipo = 'error') => {
+        setAviso({ texto, tipo });
     }, []);
 
-    function avisar(texto, tipo = 'error') {
-        setAviso({ texto, tipo });
-    }
-
-    async function cargarAsignaturas() {
+    const cargar = React.useCallback(async () => {
         try {
-            const respuesta = await window.axios.get('/api/asignaturas');
+            const [respAsignaturas, respAmbientes, respDocentes, respExamenes] = await Promise.all([
+                window.axios.get('/api/asignaturas'),
+                window.axios.get('/api/admin/ambientes'),
+                window.axios.get('/api/docentes'),
+                window.axios.get('/api/examenes'),
+            ]);
 
-            setAsignaturas(respuesta.data.data ?? []);
-        } catch (error) {
-            console.error('Error cargando asignaturas:', error);
-            avisar('No se pudieron cargar las asignaturas.');
-        }
-    }
+            setAsignaturas(respAsignaturas.data.data ?? []);
+            setAmbientes(respAmbientes.data ?? []);
+            setDocentes(respDocentes.data.data ?? []);
 
-    // Los ambientes viven en la base (HU-06): la pantalla los leia de una
-    // lista escrita en el codigo y lo registrado se perdia al recargar.
-    async function cargarAmbientes() {
-        try {
-            const respuesta = await window.axios.get('/api/admin/ambientes');
-
-            setAmbientes(respuesta.data ?? []);
-        } catch (error) {
-            console.error('Error cargando ambientes:', error);
-            avisar('No se pudieron cargar los ambientes.');
-        }
-    }
-
-    async function cargarDocentes() {
-        try {
-            const respuesta = await window.axios.get('/api/docentes');
-
-            setDocentes(respuesta.data.data ?? []);
-        } catch (error) {
-            console.error('Error cargando docentes:', error);
-        }
-    }
-
-    async function cargarExamenesAsignacion() {
-        try {
-            const respuesta = await window.axios.get('/api/examenes');
-            const lista = respuesta.data.data ?? [];
+            const lista = respExamenes.data.data ?? [];
             setExamenesAsignacion(lista);
 
             if (lista.length > 0) {
@@ -127,14 +97,14 @@ function AsignaturasAmbientes({ onNavigate }) {
                 setSeleccionadosAsignacion([]);
             }
         } catch (error) {
-            console.error('Error cargando exámenes para asignación:', error);
-            setExamenesAsignacion([]);
-            setExamenAsignacionId('');
-            setAmbientesAsignacion([]);
-            setCandidatosAsignacion([]);
-            setSeleccionadosAsignacion([]);
+            console.error('Error cargando datos:', error);
+            avisar('No se pudieron cargar los datos.');
         }
-    }
+    }, [avisar]);
+
+    React.useEffect(() => {
+        cargar();
+    }, [cargar]);
 
     const ambienteAsignacionSeleccionado =
         ambientesAsignacion.find(
@@ -372,7 +342,7 @@ function AsignaturasAmbientes({ onNavigate }) {
                 await window.axios.post('/api/asignaturas', datos);
             }
 
-            await cargarAsignaturas();
+            await cargar();
 
             avisar(editando ? 'Asignatura actualizada.' : 'Asignatura registrada.', 'exito');
 
@@ -396,7 +366,7 @@ function AsignaturasAmbientes({ onNavigate }) {
         try {
             await window.axios.delete(`/api/asignaturas/${asignatura.id}`);
 
-            await cargarAsignaturas();
+            await cargar();
 
             avisar('Asignatura eliminada.', 'exito');
         } catch (error) {
@@ -468,7 +438,7 @@ function AsignaturasAmbientes({ onNavigate }) {
                 await window.axios.put(`/api/admin/ambientes/${ambienteEditando}`, datos);
             }
 
-            await cargarAmbientes();
+            await cargar();
 
             avisar(
                 ambienteEditando === null ? 'Ambiente registrado.' : 'Ambiente actualizado.',
@@ -488,7 +458,7 @@ function AsignaturasAmbientes({ onNavigate }) {
         try {
             await window.axios.delete(`/api/admin/ambientes/${ambiente.id}`);
 
-            await cargarAmbientes();
+            await cargar();
 
             avisar('Ambiente eliminado.', 'exito');
         } catch (error) {
