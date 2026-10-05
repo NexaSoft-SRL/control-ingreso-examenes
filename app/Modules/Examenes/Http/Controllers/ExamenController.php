@@ -101,17 +101,17 @@ final class ExamenController
     {
         /** @var array<string, mixed> $validated */
         $validated = $request->validate([
-            'grupo_id' => 'required|integer',
+            'grupo_id' => 'required|integer|exists:grupos_asignatura,id',
             'nombre' => 'required|string|in:Primer parcial,Segundo parcial,Examen final,Instancia',
             'fecha' => 'required|date',
             'hora_inicio' => 'required|date_format:H:i',
             'duracion_minutos' => 'required|integer|min:15|max:480',
         ], [
+            'grupo_id.exists' => 'El ID del grupo no existe en la base de datos.',
             'nombre.in' => 'El tipo de examen no es uno de los conocidos.',
             'duracion_minutos.min' => 'La duración no puede ser menor a quince minutos.',
             'duracion_minutos.max' => 'La duración no puede ser mayor a ocho horas.',
         ]);
-
         $conflicto = Examen::where('grupo_id', $validated['grupo_id'])
             ->where('fecha', $validated['fecha'])
             ->where('hora_inicio', $validated['hora_inicio'])
