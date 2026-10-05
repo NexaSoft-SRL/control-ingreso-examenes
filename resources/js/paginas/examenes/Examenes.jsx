@@ -64,7 +64,7 @@ function Examenes({ onNavigate }) {
             setTipos(respTipos.data.data);
 
             // Las asignaturas traen sus grupos: de ahí sale el selector.
-           // Las asignaturas traen sus grupos: de ahí sale el selector.
+            // Las asignaturas traen sus grupos: de ahí sale el selector.
             try {
                 // Usamos validateStatus para evitar que el interceptor global capture el 403
                 const respAsignaturas = await window.axios.get('/api/asignaturas', {
@@ -87,9 +87,6 @@ function Examenes({ onNavigate }) {
                 // Caída de red u otros errores
                 setGrupos([]);
             }
-
-
-
         } catch (excepcion) {
             setError(
                 excepcion.response?.status === 403
