@@ -113,7 +113,15 @@ function ManejadorSesionExpirada() {
                     navigate('/login', { replace: true });
                 }
 
-                if (estado === 403) {
+                // La lista de asignaturas es opcional en Exámenes y normas:
+                // un Docente no tiene ese permiso, pero igual puede gestionar
+                // normas de los exámenes ya existentes. La pantalla maneja
+                // ese 403 y oculta el selector de grupos.
+                const esConsultaOpcionalDeAsignaturas = url
+                    .split('?')[0]
+                    .endsWith('/api/asignaturas');
+
+                if (estado === 403 && !esConsultaOpcionalDeAsignaturas) {
                     navigate('/sin-permiso', {
                         state: {
                             mensaje: error.response?.data?.message,
