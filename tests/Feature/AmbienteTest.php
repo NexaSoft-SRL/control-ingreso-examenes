@@ -190,18 +190,20 @@ class AmbienteTest extends TestCase
     }
 
     public function test_puede_crearse_un_ambiente_inactivo(): void
-{
-    $response = $this->postJson('/api/admin/ambientes', [
-        'nombre' => 'Aula Inactiva',
-        'edificio' => 'Edificio X',
-        'capacidad' => 30,
-        'estado' => 'INACTIVO',
-    ]);
+    {
+        $usuario = UserFactory::new()->createOne();
 
-    $response->assertStatus(201);
-    $this->assertDatabaseHas('ambientes', [
-        'nombre' => 'Aula Inactiva',
-        'estado' => 'INACTIVO',
-    ]);
-  }
+        $response = $this->actingAs($usuario)->postJson('/api/admin/ambientes', [
+            'nombre' => 'Aula Inactiva',
+            'ubicacion' => 'Edificio Central',
+            'capacidad' => 30,
+            'estado' => 'INACTIVO',
+        ]);
+
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('ambientes', [
+            'nombre' => 'Aula Inactiva',
+            'estado' => 'INACTIVO',
+        ]);
+    }
 }
