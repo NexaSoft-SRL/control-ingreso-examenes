@@ -74,13 +74,12 @@ function AsignaturasAmbientes({ onNavigate }) {
 
     const cargar = React.useCallback(async () => {
         try {
-            const [respAsignaturas, respAmbientes, respDocentes, respExamenes] =
-                await Promise.all([
-                    window.axios.get('/api/asignaturas'),
-                    window.axios.get('/api/admin/ambientes'),
-                    window.axios.get('/api/docentes'),
-                    window.axios.get('/api/examenes'),
-                ]);
+            const [respAsignaturas, respAmbientes, respDocentes, respExamenes] = await Promise.all([
+                window.axios.get('/api/asignaturas'),
+                window.axios.get('/api/admin/ambientes'),
+                window.axios.get('/api/docentes'),
+                window.axios.get('/api/examenes'),
+            ]);
 
             setAsignaturas(respAsignaturas.data.data ?? []);
             setAmbientes(respAmbientes.data ?? []);
