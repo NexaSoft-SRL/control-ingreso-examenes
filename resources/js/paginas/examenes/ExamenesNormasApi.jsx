@@ -651,11 +651,13 @@ export default function ExamenesNormasApi() {
                                 >
                                     <option value="">Selecciona un ambiente</option>
                                     {catalogoAmbientes
-                                        .filter((ambiente) =>
-                                            ambiente.estado === 'DISPONIBLE' &&
-                                            !ambientesAsignados.some(
-                                                (asig) => Number(asig.ambiente_id) === ambiente.id
-                                            )
+                                        .filter(
+                                            (ambiente) =>
+                                                ambiente.estado === 'DISPONIBLE' &&
+                                                !ambientesAsignados.some(
+                                                    (asig) =>
+                                                        Number(asig.ambiente_id) === ambiente.id
+                                                )
                                         )
                                         .map((ambiente) => (
                                             <option key={ambiente.id} value={ambiente.id}>
