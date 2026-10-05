@@ -22,6 +22,7 @@ const ESTADOS_AMBIENTE = [
     { valor: 'DISPONIBLE', etiqueta: 'Disponible' },
     { valor: 'MANTENIMIENTO', etiqueta: 'Mantenimiento' },
     { valor: 'OCUPADO', etiqueta: 'Ocupado' },
+    { valor: 'INACTIVO', etiqueta: 'Inactivo' },
 ];
 
 const AMBIENTE_VACIO = {

@@ -58,8 +58,16 @@ final class EloquentAmbienteExamenGateway implements AmbienteExamenGateway
         $estado = DB::table('ambientes')->where('id', $ambienteId)->value('estado');
 
         // Un ambiente en mantenimiento u ocupado no se elige para un examen.
+        if ($this->texto($estado) === 'MANTENIMIENTO') {
+            throw new AmbienteNoDisponibleException('El ambiente está en mantenimiento.');
+        }
+
+        if ($this->texto($estado) === 'INACTIVO') {
+            throw new AmbienteNoDisponibleException('El ambiente está inactivo.');
+        }
+
         if ($this->texto($estado) !== 'DISPONIBLE') {
-            return false;
+            throw new AmbienteNoDisponibleException('El ambiente no está disponible.');
         }
 
         $examen = DB::table('examenes')->where('id', $examenId)->first();

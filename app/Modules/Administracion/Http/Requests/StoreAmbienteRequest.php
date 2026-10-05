@@ -23,7 +23,7 @@ class StoreAmbienteRequest extends FormRequest
             'nombre' => ['required', 'string', 'max:100', 'unique:ambientes,nombre'],
             'ubicacion' => ['nullable', 'string', 'max:200'],
             'capacidad' => ['required', 'integer', 'min:1'],
-            'estado' => ['sometimes', 'string', Rule::in(['DISPONIBLE', 'MANTENIMIENTO', 'OCUPADO'])],
+            'estado' => ['sometimes', 'string', Rule::in(['DISPONIBLE', 'MANTENIMIENTO', 'OCUPADO', 'INACTIVO'])],
         ];
     }
 }
