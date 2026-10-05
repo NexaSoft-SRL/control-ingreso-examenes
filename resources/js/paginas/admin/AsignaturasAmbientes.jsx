@@ -159,7 +159,8 @@ function AsignaturasAmbientes({ onNavigate }) {
             const listaAmbientes = datos.ambientes ?? [];
 
             setAmbientesAsignacion(listaAmbientes);
-            setAmbienteAsignacionId(listaAmbientes[0]?.id ? String(listaAmbientes[0].id) : '');
+            // No autoseleccionamos el ambiente: dejar selector vacio para pruebas y UX clara
+            setAmbienteAsignacionId('');
             setCandidatosAsignacion(datos.candidatos ?? []);
             setSeleccionadosAsignacion([]);
         } catch (error) {
@@ -182,6 +183,23 @@ function AsignaturasAmbientes({ onNavigate }) {
             setCandidatosAsignacion([]);
             setSeleccionadosAsignacion([]);
         }
+    }, [examenAsignacionId, cargarAsignaciones]);
+
+    // Refresh candidates when habilitacion changes elsewhere in the app
+    React.useEffect(() => {
+        function onHabilitacionChange(e) {
+            const changed = e?.detail?.examenId ? String(e.detail.examenId) : null;
+
+            if (changed && changed === examenAsignacionId) {
+                cargarAsignaciones(examenAsignacionId);
+            }
+        }
+
+        window.addEventListener('habilitacion:changed', onHabilitacionChange);
+
+        return () => {
+            window.removeEventListener('habilitacion:changed', onHabilitacionChange);
+        };
     }, [examenAsignacionId, cargarAsignaciones]);
 
     function cambiarSeleccionAsignacion(estudianteId) {
@@ -966,9 +984,7 @@ function AsignaturasAmbientes({ onNavigate }) {
                                         type="button"
                                         onClick={guardarAsignacion}
                                         disabled={
-                                            guardandoAsignacion ||
-                                            ambientesAsignacion.length === 0 ||
-                                            seleccionadosAsignacion.length === 0
+                                            guardandoAsignacion || ambientesAsignacion.length === 0
                                         }
                                         className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                                     >

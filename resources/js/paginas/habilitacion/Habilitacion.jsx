@@ -172,6 +172,16 @@ function Habilitacion({ onNavigate }) {
                 tipo: 'exito',
                 texto: 'Condición registrada para los estudiantes seleccionados.',
             });
+                // Notify other screens that habilitacion changed so they can refresh
+                try {
+                    window.dispatchEvent(
+                        new CustomEvent('habilitacion:changed', {
+                            detail: { examenId: Number(examenSeleccionado) },
+                        })
+                    );
+                } catch (e) {
+                    // ignore if browser doesn't support CustomEvent
+                }
         } catch (error) {
             setAviso({
                 tipo: 'error',

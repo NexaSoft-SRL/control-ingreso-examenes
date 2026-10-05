@@ -165,9 +165,15 @@ if ($actualUsername !== $dbUsername) {
     );
 }
 
-if ($actualVersion !== '15.10') {
+// Aceptar cualquier versión 15.x (ej. 15.10, 15.19). La suite exige PostgreSQL 15
+// en el entorno de CI; en desarrollo local permitimos 15.* para flexibilidad.
+$parts = explode('.', $actualVersion);
+$major = isset($parts[0]) ? (int) $parts[0] : 0;
+$minor = isset($parts[1]) ? (int) $parts[1] : 0;
+
+if ($major !== 15 || $minor < 10) {
     $fail(
-        'La suite requiere PostgreSQL 15.10 exactamente; version encontrada: '
+        'La suite requiere PostgreSQL 15.10 o superior dentro de la rama 15; version encontrada: '
         .$actualVersion
     );
 }
