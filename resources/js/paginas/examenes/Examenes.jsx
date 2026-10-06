@@ -49,6 +49,7 @@ function Examenes({ onNavigate }) {
     const [normas, setNormas] = React.useState([]);
     const [estudiantes, setEstudiantes] = React.useState([]);
     const [norma, setNorma] = React.useState(normaVacia);
+    const [erroresNorma, setErroresNorma] = React.useState({});
     const [ambientesDe, setAmbientesDe] = React.useState(null);
     const [ambientesAsignados, setAmbientesAsignados] = React.useState([]);
     const [ocupacion, setOcupacion] = React.useState(null);
@@ -102,6 +103,7 @@ function Examenes({ onNavigate }) {
         setError(null);
         setAviso(null);
         setNorma(normaVacia);
+        setErroresNorma({});
         setAmbientesDe(null);
         setNormasDe(examen.id);
 
@@ -131,14 +133,28 @@ function Examenes({ onNavigate }) {
         setNormasDe(null);
         setNormas([]);
         setNorma(normaVacia);
+        setErroresNorma({});
     }
 
     async function guardarNorma(evento) {
         evento.preventDefault();
         setError(null);
         setAviso(null);
+        setErroresNorma({});
 
         const esParticular = norma.alcance === 'particular';
+
+        if (esParticular && !norma.student_id) {
+            setErroresNorma({
+                estudiante_id: 'Selecciona un estudiante para la norma particular.',
+            });
+            return;
+        }
+
+        if (esParticular && !norma.motivo.trim()) {
+            setErroresNorma({ motivo: 'Escribe el motivo de la norma particular.' });
+            return;
+        }
 
         try {
             await window.axios.post(`/api/examenes/${normasDe}/normas`, {
@@ -156,9 +172,25 @@ function Examenes({ onNavigate }) {
 
             setNormas(respuesta.data.data);
             setNorma(normaVacia);
+            setErroresNorma({});
             setAviso('Norma registrada.');
         } catch (excepcion) {
-            setError(mensajeDeError(excepcion, 'No se pudo guardar la norma.'));
+            const errores = excepcion?.response?.data?.errors ?? {};
+            const erroresDeCampos = {};
+
+            if (errores.estudiante_id) {
+                erroresDeCampos.estudiante_id = 'El estudiante seleccionado no es válido.';
+            }
+
+            if (errores.motivo) {
+                erroresDeCampos.motivo = 'Escribe el motivo de la norma particular.';
+            }
+
+            if (Object.keys(erroresDeCampos).length > 0) {
+                setErroresNorma(erroresDeCampos);
+            } else {
+                setError(mensajeDeError(excepcion, 'No se pudo guardar la norma.'));
+            }
         }
     }
 
@@ -867,14 +899,28 @@ function Examenes({ onNavigate }) {
 
                                             <select
                                                 id="norma-estudiante"
-                                                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800"
                                                 value={norma.student_id}
-                                                onChange={(evento) =>
+                                                aria-invalid={Boolean(erroresNorma.estudiante_id)}
+                                                aria-describedby={
+                                                    erroresNorma.estudiante_id
+                                                        ? 'error-norma-estudiante'
+                                                        : undefined
+                                                }
+                                                className={`rounded-lg border px-3 py-2 text-sm text-slate-800 ${
+                                                    erroresNorma.estudiante_id
+                                                        ? 'border-red-500'
+                                                        : 'border-slate-300'
+                                                }`}
+                                                onChange={(evento) => {
                                                     setNorma({
                                                         ...norma,
                                                         student_id: evento.target.value,
-                                                    })
-                                                }
+                                                    });
+                                                    setErroresNorma((actuales) => ({
+                                                        ...actuales,
+                                                        estudiante_id: '',
+                                                    }));
+                                                }}
                                             >
                                                 <option value="">Selecciona un estudiante</option>
                                                 {estudiantes.map((estudiante) => (
@@ -887,6 +933,15 @@ function Examenes({ onNavigate }) {
                                                     </option>
                                                 ))}
                                             </select>
+                                            {erroresNorma.estudiante_id && (
+                                                <p
+                                                    id="error-norma-estudiante"
+                                                    role="alert"
+                                                    className="text-xs text-red-600"
+                                                >
+                                                    {erroresNorma.estudiante_id}
+                                                </p>
+                                            )}
                                         </div>
 
                                         <div className="flex flex-col gap-1.5 lg:col-span-3">
@@ -900,15 +955,38 @@ function Examenes({ onNavigate }) {
                                             <input
                                                 id="norma-motivo"
                                                 type="text"
-                                                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800"
+                                                aria-invalid={Boolean(erroresNorma.motivo)}
+                                                aria-describedby={
+                                                    erroresNorma.motivo
+                                                        ? 'error-norma-motivo'
+                                                        : undefined
+                                                }
+                                                className={`rounded-lg border px-3 py-2 text-sm text-slate-800 ${
+                                                    erroresNorma.motivo
+                                                        ? 'border-red-500'
+                                                        : 'border-slate-300'
+                                                }`}
                                                 value={norma.motivo}
-                                                onChange={(evento) =>
+                                                onChange={(evento) => {
                                                     setNorma({
                                                         ...norma,
                                                         motivo: evento.target.value,
-                                                    })
-                                                }
+                                                    });
+                                                    setErroresNorma((actuales) => ({
+                                                        ...actuales,
+                                                        motivo: '',
+                                                    }));
+                                                }}
                                             />
+                                            {erroresNorma.motivo && (
+                                                <p
+                                                    id="error-norma-motivo"
+                                                    role="alert"
+                                                    className="text-xs text-red-600"
+                                                >
+                                                    {erroresNorma.motivo}
+                                                </p>
+                                            )}
                                         </div>
                                     </>
                                 )}

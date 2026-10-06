@@ -35,7 +35,6 @@ final class HU14AcceptanceTest extends TestCase
     {
         $usuario = UserFactory::new()->createOne();
         $examen = $this->crearExamen();
-
         $estudiante = StudentFactory::new()->create(['activo' => true]);
 
         DB::table('habilitaciones_examen')->insert([
@@ -63,7 +62,6 @@ final class HU14AcceptanceTest extends TestCase
             'capacidad' => 10,
             'estado' => 'DISPONIBLE',
         ]);
-
         $estudiante = StudentFactory::new()->create(['activo' => true]);
 
         DB::table('habilitaciones_examen')->insert([
@@ -127,13 +125,28 @@ final class HU14AcceptanceTest extends TestCase
         $resp = $this->actingAs($usuario)->getJson("/api/examenes/{$examen}/asignaciones");
         $resp->assertOk();
         $data = $resp->json('data');
+        $this->assertIsArray($data);
 
-        // The ambiente detail should include the assigned student
-        $ambientes = $data['ambientes'] ?? [];
-        $found = array_values(array_filter($ambientes, fn($a) => $a['id'] === $amb2->getKey()));
-        $this->assertNotEmpty($found, 'Assigned ambiente not present in list');
-        $this->assertEquals(1, count($found[0]['estudiantes']));
-        $this->assertEquals($estudiante->getKey(), $found[0]['estudiantes'][0]['id']);
+        // The ambiente detail should include the assigned student.
+        $ambientes = $data['ambientes'] ?? null;
+        $this->assertIsArray($ambientes);
+
+        $ambienteEncontrado = null;
+        foreach ($ambientes as $ambiente) {
+            if (is_array($ambiente) && ($ambiente['id'] ?? null) === $amb2->getKey()) {
+                $ambienteEncontrado = $ambiente;
+                break;
+            }
+        }
+
+        $this->assertIsArray($ambienteEncontrado, 'Assigned ambiente not present in list');
+        $estudiantesAsignados = $ambienteEncontrado['estudiantes'] ?? null;
+        $this->assertIsArray($estudiantesAsignados);
+        $this->assertCount(1, $estudiantesAsignados);
+
+        $primerEstudiante = $estudiantesAsignados[0] ?? null;
+        $this->assertIsArray($primerEstudiante);
+        $this->assertSame($estudiante->getKey(), $primerEstudiante['id'] ?? null);
     }
 
     private function crearExamen(): int

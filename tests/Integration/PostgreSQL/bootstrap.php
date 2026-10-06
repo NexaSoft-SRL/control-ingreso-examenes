@@ -133,7 +133,7 @@ try {
 }
 
 if (! is_array($identity)) {
-    $fail('PostgreSQL no devolvio la identidad de la conexion.');
+    $fail('PostgreSQL no devolvio la identidad de conexion invalida.');
 }
 
 $actualDatabase = $identity['database'] ?? null;
@@ -168,7 +168,7 @@ if ($actualUsername !== $dbUsername) {
 // Aceptar cualquier versión 15.x (ej. 15.10, 15.19). La suite exige PostgreSQL 15
 // en el entorno de CI; en desarrollo local permitimos 15.* para flexibilidad.
 $parts = explode('.', $actualVersion);
-$major = isset($parts[0]) ? (int) $parts[0] : 0;
+$major = (int) $parts[0];
 $minor = isset($parts[1]) ? (int) $parts[1] : 0;
 
 if ($major !== 15 || $minor < 10) {
