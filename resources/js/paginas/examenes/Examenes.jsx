@@ -66,20 +66,27 @@ function Examenes({ onNavigate }) {
             setExamenes(respExamenes.data.data);
 
             // Las asignaturas traen sus grupos: de ahí sale el selector.
+            // Las asignaturas traen sus grupos: de ahí sale el selector.
             try {
-                const respAsignaturas = await window.axios.get('/api/asignaturas');
+                // Usamos validateStatus para evitar que el interceptor global capture el 403
+                const respAsignaturas = await window.axios.get('/api/asignaturas', {
+                    validateStatus: (status) => (status >= 200 && status < 300) || status === 403,
+                });
 
-                setGrupos(
-                    (respAsignaturas.data.data ?? []).flatMap((asignatura) =>
-                        (asignatura.grupos ?? []).map((grupo) => ({
-                            id: grupo.id,
-                            etiqueta: `${asignatura.codigo} · grupo ${grupo.codigo_grupo}`,
-                        }))
-                    )
-                );
+                if (respAsignaturas.status === 403) {
+                    setGrupos([]);
+                } else {
+                    setGrupos(
+                        (respAsignaturas.data.data ?? []).flatMap((asignatura) =>
+                            (asignatura.grupos ?? []).map((grupo) => ({
+                                id: grupo.id,
+                                etiqueta: `${asignatura.codigo} · grupo ${grupo.codigo_grupo}`,
+                            }))
+                        )
+                    );
+                }
             } catch {
-                // Sin el permiso de asignaturas no hay selector, pero los
-                // exámenes ya registrados se siguen viendo.
+                // Caída de red u otros errores
                 setGrupos([]);
             }
         } catch (excepcion) {
