@@ -93,6 +93,7 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
     ): array {
         $filas = $this->filtrada($examenId, $filtros)
             ->leftJoin('aulas as aula', 'aula.id', '=', 'habilitacion.aula_id')
+            ->leftJoin('usuarios as autor', 'autor.id', '=', 'habilitacion.registrada_por')
             ->orderBy('estudiante.apellidos')
             ->orderBy('estudiante.nombres')
             ->orderBy('estudiante.id')
@@ -107,6 +108,8 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                 'habilitacion.id as habilitacion_id',
                 'habilitacion.habilitado',
                 'habilitacion.motivo',
+                'habilitacion.updated_at as registrada_el',
+                'autor.nombre as autor_nombre',
                 'aula.nombre as aula_nombre',
             ])
             ->get();
@@ -118,6 +121,8 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
 
             $revisado = ($columnas['habilitacion_id'] ?? null) !== null;
             $habilitado = $revisado && $this->booleano($columnas['habilitado'] ?? null);
+            $inhabilitado = $revisado && ! $habilitado;
+            $momento = $this->texto($columnas['registrada_el'] ?? null);
 
             $inscritos[] = new InscritoData(
                 estudianteId: $this->entero($columnas['id'] ?? null),
@@ -136,6 +141,8 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                 },
                 aula: $this->texto($columnas['aula_nombre'] ?? null),
                 motivo: $habilitado ? null : $this->texto($columnas['motivo'] ?? null),
+                registradaPor: $inhabilitado ? $this->texto($columnas['autor_nombre'] ?? null) : null,
+                registradaEl: $inhabilitado && $momento !== null ? substr($momento, 0, 16) : null,
             );
         }
 

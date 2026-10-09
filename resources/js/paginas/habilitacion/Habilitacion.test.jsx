@@ -43,6 +43,8 @@ const inscritos = () =>
         estado: i === 0 ? 'no' : i < 40 ? 'habilitado' : 'pendiente',
         aula: i > 0 && i < 40 ? AULAS[i % 2].nombre : null,
         motivo: i === 0 ? 'No presentó el proyecto' : null,
+        registrada_por: i === 0 ? 'Blanco Coca Leticia' : null,
+        registrada_el: i === 0 ? '2026-10-09 14:05' : null,
     }));
 
 // La lista como la devuelve la API (plan, 9 · B3), filtrada y paginada aquí.
@@ -148,6 +150,9 @@ describe('Habilitacion', () => {
         expect(within(fila).getByText('202100001')).toBeInTheDocument();
         expect(within(fila).getByText('No habilitado')).toBeInTheDocument();
         expect(within(fila).getByText('No presentó el proyecto')).toBeInTheDocument();
+        expect(
+            within(fila).getByText('Blanco Coca Leticia · 9 oct 2026, 14:05')
+        ).toBeInTheDocument();
         expect(within(tabla).getByText('Apellido02, Nombre').closest('tr')).toHaveTextContent(
             '691B'
         );

@@ -21,5 +21,9 @@ final readonly class InscritoData
         public string $estado,
         public ?string $aula,
         public ?string $motivo,
+        /** Quien registro la inhabilitacion; solo en los no habilitados. */
+        public ?string $registradaPor = null,
+        /** Cuando la registro, «AAAA-MM-DD HH:MM». */
+        public ?string $registradaEl = null,
     ) {}
 }
