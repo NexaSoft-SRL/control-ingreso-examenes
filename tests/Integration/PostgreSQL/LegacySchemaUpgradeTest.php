@@ -151,15 +151,21 @@ final class LegacySchemaUpgradeTest extends TestCase
             Artisan::output()
         );
 
+        // Lo que no es dominio se conserva; el dominio nace con el diseno
+        // nuevo.
         foreach ([
-            'ambientes',
             'asignaturas',
+            'aulas',
             'bitacora_operaciones',
             'cache',
             'cache_locks',
             'docentes',
+            'estudiantes',
+            'examenes',
             'failed_jobs',
-            'grupos_asignatura',
+            'grupos',
+            'habilitaciones',
+            'ingresos',
             'job_batches',
             'jobs',
             'login_attempts',
@@ -167,9 +173,9 @@ final class LegacySchemaUpgradeTest extends TestCase
             'password_reset_tokens',
             'permission_role',
             'permissions',
+            'plantillas_norma',
             'roles',
             'sessions',
-            'students',
             'users',
             'usuarios',
         ] as $expectedTable) {
@@ -179,9 +185,32 @@ final class LegacySchemaUpgradeTest extends TestCase
             );
         }
 
-        $this->assertTrue(
+        // Las tablas del dominio anterior se eliminan, con los datos que
+        // tuvieran: no se migran.
+        foreach ([
+            'ambientes',
+            'asignaciones_ambiente',
+            'examen_ambiente',
+            'grupos_asignatura',
+            'habilitaciones_examen',
+            'normas_examenes',
+            'students',
+        ] as $retiredTable) {
+            $this->assertFalse(
+                Schema::hasTable($retiredTable),
+                "La tabla {$retiredTable} debía eliminarse en el upgrade legacy."
+            );
+        }
+
+        $this->assertFalse(
             Schema::hasColumn('asignaturas', 'carrera_id')
         );
+
+        $this->assertFalse(
+            Schema::hasColumn('docentes', 'codigo_docente')
+        );
+
+        $this->assertDatabaseCount('docentes', 0);
 
         $userObject = DB::table('usuarios')
             ->where('id', 77)
@@ -243,14 +272,16 @@ final class LegacySchemaUpgradeTest extends TestCase
             $user['last_login_at']
         );
 
+        // La cuenta anterior recibe su usuario de la parte local del correo
+        // y se da por titular de su contrasena (no es temporal).
         $this->assertSame(
-            77,
-            $this->integerValue(
-                DB::table('docentes')
-                    ->where('id', 91)
-                    ->value('user_id')
-            )
+            'legacy-upgrade',
+            $user['usuario']
         );
+
+        $this->assertNotNull($user['password_changed_at']);
+
+        $this->assertNull($user['password_temporal_expira_en']);
 
         $this->assertSame(
             77,
@@ -318,6 +349,7 @@ final class LegacySchemaUpgradeTest extends TestCase
             'email' => 'sequence-probe@example.invalid',
             'nombre' => 'Sequence Probe',
             'correo' => 'sequence-probe@example.invalid',
+            'usuario' => 'sequence-probe',
             'password' => Hash::make('SequenceSecret!123'),
         ]);
 
@@ -338,6 +370,204 @@ final class LegacySchemaUpgradeTest extends TestCase
             'Nothing to migrate',
             Artisan::output()
         );
+    }
+
+    public function test_roles_and_permissions_edited_before_the_redesign_are_realigned(): void
+    {
+        $this->migrate();
+
+        // Vuelve al estado anterior a los roles creables (deshace las seis
+        // ultimas migraciones) y carga el reparto del diseno anterior.
+        $this->assertSame(
+            0,
+            Artisan::call('migrate:rollback', [
+                '--step' => 6,
+                '--force' => true,
+                '--no-interaction' => true,
+            ]),
+            Artisan::output()
+        );
+
+        $this->assertFalse(Schema::hasColumn('roles', 'es_sistema'));
+        $this->assertFalse(Schema::hasTable('periodos'));
+
+        $roles = [];
+
+        foreach (['Administrador', 'Docente', 'Personal', 'Responsable', 'Vacio'] as $nombre) {
+            $roles[$nombre] = DB::table('roles')->insertGetId(['name' => $nombre]);
+        }
+
+        $permisos = [];
+
+        foreach ([
+            'padron_estudiantes',
+            'asignaturas_ambientes',
+            'examenes_normas',
+            'habilitacion',
+            'codigos_qr',
+            'punto_control',
+            'monitoreo_tiempo_real',
+            'reportes_consolidados',
+            'reportes_asignatura',
+            'usuarios_roles',
+            'bitacora',
+            'respaldo_restauracion',
+        ] as $clave) {
+            $permisos[$clave] = DB::table('permissions')->insertGetId([
+                'name' => $clave,
+                'screen_name' => $clave,
+            ]);
+        }
+
+        $reparto = [
+            'Administrador' => array_keys($permisos),
+            // Editado a mano: el docente tambien consulta la bitacora.
+            'Docente' => ['examenes_normas', 'habilitacion', 'reportes_asignatura', 'bitacora'],
+            'Personal' => ['punto_control', 'codigos_qr'],
+            'Responsable' => ['monitoreo_tiempo_real', 'reportes_consolidados'],
+            'Vacio' => ['asignaturas_ambientes'],
+        ];
+
+        foreach ($reparto as $rol => $claves) {
+            foreach ($claves as $clave) {
+                DB::table('permission_role')->insert([
+                    'role_id' => $roles[$rol],
+                    'permission_id' => $permisos[$clave],
+                ]);
+            }
+        }
+
+        // Un reparto repetido, posible mientras no existia el unico.
+        DB::table('permission_role')->insert([
+            'role_id' => $roles['Personal'],
+            'permission_id' => $permisos['punto_control'],
+        ]);
+
+        foreach (['Personal' => 'control', 'Responsable' => 'responsable'] as $rol => $usuario) {
+            DB::table('usuarios')->insert([
+                'nombre' => $rol,
+                'correo' => $usuario.'@example.invalid',
+                'usuario' => $usuario,
+                'password' => 'not-used-in-upgrade-test',
+                'role_id' => $roles[$rol],
+            ]);
+        }
+
+        $this->migrate();
+
+        $this->assertSame(
+            [
+                'aulas_docentes',
+                'bitacora',
+                'codigos_qr',
+                'examenes',
+                'habilitacion',
+                'mis_grupos',
+                'padron_estudiantes',
+                'periodo_oferta',
+                'punto_control',
+                'reportes_examenes',
+                'reportes_universidad',
+                'respaldo_restauracion',
+                'seguimiento_vivo',
+                'usuarios_roles',
+            ],
+            DB::table('permissions')->orderBy('name')->pluck('name')->all()
+        );
+
+        $this->assertSame(
+            'Período y oferta académica',
+            DB::table('permissions')->where('name', 'periodo_oferta')->value('screen_name')
+        );
+
+        // «Personal» pasa a llamarse «Auxiliar» y sus cuentas conservan el rol.
+        $this->assertSame(
+            ['Administrador' => true, 'Auxiliar' => true, 'Docente' => true, 'Responsable' => false, 'Vacio' => false],
+            DB::table('roles')->orderBy('name')->pluck('es_sistema', 'name')->all()
+        );
+
+        $this->assertSame(
+            'Auxiliar',
+            DB::table('roles')->where('id', $roles['Personal'])->value('name')
+        );
+
+        $this->assertSame(
+            $roles['Personal'],
+            $this->integerValue(DB::table('usuarios')->where('usuario', 'control')->value('role_id'))
+        );
+
+        // El reparto editado se conserva con las claves nuevas, mas los
+        // permisos desdoblados.
+        $this->assertSame(14, count($this->permisosDe($roles['Administrador'])));
+
+        $this->assertSame(
+            ['bitacora', 'examenes', 'habilitacion', 'mis_grupos', 'reportes_examenes'],
+            $this->permisosDe($roles['Docente'])
+        );
+
+        $this->assertSame(
+            ['codigos_qr', 'punto_control'],
+            $this->permisosDe($roles['Personal'])
+        );
+
+        // «Responsable» tiene una cuenta: queda como rol creado.
+        $this->assertSame(
+            ['reportes_universidad', 'seguimiento_vivo'],
+            $this->permisosDe($roles['Responsable'])
+        );
+
+        $this->assertSame(
+            ['aulas_docentes', 'periodo_oferta'],
+            $this->permisosDe($roles['Vacio'])
+        );
+    }
+
+    public function test_responsable_role_without_accounts_is_removed(): void
+    {
+        $this->migrate();
+
+        Artisan::call('migrate:rollback', [
+            '--step' => 6,
+            '--force' => true,
+            '--no-interaction' => true,
+        ]);
+
+        foreach (['Administrador', 'Responsable'] as $nombre) {
+            DB::table('roles')->insert(['name' => $nombre]);
+        }
+
+        $this->migrate();
+
+        $this->assertSame(
+            ['Administrador'],
+            DB::table('roles')->pluck('name')->all()
+        );
+    }
+
+    private function migrate(): void
+    {
+        $exitCode = Artisan::call('migrate', [
+            '--force' => true,
+            '--no-interaction' => true,
+        ]);
+
+        $this->assertSame(0, $exitCode, Artisan::output());
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function permisosDe(int $rolId): array
+    {
+        /** @var list<string> $claves */
+        $claves = DB::table('permission_role')
+            ->join('permissions', 'permissions.id', '=', 'permission_role.permission_id')
+            ->where('permission_role.role_id', $rolId)
+            ->orderBy('permissions.name')
+            ->pluck('permissions.name')
+            ->all();
+
+        return $claves;
     }
 
     private function stringConfig(string $key): string

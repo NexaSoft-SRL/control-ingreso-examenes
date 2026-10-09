@@ -8,24 +8,27 @@ use Deptrac\Deptrac\Contract\Config\Layer;
 use Deptrac\Deptrac\Contract\Config\Ruleset;
 
 /**
- * Cada módulo expone únicamente Application/Contracts a otros módulos.
- * Todo el resto de su implementación es privado.
+ * Cada módulo expone a los demás su Application/Contracts y los
+ * Application/DTOs con los que esos contratos hablan: un contrato que
+ * devuelve un dato estructurado obliga a que ese dato sea público. Todo el
+ * resto ---modelos, acciones, infraestructura y HTTP--- es privado.
  */
 $moduleLayer = static function (string $name): Layer {
     $base = "app/Modules/{$name}";
 
     return Layer::withName($name)->collectors(
         DirectoryConfig::create(
-            "{$base}/Application/Contracts/.*"
+            "{$base}/Application/(?:Contracts|DTOs)/.*"
         ),
         DirectoryConfig::create(
-            "{$base}/(?!Application/Contracts/).*"
+            "{$base}/(?!Application/(?:Contracts|DTOs)/).*"
         )->private(),
     );
 };
 
 return static function (DeptracConfig $config) use ($moduleLayer): void {
     $administracion = $moduleLayer('Administracion');
+    $academico = $moduleLayer('Academico');
     $estudiantes = $moduleLayer('Estudiantes');
     $examenes = $moduleLayer('Examenes');
     $habilitacion = $moduleLayer('Habilitacion');
@@ -38,6 +41,7 @@ return static function (DeptracConfig $config) use ($moduleLayer): void {
         ->cacheFile('storage/framework/cache/deptrac-modules.cache')
         ->layers(
             $administracion,
+            $academico,
             $estudiantes,
             $examenes,
             $habilitacion,
@@ -48,46 +52,57 @@ return static function (DeptracConfig $config) use ($moduleLayer): void {
         ->rulesets(
             Ruleset::forLayer($administracion),
 
-            Ruleset::forLayer($estudiantes)
+            Ruleset::forLayer($academico)
                 ->accesses($administracion),
+
+            Ruleset::forLayer($estudiantes)
+                ->accesses(
+                    $administracion,
+                    $academico,
+                ),
 
             Ruleset::forLayer($examenes)
                 ->accesses(
-                    $estudiantes,
                     $administracion,
+                    $academico,
+                    $estudiantes,
                 ),
 
             Ruleset::forLayer($habilitacion)
                 ->accesses(
+                    $administracion,
+                    $academico,
                     $estudiantes,
                     $examenes,
-                    $administracion,
                 ),
 
             Ruleset::forLayer($ingreso)
                 ->accesses(
+                    $administracion,
+                    $academico,
                     $estudiantes,
                     $examenes,
                     $habilitacion,
-                    $administracion,
                 ),
 
             Ruleset::forLayer($monitoreo)
                 ->accesses(
+                    $administracion,
+                    $academico,
                     $estudiantes,
                     $examenes,
                     $habilitacion,
                     $ingreso,
-                    $administracion,
                 ),
 
             Ruleset::forLayer($reportes)
                 ->accesses(
+                    $administracion,
+                    $academico,
                     $estudiantes,
                     $examenes,
                     $habilitacion,
                     $ingreso,
-                    $administracion,
                 ),
         );
 };

@@ -4,286 +4,317 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Modules\Examenes;
 
-use App\Modules\Administracion\Domain\Models\Ambiente;
-use App\Modules\Examenes\Domain\Models\Asignatura;
-use App\Modules\Examenes\Domain\Models\Docente;
-use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Model;
+use App\Modules\Academico\Domain\Models\Horario;
+use App\Modules\Examenes\Domain\Enums\TipoExamen;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
+/**
+ * Las aulas del examen viajan dentro del examen. No tienen tope de
+ * estudiantes y compartirlas con otro examen a la misma hora no se impide: la ruta 49
+ * lo avisa.
+ */
 final class AmbientesDelExamenTest extends TestCase
 {
+    use ArmaExamenes;
     use RefreshDatabase;
 
-    private function id(Model $modelo): int
+    private const FECHA_HORA = ['hora_inicio' => '08:15:00', 'duracion_minutos' => 90];
+
+    /**
+     * @param  array<string, mixed>  $parametros
+     */
+    private function opciones(array $parametros): string
     {
-        $id = $modelo->getKey();
-
-        if (! is_int($id)) {
-            throw new \LogicException('El modelo no tiene un ID entero.');
-        }
-
-        return $id;
+        return '/api/examenes/opciones/aulas?'.http_build_query($parametros);
     }
 
-    private function crearExamen(string $hora = '08:30', int $duracion = 90): int
+    public function test_an_exam_admits_several_rooms_without_any_limit_of_students(): void
     {
-        $docente = Docente::query()->firstOrCreate(
-            ['codigo_docente' => 'DOC-AMB-HU10'],
-            ['nombres' => 'Marcela', 'apellidos' => 'Quiroga', 'estado' => true],
-        );
+        $docente = $this->docente();
+        $asignatura = $this->asignatura();
+        $grupo = $this->grupo($docente, $asignatura);
+        $this->estudiantesInscritos($grupo, 30);
+        $aulas = [$this->aula('691A'), $this->aula('691B'), $this->aula('617')];
 
-        $asignatura = Asignatura::query()->firstOrCreate(
-            ['codigo' => 'INF-HU10'],
-            ['nombre' => 'Redes de Computadoras', 'semestre' => '8', 'estado' => true],
-        );
+        $this->actingAs($this->cuenta($docente))
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], $aulas))
+            ->assertCreated()
+            ->assertJsonPath('data.aulas', ['617', '691A', '691B'])
+            ->assertJsonPath('data.inscritos', 30);
 
-        $grupo = $asignatura->grupos()->firstOrCreate(
-            ['codigo_grupo' => 'A'],
-            ['docente_id' => $docente->getKey(), 'cupo' => 40],
-        );
+        $this->assertDatabaseCount('examen_aula', 3);
+    }
 
-        return (int) DB::table('examenes')->insertGetId([
-            'grupo_id' => $grupo->getKey(),
-            'nombre' => 'Primer parcial',
-            'fecha' => '2026-10-15',
-            'hora_inicio' => $hora,
-            'duracion_minutos' => $duracion,
+    public function test_a_room_shared_with_an_overlapping_exam_is_not_blocked(): void
+    {
+        $docente = $this->docente();
+        $otro = $this->docente();
+        $asignatura = $this->asignatura();
+        $grupo = $this->grupo($docente, $asignatura);
+        $aula = $this->aula();
+        $fecha = now()->addDays(3)->toDateString();
+        $this->examen($otro, [$this->grupo($otro)], [$aula], ['fecha' => $fecha] + self::FECHA_HORA);
+
+        $this->actingAs($this->cuenta($docente))
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [$aula], [
+                'fecha' => $fecha,
+                'hora_inicio' => '09:00',
+            ]))
+            ->assertCreated();
+
+        $this->assertSame(2, DB::table('examen_aula')->where('aula_id', $aula->id)->count());
+    }
+
+    public function test_the_options_warn_about_rooms_shared_with_overlapping_exams(): void
+    {
+        $docente = $this->docente();
+        $otro = $this->docente();
+        $calculo = $this->asignatura('Cálculo I');
+        $fisica = $this->asignatura('Física I');
+        $compartida = $this->aula();
+        $libre = $this->aula();
+        $fecha = now()->addDays(3)->toDateString();
+
+        // 08:15 a 09:45.
+        $this->examen($otro, [$this->grupo($otro, $calculo)], [$compartida], ['fecha' => $fecha] + self::FECHA_HORA);
+        // 09:00 a 10:00, en la misma aula.
+        $this->examen($otro, [$this->grupo($otro, $fisica)], [$compartida], [
+            'fecha' => $fecha,
+            'hora_inicio' => '09:00:00',
+            'duracion_minutos' => 60,
+            'tipo' => TipoExamen::Final,
         ]);
-    }
+        // Otro dia a la misma hora.
+        $this->examen($otro, [$this->grupo($otro)], [$libre], ['fecha' => now()->addDays(4)->toDateString()] + self::FECHA_HORA);
 
-    private function crearAmbiente(string $nombre, string $estado = 'DISPONIBLE', int $capacidad = 60): Ambiente
-    {
-        return Ambiente::query()->create([
-            'nombre' => $nombre,
-            'ubicacion' => 'Edificio Central',
-            'capacidad' => $capacidad,
-            'estado' => $estado,
-        ]);
-    }
-
-    public function test_un_examen_admite_varios_ambientes(): void
-    {
-        $usuario = UserFactory::new()->createOne();
-        $examen = $this->crearExamen();
-        $aula = $this->crearAmbiente('Aula Magna', 'DISPONIBLE', 120);
-        $laboratorio = $this->crearAmbiente('Laboratorio 1', 'DISPONIBLE', 40);
-
-        foreach ([$aula, $laboratorio] as $ambiente) {
-            $this->actingAs($usuario)
-                ->postJson("/api/examenes/{$examen}/ambientes", [
-                    'ambiente_id' => $ambiente->getKey(),
-                ])
-                ->assertCreated();
-        }
-
-        $this->actingAs($usuario)
-            ->getJson("/api/examenes/{$examen}/ambientes")
+        $this->actingAs($this->cuenta($docente))
+            ->getJson($this->opciones(['fecha' => $fecha, 'hora_inicio' => '09:30', 'duracion_minutos' => 60]))
             ->assertOk()
-            ->assertJsonCount(2, 'data')
-            ->assertJsonPath('ocupacion.capacidad_asignada', 160);
+            ->assertExactJson([
+                'sugeridas' => [],
+                'compartidas' => [
+                    (string) $compartida->id => ['Cálculo I · Primer parcial', 'Física I · Examen final'],
+                ],
+            ]);
     }
 
-    public function test_la_capacidad_asignada_se_compara_con_los_habilitados(): void
+    public function test_a_partial_overlap_warns_and_touching_ends_do_not(): void
     {
-        $usuario = UserFactory::new()->createOne();
-        $examen = $this->crearExamen();
-        $aula = $this->crearAmbiente('Aula 691B', 'DISPONIBLE', 88);
+        $docente = $this->docente();
+        $otro = $this->docente();
+        $aula = $this->aula();
+        $fecha = now()->addDays(3)->toDateString();
+        // 08:15 a 09:45.
+        $this->examen($otro, [$this->grupo($otro)], [$aula], ['fecha' => $fecha] + self::FECHA_HORA);
+        $cuenta = $this->cuenta($docente);
 
-        $this->actingAs($usuario)
-            ->postJson("/api/examenes/{$examen}/ambientes", [
-                'ambiente_id' => $aula->getKey(),
-            ])
-            ->assertCreated();
+        $casos = [
+            // Empieza antes y termina dentro.
+            ['07:00', 90, true],
+            // Empieza dentro y termina despues.
+            ['09:30', 120, true],
+            // Lo contiene.
+            ['07:00', 300, true],
+            // Queda dentro.
+            ['08:30', 30, true],
+            // Termina justo cuando el otro empieza.
+            ['06:45', 90, false],
+            // Empieza justo cuando el otro termina.
+            ['09:45', 60, false],
+            ['14:00', 90, false],
+        ];
 
-        // Las habilitaciones llegan en HU-11: hasta entonces no hay
-        // habilitados y la capacidad alcanza.
-        $this->actingAs($usuario)
-            ->getJson("/api/examenes/{$examen}/ambientes")
-            ->assertOk()
-            ->assertJsonPath('ocupacion.capacidad_asignada', 88)
-            ->assertJsonPath('ocupacion.habilitados', 0)
-            ->assertJsonPath('ocupacion.alcanza', true);
-    }
+        foreach ($casos as [$hora, $duracion, $seSolapa]) {
+            $respuesta = $this->actingAs($cuenta)
+                ->getJson($this->opciones(['fecha' => $fecha, 'hora_inicio' => $hora, 'duracion_minutos' => $duracion]))
+                ->assertOk();
 
-    public function test_un_ambiente_en_mantenimiento_no_se_puede_asignar(): void
-    {
-        $usuario = UserFactory::new()->createOne();
-        $examen = $this->crearExamen();
-        $taller = $this->crearAmbiente('Laboratorio 2', 'MANTENIMIENTO');
-
-        $this->actingAs($usuario)
-            ->postJson("/api/examenes/{$examen}/ambientes", [
-                'ambiente_id' => $taller->getKey(),
-            ])
-            ->assertStatus(409);
-
-        $this->assertSame(0, DB::table('examen_ambiente')->count());
-    }
-
-    public function test_un_ambiente_ocupado_tampoco_se_puede_asignar(): void
-    {
-        $usuario = UserFactory::new()->createOne();
-        $examen = $this->crearExamen();
-        $ocupado = $this->crearAmbiente('Auditorio', 'OCUPADO');
-
-        $this->actingAs($usuario)
-            ->postJson("/api/examenes/{$examen}/ambientes", [
-                'ambiente_id' => $ocupado->getKey(),
-            ])
-            ->assertStatus(409);
-
-        $this->assertSame(0, DB::table('examen_ambiente')->count());
-    }
-
-    public function test_ambiente_inactivo_no_puede_asignarse_a_un_examen(): void
-    {
-        $usuario = UserFactory::new()->createOne();
-        $examen = $this->crearExamen();
-        $inactivo = $this->crearAmbiente('Aula Inactiva', 'INACTIVO');
-
-        $this->actingAs($usuario)
-            ->postJson("/api/examenes/{$examen}/ambientes", [
-                'ambiente_id' => $inactivo->getKey(),
-            ])
-            ->assertStatus(409);
-
-        $this->assertSame(0, DB::table('examen_ambiente')->count());
-    }
-
-    public function test_un_ambiente_no_se_comparte_entre_examenes_solapados(): void
-    {
-        $usuario = UserFactory::new()->createOne();
-        $manana = $this->crearExamen('08:00', 120);
-        $solapado = $this->crearExamen('09:00', 60);
-        $aula = $this->crearAmbiente('Aula Magna');
-
-        $this->actingAs($usuario)
-            ->postJson("/api/examenes/{$manana}/ambientes", [
-                'ambiente_id' => $aula->getKey(),
-            ])
-            ->assertCreated();
-
-        $this->actingAs($usuario)
-            ->postJson("/api/examenes/{$solapado}/ambientes", [
-                'ambiente_id' => $aula->getKey(),
-            ])
-            ->assertStatus(409);
-    }
-
-    public function test_un_ambiente_si_se_comparte_entre_examenes_que_no_se_solapan(): void
-    {
-        $usuario = UserFactory::new()->createOne();
-        $manana = $this->crearExamen('08:00', 60);
-        $tarde = $this->crearExamen('14:00', 60);
-        $aula = $this->crearAmbiente('Aula Magna');
-
-        $this->actingAs($usuario)
-            ->postJson("/api/examenes/{$manana}/ambientes", [
-                'ambiente_id' => $aula->getKey(),
-            ])
-            ->assertCreated();
-
-        $this->actingAs($usuario)
-            ->postJson("/api/examenes/{$tarde}/ambientes", [
-                'ambiente_id' => $aula->getKey(),
-            ])
-            ->assertCreated();
-    }
-
-    public function test_el_mismo_ambiente_no_se_asigna_dos_veces_al_mismo_examen(): void
-    {
-        $usuario = UserFactory::new()->createOne();
-        $examen = $this->crearExamen();
-        $aula = $this->crearAmbiente('Aula Magna');
-
-        $this->actingAs($usuario)
-            ->postJson("/api/examenes/{$examen}/ambientes", [
-                'ambiente_id' => $aula->getKey(),
-            ])
-            ->assertCreated();
-
-        $this->actingAs($usuario)
-            ->postJson("/api/examenes/{$examen}/ambientes", [
-                'ambiente_id' => $aula->getKey(),
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('ambiente_id');
-    }
-
-    public function test_un_ambiente_se_puede_quitar_del_examen(): void
-    {
-        $usuario = UserFactory::new()->createOne();
-        $examen = $this->crearExamen();
-        $aula = $this->crearAmbiente('Aula Magna');
-
-        $this->actingAs($usuario)
-            ->postJson("/api/examenes/{$examen}/ambientes", [
-                'ambiente_id' => $aula->getKey(),
-            ])
-            ->assertCreated();
-
-        $this->actingAs($usuario)
-            ->deleteJson("/api/examenes/{$examen}/ambientes/{$this->id($aula)}")
-            ->assertNoContent();
-
-        $this->assertSame(0, DB::table('examen_ambiente')->count());
-    }
-
-    public function test_quitar_un_ambiente_no_asignado_reporta_error(): void
-    {
-        $usuario = UserFactory::new()->createOne();
-        $examen = $this->crearExamen();
-        $aula = $this->crearAmbiente('Aula Magna');
-
-        $this->actingAs($usuario)
-            ->deleteJson("/api/examenes/{$examen}/ambientes/{$this->id($aula)}")
-            ->assertNotFound();
-    }
-
-    public function test_cada_movimiento_queda_en_la_bitacora(): void
-    {
-        $usuario = UserFactory::new()->createOne();
-        $examen = $this->crearExamen();
-        $aula = $this->crearAmbiente('Aula Magna');
-
-        $this->actingAs($usuario)
-            ->postJson("/api/examenes/{$examen}/ambientes", [
-                'ambiente_id' => $aula->getKey(),
-            ])
-            ->assertCreated();
-
-        $this->actingAs($usuario)
-            ->deleteJson("/api/examenes/{$examen}/ambientes/{$this->id($aula)}")
-            ->assertNoContent();
-
-        foreach (['examen.asignar_ambiente', 'examen.quitar_ambiente'] as $operacion) {
-            $this->assertTrue(
-                DB::table('bitacora_operaciones')
-                    ->where('operacion', $operacion)
-                    ->where('usuario_id', $usuario->getKey())
-                    ->exists(),
-                "Falta el asiento {$operacion}."
+            $this->assertSame(
+                $seSolapa,
+                array_key_exists((string) $aula->id, (array) $respuesta->json('compartidas')),
+                "Solape con {$hora} durante {$duracion} minutos.",
             );
         }
     }
 
-    public function test_un_rol_sin_permiso_no_puede_asignar_ambientes(): void
+    public function test_the_exam_being_edited_is_excluded_from_its_own_warning(): void
     {
-        $usuario = UserFactory::new()->createOne();
-        $examen = $this->crearExamen();
+        $docente = $this->docente();
+        $aula = $this->aula();
+        $fecha = now()->addDays(3)->toDateString();
+        $examen = $this->examen($docente, [$this->grupo($docente)], [$aula], ['fecha' => $fecha] + self::FECHA_HORA);
+        $cuenta = $this->cuenta($docente);
+        $parametros = ['fecha' => $fecha, 'hora_inicio' => '08:15', 'duracion_minutos' => 90];
 
-        $this->actingAs($usuario)
-            ->getJson("/api/examenes/{$examen}/ambientes")
+        $this->actingAs($cuenta)
+            ->getJson($this->opciones($parametros))
+            ->assertOk()
+            ->assertJsonCount(1, 'compartidas');
+
+        $respuesta = $this->actingAs($cuenta)
+            ->getJson($this->opciones($parametros + ['examen_id' => $examen->id]))
             ->assertOk();
+
+        // Sin avisos sigue siendo un objeto, no una lista.
+        $this->assertStringContainsString('"compartidas":{}', (string) $respuesta->getContent());
     }
 
-    public function test_un_invitado_no_puede_asignar_ambientes(): void
+    public function test_located_rooms_of_the_groups_schedules_are_suggested(): void
     {
-        $examen = $this->crearExamen();
+        $docente = $this->docente();
+        $asignatura = $this->asignatura();
+        $uno = $this->grupo($docente, $asignatura);
+        $dos = $this->grupo($docente, $asignatura);
+        $otroGrupo = $this->grupo($docente, $asignatura);
+        $edificio = $this->edificio();
+        $ubicadaA = $this->aula('691A', $edificio);
+        $ubicadaB = $this->aula('691B', $edificio);
+        $sinUbicar = $this->aula('AULVIR');
+        $deOtroGrupo = $this->aula('617', $edificio);
 
-        $this->getJson("/api/examenes/{$examen}/ambientes")->assertUnauthorized();
+        foreach ([[$uno, $ubicadaA, 'LU'], [$uno, $ubicadaA, 'MI'], [$dos, $ubicadaB, 'MA'], [$dos, $sinUbicar, 'JU'], [$otroGrupo, $deOtroGrupo, 'VI']] as [$grupo, $aula, $dia]) {
+            Horario::create([
+                'grupo_id' => $grupo->id,
+                'aula_id' => $aula->id,
+                'dia' => $dia,
+                'hora_inicio' => '08:15',
+                'hora_fin' => '09:45',
+            ]);
+        }
+
+        $this->actingAs($this->cuenta($docente))
+            ->getJson($this->opciones(['grupos' => [$uno->id, $dos->id]]))
+            ->assertOk()
+            ->assertJsonPath('sugeridas', [$ubicadaA->id, $ubicadaB->id])
+            ->assertJsonCount(0, 'compartidas');
+    }
+
+    public function test_the_options_are_validated(): void
+    {
+        $cuenta = $this->cuenta($this->docente());
+
+        $this->actingAs($cuenta)
+            ->getJson($this->opciones(['fecha' => '12-10-2026', 'hora_inicio' => '8', 'duracion_minutos' => 5, 'grupos' => ['x']]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['fecha', 'hora_inicio', 'grupos.0'])
+            ->assertJsonValidationErrors(['duracion_minutos' => 'Entre 15 y 480']);
+
+        // La fecha, la hora y la duracion van juntas.
+        $this->actingAs($cuenta)
+            ->getJson($this->opciones(['fecha' => '2026-10-12']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['hora_inicio', 'duracion_minutos']);
+    }
+
+    public function test_the_same_room_is_not_assigned_twice_to_an_exam(): void
+    {
+        $docente = $this->docente();
+        $asignatura = $this->asignatura();
+        $grupo = $this->grupo($docente, $asignatura);
+        $aula = $this->aula();
+
+        $this->actingAs($this->cuenta($docente))
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [$aula, $aula]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['aulas.0' => 'Hay un aula repetida.']);
+
+        $this->actingAs($this->cuenta($docente))
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [], ['aulas' => [999999]]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['aulas.0' => 'El aula no existe.']);
+    }
+
+    public function test_removing_a_room_leaves_its_enabled_students_without_room(): void
+    {
+        $docente = $this->docente();
+        $asignatura = $this->asignatura();
+        $grupo = $this->grupo($docente, $asignatura);
+        $seQueda = $this->aula();
+        $seVa = $this->aula();
+        $examen = $this->examen($docente, [$grupo], [$seQueda, $seVa]);
+        [$uno, $dos, $tres] = $this->estudiantesInscritos($grupo, 3);
+        $this->habilitar($examen, [$uno], $seQueda);
+        $this->habilitar($examen, [$dos, $tres], $seVa);
+
+        $this->actingAs($this->cuenta($docente))
+            ->putJson("/api/examenes/{$examen->id}", $this->cuerpo($asignatura, [$grupo], [$seQueda], [
+                'fecha' => $examen->fecha->format('Y-m-d'),
+            ]))
+            ->assertOk()
+            ->assertJsonPath('data.aulas', [$seQueda->nombre])
+            ->assertJsonPath('data.habilitados', 3);
+
+        $this->assertDatabaseMissing('examen_aula', ['examen_id' => $examen->id, 'aula_id' => $seVa->id]);
+        $this->assertDatabaseHas('habilitaciones', ['estudiante_id' => $uno->id, 'aula_id' => $seQueda->id, 'habilitado' => true]);
+        $this->assertDatabaseHas('habilitaciones', ['estudiante_id' => $dos->id, 'aula_id' => null, 'habilitado' => true]);
+        $this->assertDatabaseHas('habilitaciones', ['estudiante_id' => $tres->id, 'aula_id' => null, 'habilitado' => true]);
+        $this->assertDatabaseHas('bitacora_operaciones', ['operacion' => 'examen.modificar', 'registro_id' => $examen->id]);
+    }
+
+    public function test_removing_a_group_drops_enablings_of_who_is_no_longer_enrolled(): void
+    {
+        $docente = $this->docente();
+        $asignatura = $this->asignatura();
+        $seQueda = $this->grupo($docente, $asignatura);
+        $seVa = $this->grupo($docente, $asignatura);
+        $aula = $this->aula();
+        $examen = $this->examen($docente, [$seQueda, $seVa], [$aula]);
+        [$delQueSeQueda] = $this->estudiantesInscritos($seQueda, 1);
+        [$delQueSeVa, $enLosDos] = $this->estudiantesInscritos($seVa, 2);
+        DB::table('inscripciones')->insert([
+            'estudiante_id' => $enLosDos->id,
+            'grupo_id' => $seQueda->id,
+            'via' => 'ADMINISTRACION',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $this->habilitar($examen, [$delQueSeQueda, $delQueSeVa, $enLosDos], $aula);
+
+        $this->actingAs($this->cuenta($docente))
+            ->putJson("/api/examenes/{$examen->id}", $this->cuerpo($asignatura, [$seQueda], [$aula], [
+                'fecha' => $examen->fecha->format('Y-m-d'),
+            ]))
+            ->assertOk()
+            ->assertJsonPath('data.inscritos', 2)
+            ->assertJsonPath('data.habilitados', 2)
+            ->assertJsonPath('data.qr_emitidos', 0);
+
+        $this->assertDatabaseMissing('habilitaciones', ['examen_id' => $examen->id, 'estudiante_id' => $delQueSeVa->id]);
+        $this->assertDatabaseHas('habilitaciones', ['examen_id' => $examen->id, 'estudiante_id' => $enLosDos->id]);
+        $this->assertDatabaseHas('habilitaciones', ['examen_id' => $examen->id, 'estudiante_id' => $delQueSeQueda->id]);
+        // El padron no se toca.
+        $this->assertDatabaseHas('inscripciones', ['estudiante_id' => $delQueSeVa->id, 'grupo_id' => $seVa->id]);
+    }
+
+    public function test_changing_date_and_time_keeps_the_enablings_and_their_rooms(): void
+    {
+        $docente = $this->docente();
+        $asignatura = $this->asignatura();
+        $grupo = $this->grupo($docente, $asignatura);
+        $aula = $this->aula();
+        $examen = $this->examen($docente, [$grupo], [$aula]);
+        [$estudiante] = $this->estudiantesInscritos($grupo, 1);
+        $this->habilitar($examen, [$estudiante], $aula);
+
+        $this->actingAs($this->cuenta($docente))
+            ->putJson("/api/examenes/{$examen->id}", $this->cuerpo($asignatura, [$grupo], [$aula], [
+                'fecha' => now()->addDays(6)->toDateString(),
+                'hora_inicio' => '16:00',
+            ]))
+            ->assertOk();
+
+        $this->assertDatabaseHas('habilitaciones', ['estudiante_id' => $estudiante->id, 'aula_id' => $aula->id]);
+    }
+
+    public function test_the_room_options_need_a_session_and_the_permission(): void
+    {
+        $this->getJson('/api/examenes/opciones/aulas')->assertUnauthorized();
+
+        $this->actingAs($this->usuarioConRol('Auxiliar'))
+            ->getJson('/api/examenes/opciones/aulas')
+            ->assertForbidden()
+            ->assertJsonPath('permiso_requerido', 'examenes');
     }
 }

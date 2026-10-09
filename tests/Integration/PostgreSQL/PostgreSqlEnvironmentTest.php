@@ -23,12 +23,12 @@ final class PostgreSqlEnvironmentTest extends TestCase
         );
 
         $this->assertSame(
-            'control_ingreso_testing',
+            $this->baseDePruebas(),
             DB::connection()->getDatabaseName()
         );
 
         $this->assertSame(
-            'control_ingreso_testing',
+            $this->baseDePruebas(),
             $this->queryScalar('SELECT current_database()')
         );
 
@@ -61,5 +61,16 @@ final class PostgreSqlEnvironmentTest extends TestCase
         }
 
         return $value;
+    }
+
+    /**
+     * La base que valido el arranque de la suite: la de `.env.testing` o la
+     * indicada con `PRUEBAS_DB_DATABASE` (siempre `control_ingreso*_testing`).
+     */
+    private function baseDePruebas(): string
+    {
+        $base = getenv('PRUEBAS_DB_DATABASE');
+
+        return is_string($base) && $base !== '' ? $base : 'control_ingreso_testing';
     }
 }

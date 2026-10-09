@@ -16,10 +16,10 @@ use Symfony\Component\HttpFoundation\Response;
  * La negativa es explícita —dice qué permiso falta y a quién pedirlo— porque
  * el backlog no admite una pantalla en blanco.
  *
- * HU-10: cuando la ruta declara varios permisos separados por "|", alcanza
- * con que el rol tenga uno de ellos. Es el caso del listado de ambientes,
- * que sirve al administrador (asignaturas_ambientes) y al docente que los
- * asigna a su examen (examenes_normas).
+ * Cuando la ruta declara varios permisos separados por "|", alcanza con que
+ * el rol tenga uno de ellos. Es el caso del listado de carreras, que sirve
+ * a la pantalla del periodo (periodo_oferta) y a la del padron
+ * (padron_estudiantes).
  */
 final class ExigirPermiso
 {

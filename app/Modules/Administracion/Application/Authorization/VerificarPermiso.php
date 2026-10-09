@@ -28,9 +28,8 @@ final class VerificarPermiso
     }
 
     /**
-     * HU-10: el docente lista ambientes para asignarlos a su examen, pero
-     * no tiene el permiso de asignaturas. Se admite que la ruta acepte
-     * uno de varios permisos separados por "|".
+     * Una ruta puede aceptar uno de varios permisos separados por "|": es
+     * el caso de un catalogo que sirve a dos pantallas distintas.
      *
      * @param  list<string>  $permisos
      */

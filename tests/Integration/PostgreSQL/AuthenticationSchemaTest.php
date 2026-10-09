@@ -16,6 +16,7 @@ class AuthenticationSchemaTest extends TestCase
         $userId = DB::table('usuarios')->insertGetId([
             'name' => 'Auth Schema Test',
             'email' => 'auth-schema@example.invalid',
+            'usuario' => 'auth-schema',
             'password' => 'not-used-in-schema-test',
         ]);
 
@@ -49,6 +50,7 @@ class AuthenticationSchemaTest extends TestCase
         DB::table('usuarios')->insert([
             'name' => 'Invalid Counter Test',
             'email' => 'negative-counter@example.invalid',
+            'usuario' => 'negative-counter',
             'password' => 'not-used-in-schema-test',
             'failed_login_attempts' => -1,
         ]);
@@ -91,6 +93,7 @@ class AuthenticationSchemaTest extends TestCase
         $userId = DB::table('usuarios')->insertGetId([
             'name' => 'Known User Test',
             'email' => 'known-user@example.invalid',
+            'usuario' => 'known-user',
             'password' => 'not-used-in-schema-test',
         ]);
 
@@ -130,6 +133,7 @@ class AuthenticationSchemaTest extends TestCase
         $userId = DB::table('usuarios')->insertGetId([
             'name' => 'Deleted User Test',
             'email' => 'deleted-user@example.invalid',
+            'usuario' => 'deleted-user',
             'password' => 'not-used-in-schema-test',
         ]);
 

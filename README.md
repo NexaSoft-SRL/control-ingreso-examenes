@@ -52,35 +52,37 @@ aplicación se sirve desde el puerto 8000.
 
 ## Datos de demostración
 
-`DemoSeeder` deja la base con los mismos datos para todo el equipo: una cuenta por rol,
-el padrón con ocho estudiantes (uno dado de baja), tres docentes, cuatro ambientes y tres
-asignaturas. Se puede volver a ejecutar cuantas veces haga falta: no duplica nada.
+`DemoSeeder` deja la base con los mismos datos para todo el equipo: los roles de inicio,
+la oferta real del período 2/2026 (cuatro facultades, 3.169 grupos, 847 docentes y 281
+aulas con su ubicación), un padrón ficticio de 4.218 estudiantes con sus inscripciones y
+23 exámenes en distintos estados de preparación.
 
 ```sh
-php artisan db:seed --class=DemoSeeder   # agrega lo que falte a la base actual
-composer datos:demo                      # rehace la base desde cero y la siembra
+composer datos:demo   # rehace la base desde cero y la siembra
 ```
 
-El primero respeta lo que ya tengas cargado; el segundo **borra la base** y la deja
-idéntica a la del resto del equipo.
+El comando **borra la base** y la deja idéntica a la del resto del equipo.
 
-| Rol                  | Correo                      | Contraseña        |
-| -------------------- | --------------------------- | ----------------- |
-| Administrador        | `admin@umss.edu.bo`         | `Admin12345`      |
-| Docente              | `docente@umss.edu.bo`       | `Docente12345`    |
-| Personal de control  | `control@umss.edu.bo`       | `Control12345`    |
-| Responsable académico| `responsable@umss.edu.bo`   | `Responsable12345`|
+| Rol           | Correo                       | Contraseña         |
+| ------------- | ---------------------------- | ------------------ |
+| Administrador | `admin@umss.edu.bo`          | `Admin12345`       |
+| Docente       | `leticia.blanco@umss.edu.bo` | `Docente12345`     |
+| Docente       | `carga.alta@umss.edu.bo`     | `Docente12345`     |
+| Auxiliar      | `auxiliar@umss.edu.bo`       | `Auxiliar12345`    |
+| Coordinador   | `coordinacion@umss.edu.bo`   | `Coordinador12345` |
 
-Cada rol ve únicamente las secciones que tiene habilitadas; el Administrador las ve
-todas. Las contraseñas de una cuenta que ya existe no se modifican.
+Cada cuenta ve únicamente las pantallas que su rol tiene habilitadas. «Coordinador» es un
+rol creado, para mostrar que los roles no son fijos. Los demás docentes de la oferta
+quedan sin cuenta activa hasta que se les activa desde «Docentes».
 
-Para probar la carga masiva hay dos archivos en `docs/ejemplos/`:
+Para probar la carga de listas de inscritos hay tres archivos en `docs/ejemplos/`:
 
-- `padron_ejemplo.csv`: los mismos ocho estudiantes del seeder, para comprobar que una
-  segunda carga actualiza en vez de duplicar.
-- `padron_con_errores.csv`: cinco filas de las que entran dos y se rechazan tres —un
-  código repetido dentro del archivo, una fila sin documento y otra sin código—, para ver
-  el informe de rechazos con su fila y su motivo.
+- `lista_grupo_ejemplo.csv`: cinco estudiantes nuevos para cargar en un grupo desde
+  «Mis grupos».
+- `lista_con_errores.csv`: cinco filas de las que entran dos y se rechazan tres —una sin
+  documento, una repetida y una con el código mal formado—, para ver el resumen con la
+  fila y el motivo de cada rechazo.
+- `lista_columnas_en_otro_orden.csv`: se rechaza entera y muestra el orden esperado.
 
 ## Estructura
 

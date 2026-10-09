@@ -11,7 +11,8 @@
     "require": {
         "php": "^8.2",
         "laravel/framework": "^11.0",
-        "laravel/tinker": "^2.10.1"
+        "laravel/tinker": "^2.10.1",
+        "phpoffice/phpspreadsheet": "^5.10"
     },
     "require-dev": {
         "deptrac/deptrac": "^4.7",
@@ -52,10 +53,14 @@
             "@php artisan db:seed --class=DemoSeeder --force"
         ],
         "test": [
+            "Composer\\Config::disableProcessTimeout",
             "@php artisan config:clear --ansi",
             "@php artisan test"
         ],
-        "test:postgresql": "@php vendor/bin/phpunit --configuration=phpunit.postgresql.xml",
+        "test:postgresql": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php vendor/bin/phpunit --configuration=phpunit.postgresql.xml"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
@@ -84,6 +89,7 @@
         "quality:style": "@php vendor/bin/pint --test",
         "quality:autoload": "@composer dump-autoload --optimize --strict-psr --strict-ambiguous",
         "quality:backend": [
+            "Composer\\Config::disableProcessTimeout",
             "@quality:composer",
             "@quality:migrations",
             "@quality:structure",
@@ -130,6 +136,6 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "scripts-descriptions": {
-        "datos:demo": "Rehace la base y carga los datos de demostracion del sprint 1. Borra lo que haya."
+        "datos:demo": "Rehace la base, importa la oferta real y carga los datos de demostracion. Borra lo que haya."
     }
 }

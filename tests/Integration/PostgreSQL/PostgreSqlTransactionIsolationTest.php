@@ -138,7 +138,7 @@ final class PostgreSqlTransactionIsolationTest extends TestCase
         }
 
         $this->assertSame(
-            'control_ingreso_testing',
+            $this->baseDePruebas(),
             $actualDatabase
         );
 
@@ -155,6 +155,7 @@ final class PostgreSqlTransactionIsolationTest extends TestCase
             INSERT INTO usuarios (
                 name,
                 email,
+                usuario,
                 password,
                 created_at,
                 updated_at
@@ -162,6 +163,7 @@ final class PostgreSqlTransactionIsolationTest extends TestCase
             VALUES (
                 :name,
                 :email,
+                :usuario,
                 :password,
                 CURRENT_TIMESTAMP,
                 CURRENT_TIMESTAMP
@@ -178,6 +180,7 @@ final class PostgreSqlTransactionIsolationTest extends TestCase
         if (! $statement->execute([
             'name' => $name,
             'email' => $email,
+            'usuario' => explode('@', $email, 2)[0],
             'password' => 'not-used-in-test',
         ])) {
             throw new RuntimeException(
@@ -230,5 +233,16 @@ final class PostgreSqlTransactionIsolationTest extends TestCase
         }
 
         return $value;
+    }
+
+    /**
+     * La base que valido el arranque de la suite: la de `.env.testing` o la
+     * indicada con `PRUEBAS_DB_DATABASE` (siempre `control_ingreso*_testing`).
+     */
+    private function baseDePruebas(): string
+    {
+        $base = getenv('PRUEBAS_DB_DATABASE');
+
+        return is_string($base) && $base !== '' ? $base : 'control_ingreso_testing';
     }
 }

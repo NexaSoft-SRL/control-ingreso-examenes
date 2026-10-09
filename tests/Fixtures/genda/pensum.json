@@ -1,0 +1,32 @@
+[
+ {
+  "name": "FAC. CIENCIAS ECONOMICAS",
+  "code": "13",
+  "careers": [
+   {
+    "code": "059801",
+    "name": "LICENCIATURA EN ECONOMIA",
+    "type": "Carrera",
+    "metadata": {
+     "gestion": "2026"
+    },
+    "subjects": []
+   }
+  ]
+ },
+ {
+  "name": "FAC. CIENCIAS Y TECNOLOGIA",
+  "code": "20",
+  "careers": [
+   {
+    "code": "411702",
+    "name": "LICENCIATURA EN INGENIERIA DE SISTEMAS",
+    "type": "Carrera",
+    "metadata": {
+     "gestion": "2026"
+    },
+    "subjects": []
+   }
+  ]
+ }
+]

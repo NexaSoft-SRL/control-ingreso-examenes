@@ -1,0 +1,50 @@
+{
+ "INFO": {
+  "SEMESTER": "Gestión 2/2026"
+ },
+ "LICENCIATURA EN ARQUITECTURA": {
+  "_CAREER_CODE": "202002",
+  "PRIMER AÑO": {
+   "TALLER DE DISEÑO I": {
+    "_CODE": "1701001",
+    "A1": {
+     "PROFESSOR": "ROJAS ORTUÑO JOSE CARLOS",
+     "AUX_INDEX": -1,
+     "DAY": [
+      "LU",
+      "MI"
+     ],
+     "HOUR": [
+      "08:15-11:15",
+      "08:15-11:15"
+     ],
+     "CLASS": [
+      "T-1",
+      "T-1"
+     ]
+    }
+   }
+  }
+ },
+ "LICENCIATURA EN TURISMO": {
+  "_CAREER_CODE": "127091",
+  "SEMESTRE 3": {
+   "GEOGRAFIA TURISTICA": {
+    "_CODE": "1701050",
+    "1": {
+     "PROFESSOR": "ROJAS ORTUÑO JOSE CARLOS",
+     "AUX_INDEX": -1,
+     "DAY": [
+      "MA"
+     ],
+     "HOUR": [
+      "14:15-15:45"
+     ],
+     "CLASS": [
+      "T-2"
+     ]
+    }
+   }
+  }
+ }
+}

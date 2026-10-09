@@ -1,0 +1,25 @@
+{
+ "INFO": {
+  "SEMESTER": "Semestre 2/2026"
+ },
+ "LICENCIATURA EN PSICOLOGIA": {
+  "_CAREER_CODE": "181201",
+  "SEMESTRE 1": {
+   "PSICOLOGIA GENERAL": {
+    "_CODE": "1801033",
+    "1": {
+     "AUX_INDEX": 0,
+     "DAY": [
+      "LU"
+     ],
+     "HOUR": [
+      "09:45-11:15"
+     ],
+     "CLASS": [
+      "H-12"
+     ]
+    }
+   }
+  }
+ }
+}

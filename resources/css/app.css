@@ -5,8 +5,134 @@
 @source '../**/*.blade.php';
 @source '../**/*.js';
 
+/* Inter se sirve local: la aplicación instalada no depende de Google Fonts. */
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-display: swap;
+    font-weight: 100 900;
+    src: url('../fonts/inter-latin-ext-wght-normal.woff2') format('woff2-variations');
+    unicode-range:
+        U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+        U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+        U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-display: swap;
+    font-weight: 100 900;
+    src: url('../fonts/inter-latin-wght-normal.woff2') format('woff2-variations');
+    unicode-range:
+        U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308,
+        U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* =====================================================================
+   Paleta del sistema de control de ingreso — propuesta de trabajo.
+   No hay marca institucional previa para el producto (el azul de
+   NexaSoft es de la grupo-empresa, no del sistema): esta paleta se
+   diseñó para la pantalla real que más se usa, el punto de control,
+   que tiene que resolver de un vistazo cuatro estados de verificación.
+
+   - primary   : acciones y navegación. Azul institucional, sobrio.
+   - success   : ingreso admitido (HU-18 a HU-21).
+   - danger    : no habilitado / ingreso duplicado (HU-19, HU-22).
+   - warning   : aula incorrecta / situación excepcional (HU-20).
+   - info      : QR de otro examen o ilegible, antes de resolver (HU-18).
+   - slate     : texto y superficies neutras.
+
+   Contraste verificado para texto sobre blanco y para texto blanco
+   sobre el tono 600 de cada escala (WCAG AA, 4.5:1 en tamaño de texto
+   normal).
+   ===================================================================== */
 @theme {
-    --font-sans:
-        'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
-        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+    --color-primary-50: #eff6ff;
+    --color-primary-100: #dbeafe;
+    --color-primary-200: #bfdbfe;
+    --color-primary-300: #93c5fd;
+    --color-primary-400: #60a5fa;
+    --color-primary-500: #3b82f6;
+    --color-primary-600: #2563eb;
+    --color-primary-700: #1d4ed8;
+    --color-primary-800: #1e40af;
+    --color-primary-900: #1e3a8a;
+
+    --color-success-50: #f0fdf4;
+    --color-success-100: #dcfce7;
+    --color-success-200: #bbf7d0;
+    --color-success-600: #16a34a;
+    --color-success-700: #15803d;
+    --color-success-900: #14532d;
+
+    --color-danger-50: #fef2f2;
+    --color-danger-100: #fee2e2;
+    --color-danger-200: #fecaca;
+    --color-danger-600: #dc2626;
+    --color-danger-700: #b91c1c;
+    --color-danger-900: #7f1d1d;
+
+    --color-warning-50: #fffbeb;
+    --color-warning-100: #fef3c7;
+    --color-warning-200: #fde68a;
+    --color-warning-600: #d97706;
+    --color-warning-700: #b45309;
+    --color-warning-900: #78350f;
+
+    --color-info-50: #f5f3ff;
+    --color-info-100: #ede9fe;
+    --color-info-600: #7c3aed;
+    --color-info-700: #6d28d9;
+
+    --color-slate-50: #f8fafc;
+    --color-slate-100: #f1f5f9;
+    --color-slate-200: #e2e8f0;
+    --color-slate-300: #cbd5e1;
+    --color-slate-400: #94a3b8;
+    --color-slate-500: #64748b;
+    --color-slate-600: #475569;
+    --color-slate-700: #334155;
+    --color-slate-800: #1e293b;
+    --color-slate-900: #0f172a;
+}
+
+html {
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    background-color: var(--color-slate-100);
+    color: var(--color-slate-800);
+}
+
+/* Las listas desplegables nativas ignoran el alto y el relleno en Safari y
+   cada navegador dibuja su propia flecha. Se les quita la apariencia nativa
+   y se les pone la misma flecha en todas partes. */
+@layer base {
+    select {
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 1rem;
+        padding-right: 2.25rem;
+        text-overflow: ellipsis;
+        cursor: pointer;
+    }
+
+    select:disabled {
+        cursor: not-allowed;
+    }
+
+    /* Mismo alto que los demás campos, también en Safari. */
+    input[type='date'],
+    input[type='time'] {
+        min-height: 2.75rem;
+        -webkit-appearance: none;
+        appearance: none;
+    }
 }

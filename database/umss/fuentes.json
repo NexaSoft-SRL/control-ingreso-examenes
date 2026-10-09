@@ -1,0 +1,185 @@
+{
+  "descripcion": "Fuentes públicas de la UMSS de las que el sistema toma sus datos. Es el registro único de enlaces: los scrapers y el importador leen de aquí, no llevan URLs escritas en el código.",
+  "consultado": "2026-10-04",
+  "numeracion_de_periodos": {
+    "1": "Semestre 1",
+    "2": "Semestre 2",
+    "0": "Anual",
+    "4": "Curso de invierno (FCyT)",
+    "nota": "El código del curso de verano no está confirmado."
+  },
+  "periodos": [
+    {
+      "id": "websis_cronograma_inscripcion",
+      "que_da": "Período vigente de cada carrera de la universidad, con su código, y la fecha en que abre su inscripción. La cabecera trae además el período vigente de toda la universidad.",
+      "url": "https://websis.umss.edu.bo/cron_inscripcion.asp?ID=127&SERVICIO=u&codser=UMSS&idCat=36",
+      "formato": "HTML",
+      "codificacion": "latin1",
+      "alcance": "18 facultades, 92 carreras",
+      "como_leerlo": "Cada carrera es una línea «NOMBRE (código) detalles», seguida de «Gestión Inscripción: N/AAAA» y «Fecha Inicio: DD/MM/AAAA». El nombre de la facultad va en una línea propia antes de sus carreras.",
+      "cuidado": [
+        "La fecha es la apertura de la inscripción, no el primer día de clases.",
+        "Trae planes cerrados con períodos viejos (por ejemplo 0/2011): se descartan los que no sean del año en curso.",
+        "El certificado del sitio no valida: GENDA lo lee con la verificación TLS desactivada."
+      ],
+      "comprobado": true
+    },
+    {
+      "id": "websis_cronograma_matriculacion",
+      "que_da": "Cronograma de matriculación por carrera.",
+      "url": "https://websis.umss.edu.bo/cron_matriculacion.asp?ID=154&SERVICIO=u&codser=UMSS&idCat=36",
+      "formato": "HTML",
+      "comprobado": false
+    }
+  ],
+  "calendarios_academicos": [
+    {
+      "facultad": "FCYT",
+      "periodo": "2/2026",
+      "que_da": "Inicio y fin del semestre y ventanas de exámenes, una fila por día. Incluye el curso de invierno 4-2026.",
+      "pagina": "https://www.fcyt.umss.edu.bo/calendario-academico-fcyt-invierno-4-2026-y-semestre-2-2026/",
+      "url": "https://www.fcyt.umss.edu.bo/wp-content/uploads/2026/06/CALENDARIO-ACADEMICO-GESTION-II-2026.pdf",
+      "formato": "PDF con texto",
+      "como_leerlo": "pdftotext -layout. Dos columnas de «fecha, día, semana, actividad»; la fecha tiene la forma 10-ago-26.",
+      "fechas_leidas": {
+        "inicio": "2026-08-10",
+        "fin": "2026-12-26",
+        "primeros_parciales": [
+          "2026-10-12",
+          "2026-10-31"
+        ],
+        "segundos_parciales": [
+          "2026-12-07",
+          "2026-12-17"
+        ],
+        "finales_y_segunda_instancia": [
+          "2026-12-19",
+          "2026-12-24"
+        ],
+        "examenes_de_mesa": [
+          "2026-08-10",
+          "2026-08-17"
+        ],
+        "invierno_4_2026": [
+          "2026-07-09",
+          "2026-07-31"
+        ]
+      },
+      "comprobado": true
+    },
+    {
+      "facultad": "FCYT",
+      "periodo": "1/2026",
+      "que_da": "Calendario del primer semestre, en dos versiones: la detallada es una lista de actividades con sus fechas en texto.",
+      "url": "https://www.fcyt.umss.edu.bo/wp-content/uploads/2026/02/fcyt-1-2026-calendario-DETALLADO.pdf",
+      "url_alternativa": "https://www.fcyt.umss.edu.bo/wp-content/uploads/2025/12/calendario-academico-FCyT-1-2026.pdf",
+      "formato": "PDF con texto",
+      "fechas_leidas": {
+        "inicio": "2026-02-23",
+        "fin": "2026-07-04"
+      },
+      "comprobado": true
+    },
+    {
+      "facultad": "FCE",
+      "periodo": "2/2026",
+      "que_da": "Calendario del segundo semestre.",
+      "pagina": "https://www.fce.umss.edu.bo/webpage/node/2568",
+      "url": "https://www.fce.umss.edu.bo/webpage/sites/default/files/2026-07/Calendario%20Academico%20FCE%20II-2026_.pdf",
+      "url_imagen": "https://www.fce.umss.edu.bo/webpage/sites/default/files/inline-images/Calendario%20Academico%20FCE%20II-2026_.jpg",
+      "formato": "PDF e imagen",
+      "cuidado": [
+        "No se comprobó si el PDF tiene texto o es una imagen."
+      ],
+      "comprobado": false
+    }
+  ],
+  "oferta_academica": {
+    "nota": "Ya las procesa GENDA (genda-app/scraper). Al sistema entra la copia de sus JSON, no el scraper.",
+    "fuentes": [
+      {
+        "facultad": "FCYT",
+        "url": "https://sagaa.fcyt.umss.edu.bo/horarios",
+        "formato": "PDF"
+      },
+      {
+        "facultad": "FCE",
+        "url": "http://www.fce.umss.edu.bo/webpage/",
+        "formato": "PDF",
+        "pagina_oferta_2_2026": "https://www.fce.umss.edu.bo/webpage/node/2582"
+      },
+      {
+        "facultad": "FHCE",
+        "url": "https://www.hum.umss.edu.bo/horarios/",
+        "formato": "PDF"
+      },
+      {
+        "facultad": "FACH",
+        "url": "https://horarios.fach.umss.edu.bo/horarios/",
+        "formato": "PDF"
+      }
+    ],
+    "fuera_de_alcance": [
+      {
+        "facultad": "FCJP",
+        "motivo": "No tiene fuente web: el horario es un PDF que se consigue aparte."
+      },
+      {
+        "facultad": "FODO",
+        "motivo": "Los datos disponibles son del período 1/2025.",
+        "url": "https://www.odo.umss.edu.bo/academico"
+      }
+    ]
+  },
+  "pensum": {
+    "que_da": "Carreras de la universidad y el plan de estudios de cada una.",
+    "url": "https://websis.umss.edu.bo/umss_carreras.asp",
+    "url_detalle": "https://websis.umss.edu.bo/umss_carrerasDesc.asp",
+    "formato": "HTML",
+    "codificacion": "latin1",
+    "nota": "Ya lo procesa GENDA (pensumParser.js)."
+  },
+  "sin_fuente_encontrada": [
+    "Calendario académico de FHCE y FACH.",
+    "Capacidad de las aulas: no se usa.",
+    "Correo de los docentes.",
+    "Listas de inscritos: no son públicas; las descarga el docente o la administración de la WebSIS."
+  ],
+  "alcance": "Solo las facultades cuya oferta se obtiene de forma automática: FCYT, FCE, FHCE y FACH.",
+  "correos_institucionales": {
+    "consultado": "2026-10-05",
+    "estudiantes": {
+      "regla": "<codigo_sis>@est.umss.edu",
+      "ejemplo": "202102335@est.umss.edu",
+      "clave_inicial": "número de carnet de identidad",
+      "alta": "automática, 48 horas después del cierre de la toma de materias; requiere al menos una materia inscrita",
+      "fuentes": [
+        "https://www.umss.edu.bo/google-workspace-para-estudiantes/",
+        "https://ode.fcyt.umss.edu.bo/correo-google-workspace-umss/"
+      ],
+      "comprobado": true
+    },
+    "docentes": {
+      "regla_dtic": "<dos primeras letras del nombre>.<apellido paterno>@umss.edu.bo",
+      "ejemplo": "ju.molina@umss.edu.bo",
+      "alta": "a solicitud, ante la DTIC o la UTI facultativa",
+      "fuente": "https://www.umss.edu.bo/correo-institucional-para-funcionarios/",
+      "regla_fcyt_observada": "<nombres><apellido paterno>.<inicial del materno>@fcyt.umss.edu.bo",
+      "ejemplos_fcyt": [
+        "carlasalazar.s",
+        "hernanustariz.v",
+        "patriciaromero.r",
+        "rosemarysalazar.a",
+        "marcelojuanflores.s",
+        "luisagreda.c"
+      ],
+      "excepciones_fcyt": [
+        "boris@fcyt.umss.edu.bo",
+        "csalazar@memi.umss.edu.bo"
+      ],
+      "fuente_fcyt": "https://www.cs.umss.edu.bo/rep_docentes.jsp",
+      "comprobado": false,
+      "nota": "No hay una regla única: conviven al menos dos formatos y dominios, la cantidad y el orden de los nombres varía, y hay cuentas antiguas. El correo del docente se propone y se puede corregir."
+    }
+  }
+}

@@ -4,225 +4,85 @@ declare(strict_types=1);
 
 namespace Tests\Integration\PostgreSQL;
 
-use App\Modules\Examenes\Application\Contracts\AsignaturaGateway;
-use App\Modules\Examenes\Domain\Models\Asignatura;
-use App\Modules\Examenes\Domain\Models\Docente;
+use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
+use App\Modules\Administracion\Domain\Models\Role;
 use Database\Factories\UserFactory;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
+/**
+ * Una escritura y su asiento en la bitacora van en la misma transaccion: si
+ * el asiento falla, la escritura no queda. El vehiculo es el alta de un rol
+ * seguida de su asiento, tal como lo hace una accion de la aplicacion: la
+ * pasarela de bitacora escribe en la conexion de quien la llama y no se
+ * traga el error.
+ */
 final class BitacoraAtomicityTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_subject_registration_rolls_back_when_audit_insert_fails(): void
+    public function test_a_write_and_its_audit_entry_are_stored_together(): void
     {
-        $user = UserFactory::new()->createOne();
+        $autor = $this->identificador(UserFactory::new()->createOne()->getKey());
 
-        $docente = Docente::query()->create([
-            'codigo_docente' => 'DOC-BIT-ROLLBACK-001',
-            'nombres' => 'Ana',
-            'apellidos' => 'Rojas',
-            'estado' => true,
+        $rolId = $this->crearRolConAsiento('Coordinador', $autor);
+
+        $this->assertDatabaseHas('roles', [
+            'id' => $rolId,
+            'name' => 'Coordinador',
         ]);
+
+        $this->assertDatabaseHas('bitacora_operaciones', [
+            'usuario_id' => $autor,
+            'operacion' => 'rol.crear',
+            'tabla_afectada' => 'roles',
+            'registro_id' => $rolId,
+        ]);
+    }
+
+    public function test_the_write_rolls_back_when_audit_insert_fails(): void
+    {
+        $autor = $this->identificador(UserFactory::new()->createOne()->getKey());
 
         DB::statement(
             "ALTER TABLE bitacora_operaciones
-             ADD CONSTRAINT hu07_force_register_audit_failure
-             CHECK (operacion <> 'asignatura.registrar')"
+             ADD CONSTRAINT hu07_force_audit_failure
+             CHECK (operacion <> 'rol.crear')"
         );
-
-        $this->withoutExceptionHandling();
 
         try {
             try {
-                $this
-                    ->actingAs($user)
-                    ->postJson('/api/asignaturas', [
-                        'codigo' => 'INF-BIT-ROLLBACK-001',
-                        'nombre' => 'Asignatura rollback auditoría',
-                        'semestre' => '8',
-                        'descripcion' => null,
-                        'grupos' => [
-                            [
-                                'codigo_grupo' => '1',
-                                'docente_id' => $docente->getKey(),
-                                'cupo' => 30,
-                            ],
-                        ],
-                    ]);
+                $this->crearRolConAsiento('Coordinador', $autor);
 
                 $this->fail(
                     'La escritura de bitácora debía provocar una excepción PostgreSQL.'
                 );
             } catch (QueryException $exception) {
                 self::assertStringContainsString(
-                    'hu07_force_register_audit_failure',
+                    'hu07_force_audit_failure',
                     $exception->getMessage()
                 );
             }
 
-            $this->assertDatabaseMissing('asignaturas', [
-                'codigo' => 'INF-BIT-ROLLBACK-001',
+            $this->assertDatabaseMissing('roles', [
+                'name' => 'Coordinador',
             ]);
 
-            $this->assertDatabaseCount(
-                'grupos_asignatura',
-                0
-            );
-
-            $this->assertDatabaseCount(
-                'bitacora_operaciones',
-                0
-            );
+            $this->assertDatabaseCount('bitacora_operaciones', 0);
         } finally {
             DB::statement(
                 'ALTER TABLE bitacora_operaciones
-                 DROP CONSTRAINT IF EXISTS hu07_force_register_audit_failure'
+                 DROP CONSTRAINT IF EXISTS hu07_force_audit_failure'
             );
         }
     }
 
-    public function test_subject_deletion_rolls_back_when_audit_insert_fails(): void
+    public function test_audit_user_foreign_key_failure_rolls_back_the_write(): void
     {
-        $user = UserFactory::new()->createOne();
-
-        $docente = Docente::query()->create([
-            'codigo_docente' => 'DOC-BIT-ROLLBACK-002',
-            'nombres' => 'Luis',
-            'apellidos' => 'Flores',
-            'estado' => true,
-        ]);
-
-        $docenteId = $docente->getKey();
-
-        if (! is_int($docenteId)) {
-            $this->fail(
-                'El identificador PostgreSQL del docente debía ser entero.'
-            );
-        }
-
-        $asignatura = Asignatura::query()->create([
-            'codigo' => 'INF-BIT-ROLLBACK-002',
-            'nombre' => 'Asignatura protegida por auditoría',
-            'semestre' => '7',
-            'descripcion' => null,
-            'estado' => true,
-        ]);
-
-        $asignaturaId = $asignatura->getKey();
-
-        if (! is_int($asignaturaId)) {
-            $this->fail(
-                'El identificador PostgreSQL de la asignatura debía ser entero.'
-            );
-        }
-
-        $asignatura->grupos()->create([
-            'docente_id' => $docenteId,
-            'codigo_grupo' => '1',
-            'cupo' => 25,
-        ]);
-
-        DB::statement(
-            "ALTER TABLE bitacora_operaciones
-             ADD CONSTRAINT hu07_force_delete_audit_failure
-             CHECK (operacion <> 'asignatura.eliminar')"
-        );
-
-        $this->withoutExceptionHandling();
-
         try {
-            try {
-                $this
-                    ->actingAs($user)
-                    ->deleteJson(
-                        "/api/asignaturas/{$asignaturaId}"
-                    );
-
-                $this->fail(
-                    'La escritura de bitácora debía provocar una excepción PostgreSQL.'
-                );
-            } catch (QueryException $exception) {
-                self::assertStringContainsString(
-                    'hu07_force_delete_audit_failure',
-                    $exception->getMessage()
-                );
-            }
-
-            $this->assertDatabaseHas('asignaturas', [
-                'id' => $asignaturaId,
-                'codigo' => 'INF-BIT-ROLLBACK-002',
-            ]);
-
-            $this->assertDatabaseHas('grupos_asignatura', [
-                'asignatura_id' => $asignaturaId,
-                'codigo_grupo' => '1',
-            ]);
-
-            $this->assertDatabaseCount(
-                'bitacora_operaciones',
-                0
-            );
-        } finally {
-            DB::statement(
-                'ALTER TABLE bitacora_operaciones
-                 DROP CONSTRAINT IF EXISTS hu07_force_delete_audit_failure'
-            );
-        }
-    }
-
-    public function test_audit_user_foreign_key_failure_is_not_translated_as_subject_dependency_and_rolls_back(): void
-    {
-        $docente = Docente::query()->create([
-            'codigo_docente' => 'DOC-BIT-FK-001',
-            'nombres' => 'María',
-            'apellidos' => 'Mendoza',
-            'estado' => true,
-        ]);
-
-        $docenteId = $docente->getKey();
-
-        if (! is_int($docenteId)) {
-            $this->fail(
-                'El identificador PostgreSQL del docente debía ser entero.'
-            );
-        }
-
-        $asignatura = Asignatura::query()->create([
-            'codigo' => 'INF-BIT-FK-001',
-            'nombre' => 'Asignatura FK auditoría',
-            'semestre' => '8',
-            'descripcion' => null,
-            'estado' => true,
-        ]);
-
-        $asignaturaId = $asignatura->getKey();
-
-        if (! is_int($asignaturaId)) {
-            $this->fail(
-                'El identificador PostgreSQL de la asignatura debía ser entero.'
-            );
-        }
-
-        $asignatura->grupos()->create([
-            'docente_id' => $docenteId,
-            'codigo_grupo' => '1',
-            'cupo' => 30,
-        ]);
-
-        /** @var AsignaturaGateway $gateway */
-        $gateway = $this->app->make(
-            AsignaturaGateway::class
-        );
-
-        try {
-            $gateway->eliminar(
-                $asignaturaId,
-                999999999,
-            );
+            $this->crearRolConAsiento('Coordinador', 999999999);
 
             $this->fail(
                 'PostgreSQL debía rechazar el usuario inexistente de la bitácora.'
@@ -234,19 +94,34 @@ final class BitacoraAtomicityTest extends TestCase
             );
         }
 
-        $this->assertDatabaseHas('asignaturas', [
-            'id' => $asignaturaId,
-            'codigo' => 'INF-BIT-FK-001',
+        $this->assertDatabaseMissing('roles', [
+            'name' => 'Coordinador',
         ]);
 
-        $this->assertDatabaseHas('grupos_asignatura', [
-            'asignatura_id' => $asignaturaId,
-            'codigo_grupo' => '1',
-        ]);
+        $this->assertDatabaseCount('bitacora_operaciones', 0);
+    }
 
-        $this->assertDatabaseCount(
-            'bitacora_operaciones',
-            0
-        );
+    private function crearRolConAsiento(string $nombre, int $autor): int
+    {
+        $bitacora = $this->app->make(BitacoraGateway::class);
+
+        return DB::transaction(function () use ($bitacora, $nombre, $autor): int {
+            $rolId = $this->identificador(
+                Role::create(['name' => $nombre, 'es_sistema' => false])->getKey()
+            );
+
+            $bitacora->registrar($autor, 'rol.crear', 'roles', $rolId, null);
+
+            return $rolId;
+        });
+    }
+
+    private function identificador(mixed $clave): int
+    {
+        if (! is_int($clave)) {
+            $this->fail('El identificador PostgreSQL debía ser entero.');
+        }
+
+        return $clave;
     }
 }

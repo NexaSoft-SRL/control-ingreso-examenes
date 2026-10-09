@@ -1,0 +1,18 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Examenes\Application\DTOs;
+
+/**
+ * Un aula del examen con su ubicacion.
+ */
+final readonly class AulaDetalleData
+{
+    public function __construct(
+        public int $aulaId,
+        public string $nombre,
+        public ?string $ubicacion,
+        public ?int $edificioId,
+    ) {}
+}

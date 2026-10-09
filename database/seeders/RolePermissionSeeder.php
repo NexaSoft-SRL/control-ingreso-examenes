@@ -1,83 +1,108 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Modules\Administracion\Domain\Models\Permission;
 use App\Modules\Administracion\Domain\Models\Role;
 use Illuminate\Database\Seeder;
 
+/**
+ * Los tres roles de inicio y el permiso de cada pantalla. Se puede correr
+ * mas de una vez: no duplica y deja cada rol de inicio con su reparto
+ * exacto. Los roles creados desde la pantalla no se tocan.
+ */
 class RolePermissionSeeder extends Seeder
 {
+    /**
+     * Clave del permiso => pantalla, en el orden de la matriz.
+     *
+     * @var array<string, string>
+     */
+    public const PERMISOS = [
+        'periodo_oferta' => 'Período y oferta académica',
+        'aulas_docentes' => 'Aulas y docentes',
+        'padron_estudiantes' => 'Padrón e inscripciones',
+        'mis_grupos' => 'Padrón e inscripciones (sus grupos)',
+        'examenes' => 'Exámenes',
+        'habilitacion' => 'Habilitación',
+        'codigos_qr' => 'Códigos QR',
+        'punto_control' => 'Punto de control',
+        'seguimiento_vivo' => 'Seguimiento en vivo',
+        'reportes_universidad' => 'Reportes de la universidad',
+        'reportes_examenes' => 'Reportes de sus exámenes',
+        'usuarios_roles' => 'Usuarios y roles',
+        'bitacora' => 'Bitácora',
+        'respaldo_restauracion' => 'Respaldo',
+    ];
+
+    /**
+     * @var array<string, list<string>>
+     */
+    public const POR_ROL = [
+        // Tiene todas las pantallas: con una sola cuenta se puede recorrer
+        // el sistema completo. Desde la matriz se le pueden quitar.
+        'Administrador' => [
+            'periodo_oferta',
+            'aulas_docentes',
+            'padron_estudiantes',
+            'mis_grupos',
+            'examenes',
+            'habilitacion',
+            'codigos_qr',
+            'punto_control',
+            'seguimiento_vivo',
+            'reportes_universidad',
+            'reportes_examenes',
+            'usuarios_roles',
+            'bitacora',
+            'respaldo_restauracion',
+        ],
+        'Docente' => [
+            'mis_grupos',
+            'examenes',
+            'habilitacion',
+            'codigos_qr',
+            'punto_control',
+            'seguimiento_vivo',
+            'reportes_examenes',
+        ],
+        'Auxiliar' => [
+            'punto_control',
+            'seguimiento_vivo',
+        ],
+    ];
+
     public function run(): void
     {
-        $roles = ['Administrador', 'Docente', 'Personal', 'Responsable'];
-        foreach ($roles as $roleName) {
-            Role::firstOrCreate(['name' => $roleName]);
+        foreach (array_keys(self::POR_ROL) as $nombreRol) {
+            Role::updateOrCreate(
+                ['name' => $nombreRol],
+                ['es_sistema' => true],
+            );
         }
 
-        $permissions = [
-            ['name' => 'padron_estudiantes', 'screen_name' => 'Padrón de estudiantes'],
-            ['name' => 'asignaturas_ambientes', 'screen_name' => 'Asignaturas y ambientes'],
-            ['name' => 'examenes_normas', 'screen_name' => 'Exámenes y normas'],
-            ['name' => 'habilitacion', 'screen_name' => 'Habilitación'],
-            ['name' => 'codigos_qr', 'screen_name' => 'Códigos QR'],
-            ['name' => 'punto_control', 'screen_name' => 'Punto de control'],
-            ['name' => 'monitoreo_tiempo_real', 'screen_name' => 'Monitoreo en tiempo real'],
-            ['name' => 'reportes_consolidados', 'screen_name' => 'Reportes consolidados'],
-            ['name' => 'reportes_asignatura', 'screen_name' => 'Reportes de mi asignatura'],
-            ['name' => 'usuarios_roles', 'screen_name' => 'Usuarios y roles'],
-            ['name' => 'bitacora', 'screen_name' => 'Bitácora'],
-            ['name' => 'respaldo_restauracion', 'screen_name' => 'Respaldo y restauración'],
-        ];
-
-        foreach ($permissions as $perm) {
-            Permission::firstOrCreate($perm);
+        foreach (self::PERMISOS as $clave => $pantalla) {
+            Permission::updateOrCreate(
+                ['name' => $clave],
+                ['screen_name' => $pantalla],
+            );
         }
 
-        // Cada rol opera dentro de sus atribuciones (HU-02). Este es el
-        // reparto del pliego; desde la pantalla de roles se puede cambiar.
-        $porRol = [
-            'Administrador' => [
-                'padron_estudiantes',
-                'asignaturas_ambientes',
-                'examenes_normas',
-                'habilitacion',
-                'codigos_qr',
-                'punto_control',
-                'monitoreo_tiempo_real',
-                'reportes_consolidados',
-                'reportes_asignatura',
-                'usuarios_roles',
-                'bitacora',
-                'respaldo_restauracion',
-            ],
-            'Docente' => [
-                'examenes_normas',
-                'habilitacion',
-                'reportes_asignatura',
-            ],
-            'Personal' => [
-                'punto_control',
-                'codigos_qr',
-            ],
-            'Responsable' => [
-                'monitoreo_tiempo_real',
-                'reportes_consolidados',
-            ],
-        ];
-
-        foreach ($porRol as $nombre => $permisos) {
-            $rol = Role::where('name', $nombre)->first();
+        foreach (self::POR_ROL as $nombreRol => $permisos) {
+            $rol = Role::where('name', $nombreRol)->first();
 
             if (! $rol instanceof Role) {
                 continue;
             }
 
-            /** @var list<int> $ids */
-            $ids = Permission::whereIn('name', $permisos)->pluck('id')->all();
+            /** @var list<int> $identificadores */
+            $identificadores = Permission::whereIn('name', $permisos)
+                ->pluck('id')
+                ->all();
 
-            $rol->permissions()->sync($ids);
+            $rol->permissions()->sync($identificadores);
         }
-
     }
 }

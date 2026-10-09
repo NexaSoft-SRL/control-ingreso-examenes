@@ -22,9 +22,16 @@ class UserFactory extends Factory
         return [
             'nombre' => fake()->name(),
 
+            // Unico, en minusculas y sin espacios.
+            'usuario' => 'usuario.'.fake()->unique()->numerify('######'),
+
             'correo' => fake()->unique()->safeEmail(),
 
             'password' => static::$password ??= Hash::make('password'),
+
+            // Una cuenta de prueba ya definio su contrasena; la temporal se
+            // prueba poniendo esta fecha en null.
+            'password_changed_at' => now(),
 
             'is_active' => true,
 

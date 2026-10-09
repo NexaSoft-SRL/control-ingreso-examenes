@@ -1,0 +1,8460 @@
+{
+  "LIC. EN DISEÑO GRAFICO Y COMUNICACIÓN VISUAL": {
+    "_CAREER_CODE": "122081",
+    "PRIMER AÑO": {
+      "TALLER DE DISEÑO I": {
+        "_CODE": "1703007",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TAPIA CASTELLON FRANCISCO JAVIER",
+          "DAY": [
+            "LU",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A726",
+            "A728",
+            "A726"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "14:15-15:45",
+            "14:15-17:15"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ANTURIANO URTADO MOISES",
+          "DAY": [
+            "MA",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A728",
+            "A728",
+            "A728"
+          ],
+          "HOUR": [
+            "14:15-16:30",
+            "14:15-17:15",
+            "14:15-16:30"
+          ]
+        },
+        "C3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FERREYRA COLQUE DIEGO FERNANDO",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A701",
+            "A721",
+            "A701"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "14:15-15:45",
+            "14:15-17:15"
+          ]
+        }
+      },
+      "DIBUJO I": {
+        "_CODE": "1703022",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CAMACHO ROJAS WILLIAM PETER",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A720",
+            "A701"
+          ],
+          "HOUR": [
+            "09:45-12:45",
+            "12:00-13:30"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "JALDIN ANGULO FREDDY ASTERIO",
+          "DAY": [
+            "MI",
+            "SA"
+          ],
+          "CLASS": [
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "07:30-09:45",
+            "07:30-09:45"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ANTURIANO URTADO MOISES",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A728",
+            "A728"
+          ],
+          "HOUR": [
+            "08:15-10:30",
+            "08:15-10:30"
+          ]
+        }
+      },
+      "GEOMETRIA DESCRIPTIVA": {
+        "_CODE": "1703023",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "HINOJOSA LUIZAGA ALEX FERNANDO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A726",
+            "A726"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "10:30-12:00"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CRESPO ZAPATA GONZALO RONALD",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A702",
+            "A703"
+          ],
+          "HOUR": [
+            "10:30-12:45",
+            "12:45-15:00"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "POR DESIGNAR DOCENTE",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A728",
+            "A728"
+          ],
+          "HOUR": [
+            "11:15-14:15",
+            "12:45-14:15"
+          ]
+        }
+      },
+      "EXPRESION ORAL Y ESCRITA": {
+        "_CODE": "1704017",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SABA LOBO SHIRLEY PATRICIA",
+          "DAY": [
+            "MA"
+          ],
+          "CLASS": [
+            "A753"
+          ],
+          "HOUR": [
+            "17:15-20:15"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "AGUILAR CHAVARRIA MARCELA EUGENIA",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A728",
+            "A728"
+          ],
+          "HOUR": [
+            "09:00-10:30",
+            "11:15-12:45"
+          ]
+        },
+        "C3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ROCABADO AUE WILLY JAVIER",
+          "DAY": [
+            "LU",
+            "MA"
+          ],
+          "CLASS": [
+            "A728",
+            "A728"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "06:45-08:15"
+          ]
+        }
+      },
+      "HISTORIA I": {
+        "_CODE": "1704042",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "JIMENEZ CLAROS SONIA",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A703",
+            "A725"
+          ],
+          "HOUR": [
+            "09:00-10:30",
+            "14:15-17:15"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "HERBAS RAMIREZ IVAN MARCELO",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A729",
+            "A729"
+          ],
+          "HOUR": [
+            "15:00-17:15",
+            "15:00-17:15"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SURRIABRE GARCIA FREDDY",
+          "DAY": [
+            "MA",
+            "MI"
+          ],
+          "CLASS": [
+            "A724",
+            "A726"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "09:45-11:15"
+          ]
+        }
+      },
+      "TEORIA I": {
+        "_CODE": "1704044",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VALDIVIA ORELLANA JAIME ESTANISLAO",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A703",
+            "A724"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "06:45-09:00"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TORREZ MOLINA GERMAN CARLOS",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A720",
+            "A729"
+          ],
+          "HOUR": [
+            "08:15-10:30",
+            "09:00-11:15"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VARGAS TORRICO ANA MARCIA",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A727",
+            "A727"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "12:00-14:15"
+          ]
+        }
+      },
+      "COMPUTACION BASICA": {
+        "_CODE": "1705042",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "OLIVARES CARDOZO ALEJANDRA MINELA",
+          "DAY": [
+            "MI"
+          ],
+          "CLASS": [
+            "A757"
+          ],
+          "HOUR": [
+            "08:15-09:45"
+          ]
+        },
+        "A2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "OLIVARES CARDOZO ALEJANDRA MINELA",
+          "DAY": [
+            "MI"
+          ],
+          "CLASS": [
+            "A757"
+          ],
+          "HOUR": [
+            "09:45-11:15"
+          ]
+        },
+        "A3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "OLIVARES CARDOZO ALEJANDRA MINELA",
+          "DAY": [
+            "MI"
+          ],
+          "CLASS": [
+            "A757"
+          ],
+          "HOUR": [
+            "11:15-12:45"
+          ]
+        },
+        "A4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "OLIVARES CARDOZO ALEJANDRA MINELA",
+          "DAY": [
+            "MA"
+          ],
+          "CLASS": [
+            "A757"
+          ],
+          "HOUR": [
+            "10:30-12:00"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PINEDA GAMARRA PAUL ARTURO",
+          "DAY": [
+            "JU"
+          ],
+          "CLASS": [
+            "A757"
+          ],
+          "HOUR": [
+            "07:30-09:00"
+          ]
+        },
+        "C2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PINEDA GAMARRA PAUL ARTURO",
+          "DAY": [
+            "JU"
+          ],
+          "CLASS": [
+            "A757"
+          ],
+          "HOUR": [
+            "09:00-10:30"
+          ]
+        },
+        "C3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PINEDA GAMARRA PAUL ARTURO",
+          "DAY": [
+            "JU"
+          ],
+          "CLASS": [
+            "A757"
+          ],
+          "HOUR": [
+            "14:15-15:45"
+          ]
+        },
+        "C4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PINEDA GAMARRA PAUL ARTURO",
+          "DAY": [
+            "JU"
+          ],
+          "CLASS": [
+            "A757"
+          ],
+          "HOUR": [
+            "15:45-17:15"
+          ]
+        }
+      },
+      "TEORIA Y MANEJO DEL COLOR": {
+        "_CODE": "1705043",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "AGUILAR MONTANO VLADIMIR",
+          "DAY": [
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A728",
+            "A728"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "08:15-10:30"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ANTURIANO URTADO MOISES",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A728",
+            "A728"
+          ],
+          "HOUR": [
+            "10:30-12:45",
+            "10:30-12:00"
+          ]
+        },
+        "C3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "JALDIN ANGULO FREDDY ASTERIO",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A701",
+            "A701"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "10:30-12:45"
+          ]
+        }
+      }
+    },
+    "SEGUNDO AÑO": {
+      "TECNOLOGIA PARA EL DISEÑO I": {
+        "_CODE": "1702028",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TELLEZ LIENDO GONZALO JAVIER",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A751",
+            "A740"
+          ],
+          "HOUR": [
+            "18:00-19:30",
+            "15:00-16:30"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PRUDENCIO CAMACHO JUAN CARLOS",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A729",
+            "A729"
+          ],
+          "HOUR": [
+            "08:15-09:45",
+            "11:15-12:45"
+          ]
+        }
+      },
+      "TALLER DE DISEÑO II": {
+        "_CODE": "1703008",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TELLEZ LIENDO GONZALO JAVIER",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A751",
+            "A751",
+            "A751",
+            "A751"
+          ],
+          "HOUR": [
+            "16:30-18:45",
+            "16:30-18:00",
+            "16:30-18:00",
+            "16:30-18:45"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MAGNE SOTOMAYOR HUGO EDWIN",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A725",
+            "A725"
+          ],
+          "HOUR": [
+            "08:15-12:00",
+            "08:15-12:00"
+          ]
+        }
+      },
+      "TEORIA Y METODOLOGIA APLICADA AL DISEÑO I": {
+        "_CODE": "1704018",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FLORES RIOJA MIGUEL ALEJANDRO",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A701",
+            "A701"
+          ],
+          "HOUR": [
+            "09:00-10:30",
+            "08:15-09:45"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ECHEVERS TORREZ DIEGO RENATO",
+          "DAY": [
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A752",
+            "A752"
+          ],
+          "HOUR": [
+            "17:15-18:45",
+            "17:15-18:45"
+          ]
+        }
+      },
+      "TEORIA Y COMUNICACION I": {
+        "_CODE": "1704019",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ESTRADA ESTRADA CESAR AUGUSTO",
+          "DAY": [
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A743",
+            "A742"
+          ],
+          "HOUR": [
+            "13:30-15:00",
+            "20:15-21:45"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "LEONI MERCADO FEDERICO MARCELO",
+          "DAY": [
+            "MI"
+          ],
+          "CLASS": [
+            "A720"
+          ],
+          "HOUR": [
+            "09:00-12:00"
+          ]
+        }
+      },
+      "HISTORIA II": {
+        "_CODE": "1704043",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MACIAS ABASTO MARCO ANTONIO",
+          "DAY": [
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A701",
+            "A701"
+          ],
+          "HOUR": [
+            "09:45-12:00",
+            "09:45-12:00"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "DUERI MENDEZ CLAUDIA PATRICIA",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A729",
+            "A729"
+          ],
+          "HOUR": [
+            "18:45-20:15",
+            "18:45-21:45"
+          ]
+        }
+      },
+      "GRAFICA COMPUTACIONAL I": {
+        "_CODE": "1705044",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ALMARAZ CABALLERO JOSE LUIS",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A757",
+            "A757"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "06:45-09:00"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUZMAN VEGA MICAEL ADONAI",
+          "DAY": [
+            "MA",
+            "MI"
+          ],
+          "CLASS": [
+            "A757",
+            "A757"
+          ],
+          "HOUR": [
+            "18:00-20:15",
+            "06:45-08:15"
+          ]
+        }
+      },
+      "DIBUJO ARTISTICO": {
+        "_CODE": "1705045",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "JALDIN ANGULO FREDDY ASTERIO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A751",
+            "A720"
+          ],
+          "HOUR": [
+            "18:00-20:15",
+            "09:00-10:30"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CAMACHO ROJAS WILLIAM PETER",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A727",
+            "A701"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "15:00-17:15"
+          ]
+        }
+      },
+      "FOTOGRAFIA": {
+        "_CODE": "1705046",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SOTO PAREJA JUAN CARLOS",
+          "DAY": [
+            "LU",
+            "MA"
+          ],
+          "CLASS": [
+            "A721",
+            "A721"
+          ],
+          "HOUR": [
+            "15:00-16:30",
+            "14:15-16:30"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ZERAIN ABECIA JORGE FERNANDO",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A726",
+            "A729"
+          ],
+          "HOUR": [
+            "09:45-12:00",
+            "07:30-09:00"
+          ]
+        }
+      }
+    },
+    "TERCER AÑO": {
+      "TECNOLOGIA PARA EL DISEÑO II": {
+        "_CODE": "1702029",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SOTO PAREJA JUAN CARLOS",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A752",
+            "A752"
+          ],
+          "HOUR": [
+            "16:30-18:00",
+            "15:00-16:30"
+          ]
+        }
+      },
+      "TALLER DE DISEÑO III": {
+        "_CODE": "1703009",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ECHEVERS TORREZ DIEGO RENATO",
+          "DAY": [
+            "MA",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A727",
+            "A727",
+            "A727"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "14:15-17:15",
+            "15:45-17:15"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ALZERRECA PEREZ JAIME JUAN ANTONIO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A729",
+            "A729"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "14:15-18:45"
+          ]
+        }
+      },
+      "TEORIA Y METODOLOGIA APLICADA AL DISEÑO II": {
+        "_CODE": "1704020",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FLORES RIOJA MIGUEL ALEJANDRO",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A701",
+            "A724"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "10:30-12:00"
+          ]
+        }
+      },
+      "TEORIA Y COMUNICACION II": {
+        "_CODE": "1704021",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FAJARDO POZO JORGE PABLO",
+          "DAY": [
+            "MA"
+          ],
+          "CLASS": [
+            "A729"
+          ],
+          "HOUR": [
+            "17:15-20:15"
+          ]
+        }
+      },
+      "PUBLICIDAD Y MARKETING": {
+        "_CODE": "1704022",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "COCA CARASILA ANDRES MILTON",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A729",
+            "A729"
+          ],
+          "HOUR": [
+            "12:45-14:15",
+            "18:45-20:15"
+          ]
+        }
+      },
+      "DISEÑO Y MEDIO AMBIENTE": {
+        "_CODE": "1704023",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CAMACHO SAAVEDRA JORGE EDGAR",
+          "DAY": [
+            "LU"
+          ],
+          "CLASS": [
+            "A743"
+          ],
+          "HOUR": [
+            "15:00-16:30"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CAMACHO SAAVEDRA JORGE EDGAR",
+          "DAY": [
+            "VI"
+          ],
+          "CLASS": [
+            "A743"
+          ],
+          "HOUR": [
+            "14:15-15:45"
+          ]
+        }
+      },
+      "GRAFICA COMPUTACIONAL II": {
+        "_CODE": "1705047",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUZMAN VEGA MICAEL ADONAI",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A757",
+            "A757"
+          ],
+          "HOUR": [
+            "18:00-20:15",
+            "18:00-19:30"
+          ]
+        }
+      }
+    },
+    "CUARTO AÑO": {
+      "TALLER DE DISEÑO IV": {
+        "_CODE": "1703010",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CORTES ARCE FRANCISCO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A725",
+            "A727"
+          ],
+          "HOUR": [
+            "08:15-12:00",
+            "08:15-12:00"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "LANZA REYNOLDS ANDRES MARIO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A755",
+            "A757"
+          ],
+          "HOUR": [
+            "18:00-21:45",
+            "18:00-21:45"
+          ]
+        }
+      },
+      "TIPOGRAFIA": {
+        "_CODE": "1703024",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TELLEZ LIENDO GONZALO JAVIER",
+          "DAY": [
+            "LU"
+          ],
+          "CLASS": [
+            "A752"
+          ],
+          "HOUR": [
+            "08:15-09:45"
+          ]
+        },
+        "A2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PACHECO TEJERINA BESSIE DANIELA",
+          "DAY": [
+            "LU"
+          ],
+          "CLASS": [
+            "A757"
+          ],
+          "HOUR": [
+            "14:15-15:45"
+          ]
+        },
+        "A3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PARAVICINI ZARATE CARLOS ERNESTO",
+          "DAY": [
+            "LU"
+          ],
+          "CLASS": [
+            "A757"
+          ],
+          "HOUR": [
+            "08:15-09:45"
+          ]
+        },
+        "A4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FERREYRA COLQUE DIEGO FERNANDO",
+          "DAY": [
+            "MI"
+          ],
+          "CLASS": [
+            "A752"
+          ],
+          "HOUR": [
+            "12:45-14:15"
+          ]
+        }
+      },
+      "TEORIA Y METODOLOGIA APLICADA AL DISEÑO III": {
+        "_CODE": "1704024",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARRATIA JIMENEZ ORLANDO DAVID",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A729",
+            "A726"
+          ],
+          "HOUR": [
+            "08:15-09:45",
+            "08:15-09:45"
+          ]
+        }
+      },
+      "TEORIA Y COMUNICACION III": {
+        "_CODE": "1704025",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ROCABADO AUE WILLY JAVIER",
+          "DAY": [
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A725",
+            "A727"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "06:45-08:15"
+          ]
+        }
+      },
+      "PSICOLOGIA DEL MENSAJE VISUAL": {
+        "_CODE": "1704026",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "IGLESIAS PEREZ RAMIRO JOSE",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A729",
+            "A721"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "10:30-12:00"
+          ]
+        }
+      },
+      "GESTION DE PROYECTOS": {
+        "_CODE": "1704027",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FAJARDO POZO JORGE PABLO",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A729",
+            "A729"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "06:45-08:15"
+          ]
+        }
+      }
+    },
+    "QUINTO AÑO": {
+      "MODALIDADES DE GRADUCACION (TALLER DISEÑO V)": {
+        "_CODE": "1703011",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CORTES ARCE FRANCISCO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A752",
+            "A752"
+          ],
+          "HOUR": [
+            "08:15-09:45",
+            "08:15-10:30"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CORTES ARCE FRANCISCO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A752",
+            "A752"
+          ],
+          "HOUR": [
+            "09:45-12:00",
+            "10:30-12:00"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PARAVICINI ZARATE CARLOS ERNESTO",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A745",
+            "A752"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "07:30-09:45"
+          ]
+        },
+        "D1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PACHECO TEJERINA BESSIE DANIELA",
+          "DAY": [
+            "SA"
+          ],
+          "CLASS": [
+            "A752"
+          ],
+          "HOUR": [
+            "08:15-12:00"
+          ]
+        }
+      }
+    }
+  },
+  "INFO": {
+    "SEMESTER": "Gestión 2/2026"
+  },
+  "LIC. EN PLANIFICACION DEL TERRITORIO Y MEDIO AMBIENTE": {
+    "_CAREER_CODE": "127091",
+    "PRIMER AÑO": {
+      "MATEMATICA-FISICA": {
+        "_CODE": "1702002",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MONTAÑO ROMERO JOSE",
+          "DAY": [
+            "MI",
+            "SA"
+          ],
+          "CLASS": [
+            "A748",
+            "A748"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "07:30-09:45"
+          ]
+        }
+      },
+      "TALLER DE ORDENAMIENTO TERRITORIAL I": {
+        "_CODE": "1703012",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "LANDAETA RODRIGUEZ GRACIELA GUADALUPE",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A743",
+            "A745"
+          ],
+          "HOUR": [
+            "09:00-12:00",
+            "09:00-12:00"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "LOZA ARMAND UGON CARLOS ANDRES",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A771",
+            "A771"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        }
+      },
+      "TEORIA I": {
+        "_CODE": "1704001",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PEREZ BARRIGA HUGO JULIAN",
+          "DAY": [
+            "LU",
+            "MA"
+          ],
+          "CLASS": [
+            "A753",
+            "A753"
+          ],
+          "HOUR": [
+            "07:30-09:00",
+            "09:00-12:00"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VEIZAGA SANDY INDIRA VICTORIA",
+          "DAY": [
+            "MA",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A752",
+            "A706",
+            "A706"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "18:45-20:15",
+            "06:45-08:15"
+          ]
+        }
+      },
+      "HISTORIA I": {
+        "_CODE": "1704002",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "LOZA ARMAND UGON CARLOS ANDRES",
+          "DAY": [
+            "MA",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A747",
+            "A747",
+            "A746"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "06:45-08:15",
+            "06:45-08:15"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "LOPEZ TERRAZAS JAVIER ADOLFO",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A748",
+            "A747"
+          ],
+          "HOUR": [
+            "10:30-12:45",
+            "09:00-11:15"
+          ]
+        }
+      },
+      "FUNDAMENTOS DEL MEDIO FISICO": {
+        "_CODE": "1704028",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CLAROS ROSALES ROSARIO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "12:00-13:30",
+            "09:00-10:30"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PEREZ BARRIGA HUGO JULIAN",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A741",
+            "A741"
+          ],
+          "HOUR": [
+            "09:00-10:30",
+            "09:00-10:30"
+          ]
+        }
+      },
+      "ECOLOGIA GENERAL BASICA": {
+        "_CODE": "1704029",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ATAHUACHI BURGOS MARGOTH",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A751",
+            "A751"
+          ],
+          "HOUR": [
+            "14:15-15:45",
+            "09:45-11:15"
+          ]
+        }
+      },
+      "COMPUTACION BASICA": {
+        "_CODE": "1705042",
+        "B5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PINEDA GAMARRA PAUL ARTURO",
+          "DAY": [
+            "VI"
+          ],
+          "CLASS": [
+            "A758"
+          ],
+          "HOUR": [
+            "11:15-14:15"
+          ]
+        }
+      }
+    },
+    "SEGUNDO AÑO": {
+      "SISTEMAS DE INFORMACION GEOGRAFICA I": {
+        "_CODE": "1702031",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GOSSWEILER HERRERA BENJAMIN",
+          "DAY": [
+            "JU"
+          ],
+          "CLASS": [
+            "A758"
+          ],
+          "HOUR": [
+            "09:00-12:00"
+          ]
+        }
+      },
+      "POBLACION ECONOMIA Y TERRITORIO": {
+        "_CODE": "1702036",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "LAVAYEN MALDONADO JIMENA CECILIA",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A740",
+            "A740"
+          ],
+          "HOUR": [
+            "14:15-15:45",
+            "14:15-15:45"
+          ]
+        }
+      },
+      "TALLER DE ORDENAMIENTO TERRITORIAL II": {
+        "_CODE": "1703013",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "LOPEZ TERRAZAS JAVIER ADOLFO",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A755",
+            "A747"
+          ],
+          "HOUR": [
+            "07:30-10:30",
+            "14:15-17:15"
+          ]
+        }
+      },
+      "TEORIA II": {
+        "_CODE": "1704003",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PRADO VELASCO PABLO EDMUNDO",
+          "DAY": [
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A750",
+            "A743"
+          ],
+          "HOUR": [
+            "11:15-13:30",
+            "13:30-15:45"
+          ]
+        }
+      },
+      "HISTORIA II": {
+        "_CODE": "1704004",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "LOPEZ TERRAZAS JAVIER ADOLFO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A771",
+            "A751"
+          ],
+          "HOUR": [
+            "09:00-10:30",
+            "15:45-18:45"
+          ]
+        }
+      },
+      "CLIMA Y RECURSOS NATURALES": {
+        "_CODE": "1704036",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CAMACHO SAAVEDRA JORGE EDGAR",
+          "DAY": [
+            "MA"
+          ],
+          "CLASS": [
+            "A756"
+          ],
+          "HOUR": [
+            "09:00-12:00"
+          ]
+        }
+      },
+      "GEOGRAFIA FISICA DE BOLIVIA Y GEO DE SUELOS": {
+        "_CODE": "1704037",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CASTELLON ONOFRE JOSE CONSTANTINO",
+          "DAY": [
+            "VI"
+          ],
+          "CLASS": [
+            "A740"
+          ],
+          "HOUR": [
+            "09:00-12:00"
+          ]
+        }
+      }
+    },
+    "TERCER AÑO": {
+      "SISTEMAS DE INFORMACION GEOGRAFICA II": {
+        "_CODE": "1702032",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PRADO VELASCO PABLO EDMUNDO",
+          "DAY": [
+            "MI"
+          ],
+          "CLASS": [
+            "A758"
+          ],
+          "HOUR": [
+            "15:00-18:00"
+          ]
+        }
+      },
+      "TALLER DE ORDENAMIENTO TERRITORIAL III": {
+        "_CODE": "1703014",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MIRANDA VILLARROEL WILSON",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A750",
+            "A750"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "14:15-17:15"
+          ]
+        }
+      },
+      "URBANISMO I": {
+        "_CODE": "1704005",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VILLARROEL CASTRO JANNETTE MARIA PATRICIA",
+          "DAY": [
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A748",
+            "A740"
+          ],
+          "HOUR": [
+            "12:45-15:00",
+            "12:45-15:00"
+          ]
+        }
+      },
+      "ESTUDIO DE IMPACTO AMBIENTAL": {
+        "_CODE": "1704032",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CASTELLON ONOFRE JOSE CONSTANTINO",
+          "DAY": [
+            "MI"
+          ],
+          "CLASS": [
+            "A748"
+          ],
+          "HOUR": [
+            "09:00-12:00"
+          ]
+        }
+      },
+      "HISTORIA III": {
+        "_CODE": "1704033",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MARTINEZ MEDINA LINDSAY ROCIO",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A755",
+            "A755"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "09:00-10:30"
+          ]
+        }
+      },
+      "GESTION DE AREAS PROTEGIDAS": {
+        "_CODE": "1704034",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MICHEL VARGAS ANA MARIA",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A751",
+            "A750"
+          ],
+          "HOUR": [
+            "14:15-15:45",
+            "10:30-12:00"
+          ]
+        }
+      }
+    },
+    "CUARTO AÑO": {
+      "SISTEMAS DE INFORMACION GEOGRAFICA III": {
+        "_CODE": "1702033",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PRADO VELASCO PABLO EDMUNDO",
+          "DAY": [
+            "SA"
+          ],
+          "CLASS": [
+            "A758"
+          ],
+          "HOUR": [
+            "10:30-13:30"
+          ]
+        }
+      },
+      "INFRAESTRUCTURA PARA ESPACIOS URBANOS Y RURAL": {
+        "_CODE": "1702034",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ZAPATA ILSE CRISTHINA",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A745",
+            "A755"
+          ],
+          "HOUR": [
+            "09:00-10:30",
+            "10:30-12:00"
+          ]
+        }
+      },
+      "TALLER DE ORDENAMIENTO TERRITORIAL IV": {
+        "_CODE": "1703015",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "BORDA ORELLANA JOSE ALBERTO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A771",
+            "A771"
+          ],
+          "HOUR": [
+            "07:30-10:30",
+            "07:30-10:30"
+          ]
+        }
+      },
+      "URBANISMO II": {
+        "_CODE": "1704007",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CABRERA QUISPE JUAN EDSON",
+          "DAY": [
+            "MI",
+            "SA"
+          ],
+          "CLASS": [
+            "A750",
+            "A750"
+          ],
+          "HOUR": [
+            "07:30-10:30",
+            "09:00-10:30"
+          ]
+        }
+      },
+      "GEOGRAFIA DE ESPACIOS URBANOS Y RURALES": {
+        "_CODE": "1704035",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ORELLANA CHAVARRIA MONICA PATRICIA",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A747",
+            "A747"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "06:45-08:15"
+          ]
+        }
+      },
+      "FORMULACION Y EVAL. DE PROYECTOS DE INVERSION": {
+        "_CODE": "1704040",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FERNANDEZ RIOS LUZ SUCY",
+          "DAY": [
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A758",
+            "A753"
+          ],
+          "HOUR": [
+            "18:00-19:30",
+            "18:00-21:00"
+          ]
+        }
+      }
+    },
+    "QUINTO AÑO": {
+      "SISTEMAS DE INFORMACION GEOGRAFICA IV": {
+        "_CODE": "1702035",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PINEDA GAMARRA PAUL ARTURO",
+          "DAY": [
+            "MI",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A739",
+            "A756",
+            "A758"
+          ],
+          "HOUR": [
+            "09:00-11:15",
+            "10:30-12:45",
+            "08:15-11:15"
+          ]
+        }
+      },
+      "TALLER DE ORDENAMIENTO TERRITORIAL V": {
+        "_CODE": "1703016",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "QUIROGA BERAZAIN MARKO TITO HERNAN",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI"
+          ],
+          "CLASS": [
+            "A739",
+            "A739",
+            "A739"
+          ],
+          "HOUR": [
+            "09:00-12:00",
+            "09:00-11:15",
+            "09:00-11:15"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TORRES MERCADO ROSARIO PATRICIA",
+          "DAY": [
+            "MA",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A740",
+            "A743",
+            "A756"
+          ],
+          "HOUR": [
+            "09:00-11:15",
+            "09:00-12:00",
+            "10:30-12:45"
+          ]
+        }
+      }
+    }
+  },
+  "LIC. EN DISEÑO DE INTERIORES Y DEL MOBILIARIO": {
+    "_CAREER_CODE": "156151",
+    "PRIMER AÑO": {
+      "MATEMATICA Y FISICA": {
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FERRUFINO DEHEZA JOSE RAUL",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "07:30-10:30"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARRAZOLA IRIARTE BRUNO ANDRES",
+          "DAY": [
+            "JU",
+            "SA"
+          ],
+          "CLASS": [
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "15:00-17:15",
+            "09:00-11:15"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MAGNE SOTOMAYOR EDUARDO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A702",
+            "A702"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "06:45-09:45"
+          ]
+        },
+        "_CODE": "1702306"
+      },
+      "MATERIALES DE CONSTRUCCION": {
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PANOZO MENESES JOSE ANTONIO",
+          "DAY": [
+            "MA",
+            "SA"
+          ],
+          "CLASS": [
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "06:45-09:00"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ROSAS PEÑARRIETA SILKE EVELIN",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A724",
+            "A726"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "10:30-12:45"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MANCILLA ANAYA MIRTHA",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A709",
+            "A720"
+          ],
+          "HOUR": [
+            "10:30-12:45",
+            "12:00-14:15"
+          ]
+        },
+        "_CODE": "1702307"
+      },
+      "SISTEMAS DE REPRESENT. Y COMUNICACION GRAFICA": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MERCADO OVANDO ALEX LIMBER",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A709",
+            "A702"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "14:15-17:15"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "IRIARTE NOYA WALTER",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "14:15-17:15"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ATAHUICHI GUZMAN CESAR GERY",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A721",
+            "A721"
+          ],
+          "HOUR": [
+            "09:00-10:30",
+            "07:30-10:30"
+          ]
+        },
+        "_CODE": "1703103"
+      },
+      "SIST. DE REPRES. Y COMUNIC. TEC. DEL PROYECTO": {
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GONZALES GOMES DAVID LONIO",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A701",
+            "A701"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "20:15-21:45"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VIAMONT ALPIRE JUAN CARLOS",
+          "DAY": [
+            "MA",
+            "SA"
+          ],
+          "CLASS": [
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "09:00-12:00"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "HINOJOSA LUIZAGA ALEX FERNANDO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "20:15-21:45"
+          ]
+        },
+        "7": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "POR DESIGNAR DOCENTE",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A721",
+            "A709"
+          ],
+          "HOUR": [
+            "12:45-15:00",
+            "09:45-12:00"
+          ]
+        },
+        "_CODE": "1703110"
+      },
+      "TEORIA Y METODOS DE INVESTIG.DE LA ARQUITECT.": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "JIMENEZ ALCOCER MONICA NINFA",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "12:45-15:45",
+            "12:45-14:15"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ROJAS RUIZ JUAN MAURICIO",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A728",
+            "A703"
+          ],
+          "HOUR": [
+            "15:00-17:15",
+            "15:00-17:15"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "JIMENEZ ALCOCER MONICA NINFA",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A721",
+            "A721"
+          ],
+          "HOUR": [
+            "12:45-14:15",
+            "14:15-17:15"
+          ]
+        },
+        "_CODE": "1704104"
+      },
+      "HISTORIA DE LA ARQUITECT. Y EL URBANISMO UNIV": {
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CACERES CHAVEZ EDGAR",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "07:30-10:30"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SURRIABRE GARCIA FREDDY",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "14:15-17:15"
+          ]
+        },
+        "_CODE": "1704105"
+      },
+      "DISEÑO I": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ATAHUICHI GUZMAN CESAR GERY",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A721",
+            "A721"
+          ],
+          "HOUR": [
+            "06:45-10:30",
+            "06:45-10:30"
+          ]
+        },
+        "_CODE": "1705004"
+      }
+    },
+    "SEGUNDO AÑO": {
+      "SISTEMAS Y PROCESOS CONSTRUCTIVOS": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SEJAS CALICHE OSCAR",
+          "DAY": [
+            "JU",
+            "SA"
+          ],
+          "CLASS": [
+            "A720",
+            "A743"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "06:45-09:45"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "OLIVARES ARANA NELSON ABEL",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A725",
+            "A725"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "06:45-09:00"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "AYAVIRI IRIARTE RORY",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A725",
+            "A725"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "14:15-17:15"
+          ]
+        },
+        "6": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARZE GRUNDNER JORGE ROBERTO",
+          "DAY": [
+            "JU",
+            "SA"
+          ],
+          "CLASS": [
+            "A740",
+            "A740"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "07:30-10:30"
+          ]
+        },
+        "_CODE": "1702314"
+      },
+      "DISEÑO II": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "OLIVARES CARDOZO ALEJANDRA MINELA",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A701",
+            "A745"
+          ],
+          "HOUR": [
+            "06:45-10:30",
+            "08:15-12:00"
+          ]
+        },
+        "_CODE": "1705005"
+      },
+      "HISTORIA DEL MUEBLE II": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "DUERI MENDEZ CLAUDIA PATRICIA",
+          "DAY": [
+            "LU",
+            "MA"
+          ],
+          "CLASS": [
+            "A753",
+            "A725"
+          ],
+          "HOUR": [
+            "17:15-18:45",
+            "14:15-17:15"
+          ]
+        },
+        "_CODE": "1705006"
+      },
+      "COMPUTACION": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ORELLANA CHAVARRIA MONICA PATRICIA",
+          "DAY": [
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A758",
+            "A758"
+          ],
+          "HOUR": [
+            "17:15-19:30",
+            "17:15-19:30"
+          ]
+        },
+        "_CODE": "1705009"
+      },
+      "TEORIA DEL COLOR": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CLAROS UZQUEDA ALFONSO TOMAS",
+          "DAY": [
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A741",
+            "A702"
+          ],
+          "HOUR": [
+            "07:30-09:00",
+            "08:15-10:30"
+          ]
+        },
+        "_CODE": "1705054"
+      }
+    },
+    "TERCER AÑO": {
+      "REDES Y SISTEMAS DE SERVICIOS BASICOS": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "POR DESIGNAR DOCENTE",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "12:45-14:15",
+            "10:30-13:30"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MANCILLA ANAYA MIRTHA",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "07:30-10:30"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SEJAS CALICHE OSCAR",
+          "DAY": [
+            "JU",
+            "SA"
+          ],
+          "CLASS": [
+            "A743",
+            "A701"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "12:00-14:15"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SEJAS CALICHE OSCAR",
+          "DAY": [
+            "VI",
+            "SA"
+          ],
+          "CLASS": [
+            "A720",
+            "A701"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "14:15-17:15"
+          ]
+        },
+        "_CODE": "1702324"
+      },
+      "GESTION DE PROYECTOS EN LA CONSTRUCCION": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ALZERRECA PEREZ JAIME JUAN ANTONIO",
+          "DAY": [
+            "MA",
+            "SA"
+          ],
+          "CLASS": [
+            "A741",
+            "A741"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "09:45-12:45"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUZMAN SANCHEZ JUAN CARLOS",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A743",
+            "A702"
+          ],
+          "HOUR": [
+            "07:30-10:30",
+            "10:30-12:00"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARZE GRUNDNER JORGE ROBERTO",
+          "DAY": [
+            "MA",
+            "SA"
+          ],
+          "CLASS": [
+            "A745",
+            "A745"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "10:30-13:30"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUZMAN SANCHEZ JUAN CARLOS",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A743",
+            "A740"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "07:30-10:30"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "URQUIDI ALVAREZ EDWARD JHONNY",
+          "DAY": [
+            "MA",
+            "SA"
+          ],
+          "CLASS": [
+            "A727",
+            "A727"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "10:30-13:30"
+          ]
+        },
+        "_CODE": "1702330"
+      },
+      "DISEÑO III": {
+        "_CODE": "1705010",
+        "01": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ESPINOZA PEREZ ALINA EMILIA",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A740",
+            "A740"
+          ],
+          "HOUR": [
+            "09:00-12:45",
+            "09:00-12:45"
+          ]
+        }
+      },
+      "HISTORIA DEL ARTE LATINO AMERICANO Y NACIONAL": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "DUERI MENDEZ CLAUDIA PATRICIA",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A748",
+            "A729"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "17:15-18:45"
+          ]
+        },
+        "_CODE": "1705011"
+      },
+      "INVESTIGACION PROYECTUAL": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TERAN LEON CRISTHIAN ARIEL",
+          "DAY": [
+            "LU",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A740",
+            "A755",
+            "A752"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "06:45-08:15",
+            "18:45-20:15"
+          ]
+        },
+        "_CODE": "1705055"
+      }
+    },
+    "CUARTO AÑO": {
+      "PRACTICA PROFESIONAL": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VILLARROEL ANTEZANA OSCAR",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A750",
+            "A750"
+          ],
+          "HOUR": [
+            "07:30-09:00",
+            "07:30-10:30"
+          ]
+        },
+        "_CODE": "1705013"
+      },
+      "DISENO IV": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GONZALES CHARLES EDUARDO",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A748",
+            "A755"
+          ],
+          "HOUR": [
+            "06:45-10:30",
+            "07:30-11:15"
+          ]
+        },
+        "_CODE": "1705048"
+      },
+      "DISENO INDUSTRIAL DEL MUEBLE": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GONZALES CHARLES EDUARDO",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A747",
+            "A740"
+          ],
+          "HOUR": [
+            "09:00-11:15",
+            "06:45-09:00"
+          ]
+        },
+        "_CODE": "1705049"
+      },
+      "PAISAJISMO": {
+        "_CODE": "1705050",
+        "01": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "AGREDA ZAMBRANA DANIELA PATRICIA",
+          "DAY": [
+            "JU",
+            "SA"
+          ],
+          "CLASS": [
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "09:00-10:30"
+          ]
+        }
+      },
+      "INSTALACIONES ESPECIALES Y LUMINOTECNIA": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FLORES FERRUFINO HUMBERTO",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A745",
+            "A755"
+          ],
+          "HOUR": [
+            "11:15-12:45",
+            "09:45-12:45"
+          ]
+        },
+        "_CODE": "1705051"
+      }
+    },
+    "QUINTO AÑO": {
+      "DISENO V (MODALIDADES DE TITULACION)": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ESPINOZA PEREZ ALINA EMILIA",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A751",
+            "A751"
+          ],
+          "HOUR": [
+            "06:45-10:30",
+            "06:45-10:30"
+          ]
+        },
+        "_CODE": "1705053"
+      },
+      "TEORIA DEL PROYECTO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VARGAS TORRICO ANA MARCIA",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A751",
+            "A751"
+          ],
+          "HOUR": [
+            "07:30-10:30",
+            "10:30-12:00"
+          ]
+        },
+        "_CODE": "1705056"
+      },
+      "DISENO TECNOLOGICO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "HUANCA FULGUERA VICTOR",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A751",
+            "A740"
+          ],
+          "HOUR": [
+            "07:30-10:30",
+            "12:45-14:15"
+          ]
+        },
+        "_CODE": "1705057"
+      }
+    }
+  },
+  "LICENCIATURA EN ARQUITECTURA": {
+    "_CAREER_CODE": "202002",
+    "PRIMER AÑO": {
+      "MATEMATICA Y FISICA": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUZMAN SANCHEZ JUAN CARLOS",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A721",
+            "A724"
+          ],
+          "HOUR": [
+            "07:30-09:00",
+            "09:00-12:00"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FERRUFINO DEHEZA JOSE RAUL",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "07:30-10:30"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARRAZOLA IRIARTE BRUNO ANDRES",
+          "DAY": [
+            "JU",
+            "SA"
+          ],
+          "CLASS": [
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "15:00-17:15",
+            "09:00-11:15"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MAGNE SOTOMAYOR EDUARDO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A702",
+            "A702"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "06:45-09:45"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "BECERRA AYALA EDWIN WILLIAM",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A727",
+            "A727"
+          ],
+          "HOUR": [
+            "08:15-10:30",
+            "08:15-10:30"
+          ]
+        },
+        "6": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FERRUFINO DEHEZA JOSE RAUL",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A728",
+            "A703"
+          ],
+          "HOUR": [
+            "07:30-10:30",
+            "10:30-12:00"
+          ]
+        },
+        "_CODE": "1702306"
+      },
+      "MATERIALES DE CONSTRUCCION": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MANCILLA ANAYA MIRTHA",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A709",
+            "A720"
+          ],
+          "HOUR": [
+            "07:30-10:30",
+            "10:30-12:00"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PANOZO MENESES JOSE ANTONIO",
+          "DAY": [
+            "MA",
+            "SA"
+          ],
+          "CLASS": [
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "06:45-09:00"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ROSAS PEÑARRIETA SILKE EVELIN",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A724",
+            "A726"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "10:30-12:45"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FLORES FERRUFINO HUMBERTO",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "09:00-10:30",
+            "09:45-12:45"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MANCILLA ANAYA MIRTHA",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A709",
+            "A720"
+          ],
+          "HOUR": [
+            "10:30-12:45",
+            "12:00-14:15"
+          ]
+        },
+        "6": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ALIENDRE LA FUENTE CARLOS",
+          "DAY": [
+            "MA",
+            "SA"
+          ],
+          "CLASS": [
+            "A702",
+            "A702"
+          ],
+          "HOUR": [
+            "07:30-09:45",
+            "07:30-09:45"
+          ]
+        },
+        "_CODE": "1702307"
+      },
+      "TALLER DE DISENO I": {
+        "_CODE": "1703101",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "BALDERRAMA BIRHUET JOSE JOAQUIN",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A701",
+            "A701",
+            "A701"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "A2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TAPIA CASTELLON FRANCISCO JAVIER",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A701",
+            "A701",
+            "A701"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "A3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "HURTADO SALAZAR MARIA DEL CARMEN",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A701",
+            "A701",
+            "A701"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "OCAMPO AYALA JOSE PEDRO EDUARDO",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A709",
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VIAMONT ALPIRE JUAN CARLOS",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A709",
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ROJAS ORTUÑO JOSE CARLOS",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A709",
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GOMEZ MELGAR TOMAS",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A703",
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FERRUFINO NAVIA JAVIER ORLANDO",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A703",
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MOREIRA PONCE BANEZA",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A703",
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TERRAZAS MONTERO LUIS FERNANDO",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A702",
+            "A702",
+            "A702"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "AGUILAR MONTANO VLADIMIR",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A702",
+            "A702",
+            "A702"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        }
+      },
+      "MORFOLOGIA I": {
+        "_CODE": "1703102",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "BALDERRAMA BIRHUET JOSE JOAQUIN",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A701",
+            "A701"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "A2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TAPIA CASTELLON FRANCISCO JAVIER",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A701",
+            "A701"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "A3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "HURTADO SALAZAR MARIA DEL CARMEN",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A701",
+            "A701"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "OCAMPO AYALA JOSE PEDRO EDUARDO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VIAMONT ALPIRE JUAN CARLOS",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ROJAS ORTUÑO JOSE CARLOS",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GOMEZ MELGAR TOMAS",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FERRUFINO NAVIA JAVIER ORLANDO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MOREIRA PONCE BANEZA",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TERRAZAS MONTERO LUIS FERNANDO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A702",
+            "A702"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "AGUILAR MONTANO VLADIMIR",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A702",
+            "A702"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        }
+      },
+      "SISTEMAS DE REPRESENT. Y COMUNICACION GRAFICA": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MERCADO OVANDO ALEX LIMBER",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A709",
+            "A702"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "14:15-17:15"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PEREZ CESPEDES RENE",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "15:00-17:15"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "IRIARTE NOYA WALTER",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "14:15-17:15"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ESPINOZA PEREZ ALINA EMILIA",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "06:45-09:00"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ATAHUICHI GUZMAN CESAR GERY",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A721",
+            "A721"
+          ],
+          "HOUR": [
+            "09:00-10:30",
+            "07:30-10:30"
+          ]
+        },
+        "6": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FERRUFINO NAVIA JAVIER ORLANDO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A727",
+            "A727"
+          ],
+          "HOUR": [
+            "09:45-12:00",
+            "09:45-12:00"
+          ]
+        },
+        "_CODE": "1703103"
+      },
+      "TEORIA Y METODOS DE INVESTIG.DE LA ARQUITECT.": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "JIMENEZ ALCOCER MONICA NINFA",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "12:45-15:45",
+            "12:45-14:15"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ROJAS RUIZ JUAN MAURICIO",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A728",
+            "A703"
+          ],
+          "HOUR": [
+            "15:00-17:15",
+            "15:00-17:15"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "JIMENEZ ALCOCER MONICA NINFA",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A721",
+            "A721"
+          ],
+          "HOUR": [
+            "12:45-14:15",
+            "14:15-17:15"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TORREZ MOLINA GERMAN CARLOS",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "14:15-17:15"
+          ]
+        },
+        "_CODE": "1704104"
+      },
+      "HISTORIA DE LA ARQUITECT. Y EL URBANISMO UNIV": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SURRIABRE GARCIA FREDDY",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A701",
+            "A701"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "14:15-17:15"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CACERES CHAVEZ EDGAR",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "07:30-10:30"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "JIMENEZ CLAROS SONIA",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A720",
+            "A724"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "09:00-10:30"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SURRIABRE GARCIA FREDDY",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "14:15-17:15"
+          ]
+        },
+        "_CODE": "1704105"
+      }
+    },
+    "SEGUNDO AÑO": {
+      "TOPOGRAFIA": {
+        "_CODE": "1702009",
+        "1A": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUERRA TORRICO JUAN MANUEL",
+          "DAY": [
+            "MI",
+            "SA"
+          ],
+          "CLASS": [
+            "A702",
+            "A702"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "13:30-18:45"
+          ]
+        },
+        "2A": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MERCADO DAVILA HECTOR JAIME",
+          "DAY": [
+            "MI",
+            "SA"
+          ],
+          "CLASS": [
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "13:30-18:45"
+          ]
+        },
+        "3A": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VARGAS CANEDO FEDERICO ALEJANDRO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "12:00-17:15"
+          ]
+        }
+      },
+      "POBLACION ECONOMIA Y TERRITORIO": {
+        "_CODE": "1702036",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "LAVAYEN MALDONADO JIMENA CECILIA",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A740",
+            "A740"
+          ],
+          "HOUR": [
+            "14:15-15:45",
+            "14:15-15:45"
+          ]
+        }
+      },
+      "ANALISIS ESTRUCTURAL I": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUERRA TORRICO JUAN MANUEL",
+          "DAY": [
+            "JU",
+            "SA"
+          ],
+          "CLASS": [
+            "A771",
+            "A709"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "09:45-12:45"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FLORES FERRUFINO HUMBERTO",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "07:30-09:45"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CRESPO ZAPATA GONZALO RONALD",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A724",
+            "A725"
+          ],
+          "HOUR": [
+            "09:00-11:15",
+            "09:45-12:00"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FERRUFINO DEHEZA JOSE RAUL",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "07:30-10:30",
+            "10:30-12:00"
+          ]
+        },
+        "_CODE": "1702313"
+      },
+      "SISTEMAS Y PROCESOS CONSTRUCTIVOS": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SEJAS CALICHE OSCAR",
+          "DAY": [
+            "JU",
+            "SA"
+          ],
+          "CLASS": [
+            "A720",
+            "A743"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "06:45-09:45"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "OLIVARES ARANA NELSON ABEL",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A725",
+            "A725"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "06:45-09:00"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUZMAN CHACON NESTOR",
+          "DAY": [
+            "LU",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A752",
+            "A745",
+            "A752"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "06:45-08:15",
+            "06:45-08:15"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CACERES CHAVEZ EDGAR",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "10:30-12:45",
+            "08:15-10:30"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "AYAVIRI IRIARTE RORY",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A725",
+            "A725"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "14:15-17:15"
+          ]
+        },
+        "6": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARZE GRUNDNER JORGE ROBERTO",
+          "DAY": [
+            "JU",
+            "SA"
+          ],
+          "CLASS": [
+            "A740",
+            "A740"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "07:30-10:30"
+          ]
+        },
+        "_CODE": "1702314"
+      },
+      "TALLER DE DISENO II": {
+        "_CODE": "1703108",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARAUCO ARTEAGA ROLLY A.",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A720",
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "A2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "AYAVIRI IRIARTE RORY",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A720",
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "A3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PRUDENCIO CAMACHO JUAN CARLOS",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A720",
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "IRIARTE NOYA WALTER",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A721",
+            "A721",
+            "A721"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MEDINA VEIZAGA MARIA SORAYA",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A721",
+            "A721",
+            "A721"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "YURICEVIC RENGEL LUIS ERNESTO",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A721",
+            "A721",
+            "A721"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "DE LA FUENTE AREVALO JUAN JOSE",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A724",
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "BUITRAGO SANDOVAL NESTOR I.",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A724",
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VALDIVIA ORELLANA JAIME ESTANISLAO",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A725",
+            "A725",
+            "A725"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GONZALES GOMES DAVID LONIO",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A725",
+            "A725",
+            "A725"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        }
+      },
+      "MORFOLOGIA II": {
+        "_CODE": "1703109",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARAUCO ARTEAGA ROLLY A.",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "A2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "AYAVIRI IRIARTE RORY",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "A3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PRUDENCIO CAMACHO JUAN CARLOS",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "IRIARTE NOYA WALTER",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A721",
+            "A721"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MEDINA VEIZAGA MARIA SORAYA",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A721",
+            "A721"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "YURICEVIC RENGEL LUIS ERNESTO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A721",
+            "A721"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "DE LA FUENTE AREVALO JUAN JOSE",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "BUITRAGO SANDOVAL NESTOR I.",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VALDIVIA ORELLANA JAIME ESTANISLAO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A725",
+            "A725"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GONZALES GOMES DAVID LONIO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A725",
+            "A725"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        }
+      },
+      "SIST. DE REPRES. Y COMUNIC. TEC. DEL PROYECTO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CRESPO ZAPATA GONZALO RONALD",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A702",
+            "A709"
+          ],
+          "HOUR": [
+            "07:30-09:45",
+            "07:30-09:45"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GONZALES GOMES DAVID LONIO",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A701",
+            "A701"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "20:15-21:45"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARAUCO ARTEAGA ROLLY A.",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "15:00-17:15",
+            "15:00-17:15"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VIAMONT ALPIRE JUAN CARLOS",
+          "DAY": [
+            "MA",
+            "SA"
+          ],
+          "CLASS": [
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "09:00-12:00"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "HINOJOSA LUIZAGA ALEX FERNANDO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "20:15-21:45"
+          ]
+        },
+        "6": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "JALDIN ANGULO FREDDY ASTERIO",
+          "DAY": [
+            "LU",
+            "SA"
+          ],
+          "CLASS": [
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "09:00-11:15",
+            "10:30-12:45"
+          ]
+        },
+        "7": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "POR DESIGNAR DOCENTE",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A721",
+            "A709"
+          ],
+          "HOUR": [
+            "12:45-15:00",
+            "09:45-12:00"
+          ]
+        },
+        "_CODE": "1703110"
+      },
+      "TEORIA Y ANALISIS DEL DISENO ARQUITECTONICO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CANAZA MENESES JUAN ALFONSO",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A742",
+            "A742"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "06:45-09:00"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "QUIROZ QUINTEROS IRMA",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A702",
+            "A702"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "14:15-17:15"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "AREBALO BUSTAMANTE ROSA MARTHA",
+          "DAY": [
+            "MA",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A740",
+            "A740",
+            "A740"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "20:15-21:45",
+            "06:45-08:15"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "STURICH TAMAIN MARINA",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A740",
+            "A741"
+          ],
+          "HOUR": [
+            "14:15-16:30",
+            "12:45-15:00"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ESTRADA ESTRADA CESAR AUGUSTO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A703",
+            "A725"
+          ],
+          "HOUR": [
+            "12:45-15:00",
+            "15:00-17:15"
+          ]
+        },
+        "_CODE": "1704111"
+      },
+      "HIST. DE LA ARQ. Y EL URB. LATINOAM. Y NAL.": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "DUERI MENDEZ CLAUDIA PATRICIA",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "14:15-17:15"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "HERBAS RAMIREZ IVAN MARCELO",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A721",
+            "A721"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "14:15-17:15"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ORDONEZ LAIME TATIANA",
+          "DAY": [
+            "LU",
+            "SA"
+          ],
+          "CLASS": [
+            "A725",
+            "A725"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "07:30-10:30"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MACIAS ABASTO MARCO ANTONIO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A726",
+            "A701"
+          ],
+          "HOUR": [
+            "07:30-09:45",
+            "07:30-09:45"
+          ]
+        },
+        "_CODE": "1704112"
+      }
+    },
+    "TERCER AÑO": {
+      "ANALISIS ESTRUCTURAL II": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FERRUFINO DEHEZA JOSE RAUL",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A741",
+            "A746"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "07:30-10:30"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "BECERRA AYALA EDWIN WILLIAM",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A725",
+            "A729"
+          ],
+          "HOUR": [
+            "10:30-12:45",
+            "10:30-12:45"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MAGNE SOTOMAYOR EDUARDO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A702",
+            "A702"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "09:45-12:00"
+          ]
+        },
+        "_CODE": "1702322"
+      },
+      "INVESTIGACION E INNOVACION TECNOLOGICA": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "BUITRAGO SANDOVAL NESTOR I.",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A770",
+            "A726"
+          ],
+          "HOUR": [
+            "15:00-17:15",
+            "15:00-17:15"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ANDRADE ARZABE FREDDY ALCIBIADES",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A747",
+            "A747"
+          ],
+          "HOUR": [
+            "15:00-17:15",
+            "15:00-17:15"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MERCADO MALDONADO SIMON ADOLFO",
+          "DAY": [
+            "LU",
+            "VI",
+            "SA"
+          ],
+          "CLASS": [
+            "A726",
+            "A726",
+            "A726"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "06:45-08:15",
+            "10:30-12:00"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "REVOLLO LARRAIN LUIS FERNANDO",
+          "DAY": [
+            "MA",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A741",
+            "A741",
+            "A741"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "06:45-08:15",
+            "06:45-08:15"
+          ]
+        },
+        "_CODE": "1702323"
+      },
+      "REDES Y SISTEMAS DE SERVICIOS BASICOS": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "POR DESIGNAR DOCENTE",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "12:45-14:15",
+            "10:30-13:30"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MANCILLA ANAYA MIRTHA",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "07:30-10:30"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SEJAS CALICHE OSCAR",
+          "DAY": [
+            "JU",
+            "SA"
+          ],
+          "CLASS": [
+            "A743",
+            "A701"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "12:00-14:15"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SEJAS CALICHE OSCAR",
+          "DAY": [
+            "VI",
+            "SA"
+          ],
+          "CLASS": [
+            "A720",
+            "A701"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "14:15-17:15"
+          ]
+        },
+        "_CODE": "1702324"
+      },
+      "TALLER DE DISENO III": {
+        "_CODE": "1703117",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARRAZOLA IRIARTE BRUNO ANDRES",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A726",
+            "A726",
+            "A726"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "A2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GALINDO OLMOS JUAN JOSE",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A726",
+            "A726",
+            "A726"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TERCEROS ROJAS OSCAR ALBERTO",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A727",
+            "A727",
+            "A727"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "BOLIVAR VALLEJO HUASCAR GASTON",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A727",
+            "A727",
+            "A727"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MIRANDA VILLARROEL WILSON",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A750",
+            "A750",
+            "A750"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MERCADO OVANDO ALEX LIMBER",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A750",
+            "A750",
+            "A750"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MAGNE SOTOMAYOR HUGO EDWIN",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A728",
+            "A728",
+            "A728"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "OLIVARES ARANA NELSON ABEL",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A728",
+            "A728",
+            "A728"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "QUIROZ QUINTEROS IRMA",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A728",
+            "A728",
+            "A728"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        }
+      },
+      "MORFOLOGIA III": {
+        "_CODE": "1703118",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARRAZOLA IRIARTE BRUNO ANDRES",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A726",
+            "A726"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "A2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GALINDO OLMOS JUAN JOSE",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A726",
+            "A726"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TERCEROS ROJAS OSCAR ALBERTO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A727",
+            "A727"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "BOLIVAR VALLEJO HUASCAR GASTON",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A727",
+            "A727"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MIRANDA VILLARROEL WILSON",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A750",
+            "A750"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MERCADO OVANDO ALEX LIMBER",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A750",
+            "A750"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MAGNE SOTOMAYOR HUGO EDWIN",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A728",
+            "A728"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "OLIVARES ARANA NELSON ABEL",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A728",
+            "A728"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "QUIROZ QUINTEROS IRMA",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A728",
+            "A728"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        }
+      },
+      "MODELADO DIGITAL Y PRESENTACION DE PROYECTOS": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "BALDERRAMA BIRHUET JOSE JOAQUIN",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A758",
+            "A758"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "15:00-17:15"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "BOLIVAR VALLEJO HUASCAR GASTON",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A726",
+            "A726"
+          ],
+          "HOUR": [
+            "07:30-09:45",
+            "07:30-09:45"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "URQUIDI ALVAREZ EDWARD JHONNY",
+          "DAY": [
+            "MI",
+            "SA"
+          ],
+          "CLASS": [
+            "A727",
+            "A727"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "07:30-10:30"
+          ]
+        },
+        "6": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ROJAS ORTUÑO JOSE CARLOS",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A746",
+            "A746"
+          ],
+          "HOUR": [
+            "14:15-16:30",
+            "14:15-16:30"
+          ]
+        },
+        "_CODE": "1703119"
+      },
+      "TEO. ANALISIS Y METODOS EN ESTUD. URBANO AMB.": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CLAROS ROSALES ROSARIO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A770",
+            "A770"
+          ],
+          "HOUR": [
+            "09:00-11:15",
+            "10:30-12:45"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "STURICH TAMAIN MARINA",
+          "DAY": [
+            "MA",
+            "MI"
+          ],
+          "CLASS": [
+            "A742",
+            "A742"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "12:45-15:00"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SURRIABRE GARCIA FREDDY",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A741",
+            "A742"
+          ],
+          "HOUR": [
+            "07:30-09:00",
+            "14:15-17:15"
+          ]
+        },
+        "_CODE": "1704120"
+      },
+      "PENSAMTO. TEO. CONTEMP. DEL HABITAT Y LA ARQ.": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "BAZOBERRY CHALI GUILLERMO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A750",
+            "A750"
+          ],
+          "HOUR": [
+            "14:15-16:30",
+            "14:15-16:30"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "OPORTO SANCHEZ JHOHAN BRAXTON",
+          "DAY": [
+            "MA",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A743",
+            "A743",
+            "A743"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "20:15-21:45",
+            "20:15-21:45"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ESTRADA ESTRADA CESAR AUGUSTO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "15:00-17:15",
+            "12:45-15:00"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FARFAN ESPINOZA FABIAN FRANCISCO",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A748",
+            "A748"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "14:15-17:15"
+          ]
+        },
+        "_CODE": "1704121"
+      },
+      "PAISAJISMO": {
+        "_CODE": "1705050",
+        "01": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "AGREDA ZAMBRANA DANIELA PATRICIA",
+          "DAY": [
+            "JU",
+            "SA"
+          ],
+          "CLASS": [
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "09:00-10:30"
+          ]
+        }
+      }
+    },
+    "CUARTO AÑO": {
+      "DISENO ESTRUCTURAL": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MAGNE SOTOMAYOR EDUARDO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A753",
+            "A746"
+          ],
+          "HOUR": [
+            "15:00-17:15",
+            "15:00-17:15"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ALMARAZ PINTO RONALD EDWIN",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A748",
+            "A748"
+          ],
+          "HOUR": [
+            "10:30-12:45",
+            "09:00-11:15"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MAGNE SOTOMAYOR EDUARDO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A770",
+            "A746"
+          ],
+          "HOUR": [
+            "09:00-12:00",
+            "20:15-21:45"
+          ]
+        },
+        "_CODE": "1702329"
+      },
+      "GESTION DE PROYECTOS EN LA CONSTRUCCION": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ALZERRECA PEREZ JAIME JUAN ANTONIO",
+          "DAY": [
+            "MA",
+            "SA"
+          ],
+          "CLASS": [
+            "A741",
+            "A741"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "09:45-12:45"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUZMAN SANCHEZ JUAN CARLOS",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A743",
+            "A702"
+          ],
+          "HOUR": [
+            "07:30-10:30",
+            "10:30-12:00"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARZE GRUNDNER JORGE ROBERTO",
+          "DAY": [
+            "MA",
+            "SA"
+          ],
+          "CLASS": [
+            "A745",
+            "A745"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "10:30-13:30"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUZMAN SANCHEZ JUAN CARLOS",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A743",
+            "A740"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "07:30-10:30"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "URQUIDI ALVAREZ EDWARD JHONNY",
+          "DAY": [
+            "MA",
+            "SA"
+          ],
+          "CLASS": [
+            "A727",
+            "A727"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "10:30-13:30"
+          ]
+        },
+        "_CODE": "1702330"
+      },
+      "REDES Y SISTEMAS ESPECIALES": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUZMAN SANCHEZ JUAN CARLOS",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A721",
+            "A720"
+          ],
+          "HOUR": [
+            "09:00-12:00",
+            "07:30-09:00"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SEJAS CALICHE OSCAR",
+          "DAY": [
+            "VI",
+            "SA"
+          ],
+          "CLASS": [
+            "A743",
+            "A701"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "09:45-12:00"
+          ]
+        },
+        "_CODE": "1702331"
+      },
+      "TALLER DE DISENO IV": {
+        "_CODE": "1703126",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "LEONI MERCADO FEDERICO MARCELO",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A745",
+            "A745",
+            "A745"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "A2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GARCIA BARROS FERNANDO JOSE",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A745",
+            "A745",
+            "A745"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CAVERO MOREL FROILAN",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A770",
+            "A770",
+            "A770"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TERAN MONTANO RAMIRO GONZALO",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A770",
+            "A770",
+            "A770"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CAMACHO VILLAFANE NELSON",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A746",
+            "A746",
+            "A746"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ALIENDRE LA FUENTE CARLOS",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A746",
+            "A746",
+            "A746"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FARFAN ESPINOZA FABIAN FRANCISCO",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A746",
+            "A746",
+            "A746"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MERCADO ARZE JULIO ALBERTO",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A748",
+            "A748",
+            "A748"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ANDRADE ARZABE FREDDY ALCIBIADES",
+          "DAY": [
+            "LU",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A748",
+            "A748",
+            "A748"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        }
+      },
+      "MORFOLOGIA IV": {
+        "_CODE": "1703127",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "LEONI MERCADO FEDERICO MARCELO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A745",
+            "A745"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "A2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GARCIA BARROS FERNANDO JOSE",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A745",
+            "A745"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CAVERO MOREL FROILAN",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A770",
+            "A770"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TERAN MONTANO RAMIRO GONZALO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A770",
+            "A770"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CAMACHO VILLAFANE NELSON",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A746",
+            "A746"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ALIENDRE LA FUENTE CARLOS",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A746",
+            "A746"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FARFAN ESPINOZA FABIAN FRANCISCO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A746",
+            "A746"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MERCADO ARZE JULIO ALBERTO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A748",
+            "A748"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ANDRADE ARZABE FREDDY ALCIBIADES",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A748",
+            "A748"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        }
+      },
+      "POLITICAS PLANIFIC. Y PLANES URBANO AMBIENTAL": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CANAZA MENESES JUAN ALFONSO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A745",
+            "A745"
+          ],
+          "HOUR": [
+            "09:00-12:00",
+            "09:00-10:30"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "AREBALO BUSTAMANTE ROSA MARTHA",
+          "DAY": [
+            "LU",
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A746",
+            "A746",
+            "A745"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "20:15-21:45",
+            "20:15-21:45"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "HERBAS RAMIREZ IVAN MARCELO",
+          "DAY": [
+            "MI",
+            "SA"
+          ],
+          "CLASS": [
+            "A741",
+            "A741"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "06:45-09:45"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MERCADO ARZE JULIO ALBERTO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A742",
+            "A742"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "14:15-17:15"
+          ]
+        },
+        "_CODE": "1704128"
+      },
+      "COMPUTACION BASICA": {
+        "_CODE": "1705042",
+        "B5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PINEDA GAMARRA PAUL ARTURO",
+          "DAY": [
+            "VI"
+          ],
+          "CLASS": [
+            "A758"
+          ],
+          "HOUR": [
+            "11:15-14:15"
+          ]
+        }
+      }
+    },
+    "QUINTO AÑO": {
+      "TALLER DE GRADUACION DISENO TECNOLOGICO": {
+        "_CODE": "1702335",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUZMAN CHACON NESTOR",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A740",
+            "A740",
+            "A740",
+            "A740"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-18:45",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "DELGADILLO MOSCOSO EDDY WALTER",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A746",
+            "A741",
+            "A746",
+            "A741"
+          ],
+          "HOUR": [
+            "09:00-12:00",
+            "17:15-20:15",
+            "09:00-11:15",
+            "17:15-19:30"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "POR DESIGNAR DOCENTE",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A742",
+            "A742",
+            "A742",
+            "A742"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-18:45"
+          ]
+        },
+        "D1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CLAURE MAYORGA JOSE ANTONIO",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A743",
+            "A743",
+            "A743",
+            "A743"
+          ],
+          "HOUR": [
+            "17:15-18:45",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "E1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "HUANCA FULGUERA VICTOR",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A720",
+            "A747",
+            "A739",
+            "A709"
+          ],
+          "HOUR": [
+            "14:15-15:45",
+            "17:15-20:15",
+            "17:15-20:15",
+            "14:15-17:15"
+          ]
+        }
+      },
+      "DISENO TECNOLOGICO": {
+        "_CODE": "1702337",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUZMAN CHACON NESTOR",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A747",
+            "A747"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "14:15-17:15"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "DELGADILLO MOSCOSO EDDY WALTER",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A741",
+            "A741"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "15:45-17:15"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "POR DESIGNAR DOCENTE",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A742",
+            "A743"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "15:45-17:15"
+          ]
+        },
+        "D1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CLAURE MAYORGA JOSE ANTONIO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A743",
+            "A748"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "14:15-17:15"
+          ]
+        },
+        "E1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "HUANCA FULGUERA VICTOR",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A727",
+            "A727"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "12:00-14:15"
+          ]
+        }
+      },
+      "TALLER V DE GRADUACION": {
+        "_CODE": "1703133",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUZMAN MONTAÑO CARLOS FELIPE",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A740",
+            "A740",
+            "A740",
+            "A740",
+            "A740"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "A2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MARCUS POEDTKE ZULEICA",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A740",
+            "A740",
+            "A740",
+            "A740",
+            "A740"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ZERAIN ABECIA JORGE FERNANDO",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A741",
+            "A741",
+            "A741",
+            "A741",
+            "A741"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARDAYA PRADO ALFREDO PRUDENCIO ALFONSO",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A746",
+            "A746",
+            "A746",
+            "A746",
+            "A746"
+          ],
+          "HOUR": [
+            "09:00-12:00",
+            "14:15-17:15",
+            "09:00-12:00",
+            "14:15-17:15",
+            "09:00-12:00"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ANTEZANA MARTINEZ JHONNY SERGIO",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A742",
+            "A742",
+            "A742",
+            "A742",
+            "A742"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "C2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ROJAS RUIZ JUAN MAURICIO",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A742",
+            "A742",
+            "A742",
+            "A742",
+            "A742"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CLAROS UZQUEDA ALFONSO TOMAS",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A743",
+            "A743",
+            "A743",
+            "A743",
+            "A743"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PEREZ CESPEDES RENE",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A743",
+            "A743",
+            "A743",
+            "A743",
+            "A743"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "D3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VILLARROEL ANTEZANA OSCAR",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A743",
+            "A743",
+            "A743",
+            "A743",
+            "A743"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "E1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "BAZOBERRY CHALI GUILLERMO",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A739",
+            "A739",
+            "A739",
+            "A739",
+            "A739"
+          ],
+          "HOUR": [
+            "16:30-19:30",
+            "16:30-19:30",
+            "16:30-19:30",
+            "16:30-19:30",
+            "16:30-19:30"
+          ]
+        },
+        "E2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "DE UGARTE LAZCANO JAIME ENRIQUE",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A747",
+            "A747",
+            "A747",
+            "A747",
+            "A747"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "E3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "OCAMPO AYALA JOSE PEDRO EDUARDO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "14:15-17:15"
+          ]
+        },
+        "F1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ZAPATA ILSE CRISTHINA",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A755",
+            "A755",
+            "A755",
+            "A755",
+            "A755"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "14:15-17:15",
+            "14:15-17:15",
+            "14:15-17:15",
+            "14:15-17:15"
+          ]
+        }
+      },
+      "GEOGRAFIA DE ESPACIOS URBANOS Y RURALES": {
+        "_CODE": "1704035",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ORELLANA CHAVARRIA MONICA PATRICIA",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A747",
+            "A747"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "06:45-08:15"
+          ]
+        }
+      },
+      "TALLER DE GRADUACION DISENO URBANO": {
+        "_CODE": "1704134",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CANEDO MENDOZA JORGE HERNAN",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A740",
+            "A740",
+            "A740",
+            "A740"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-18:45",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PEREZ SERU ANDRES EDUARDO",
+          "DAY": [
+            "LU",
+            "MA",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A741",
+            "A741",
+            "A741",
+            "A741"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-18:45"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TERAN LEON CRISTHIAN ARIEL",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A742",
+            "A742",
+            "A742",
+            "A742"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-20:15",
+            "17:15-18:45"
+          ]
+        },
+        "D1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CANAZA MENESES JUAN ALFONSO",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A743",
+            "A743",
+            "A743",
+            "A743"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "17:15-18:45",
+            "17:15-20:15",
+            "17:15-20:15"
+          ]
+        },
+        "E1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VEIZAGA SANDY INDIRA VICTORIA",
+          "DAY": [
+            "LU",
+            "MA",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A739",
+            "A709",
+            "A721",
+            "A747"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "14:15-17:15",
+            "15:45-17:15",
+            "17:15-20:15"
+          ]
+        }
+      },
+      "DISENO URBANO": {
+        "_CODE": "1704136",
+        "A1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CANEDO MENDOZA JORGE HERNAN",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A746",
+            "A741"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "09:00-12:00"
+          ]
+        },
+        "B1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PEREZ SERU ANDRES EDUARDO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A741",
+            "A741"
+          ],
+          "HOUR": [
+            "13:30-15:45",
+            "15:00-17:15"
+          ]
+        },
+        "C1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TERAN LEON CRISTHIAN ARIEL",
+          "DAY": [
+            "MA",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A742",
+            "A742",
+            "A742"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "20:15-21:45",
+            "06:45-08:15"
+          ]
+        },
+        "D1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CANAZA MENESES JUAN ALFONSO",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A745",
+            "A745"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "14:15-17:15"
+          ]
+        },
+        "E1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VEIZAGA SANDY INDIRA VICTORIA",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A721",
+            "A724"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "12:00-14:15"
+          ]
+        }
+      }
+    }
+  },
+  "TECNICO UNIVERSITARIO SUPERIOR EN CONSTRUCCIONES": {
+    "_CAREER_CODE": "229801",
+    "PRIMER AÑO": {
+      "PRACTICA DE OBRA I": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PANOZO MENESES JOSE ANTONIO",
+          "DAY": [
+            "VI",
+            "SA"
+          ],
+          "CLASS": [
+            "A708",
+            "A708"
+          ],
+          "HOUR": [
+            "18:45-21:45",
+            "09:00-13:30"
+          ]
+        },
+        "_CODE": "1702014"
+      },
+      "MATEMATICA Y FISICA": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUZMAN SANCHEZ JUAN CARLOS",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A721",
+            "A724"
+          ],
+          "HOUR": [
+            "07:30-09:00",
+            "09:00-12:00"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FERRUFINO DEHEZA JOSE RAUL",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "07:30-10:30"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARRAZOLA IRIARTE BRUNO ANDRES",
+          "DAY": [
+            "JU",
+            "SA"
+          ],
+          "CLASS": [
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "15:00-17:15",
+            "09:00-11:15"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MAGNE SOTOMAYOR EDUARDO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A702",
+            "A702"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "06:45-09:45"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "BECERRA AYALA EDWIN WILLIAM",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A727",
+            "A727"
+          ],
+          "HOUR": [
+            "08:15-10:30",
+            "08:15-10:30"
+          ]
+        },
+        "6": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FERRUFINO DEHEZA JOSE RAUL",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A728",
+            "A703"
+          ],
+          "HOUR": [
+            "07:30-10:30",
+            "10:30-12:00"
+          ]
+        },
+        "_CODE": "1702306"
+      },
+      "MATERIALES DE CONSTRUCCION": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MANCILLA ANAYA MIRTHA",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A709",
+            "A720"
+          ],
+          "HOUR": [
+            "07:30-10:30",
+            "10:30-12:00"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PANOZO MENESES JOSE ANTONIO",
+          "DAY": [
+            "MA",
+            "SA"
+          ],
+          "CLASS": [
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "06:45-09:00"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ROSAS PEÑARRIETA SILKE EVELIN",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A724",
+            "A726"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "10:30-12:45"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MANCILLA ANAYA MIRTHA",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A709",
+            "A720"
+          ],
+          "HOUR": [
+            "10:30-12:45",
+            "12:00-14:15"
+          ]
+        },
+        "6": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ALIENDRE LA FUENTE CARLOS",
+          "DAY": [
+            "MA",
+            "SA"
+          ],
+          "CLASS": [
+            "A702",
+            "A702"
+          ],
+          "HOUR": [
+            "07:30-09:45",
+            "07:30-09:45"
+          ]
+        },
+        "_CODE": "1702307"
+      },
+      "ANALISIS ESTRUCTURAL I": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUERRA TORRICO JUAN MANUEL",
+          "DAY": [
+            "JU",
+            "SA"
+          ],
+          "CLASS": [
+            "A771",
+            "A709"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "09:45-12:45"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FLORES FERRUFINO HUMBERTO",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "07:30-09:45"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CRESPO ZAPATA GONZALO RONALD",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A724",
+            "A725"
+          ],
+          "HOUR": [
+            "09:00-11:15",
+            "09:45-12:00"
+          ]
+        },
+        "_CODE": "1702313"
+      },
+      "REDES Y SISTEMAS DE SERVICIOS BASICOS": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "POR DESIGNAR DOCENTE",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "12:45-14:15",
+            "10:30-13:30"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MANCILLA ANAYA MIRTHA",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "07:30-10:30"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SEJAS CALICHE OSCAR",
+          "DAY": [
+            "JU",
+            "SA"
+          ],
+          "CLASS": [
+            "A743",
+            "A701"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "12:00-14:15"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SEJAS CALICHE OSCAR",
+          "DAY": [
+            "VI",
+            "SA"
+          ],
+          "CLASS": [
+            "A720",
+            "A701"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "14:15-17:15"
+          ]
+        },
+        "_CODE": "1702324"
+      },
+      "SISTEMAS DE REPRESENT. Y COMUNICACION GRAFICA": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MERCADO OVANDO ALEX LIMBER",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A709",
+            "A702"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "14:15-17:15"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PEREZ CESPEDES RENE",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "15:00-17:15"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "IRIARTE NOYA WALTER",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "14:15-17:15"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ESPINOZA PEREZ ALINA EMILIA",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "06:45-09:00"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ATAHUICHI GUZMAN CESAR GERY",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A721",
+            "A721"
+          ],
+          "HOUR": [
+            "09:00-10:30",
+            "07:30-10:30"
+          ]
+        },
+        "6": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FERRUFINO NAVIA JAVIER ORLANDO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A727",
+            "A727"
+          ],
+          "HOUR": [
+            "09:45-12:00",
+            "09:45-12:00"
+          ]
+        },
+        "_CODE": "1703103"
+      }
+    },
+    "SEGUNDO AÑO": {
+      "TOPOGRAFIA": {
+        "_CODE": "1702009",
+        "1A": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUERRA TORRICO JUAN MANUEL",
+          "DAY": [
+            "MI",
+            "SA"
+          ],
+          "CLASS": [
+            "A702",
+            "A702"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "13:30-18:45"
+          ]
+        },
+        "2A": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MERCADO DAVILA HECTOR JAIME",
+          "DAY": [
+            "MI",
+            "SA"
+          ],
+          "CLASS": [
+            "A709",
+            "A709"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "13:30-18:45"
+          ]
+        },
+        "3A": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VARGAS CANEDO FEDERICO ALEJANDRO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "12:00-17:15"
+          ]
+        }
+      },
+      "PRACTICA DE OBRA II": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "BUSTOS QUIROGA FERNANDO HOMERO",
+          "DAY": [
+            "MA",
+            "MI"
+          ],
+          "CLASS": [
+            "A708",
+            "A708"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "07:30-12:00"
+          ]
+        },
+        "_CODE": "1702016"
+      },
+      "LEGISLACION DE OBRA": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARZE GRUNDNER JORGE ROBERTO",
+          "DAY": [
+            "LU",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A708",
+            "A708",
+            "A708"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "18:45-20:15",
+            "06:45-08:15"
+          ]
+        },
+        "_CODE": "1702018"
+      },
+      "SISTEMAS Y PROCESOS CONSTRUCTIVOS": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SEJAS CALICHE OSCAR",
+          "DAY": [
+            "JU",
+            "SA"
+          ],
+          "CLASS": [
+            "A720",
+            "A743"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "06:45-09:45"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "OLIVARES ARANA NELSON ABEL",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A725",
+            "A725"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "06:45-09:00"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUZMAN CHACON NESTOR",
+          "DAY": [
+            "LU",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A752",
+            "A745",
+            "A752"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "06:45-08:15",
+            "06:45-08:15"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CACERES CHAVEZ EDGAR",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "10:30-12:45",
+            "08:15-10:30"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "AYAVIRI IRIARTE RORY",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A725",
+            "A725"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "14:15-17:15"
+          ]
+        },
+        "6": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARZE GRUNDNER JORGE ROBERTO",
+          "DAY": [
+            "JU",
+            "SA"
+          ],
+          "CLASS": [
+            "A740",
+            "A740"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "07:30-10:30"
+          ]
+        },
+        "_CODE": "1702314"
+      },
+      "ANALISIS ESTRUCTURAL II": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "FERRUFINO DEHEZA JOSE RAUL",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A741",
+            "A746"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "07:30-10:30"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "BECERRA AYALA EDWIN WILLIAM",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A725",
+            "A729"
+          ],
+          "HOUR": [
+            "10:30-12:45",
+            "10:30-12:45"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MAGNE SOTOMAYOR EDUARDO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A702",
+            "A702"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "09:45-12:00"
+          ]
+        },
+        "_CODE": "1702322"
+      },
+      "REDES Y SISTEMAS ESPECIALES": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUZMAN SANCHEZ JUAN CARLOS",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A721",
+            "A720"
+          ],
+          "HOUR": [
+            "09:00-12:00",
+            "07:30-09:00"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SEJAS CALICHE OSCAR",
+          "DAY": [
+            "VI",
+            "SA"
+          ],
+          "CLASS": [
+            "A743",
+            "A701"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "09:45-12:00"
+          ]
+        },
+        "_CODE": "1702331"
+      },
+      "SIST. DE REPRES. Y COMUNIC. TEC. DEL PROYECTO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CRESPO ZAPATA GONZALO RONALD",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A702",
+            "A709"
+          ],
+          "HOUR": [
+            "07:30-09:45",
+            "07:30-09:45"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARAUCO ARTEAGA ROLLY A.",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "15:00-17:15",
+            "15:00-17:15"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VIAMONT ALPIRE JUAN CARLOS",
+          "DAY": [
+            "MA",
+            "SA"
+          ],
+          "CLASS": [
+            "A720",
+            "A720"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "09:00-12:00"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "HINOJOSA LUIZAGA ALEX FERNANDO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A724",
+            "A724"
+          ],
+          "HOUR": [
+            "14:15-17:15",
+            "20:15-21:45"
+          ]
+        },
+        "6": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "JALDIN ANGULO FREDDY ASTERIO",
+          "DAY": [
+            "LU",
+            "SA"
+          ],
+          "CLASS": [
+            "A703",
+            "A703"
+          ],
+          "HOUR": [
+            "09:00-11:15",
+            "10:30-12:45"
+          ]
+        },
+        "7": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "POR DESIGNAR DOCENTE",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A721",
+            "A709"
+          ],
+          "HOUR": [
+            "12:45-15:00",
+            "09:45-12:00"
+          ]
+        },
+        "_CODE": "1703110"
+      }
+    },
+    "TERCER AÑO": {
+      "ADMINISTRACION DE OBRA": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "POR DESIGNAR DOCENTE",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A708",
+            "A708"
+          ],
+          "HOUR": [
+            "14:15-18:00",
+            "17:15-21:00"
+          ]
+        },
+        "_CODE": "1702017"
+      },
+      "ENSAYO DE MATERIALES EN LABORATORIO": {
+        "_CODE": "1702041",
+        "1A": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "NINA VASQUEZ RICARDO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A708",
+            "A708"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "12:00-14:15"
+          ]
+        }
+      },
+      "SUELOS Y FUNDACIONES": {
+        "_CODE": "1702042",
+        "1A": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "POR DESIGNAR DOCENTE",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A708",
+            "A708"
+          ],
+          "HOUR": [
+            "18:00-21:00",
+            "08:15-09:45"
+          ]
+        }
+      },
+      "DISENO ESTRUCTURAL": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MAGNE SOTOMAYOR EDUARDO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A753",
+            "A746"
+          ],
+          "HOUR": [
+            "15:00-17:15",
+            "15:00-17:15"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ALMARAZ PINTO RONALD EDWIN",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A748",
+            "A748"
+          ],
+          "HOUR": [
+            "10:30-12:45",
+            "09:00-11:15"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MAGNE SOTOMAYOR EDUARDO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A770",
+            "A746"
+          ],
+          "HOUR": [
+            "09:00-12:00",
+            "20:15-21:45"
+          ]
+        },
+        "_CODE": "1702329"
+      },
+      "GESTION DE PROYECTOS EN LA CONSTRUCCION": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ALZERRECA PEREZ JAIME JUAN ANTONIO",
+          "DAY": [
+            "MA",
+            "SA"
+          ],
+          "CLASS": [
+            "A741",
+            "A741"
+          ],
+          "HOUR": [
+            "20:15-21:45",
+            "09:45-12:45"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUZMAN SANCHEZ JUAN CARLOS",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A743",
+            "A702"
+          ],
+          "HOUR": [
+            "07:30-10:30",
+            "10:30-12:00"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARZE GRUNDNER JORGE ROBERTO",
+          "DAY": [
+            "MA",
+            "SA"
+          ],
+          "CLASS": [
+            "A745",
+            "A745"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "10:30-13:30"
+          ]
+        },
+        "4": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "GUZMAN SANCHEZ JUAN CARLOS",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A743",
+            "A740"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "07:30-10:30"
+          ]
+        },
+        "5": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "URQUIDI ALVAREZ EDWARD JHONNY",
+          "DAY": [
+            "MA",
+            "SA"
+          ],
+          "CLASS": [
+            "A727",
+            "A727"
+          ],
+          "HOUR": [
+            "06:45-08:15",
+            "10:30-13:30"
+          ]
+        },
+        "_CODE": "1702330"
+      }
+    }
+  },
+  "LICENCIATURA EN TURISMO": {
+    "_CAREER_CODE": "231802",
+    "SEMESTRE 1": {
+      "HISTORIA UNIVERSAL Y DE LAS ARTES": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MACIAS ABASTO MARCO ANTONIO",
+          "DAY": [
+            "LU",
+            "MA"
+          ],
+          "CLASS": [
+            "A752",
+            "A745"
+          ],
+          "HOUR": [
+            "09:45-12:00",
+            "15:00-17:15"
+          ]
+        },
+        "_CODE": "1701101"
+      },
+      "PAQUETES Y PROGRAMAS TURISTICOS I": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MARTINEZ MEDINA LINDSAY ROCIO",
+          "DAY": [
+            "MA",
+            "MI",
+            "SA"
+          ],
+          "CLASS": [
+            "A751",
+            "A747",
+            "A747"
+          ],
+          "HOUR": [
+            "10:30-12:45",
+            "09:45-12:00",
+            "08:15-12:45"
+          ]
+        },
+        "_CODE": "1701102"
+      },
+      "TEORIA DEL TURISMO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MERCADO ZAPATA PEDRO ARMANDO",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A745",
+            "A745"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "12:00-14:15"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MORALES MENDEZ FRANZ GUSTAVO",
+          "DAY": [
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A750",
+            "A753"
+          ],
+          "HOUR": [
+            "13:30-15:45",
+            "13:30-15:45"
+          ]
+        },
+        "_CODE": "1701103"
+      },
+      "SISTEMAS DE ORGANIZACION TERRITORIAL": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ZAMBRANA TRIVEÑO JOSE EMILIO",
+          "DAY": [
+            "LU",
+            "VI"
+          ],
+          "CLASS": [
+            "A743",
+            "A752"
+          ],
+          "HOUR": [
+            "12:45-15:00",
+            "14:15-16:30"
+          ]
+        },
+        "_CODE": "1701104"
+      },
+      "ESTRUCTURA DEL LENGUAJE ESCRITO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "SAAVEDRA SARAVIA MARIA DEL ROSARIO",
+          "DAY": [
+            "MA",
+            "MI"
+          ],
+          "CLASS": [
+            "A756",
+            "A770"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "06:45-09:00"
+          ]
+        },
+        "_CODE": "1701105"
+      },
+      "INGLES BASICO I": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "LOZA LOPEZ ANGELES LENNY",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A756",
+            "A747"
+          ],
+          "HOUR": [
+            "07:30-09:45",
+            "11:15-13:30"
+          ]
+        },
+        "_CODE": "1701106"
+      }
+    },
+    "SEMESTRE 2": {
+      "HISTORIA Y CULTURA NACIONAL I": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MACIAS ABASTO MARCO ANTONIO",
+          "DAY": [
+            "MA",
+            "MI"
+          ],
+          "CLASS": [
+            "A726",
+            "A753"
+          ],
+          "HOUR": [
+            "09:45-12:00",
+            "07:30-09:45"
+          ]
+        },
+        "_CODE": "1701108"
+      },
+      "PAQUETES Y PROGRAMAS TURISTICOS II": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "AGUILAR CHAVARRIA MARCELA EUGENIA",
+          "DAY": [
+            "LU",
+            "MA",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A742",
+            "A745",
+            "A746",
+            "A742"
+          ],
+          "HOUR": [
+            "10:30-12:00",
+            "12:00-13:30",
+            "12:45-14:15",
+            "09:00-13:30"
+          ]
+        },
+        "_CODE": "1701109"
+      },
+      "PSICOLOGIA DEL TURISMO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MARTINEZ MEDINA LINDSAY ROCIO",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A741",
+            "A746"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "12:00-14:15"
+          ]
+        },
+        "_CODE": "1701110"
+      },
+      "LEGISLACION DE LA DINAMICA TURISTICA": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MORALES DELGADILLO OMAR",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A755",
+            "A755"
+          ],
+          "HOUR": [
+            "17:15-19:30",
+            "17:15-19:30"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TORREZ GUAMAN CESAR ROBERTO",
+          "DAY": [
+            "MA",
+            "MI"
+          ],
+          "CLASS": [
+            "A756",
+            "A753"
+          ],
+          "HOUR": [
+            "16:30-18:45",
+            "18:00-20:15"
+          ]
+        },
+        "_CODE": "1701111"
+      },
+      "INFORMATICA": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "POR DESIGNAR DOCENTE",
+          "DAY": [
+            "MI"
+          ],
+          "CLASS": [
+            "A758"
+          ],
+          "HOUR": [
+            "09:45-12:00"
+          ]
+        },
+        "_CODE": "1701112"
+      },
+      "INGLES BASICO II": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "KHATIB AVILES DANIEL IMERIO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A746",
+            "A743"
+          ],
+          "HOUR": [
+            "07:30-09:45",
+            "09:00-11:15"
+          ]
+        },
+        "_CODE": "1701113"
+      },
+      "FRANCES BASICO II": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ZAMBRANA PADILLA ROSARIO DEL CARMEN",
+          "DAY": [
+            "LU",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A753",
+            "A745",
+            "A752"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "15:45-17:15",
+            "15:45-17:15"
+          ]
+        },
+        "_CODE": "1701114"
+      }
+    },
+    "SEMESTRE 3": {
+      "TURISMO ESPECIALIZADO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ROJAS PADILLA WILFREDO NOE",
+          "DAY": [
+            "MI",
+            "JU",
+            "SA"
+          ],
+          "CLASS": [
+            "A741",
+            "A751",
+            "A751"
+          ],
+          "HOUR": [
+            "10:30-12:45",
+            "14:15-16:30",
+            "07:30-12:00"
+          ]
+        },
+        "_CODE": "1701115"
+      },
+      "ADMINISTR. GENERAL Y ESTRATEGICA DEL TURISMO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VALLEJO ECHEVERRÍA JULIAN JOHNNY",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A747",
+            "A747"
+          ],
+          "HOUR": [
+            "07:30-09:45",
+            "10:30-12:45"
+          ]
+        },
+        "_CODE": "1701116"
+      },
+      "PLANIFICACION PARTICIPATIVA EN TURISMO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TELLEZ MELGAR JAVIER FERNANDO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A747",
+            "A755"
+          ],
+          "HOUR": [
+            "09:00-11:15",
+            "06:45-09:00"
+          ]
+        },
+        "_CODE": "1701117"
+      },
+      "GEOGRAFIA TURISTICA": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "DAVALOS LAFUENTE IVAN CESAR",
+          "DAY": [
+            "MA",
+            "MI"
+          ],
+          "CLASS": [
+            "A752",
+            "A748"
+          ],
+          "HOUR": [
+            "18:45-21:00",
+            "15:00-17:15"
+          ]
+        },
+        "_CODE": "1701118"
+      },
+      "METODOS DE INVESTIGACION APLICADA": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MERCADO ZAPATA PEDRO ARMANDO",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A753",
+            "A753"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "08:15-10:30"
+          ]
+        },
+        "_CODE": "1701119"
+      },
+      "INGLES BASICO INTERMEDIO I": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "LOZA LOPEZ ANGELES LENNY",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A756",
+            "A753"
+          ],
+          "HOUR": [
+            "13:30-15:45",
+            "09:00-11:15"
+          ]
+        },
+        "_CODE": "1701120"
+      }
+    },
+    "SEMESTRE 4": {
+      "ETNOGRAFIA E INDUSTRIAS CULTURALES": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "AGUILAR CHAVARRIA MARCELA EUGENIA",
+          "DAY": [
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A742",
+            "A748"
+          ],
+          "HOUR": [
+            "09:00-11:15",
+            "09:00-11:15"
+          ]
+        },
+        "_CODE": "1701122"
+      },
+      "EMPRENDIMIENTOS Y ESTRATEGIAS TURISTICAS": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "JULIO QUINTANA PATRICIA DEL CARMEN",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A752",
+            "A752"
+          ],
+          "HOUR": [
+            "12:45-15:00",
+            "13:30-15:45"
+          ]
+        },
+        "_CODE": "1701123"
+      },
+      "CONTABILIDAD Y COSTOS EN EMPRESAS TURISTICAS": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ANTEZANA YUGAR MARIO ANTONIO",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A756",
+            "A755"
+          ],
+          "HOUR": [
+            "18:45-21:00",
+            "18:45-21:00"
+          ]
+        },
+        "_CODE": "1701124"
+      },
+      "METODOLOGIAS DE DIAGNOSTICO TERRITORIAL": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "PADILLA BARRIGA PAOLA VERONICA",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A706",
+            "A756"
+          ],
+          "HOUR": [
+            "18:00-20:15",
+            "18:00-20:15"
+          ]
+        },
+        "_CODE": "1701125"
+      },
+      "SOPORTE VITAL EN TURISMO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CALVIMONTE SULFO OSCAR RAFAEL",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A706",
+            "A770"
+          ],
+          "HOUR": [
+            "06:45-09:45",
+            "06:45-09:45"
+          ]
+        },
+        "_CODE": "1701126"
+      },
+      "MODALIDAD DE GRADUACION TUS I": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "POR DESIGNAR DOCENTE",
+          "DAY": [
+            "MA"
+          ],
+          "CLASS": [
+            "A741"
+          ],
+          "HOUR": [
+            "15:45-17:15"
+          ]
+        },
+        "_CODE": "1701127"
+      },
+      "INGLES BASICO INTERMEDIO II": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "LOZA LOPEZ ANGELES LENNY",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A756",
+            "A756"
+          ],
+          "HOUR": [
+            "09:45-12:00",
+            "06:45-09:00"
+          ]
+        },
+        "_CODE": "1701128"
+      },
+      "FRANCES BASICO INTERMEDIO II": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "LLANOS GUTIERREZ FERNANDO ABAD",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A756",
+            "A745"
+          ],
+          "HOUR": [
+            "16:30-18:45",
+            "11:15-13:30"
+          ]
+        },
+        "_CODE": "1701129"
+      }
+    },
+    "SEMESTRE 5": {
+      "ORGANIZACION DE EVENTOS Y ANIMACION TURISTICA": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CAMARGO GANDARILLAS PAOLA GABRIELA",
+          "DAY": [
+            "LU",
+            "JU",
+            "VI"
+          ],
+          "CLASS": [
+            "A750",
+            "A753",
+            "A753"
+          ],
+          "HOUR": [
+            "09:00-11:15",
+            "11:15-13:30",
+            "13:30-18:00"
+          ]
+        },
+        "_CODE": "1701130"
+      },
+      "DIRECCION DE EMPRESAS DE SERVICIOS TURISTICOS": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ANTEZANA YUGAR MARIO ANTONIO",
+          "DAY": [
+            "MA",
+            "MI",
+            "JU"
+          ],
+          "CLASS": [
+            "A751",
+            "A740",
+            "A751"
+          ],
+          "HOUR": [
+            "12:45-14:15",
+            "12:45-14:15",
+            "18:45-20:15"
+          ]
+        },
+        "_CODE": "1701131"
+      },
+      "MERCADOTECNIA Y ESTUDIOS DE MERCADO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "VALLEJO ECHEVERRÍA JULIAN JOHNNY",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A752",
+            "A752"
+          ],
+          "HOUR": [
+            "09:45-12:00",
+            "08:15-10:30"
+          ]
+        },
+        "_CODE": "1701132"
+      },
+      "SUSTENTAB. TURISTICA Y GESTION DE IMPACTOS": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "DAVALOS LAFUENTE IVAN CESAR",
+          "DAY": [
+            "LU",
+            "MA"
+          ],
+          "CLASS": [
+            "A751",
+            "A750"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "06:45-09:00"
+          ]
+        },
+        "_CODE": "1701133"
+      },
+      "SIG Y PLATAFORMAS VIRTUALES": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TURPO HUAYRAQUI CRESENCIO",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A758",
+            "A758"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "06:45-08:15"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TURPO HUAYRAQUI CRESENCIO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A758",
+            "A758"
+          ],
+          "HOUR": [
+            "17:15-20:15",
+            "06:45-08:15"
+          ]
+        },
+        "_CODE": "1701134"
+      },
+      "INGLES INTERMEDIO I": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "IRIGOYEN ARZABE MARIA EUGENIA",
+          "DAY": [
+            "LU",
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A740",
+            "A752",
+            "A756"
+          ],
+          "HOUR": [
+            "15:45-17:15",
+            "15:45-17:15",
+            "14:15-15:45"
+          ]
+        },
+        "_CODE": "1701136"
+      }
+    },
+    "SEMESTRE 6": {
+      "OPERADORAS DE TURISMO Y AGENCIAS DE VIAJE": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TERAN TERAN JORGE ERICK",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A748",
+            "A756"
+          ],
+          "HOUR": [
+            "07:30-09:45",
+            "09:00-11:15"
+          ]
+        },
+        "_CODE": "1701138"
+      },
+      "LEGISLACION TURISTICA EMPRESARIAL": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TORREZ GUAMAN CESAR ROBERTO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A742",
+            "A742"
+          ],
+          "HOUR": [
+            "09:45-12:00",
+            "09:45-12:00"
+          ]
+        },
+        "_CODE": "1701139"
+      },
+      "MACROECONOMIA Y ESTADISTICA DEL TURISMO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARANIBAR VICTOR HUGO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A753",
+            "A753"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "06:45-09:00"
+          ]
+        },
+        "_CODE": "1701140"
+      },
+      "INNOVACION Y CALIDAD DE OFERTA TURISTICA": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARNEZ PERALTA RENY DENAR",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A753",
+            "A753"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "12:00-14:15"
+          ]
+        },
+        "_CODE": "1701141"
+      },
+      "PLANIFICACION TURISTICA Y GESTION DE RIESGOS": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "DAVALOS LAFUENTE IVAN CESAR",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A751",
+            "A751"
+          ],
+          "HOUR": [
+            "18:45-21:00",
+            "06:45-09:00"
+          ]
+        },
+        "_CODE": "1701142"
+      },
+      "INGLES INTERMEDIO II": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "IRIGOYEN ARZABE MARIA EUGENIA",
+          "DAY": [
+            "LU",
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A753",
+            "A752",
+            "A756"
+          ],
+          "HOUR": [
+            "14:15-15:45",
+            "14:15-15:45",
+            "15:45-17:15"
+          ]
+        },
+        "_CODE": "1701143"
+      },
+      "FRANCES INTERMEDIO II": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "POR DESIGNAR DOCENTE",
+          "DAY": [
+            "MI",
+            "VI"
+          ],
+          "CLASS": [
+            "A756",
+            "A750"
+          ],
+          "HOUR": [
+            "14:15-16:30",
+            "10:30-12:45"
+          ]
+        },
+        "_CODE": "1701144"
+      }
+    },
+    "SEMESTRE 7": {
+      "CIENCIAS Y DISCIPLINAS ESTUDIO DE PATRIMONIO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "AGUILAR CHAVARRIA MARCELA EUGENIA",
+          "DAY": [
+            "MA",
+            "MI"
+          ],
+          "CLASS": [
+            "A755",
+            "A751"
+          ],
+          "HOUR": [
+            "09:45-12:00",
+            "11:15-13:30"
+          ]
+        },
+        "_CODE": "1701145"
+      },
+      "VALORACION Y DECLARATORIA DE PATRIMONIO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "MARTINEZ MEDINA LINDSAY ROCIO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A748",
+            "A743"
+          ],
+          "HOUR": [
+            "12:45-15:00",
+            "11:15-13:30"
+          ]
+        },
+        "_CODE": "1701146"
+      },
+      "MANEJO DE RECURSOS HUMANOS": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "CAMARGO GANDARILLAS PAOLA GABRIELA",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A750",
+            "A739"
+          ],
+          "HOUR": [
+            "11:15-13:30",
+            "09:00-11:15"
+          ]
+        },
+        "_CODE": "1701147"
+      },
+      "SISTEMAS DE ADM. Y PRESUPUESTO PUBLICO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ZAMORANO LUJAN GLORIA DEL SALVADOR",
+          "DAY": [
+            "VI",
+            "SA"
+          ],
+          "CLASS": [
+            "A753",
+            "A753"
+          ],
+          "HOUR": [
+            "18:45-21:00",
+            "06:45-09:00"
+          ]
+        },
+        "_CODE": "1701148"
+      },
+      "PLANIFICACION DEL ESPACIO TURISTICO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARANIBAR VICTOR HUGO",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A743",
+            "A743"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "06:45-09:00"
+          ]
+        },
+        "_CODE": "1701149"
+      },
+      "INCIDENCIA EN POLITICA PUBLIC Y ACCION COLECT": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TELLEZ MELGAR JAVIER FERNANDO",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A751",
+            "A751"
+          ],
+          "HOUR": [
+            "09:00-11:15",
+            "09:00-11:15"
+          ]
+        },
+        "_CODE": "1701150"
+      },
+      "MODALIDAD DE GRADUACION LICENCIATURA I": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TERAN TERAN JORGE ERICK",
+          "DAY": [
+            "MA",
+            "VI"
+          ],
+          "CLASS": [
+            "A755",
+            "A750"
+          ],
+          "HOUR": [
+            "06:45-09:00",
+            "06:45-09:00"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TERAN TERAN JORGE ERICK",
+          "DAY": [
+            "LU",
+            "MI"
+          ],
+          "CLASS": [
+            "A753",
+            "A756"
+          ],
+          "HOUR": [
+            "18:45-21:00",
+            "17:15-19:30"
+          ]
+        },
+        "_CODE": "1701151"
+      }
+    },
+    "SEMESTRE 8": {
+      "GESTION DE RECURSOS FINANCIEROS": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "TERAN TERAN JORGE ERICK",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A756",
+            "A745"
+          ],
+          "HOUR": [
+            "18:45-21:00",
+            "06:45-09:00"
+          ]
+        },
+        "_CODE": "1701152"
+      },
+      "MARKETING TURISTICO": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "JULIO QUINTANA PATRICIA DEL CARMEN",
+          "DAY": [
+            "LU",
+            "JU"
+          ],
+          "CLASS": [
+            "A771",
+            "A753"
+          ],
+          "HOUR": [
+            "15:00-17:15",
+            "15:45-18:00"
+          ]
+        },
+        "_CODE": "1701153"
+      },
+      "FACTIB Y VIABILIDAD DE PROYECTOS TURISTICOS": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARANIBAR VICTOR HUGO",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A741",
+            "A741"
+          ],
+          "HOUR": [
+            "09:45-12:00",
+            "09:45-12:00"
+          ]
+        },
+        "_CODE": "1701154"
+      },
+      "METODOLOGIAS DE CAPACITACION TURISTICA": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "ARNEZ PERALTA RENY DENAR",
+          "DAY": [
+            "MA",
+            "JU"
+          ],
+          "CLASS": [
+            "A743",
+            "A742"
+          ],
+          "HOUR": [
+            "12:00-14:15",
+            "12:00-14:15"
+          ]
+        },
+        "_CODE": "1701155"
+      },
+      "MODALIDAD DE GRADUACION LICENCIATURA II": {
+        "1": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "POR DESIGNAR DOCENTE",
+          "DAY": [
+            "LU"
+          ],
+          "CLASS": [
+            "A706"
+          ],
+          "HOUR": [
+            "08:15-09:45"
+          ]
+        },
+        "2": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "POR DESIGNAR DOCENTE",
+          "DAY": [
+            "MA"
+          ],
+          "CLASS": [
+            "A739"
+          ],
+          "HOUR": [
+            "14:15-15:45"
+          ]
+        },
+        "3": {
+          "AUX_INDEX": -1,
+          "PROFESSOR": "POR DESIGNAR DOCENTE",
+          "DAY": [
+            "MI"
+          ],
+          "CLASS": [
+            "A756"
+          ],
+          "HOUR": [
+            "12:00-13:30"
+          ]
+        },
+        "_CODE": "1701156"
+      }
+    }
+  }
+}

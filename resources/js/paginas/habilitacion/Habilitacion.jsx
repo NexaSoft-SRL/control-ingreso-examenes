@@ -1,561 +1,563 @@
-import React from 'react';
 import PropTypes from 'prop-types';
-import { CheckCircle2, Download, XCircle } from 'lucide-react';
-import LayoutAdmin from '../../componentes/LayoutAdmin.jsx';
+import { useEffect, useState } from 'react';
+import { CheckCircle2, Shuffle, XCircle } from 'lucide-react';
+import { api } from '../../api/cliente';
+import { codigoDe, erroresDe, estadoDe, mensajeDe } from '../../api/errores';
+import usarConsulta from '../../api/usarConsulta';
+import usarPaginaServidor from '../../api/usarPaginaServidor';
+import { useAviso } from '../../componentes/Aviso';
+import Boton from '../../componentes/Boton';
+import Buscador from '../../componentes/Buscador';
+import Chips from '../../componentes/Chips';
+import Dato from '../../componentes/Dato';
+import Encabezado from '../../componentes/Encabezado';
+import EstadoCarga from '../../componentes/EstadoCarga';
+import Insignia from '../../componentes/Insignia';
+import Paginacion from '../../componentes/Paginacion';
+import Seleccion, { AreaTexto } from '../../componentes/Seleccion';
+import SelectorExamen from '../../componentes/SelectorExamen';
+import Tarjeta from '../../componentes/Tarjeta';
+import usarExamen from '../../componentes/usarExamen';
+import { plural } from '../../utiles/texto';
 
-function mensajeError(error, respaldo) {
-    const errores = error?.response?.data?.errors;
-    const primero = errores ? Object.values(errores)[0]?.[0] : null;
-
-    return primero ?? error?.response?.data?.message ?? respaldo;
-}
-
-// Mismos límites que valida el backend (HU-12).
+const FOCO =
+    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
+const POR_PAGINA = 25;
 const MOTIVO_MINIMO = 5;
 const MOTIVO_MAXIMO = 1000;
-
-function errorDeMotivo(motivo) {
-    const texto = motivo.trim();
-
-    if (texto === '') {
-        return 'El motivo es obligatorio para inhabilitar.';
-    }
-
-    if (texto.length < MOTIVO_MINIMO) {
-        return `El motivo debe explicar la inhabilitación con al menos ${MOTIVO_MINIMO} caracteres.`;
-    }
-
-    return null;
-}
-
-const formatoFecha = new Intl.DateTimeFormat('es-BO', {
-    timeZone: 'America/La_Paz',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-});
-
-// La constancia de cuándo se registró la condición, en hora de Bolivia.
-function formatearFechaRegistro(fecha) {
-    if (!fecha) {
-        return null;
-    }
-
-    const instante = new Date(fecha);
-
-    return Number.isNaN(instante.getTime()) ? null : formatoFecha.format(instante);
-}
-
-function Habilitacion({ onNavigate }) {
-    const [examenes, setExamenes] = React.useState([]);
-    const [examenSeleccionado, setExamenSeleccionado] = React.useState('');
-    const [estudiantes, setEstudiantes] = React.useState([]);
-    const [totales, setTotales] = React.useState({ total: 0, habilitados: 0, no_habilitados: 0 });
-    const [seleccionados, setSeleccionados] = React.useState([]);
-    const [motivo, setMotivo] = React.useState('');
-    const [motivoTocado, setMotivoTocado] = React.useState(false);
-    const [cargando, setCargando] = React.useState(true);
-    const [guardando, setGuardando] = React.useState(false);
-    const [aviso, setAviso] = React.useState(null);
-
-    const cargarEstudiantes = React.useCallback(async (examenId) => {
-        if (!examenId) {
-            setEstudiantes([]);
-            setTotales({ total: 0, habilitados: 0, no_habilitados: 0 });
-            return;
-        }
-
-        setCargando(true);
-
-        try {
-            const respuesta = await window.axios.get(
-                `/api/habilitacion/examenes/${examenId}/estudiantes`
-            );
-
-            setEstudiantes(respuesta.data.data);
-            setTotales(respuesta.data.totales);
-            setSeleccionados([]);
-        } catch (error) {
-            setEstudiantes([]);
-            setTotales({ total: 0, habilitados: 0, no_habilitados: 0 });
-            setAviso({
-                tipo: 'error',
-                texto: mensajeError(error, 'No se pudo cargar el padrón para este examen.'),
-            });
-        } finally {
-            setCargando(false);
-        }
-    }, []);
-
-    React.useEffect(() => {
-        let vigente = true;
-
-        async function cargarExamenes() {
-            try {
-                const respuesta = await window.axios.get('/api/habilitacion/examenes');
-                const datos = respuesta.data.data;
-
-                if (!vigente) return;
-
-                setExamenes(datos);
-                if (datos.length > 0) {
-                    const primero = String(datos[0].id);
-                    setExamenSeleccionado(primero);
-                    cargarEstudiantes(primero);
-                } else {
-                    setCargando(false);
-                }
-            } catch (error) {
-                if (vigente) {
-                    setAviso({
-                        tipo: 'error',
-                        texto: mensajeError(error, 'No se pudieron cargar los exámenes.'),
-                    });
-                    setCargando(false);
-                }
-            }
-        }
-
-        cargarExamenes();
-
-        return () => {
-            vigente = false;
-        };
-    }, [cargarEstudiantes]);
-
-    function cambiarSeleccion(estudianteId) {
-        setSeleccionados((anteriores) =>
-            anteriores.includes(estudianteId)
-                ? anteriores.filter((id) => id !== estudianteId)
-                : [...anteriores, estudianteId]
-        );
-    }
-
-    function alternarTodos() {
-        setSeleccionados((anteriores) =>
-            anteriores.length === estudiantes.length ? [] : estudiantes.map(({ id }) => id)
-        );
-    }
-
-    async function registrar(condicion) {
-        if (seleccionados.length === 0) {
-            setAviso({ tipo: 'error', texto: 'Selecciona al menos un estudiante.' });
-            return;
-        }
-
-        if (condicion === 'NO_HABILITADO' && errorDeMotivo(motivo)) {
-            setMotivoTocado(true);
-            setAviso({ tipo: 'error', texto: errorDeMotivo(motivo) });
-            return;
-        }
-
-        setGuardando(true);
-        setAviso(null);
-
-        try {
-            await window.axios.post(
-                `/api/habilitacion/examenes/${examenSeleccionado}/condiciones`,
-                {
-                    estudiante_ids: seleccionados,
-                    condicion,
-                    motivo: condicion === 'NO_HABILITADO' ? motivo.trim() : null,
-                }
-            );
-
-            await cargarEstudiantes(examenSeleccionado);
-            setMotivo('');
-            setMotivoTocado(false);
-            setAviso({
-                tipo: 'exito',
-                texto: 'Condición registrada para los estudiantes seleccionados.',
-            });
-            // Notify other screens that habilitacion changed so they can refresh
-            try {
-                window.dispatchEvent(
-                    new CustomEvent('habilitacion:changed', {
-                        detail: { examenId: Number(examenSeleccionado) },
-                    })
-                );
-            } catch {
-                // ignore if browser doesn't support CustomEvent
-            }
-        } catch (error) {
-            setAviso({
-                tipo: 'error',
-                texto: mensajeError(error, 'No se pudo registrar la condición.'),
-            });
-        } finally {
-            setGuardando(false);
-        }
-    }
-
-    // El error se muestra mientras se escribe, no recién al enviar.
-    const avisoMotivo = motivoTocado ? errorDeMotivo(motivo) : null;
-
-    function etiquetaExamen(examen) {
-        return `${examen.asignatura_codigo} - ${examen.nombre} - ${examen.fecha}`;
-    }
-
-    return (
-        <LayoutAdmin seleccionado="habilitacion" onNavigate={onNavigate}>
-            <section className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                        <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">
-                            Habilitación
-                        </h1>
-                        <p className="mt-1 text-sm text-slate-500">
-                            Quiénes pueden rendir cada examen y por qué no los demás
-                        </p>
-                    </div>
-                    {examenSeleccionado && (
-                        <a
-                            href={`/api/habilitacion/examenes/${examenSeleccionado}/exportar`}
-                            className="inline-flex min-h-10 items-center justify-center gap-2 self-start rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                            download
-                        >
-                            <Download className="h-4 w-4" aria-hidden="true" />
-                            Exportar listado
-                        </a>
-                    )}
-                </div>
-
-                <div className="mb-5 max-w-xl">
-                    <label
-                        className="mb-1.5 block text-xs font-semibold text-slate-600"
-                        htmlFor="examen"
-                    >
-                        Examen
-                    </label>
-                    <select
-                        id="examen"
-                        className="min-h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                        value={examenSeleccionado}
-                        onChange={(evento) => {
-                            setExamenSeleccionado(evento.target.value);
-                            setAviso(null);
-                            setMotivo('');
-                            setMotivoTocado(false);
-                            cargarEstudiantes(evento.target.value);
-                        }}
-                        disabled={examenes.length === 0}
-                    >
-                        {examenes.length === 0 && (
-                            <option value="">No hay exámenes registrados</option>
-                        )}
-                        {examenes.map((examen) => (
-                            <option key={examen.id} value={examen.id}>
-                                {etiquetaExamen(examen)}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                <div className="mb-5 flex flex-wrap gap-2 text-sm">
-                    <span className="rounded-md bg-slate-100 px-3 py-2 text-slate-700">
-                        {totales.total} en el padrón
-                    </span>
-                    <span className="rounded-md bg-emerald-50 px-3 py-2 font-medium text-emerald-700">
-                        {totales.habilitados} habilitados
-                    </span>
-                    <span className="rounded-md bg-amber-50 px-3 py-2 font-medium text-amber-800">
-                        {totales.no_habilitados} sin habilitar
-                    </span>
-                </div>
-
-                <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4">
-                    <label
-                        className="mb-2 block text-xs font-semibold text-slate-600"
-                        htmlFor="motivo"
-                    >
-                        Motivo de la inhabilitación{' '}
-                        <span className="text-red-600" aria-hidden="true">
-                            *
-                        </span>
-                    </label>
-                    <textarea
-                        id="motivo"
-                        rows={2}
-                        maxLength={MOTIVO_MAXIMO}
-                        required
-                        aria-required="true"
-                        aria-invalid={avisoMotivo ? 'true' : 'false'}
-                        aria-describedby="motivo-ayuda"
-                        className={`w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-1 ${
-                            avisoMotivo
-                                ? 'border-red-400 focus:border-red-500 focus:ring-red-500'
-                                : 'border-slate-300 focus:border-blue-500 focus:ring-blue-500'
-                        }`}
-                        placeholder="Obligatorio para inhabilitar: se le dirá al estudiante en la puerta"
-                        value={motivo}
-                        onChange={(evento) => {
-                            setMotivo(evento.target.value);
-                            setMotivoTocado(true);
-                        }}
-                        onBlur={() => setMotivoTocado(true)}
-                    />
-                    <div
-                        id="motivo-ayuda"
-                        className="mb-3 mt-1 flex items-start justify-between gap-3 text-xs"
-                    >
-                        <span className={avisoMotivo ? 'text-red-600' : 'text-slate-500'}>
-                            {avisoMotivo ??
-                                'Solo se guarda al inhabilitar. Queda registrado con tu nombre y la fecha.'}
-                        </span>
-                        <span className="shrink-0 text-slate-400">
-                            {motivo.length}/{MOTIVO_MAXIMO}
-                        </span>
-                    </div>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                        <button
-                            type="button"
-                            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-                            onClick={() => registrar('HABILITADO')}
-                            disabled={guardando || cargando || seleccionados.length === 0}
-                        >
-                            <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                            Habilitar seleccionados
-                        </button>
-                        <button
-                            type="button"
-                            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-amber-600 px-4 text-sm font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
-                            onClick={() => registrar('NO_HABILITADO')}
-                            disabled={guardando || cargando || seleccionados.length === 0}
-                        >
-                            <XCircle className="h-4 w-4" aria-hidden="true" />
-                            Inhabilitar seleccionados
-                        </button>
-                    </div>
-                </div>
-
-                {aviso && (
-                    <p
-                        role="alert"
-                        className={`mb-4 rounded-md px-3 py-2 text-sm ${
-                            aviso.tipo === 'exito'
-                                ? 'bg-emerald-50 text-emerald-800'
-                                : 'bg-red-50 text-red-700'
-                        }`}
-                    >
-                        {aviso.texto}
-                    </p>
-                )}
-
-                <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-                    {cargando ? (
-                        <p className="px-4 py-8 text-center text-sm text-slate-500">
-                            Cargando padrón…
-                        </p>
-                    ) : estudiantes.length === 0 ? (
-                        <p className="px-4 py-8 text-center text-sm text-slate-500">
-                            {examenes.length === 0
-                                ? 'No hay exámenes disponibles.'
-                                : 'No hay estudiantes activos en el padrón.'}
-                        </p>
-                    ) : (
-                        <>
-                            <div className="hidden overflow-x-auto md:block">
-                                <table className="w-full min-w-[850px] border-collapse text-left">
-                                    <thead className="bg-slate-50 text-[11px] font-semibold uppercase text-slate-500">
-                                        <tr>
-                                            <th className="w-12 px-4 py-3">
-                                                <input
-                                                    type="checkbox"
-                                                    aria-label="Seleccionar todos"
-                                                    checked={
-                                                        seleccionados.length === estudiantes.length
-                                                    }
-                                                    onChange={alternarTodos}
-                                                />
-                                            </th>
-                                            <th className="px-3 py-3">Código</th>
-                                            <th className="px-3 py-3">Estudiante</th>
-                                            <th className="px-3 py-3">Documento</th>
-                                            <th className="px-3 py-3">Carrera</th>
-                                            <th className="px-3 py-3">Condición</th>
-                                            <th className="px-3 py-3">Motivo</th>
-                                            <th className="px-3 py-3">Registró</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 text-sm">
-                                        {estudiantes.map((estudiante) => (
-                                            <tr key={estudiante.id}>
-                                                <td className="px-4 py-3">
-                                                    <input
-                                                        type="checkbox"
-                                                        aria-label={`Seleccionar ${estudiante.nombre} ${estudiante.apellido}`}
-                                                        checked={seleccionados.includes(
-                                                            estudiante.id
-                                                        )}
-                                                        onChange={() =>
-                                                            cambiarSeleccion(estudiante.id)
-                                                        }
-                                                    />
-                                                </td>
-                                                <td className="px-3 py-3 font-mono text-xs">
-                                                    {estudiante.codigo_universitario ?? '—'}
-                                                </td>
-                                                <td className="px-3 py-3 font-medium text-slate-800">
-                                                    {estudiante.apellido}, {estudiante.nombre}
-                                                </td>
-                                                <td className="px-3 py-3">{estudiante.ci}</td>
-                                                <td className="px-3 py-3">
-                                                    {estudiante.carrera ?? '—'}
-                                                </td>
-                                                <td className="px-3 py-3">
-                                                    <EtiquetaCondicion
-                                                        condicion={estudiante.condicion}
-                                                    />
-                                                </td>
-                                                <td className="px-3 py-3">
-                                                    {estudiante.motivo ?? '—'}
-                                                </td>
-                                                <td className="px-3 py-3">
-                                                    <ConstanciaRegistro estudiante={estudiante} />
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div className="divide-y divide-slate-100 md:hidden">
-                                {estudiantes.map((estudiante) => (
-                                    <article key={estudiante.id} className="p-4">
-                                        <div className="flex items-start gap-3">
-                                            <input
-                                                type="checkbox"
-                                                aria-label={`Seleccionar ${estudiante.nombre} ${estudiante.apellido}`}
-                                                checked={seleccionados.includes(estudiante.id)}
-                                                onChange={() => cambiarSeleccion(estudiante.id)}
-                                                className="mt-1"
-                                            />
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                                    <h2 className="font-semibold text-slate-900">
-                                                        {estudiante.apellido}, {estudiante.nombre}
-                                                    </h2>
-                                                    <EtiquetaCondicion
-                                                        condicion={estudiante.condicion}
-                                                    />
-                                                </div>
-                                                <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                                                    <DatoEstudiante
-                                                        etiqueta="Código"
-                                                        valor={estudiante.codigo_universitario}
-                                                    />
-                                                    <DatoEstudiante
-                                                        etiqueta="Documento"
-                                                        valor={estudiante.ci}
-                                                    />
-                                                    <DatoEstudiante
-                                                        etiqueta="Carrera"
-                                                        valor={estudiante.carrera}
-                                                    />
-                                                    <DatoEstudiante
-                                                        etiqueta="Registró"
-                                                        valor={[
-                                                            estudiante.registrado_por,
-                                                            formatearFechaRegistro(
-                                                                estudiante.fecha_habilitacion
-                                                            ),
-                                                        ]
-                                                            .filter(Boolean)
-                                                            .join(' · ')}
-                                                    />
-                                                    <div className="col-span-2">
-                                                        <DatoEstudiante
-                                                            etiqueta="Motivo"
-                                                            valor={estudiante.motivo}
-                                                        />
-                                                    </div>
-                                                </dl>
-                                            </div>
-                                        </div>
-                                    </article>
-                                ))}
-                            </div>
-                        </>
-                    )}
-                </div>
-            </section>
-        </LayoutAdmin>
-    );
-}
-
-function EtiquetaCondicion({ condicion }) {
-    const habilitado = condicion === 'HABILITADO';
-
-    return (
-        <span
-            className={`inline-flex whitespace-nowrap items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                habilitado ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'
-            }`}
-        >
-            {habilitado ? (
-                <CheckCircle2 className="h-3.5 w-3.5" />
-            ) : (
-                <XCircle className="h-3.5 w-3.5" />
-            )}
-            {habilitado ? 'Habilitado' : 'No habilitado'}
-        </span>
-    );
-}
-
-EtiquetaCondicion.propTypes = {
-    condicion: PropTypes.string.isRequired,
+const CONDICION = {
+    habilitado: ['exito', 'Habilitado'],
+    no: ['advertencia', 'No habilitado'],
+    pendiente: ['neutro', 'Sin revisar'],
 };
+const SIN_FILTROS = { grupo: null, aula: null, condicion: null };
+const COLUMNAS = ['Código', 'Estudiante', 'Grupo', 'Condición', 'Aula', 'Motivo'];
 
-// Quién registró la condición y cuándo (HU-12).
-function ConstanciaRegistro({ estudiante }) {
-    const fecha = formatearFechaRegistro(estudiante.fecha_habilitacion);
+// «3 habilitados.» → «3 habilitados».
+const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
 
-    if (!estudiante.registrado_por && !fecha) {
-        return '—';
+function Condicion({ estado }) {
+    const [tono, texto] = CONDICION[estado] ?? CONDICION.pendiente;
+    return <Insignia tono={tono}>{texto}</Insignia>;
+}
+
+Condicion.propTypes = { estado: PropTypes.string };
+
+// La lista de un examen: cifras, distribución por aula, filtros, selección
+// y lotes. Se monta de nuevo con cada examen (`key`), así el cambio de
+// examen limpia la selección, los filtros, la búsqueda y el motivo.
+function ListaDelExamen({ examenId }) {
+    const ruta = `/examenes/${examenId}/habilitaciones`;
+    const lista = usarPaginaServidor({ porPagina: POR_PAGINA, filtros: SIN_FILTROS });
+    const { datos, meta, cargando, error, recargar } = usarConsulta(ruta, {
+        parametros: lista.parametros,
+    });
+    // La selección sobrevive al cambio de página: son `estudiante_id`.
+    // `todos` es «Seleccionar los N»: el lote viaja con los filtros.
+    const [seleccion, setSeleccion] = useState(() => new Set());
+    const [todos, setTodos] = useState(false);
+    const [motivo, setMotivo] = useState('');
+    const [errorMotivo, setErrorMotivo] = useState(null);
+    const [enviando, setEnviando] = useState(false);
+    const [aviso, avisar] = useAviso();
+
+    const filas = datos ?? [];
+    const total = meta?.total ?? 0;
+    const { irA } = lista;
+
+    // Tras un lote, la página a la vista puede haber dejado de existir.
+    useEffect(() => {
+        if (datos && datos.length === 0 && total > 0 && lista.pagina > 1) {
+            irA(Math.ceil(total / POR_PAGINA));
+        }
+    }, [datos, total, lista.pagina, irA]);
+
+    if (cargando || error) {
+        if (error && estadoDe(error) === 403) {
+            return (
+                <Tarjeta>
+                    <p role="alert" className="py-6 text-center text-sm text-slate-600">
+                        {sinPunto(mensajeDe(error, 'Sin permiso'))}
+                    </p>
+                </Tarjeta>
+            );
+        }
+        return (
+            <Tarjeta sinRelleno>
+                <EstadoCarga cargando={cargando} error={error} onReintentar={recargar} />
+            </Tarjeta>
+        );
     }
 
-    return (
+    const cifras = meta?.cifras ?? {};
+    const aulas = meta?.por_aula ?? [];
+    const grupos = meta?.grupos ?? [];
+    const condiciones = meta?.condiciones ?? {};
+    const { grupo, aula, condicion } = lista.filtros;
+
+    const idsPagina = filas.map((e) => e.estudiante_id);
+    const marcado = (id) => todos || seleccion.has(id);
+    const paginaMarcada = filas.length > 0 && idsPagina.every(marcado);
+    const cantidad = todos ? total : seleccion.size;
+    const motivoCorto = motivo.trim().length < MOTIVO_MINIMO;
+
+    const filtrar = (clave, valor) => {
+        setTodos(false);
+        lista.ponerFiltro(clave, valor);
+    };
+    const buscar = (texto) => {
+        setTodos(false);
+        lista.ponerBuscar(texto);
+    };
+    const alternar = (id) => {
+        const despues = new Set(seleccion);
+        if (todos) {
+            idsPagina.forEach((i) => despues.add(i));
+            despues.delete(id);
+        } else if (despues.has(id)) {
+            despues.delete(id);
+        } else {
+            despues.add(id);
+        }
+        setTodos(false);
+        setSeleccion(despues);
+    };
+    const alternarPagina = () => {
+        const despues = new Set(seleccion);
+        idsPagina.forEach((i) => (paginaMarcada ? despues.delete(i) : despues.add(i)));
+        setTodos(false);
+        setSeleccion(despues);
+    };
+    const quitar = () => {
+        setTodos(false);
+        setSeleccion(new Set());
+    };
+    const cerrarSeleccion = () => {
+        quitar();
+        setMotivo('');
+        setErrorMotivo(null);
+    };
+
+    const rechazo = (fallo, porDefecto) => {
+        const campo = erroresDe(fallo).motivo;
+        if (campo) {
+            setErrorMotivo(campo);
+            return;
+        }
+        if (codigoDe(fallo) === 'SIN_AULAS') {
+            avisar('Sin aulas', 'error');
+            return;
+        }
+        avisar(sinPunto(mensajeDe(fallo, porDefecto)), 'error');
+    };
+
+    const cambiar = async (habilitado) => {
+        if (enviando || cantidad === 0) return;
+        const cuerpo = {
+            habilitado,
+            ...(habilitado ? {} : { motivo: motivo.trim() }),
+            ...(todos
+                ? { todos: true, filtros: lista.filtrosVigentes }
+                : { estudiantes: [...seleccion] }),
+        };
+        setEnviando(true);
+        try {
+            const { data } = await api.post(ruta, cuerpo);
+            avisar(
+                data?.afectados !== undefined
+                    ? plural(data.afectados, habilitado ? 'habilitado' : 'inhabilitado')
+                    : sinPunto(data?.message)
+            );
+            cerrarSeleccion();
+            await recargar();
+        } catch (fallo) {
+            rechazo(fallo, 'No se pudo guardar');
+        } finally {
+            setEnviando(false);
+        }
+    };
+    const inhabilitar = () => {
+        if (motivoCorto) {
+            setErrorMotivo(`Mínimo ${MOTIVO_MINIMO} caracteres`);
+            return;
+        }
+        cambiar(false);
+    };
+    const repartir = async () => {
+        if (enviando) return;
+        setEnviando(true);
+        try {
+            const { data } = await api.post(`/examenes/${examenId}/reparto`);
+            avisar(sinPunto(data?.message) || 'Sin estudiantes por repartir');
+            await recargar();
+        } catch (fallo) {
+            rechazo(fallo, 'No se pudo repartir');
+        } finally {
+            setEnviando(false);
+        }
+    };
+
+    const casilla = (e) => (
+        <label className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center">
+            <input
+                type="checkbox"
+                className="h-4 w-4"
+                aria-label={`Seleccionar a ${e.nombre}`}
+                checked={marcado(e.estudiante_id)}
+                onChange={() => alternar(e.estudiante_id)}
+            />
+        </label>
+    );
+    // «25 seleccionados» y, si hay más páginas, el atajo a todo lo filtrado.
+    const resumenSeleccion = (
         <>
-            <span className="block text-slate-800">{estudiante.registrado_por ?? '—'}</span>
-            {fecha && <span className="block text-xs text-slate-500">{fecha}</span>}
+            <span className="text-sm font-medium text-slate-700">
+                {plural(cantidad, 'seleccionado')}
+            </span>
+            {!todos && total > filas.length && (
+                <Boton variante="enlace" tamano="chico" onClick={() => setTodos(true)}>
+                    Seleccionar los {total}
+                </Boton>
+            )}
+            <Boton variante="enlace" tamano="chico" onClick={quitar}>
+                Quitar
+            </Boton>
         </>
     );
-}
 
-ConstanciaRegistro.propTypes = {
-    estudiante: PropTypes.shape({
-        registrado_por: PropTypes.string,
-        fecha_habilitacion: PropTypes.string,
-    }).isRequired,
-};
-
-function DatoEstudiante({ etiqueta, valor }) {
     return (
-        <div className="min-w-0">
-            <dt className="font-semibold text-slate-500">{etiqueta}</dt>
-            <dd className="mt-0.5 break-words text-slate-800">{valor || '—'}</dd>
+        <div className={`space-y-6 ${cantidad > 0 ? 'max-md:pb-64' : ''}`}>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <Dato
+                    etiqueta={`Inscritos · ${plural(grupos.length, 'grupo')}`}
+                    valor={cifras.inscritos ?? 0}
+                />
+                <Dato etiqueta="Habilitados" valor={cifras.habilitados ?? 0} tono="exito" />
+                <Dato
+                    etiqueta="No habilitados"
+                    valor={cifras.no_habilitados ?? 0}
+                    tono={cifras.no_habilitados ? 'advertencia' : 'neutro'}
+                />
+                <Dato etiqueta="Sin revisar" valor={cifras.sin_revisar ?? 0} />
+            </div>
+
+            <Tarjeta
+                titulo={
+                    aulas.length > 0
+                        ? `Distribución por aula · ${aulas.length}`
+                        : 'Distribución por aula'
+                }
+                acciones={
+                    <>
+                        {cifras.sin_aula > 0 && (
+                            <Insignia tono="advertencia">{cifras.sin_aula} sin aula</Insignia>
+                        )}
+                        <Boton
+                            variante="secundario"
+                            disabled={aulas.length === 0 || enviando}
+                            onClick={repartir}
+                        >
+                            <Shuffle className="h-4 w-4" /> Repartir
+                        </Boton>
+                    </>
+                }
+            >
+                {aulas.length > 0 ? (
+                    <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+                        {aulas.map((a) => {
+                            const activo = aula === a.aula_id;
+                            return (
+                                <li key={a.aula_id} className="min-w-0">
+                                    <button
+                                        type="button"
+                                        aria-pressed={activo}
+                                        aria-label={`Aula ${a.nombre}, ${plural(a.asignados, 'estudiante')}`}
+                                        onClick={() => filtrar('aula', activo ? null : a.aula_id)}
+                                        className={`flex w-full min-w-0 items-baseline justify-between gap-2 rounded-lg border px-3 py-2 text-left ${FOCO} ${activo ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-500/30' : 'border-slate-200 hover:bg-slate-50'}`}
+                                    >
+                                        <span className="min-w-0 truncate text-sm font-semibold text-slate-800">
+                                            {a.nombre}
+                                        </span>
+                                        <span className="shrink-0 text-sm tabular-nums text-slate-600">
+                                            {a.asignados}
+                                        </span>
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                ) : (
+                    <p className="py-4 text-center text-sm text-slate-600">Sin aulas</p>
+                )}
+            </Tarjeta>
+
+            <Tarjeta titulo="Lista del examen" sinRelleno>
+                <div className="space-y-3 p-4 sm:px-5">
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-[11rem_11rem_1fr]">
+                        <Seleccion
+                            aria-label="Grupo"
+                            className="min-w-0"
+                            value={grupo ?? ''}
+                            onChange={(e) => filtrar('grupo', Number(e.target.value) || null)}
+                        >
+                            <option value="">Todos los grupos</option>
+                            {grupos.map((g) => (
+                                <option key={g.id} value={g.id}>
+                                    Grupo {g.codigo}
+                                    {g.propio ? ' · Grupo propio' : ''}
+                                </option>
+                            ))}
+                        </Seleccion>
+                        <Seleccion
+                            aria-label="Aula"
+                            className="min-w-0"
+                            value={aula ?? ''}
+                            disabled={aulas.length === 0}
+                            onChange={(e) => filtrar('aula', Number(e.target.value) || null)}
+                        >
+                            <option value="">Todas las aulas</option>
+                            {aulas.map((a) => (
+                                <option key={a.aula_id} value={a.aula_id}>
+                                    Aula {a.nombre}
+                                </option>
+                            ))}
+                        </Seleccion>
+                        <Buscador
+                            valor={lista.buscar}
+                            onCambiar={buscar}
+                            placeholder="Nombre, código o documento"
+                            etiqueta="Buscar estudiante"
+                            className="col-span-2 md:col-span-1"
+                        />
+                    </div>
+                    <Chips
+                        etiqueta="Condición"
+                        valor={condicion}
+                        onCambiar={(valor) => filtrar('condicion', valor)}
+                        opciones={[
+                            { valor: null, etiqueta: 'Todos', conteo: condiciones.todos ?? 0 },
+                            {
+                                valor: 'habilitado',
+                                etiqueta: 'Habilitados',
+                                conteo: condiciones.habilitado ?? 0,
+                            },
+                            {
+                                valor: 'no',
+                                etiqueta: 'No habilitados',
+                                conteo: condiciones.no ?? 0,
+                            },
+                            {
+                                valor: 'pendiente',
+                                etiqueta: 'Sin revisar',
+                                conteo: condiciones.pendiente ?? 0,
+                            },
+                        ]}
+                    />
+                </div>
+
+                {cantidad > 0 && (
+                    <div
+                        data-testid="panel-seleccion"
+                        className="border-t border-slate-200 bg-slate-50 p-4 max-md:fixed max-md:inset-x-0 max-md:bottom-[calc(4.5rem+env(safe-area-inset-bottom))] max-md:z-10 max-md:bg-white max-md:shadow-[0_-4px_12px_rgba(15,23,42,0.12)] sm:px-5"
+                    >
+                        <div className="mb-2 flex flex-wrap items-center gap-x-2 md:hidden">
+                            {resumenSeleccion}
+                        </div>
+                        <AreaTexto
+                            etiqueta="Motivo de la inhabilitación"
+                            requerido
+                            rows={2}
+                            maxLength={MOTIVO_MAXIMO}
+                            value={motivo}
+                            error={errorMotivo}
+                            pie={`${motivo.length}/${MOTIVO_MAXIMO}`}
+                            onChange={(e) => {
+                                const texto = e.target.value;
+                                setMotivo(texto);
+                                setErrorMotivo(
+                                    texto.trim().length < MOTIVO_MINIMO
+                                        ? `Mínimo ${MOTIVO_MINIMO} caracteres`
+                                        : null
+                                );
+                            }}
+                        />
+                        <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                            <div className="mr-auto hidden flex-wrap items-center gap-x-2 md:flex">
+                                {resumenSeleccion}
+                            </div>
+                            <Boton
+                                variante="peligroContorno"
+                                className="max-md:flex-1"
+                                disabled={enviando}
+                                onClick={inhabilitar}
+                            >
+                                <XCircle className="h-4 w-4" /> Inhabilitar
+                            </Boton>
+                            <Boton
+                                className="max-md:flex-1"
+                                disabled={enviando}
+                                onClick={() => cambiar(true)}
+                            >
+                                <CheckCircle2 className="h-4 w-4" /> Habilitar
+                            </Boton>
+                        </div>
+                    </div>
+                )}
+
+                {filas.length === 0 ? (
+                    <p className="border-t border-slate-200 py-10 text-center text-sm text-slate-600">
+                        {(cifras.inscritos ?? 0) === 0 ? 'Sin estudiantes' : 'Sin resultados'}
+                    </p>
+                ) : (
+                    <>
+                        <div className="border-t border-slate-200 md:hidden">
+                            <label className="flex min-h-11 cursor-pointer items-center gap-1 bg-slate-50 pr-4 text-xs font-medium uppercase tracking-wide text-slate-600">
+                                <span className="flex min-h-11 min-w-11 items-center justify-center">
+                                    <input
+                                        type="checkbox"
+                                        className="h-4 w-4"
+                                        checked={paginaMarcada}
+                                        onChange={alternarPagina}
+                                    />
+                                </span>
+                                Seleccionar la página
+                            </label>
+                            <ul className="divide-y divide-slate-200">
+                                {filas.map((e) => (
+                                    <li
+                                        key={e.estudiante_id}
+                                        className="flex items-start gap-1 py-2 pr-4"
+                                    >
+                                        {casilla(e)}
+                                        <div className="min-w-0 flex-1 py-1">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <p className="min-w-0 break-words text-sm font-medium text-slate-800">
+                                                    {e.nombre}
+                                                </p>
+                                                <Condicion estado={e.estado} />
+                                            </div>
+                                            <p className="text-xs text-slate-600">
+                                                <span className="font-mono">{e.codigo}</span> ·
+                                                Grupo {e.grupo}
+                                                {e.aula ? ` · Aula ${e.aula}` : ''}
+                                            </p>
+                                            {e.motivo && (
+                                                <p className="mt-1 break-words text-xs text-slate-700">
+                                                    {e.motivo}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        <div className="hidden overflow-x-auto border-t border-slate-200 md:block">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-600">
+                                    <tr>
+                                        <th scope="col" className="w-11 pl-2">
+                                            <label className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center">
+                                                <input
+                                                    type="checkbox"
+                                                    className="h-4 w-4"
+                                                    aria-label="Seleccionar la página"
+                                                    checked={paginaMarcada}
+                                                    onChange={alternarPagina}
+                                                />
+                                            </label>
+                                        </th>
+                                        {COLUMNAS.map((t) => (
+                                            <th
+                                                key={t}
+                                                scope="col"
+                                                className="px-3 py-3 font-medium"
+                                            >
+                                                {t}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200">
+                                    {filas.map((e) => (
+                                        <tr
+                                            key={e.estudiante_id}
+                                            className={
+                                                marcado(e.estudiante_id)
+                                                    ? 'bg-primary-50'
+                                                    : 'hover:bg-slate-50'
+                                            }
+                                        >
+                                            <td className="pl-2">{casilla(e)}</td>
+                                            <td className="px-3 py-2 font-mono text-xs text-slate-700">
+                                                {e.codigo}
+                                            </td>
+                                            <td className="px-3 py-2 font-medium text-slate-800">
+                                                {e.nombre}
+                                            </td>
+                                            <td className="px-3 py-2 text-slate-700">{e.grupo}</td>
+                                            <td className="px-3 py-2">
+                                                <Condicion estado={e.estado} />
+                                            </td>
+                                            <td className="px-3 py-2 text-slate-700">
+                                                {e.aula ?? '—'}
+                                            </td>
+                                            <td className="px-3 py-2 text-slate-600">
+                                                {e.motivo ?? '—'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <Paginacion
+                            {...lista.paginacion(meta)}
+                            unidad={['estudiante', 'estudiantes']}
+                            className="border-t border-slate-200 sm:px-5"
+                        />
+                    </>
+                )}
+            </Tarjeta>
+            {aviso}
         </div>
     );
 }
 
-DatoEstudiante.propTypes = {
-    etiqueta: PropTypes.string.isRequired,
-    valor: PropTypes.string,
-};
+ListaDelExamen.propTypes = { examenId: PropTypes.number.isRequired };
 
-DatoEstudiante.defaultProps = {
-    valor: null,
-};
+// Habilitación y distribución del examen elegido (`?examen=`).
+export default function Habilitacion() {
+    const { datos, cargando, error, recargar } = usarConsulta('/examenes');
+    const examenes = datos ?? [];
+    const [examen, elegir] = usarExamen(examenes);
 
-Habilitacion.propTypes = {
-    onNavigate: PropTypes.func,
-};
-
-Habilitacion.defaultProps = {
-    onNavigate: undefined,
-};
-
-export default Habilitacion;
+    return (
+        <div className="space-y-6">
+            <Encabezado
+                titulo="Habilitación"
+                subtitulo={
+                    examen
+                        ? `${examen.tipo_texto ?? examen.tipo} · ${examen.asignatura?.nombre ?? ''}`
+                        : undefined
+                }
+                volver={{ a: '/examenes', texto: 'Exámenes' }}
+            />
+            {examen ? (
+                <>
+                    <SelectorExamen valor={examen.id} onCambiar={elegir} examenes={examenes} />
+                    <ListaDelExamen key={examen.id} examenId={examen.id} />
+                </>
+            ) : (
+                <Tarjeta sinRelleno>
+                    <EstadoCarga
+                        cargando={cargando}
+                        error={error}
+                        vacio
+                        textoVacio="Sin exámenes"
+                        onReintentar={recargar}
+                    />
+                </Tarjeta>
+            )}
+        </div>
+    );
+}
