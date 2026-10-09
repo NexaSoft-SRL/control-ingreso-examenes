@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { VISTAS, destinoDe, entradaDe, vistaDeRuta, vistasDe } from './vistas';
-import { PERMISOS, usuarioDePrueba } from '../test/apoyo';
+import { CATALOGO_PERMISOS, usuarioDePrueba } from '../test/apoyo';
 
 const rutas = (usuario) => vistasDe(usuario).map((v) => v.ruta);
 
@@ -21,7 +21,7 @@ describe('vistas por permiso', () => {
     });
 
     it('cada permiso de una vista existe en el catálogo', () => {
-        VISTAS.forEach((v) => expect(PERMISOS.Administrador, v.ruta).toContain(v.permiso));
+        VISTAS.forEach((v) => expect(CATALOGO_PERMISOS, v.ruta).toContain(v.permiso));
     });
 
     it('cada rol de inicio entra por su pantalla', () => {
@@ -31,7 +31,17 @@ describe('vistas por permiso', () => {
     });
 
     it('da las vistas de los permisos de la cuenta', () => {
-        expect(rutas(usuarioDePrueba('Administrador'))).toEqual(VISTAS.map((v) => v.ruta));
+        expect(rutas(usuarioDePrueba('Administrador'))).toEqual([
+            '/periodo',
+            '/aulas',
+            '/docentes',
+            '/estudiantes',
+            '/admin',
+            '/bitacora',
+        ]);
+        expect(rutas(usuarioDePrueba('Administrador', { permisos: CATALOGO_PERMISOS }))).toEqual(
+            VISTAS.map((v) => v.ruta)
+        );
         expect(rutas(usuarioDePrueba('Docente'))).toEqual([
             '/examenes',
             '/examenes/nuevo',

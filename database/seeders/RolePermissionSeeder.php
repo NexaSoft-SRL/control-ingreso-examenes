@@ -41,20 +41,14 @@ class RolePermissionSeeder extends Seeder
      * @var array<string, list<string>>
      */
     public const POR_ROL = [
-        // Tiene todas las pantallas: con una sola cuenta se puede recorrer
-        // el sistema completo. Desde la matriz se le pueden quitar.
+        // Prepara los datos y administra el sistema. Las pantallas de
+        // docencia no le sirven: muestran solo lo propio de quien entra.
+        // Desde la matriz se le pueden marcar.
         'Administrador' => [
             'periodo_oferta',
             'aulas_docentes',
             'padron_estudiantes',
-            'mis_grupos',
-            'examenes',
-            'habilitacion',
-            'codigos_qr',
-            'punto_control',
-            'seguimiento_vivo',
             'reportes_universidad',
-            'reportes_examenes',
             'usuarios_roles',
             'bitacora',
             'respaldo_restauracion',

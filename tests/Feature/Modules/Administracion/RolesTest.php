@@ -344,7 +344,7 @@ final class RolesTest extends TestCase
                 'errors' => ['permisos' => ['No puedes quitar «Usuarios y roles» a tu propio rol.']],
             ]);
 
-        $this->assertSame(14, DB::table('permission_role')->where('role_id', $administrador)->count());
+        $this->assertSame(7, DB::table('permission_role')->where('role_id', $administrador)->count());
         $this->assertDatabaseCount('bitacora_operaciones', 0);
 
         // Conservandolo, si puede recortar su propio rol.

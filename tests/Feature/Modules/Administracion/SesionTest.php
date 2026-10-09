@@ -56,7 +56,7 @@ final class SesionTest extends TestCase
             ]);
     }
 
-    public function test_an_administrator_has_every_permission_and_no_teacher(): void
+    public function test_an_administrator_has_its_starting_permissions_and_no_teacher(): void
     {
         $cuenta = $this->usuarioConRol('Administrador', [
             'usuario' => 'administracion.academica',
@@ -69,8 +69,16 @@ final class SesionTest extends TestCase
             ->assertJsonPath('user.rol', 'Administrador')
             ->assertJsonPath('user.correo', 'admin@umss.edu.bo')
             ->assertJsonPath('user.docente_id', null)
-            // En el orden del catalogo.
-            ->assertJsonPath('user.permisos', array_keys(RolePermissionSeeder::PERMISOS));
+            // En el orden del catalogo; sin las pantallas de docencia.
+            ->assertJsonPath('user.permisos', [
+                'periodo_oferta',
+                'aulas_docentes',
+                'padron_estudiantes',
+                'reportes_universidad',
+                'usuarios_roles',
+                'bitacora',
+                'respaldo_restauracion',
+            ]);
     }
 
     public function test_an_assistant_only_gets_the_control_point_and_the_live_view(): void

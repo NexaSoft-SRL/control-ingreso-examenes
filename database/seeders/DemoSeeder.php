@@ -33,7 +33,7 @@ use stdClass;
  *
  * Cuentas (el acceso es por correo):
  *
- *   admin@umss.edu.bo            / Admin12345        Administrador (todas las pantallas).
+ *   admin@umss.edu.bo            / Admin12345        Administrador (preparación y sistema).
  *   leticia.blanco@umss.edu.bo   / Docente12345      Docente, carga normal: Blanco Coca Leticia.
  *                                                    Sus datos de ejemplo estan en 2 asignaturas
  *                                                    (Introduccion a la Programacion y Taller de

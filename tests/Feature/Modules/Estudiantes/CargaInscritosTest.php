@@ -525,7 +525,7 @@ final class CargaInscritosTest extends TestCase
             ->assertJsonPath('permiso_requerido', 'mis_grupos');
     }
 
-    public function test_the_administrator_has_the_permission_but_the_group_is_not_theirs(): void
+    public function test_the_administrator_does_not_have_the_permission_of_the_teacher_groups(): void
     {
         $grupo = $this->grupo($this->docente());
 
@@ -534,7 +534,7 @@ final class CargaInscritosTest extends TestCase
                 'archivo' => $this->csv(['202104821,7928194,Kevin René,Alvarado Claros']),
             ])
             ->assertForbidden()
-            ->assertJsonPath('alcance', true);
+            ->assertJsonPath('permiso_requerido', 'mis_grupos');
 
         $this->assertDatabaseCount('cargas_inscritos', 0);
     }
