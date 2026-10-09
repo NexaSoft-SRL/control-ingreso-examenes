@@ -544,8 +544,8 @@ describe('Mis grupos · grupo sin lista', () => {
     it('muestra el 422 del formulario del servidor', async () => {
         await abrirSinLista({
             carga: errorHttp(422, {
-                message: 'El archivo no puede superar los 10 MB.',
-                errors: { archivo: ['El archivo no puede superar los 10 MB.'] },
+                message: 'El archivo no puede superar los 7 MB.',
+                errors: { archivo: ['El archivo no puede superar los 7 MB.'] },
             }),
         });
 
@@ -553,7 +553,7 @@ describe('Mis grupos · grupo sin lista', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Cargar lista' }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent(
-            'El archivo no puede superar los 10 MB.'
+            'El archivo no puede superar los 7 MB.'
         );
     });
 

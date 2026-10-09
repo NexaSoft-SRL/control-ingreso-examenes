@@ -21,7 +21,8 @@ const TITULOS = {
 };
 
 const EXTENSIONES = ['csv', 'xlsx'];
-const MAXIMO_BYTES = 10 * 1024 * 1024;
+// El servidor admite envíos de hasta 8 MB en total; el archivo, hasta 7 MB.
+const MAXIMO_BYTES = 7 * 1024 * 1024;
 
 const columna = (nombre) => COLUMNAS[nombre] ?? nombre;
 
@@ -31,7 +32,7 @@ function reparoDe(archivo) {
     if (!archivo) return 'El archivo es obligatorio.';
     const extension = archivo.name.includes('.') ? archivo.name.split('.').pop().toLowerCase() : '';
     if (!EXTENSIONES.includes(extension)) return 'El archivo debe ser .csv o .xlsx.';
-    if (archivo.size > MAXIMO_BYTES) return 'El archivo no puede superar los 10 MB.';
+    if (archivo.size > MAXIMO_BYTES) return 'El archivo no puede superar los 7 MB.';
     return null;
 }
 

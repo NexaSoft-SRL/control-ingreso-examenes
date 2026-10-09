@@ -667,9 +667,9 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
         servidor({
             rutas: {
                 'POST /estudiantes/cargas': errorHttp(422, {
-                    message: 'El archivo no puede superar los 10 MB. (y 1 error más)',
+                    message: 'El archivo no puede superar los 7 MB. (y 1 error más)',
                     errors: {
-                        archivo: ['El archivo no puede superar los 10 MB.'],
+                        archivo: ['El archivo no puede superar los 7 MB.'],
                         facultad: ['La facultad no existe.'],
                     },
                 }),
@@ -683,7 +683,7 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
         fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar' }));
 
         expect(
-            await within(dialogo).findByText('El archivo no puede superar los 10 MB')
+            await within(dialogo).findByText('El archivo no puede superar los 7 MB')
         ).toBeInTheDocument();
         expect(within(dialogo).getByText('La facultad no existe')).toBeInTheDocument();
         expect(within(dialogo).queryByRole('alert')).not.toBeInTheDocument();

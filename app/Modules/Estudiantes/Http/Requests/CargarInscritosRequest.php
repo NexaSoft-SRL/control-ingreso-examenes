@@ -13,6 +13,13 @@ use Illuminate\Http\UploadedFile;
  */
 final class CargarInscritosRequest extends FormRequest
 {
+    /**
+     * El servidor de destino admite envios de hasta 8 MB en total
+     * (`post_max_size`): el archivo se limita a 7 MB para dejar margen al
+     * resto del formulario.
+     */
+    private const MAXIMO_KB = 7168;
+
     public function authorize(): bool
     {
         return true;
@@ -24,7 +31,7 @@ final class CargarInscritosRequest extends FormRequest
     public function rules(): array
     {
         $reglas = [
-            'archivo' => ['required', 'file', 'extensions:csv,xlsx', 'max:10240'],
+            'archivo' => ['required', 'file', 'extensions:csv,xlsx', 'max:'.self::MAXIMO_KB],
         ];
 
         if ($this->routeIs('estudiantes.cargas.store')) {
@@ -44,7 +51,7 @@ final class CargarInscritosRequest extends FormRequest
             'archivo.file' => 'El archivo no se pudo recibir.',
             'archivo.uploaded' => 'El archivo no se pudo recibir.',
             'archivo.extensions' => 'El archivo debe ser .csv o .xlsx.',
-            'archivo.max' => 'El archivo no puede superar los 10 MB.',
+            'archivo.max' => 'El archivo no puede superar los 7 MB.',
             'facultad.required' => 'La facultad es obligatoria.',
             'facultad.string' => 'La facultad no es válida.',
             'facultad.max' => 'La facultad no es válida.',
