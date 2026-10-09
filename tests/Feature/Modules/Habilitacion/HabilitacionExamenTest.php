@@ -124,10 +124,42 @@ final class HabilitacionExamenTest extends TestCase
                 'estado' => 'habilitado',
                 'aula' => '691B',
                 'motivo' => null,
+                'registrada_por' => null,
+                'registrada_el' => null,
             ])
             ->assertJsonPath('data.1.estado', 'no')
             ->assertJsonPath('data.1.aula', null)
             ->assertJsonPath('data.1.motivo', 'Adeuda la matrícula');
+    }
+
+    public function test_a_disabled_row_says_who_registered_it_and_when(): void
+    {
+        $grupo = $this->grupo($this->docente);
+        [$uno, $dos] = $this->estudiantesInscritos($grupo, 2);
+        $uno->update(['apellidos' => 'Aguilar', 'nombres' => 'Ana']);
+        $dos->update(['apellidos' => 'Zurita', 'nombres' => 'Omar']);
+        $examen = $this->examen($this->docente, [$grupo]);
+
+        $this->actingAs($this->cuenta)
+            ->postJson("/api/examenes/{$examen->id}/habilitaciones", [
+                'habilitado' => false,
+                'motivo' => 'Adeuda la matrícula',
+                'estudiantes' => [$uno->id],
+            ])
+            ->assertOk();
+
+        $respuesta = $this->actingAs($this->cuenta)
+            ->getJson("/api/examenes/{$examen->id}/habilitaciones")
+            ->assertOk()
+            ->assertJsonPath('data.0.registrada_por', $this->cuenta->nombre)
+            // Quien sigue sin revisar no tiene autor.
+            ->assertJsonPath('data.1.registrada_por', null)
+            ->assertJsonPath('data.1.registrada_el', null);
+
+        $momento = $respuesta->json('data.0.registrada_el');
+
+        $this->assertIsString($momento);
+        $this->assertMatchesRegularExpression('/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$/', $momento);
     }
 
     public function test_the_list_is_ordered_by_surnames_and_names(): void

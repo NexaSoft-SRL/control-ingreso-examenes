@@ -18,12 +18,15 @@ import Seleccion, { AreaTexto } from '../../componentes/Seleccion';
 import SelectorExamen from '../../componentes/SelectorExamen';
 import Tarjeta from '../../componentes/Tarjeta';
 import usarExamen from '../../componentes/usarExamen';
-import { plural } from '../../utiles/texto';
+import { fechaCorta, plural } from '../../utiles/texto';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
 const POR_PAGINA = 25;
 const MOTIVO_MINIMO = 5;
+
+// Quién registró la inhabilitación y cuándo: «Blanco Coca Leticia · 9 oct 2026, 14:05».
+const autoria = (e) => [e.registrada_por, fechaCorta(e.registrada_el)].filter(Boolean).join(' · ');
 const MOTIVO_MAXIMO = 1000;
 const CONDICION = {
     habilitado: ['exito', 'Habilitado'],
@@ -446,6 +449,11 @@ function ListaDelExamen({ examenId }) {
                                                     {e.motivo}
                                                 </p>
                                             )}
+                                            {autoria(e) && (
+                                                <p className="text-xs text-slate-500">
+                                                    {autoria(e)}
+                                                </p>
+                                            )}
                                         </div>
                                     </li>
                                 ))}
@@ -504,6 +512,11 @@ function ListaDelExamen({ examenId }) {
                                             </td>
                                             <td className="px-3 py-2 text-slate-600">
                                                 {e.motivo ?? '—'}
+                                                {autoria(e) && (
+                                                    <span className="block text-xs text-slate-500">
+                                                        {autoria(e)}
+                                                    </span>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

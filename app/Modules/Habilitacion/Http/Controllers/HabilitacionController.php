@@ -61,6 +61,8 @@ final class HabilitacionController
                     'estado' => $inscrito->estado,
                     'aula' => $inscrito->aula,
                     'motivo' => $inscrito->motivo,
+                    'registrada_por' => $inscrito->registradaPor,
+                    'registrada_el' => $inscrito->registradaEl,
                 ],
                 $listado->filas,
             ),
