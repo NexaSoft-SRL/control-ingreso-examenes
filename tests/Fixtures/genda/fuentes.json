@@ -1,0 +1,29 @@
+{
+ "calendarios_academicos": [
+  {
+   "facultad": "FCE",
+   "periodo": "2/2026",
+   "comprobado": false
+  },
+  {
+   "facultad": "FCYT",
+   "periodo": "2/2026",
+   "fechas_leidas": {
+    "inicio": "2026-08-10",
+    "fin": "2026-12-26",
+    "primeros_parciales": [
+     "2026-10-12",
+     "2026-10-31"
+    ]
+   }
+  },
+  {
+   "facultad": "FCYT",
+   "periodo": "1/2026",
+   "fechas_leidas": {
+    "inicio": "2026-02-23",
+    "fin": "2026-07-04"
+   }
+  }
+ ]
+}

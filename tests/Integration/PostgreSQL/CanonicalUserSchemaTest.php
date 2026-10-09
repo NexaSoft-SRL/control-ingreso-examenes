@@ -72,11 +72,19 @@ final class CanonicalUserSchemaTest extends TestCase
 
         $this->assertSame(
             [
-                'asignaciones_ambiente.usuario_id',
                 'bitacora_operaciones.usuario_id',
+                'cargas_inscritos.cargada_por',
+                'conflictos_padron.reportado_por',
+                'conflictos_padron.resuelto_por',
                 'docentes.user_id',
-                'habilitaciones_examen.usuario_id',
+                'examenes.creado_por',
+                'habilitaciones.registrada_por',
+                'importaciones_oferta.ejecutada_por',
+                'ingresos.registrado_por',
+                'inscripciones.cargada_por',
                 'login_attempts.user_id',
+                'periodos.ajustado_por',
+                'plantillas_norma.usuario_id',
             ],
             $actual
         );
@@ -90,9 +98,11 @@ final class CanonicalUserSchemaTest extends TestCase
             Schema::hasColumn('usuarios', 'role_id')
         );
 
-        $this->assertTrue(
-            Schema::hasColumn('asignaturas', 'carrera_id')
-        );
+        foreach (['usuario', 'password_changed_at', 'password_temporal_expira_en'] as $columna) {
+            $this->assertTrue(
+                Schema::hasColumn('usuarios', $columna)
+            );
+        }
 
         $columnObject = DB::table(
             'information_schema.columns'

@@ -4,151 +4,170 @@ declare(strict_types=1);
 
 namespace App\Modules\Habilitacion\Http\Controllers;
 
-use App\Modules\Habilitacion\Application\Actions\GestionarHabilitacion;
-use App\Modules\Habilitacion\Application\DTOs\EstudianteHabilitacionData;
-use App\Modules\Habilitacion\Application\DTOs\ExamenHabilitacionData;
-use App\Modules\Habilitacion\Http\Requests\RegistrarCondicionesRequest;
-use DateTimeImmutable;
-use DateTimeZone;
+use App\Modules\Habilitacion\Application\Actions\CambiarHabilitacion;
+use App\Modules\Habilitacion\Application\Contracts\HabilitacionGateway;
+use App\Modules\Habilitacion\Application\DTOs\AulaRepartoData;
+use App\Modules\Habilitacion\Application\DTOs\CifrasHabilitacionData;
+use App\Modules\Habilitacion\Application\DTOs\GrupoDeExamenData;
+use App\Modules\Habilitacion\Application\DTOs\InscritoData;
+use App\Modules\Habilitacion\Application\Queries\ListarHabilitacion;
+use App\Modules\Habilitacion\Domain\Exceptions\EstudianteConIngresoException;
+use App\Modules\Habilitacion\Domain\Exceptions\EstudianteNoInscritoException;
+use App\Modules\Habilitacion\Domain\Exceptions\ExamenAjenoException;
+use App\Modules\Habilitacion\Http\Requests\CambiarHabilitacionRequest;
+use App\Modules\Habilitacion\Http\Requests\ListarHabilitacionRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
-use LogicException;
-use Symfony\Component\HttpFoundation\Response;
 
 final class HabilitacionController
 {
-    public function examenes(GestionarHabilitacion $gestionar): JsonResponse
-    {
-        $data = array_map(
-            static fn (ExamenHabilitacionData $examen): array => $examen->toArray(),
-            $gestionar->listarExamenes(),
-        );
-
-        return response()->json(['data' => $data]);
-    }
-
-    public function estudiantes(int $examen, GestionarHabilitacion $gestionar): JsonResponse
-    {
-        $this->asegurarExamenExiste($examen, $gestionar);
-
-        $estudiantes = $gestionar->listarEstudiantes($examen);
-        $habilitados = count(array_filter(
-            $estudiantes,
-            static fn (EstudianteHabilitacionData $estudiante): bool => $estudiante->condicion === 'HABILITADO',
-        ));
-
-        return response()->json([
-            'data' => array_map(
-                static fn (EstudianteHabilitacionData $estudiante): array => $estudiante->toArray(),
-                $estudiantes,
-            ),
-            'totales' => [
-                'total' => count($estudiantes),
-                'habilitados' => $habilitados,
-                'no_habilitados' => count($estudiantes) - $habilitados,
-            ],
-        ]);
-    }
-
-    public function registrarCondiciones(
-        RegistrarCondicionesRequest $request,
+    public function index(
+        ListarHabilitacionRequest $request,
         int $examen,
-        GestionarHabilitacion $gestionar,
+        ListarHabilitacion $listar,
+        HabilitacionGateway $habilitaciones,
     ): JsonResponse {
-        $this->asegurarExamenExiste($examen, $gestionar);
-        $datos = $request->toData();
-        $gestionar->registrarCondiciones(
-            $examen,
-            $datos['estudiante_ids'],
-            $datos['condicion'],
-            $datos['motivo'],
-            $this->authenticatedUserId(),
-        );
+        $usuarioId = Auth::id();
 
-        $estudiantes = $gestionar->listarEstudiantes($examen);
-        $habilitados = count(array_filter(
-            $estudiantes,
-            static fn (EstudianteHabilitacionData $estudiante): bool => $estudiante->condicion === 'HABILITADO',
-        ));
+        if (! is_int($usuarioId)) {
+            return $this->sinSesion();
+        }
+
+        if (! $habilitaciones->existeExamen($examen)) {
+            return $this->noEncontrado();
+        }
+
+        try {
+            $listado = $listar->execute(
+                $examen,
+                $request->filtros(),
+                $request->pagina(),
+                $request->porPagina(),
+                $usuarioId,
+            );
+        } catch (ExamenAjenoException $excepcion) {
+            return $this->ajeno($excepcion);
+        }
 
         return response()->json([
-            'message' => 'Condición registrada para los estudiantes seleccionados.',
             'data' => array_map(
-                static fn (EstudianteHabilitacionData $estudiante): array => $estudiante->toArray(),
-                $estudiantes,
+                static fn (InscritoData $inscrito): array => [
+                    'estudiante_id' => $inscrito->estudianteId,
+                    'codigo' => $inscrito->codigo,
+                    'nombre' => $inscrito->nombre,
+                    'documento' => $inscrito->documento,
+                    'grupo' => $inscrito->grupo,
+                    'estado' => $inscrito->estado,
+                    'aula' => $inscrito->aula,
+                    'motivo' => $inscrito->motivo,
+                ],
+                $listado->filas,
             ),
-            'totales' => [
-                'total' => count($estudiantes),
-                'habilitados' => $habilitados,
-                'no_habilitados' => count($estudiantes) - $habilitados,
+            'meta' => [
+                'total' => $listado->total,
+                'pagina' => $listado->pagina,
+                'por_pagina' => $listado->porPagina,
+                'cifras' => $this->cifras($listado->cifras),
+                'por_aula' => array_map(
+                    static fn (AulaRepartoData $aula): array => [
+                        'aula_id' => $aula->aulaId,
+                        'nombre' => $aula->nombre,
+                        'asignados' => $aula->asignados,
+                    ],
+                    $listado->porAula,
+                ),
+                'condiciones' => $listado->condiciones,
+                'grupos' => array_map(
+                    static fn (GrupoDeExamenData $grupo): array => [
+                        'id' => $grupo->id,
+                        'codigo' => $grupo->codigo,
+                        'propio' => $grupo->propio,
+                    ],
+                    $listado->grupos,
+                ),
             ],
         ]);
     }
 
-    public function exportar(int $examen, GestionarHabilitacion $gestionar): Response
-    {
-        $this->asegurarExamenExiste($examen, $gestionar);
-        $estudiantes = $gestionar->listarEstudiantes($examen);
+    public function store(
+        CambiarHabilitacionRequest $request,
+        int $examen,
+        CambiarHabilitacion $cambiar,
+        HabilitacionGateway $habilitaciones,
+    ): JsonResponse {
+        $usuarioId = Auth::id();
 
-        return response()->streamDownload(static function () use ($estudiantes): void {
-            $salida = fopen('php://output', 'wb');
+        if (! is_int($usuarioId)) {
+            return $this->sinSesion();
+        }
 
-            if ($salida === false) {
-                return;
-            }
+        if (! $habilitaciones->existeExamen($examen)) {
+            return $this->noEncontrado();
+        }
 
-            fputcsv($salida, [
-                'Código', 'Documento', 'Nombre', 'Carrera', 'Condición', 'Motivo',
-                'Registrado por', 'Fecha de registro',
-            ]);
+        try {
+            $resultado = $cambiar->execute($examen, $request->toData(), $usuarioId);
+        } catch (ExamenAjenoException $excepcion) {
+            return $this->ajeno($excepcion);
+        } catch (EstudianteNoInscritoException $excepcion) {
+            return response()->json([
+                'message' => $excepcion->getMessage(),
+                'errors' => ['estudiantes' => [$excepcion->getMessage()]],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (EstudianteConIngresoException $excepcion) {
+            return response()->json([
+                'message' => $excepcion->getMessage(),
+                'codigo' => 'ESTUDIANTE_CON_INGRESO',
+            ], Response::HTTP_CONFLICT);
+        }
 
-            foreach ($estudiantes as $estudiante) {
-                fputcsv($salida, [
-                    $estudiante->codigoUniversitario,
-                    $estudiante->ci,
-                    trim($estudiante->nombre.' '.$estudiante->apellido),
-                    $estudiante->carrera,
-                    $estudiante->condicion,
-                    $estudiante->motivo,
-                    $estudiante->registradoPor,
-                    self::fechaLocal($estudiante->fechaHabilitacion),
-                ]);
-            }
+        $palabra = $resultado->habilitado ? 'habilitado' : 'inhabilitado';
 
-            fclose($salida);
-        }, "habilitacion-examen-{$examen}.csv", [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+        return response()->json([
+            'message' => sprintf(
+                '%d %s.',
+                $resultado->afectados,
+                $resultado->afectados === 1 ? $palabra : $palabra.'s',
+            ),
+            'afectados' => $resultado->afectados,
+            'cifras' => $this->cifras($resultado->cifras),
         ]);
     }
 
     /**
-     * El listado exportado lo lee una persona: la fecha de registro va en la
-     * hora de Bolivia y no en el formato técnico de la API.
+     * @return array<string, int>
      */
-    private static function fechaLocal(?string $fecha): ?string
+    private function cifras(CifrasHabilitacionData $cifras): array
     {
-        if ($fecha === null) {
-            return null;
-        }
-
-        return (new DateTimeImmutable($fecha))
-            ->setTimezone(new DateTimeZone('America/La_Paz'))
-            ->format('d/m/Y H:i');
+        return [
+            'inscritos' => $cifras->inscritos,
+            'habilitados' => $cifras->habilitados,
+            'no_habilitados' => $cifras->noHabilitados,
+            'sin_revisar' => $cifras->sinRevisar,
+            'sin_aula' => $cifras->sinAula,
+        ];
     }
 
-    private function asegurarExamenExiste(int $examen, GestionarHabilitacion $gestionar): void
+    private function sinSesion(): JsonResponse
     {
-        abort_unless($gestionar->existeExamen($examen), 404, 'El examen no existe.');
+        return response()->json([
+            'message' => 'No hay una sesión activa.',
+        ], Response::HTTP_UNAUTHORIZED);
     }
 
-    private function authenticatedUserId(): int
+    private function noEncontrado(): JsonResponse
     {
-        $id = Auth::guard('web')->id();
+        return response()->json([
+            'message' => 'Examen no encontrado.',
+        ], Response::HTTP_NOT_FOUND);
+    }
 
-        if (! is_int($id) && ! is_string($id)) {
-            throw new LogicException('No existe un usuario autenticado válido.');
-        }
-
-        return (int) $id;
+    private function ajeno(ExamenAjenoException $excepcion): JsonResponse
+    {
+        return response()->json([
+            'message' => $excepcion->getMessage(),
+            'alcance' => true,
+        ], Response::HTTP_FORBIDDEN);
     }
 }

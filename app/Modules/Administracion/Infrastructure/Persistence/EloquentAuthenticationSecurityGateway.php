@@ -3,6 +3,9 @@
 namespace App\Modules\Administracion\Infrastructure\Persistence;
 
 use App\Modules\Administracion\Application\Contracts\AuthenticationSecurityGateway;
+use App\Modules\Administracion\Application\Contracts\RolGateway;
+use App\Modules\Administracion\Application\DTOs\SesionData;
+use App\Modules\Administracion\Domain\Models\Role;
 use App\Modules\Administracion\Domain\Models\User;
 use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +15,10 @@ use LogicException;
 final class EloquentAuthenticationSecurityGateway implements AuthenticationSecurityGateway
 {
     private static ?string $dummyPasswordHash = null;
+
+    public function __construct(
+        private readonly RolGateway $roles,
+    ) {}
 
     public function authenticate(
         string $identifier,
@@ -186,6 +193,33 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
         );
 
         return $authenticatedUser;
+    }
+
+    public function sesionDe(int $usuarioId): ?SesionData
+    {
+        $user = User::with('role')->find($usuarioId);
+
+        if (! $user instanceof User || ! $user->is_active) {
+            return null;
+        }
+
+        $rol = $user->getRelationValue('role');
+        $correo = $user->getAttribute('correo');
+
+        // El docente es de otro modulo: se lee por su tabla, sin su modelo.
+        $docenteId = DB::table('docentes')
+            ->where('user_id', $usuarioId)
+            ->value('id');
+
+        return new SesionData(
+            id: $usuarioId,
+            nombre: $user->name,
+            usuario: $user->usuario,
+            correo: is_string($correo) && $correo !== '' ? $correo : null,
+            rol: $rol instanceof Role ? $rol->name : null,
+            permisos: $this->roles->permisosDe($usuarioId),
+            docenteId: is_int($docenteId) ? $docenteId : null,
+        );
     }
 
     private function dummyPasswordHash(): string

@@ -1,0 +1,84 @@
+{
+ "INFO": {
+  "SEMESTER": "Semestre 2/2026"
+ },
+ "LICENCIATURA EN ECONOMIA": {
+  "SEMESTRE 1": {
+   "ESTADISTICA I": {
+    "_CODE": "1301010",
+    "01": {
+     "PROFESSOR": "",
+     "AUX_INDEX": -1,
+     "DAY": [
+      "LU"
+     ],
+     "HOUR": [
+      "06:45-08:15"
+     ],
+     "CLASS": [
+      "TP-7"
+     ]
+    },
+    "02": {
+     "PROFESSOR": "VI",
+     "AUX_INDEX": -1,
+     "DAY": [
+      "MA"
+     ],
+     "HOUR": [
+      "06:45-08:15"
+     ],
+     "CLASS": [
+      "SUR 2"
+     ]
+    },
+    "03": {
+     "PROFESSOR": "POR DESIGNAR DOCENTE",
+     "AUX_INDEX": -1,
+     "DAY": [
+      "MI"
+     ],
+     "HOUR": [
+      "06:45-08:15"
+     ],
+     "CLASS": [
+      ""
+     ]
+    },
+    "04": {
+     "PROFESSOR": "TABORGA  ACHA FIDEL",
+     "AUX_INDEX": -1,
+     "DAY": [
+      "JU"
+     ],
+     "HOUR": [
+      "06:45-08:15"
+     ],
+     "CLASS": [
+      "TP-7"
+     ]
+    }
+   }
+  }
+ },
+ "PROGRAMA DE FINANZAS POPULARES": {
+  "SEMESTRE 1": {
+   "CONTABILIDAD I": {
+    "_CODE": "1301020",
+    "01": {
+     "PROFESSOR": "MONTAÑO VARGAS OSCAR",
+     "AUX_INDEX": -1,
+     "DAY": [
+      "VI"
+     ],
+     "HOUR": [
+      "18:45-20:15"
+     ],
+     "CLASS": [
+      "SUR 2"
+     ]
+    }
+   }
+  }
+ }
+}

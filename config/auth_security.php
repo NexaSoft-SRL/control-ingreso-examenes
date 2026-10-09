@@ -10,4 +10,10 @@ return [
         'AUTH_LOCKOUT_MINUTES',
         15
     ),
+
+    // Horas que sirve una contrasena temporal desde que se emite.
+    'horas_temporal' => (int) env(
+        'AUTH_HORAS_TEMPORAL',
+        72
+    ),
 ];

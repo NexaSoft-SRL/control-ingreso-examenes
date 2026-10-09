@@ -186,9 +186,9 @@ final class AuthenticationSecurityLockingTest extends TestCase
 
         $actualDatabase = $statement->fetchColumn();
 
-        if ($actualDatabase !== 'control_ingreso_testing') {
+        if ($actualDatabase !== $database) {
             throw new RuntimeException(
-                'La conexión auxiliar no apunta a control_ingreso_testing.'
+                "La conexión auxiliar no apunta a {$database}."
             );
         }
 
@@ -206,6 +206,7 @@ final class AuthenticationSecurityLockingTest extends TestCase
             INSERT INTO usuarios (
                 nombre,
                 correo,
+                usuario,
                 password,
                 created_at,
                 updated_at
@@ -213,6 +214,7 @@ final class AuthenticationSecurityLockingTest extends TestCase
             VALUES (
                 :name,
                 :email,
+                :usuario,
                 :password,
                 CURRENT_TIMESTAMP,
                 CURRENT_TIMESTAMP
@@ -230,6 +232,7 @@ final class AuthenticationSecurityLockingTest extends TestCase
         if (! $statement->execute([
             'name' => $name,
             'email' => $email,
+            'usuario' => explode('@', $email, 2)[0],
             'password' => $password,
         ])) {
             throw new RuntimeException(

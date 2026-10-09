@@ -4,216 +4,208 @@ declare(strict_types=1);
 
 namespace App\Modules\Examenes\Http\Controllers;
 
-use App\Modules\Examenes\Application\Actions\GestionarAsignacionAmbiente;
-use App\Modules\Examenes\Application\Actions\ListarEstudiantesExamen;
-use App\Modules\Examenes\Application\Actions\ListarExamenes;
-use App\Modules\Examenes\Domain\Models\Asignatura;
-use App\Modules\Examenes\Domain\Models\Docente;
-use App\Modules\Examenes\Domain\Models\Examen;
-use App\Modules\Examenes\Domain\Models\GrupoAsignatura;
-use App\Modules\Examenes\Http\Requests\AsignarEstudiantesAmbienteRequest;
-use App\Modules\Examenes\Http\Requests\QuitarEstudianteAmbienteRequest;
+use App\Modules\Examenes\Application\Actions\ActualizarExamen;
+use App\Modules\Examenes\Application\Actions\EliminarExamen;
+use App\Modules\Examenes\Application\Actions\RegistrarExamen;
+use App\Modules\Examenes\Application\DTOs\AulaDetalleData;
+use App\Modules\Examenes\Application\DTOs\ExamenDetalleData;
+use App\Modules\Examenes\Application\DTOs\ExamenResumenData;
+use App\Modules\Examenes\Application\DTOs\GrupoDeExamenData;
+use App\Modules\Examenes\Application\DTOs\NormaMarcadaData;
+use App\Modules\Examenes\Application\Queries\ConsultarExamen;
+use App\Modules\Examenes\Application\Queries\ListarExamenesDelDocente;
+use App\Modules\Examenes\Domain\Enums\TipoExamen;
+use App\Modules\Examenes\Domain\Exceptions\DatoInvalidoException;
+use App\Modules\Examenes\Domain\Exceptions\ExamenAjenoException;
+use App\Modules\Examenes\Domain\Exceptions\ExamenConIngresosException;
+use App\Modules\Examenes\Http\Requests\GuardarExamenRequest;
+use App\Modules\Examenes\Http\Requests\ListarExamenesRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use LogicException;
+use Illuminate\Http\Response;
 
 final class ExamenController
 {
-    public function index(ListarExamenes $listar): JsonResponse
-    {
-        $data = array_map(
-            fn (Examen $examen): array => $this->serializar($examen),
-            $listar->execute(),
-        );
+    use RespuestasDeExamen;
 
-        return response()->json(['data' => $data]);
+    public function index(ListarExamenesRequest $request, ListarExamenesDelDocente $listar): JsonResponse
+    {
+        $listado = $listar->execute($this->usuarioId(), $request->periodo());
+
+        return response()->json([
+            'data' => array_map(
+                fn (ExamenResumenData $examen): array => $this->resumen($examen),
+                $listado->examenes,
+            ),
+            'meta' => [
+                'periodo' => $listado->periodo,
+                'hoy' => $listado->hoy,
+                'hora_servidor' => $listado->horaServidor,
+            ],
+        ]);
     }
 
-    public function estudiantes(ListarEstudiantesExamen $listar): JsonResponse
+    public function tipos(): JsonResponse
     {
-        return response()->json(['data' => $listar->execute()]);
+        return response()->json([
+            'data' => array_map(
+                static fn (TipoExamen $tipo): array => [
+                    'valor' => $tipo->value,
+                    'etiqueta' => $tipo->etiqueta(),
+                ],
+                TipoExamen::cases(),
+            ),
+        ]);
     }
 
-    public function asignaciones(int $examen, GestionarAsignacionAmbiente $gestionar): JsonResponse
+    public function show(int $examen, ConsultarExamen $consultar): JsonResponse
     {
-        $this->asegurarExamenExiste($examen, $gestionar);
+        try {
+            $detalle = $consultar->execute($examen, $this->usuarioId());
+        } catch (ExamenAjenoException) {
+            return $this->ajeno();
+        }
 
-        return response()->json(['data' => $gestionar->listar($examen)]);
+        if ($detalle === null) {
+            return $this->noEncontrado();
+        }
+
+        return response()->json(['data' => $this->detalle($detalle)]);
     }
 
-    public function asignarEstudiantes(
-        AsignarEstudiantesAmbienteRequest $request,
-        int $examen,
-        GestionarAsignacionAmbiente $gestionar,
-    ): JsonResponse {
-        $this->asegurarExamenExiste($examen, $gestionar);
-        $datos = $request->toData();
+    public function store(GuardarExamenRequest $request, RegistrarExamen $registrar): JsonResponse
+    {
+        try {
+            $detalle = $registrar->execute($request->toData(), $this->usuarioId());
+        } catch (DatoInvalidoException $error) {
+            return $this->invalido($error);
+        }
 
-        $rechazo = $gestionar->asignar(
-            $examen,
-            $datos['ambiente_id'],
-            $datos['estudiante_ids'],
-            $this->usuarioId(),
-        );
-
-        if ($rechazo !== null) {
-            return response()->json(['message' => $rechazo], 422);
+        if ($detalle === null) {
+            return $this->noEncontrado();
         }
 
         return response()->json([
-            'message' => 'Estudiantes asignados al ambiente correctamente.',
-            'data' => $gestionar->detalleAmbiente($examen, $datos['ambiente_id']),
-        ]);
+            'data' => $this->detalle($detalle),
+            'message' => 'Examen registrado.',
+        ], Response::HTTP_CREATED);
     }
 
-    public function quitarEstudiante(
-        QuitarEstudianteAmbienteRequest $request,
-        int $examen,
-        GestionarAsignacionAmbiente $gestionar,
-    ): JsonResponse {
-        $this->asegurarExamenExiste($examen, $gestionar);
-        $datos = $request->toData();
+    public function update(GuardarExamenRequest $request, int $examen, ActualizarExamen $actualizar): JsonResponse
+    {
+        try {
+            $detalle = $actualizar->execute($examen, $request->toData(), $this->usuarioId());
+        } catch (ExamenAjenoException) {
+            return $this->ajeno();
+        } catch (ExamenConIngresosException) {
+            return $this->conIngresos(
+                'El examen ya tiene ingresos registrados: solo se pueden cambiar las normas.',
+            );
+        } catch (DatoInvalidoException $error) {
+            return $this->invalido($error);
+        }
 
-        if (! $gestionar->quitar($examen, $datos['ambiente_id'], $datos['estudiante_id'])) {
-            return response()->json([
-                'message' => 'El estudiante no está asignado a este ambiente.',
-            ], 404);
+        if ($detalle === null) {
+            return $this->noEncontrado();
         }
 
         return response()->json([
-            'message' => 'Estudiante quitado del ambiente correctamente.',
+            'data' => $this->detalle($detalle),
+            'message' => 'Examen guardado.',
         ]);
     }
 
-    public function controlIndex(ListarExamenes $listar): JsonResponse
+    public function destroy(int $examen, EliminarExamen $eliminar): JsonResponse|Response
     {
-        return $this->index($listar);
-    }
-
-    public function controlEstudiantes(ListarEstudiantesExamen $listar): JsonResponse
-    {
-        return $this->estudiantes($listar);
-    }
-
-    // --- NUEVOS MÉTODOS HU-08 ---
-    public function store(Request $request): JsonResponse
-    {
-        /** @var array<string, mixed> $validated */
-        $validated = $request->validate([
-            'grupo_id' => 'required|integer|exists:grupos_asignatura,id',
-            'nombre' => 'required|string|in:Primer parcial,Segundo parcial,Examen final,Instancia',
-            'fecha' => 'required|date',
-            'hora_inicio' => 'required|date_format:H:i',
-            'duracion_minutos' => 'required|integer|min:15|max:480',
-        ], [
-            'grupo_id.exists' => 'El ID del grupo no existe en la base de datos.',
-            'nombre.in' => 'El tipo de examen no es uno de los conocidos.',
-            'duracion_minutos.min' => 'La duración no puede ser menor a quince minutos.',
-            'duracion_minutos.max' => 'La duración no puede ser mayor a ocho horas.',
-        ]);
-        $conflicto = Examen::where('grupo_id', $validated['grupo_id'])
-            ->where('fecha', $validated['fecha'])
-            ->where('hora_inicio', $validated['hora_inicio'])
-            ->exists();
-
-        if ($conflicto) {
-            return response()->json(['message' => 'El grupo ya tiene un examen en esa fecha y a esa hora.'], 422);
+        try {
+            $eliminado = $eliminar->execute($examen, $this->usuarioId());
+        } catch (ExamenAjenoException) {
+            return $this->ajeno();
+        } catch (ExamenConIngresosException) {
+            return $this->conIngresos(
+                'El examen ya tiene ingresos registrados: no se puede eliminar.',
+            );
         }
 
-        $examen = Examen::create($validated);
-
-        return response()->json([
-            'message' => 'Examen registrado correctamente.',
-            'data' => $this->serializar($examen),
-        ], 201);
+        return $eliminado ? response()->noContent() : $this->noEncontrado();
     }
-
-    public function update(Request $request, int $id): JsonResponse
-    {
-        $examen = Examen::findOrFail($id);
-
-        /** @var array<string, mixed> $validated */
-        $validated = $request->validate([
-            'nombre' => 'required|string|in:Primer parcial,Segundo parcial,Examen final,Instancia',
-            'fecha' => 'required|date',
-            'hora_inicio' => 'required|date_format:H:i',
-            'duracion_minutos' => 'required|integer|min:15|max:480',
-        ], [
-            'nombre.in' => 'El tipo de examen no es uno de los conocidos.',
-            'duracion_minutos.min' => 'La duración no puede ser menor a quince minutos.',
-            'duracion_minutos.max' => 'La duración no puede ser mayor a ocho horas.',
-        ]);
-
-        $examen->update($validated);
-
-        return response()->json(['message' => 'Examen actualizado.', 'data' => $this->serializar($examen)]);
-    }
-
-    public function destroy(int $id): JsonResponse
-    {
-        $examen = Examen::findOrFail($id);
-
-        $examen->delete();
-
-        return response()->json(['message' => 'Examen eliminado de la lista.']);
-    }
-    // ----------------------------
 
     /**
      * @return array<string, mixed>
      */
-    private function serializar(Examen $examen): array
+    private function resumen(ExamenResumenData $examen): array
     {
-        $grupo = $examen->grupo;
-
-        if (! $grupo instanceof GrupoAsignatura) {
-            throw new LogicException('El examen no tiene un grupo válido.');
-        }
-
-        $asignatura = $grupo->asignatura;
-        $docente = $grupo->docente;
-
-        if (! $asignatura instanceof Asignatura || ! $docente instanceof Docente) {
-            throw new LogicException('El grupo del examen no tiene asignatura y docente válidos.');
-        }
-
         return [
-            'id' => $examen->getKey(),
-            'nombre' => $examen->nombre,
-            'fecha' => $examen->fecha,
-            'hora_inicio' => $examen->hora_inicio,
-            'duracion_minutos' => $examen->duracion_minutos,
-            'grupo' => [
-                'id' => $grupo->getKey(),
-                'codigo_grupo' => $grupo->codigo_grupo,
-                'asignatura' => [
-                    'id' => $asignatura->getKey(),
-                    'codigo' => $asignatura->codigo,
-                    'nombre' => $asignatura->nombre,
-                ],
-                'docente' => [
-                    'id' => $docente->getKey(),
-                    'nombres' => $docente->nombres,
-                    'apellidos' => $docente->apellidos,
-                ],
+            'id' => $examen->id,
+            'asignatura' => [
+                'id' => $examen->asignaturaId,
+                'codigo' => $examen->asignaturaCodigo,
+                'nombre' => $examen->asignaturaNombre,
             ],
+            'tipo' => $examen->tipo,
+            'tipo_texto' => $examen->tipoTexto,
+            'fecha' => $examen->fecha,
+            'hora' => $examen->hora,
+            'duracion' => $examen->duracion,
+            'grupos' => $examen->grupos,
+            'inscritos' => $examen->inscritos,
+            'aulas' => $examen->aulas,
+            'habilitados' => $examen->habilitados,
+            'no_habilitados' => $examen->noHabilitados,
+            'sin_revisar' => $examen->sinRevisar,
+            'qr_emitidos' => $examen->qrEmitidos,
+            'avance' => [
+                'grupos' => $examen->avance->grupos,
+                'aulas' => $examen->avance->aulas,
+                'habilitacion' => $examen->avance->habilitacion,
+                'qr' => $examen->avance->qr,
+            ],
+            'estado' => $examen->avance->estado,
+            'accion' => [
+                'clave' => $examen->avance->accion,
+                'paso' => $examen->avance->paso,
+            ],
+            'propio' => $examen->propio,
+            'registrado_por' => $examen->registradoPor,
+            'junto_con' => $examen->juntoCon,
+            'es_hoy' => $examen->esHoy,
+            'rendido' => $examen->rendido,
         ];
     }
 
-    private function asegurarExamenExiste(int $examen, GestionarAsignacionAmbiente $gestionar): void
+    /**
+     * @return array<string, mixed>
+     */
+    private function detalle(ExamenDetalleData $examen): array
     {
-        abort_unless($gestionar->existeExamen($examen), 404, 'El examen no existe.');
-    }
-
-    private function usuarioId(): ?int
-    {
-        $id = Auth::guard('web')->id();
-
-        if (is_int($id)) {
-            return $id;
-        }
-
-        return is_string($id) && ctype_digit($id) ? (int) $id : null;
+        return array_merge($this->resumen($examen->resumen), [
+            'normas' => $examen->normas,
+            'normas_marcadas' => array_map(
+                static fn (NormaMarcadaData $norma): array => [
+                    'id' => $norma->id,
+                    'plantilla_id' => $norma->plantillaId,
+                    'texto' => $norma->texto,
+                ],
+                $examen->normasMarcadas,
+            ),
+            'grupos_detalle' => array_map(
+                static fn (GrupoDeExamenData $grupo): array => [
+                    'id' => $grupo->id,
+                    'codigo' => $grupo->codigo,
+                    'docente' => $grupo->docente,
+                    'inscritos' => $grupo->inscritos,
+                    'propio' => $grupo->propio,
+                ],
+                $examen->grupos,
+            ),
+            'aulas_detalle' => array_map(
+                static fn (AulaDetalleData $aula): array => [
+                    'aula_id' => $aula->aulaId,
+                    'nombre' => $aula->nombre,
+                    'ubicacion' => $aula->ubicacion,
+                    'edificio_id' => $aula->edificioId,
+                ],
+                $examen->aulas,
+            ),
+        ]);
     }
 }

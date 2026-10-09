@@ -26,4 +26,21 @@ final class VerificarPermiso
         return $rol->permissions
             ->contains(static fn (Permission $asignado): bool => $asignado->name === $permiso);
     }
+
+    /**
+     * Una ruta puede aceptar uno de varios permisos separados por "|": es
+     * el caso de un catalogo que sirve a dos pantallas distintas.
+     *
+     * @param  list<string>  $permisos
+     */
+    public function puedeAlguno(User $usuario, array $permisos): bool
+    {
+        foreach ($permisos as $permiso) {
+            if ($this->puede($usuario, $permiso)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

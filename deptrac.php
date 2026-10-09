@@ -71,7 +71,7 @@ return static function (DeptracConfig $config): void {
                     )
                     ->must(
                         ClassNameRegexConfig::create(
-                            '#^Illuminate\\Database\\Eloquent\\(?:Model|Relations\\(?:HasMany|BelongsTo|BelongsToMany))$#'
+                            '#^Illuminate\\(?:Database\\Eloquent\\(?:Model|Relations\\(?:HasMany|BelongsTo|BelongsToMany))|Support\\Carbon)$#'
                         )
                     ),
             ),
@@ -86,7 +86,7 @@ return static function (DeptracConfig $config): void {
                     )
                     ->must(
                         ClassNameRegexConfig::create(
-                            '#^Illuminate\\Http\\(?:JsonResponse|Request|Response)$#'
+                            '#^Illuminate\\Http\\(?:JsonResponse|Request|Response|UploadedFile)$#'
                         )
                     ),
 
@@ -108,12 +108,11 @@ return static function (DeptracConfig $config): void {
                     )
                     ->must(
                         ClassNameRegexConfig::create(
-                            '#^Illuminate\\Validation\\Rule$#'
+                            '#^Illuminate\\Validation\\(?:Rule|Rules\\Password)$#'
                         )
                     ),
-
-                // Un middleware declara su retorno con la respuesta de
-                // Symfony, que es la que Laravel tipa en la cadena.
+                // Todo middleware devuelve la respuesta base de Symfony:
+                // es el tipo que exige el contrato de Laravel.
                 BoolConfig::create()
                     ->must(
                         ComposerConfig::create()
@@ -122,6 +121,21 @@ return static function (DeptracConfig $config): void {
                     ->must(
                         ClassNameRegexConfig::create(
                             '#^Symfony\\Component\\HttpFoundation\\Response$#'
+                        )
+                    ),
+            ),
+
+            $laravelQueryBuilder = Layer::withName(
+                'LaravelQueryBuilder'
+            )->collectors(
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Database\\Query\\Builder$#'
                         )
                     ),
             ),
@@ -151,7 +165,7 @@ return static function (DeptracConfig $config): void {
                     )
                     ->must(
                         ClassNameRegexConfig::create(
-                            '#^Illuminate\\Database\\Query\\Builder$#'
+                            '#^Illuminate\\Support\\Facades\\(?:DB|Hash|Schema|Storage)$#'
                         )
                     ),
 
@@ -162,10 +176,23 @@ return static function (DeptracConfig $config): void {
                     )
                     ->must(
                         ClassNameRegexConfig::create(
-                            '#^Illuminate\\Database\\Query\\JoinClause$#'
+                            '#^Illuminate\\Database\\(?:QueryException|Query\\JoinClause)$#'
                         )
                     ),
-
+                // La lectura de hojas de calculo es infraestructura: la
+                // capa de aplicacion solo recibe filas de texto (HU-04).
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('phpoffice/phpspreadsheet')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^PhpOffice\\PhpSpreadsheet\\.*#'
+                        )
+                    ),
+                // El envio de correo y la generacion de cadenas aleatorias
+                // son detalles de infraestructura, como la persistencia.
                 BoolConfig::create()
                     ->must(
                         ComposerConfig::create()
@@ -173,10 +200,9 @@ return static function (DeptracConfig $config): void {
                     )
                     ->must(
                         ClassNameRegexConfig::create(
-                            '#^Illuminate\\Support\\Facades\\(?:DB|Hash)$#'
+                            '#^Illuminate\\Support\\(?:Facades\\Mail|Str)$#'
                         )
                     ),
-
                 BoolConfig::create()
                     ->must(
                         ComposerConfig::create()
@@ -184,10 +210,9 @@ return static function (DeptracConfig $config): void {
                     )
                     ->must(
                         ClassNameRegexConfig::create(
-                            '#^Illuminate\\Database\\QueryException$#'
+                            '#^Illuminate\\Mail\\Mailables?(?:\\[A-Za-z]+)?$#'
                         )
                     ),
-
                 BoolConfig::create()
                     ->must(
                         ComposerConfig::create()
@@ -195,7 +220,18 @@ return static function (DeptracConfig $config): void {
                     )
                     ->must(
                         ClassNameRegexConfig::create(
-                            '#^Illuminate\\Database\\Query\\Builder$#'
+                            '#^Illuminate\\(?:Bus\\Queueable|Queue\\SerializesModels|Contracts\\Queue\\ShouldQueue)$#'
+                        )
+                    ),
+                // Cada modulo registra sus enlaces en Infrastructure/Providers.
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Support\\ServiceProvider$#'
                         )
                     ),
             ),
@@ -212,6 +248,7 @@ return static function (DeptracConfig $config): void {
                     $application,
                     $domain,
                     $laravelPersistenceSupport,
+                    $laravelQueryBuilder,
                 ),
 
             Ruleset::forLayer($http)
@@ -220,11 +257,14 @@ return static function (DeptracConfig $config): void {
                     $domain,
                     $laravelHttpSupport,
                     $laravelAuthSupport,
+                    $laravelQueryBuilder,
                 ),
 
             Ruleset::forLayer($laravelDomainSupport),
 
             Ruleset::forLayer($laravelHttpSupport),
+
+            Ruleset::forLayer($laravelQueryBuilder),
 
             Ruleset::forLayer($laravelAuthSupport),
 

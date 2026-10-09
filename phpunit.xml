@@ -21,6 +21,8 @@
     </source>
 
     <php>
+        <!-- La prueba de datos de demostracion importa la oferta real (3.169 grupos): no cabe en 128 MB. -->
+        <ini name="memory_limit" value="1G"/>
         <env name="APP_ENV" value="testing" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>

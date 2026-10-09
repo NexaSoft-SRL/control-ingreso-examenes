@@ -31,9 +31,18 @@ class AuthenticationControllerTest extends TestCase
             ->assertJsonPath('user.email', $user->email)
             // El cliente arma su menu con el rol y sus permisos (HU-02).
             ->assertJsonPath('user.rol', 'Administrador')
+            // Campos del contrato nuevo: los mismos de GET /api/auth/sesion.
+            ->assertJsonPath('user.nombre', $user->nombre)
+            ->assertJsonPath('user.usuario', $user->usuario)
+            ->assertJsonPath('user.correo', 'active-user@example.invalid')
+            ->assertJsonPath('user.docente_id', null)
+            ->assertJsonPath('user.debe_cambiar_contrasena', false)
             ->assertJsonStructure([
                 'message',
-                'user' => ['id', 'name', 'email', 'rol', 'permisos'],
+                'user' => [
+                    'id', 'nombre', 'usuario', 'correo', 'rol', 'permisos',
+                    'debe_cambiar_contrasena', 'docente_id', 'name', 'email',
+                ],
             ]);
 
         $permisos = $response->json('user.permisos');

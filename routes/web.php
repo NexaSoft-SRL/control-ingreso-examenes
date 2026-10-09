@@ -3,14 +3,12 @@
 use Illuminate\Support\Facades\Route;
 
 require __DIR__.'/auth.php';
-require __DIR__.'/asignaturas.php';
-require __DIR__.'/habilitacion.php';
+require __DIR__.'/usuarios.php';
 require __DIR__.'/bitacora.php';
-
-Route::prefix('api')->group(function () {
-    require __DIR__.'/students.php';
-    require __DIR__.'/ambientes.php';
-});
+require __DIR__.'/academico.php';
+require __DIR__.'/estudiantes.php';
+require __DIR__.'/examenes.php';
+require __DIR__.'/habilitacion.php';
 
 /*
  * El cliente es una aplicacion de pagina unica: cualquier direccion que no sea

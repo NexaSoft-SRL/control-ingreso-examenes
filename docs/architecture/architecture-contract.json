@@ -10,6 +10,7 @@
     "Providers"
   ],
   "modules": [
+    "Academico",
     "Estudiantes",
     "Examenes",
     "Habilitacion",
@@ -37,6 +38,7 @@
       "Import",
       "Export",
       "Files",
+      "Mail",
       "Persistence",
       "QR",
       "Providers"

@@ -1,0 +1,170 @@
+{
+ "INFO": {
+  "SEMESTER": "Semestre 2/2026",
+  "DATE": "8/3/2026"
+ },
+ "LICENCIATURA EN INGENIERIA DE SISTEMAS": {
+  "_CAREER_CODE": "411702",
+  "SEMESTRE 1": {
+   "ALGEBRA I": {
+    "_CODE": "2008019",
+    "5": {
+     "PROFESSOR": "TABORGA ACHA FIDEL",
+     "AUX_INDEX": -1,
+     "DAY": [
+      "MI",
+      "VI"
+     ],
+     "HOUR": [
+      "14:15-15:45",
+      "08:15-09:45"
+     ],
+     "CLASS": [
+      "617",
+      "623"
+     ]
+    },
+    "6": {
+     "PROFESSOR": "POR DESGINAR DOCENTE",
+     "AUX_INDEX": -1,
+     "DAY": [
+      "LU",
+      "1845-2015"
+     ],
+     "HOUR": [
+      "08:15-09:45",
+      ""
+     ],
+     "CLASS": [
+      "AULVIR",
+      ""
+     ]
+    }
+   },
+   "INTRODUCCION A LA PROGRAMACION": {
+    "_CODE": "2010010",
+    "1": {
+     "PROFESSOR": "SALAZAR SERRUDO CARLA",
+     "AUX_INDEX": 1,
+     "DAY": [
+      "LU",
+      "MA"
+     ],
+     "HOUR": [
+      "08:15-09:45",
+      "09:45-11:15"
+     ],
+     "CLASS": [
+      "691A",
+      "691B"
+     ]
+    },
+    "2": {
+     "PROFESSOR": "BLANCO COCA LETICIA",
+     "AUX_INDEX": [
+      1,
+      2
+     ],
+     "DAY": [
+      "MA",
+      "JU",
+      "MI"
+     ],
+     "HOUR": [
+      "17:15-18:45",
+      "15:45-17:15",
+      "17:15-18:45"
+     ],
+     "CLASS": [
+      "617",
+      "624",
+      "691B"
+     ]
+    }
+   }
+  },
+  "SEMESTRE 2": {
+   "CALCULO II": {
+    "_CODE": "2008056",
+    "1": {
+     "PROFESSOR": "TABORGA ACHA FIDEL",
+     "AUX_INDEX": -1,
+     "DAY": [
+      "SA"
+     ],
+     "HOUR": [
+      "06:45-08:15"
+     ],
+     "CLASS": [
+      "TP-7"
+     ]
+    }
+   }
+  }
+ },
+ "LICENCIATURA EN INGENIERIA INFORMATICA": {
+  "_CAREER_CODE": "134111",
+  "SEMESTRE 1": {
+   "ALGEBRA I": {
+    "_CODE": "2008019",
+    "5": {
+     "PROFESSOR": "TABORGA ACHA FIDEL",
+     "AUX_INDEX": -1,
+     "DAY": [
+      "MI",
+      "VI"
+     ],
+     "HOUR": [
+      "14:15-15:45",
+      "08:15-09:45"
+     ],
+     "CLASS": [
+      "617",
+      "623"
+     ]
+    }
+   },
+   "INTRODUCCION A LA PROGRAMACION": {
+    "_CODE": "2010010",
+    "1": {
+     "PROFESSOR": "SALAZAR SERRUDO CARLA",
+     "AUX_INDEX": 1,
+     "DAY": [
+      "LU",
+      "MA"
+     ],
+     "HOUR": [
+      "08:15-09:45",
+      "09:45-11:15"
+     ],
+     "CLASS": [
+      "691A",
+      "691B"
+     ]
+    },
+    "2": {
+     "PROFESSOR": "BLANCO COCA LETICIA",
+     "AUX_INDEX": [
+      1,
+      2
+     ],
+     "DAY": [
+      "MA",
+      "JU",
+      "MI"
+     ],
+     "HOUR": [
+      "17:15-18:45",
+      "15:45-17:15",
+      "17:15-18:45"
+     ],
+     "CLASS": [
+      "617",
+      "624",
+      "691B"
+     ]
+    }
+   }
+  }
+ }
+}

@@ -77,9 +77,32 @@ foreach ($expected as $key => $expectedValue) {
     }
 }
 
+/*
+ * Base de pruebas configurable: `PRUEBAS_DB_DATABASE` permite que cada
+ * ejecucion en paralelo use su propia base. El nombre queda acotado a
+ * `control_ingreso[_<sufijo>...]_testing`, de modo que nunca puede apuntar a
+ * la base de desarrollo. Sin la variable, la base es la de `.env.testing`.
+ */
+$pruebasDatabase = getenv('PRUEBAS_DB_DATABASE');
+$testDatabase = is_string($pruebasDatabase) && $pruebasDatabase !== ''
+    ? $pruebasDatabase
+    : 'control_ingreso_testing';
+
+if (preg_match('/^control_ingreso(_[a-z0-9]+)*_testing$/', $testDatabase) !== 1) {
+    $fail(
+        sprintf(
+            'PRUEBAS_DB_DATABASE debe tener la forma control_ingreso[_<sufijo>]_testing; '
+            .'valor recibido: "%s". Se bloquea la ejecucion.',
+            $testDatabase
+        )
+    );
+}
+
+$environment['DB_DATABASE'] = $testDatabase;
+
 $dbHost = $requiredValue('DB_HOST');
 $dbPort = $requiredValue('DB_PORT');
-$dbDatabase = $requiredValue('DB_DATABASE');
+$dbDatabase = $testDatabase;
 $dbUsername = $requiredValue('DB_USERNAME');
 $dbPassword = $requiredValue('DB_PASSWORD');
 
@@ -133,7 +156,7 @@ try {
 }
 
 if (! is_array($identity)) {
-    $fail('PostgreSQL no devolvio la identidad de la conexion.');
+    $fail('PostgreSQL no devolvio la identidad de conexion invalida.');
 }
 
 $actualDatabase = $identity['database'] ?? null;
@@ -148,10 +171,12 @@ if (
     $fail('PostgreSQL devolvio una identidad de conexion invalida.');
 }
 
-if ($actualDatabase !== 'control_ingreso_testing') {
+if ($actualDatabase !== $testDatabase) {
     $fail(
-        'La conexion real no apunta a control_ingreso_testing. '
-        .'Se bloquea la ejecucion.'
+        sprintf(
+            'La conexion real no apunta a %s. Se bloquea la ejecucion.',
+            $testDatabase
+        )
     );
 }
 
@@ -165,9 +190,15 @@ if ($actualUsername !== $dbUsername) {
     );
 }
 
-if ($actualVersion !== '15.10') {
+// Aceptar cualquier versión 15.x (ej. 15.10, 15.19). La suite exige PostgreSQL 15
+// en el entorno de CI; en desarrollo local permitimos 15.* para flexibilidad.
+$parts = explode('.', $actualVersion);
+$major = (int) $parts[0];
+$minor = isset($parts[1]) ? (int) $parts[1] : 0;
+
+if ($major !== 15 || $minor < 10) {
     $fail(
-        'La suite requiere PostgreSQL 15.10 exactamente; version encontrada: '
+        'La suite requiere PostgreSQL 15.10 o superior dentro de la rama 15; version encontrada: '
         .$actualVersion
     );
 }
