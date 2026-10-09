@@ -5,7 +5,13 @@ import Aplicacion, { PAGINAS, Rutas } from './Aplicacion';
 import { VISTAS } from './vistas';
 import { ProveedorSesion } from '../sesion/SesionContexto';
 import { api } from '../api/cliente';
-import { errorHttp, simularApi, usuarioDePrueba, FACULTADES } from '../test/apoyo';
+import {
+    CATALOGO_PERMISOS,
+    errorHttp,
+    simularApi,
+    usuarioDePrueba,
+    FACULTADES,
+} from '../test/apoyo';
 
 vi.mock('../api/cliente');
 
@@ -105,7 +111,10 @@ describe('Aplicacion', () => {
 
     it('cada ruta tiene su página dentro del armazón', { timeout: 15000 }, async () => {
         for (const [ruta, nombre] of Object.entries(TITULOS)) {
-            const { unmount } = montar(ruta, usuarioDePrueba('Administrador'));
+            const { unmount } = montar(
+                ruta,
+                usuarioDePrueba('Administrador', { permisos: CATALOGO_PERMISOS })
+            );
             expect(await titulo(nombre), ruta).toBeInTheDocument();
             expect(screen.getAllByRole('button', { name: 'Cerrar sesión' }).length).toBeGreaterThan(
                 0

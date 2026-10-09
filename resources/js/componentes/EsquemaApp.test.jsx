@@ -45,7 +45,7 @@ describe('EsquemaApp', () => {
         expect(screen.getByText('Estoy en /examenes')).toBeInTheDocument();
     });
 
-    it('el administrador ve sus tres secciones, cuatro vistas en la barra y el resto en «Más»', () => {
+    it('el administrador ve sus dos secciones, tres vistas en la barra y el resto en «Más»', () => {
         montar('Administrador', '/periodo');
 
         expect(enlaces(menus()[lateral])).toEqual([
@@ -53,15 +53,13 @@ describe('EsquemaApp', () => {
             'Aulas y mapa',
             'Docentes',
             'Padrón',
-            'Exámenes',
-            'Mis grupos',
             'Usuarios y roles',
             'Bitácora',
         ]);
         expect(within(menus()[lateral]).getByText('Preparación')).toBeInTheDocument();
-        expect(within(menus()[lateral]).getByText('Docencia')).toBeInTheDocument();
+        expect(within(menus()[lateral]).queryByText('Docencia')).not.toBeInTheDocument();
         expect(within(menus()[lateral]).getByText('Sistema')).toBeInTheDocument();
-        expect(enlaces(menus()[inferior])).toEqual(['Período', 'Docentes', 'Padrón', 'Exámenes']);
+        expect(enlaces(menus()[inferior])).toEqual(['Período', 'Docentes', 'Padrón']);
 
         const mas = within(menus()[inferior]).getByRole('button', { name: 'Más' });
         expect(mas).toHaveAttribute('aria-expanded', 'false');
@@ -71,12 +69,7 @@ describe('EsquemaApp', () => {
             within(hoja)
                 .getAllByRole('link')
                 .map((e) => e.textContent)
-        ).toEqual([
-            'Aulas y mapaPreparación',
-            'Mis gruposDocencia',
-            'Usuarios y rolesSistema',
-            'BitácoraSistema',
-        ]);
+        ).toEqual(['Aulas y mapaPreparación', 'Usuarios y rolesSistema', 'BitácoraSistema']);
 
         fireEvent.click(within(hoja).getByRole('link', { name: /Bitácora/ }));
         expect(screen.getByText('Estoy en /bitacora')).toBeInTheDocument();

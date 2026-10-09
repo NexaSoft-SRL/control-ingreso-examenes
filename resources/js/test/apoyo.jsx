@@ -21,10 +21,18 @@ export const CATALOGO_PERMISOS = [
     'respaldo_restauracion',
 ];
 
-// Permisos de los tres roles de inicio. El Administrador los tiene todos;
-// un rol creado se prueba con `usuarioDePrueba(rol, { rol: '…', permisos: [...] })`.
+// Permisos de los tres roles de inicio. El Administrador no tiene las
+// pantallas de docencia; un rol creado se prueba con `usuarioDePrueba(rol, { rol: '…', permisos: [...] })`.
 export const PERMISOS = {
-    Administrador: CATALOGO_PERMISOS,
+    Administrador: [
+        'periodo_oferta',
+        'aulas_docentes',
+        'padron_estudiantes',
+        'reportes_universidad',
+        'usuarios_roles',
+        'bitacora',
+        'respaldo_restauracion',
+    ],
     Docente: [
         'mis_grupos',
         'examenes',

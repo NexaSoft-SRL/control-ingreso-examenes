@@ -14,6 +14,7 @@ enum TipoExamen: string
     case SegundoParcial = 'SEGUNDO_PARCIAL';
     case Final = 'FINAL';
     case SegundaInstancia = 'SEGUNDA_INSTANCIA';
+    case Mesa = 'MESA';
 
     /**
      * @return list<string>
@@ -33,6 +34,7 @@ enum TipoExamen: string
             self::SegundoParcial => 'Segundo parcial',
             self::Final => 'Examen final',
             self::SegundaInstancia => 'Segunda instancia',
+            self::Mesa => 'Examen de mesa',
         };
     }
 }

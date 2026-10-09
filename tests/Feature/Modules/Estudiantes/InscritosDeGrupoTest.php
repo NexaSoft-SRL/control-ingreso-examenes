@@ -148,14 +148,14 @@ final class InscritosDeGrupoTest extends TestCase
             ->assertJsonPath('permiso_requerido', 'mis_grupos');
     }
 
-    public function test_the_administrator_has_the_permission_but_the_group_is_not_theirs(): void
+    public function test_the_administrator_does_not_have_the_permission_of_the_teacher_groups(): void
     {
         $grupo = $this->grupo($this->docente());
 
         $this->actingAs($this->administrador())
             ->getJson("/api/docente/grupos/{$grupo->id}/inscritos")
             ->assertForbidden()
-            ->assertJsonPath('alcance', true);
+            ->assertJsonPath('permiso_requerido', 'mis_grupos');
     }
 
     // --- Plantilla ---

@@ -1,9 +1,11 @@
+import { Suspense, lazy } from 'react';
 import PropTypes from 'prop-types';
 import { usarFacultades } from '../sesion/SesionContexto';
 
-// Mapa del campus dibujado con los polígonos de los edificios
-// (GET /api/edificios, que guarda `usarEdificios()`), proyectados a un SVG.
-// Cada facultad conserva su color. No hay mapa base.
+// Mapa del campus con los polígonos de los edificios (GET /api/edificios, que
+// guarda `usarEdificios()`) sobre el mapa base de CARTO (`MapaVivo`, con
+// MapLibre). Cada facultad conserva su color. Donde no hay WebGL, o mientras
+// carga la librería, los mismos polígonos se dibujan proyectados a un SVG.
 //
 // `edificios` y `caja` (`meta.caja`) llegan por prop. `facultad` limita el
 // mapa a los edificios de una sigla y acerca la vista; sin ella se ve el
@@ -17,6 +19,10 @@ const SIN_COLOR = '#475569';
 // Lo marcado (las aulas de un examen) va en el color de acción: el rojo de
 // la FCyT se leería como peligro.
 const MARCADO = '#2563eb';
+
+const MapaVivo = lazy(() => import('./MapaVivo'));
+const hayWebGL = () =>
+    typeof window !== 'undefined' && typeof window.WebGLRenderingContext !== 'undefined';
 
 export function edificioDeAula(edificios, aula, facultad = null) {
     return (
@@ -106,7 +112,7 @@ export default function MapaCampus({
         e.nombre;
     const escala = vista.ancho / 1000;
 
-    return (
+    const dibujo = (
         <div
             className={`w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-50 ${alto}`}
         >
@@ -185,6 +191,29 @@ export default function MapaCampus({
                 })}
             </svg>
         </div>
+    );
+
+    if (!hayWebGL() || visibles.length === 0) return dibujo;
+
+    const vivos = visibles.map((e) => {
+        const marcado = idsResaltados.has(e.id) || seleccionado === e.id;
+        const soloContorno = idsContorno.has(e.id);
+        return {
+            id: e.id,
+            poligono: e.poligono,
+            centro: e.centro,
+            color: colorDe(e.facultad),
+            marcado,
+            contorno: soloContorno,
+            atenuado: hayResaltados && !marcado && !soloContorno,
+            rotulo: marcado || soloContorno ? rotuloDe(e) : undefined,
+        };
+    });
+
+    return (
+        <Suspense fallback={dibujo}>
+            <MapaVivo edificios={vivos} onElegir={onElegir} alto={alto} />
+        </Suspense>
     );
 }
 

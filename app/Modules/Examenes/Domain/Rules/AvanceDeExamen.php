@@ -69,6 +69,7 @@ final class AvanceDeExamen
             TipoExamen::SegundoParcial => 'un segundo parcial',
             TipoExamen::Final => 'un examen final',
             TipoExamen::SegundaInstancia => 'una segunda instancia',
+            TipoExamen::Mesa => 'un examen de mesa',
         };
     }
 }
