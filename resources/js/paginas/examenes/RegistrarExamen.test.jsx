@@ -35,6 +35,7 @@ const TIPOS = [
     { valor: 'SEGUNDO_PARCIAL', etiqueta: 'Segundo parcial' },
     { valor: 'FINAL', etiqueta: 'Examen final' },
     { valor: 'SEGUNDA_INSTANCIA', etiqueta: 'Segunda instancia' },
+    { valor: 'MESA', etiqueta: 'Examen de mesa' },
 ];
 const PERIODOS = [
     { id: 1, codigo: '2/2026', fecha_inicio: '2026-08-10', fecha_fin: '2026-12-26', ventanas: {} },
@@ -294,7 +295,7 @@ beforeEach(() => {
 });
 
 describe('RegistrarExamen · paso 1, examen', () => {
-    it('ofrece solo las asignaturas que dicta y los cuatro tipos', async () => {
+    it('ofrece solo las asignaturas que dicta y los cinco tipos', async () => {
         montar();
 
         const asignatura = await campo(/^Asignatura/);
@@ -310,7 +311,13 @@ describe('RegistrarExamen · paso 1, examen', () => {
             within(screen.getByLabelText(/^Tipo/))
                 .getAllByRole('option')
                 .map((o) => o.textContent)
-        ).toEqual(['Primer parcial', 'Segundo parcial', 'Examen final', 'Segunda instancia']);
+        ).toEqual([
+            'Primer parcial',
+            'Segundo parcial',
+            'Examen final',
+            'Segunda instancia',
+            'Examen de mesa',
+        ]);
         expect(screen.getByRole('heading', { name: 'Registrar examen' })).toBeInTheDocument();
         expect(screen.getByText('Período 2/2026')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /Exámenes/ })).toHaveAttribute('href', '/examenes');

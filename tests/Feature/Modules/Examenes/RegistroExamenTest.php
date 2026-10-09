@@ -223,7 +223,7 @@ final class RegistroExamenTest extends TestCase
             ->assertJsonPath('errors.duracion_minutos.0', 'Entre 15 y 480');
     }
 
-    public function test_the_types_of_exam_are_the_four_of_the_university(): void
+    public function test_the_types_of_exam_are_the_five_of_the_university(): void
     {
         $this->actingAs($this->usuarioConPermisos(['examenes']))
             ->getJson('/api/examenes/tipos')
@@ -233,6 +233,7 @@ final class RegistroExamenTest extends TestCase
                 ['valor' => 'SEGUNDO_PARCIAL', 'etiqueta' => 'Segundo parcial'],
                 ['valor' => 'FINAL', 'etiqueta' => 'Examen final'],
                 ['valor' => 'SEGUNDA_INSTANCIA', 'etiqueta' => 'Segunda instancia'],
+                ['valor' => 'MESA', 'etiqueta' => 'Examen de mesa'],
             ]]);
     }
 
