@@ -23,3 +23,16 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# Compresion de lo que viaja como texto.
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript application/javascript application/json image/svg+xml application/xml application/manifest+json
+</IfModule>
+
+# Los archivos compilados llevan una huella en el nombre: no cambian nunca.
+# Lo demas (el favicon, la pagina) se sigue revalidando.
+<IfModule mod_headers.c>
+    <If "%{REQUEST_URI} =~ m#/build/assets/#">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </If>
+</IfModule>
