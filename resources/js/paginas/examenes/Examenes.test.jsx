@@ -157,8 +157,22 @@ describe('Examenes · lista', () => {
         montar();
         await tarjeta('Primer parcial · Introducción a la Programación');
 
-        const filtro = screen.getByRole('group', { name: 'Asignatura' });
-        expect(within(filtro).getByRole('button', { name: /Todos/ })).toHaveTextContent('Todos4');
+        const filtro = screen.getByRole('group', { name: 'Filtro' });
+        // Pendientes va primero y es lo que se ve al entrar; después «Todos» y las asignaturas.
+        expect(
+            within(filtro)
+                .getAllByRole('button')
+                .map((b) => b.textContent)
+        ).toEqual([
+            'Pendientes4',
+            'Todos4',
+            'Introducción a la Programación2',
+            'Taller de Ingeniería de Software2',
+        ]);
+        expect(within(filtro).getByRole('button', { name: /Pendientes/ })).toHaveAttribute(
+            'aria-pressed',
+            'true'
+        );
         const taller = within(filtro).getByRole('button', {
             name: /Taller de Ingeniería de Software/,
         });
@@ -171,8 +185,9 @@ describe('Examenes · lista', () => {
         expect(screen.queryByText(/· Introducción a la Programación/)).not.toBeInTheDocument();
         // El de hoy es de otra asignatura: no se destaca.
         expect(screen.queryByRole('heading', { name: 'Hoy' })).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Pendientes/ })).toHaveTextContent(
-            'Pendientes 2'
+        expect(screen.getByRole('button', { name: /Pendientes/ })).toHaveAttribute(
+            'aria-pressed',
+            'false'
         );
     });
 
@@ -182,20 +197,26 @@ describe('Examenes · lista', () => {
         montar();
         await tarjeta('Primer parcial · Taller de Ingeniería de Software');
 
+        // Al entrar se ven solo los pendientes.
         const pendientes = screen.getByRole('button', { name: /Pendientes/ });
-        expect(pendientes).toHaveTextContent('Pendientes 1');
-        expect(screen.getAllByRole('article')).toHaveLength(2);
-
-        fireEvent.click(pendientes);
-
+        expect(pendientes).toHaveTextContent('Pendientes1');
         expect(pendientes).toHaveAttribute('aria-pressed', 'true');
         expect(screen.getAllByRole('article')).toHaveLength(1);
+
+        fireEvent.click(screen.getByRole('button', { name: /Todos/ }));
+
+        expect(pendientes).toHaveAttribute('aria-pressed', 'false');
+        expect(screen.getAllByRole('article')).toHaveLength(2);
     });
 
-    it('si ninguno coincide muestra «Sin exámenes»', async () => {
+    it('sin pendientes arranca en «Todos»; «Pendientes» muestra «Sin exámenes»', async () => {
         examenes = [{ ...POR_HABILITAR, estado: 'Listo', accion: null }];
         montar();
         await tarjeta('Segundo parcial · Taller de Ingeniería de Software');
+        expect(screen.getByRole('button', { name: /Todos/ })).toHaveAttribute(
+            'aria-pressed',
+            'true'
+        );
 
         fireEvent.click(screen.getByRole('button', { name: /Pendientes/ }));
 

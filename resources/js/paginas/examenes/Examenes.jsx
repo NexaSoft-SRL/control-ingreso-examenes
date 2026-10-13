@@ -52,6 +52,7 @@ const PASOS = [
 ];
 
 const pendiente = (e) => e.estado !== 'Listo';
+const PENDIENTES = 'pendientes';
 const tipoDe = (e) => e.tipo_texto ?? e.tipo;
 
 // A dónde lleva la acción siguiente. `emitir_qr` no tiene destino todavía y
@@ -245,11 +246,12 @@ TarjetaExamen.propTypes = {
 
 // Los exámenes del docente en el período, de todas sus asignaturas. El de
 // hoy (o el próximo) va primero; el color de la asignatura queda solo en
-// el bloque de la fecha. Se filtra por asignatura y, aparte, por pendientes.
+// el bloque de la fecha. El filtro es de una sola elección: pendientes (lo
+// que se ve al entrar, si hay alguno), todos o una asignatura.
 export default function Examenes() {
     const { datos, meta, cargando, error, recargar } = usarConsulta('/examenes');
-    const [asignatura, setAsignatura] = useState(null);
-    const [soloPendientes, setSoloPendientes] = useState(false);
+    // Sin elegir todavía (`undefined`), la vista arranca en los pendientes.
+    const [eleccion, setEleccion] = useState(undefined);
     const [porEliminar, setPorEliminar] = useState(null);
     const [rechazo, setRechazo] = useState(null);
     const [eliminando, setEliminando] = useState(false);
@@ -263,17 +265,19 @@ export default function Examenes() {
         ...new Map(examenes.map((e) => [e.asignatura.id, e.asignatura])).values(),
     ].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 
-    const deLaAsignatura = (e) => asignatura === null || e.asignatura.id === asignatura;
-    const visible = (e) => deLaAsignatura(e) && (!soloPendientes || pendiente(e));
+    const pendientes = examenes.filter(pendiente).length;
+    const filtro = eleccion !== undefined ? eleccion : pendientes > 0 ? PENDIENTES : null;
+    const visible = (e) =>
+        filtro === null || (filtro === PENDIENTES ? pendiente(e) : e.asignatura.id === filtro);
     // El de hoy que no terminó o, si no hay, el próximo.
     const primero = examenes.find((e) => !e.rendido && (!hoy || e.fecha >= hoy)) ?? null;
     const destacado = primero && visible(primero) ? primero : null;
     const lista = examenes.filter((e) => visible(e) && e !== destacado);
     const meses = [...new Set(lista.map((e) => e.fecha.slice(0, 7)))];
     const plegado = examenes.length > 4;
-    const pendientes = examenes.filter((e) => deLaAsignatura(e) && pendiente(e)).length;
 
     const opciones = [
+        { valor: PENDIENTES, etiqueta: 'Pendientes', conteo: pendientes },
         {
             valor: null,
             etiqueta: asignaturas.length > 5 ? 'Todas las asignaturas' : 'Todos',
@@ -331,28 +335,10 @@ export default function Examenes() {
             <EstadoCarga cargando={cargando} error={error} onReintentar={recargar}>
                 <Chips
                     opciones={opciones}
-                    valor={asignatura}
-                    onCambiar={setAsignatura}
-                    etiqueta="Asignatura"
-                    extra={
-                        <button
-                            type="button"
-                            aria-pressed={soloPendientes}
-                            onClick={() => setSoloPendientes(!soloPendientes)}
-                            className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm font-medium transition-colors ${FOCO} ${
-                                soloPendientes
-                                    ? 'border-warning-600 bg-warning-50 text-warning-900'
-                                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                            }`}
-                        >
-                            Pendientes{' '}
-                            <span
-                                className={soloPendientes ? 'text-warning-700' : 'text-slate-500'}
-                            >
-                                {pendientes}
-                            </span>
-                        </button>
-                    }
+                    valor={filtro}
+                    onCambiar={setEleccion}
+                    etiqueta="Filtro"
+                    maximo={7}
                 />
 
                 {destacado && (
