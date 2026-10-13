@@ -80,6 +80,10 @@ final class AdministracionCuentasTest extends TestCase
     {
         $this->travelTo('2026-10-12 08:21:00');
 
+        // Las cuentas del arranque se crearon con la fecha real: se dejan
+        // anteriores a la fecha fijada para que la nueva sea la mas reciente.
+        DB::table('usuarios')->update(['created_at' => '2026-01-01 00:00:00']);
+
         $respuesta = $this->actingAs($this->administrador)
             ->postJson('/api/usuarios', [
                 'nombre' => '  Blanco Coca Leticia ',
