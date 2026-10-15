@@ -85,8 +85,12 @@ trait LeeFilas
     /**
      * El id de una facultad por su clave; 0 (ninguna) si no existe.
      */
-    private function facultadId(string $clave): int
+    private function facultadId(?string $clave): int
     {
+        if ($clave === null || trim($clave) === '') {
+            return 0;
+        }
+
         return $this->entero(
             DB::table('facultades')->where('clave', mb_strtolower($clave))->value('id')
         );
@@ -171,5 +175,54 @@ trait LeeFilas
         }
 
         return $inscritos;
+    }
+
+    /**
+     * Cuantos inscritos tiene cada asignatura en los periodos y la facultad
+     * indicados. Sin filtros, cuenta todos los inscritos de la asignatura.
+     *
+     * @param  list<int>  $asignaturaIds
+     * @param  list<int>  $periodoIds
+     * @return array<int, int>
+     */
+    private function inscritosPorAsignatura(array $asignaturaIds, array $periodoIds, ?int $facultadId = null): array
+    {
+        if ($asignaturaIds === []) {
+            return [];
+        }
+
+        $consulta = DB::table('inscripciones as i')
+            ->join('grupos as g', 'g.id', '=', 'i.grupo_id')
+            ->whereIn('g.asignatura_id', $asignaturaIds)
+            ->groupBy('g.asignatura_id')
+            ->selectRaw('g.asignatura_id, count(*) as total');
+
+        if ($periodoIds !== []) {
+            $consulta->whereIn('g.periodo_id', $periodoIds);
+        }
+
+        if ($facultadId !== null) {
+            $consulta->where('g.facultad_id', $facultadId);
+        }
+
+        $inscritos = [];
+
+        foreach ($consulta->get() as $fila) {
+            $inscritos[$this->entero($fila->asignatura_id)] = $this->entero($fila->total);
+        }
+
+        return $inscritos;
+    }
+
+    /**
+     * Los horarios de varios grupos con el nombre del aula, igual que
+     * `horariosDe` pero incluyendo el aula como parte de la tupla.
+     *
+     * @param  list<int>  $grupoIds
+     * @return array<int, list<array{dia: string, hora: string, aula: string|null}>>
+     */
+    private function horariosConAula(array $grupoIds): array
+    {
+        return $this->horariosDe($grupoIds);
     }
 }

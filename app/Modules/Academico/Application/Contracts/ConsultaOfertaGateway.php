@@ -64,6 +64,29 @@ interface ConsultaOfertaGateway
     public function carreras(?string $claveFacultad): array;
 
     /**
+     * Asignaturas de la oferta con sus grupos e inscritos, filtradas por
+     * periodo, facultad, carrera, nivel y búsqueda.
+     *
+     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null}  $filtros
+     * @return array{filas: list<array<string, mixed>>, total: int}
+     */
+    public function asignaturasDeOferta(array $filtros, PaginaData $pagina): array;
+
+    /**
+     * Los grupos de una asignatura con su docente, horarios, aula e inscritos.
+     * Cuando hay `$buscar`, los grupos cuyo docente coincide van primero.
+     *
+     * @param  list<int>  $periodoIds
+     * @return array{filas: list<array<string, mixed>>, total: int}
+     */
+    public function gruposDeAsignatura(
+        int $asignaturaId,
+        array $periodoIds,
+        ?string $buscar,
+        PaginaData $pagina,
+    ): array;
+
+    /**
      * @param  list<int>  $periodoIds
      * @return list<array{id: int, codigo: string, asignatura: array{id: int, codigo: string, nombre: string}, nivel: string|null, facultad: string, periodo: string, horarios: list<array{dia: string, hora: string, aula: string|null}>, inscritos: int, con_lista: bool}>
      */
@@ -75,4 +98,19 @@ interface ConsultaOfertaGateway
      * El dia de hoy para el sistema, `AAAA-MM-DD`.
      */
     public function hoy(): string;
+
+    /**
+     * Los niveles (semestre o año) presentes en la oferta filtrada, en el
+     * orden del plan de estudios, no alfabetico.
+     *
+     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null}  $filtros
+     * @return list<string>
+     */
+    public function nivelesDeOferta(array $filtros): array;
+
+    /**
+     * Si la asignatura existe en el catalogo (para distinguir «sin grupos»
+     * de «no existe»).
+     */
+    public function existeAsignatura(int $asignaturaId): bool;
 }

@@ -50,6 +50,7 @@ describe('EsquemaApp', () => {
 
         expect(enlaces(menus()[lateral])).toEqual([
             'Período',
+            'Oferta',   
             'Aulas y mapa',
             'Docentes',
             'Padrón',
@@ -59,7 +60,7 @@ describe('EsquemaApp', () => {
         expect(within(menus()[lateral]).getByText('Preparación')).toBeInTheDocument();
         expect(within(menus()[lateral]).queryByText('Docencia')).not.toBeInTheDocument();
         expect(within(menus()[lateral]).getByText('Sistema')).toBeInTheDocument();
-        expect(enlaces(menus()[inferior])).toEqual(['Período', 'Docentes', 'Padrón']);
+        expect(enlaces(menus()[inferior])).toEqual(['Período', 'Oferta', 'Docentes', 'Padrón']);
 
         const mas = within(menus()[inferior]).getByRole('button', { name: 'Más' });
         expect(mas).toHaveAttribute('aria-expanded', 'false');
@@ -92,7 +93,7 @@ describe('EsquemaApp', () => {
             permisos: ['examenes', 'periodo_oferta'],
         });
 
-        expect(enlaces(menus()[lateral])).toEqual(['Período', 'Exámenes']);
+        expect(enlaces(menus()[lateral])).toEqual(['Período', 'Oferta', 'Exámenes']);
         expect(screen.getAllByText('Coordinación')).toHaveLength(2);
     });
 

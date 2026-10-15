@@ -30,6 +30,16 @@ export const VISTAS = [
         movil: true,
         permiso: 'periodo_oferta',
     },
+
+        {
+        ruta: '/oferta',
+        titulo: 'Oferta',
+        Icono: GraduationCap,
+        grupo: 'Preparación',
+        movil: true,
+        permiso: 'periodo_oferta',
+    },
+
     {
         ruta: '/aulas',
         titulo: 'Aulas y mapa',
