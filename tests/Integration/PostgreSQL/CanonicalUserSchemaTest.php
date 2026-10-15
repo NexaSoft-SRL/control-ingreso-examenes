@@ -78,6 +78,7 @@ final class CanonicalUserSchemaTest extends TestCase
                 'conflictos_padron.resuelto_por',
                 'docentes.user_id',
                 'examenes.creado_por',
+                'expulsiones.registrada_por',
                 'habilitaciones.registrada_por',
                 'importaciones_oferta.ejecutada_por',
                 'ingresos.registrado_por',
