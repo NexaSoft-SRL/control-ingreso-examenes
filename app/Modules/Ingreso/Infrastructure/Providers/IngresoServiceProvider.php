@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Infrastructure\Providers;
 
+use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
+use App\Modules\Ingreso\Infrastructure\Persistence\AlcancePuntoControlSinAsignaciones;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEstadoExpulsionGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIngresoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\VentanaExamen;
@@ -28,6 +30,11 @@ final class IngresoServiceProvider extends ServiceProvider
         $this->app->bind(
             EstadoExpulsionGateway::class,
             EloquentEstadoExpulsionGateway::class,
+        );
+
+        $this->app->bind(
+            AlcancePuntoControl::class,
+            AlcancePuntoControlSinAsignaciones::class,
         );
 
     }
