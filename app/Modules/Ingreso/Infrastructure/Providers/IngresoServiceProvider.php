@@ -11,8 +11,8 @@ use App\Modules\Ingreso\Application\Contracts\IngresosRecientesGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
 use App\Modules\Ingreso\Infrastructure\Persistence\AlcancePuntoControlSinAsignaciones;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEstadoExpulsionGateway;
-use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIngresoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIngresosRecientesGateway;
+use App\Modules\Ingreso\Infrastructure\Persistence\IngresoAuditadoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\VentanaExamen;
 use Illuminate\Support\ServiceProvider;
 
@@ -22,7 +22,7 @@ final class IngresoServiceProvider extends ServiceProvider
     {
         $this->app->bind(
             IngresoGateway::class,
-            EloquentIngresoGateway::class,
+            IngresoAuditadoGateway::class,
         );
 
         $this->app->bind(
