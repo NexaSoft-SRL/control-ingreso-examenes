@@ -5,6 +5,7 @@ use App\Modules\Administracion\Infrastructure\Providers\AdministracionServicePro
 use App\Modules\Estudiantes\Infrastructure\Providers\EstudiantesServiceProvider;
 use App\Modules\Examenes\Infrastructure\Providers\ExamenesServiceProvider;
 use App\Modules\Habilitacion\Infrastructure\Providers\HabilitacionServiceProvider;
+use App\Modules\Ingreso\Infrastructure\Providers\IngresoServiceProvider;
 use App\Providers\AppServiceProvider;
 
 return [
@@ -14,4 +15,5 @@ return [
     EstudiantesServiceProvider::class,
     ExamenesServiceProvider::class,
     HabilitacionServiceProvider::class,
+    IngresoServiceProvider::class,
 ];
