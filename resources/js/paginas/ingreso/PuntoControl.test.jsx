@@ -43,6 +43,7 @@ async function preparar() {
     await waitFor(() => {
         expect(api.get).toHaveBeenCalledWith('/examenes/10/aulas/7/punto-control/ingresos', {
             params: { limite: 20 },
+            signal: expect.any(AbortSignal),
         });
     });
 }
@@ -113,10 +114,14 @@ describe('PuntoControl HU-19', () => {
 
         await screen.findByText('Ingreso autorizado');
 
-        expect(api.post).toHaveBeenCalledWith('/examenes/10/aulas/7/punto-control/ingresos', {
-            tipo: 'codigo',
-            identificador: '202100001',
-        });
+        expect(api.post).toHaveBeenCalledWith(
+            '/examenes/10/aulas/7/punto-control/ingresos',
+            {
+                tipo: 'codigo',
+                identificador: '202100001',
+            },
+            { signal: expect.any(AbortSignal) }
+        );
     });
 
     it('bloquea la operación cuando el backend devuelve 403', async () => {
@@ -137,5 +142,155 @@ describe('PuntoControl HU-19', () => {
         ).toBeInTheDocument();
 
         expect(screen.getByRole('button', { name: 'Consultar estudiante' })).toBeDisabled();
+    });
+
+    it('mantiene el contexto mientras una consulta está pendiente', async () => {
+        let responder;
+
+        const pendiente = new Promise((resolver) => {
+            responder = resolver;
+        });
+
+        api.get.mockImplementation((ruta) => {
+            if (ruta === '/examenes') {
+                return Promise.resolve({
+                    data: {
+                        data: [
+                            {
+                                ...examen,
+                                aulas: [
+                                    { id: 7, nombre: 'A-101' },
+                                    { id: 8, nombre: 'A-102' },
+                                ],
+                            },
+                        ],
+                    },
+                });
+            }
+
+            if (ruta.endsWith('/candidato')) return pendiente;
+
+            return Promise.resolve({ data: { data: [] } });
+        });
+
+        await preparar();
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
+            target: { value: '202100001' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith(
+                '/examenes/10/aulas/7/punto-control/candidato',
+                expect.objectContaining({
+                    signal: expect.any(AbortSignal),
+                })
+            );
+        });
+
+        // Durante la consulta no pueden cambiar los datos
+        // del contexto asociado a la solicitud.
+        const selectorExamen = screen.getByText('Examen').closest('label').querySelector('select');
+
+        expect(selectorExamen).toBeDisabled();
+
+        const selectorAula = screen.getByRole('combobox', {
+            name: 'Aula de control',
+        });
+
+        expect(selectorAula).toBeDisabled();
+        expect(selectorAula).toHaveValue('7');
+
+        expect(
+            screen.getByRole('combobox', {
+                name: 'Tipo de identificación',
+            })
+        ).toBeDisabled();
+
+        expect(
+            screen.getByRole('textbox', {
+                name: 'Identificador',
+            })
+        ).toBeDisabled();
+
+        const llamada = api.get.mock.calls.find(([ruta]) => ruta.endsWith('/candidato'));
+
+        responder({
+            data: {
+                data: {
+                    estudiante_id: 5,
+                    codigo: '202100001',
+                    nombre: 'Estudiante de prueba',
+                    habilitado: true,
+                },
+            },
+        });
+
+        await screen.findByText('Estudiante de prueba');
+
+        expect(llamada[1].signal).toBeInstanceOf(AbortSignal);
+    });
+
+    it('cancela una consulta pendiente al desmontar la pantalla', async () => {
+        let responder;
+
+        const pendiente = new Promise((resolver) => {
+            responder = resolver;
+        });
+
+        api.get.mockImplementation((ruta) => {
+            if (ruta === '/examenes') {
+                return Promise.resolve({ data: { data: [examen] } });
+            }
+
+            if (ruta.endsWith('/candidato')) {
+                return pendiente;
+            }
+
+            return Promise.resolve({ data: { data: [] } });
+        });
+
+        const vista = montar();
+
+        await screen.findByRole('option', { name: 'A-101' });
+
+        fireEvent.change(screen.getByRole('combobox', { name: 'Aula de control' }), {
+            target: { value: '7' },
+        });
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
+            target: { value: '202100001' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
+
+        let señal;
+
+        await waitFor(() => {
+            const llamada = api.get.mock.calls.find(([ruta]) => ruta.endsWith('/candidato'));
+
+            expect(llamada).toBeDefined();
+
+            señal = llamada[1].signal;
+        });
+
+        expect(señal.aborted).toBe(false);
+
+        vista.unmount();
+
+        expect(señal.aborted).toBe(true);
+
+        responder({
+            data: {
+                data: {
+                    estudiante_id: 5,
+                    codigo: '202100001',
+                    nombre: 'Estudiante obsoleto',
+                    habilitado: true,
+                },
+            },
+        });
     });
 });

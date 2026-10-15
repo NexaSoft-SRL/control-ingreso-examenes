@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import { useEffect, useRef, useState } from 'react';
+import LectorQr from './LectorQr';
 import { ClipboardCheck, RefreshCw, Search } from 'lucide-react';
 import { api } from '../../api/cliente';
 import { estadoDe, mensajeDe } from '../../api/errores';
@@ -33,12 +34,13 @@ function interpretarFallo(error, alternativa) {
     return mensajeDe(error, alternativa);
 }
 
-function Aula({ aulas, valor, alCambiar }) {
+function Aula({ aulas, valor, alCambiar, deshabilitado = false }) {
     return (
         <label className="block space-y-2 text-sm font-medium text-slate-700">
             Aula de control
             <select
                 aria-label="Aula de control"
+                disabled={deshabilitado}
                 className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
                 value={valor}
                 onChange={(evento) => alCambiar(evento.target.value)}
@@ -64,6 +66,7 @@ Aula.propTypes = {
     ).isRequired,
     valor: PropTypes.string.isRequired,
     alCambiar: PropTypes.func.isRequired,
+    deshabilitado: PropTypes.bool,
 };
 
 export default function PuntoControl() {
@@ -79,6 +82,26 @@ export default function PuntoControl() {
     const [ocupado, setOcupado] = useState(false);
     const [bloqueado, setBloqueado] = useState(false);
     const pendiente = useRef(false);
+    const versionContexto = useRef(0);
+    const peticiones = useRef(new Set());
+    const [lectorAbierto, setLectorAbierto] = useState(false);
+
+    const invalidarContexto = () => {
+        versionContexto.current += 1;
+        peticiones.current.forEach((controlador) => controlador.abort());
+        peticiones.current.clear();
+        setLectorAbierto(false);
+    };
+
+    useEffect(() => {
+        const actuales = peticiones.current;
+
+        return () => {
+            versionContexto.current += 1;
+            actuales.forEach((controlador) => controlador.abort());
+            actuales.clear();
+        };
+    }, []);
 
     const [examen, elegirExamen] = usarExamen(examenes);
     const examenId = examen?.id ?? null;
@@ -111,16 +134,20 @@ export default function PuntoControl() {
 
     useEffect(() => {
         let activo = true;
+        const controlador = new AbortController();
 
         if (punto) {
-            api.get(`${punto}/ingresos`, { params: { limite: 20 } })
+            api.get(`${punto}/ingresos`, {
+                params: { limite: 20 },
+                signal: controlador.signal,
+            })
                 .then(({ data }) => {
                     if (activo) {
                         setHistorial(Array.isArray(data?.data) ? data.data : []);
                     }
                 })
                 .catch((error) => {
-                    if (activo) {
+                    if (activo && !controlador.signal.aborted) {
                         setHistorial([]);
                         setMensaje(interpretarFallo(error, 'No se pudo consultar el historial.'));
                         if (estadoDe(error) === 403) setBloqueado(true);
@@ -130,10 +157,13 @@ export default function PuntoControl() {
 
         return () => {
             activo = false;
+            controlador.abort();
         };
     }, [punto]);
 
     const cambiarExamen = (id) => {
+        if (pendiente.current) return;
+        invalidarContexto();
         elegirExamen(id);
         setAulaId('');
         setCandidato(null);
@@ -144,6 +174,8 @@ export default function PuntoControl() {
     };
 
     const cambiarAula = (id) => {
+        if (pendiente.current) return;
+        invalidarContexto();
         setAulaId(id);
         setCandidato(null);
         setVeredicto(null);
@@ -153,6 +185,8 @@ export default function PuntoControl() {
     };
 
     const cambiarIdentificacion = (nuevoTipo, nuevoIdentificador) => {
+        if (pendiente.current) return;
+        invalidarContexto();
         setTipo(nuevoTipo);
         setIdentificador(nuevoIdentificador);
         setCandidato(null);
@@ -172,6 +206,9 @@ export default function PuntoControl() {
         }
 
         pendiente.current = true;
+        const version = versionContexto.current;
+        const controlador = new AbortController();
+        peticiones.current.add(controlador);
         setOcupado(true);
         setMensaje('');
 
@@ -187,21 +224,34 @@ export default function PuntoControl() {
 
                 const { data } = await api.get(`${punto}/candidato`, {
                     params: cuerpo,
+                    signal: controlador.signal,
                 });
 
+                if (version !== versionContexto.current) return;
                 setCandidato(data?.data ?? null);
             } else {
-                const { data } = await api.post(`${punto}/ingresos`, cuerpo);
+                const { data } = await api.post(`${punto}/ingresos`, cuerpo, {
+                    signal: controlador.signal,
+                });
+
+                if (version !== versionContexto.current) return;
                 setVeredicto(data?.data ?? null);
 
                 if (data?.data?.admitido === true) {
                     const respuesta = await api.get(`${punto}/ingresos`, {
                         params: { limite: 20 },
+                        signal: controlador.signal,
                     });
+
+                    if (version !== versionContexto.current) return;
                     setHistorial(Array.isArray(respuesta.data?.data) ? respuesta.data.data : []);
                 }
             }
         } catch (error) {
+            if (controlador.signal.aborted || version !== versionContexto.current) {
+                return;
+            }
+
             const estado = estadoDe(error);
 
             if (operacion === 'registrar' && estado === 409) {
@@ -224,6 +274,7 @@ export default function PuntoControl() {
 
             if (estado === 403) setBloqueado(true);
         } finally {
+            peticiones.current.delete(controlador);
             pendiente.current = false;
             setOcupado(false);
         }
@@ -248,10 +299,16 @@ export default function PuntoControl() {
                         valor={examenId}
                         onCambiar={cambiarExamen}
                         examenes={examenes}
+                        deshabilitado={ocupado}
                     />
                 )}
 
-                <Aula aulas={aulas} valor={aulaId} alCambiar={cambiarAula} />
+                <Aula
+                    aulas={aulas}
+                    valor={aulaId}
+                    alCambiar={cambiarAula}
+                    deshabilitado={ocupado}
+                />
             </section>
 
             <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5">
@@ -262,6 +319,7 @@ export default function PuntoControl() {
                         Tipo
                         <select
                             aria-label="Tipo de identificación"
+                            disabled={ocupado}
                             value={tipo}
                             onChange={(e) => cambiarIdentificacion(e.target.value, '')}
                             className="block w-full rounded-lg border border-slate-300 p-2"
@@ -276,6 +334,7 @@ export default function PuntoControl() {
                         Identificador
                         <input
                             aria-label="Identificador"
+                            disabled={ocupado}
                             value={identificador}
                             onChange={(e) => cambiarIdentificacion(tipo, e.target.value)}
                             maxLength={2048}
@@ -284,6 +343,24 @@ export default function PuntoControl() {
                         />
                     </label>
                 </div>
+
+                <button
+                    type="button"
+                    disabled={!punto || ocupado || bloqueado}
+                    onClick={() => setLectorAbierto(true)}
+                    className="ml-2 rounded-lg border border-slate-300 px-4 py-2 font-medium text-slate-900 disabled:opacity-50"
+                >
+                    Abrir cámara QR
+                </button>
+
+                {lectorAbierto && (
+                    <LectorQr
+                        alCerrar={() => setLectorAbierto(false)}
+                        alDetectar={(contenido) => {
+                            cambiarIdentificacion('qr', contenido);
+                        }}
+                    />
+                )}
 
                 <button
                     type="button"

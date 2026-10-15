@@ -14,7 +14,7 @@ function textoDe(examen) {
 // dependen de un examen, porque el docente puede tener varios, de
 // distintas asignaturas. `examenes` es la lista (o una parte: por ejemplo,
 // los de hoy). Con muchos exámenes, la lista se agrupa por asignatura.
-export default function SelectorExamen({ valor, onCambiar, examenes }) {
+export default function SelectorExamen({ valor, onCambiar, examenes, deshabilitado = false }) {
     const examen = examenes.find((e) => e.id === valor) ?? examenes[0];
     if (!examen) return null;
 
@@ -31,6 +31,7 @@ export default function SelectorExamen({ valor, onCambiar, examenes }) {
                 <select
                     className="w-full truncate bg-transparent bg-[position:right_0_center] py-0.5 text-sm font-semibold text-slate-900 focus:outline-none"
                     value={examen.id}
+                    disabled={deshabilitado}
                     onChange={(e) => onCambiar(Number(e.target.value))}
                 >
                     {examenes.length <= 6
@@ -58,6 +59,7 @@ export default function SelectorExamen({ valor, onCambiar, examenes }) {
 
 SelectorExamen.propTypes = {
     valor: PropTypes.number,
+    deshabilitado: PropTypes.bool,
     onCambiar: PropTypes.func.isRequired,
     examenes: PropTypes.arrayOf(
         PropTypes.shape({
