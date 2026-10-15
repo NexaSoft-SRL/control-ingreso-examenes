@@ -8,6 +8,7 @@ import {
     UsersRound,
     FileText,
     ListChecks,
+    ScanLine,
 } from 'lucide-react';
 
 // Fuente única de las pantallas. El menú (EsquemaApp), las rutas
@@ -79,6 +80,14 @@ export const VISTAS = [
         oculta: true,
         padre: '/examenes',
         permiso: 'habilitacion',
+    },
+    {
+        ruta: '/punto-control',
+        titulo: 'Punto de control',
+        Icono: ScanLine,
+        grupo: 'Exámenes',
+        movil: true,
+        permiso: 'punto_control',
     },
     {
         ruta: '/mis-grupos',

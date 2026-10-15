@@ -90,7 +90,7 @@ describe('RutaProtegida', () => {
     });
 
     it('una cuenta sin pantallas va a /sin-acceso', () => {
-        montar('/bitacora', { usuario: usuarioDePrueba('Auxiliar') });
+        montar('/bitacora', { usuario: usuarioDePrueba('Auxiliar', { permisos: [] }) });
         expect(screen.getByText('Estoy en /sin-acceso')).toBeInTheDocument();
     });
 });
