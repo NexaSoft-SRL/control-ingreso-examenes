@@ -165,7 +165,7 @@ return static function (DeptracConfig $config): void {
                     )
                     ->must(
                         ClassNameRegexConfig::create(
-                            '#^Illuminate\\Support\\Facades\\(?:DB|Hash|Schema|Storage)$#'
+                            '#^Illuminate\\Support\\Facades\\(?:DB|Hash|Schema|Storage|Crypt)$#'
                         )
                     ),
 
@@ -179,6 +179,18 @@ return static function (DeptracConfig $config): void {
                             '#^Illuminate\\Database\\(?:QueryException|Query\\JoinClause)$#'
                         )
                     ),
+                // Descifrado autenticado exclusivo de infraestructura.
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Contracts\\Encryption\\DecryptException$#'
+                        )
+                    ),
+
                 // La lectura de hojas de calculo es infraestructura: la
                 // capa de aplicacion solo recibe filas de texto (HU-04).
                 BoolConfig::create()
