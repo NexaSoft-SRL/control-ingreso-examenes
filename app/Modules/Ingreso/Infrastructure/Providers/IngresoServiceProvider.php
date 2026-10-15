@@ -7,10 +7,12 @@ namespace App\Modules\Ingreso\Infrastructure\Providers;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
+use App\Modules\Ingreso\Application\Contracts\IngresosRecientesGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
 use App\Modules\Ingreso\Infrastructure\Persistence\AlcancePuntoControlSinAsignaciones;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEstadoExpulsionGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIngresoGateway;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIngresosRecientesGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\VentanaExamen;
 use Illuminate\Support\ServiceProvider;
 
@@ -35,6 +37,11 @@ final class IngresoServiceProvider extends ServiceProvider
         $this->app->bind(
             AlcancePuntoControl::class,
             AlcancePuntoControlSinAsignaciones::class,
+        );
+
+        $this->app->bind(
+            IngresosRecientesGateway::class,
+            EloquentIngresosRecientesGateway::class,
         );
 
     }
