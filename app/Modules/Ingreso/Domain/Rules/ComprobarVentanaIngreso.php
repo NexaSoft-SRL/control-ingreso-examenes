@@ -22,13 +22,26 @@ final readonly class ComprobarVentanaIngreso
 
         $zona = new DateTimeZone('America/La_Paz');
 
+        $formatoHora = match (true) {
+            preg_match('/^\\d{2}:\\d{2}$/D', $horaInicio) === 1 => 'H:i',
+            preg_match('/^\\d{2}:\\d{2}:\\d{2}$/D', $horaInicio) === 1 => 'H:i:s',
+            default => null,
+        };
+
+        if ($formatoHora === null) {
+            throw new InvalidArgumentException('Fecha u hora inválida.');
+        }
+
         $inicio = DateTimeImmutable::createFromFormat(
-            '!Y-m-d H:i:s',
+            '!Y-m-d '.$formatoHora,
             $fecha.' '.$horaInicio,
             $zona,
         );
 
-        if ($inicio === false) {
+        if (
+            $inicio === false
+            || DateTimeImmutable::getLastErrors() !== false
+        ) {
             throw new InvalidArgumentException('Fecha u hora inválida.');
         }
 

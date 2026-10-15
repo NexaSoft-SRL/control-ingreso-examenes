@@ -45,4 +45,30 @@ final class ComprobarVentanaIngresoTest extends TestCase
             ),
         );
     }
+
+    public function test_acepta_hora_sin_segundos(): void
+    {
+        $regla = new ComprobarVentanaIngreso;
+
+        self::assertTrue($regla->comprobar(
+            '2026-10-15',
+            '08:30',
+            90,
+            new DateTimeImmutable('2026-10-15 08:45:00', new DateTimeZone('America/La_Paz')),
+        ));
+    }
+
+    public function test_rechaza_hora_fuera_de_rango(): void
+    {
+        $regla = new ComprobarVentanaIngreso;
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $regla->comprobar(
+            '2026-10-15',
+            '25:90',
+            90,
+            new DateTimeImmutable('2026-10-15 08:45:00', new DateTimeZone('America/La_Paz')),
+        );
+    }
 }
