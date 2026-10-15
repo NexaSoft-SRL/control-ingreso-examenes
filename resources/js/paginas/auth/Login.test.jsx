@@ -54,7 +54,7 @@ describe('Login', () => {
     });
 
     it('una cuenta sin pantallas va a /sin-acceso', async () => {
-        const entrar = vi.fn().mockResolvedValue(usuarioDePrueba('Auxiliar'));
+        const entrar = vi.fn().mockResolvedValue(usuarioDePrueba('Auxiliar', { permisos: [] }));
         montar({ entrar });
         completar('auxiliar@umss.edu.bo', 'clave-correcta');
 

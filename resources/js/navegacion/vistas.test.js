@@ -5,7 +5,7 @@ import { CATALOGO_PERMISOS, usuarioDePrueba } from '../test/apoyo';
 const rutas = (usuario) => vistasDe(usuario).map((v) => v.ruta);
 
 describe('vistas por permiso', () => {
-    it('declara las diez rutas del sprint, cada una con su permiso', () => {
+    it('declara las once rutas del sprint, cada una con su permiso', () => {
         expect(VISTAS.map((v) => [v.ruta, v.permiso])).toEqual([
             ['/periodo', 'periodo_oferta'],
             ['/aulas', 'aulas_docentes'],
@@ -14,6 +14,7 @@ describe('vistas por permiso', () => {
             ['/examenes', 'examenes'],
             ['/examenes/nuevo', 'examenes'],
             ['/habilitacion', 'habilitacion'],
+            ['/punto-control', 'punto_control'],
             ['/mis-grupos', 'mis_grupos'],
             ['/admin', 'usuarios_roles'],
             ['/bitacora', 'bitacora'],
@@ -27,7 +28,7 @@ describe('vistas por permiso', () => {
     it('cada rol de inicio entra por su pantalla', () => {
         expect(entradaDe(usuarioDePrueba('Administrador'))).toBe('/periodo');
         expect(entradaDe(usuarioDePrueba('Docente'))).toBe('/examenes');
-        expect(entradaDe(usuarioDePrueba('Auxiliar'))).toBeNull();
+        expect(entradaDe(usuarioDePrueba('Auxiliar'))).toBe('/punto-control');
     });
 
     it('da las vistas de los permisos de la cuenta', () => {
@@ -46,9 +47,10 @@ describe('vistas por permiso', () => {
             '/examenes',
             '/examenes/nuevo',
             '/habilitacion',
+            '/punto-control',
             '/mis-grupos',
         ]);
-        expect(rutas(usuarioDePrueba('Auxiliar'))).toEqual([]);
+        expect(rutas(usuarioDePrueba('Auxiliar'))).toEqual(['/punto-control']);
         expect(rutas(null)).toEqual([]);
     });
 
@@ -76,7 +78,7 @@ describe('vistas por permiso', () => {
     it('decide el destino tras autenticarse', () => {
         expect(destinoDe(null)).toBe('/login');
         expect(destinoDe(usuarioDePrueba('Docente'))).toBe('/examenes');
-        expect(destinoDe(usuarioDePrueba('Auxiliar'))).toBe('/sin-acceso');
+        expect(destinoDe(usuarioDePrueba('Auxiliar'))).toBe('/punto-control');
         expect(destinoDe(usuarioDePrueba('Docente', { permisos: [] }))).toBe('/sin-acceso');
     });
 
