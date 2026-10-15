@@ -376,12 +376,12 @@ final class LegacySchemaUpgradeTest extends TestCase
     {
         $this->migrate();
 
-        // Vuelve al estado anterior a los roles creables (deshace las seis
+        // Vuelve al estado anterior a los roles creables (deshace las siete
         // ultimas migraciones) y carga el reparto del diseno anterior.
         $this->assertSame(
             0,
             Artisan::call('migrate:rollback', [
-                '--step' => 6,
+                '--step' => 7,
                 '--force' => true,
                 '--no-interaction' => true,
             ]),
@@ -527,7 +527,7 @@ final class LegacySchemaUpgradeTest extends TestCase
         $this->migrate();
 
         Artisan::call('migrate:rollback', [
-            '--step' => 6,
+            '--step' => 7,
             '--force' => true,
             '--no-interaction' => true,
         ]);

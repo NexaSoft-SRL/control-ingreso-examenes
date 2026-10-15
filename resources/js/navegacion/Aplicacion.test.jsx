@@ -43,6 +43,7 @@ const TITULOS = {
     '/examenes': 'Exámenes',
     '/examenes/nuevo': 'Registrar examen',
     '/habilitacion': 'Habilitación',
+    '/punto-control': 'Punto de control',
     '/mis-grupos': 'Mis grupos',
     '/admin': 'Usuarios y roles',
     '/bitacora': 'Bitácora',
@@ -70,11 +71,9 @@ describe('Aplicacion', () => {
         expect(await titulo(nombre)).toBeInTheDocument();
     });
 
-    it('el auxiliar no tiene pantallas todavía', async () => {
+    it('el auxiliar entra al punto de control según su permiso', async () => {
         montar('/', usuarioDePrueba('Auxiliar'));
-        expect(await titulo('Sin pantallas asignadas')).toBeInTheDocument();
-        expect(screen.getByText('Mamani Torrez Diego · Auxiliar')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
+        expect(await titulo('Punto de control')).toBeInTheDocument();
     });
 
     it('una vista sin permiso muestra «Sin permiso» dentro del armazón', async () => {
