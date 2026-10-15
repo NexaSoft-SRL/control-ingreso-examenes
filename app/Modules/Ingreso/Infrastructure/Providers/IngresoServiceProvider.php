@@ -6,11 +6,13 @@ namespace App\Modules\Ingreso\Infrastructure\Providers;
 
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
+use App\Modules\Ingreso\Application\Contracts\ContextoOperativoPuntoControl;
 use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresosRecientesGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
 use App\Modules\Ingreso\Infrastructure\Persistence\AlcancePuntoControlSinAsignaciones;
+use App\Modules\Ingreso\Infrastructure\Persistence\ContextoOperativoSinAsignaciones;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEstadoExpulsionGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIngresosRecientesGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\IngresoAuditadoGateway;
@@ -39,6 +41,11 @@ final class IngresoServiceProvider extends ServiceProvider
         $this->app->bind(
             AlcancePuntoControl::class,
             AlcancePuntoControlSinAsignaciones::class,
+        );
+
+        $this->app->bind(
+            ContextoOperativoPuntoControl::class,
+            ContextoOperativoSinAsignaciones::class,
         );
 
         $this->app->bind(

@@ -53,7 +53,7 @@ describe('PuntoControl HU-19', () => {
         vi.clearAllMocks();
 
         api.get.mockImplementation((ruta) => {
-            if (ruta === '/examenes') {
+            if (ruta === '/punto-control/contexto') {
                 return Promise.resolve({ data: { data: [examen] } });
             }
 
@@ -126,7 +126,7 @@ describe('PuntoControl HU-19', () => {
 
     it('bloquea la operación cuando el backend devuelve 403', async () => {
         api.get.mockImplementation((ruta) => {
-            if (ruta === '/examenes') {
+            if (ruta === '/punto-control/contexto') {
                 return Promise.resolve({ data: { data: [examen] } });
             }
 
@@ -152,7 +152,7 @@ describe('PuntoControl HU-19', () => {
         });
 
         api.get.mockImplementation((ruta) => {
-            if (ruta === '/examenes') {
+            if (ruta === '/punto-control/contexto') {
                 return Promise.resolve({
                     data: {
                         data: [
@@ -241,7 +241,7 @@ describe('PuntoControl HU-19', () => {
         });
 
         api.get.mockImplementation((ruta) => {
-            if (ruta === '/examenes') {
+            if (ruta === '/punto-control/contexto') {
                 return Promise.resolve({ data: { data: [examen] } });
             }
 
@@ -292,5 +292,206 @@ describe('PuntoControl HU-19', () => {
                 },
             },
         });
+    });
+
+    it('sin asignaciones no permite operar ni consultar ingresos', async () => {
+        api.get.mockResolvedValue({
+            data: { data: [] },
+        });
+
+        montar();
+
+        expect(
+            await screen.findByText('No tienes exámenes y aulas asignados para operar.')
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByRole('button', {
+                name: 'Consultar estudiante',
+            })
+        ).toBeDisabled();
+
+        expect(
+            screen.getByRole('button', {
+                name: 'Abrir cámara QR',
+            })
+        ).toBeDisabled();
+
+        expect(api.get).toHaveBeenCalledWith('/punto-control/contexto');
+        expect(api.get).toHaveBeenCalledTimes(1);
+        expect(api.post).not.toHaveBeenCalled();
+    });
+
+    it('muestra el identificador real del historial Laravel', async () => {
+        api.get.mockImplementation((ruta) => {
+            if (ruta === '/punto-control/contexto') {
+                return Promise.resolve({ data: { data: [examen] } });
+            }
+
+            if (ruta.endsWith('/ingresos')) {
+                return Promise.resolve({
+                    data: {
+                        data: [
+                            {
+                                ingreso_id: 42,
+                                estudiante_id: 5,
+                                codigo: '202100001',
+                                nombres: 'Estudiante',
+                                apellidos: 'de prueba',
+                                aula_id: 7,
+                                registrado_en: '2026-10-15 08:10:00',
+                                operador: 'Auxiliar',
+                            },
+                        ],
+                    },
+                });
+            }
+
+            return Promise.reject(new Error('Ruta inesperada'));
+        });
+
+        await preparar();
+
+        expect(await screen.findByText(/Ingreso #42/)).toBeInTheDocument();
+        expect(screen.getByText(/Estudiante 5/)).toBeInTheDocument();
+    });
+
+    it('informa el fallo de carga del contexto sin permitir operar', async () => {
+        api.get.mockRejectedValue({
+            response: {
+                status: 403,
+                data: { message: 'No autorizado' },
+            },
+        });
+
+        montar();
+
+        expect(
+            await screen.findByText('No tienes asignación para operar en este examen y aula.')
+        ).toBeInTheDocument();
+
+        expect(screen.getByRole('button', { name: 'Consultar estudiante' })).toBeDisabled();
+
+        expect(api.post).not.toHaveBeenCalled();
+    });
+
+    it('ignora un 403 tardío del historial al cambiar de aula', async () => {
+        let rechazarHistorialAnterior;
+
+        const historialAnterior = new Promise((resolver, rechazar) => {
+            rechazarHistorialAnterior = rechazar;
+        });
+
+        const examenConDosAulas = {
+            ...examen,
+            aulas: [
+                { id: 7, nombre: 'A-101' },
+                { id: 8, nombre: 'A-102' },
+            ],
+        };
+
+        api.get.mockImplementation((ruta) => {
+            if (ruta === '/punto-control/contexto') {
+                return Promise.resolve({
+                    data: { data: [examenConDosAulas] },
+                });
+            }
+
+            if (ruta === '/examenes/10/aulas/7/punto-control/ingresos') {
+                return historialAnterior;
+            }
+
+            if (ruta === '/examenes/10/aulas/8/punto-control/ingresos') {
+                return Promise.resolve({
+                    data: { data: [] },
+                });
+            }
+
+            return Promise.reject(new Error('Ruta inesperada'));
+        });
+
+        montar();
+
+        const selectorAula = await screen.findByRole('combobox', {
+            name: 'Aula de control',
+        });
+
+        await screen.findByRole('option', { name: 'A-102' });
+
+        fireEvent.change(selectorAula, {
+            target: { value: '7' },
+        });
+
+        let señalAnterior;
+
+        await waitFor(() => {
+            const llamada = api.get.mock.calls.find(
+                ([ruta]) => ruta === '/examenes/10/aulas/7/punto-control/ingresos'
+            );
+
+            expect(llamada).toBeDefined();
+            señalAnterior = llamada[1].signal;
+        });
+
+        expect(señalAnterior.aborted).toBe(false);
+
+        fireEvent.change(selectorAula, {
+            target: { value: '8' },
+        });
+
+        await waitFor(() => {
+            expect(señalAnterior.aborted).toBe(true);
+        });
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith(
+                '/examenes/10/aulas/8/punto-control/ingresos',
+                expect.objectContaining({
+                    params: { limite: 20 },
+                    signal: expect.any(AbortSignal),
+                })
+            );
+        });
+
+        // Simula un cliente HTTP que entrega un error incluso
+        // después de haber recibido la señal de cancelación.
+        rechazarHistorialAnterior({
+            response: {
+                status: 403,
+                data: { message: 'Acceso anterior denegado' },
+            },
+        });
+
+        await waitFor(() => {
+            expect(selectorAula).toHaveValue('8');
+        });
+
+        // Permite procesar la promesa antigua antes de comprobar el estado.
+        await waitFor(() => {
+            expect(
+                screen.getByRole('button', {
+                    name: 'Consultar estudiante',
+                })
+            ).toBeDisabled();
+        });
+
+        expect(
+            screen.queryByText('Punto de control bloqueado por falta de asignación.')
+        ).not.toBeInTheDocument();
+
+        expect(
+            screen.queryByText('No tienes asignación para operar en este examen y aula.')
+        ).not.toBeInTheDocument();
+
+        // El aula 8 debe poder habilitar una consulta nueva.
+        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
+            target: { value: '202100001' },
+        });
+
+        expect(
+            screen.getByRole('button', {
+                name: 'Consultar estudiante',
+            })
+        ).toBeEnabled();
     });
 });

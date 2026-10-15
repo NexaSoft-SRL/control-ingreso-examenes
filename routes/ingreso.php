@@ -2,8 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Modules\Ingreso\Http\Controllers\ContextoPuntoControlController;
 use App\Modules\Ingreso\Http\Controllers\PuntoControlController;
 use Illuminate\Support\Facades\Route;
+
+Route::middleware(['auth', 'permiso:punto_control'])
+    ->get('api/punto-control/contexto', ContextoPuntoControlController::class)
+    ->name('ingreso.contexto');
 
 Route::middleware(['auth', 'permiso:punto_control'])
     ->prefix('api/examenes/{examen}/aulas/{aula}/punto-control')

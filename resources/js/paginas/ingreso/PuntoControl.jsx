@@ -112,7 +112,7 @@ export default function PuntoControl() {
     useEffect(() => {
         let activo = true;
 
-        api.get('/examenes')
+        api.get('/punto-control/contexto')
             .then(({ data }) => {
                 if (activo) {
                     setExamenes(Array.isArray(data?.data) ? data.data : []);
@@ -293,7 +293,7 @@ export default function PuntoControl() {
                 {cargandoExamenes ? (
                     <p role="status">Cargando exámenes…</p>
                 ) : examenes.length === 0 ? (
-                    <p>No hay exámenes disponibles para seleccionar.</p>
+                    <p>No tienes exámenes y aulas asignados para operar.</p>
                 ) : (
                     <SelectorExamen
                         valor={examenId}
@@ -433,8 +433,11 @@ export default function PuntoControl() {
                 ) : (
                     <ul className="divide-y divide-slate-100">
                         {historial.map((registro, indice) => (
-                            <li key={registro.id ?? indice} className="py-3 text-sm text-slate-700">
-                                Ingreso #{registro.id ?? '—'} · Estudiante{' '}
+                            <li
+                                key={registro.ingreso_id ?? indice}
+                                className="py-3 text-sm text-slate-700"
+                            >
+                                Ingreso #{registro.ingreso_id ?? '—'} · Estudiante{' '}
                                 {registro.estudiante_id ?? '—'}
                             </li>
                         ))}
