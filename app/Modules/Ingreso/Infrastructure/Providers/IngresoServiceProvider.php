@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Infrastructure\Providers;
 
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
+use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresosRecientesGateway;
@@ -14,6 +15,7 @@ use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEstadoExpulsionGatewa
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIngresosRecientesGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\IngresoAuditadoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\VentanaExamen;
+use App\Modules\Ingreso\Infrastructure\QR\CodigoQrCifrado;
 use Illuminate\Support\ServiceProvider;
 
 final class IngresoServiceProvider extends ServiceProvider
@@ -42,6 +44,11 @@ final class IngresoServiceProvider extends ServiceProvider
         $this->app->bind(
             IngresosRecientesGateway::class,
             EloquentIngresosRecientesGateway::class,
+        );
+
+        $this->app->bind(
+            CodigoQrGateway::class,
+            CodigoQrCifrado::class,
         );
 
     }

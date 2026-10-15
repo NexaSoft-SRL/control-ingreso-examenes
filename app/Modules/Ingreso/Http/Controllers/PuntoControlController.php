@@ -6,6 +6,7 @@ namespace App\Modules\Ingreso\Http\Controllers;
 
 use App\Modules\Ingreso\Application\Actions\RegistrarIngreso;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
+use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use App\Modules\Ingreso\Application\Queries\ConsultarCandidato;
 use App\Modules\Ingreso\Application\Queries\ConsultarIngresosRecientes;
 use App\Modules\Ingreso\Domain\Enums\VeredictoIngreso;
@@ -26,6 +27,7 @@ final class PuntoControlController
         int $aula,
         AlcancePuntoControl $alcance,
         ConsultarCandidato $consulta,
+        CodigoQrGateway $qr,
     ): JsonResponse {
         $usuario = Auth::id();
 
@@ -38,15 +40,23 @@ final class PuntoControlController
         }
 
         $request->validate([
-            'tipo' => ['required', 'string', Rule::in(['codigo', 'documento'])],
-            'identificador' => ['required', 'string', 'max:30'],
+            'tipo' => ['required', 'string', Rule::in(['codigo', 'documento', 'qr'])],
+            'identificador' => ['required', 'string', 'max:2048'],
         ]);
 
         try {
+            $tipo = $request->string('tipo')->toString();
+            $identificador = $request->string('identificador')->toString();
+
+            if ($tipo === 'qr') {
+                $identificador = $qr->resolver($identificador, $examen);
+                $tipo = 'codigo';
+            }
+
             $candidato = $consulta->consultar(
                 $examen,
-                $request->string('tipo')->toString(),
-                $request->string('identificador')->toString(),
+                $tipo,
+                $identificador,
             );
         } catch (InvalidArgumentException $error) {
             return $this->error($error->getMessage(), 422);
@@ -74,6 +84,7 @@ final class PuntoControlController
         int $aula,
         AlcancePuntoControl $alcance,
         RegistrarIngreso $registrar,
+        CodigoQrGateway $qr,
     ): JsonResponse {
         $usuario = Auth::id();
 
@@ -86,17 +97,25 @@ final class PuntoControlController
         }
 
         $request->validate([
-            'tipo' => ['required', 'string', Rule::in(['codigo', 'documento'])],
-            'identificador' => ['required', 'string', 'max:30'],
+            'tipo' => ['required', 'string', Rule::in(['codigo', 'documento', 'qr'])],
+            'identificador' => ['required', 'string', 'max:2048'],
         ]);
 
         try {
+            $tipo = $request->string('tipo')->toString();
+            $identificador = $request->string('identificador')->toString();
+
+            if ($tipo === 'qr') {
+                $identificador = $qr->resolver($identificador, $examen);
+                $tipo = 'codigo';
+            }
+
             $veredicto = $registrar->ejecutar(
                 $usuario,
                 $examen,
                 $aula,
-                $request->string('tipo')->toString(),
-                $request->string('identificador')->toString(),
+                $tipo,
+                $identificador,
             );
         } catch (AccesoPuntoDenegado $error) {
             return $this->error($error->getMessage(), 403);

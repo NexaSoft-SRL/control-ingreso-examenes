@@ -9,6 +9,7 @@ use App\Modules\Administracion\Domain\Models\User;
 use App\Modules\Estudiantes\Domain\Models\Estudiante;
 use App\Modules\Examenes\Domain\Models\Examen;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
+use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\DatosAcademicos;
@@ -201,5 +202,54 @@ final class AdmisionHttpIntegracionTest extends TestCase
             $examen->id,
             $aula->id,
         );
+    }
+
+    public function test_admite_estudiante_identificado_por_qr(): void
+    {
+        [$usuario, $examen, $aula, $estudiante] = $this->escenario();
+
+        $this->habilitar($examen, [$estudiante], $aula);
+        $this->autorizarPunto($usuario, $examen, $aula);
+
+        $contenido = app(CodigoQrGateway::class)->generar(
+            $examen->id,
+            $estudiante->codigo_universitario,
+        );
+
+        $this->actingAs($usuario)
+            ->postJson($this->url($examen, $aula), [
+                'tipo' => 'qr',
+                'identificador' => $contenido,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.veredicto', 'ADMITIDO');
+
+        $this->assertDatabaseHas('ingresos', [
+            'examen_id' => $examen->id,
+            'estudiante_id' => $estudiante->id,
+            'aula_id' => $aula->id,
+        ]);
+    }
+
+    public function test_qr_de_otro_examen_no_registra_ingreso(): void
+    {
+        [$usuario, $examen, $aula, $estudiante] = $this->escenario();
+
+        $this->habilitar($examen, [$estudiante], $aula);
+        $this->autorizarPunto($usuario, $examen, $aula);
+
+        $contenido = app(CodigoQrGateway::class)->generar(
+            $examen->id + 1,
+            $estudiante->codigo_universitario,
+        );
+
+        $this->actingAs($usuario)
+            ->postJson($this->url($examen, $aula), [
+                'tipo' => 'qr',
+                'identificador' => $contenido,
+            ])
+            ->assertUnprocessable();
+
+        $this->assertDatabaseCount('ingresos', 0);
     }
 }
