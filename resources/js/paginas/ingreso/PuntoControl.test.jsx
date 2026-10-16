@@ -19,6 +19,13 @@ const examen = {
     aulas: [{ id: 7, nombre: 'A-101' }],
 };
 
+const IDENTIFICACION = {
+    examen_id: 10,
+    veredicto: 'ADMITIDO',
+    ambiguo: false,
+    admisible: true,
+};
+
 function montar() {
     return render(
         <MemoryRouter>
@@ -41,8 +48,8 @@ async function preparar() {
     });
 
     await waitFor(() => {
-        expect(api.get).toHaveBeenCalledWith('/examenes/10/aulas/7/punto-control/ingresos', {
-            params: { limite: 20 },
+        expect(api.get).toHaveBeenCalledWith('/aulas/7/punto-control/ingresos', {
+            params: { limite: 5 },
             signal: expect.any(AbortSignal),
         });
     });
@@ -51,6 +58,18 @@ async function preparar() {
 describe('PuntoControl HU-19', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+
+        api.post.mockImplementation((ruta) => {
+            if (ruta.endsWith('/identificar')) {
+                return Promise.resolve({ data: { data: IDENTIFICACION } });
+            }
+            if (ruta.endsWith('/ingresos')) {
+                return Promise.resolve({
+                    data: { data: { examen_id: 10, veredicto: 'ADMITIDO', admitido: true } },
+                });
+            }
+            return Promise.reject(new Error('Ruta POST inesperada'));
+        });
 
         api.get.mockImplementation((ruta) => {
             if (ruta === '/punto-control/contexto') {
@@ -169,14 +188,21 @@ describe('PuntoControl HU-19', () => {
             return Promise.resolve({ data: { data: [] } });
         });
 
-        api.post.mockResolvedValue({
-            data: {
-                data: {
-                    veredicto: 'NO_HABILITADO',
-                    admitido: false,
-                },
-            },
-        });
+        api.post.mockImplementation((ruta) =>
+            ruta.endsWith('/identificar')
+                ? Promise.resolve({ data: { data: IDENTIFICACION } })
+                : Promise.reject({
+                      response: {
+                          status: 409,
+                          data: {
+                              data: {
+                                  veredicto: 'NO_HABILITADO',
+                                  admitido: false,
+                              },
+                          },
+                      },
+                  })
+        );
 
         await preparar();
 
@@ -189,7 +215,7 @@ describe('PuntoControl HU-19', () => {
         });
 
         fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-        await screen.findByText('Estudiante de prueba');
+        await screen.findByText('Resultado de identificación');
 
         fireEvent.click(screen.getByRole('button', { name: 'Confirmar ingreso' }));
 
@@ -246,17 +272,21 @@ describe('PuntoControl HU-19', () => {
             return Promise.resolve({ data: { data: [] } });
         });
 
-        api.post.mockRejectedValue({
-            response: {
-                status: 409,
-                data: {
-                    data: {
-                        veredicto: 'YA_INGRESO',
-                        admitido: false,
-                    },
-                },
-            },
-        });
+        api.post.mockImplementation((ruta) =>
+            ruta.endsWith('/identificar')
+                ? Promise.resolve({ data: { data: IDENTIFICACION } })
+                : Promise.reject({
+                      response: {
+                          status: 409,
+                          data: {
+                              data: {
+                                  veredicto: 'YA_INGRESO',
+                                  admitido: false,
+                              },
+                          },
+                      },
+                  })
+        );
 
         await preparar();
 
@@ -269,7 +299,7 @@ describe('PuntoControl HU-19', () => {
         });
 
         fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-        await screen.findByText('Estudiante de prueba');
+        await screen.findByText('Resultado de identificación');
 
         fireEvent.click(screen.getByRole('button', { name: 'Confirmar ingreso' }));
 
@@ -280,7 +310,7 @@ describe('PuntoControl HU-19', () => {
         ).toBeInTheDocument();
 
         expect(lecturas).toBe(2);
-        expect(api.post).toHaveBeenCalledTimes(1);
+        expect(api.post).toHaveBeenCalledTimes(2);
     });
 
     it('BUG-04: ignora incidencias antiguas al cambiar de aula', async () => {
@@ -359,25 +389,15 @@ describe('PuntoControl HU-19', () => {
     });
 
     it('CA-2: muestra el motivo real del estudiante inhabilitado', async () => {
-        const original = api.get.getMockImplementation();
-
-        api.get.mockImplementation((ruta, opciones) => {
-            if (ruta.endsWith('/candidato')) {
-                return Promise.resolve({
-                    data: {
-                        data: {
-                            estudiante_id: 5,
-                            codigo: '202100001',
-                            nombre: 'Estudiante de prueba',
-                            inscrito: true,
-                            habilitado: false,
-                            motivo_inhabilitacion: 'Documentación académica pendiente.',
-                        },
-                    },
-                });
-            }
-
-            return original(ruta, opciones);
+        api.post.mockResolvedValue({
+            data: {
+                data: {
+                    examen_id: 10,
+                    veredicto: 'NO_HABILITADO',
+                    ambiguo: false,
+                    admisible: false,
+                },
+            },
         });
 
         await preparar();
@@ -387,34 +407,22 @@ describe('PuntoControl HU-19', () => {
         });
 
         fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-        await screen.findByText('Estudiante de prueba');
 
-        expect(screen.getByText('Inhabilitado')).toBeInTheDocument();
-        expect(
-            screen.getByText(/Motivo:\s*Documentación académica pendiente\./)
-        ).toBeInTheDocument();
+        expect(await screen.findByText('Estudiante no habilitado')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Confirmar ingreso' })).toBeDisabled();
+        expect(api.post).toHaveBeenCalledTimes(1);
     });
 
     it('CA-3: distingue la ausencia de condición registrada', async () => {
-        const original = api.get.getMockImplementation();
-
-        api.get.mockImplementation((ruta, opciones) => {
-            if (ruta.endsWith('/candidato')) {
-                return Promise.resolve({
-                    data: {
-                        data: {
-                            estudiante_id: 5,
-                            codigo: '202100001',
-                            nombre: 'Estudiante de prueba',
-                            inscrito: true,
-                            habilitado: null,
-                            motivo_inhabilitacion: null,
-                        },
-                    },
-                });
-            }
-
-            return original(ruta, opciones);
+        api.post.mockResolvedValue({
+            data: {
+                data: {
+                    examen_id: null,
+                    veredicto: null,
+                    ambiguo: true,
+                    admisible: false,
+                },
+            },
         });
 
         await preparar();
@@ -424,11 +432,12 @@ describe('PuntoControl HU-19', () => {
         });
 
         fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-        await screen.findByText('Estudiante de prueba');
 
-        expect(screen.getByText('Sin condición de habilitación registrada')).toBeInTheDocument();
-
-        expect(screen.queryByText(/^Motivo:/)).not.toBeInTheDocument();
+        expect(
+            await screen.findByText('Identificación ambigua entre exámenes')
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Confirmar ingreso' })).toBeDisabled();
+        expect(api.post).toHaveBeenCalledTimes(1);
     });
 
     it('consulta antes de permitir confirmar el ingreso', async () => {
@@ -442,14 +451,20 @@ describe('PuntoControl HU-19', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
 
-        expect(await screen.findByText('Estudiante de prueba')).toBeInTheDocument();
+        expect(await screen.findByText('Resultado de identificación')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Confirmar ingreso' })).toBeEnabled();
     });
 
     it('registra solo después de confirmar', async () => {
-        api.post.mockResolvedValue({
-            data: { data: { veredicto: 'ADMITIDO', admitido: true } },
-        });
+        api.post.mockImplementation((ruta) =>
+            Promise.resolve({
+                data: {
+                    data: ruta.endsWith('/identificar')
+                        ? IDENTIFICACION
+                        : { examen_id: 10, veredicto: 'ADMITIDO', admitido: true },
+                },
+            })
+        );
 
         await preparar();
 
@@ -457,16 +472,16 @@ describe('PuntoControl HU-19', () => {
             target: { value: '202100001' },
         });
         fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-        await screen.findByText('Estudiante de prueba');
+        await screen.findByText('Resultado de identificación');
 
-        expect(api.post).not.toHaveBeenCalled();
+        expect(api.post).toHaveBeenCalledTimes(1);
 
         fireEvent.click(screen.getByRole('button', { name: 'Confirmar ingreso' }));
 
         await screen.findByText('Ingreso autorizado');
 
         expect(api.post).toHaveBeenCalledWith(
-            '/examenes/10/aulas/7/punto-control/ingresos',
+            '/aulas/7/punto-control/ingresos',
             {
                 tipo: 'codigo',
                 identificador: '202100001',
@@ -476,14 +491,18 @@ describe('PuntoControl HU-19', () => {
     });
 
     it('BUG-03: informa horario cerrado sin inventar un ingreso previo', async () => {
-        api.post.mockRejectedValue({
-            response: {
-                status: 409,
-                data: {
-                    message: 'El punto de control está fuera del horario permitido.',
-                },
-            },
-        });
+        api.post.mockImplementation((ruta) =>
+            ruta.endsWith('/identificar')
+                ? Promise.resolve({ data: { data: IDENTIFICACION } })
+                : Promise.reject({
+                      response: {
+                          status: 409,
+                          data: {
+                              message: 'El punto de control está fuera del horario permitido.',
+                          },
+                      },
+                  })
+        );
 
         await preparar();
 
@@ -492,7 +511,7 @@ describe('PuntoControl HU-19', () => {
         });
 
         fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-        await screen.findByText('Estudiante de prueba');
+        await screen.findByText('Resultado de identificación');
 
         fireEvent.click(screen.getByRole('button', { name: 'Confirmar ingreso' }));
 
@@ -502,21 +521,25 @@ describe('PuntoControl HU-19', () => {
 
         expect(screen.queryByText('Ingreso registrado anteriormente')).not.toBeInTheDocument();
 
-        expect(api.post).toHaveBeenCalledTimes(1);
+        expect(api.post).toHaveBeenCalledTimes(2);
     });
 
     it('BUG-03: conserva YA_INGRESO cuando el backend lo confirma', async () => {
-        api.post.mockRejectedValue({
-            response: {
-                status: 409,
-                data: {
-                    data: {
-                        veredicto: 'YA_INGRESO',
-                        admitido: false,
-                    },
-                },
-            },
-        });
+        api.post.mockImplementation((ruta) =>
+            ruta.endsWith('/identificar')
+                ? Promise.resolve({ data: { data: IDENTIFICACION } })
+                : Promise.reject({
+                      response: {
+                          status: 409,
+                          data: {
+                              data: {
+                                  veredicto: 'YA_INGRESO',
+                                  admitido: false,
+                              },
+                          },
+                      },
+                  })
+        );
 
         await preparar();
 
@@ -525,7 +548,7 @@ describe('PuntoControl HU-19', () => {
         });
 
         fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-        await screen.findByText('Estudiante de prueba');
+        await screen.findByText('Resultado de identificación');
 
         fireEvent.click(screen.getByRole('button', { name: 'Confirmar ingreso' }));
 
@@ -535,7 +558,7 @@ describe('PuntoControl HU-19', () => {
             screen.queryByText('El punto de control está fuera del horario permitido.')
         ).not.toBeInTheDocument();
 
-        expect(api.post).toHaveBeenCalledTimes(1);
+        expect(api.post).toHaveBeenCalledTimes(2);
     });
 
     it('bloquea la operación cuando el backend devuelve 403', async () => {
@@ -563,6 +586,11 @@ describe('PuntoControl HU-19', () => {
 
         const pendiente = new Promise((resolver) => {
             responder = resolver;
+        });
+
+        api.post.mockImplementation((ruta) => {
+            if (ruta.endsWith('/identificar')) return pendiente;
+            return Promise.reject(new Error('POST inesperado'));
         });
 
         api.get.mockImplementation((ruta) => {
@@ -596,8 +624,12 @@ describe('PuntoControl HU-19', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
 
         await waitFor(() => {
-            expect(api.get).toHaveBeenCalledWith(
-                '/examenes/10/aulas/7/punto-control/candidato',
+            expect(api.post).toHaveBeenCalledWith(
+                '/aulas/7/punto-control/identificar',
+                {
+                    tipo: 'codigo',
+                    identificador: '202100001',
+                },
                 expect.objectContaining({
                     signal: expect.any(AbortSignal),
                 })
@@ -629,11 +661,12 @@ describe('PuntoControl HU-19', () => {
             })
         ).toBeDisabled();
 
-        const llamada = api.get.mock.calls.find(([ruta]) => ruta.endsWith('/candidato'));
+        const llamada = api.post.mock.calls.find(([ruta]) => ruta.endsWith('/identificar'));
 
         responder({
             data: {
                 data: {
+                    ...IDENTIFICACION,
                     estudiante_id: 5,
                     codigo: '202100001',
                     nombre: 'Estudiante de prueba',
@@ -642,9 +675,9 @@ describe('PuntoControl HU-19', () => {
             },
         });
 
-        await screen.findByText('Estudiante de prueba');
+        await screen.findByText('Resultado de identificación');
 
-        expect(llamada[1].signal).toBeInstanceOf(AbortSignal);
+        expect(llamada[2].signal).toBeInstanceOf(AbortSignal);
     });
 
     it('cancela una consulta pendiente al desmontar la pantalla', async () => {
@@ -652,6 +685,11 @@ describe('PuntoControl HU-19', () => {
 
         const pendiente = new Promise((resolver) => {
             responder = resolver;
+        });
+
+        api.post.mockImplementation((ruta) => {
+            if (ruta.endsWith('/identificar')) return pendiente;
+            return Promise.reject(new Error('POST inesperado'));
         });
 
         api.get.mockImplementation((ruta) => {
@@ -683,11 +721,11 @@ describe('PuntoControl HU-19', () => {
         let señal;
 
         await waitFor(() => {
-            const llamada = api.get.mock.calls.find(([ruta]) => ruta.endsWith('/candidato'));
+            const llamada = api.post.mock.calls.find(([ruta]) => ruta.endsWith('/identificar'));
 
             expect(llamada).toBeDefined();
 
-            señal = llamada[1].signal;
+            señal = llamada[2].signal;
         });
 
         expect(señal.aborted).toBe(false);
@@ -699,6 +737,7 @@ describe('PuntoControl HU-19', () => {
         responder({
             data: {
                 data: {
+                    ...IDENTIFICACION,
                     estudiante_id: 5,
                     codigo: '202100001',
                     nombre: 'Estudiante obsoleto',
@@ -733,7 +772,7 @@ describe('PuntoControl HU-19', () => {
 
         expect(api.get).toHaveBeenCalledWith('/punto-control/contexto');
         expect(api.get).toHaveBeenCalledTimes(1);
-        expect(api.post).not.toHaveBeenCalled();
+        expect(api.post.mock.calls.some(([ruta]) => ruta.endsWith('/ingresos'))).toBe(false);
     });
 
     it('muestra el identificador real del historial Laravel', async () => {
@@ -786,7 +825,7 @@ describe('PuntoControl HU-19', () => {
 
         expect(screen.getByRole('button', { name: 'Consultar estudiante' })).toBeDisabled();
 
-        expect(api.post).not.toHaveBeenCalled();
+        expect(api.post.mock.calls.some(([ruta]) => ruta.endsWith('/ingresos'))).toBe(false);
     });
 
     it('ignora un 403 tardío del historial al cambiar de aula', async () => {
@@ -811,11 +850,11 @@ describe('PuntoControl HU-19', () => {
                 });
             }
 
-            if (ruta === '/examenes/10/aulas/7/punto-control/ingresos') {
+            if (ruta === '/aulas/7/punto-control/ingresos') {
                 return historialAnterior;
             }
 
-            if (ruta === '/examenes/10/aulas/8/punto-control/ingresos') {
+            if (ruta === '/aulas/8/punto-control/ingresos') {
                 return Promise.resolve({
                     data: { data: [] },
                 });
@@ -840,7 +879,7 @@ describe('PuntoControl HU-19', () => {
 
         await waitFor(() => {
             const llamada = api.get.mock.calls.find(
-                ([ruta]) => ruta === '/examenes/10/aulas/7/punto-control/ingresos'
+                ([ruta]) => ruta === '/aulas/7/punto-control/ingresos'
             );
 
             expect(llamada).toBeDefined();
@@ -859,9 +898,9 @@ describe('PuntoControl HU-19', () => {
 
         await waitFor(() => {
             expect(api.get).toHaveBeenCalledWith(
-                '/examenes/10/aulas/8/punto-control/ingresos',
+                '/aulas/8/punto-control/ingresos',
                 expect.objectContaining({
-                    params: { limite: 20 },
+                    params: { limite: 5 },
                     signal: expect.any(AbortSignal),
                 })
             );

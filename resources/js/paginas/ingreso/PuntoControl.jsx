@@ -109,6 +109,7 @@ export default function PuntoControl() {
     const aulas = Array.isArray(examen?.aulas) ? examen.aulas : [];
     const aulaValida = aulas.some((aula) => String(aula.id) === aulaId);
     const punto = examenId && aulaValida ? urlPunto(examenId, aulaId) : null;
+    const puerta = aulaValida ? `/aulas/${aulaId}/punto-control` : null;
 
     useEffect(() => {
         let activo = true;
@@ -138,8 +139,8 @@ export default function PuntoControl() {
         const controlador = new AbortController();
 
         if (punto) {
-            api.get(`${punto}/ingresos`, {
-                params: { limite: 20 },
+            api.get(`${puerta}/ingresos`, {
+                params: { limite: 5 },
                 signal: controlador.signal,
             })
                 .then(({ data }) => {
@@ -160,7 +161,7 @@ export default function PuntoControl() {
             activo = false;
             controlador.abort();
         };
-    }, [punto]);
+    }, [puerta, punto]);
 
     useEffect(() => {
         let activo = true;
@@ -194,6 +195,44 @@ export default function PuntoControl() {
             controlador.abort();
         };
     }, [punto]);
+
+    useEffect(() => {
+        if (!puerta) return undefined;
+
+        let activo = true;
+        let consultando = false;
+        const controlador = new AbortController();
+
+        const actualizar = async () => {
+            if (consultando) return;
+            consultando = true;
+
+            try {
+                const { data } = await api.get(`${puerta}/ingresos`, {
+                    params: { limite: 5 },
+                    signal: controlador.signal,
+                });
+
+                if (activo) {
+                    setHistorial(Array.isArray(data?.data) ? data.data : []);
+                }
+            } catch (error) {
+                if (activo && !controlador.signal.aborted && estadoDe(error) === 403) {
+                    setBloqueado(true);
+                }
+            } finally {
+                consultando = false;
+            }
+        };
+
+        const temporizador = setInterval(actualizar, 10000);
+
+        return () => {
+            activo = false;
+            clearInterval(temporizador);
+            controlador.abort();
+        };
+    }, [puerta]);
 
     const cambiarExamen = (id) => {
         if (pendiente.current) return;
@@ -232,11 +271,11 @@ export default function PuntoControl() {
 
     const ejecutar = async (operacion) => {
         if (
-            !punto ||
+            !puerta ||
             bloqueado ||
             pendiente.current ||
             !identificador.trim() ||
-            (operacion === 'registrar' && !candidato)
+            (operacion === 'registrar' && candidato?.admisible !== true)
         ) {
             return;
         }
@@ -260,16 +299,24 @@ export default function PuntoControl() {
                 setCandidato(null);
                 setVeredicto(null);
 
-                const { data } = await api.get(`${punto}/candidato`, {
-                    params: cuerpo,
+                const { data } = await api.post(`${puerta}/identificar`, cuerpo, {
                     signal: controlador.signal,
                 });
 
                 if (version !== versionContexto.current) return;
-                setCandidato(data?.data ?? null);
+                const resultado = data?.data;
+
+                if (!resultado || typeof resultado.admisible !== 'boolean') {
+                    throw new Error('Respuesta de identificación incompleta.');
+                }
+
+                setCandidato({
+                    ...resultado,
+                    codigo: tipo === 'qr' ? 'QR verificado' : identificador.trim(),
+                });
             } else {
                 registroIntentado = true;
-                const { data } = await api.post(`${punto}/ingresos`, cuerpo, {
+                const { data } = await api.post(`${puerta}/ingresos`, cuerpo, {
                     signal: controlador.signal,
                 });
 
@@ -277,8 +324,8 @@ export default function PuntoControl() {
                 setVeredicto(data?.data ?? null);
 
                 if (data?.data?.admitido === true) {
-                    const respuesta = await api.get(`${punto}/ingresos`, {
-                        params: { limite: 20 },
+                    const respuesta = await api.get(`${puerta}/ingresos`, {
+                        params: { limite: 5 },
                         signal: controlador.signal,
                     });
 
@@ -296,7 +343,7 @@ export default function PuntoControl() {
             if (
                 operacion === 'registrar' &&
                 estado === 409 &&
-                error.response?.data?.data?.veredicto === 'YA_INGRESO'
+                error.response?.data?.data?.veredicto
             ) {
                 setVeredicto(error.response.data.data);
             } else {
@@ -416,7 +463,7 @@ export default function PuntoControl() {
 
                 <button
                     type="button"
-                    disabled={!punto || ocupado || bloqueado}
+                    disabled={!puerta || ocupado || bloqueado}
                     onClick={() => setLectorAbierto(true)}
                     className="ml-2 rounded-lg border border-slate-300 px-4 py-2 font-medium text-slate-900 disabled:opacity-50"
                 >
@@ -435,7 +482,7 @@ export default function PuntoControl() {
                 <button
                     type="button"
                     onClick={() => ejecutar('consultar')}
-                    disabled={!punto || ocupado || bloqueado || !identificador.trim()}
+                    disabled={!puerta || ocupado || bloqueado || !identificador.trim()}
                     className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 font-medium text-white disabled:opacity-50"
                 >
                     <Search size={17} />
@@ -444,25 +491,31 @@ export default function PuntoControl() {
 
                 {candidato && (
                     <div className="space-y-3 rounded-lg bg-slate-50 p-4">
-                        <h3 className="font-semibold">{candidato.nombre}</h3>
-                        <p className="text-sm text-slate-700">Código: {candidato.codigo}</p>
-                        <p className="text-sm text-slate-700">
-                            {candidato.habilitado === true
-                                ? 'Habilitado'
-                                : candidato.habilitado === false
-                                  ? 'Inhabilitado'
-                                  : 'Sin condición de habilitación registrada'}
+                        <h3 className="font-semibold">Resultado de identificación</h3>
+                        <p className="break-all text-sm text-slate-700">
+                            Identificador: {candidato.codigo}
                         </p>
-                        {candidato.habilitado === false && (
-                            <p className="break-words text-sm text-red-700">
-                                Motivo:{' '}
-                                {candidato.motivo_inhabilitacion?.trim() || 'Motivo no disponible.'}
+                        <p className="text-sm font-semibold">
+                            {candidato.ambiguo
+                                ? 'Identificación ambigua entre exámenes'
+                                : (RESULTADOS[candidato.veredicto] ??
+                                  candidato.veredicto ??
+                                  'No se encontró un examen inequívoco')}
+                        </p>
+                        {candidato.examen_id != null && (
+                            <p className="text-sm text-slate-600">
+                                Examen identificado: {candidato.examen_id}
                             </p>
                         )}
 
                         <button
                             type="button"
-                            disabled={ocupado || bloqueado || veredicto !== null}
+                            disabled={
+                                ocupado ||
+                                bloqueado ||
+                                veredicto !== null ||
+                                candidato.admisible !== true
+                            }
                             onClick={() => ejecutar('registrar')}
                             className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 font-medium text-white disabled:opacity-50"
                         >
