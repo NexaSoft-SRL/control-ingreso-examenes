@@ -45,6 +45,20 @@ final class EloquentIncidenciasIngresoGateway implements IncidenciasIngresoGatew
         $resultado = [];
 
         foreach ($filas as $fila) {
+            /**
+             * @var object{
+             *     incidencia_id: int,
+             *     estudiante_id: int|null,
+             *     codigo: string|null,
+             *     nombres: string|null,
+             *     apellidos: string|null,
+             *     aula_id: int,
+             *     tipo_rechazo: string,
+             *     detalle: string,
+             *     registrado_en: string,
+             *     operador: string|null
+             * } $fila
+             */
             $resultado[] = [
                 'incidencia_id' => (int) $fila->incidencia_id,
                 'estudiante_id' => $fila->estudiante_id === null
