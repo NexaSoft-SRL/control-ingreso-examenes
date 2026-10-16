@@ -116,4 +116,67 @@ final class ResolverIngresoAutorizadoEnPuertaTest extends TestCase
             0, 30, [5], 'codigo', '20260017',
         );
     }
+
+    public function test_ignora_examen_ajeno_y_resuelve_el_autorizado(): void
+    {
+        $examenes = $this->createMock(ExamenGateway::class);
+
+        $examenes->method('actual')->willReturnCallback(
+            static fn (int $id): ExamenActualData => new ExamenActualData(
+                $id,
+                1,
+                2,
+                'PARCIAL',
+                '2026-10-20',
+                '08:00:00',
+                120,
+                [12],
+                [30],
+            )
+        );
+
+        $alcance = $this->createMock(AlcancePuntoControl::class);
+        $alcance->method('puedeOperar')->willReturnCallback(
+            static fn (int $usuario, int $examen, int $aula): bool => $usuario === 7 && $examen === 5 && $aula === 30
+        );
+
+        $ventana = $this->createMock(VentanaPuntoControl::class);
+        $ventana->expects(self::once())
+            ->method('estaAbierta')
+            ->with(5)
+            ->willReturn(true);
+
+        $padron = $this->createMock(PadronGateway::class);
+        $padron->method('porCodigos')->willReturn([]);
+
+        $resolver = new ResolverExamenEnPuerta(
+            new ConsultarCandidato(
+                $padron,
+                $this->createMock(InscritosDeExamenGateway::class),
+                $examenes,
+                $this->createMock(HabilitacionGateway::class),
+            ),
+            new EvaluarIngreso,
+            $this->createMock(IngresoGateway::class),
+            $this->createMock(EstadoExpulsionGateway::class),
+        );
+
+        $servicio = new ResolverIngresoAutorizadoEnPuerta(
+            $examenes,
+            $alcance,
+            $ventana,
+            $resolver,
+        );
+
+        $resultado = $servicio->ejecutar(
+            7,
+            30,
+            [6, 5],
+            'codigo',
+            '20260017',
+        );
+
+        self::assertNull($resultado->examenId);
+        self::assertFalse($resultado->puedeAdmitir());
+    }
 }

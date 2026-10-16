@@ -37,6 +37,7 @@ final readonly class ResolverIngresoAutorizadoEnPuerta
         }
 
         $autorizados = [];
+        $tieneAlcance = false;
 
         foreach (array_unique($examenesCandidatosIds) as $examenId) {
             if ($examenId <= 0) {
@@ -56,14 +57,20 @@ final readonly class ResolverIngresoAutorizadoEnPuerta
                     $aulaId,
                 )
             ) {
-                throw new AccesoPuntoDenegado(
-                    'No atiendes esta aula.'
-                );
+                continue;
             }
+
+            $tieneAlcance = true;
 
             if ($this->ventana->estaAbierta($examenId)) {
                 $autorizados[] = $examenId;
             }
+        }
+
+        if (! $tieneAlcance) {
+            throw new AccesoPuntoDenegado(
+                'No atiendes esta aula.'
+            );
         }
 
         if ($autorizados === []) {
