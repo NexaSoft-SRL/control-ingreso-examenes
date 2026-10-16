@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Examenes\Domain\Models;
 
-use App\Modules\Administracion\Domain\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -56,13 +55,5 @@ final class ExamenAulaPersonal extends Model
     public function examen(): BelongsTo
     {
         return $this->belongsTo(Examen::class, 'examen_id');
-    }
-
-    /**
-     * @return BelongsTo<User, $this>
-     */
-    public function usuario(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'usuario_id');
     }
 }
