@@ -29,7 +29,6 @@ const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
 const ENLACE = `inline-flex min-h-10 shrink-0 items-center rounded-lg text-sm font-medium hover:underline ${FOCO}`;
 
-// Los pasos del avance. El de códigos QR queda siempre pendiente (HU-20).
 const PASOS = [
     {
         clave: 'grupos',
@@ -56,8 +55,6 @@ const pendiente = (e) => e.estado !== 'Listo';
 const PENDIENTES = 'pendientes';
 const tipoDe = (e) => e.tipo_texto ?? e.tipo;
 
-// A dónde lleva la acción siguiente. `emitir_qr` no tiene destino todavía y
-// las aulas solo las elige quien registró el examen.
 function accionDe(e, puedeHabilitar) {
     const clave = e.accion?.clave;
     if (clave === 'elegir_aulas' && e.propio) {
@@ -97,9 +94,6 @@ const FORMA_EXAMEN = PropTypes.shape({
     junto_con: PropTypes.number,
 });
 
-// Una fila por examen: fecha, asignatura, estado y el paso siguiente. Los
-// pasos se despliegan. Con pocos exámenes, los pendientes ya vienen
-// desplegados; con muchos, todos plegados para que la lista se pueda recorrer.
 function TarjetaExamen({ e, destacado = false, plegado = false, onEliminar }) {
     const { puede } = usarSesion();
     const [abierto, setAbierto] = useState(destacado || (pendiente(e) && !plegado));
@@ -245,13 +239,8 @@ TarjetaExamen.propTypes = {
     onEliminar: PropTypes.func.isRequired,
 };
 
-// Los exámenes del docente en el período, de todas sus asignaturas. El de
-// hoy (o el próximo) va primero; el color de la asignatura queda solo en
-// el bloque de la fecha. El filtro es de una sola elección: pendientes (lo
-// que se ve al entrar, si hay alguno), todos o una asignatura.
 export default function Examenes() {
     const { datos, meta, cargando, error, recargar } = usarConsulta('/examenes');
-    // Sin elegir todavía (`undefined`), la vista arranca en los pendientes.
     const [eleccion, setEleccion] = useState(undefined);
     const [porEliminar, setPorEliminar] = useState(null);
     const [rechazo, setRechazo] = useState(null);
@@ -270,7 +259,6 @@ export default function Examenes() {
     const filtro = eleccion !== undefined ? eleccion : pendientes > 0 ? PENDIENTES : null;
     const visible = (e) =>
         filtro === null || (filtro === PENDIENTES ? pendiente(e) : e.asignatura.id === filtro);
-    // El de hoy que no terminó o, si no hay, el próximo.
     const primero = examenes.find((e) => !e.rendido && (!hoy || e.fecha >= hoy)) ?? null;
     const destacado = primero && visible(primero) ? primero : null;
     const lista = examenes.filter((e) => visible(e) && e !== destacado);
@@ -321,10 +309,15 @@ export default function Examenes() {
               .filter(Boolean)
               .join(' · ')
         : undefined;
-    // INTERRUPTOR hu20
+
+    // INTERRUPTOR hu20: SE MUESTRA LA PANTALLA CREADA
     const mostrarHU20 = true;
     if (mostrarHU20) {
-        return <CodigosQr onNavigate={() => {}} />;
+        return (
+            <div className="space-y-6">
+                <CodigosQr />
+            </div>
+        );
     }
 
     return (
