@@ -73,7 +73,10 @@ final class RegistrarIngresoEnPuertaController
                 ),
             );
 
-            if (! $resultado->puedeAdmitir()) {
+            if (
+                ! $resultado->puedeAdmitir()
+                && ($resultado->ambiguo || $resultado->examenId === null)
+            ) {
                 return response()->json([
                     'message' => $resultado->ambiguo
                         ? 'Identificación ambigua entre exámenes.'
@@ -131,7 +134,7 @@ final class RegistrarIngresoEnPuertaController
         $estado = match ($veredicto) {
             VeredictoIngreso::Admitido => Response::HTTP_CREATED,
             VeredictoIngreso::YaIngreso => Response::HTTP_CONFLICT,
-            default => Response::HTTP_OK,
+            default => Response::HTTP_CONFLICT,
         };
 
         return response()->json([

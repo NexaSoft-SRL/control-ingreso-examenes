@@ -521,4 +521,86 @@ final class RegistrarIngresoEnPuertaHttpTest extends TestCase
 
         return $otroExamen;
     }
+
+    public function test_ingreso_duplicado_genera_incidencia_auditada(): void
+    {
+        [$usuario, $examen, $aula, $estudiante] =
+            $this->escenarioDePuerta();
+
+        $url = "/api/aulas/{$aula->id}/punto-control/ingresos";
+
+        $datos = [
+            'tipo' => 'codigo',
+            'identificador' => $estudiante->codigo_universitario,
+        ];
+
+        $this->actingAs($usuario)
+            ->postJson($url, $datos)
+            ->assertCreated();
+
+        $this->postJson($url, $datos)
+            ->assertConflict()
+            ->assertJsonPath('data.veredicto', 'YA_INGRESO')
+            ->assertJsonPath('data.admitido', false);
+
+        $this->assertDatabaseCount('ingresos', 1);
+        $this->assertDatabaseCount('incidencias_ingreso', 1);
+
+        $this->assertDatabaseHas('incidencias_ingreso', [
+            'examen_id' => $examen->id,
+            'aula_id' => $aula->id,
+            'estudiante_id' => $estudiante->id,
+            'registrado_por' => $usuario->id,
+            'tipo_rechazo' => 'YA_INGRESO',
+        ]);
+    }
+
+    public function test_estudiante_inhabilitado_genera_incidencia_auditada(): void
+    {
+        [$usuario, $examen, $aula, $estudiante] =
+            $this->escenarioDePuerta(false);
+
+        $this->actingAs($usuario)
+            ->postJson(
+                "/api/aulas/{$aula->id}/punto-control/ingresos",
+                [
+                    'tipo' => 'codigo',
+                    'identificador' => $estudiante->codigo_universitario,
+                ],
+            )
+            ->assertConflict()
+            ->assertJsonPath('data.veredicto', 'NO_HABILITADO')
+            ->assertJsonPath('data.admitido', false);
+
+        $this->assertDatabaseCount('ingresos', 0);
+        $this->assertDatabaseCount('incidencias_ingreso', 1);
+
+        $this->assertDatabaseHas('incidencias_ingreso', [
+            'examen_id' => $examen->id,
+            'aula_id' => $aula->id,
+            'estudiante_id' => $estudiante->id,
+            'registrado_por' => $usuario->id,
+            'tipo_rechazo' => 'NO_HABILITADO',
+        ]);
+    }
+
+    public function test_identificacion_sin_registro_no_genera_incidencia(): void
+    {
+        [$usuario, $examen, $aula, $estudiante] =
+            $this->escenarioDePuerta(false);
+
+        $this->actingAs($usuario)
+            ->postJson(
+                "/api/aulas/{$aula->id}/punto-control/identificar",
+                [
+                    'tipo' => 'codigo',
+                    'identificador' => $estudiante->codigo_universitario,
+                ],
+            )
+            ->assertOk()
+            ->assertJsonPath('data.veredicto', 'NO_HABILITADO');
+
+        $this->assertDatabaseCount('ingresos', 0);
+        $this->assertDatabaseCount('incidencias_ingreso', 0);
+    }
 }
