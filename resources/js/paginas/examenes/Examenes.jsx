@@ -311,7 +311,7 @@ export default function Examenes() {
         : undefined;
 
     // INTERRUPTOR hu20: SE MUESTRA LA PANTALLA CREADA
-    const mostrarHU20 = true;
+    const mostrarHU20 = window.location.search.includes('demo=qr');
     if (mostrarHU20) {
         return (
             <div className="space-y-6">
