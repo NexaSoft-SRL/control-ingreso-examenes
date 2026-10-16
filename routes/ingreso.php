@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Modules\Ingreso\Http\Controllers\ContextoPuntoControlController;
 use App\Modules\Ingreso\Http\Controllers\IdentificarEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\PuntoControlController;
+use App\Modules\Ingreso\Http\Controllers\RegistrarIngresoEnPuertaController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'permiso:punto_control'])
@@ -14,6 +15,14 @@ Route::middleware(['auth', 'permiso:punto_control'])
     )
     ->whereNumber('aula')
     ->name('ingreso.puerta.identificar');
+
+Route::middleware(['auth', 'permiso:punto_control'])
+    ->post(
+        'api/aulas/{aula}/punto-control/ingresos',
+        RegistrarIngresoEnPuertaController::class,
+    )
+    ->whereNumber('aula')
+    ->name('ingreso.puerta.registrar');
 
 Route::middleware(['auth', 'permiso:punto_control'])
     ->get('api/punto-control/contexto', ContextoPuntoControlController::class)
