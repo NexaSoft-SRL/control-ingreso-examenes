@@ -16,6 +16,20 @@ final readonly class ConsultarIncidenciasIngreso
         private IncidenciasIngresoGateway $incidencias,
     ) {}
 
+    /**
+     * @return list<array{
+     *     incidencia_id: int,
+     *     estudiante_id: int|null,
+     *     codigo: string|null,
+     *     nombres: string|null,
+     *     apellidos: string|null,
+     *     aula_id: int,
+     *     tipo_rechazo: string,
+     *     detalle: string,
+     *     registrado_en: string,
+     *     operador: string|null
+     * }>
+     */
     public function ejecutar(
         int $usuarioId,
         int $examenId,
