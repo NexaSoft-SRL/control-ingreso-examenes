@@ -16,6 +16,7 @@ export default function CodigosQr() {
             setQrs(respuesta.data.datos);
             setMensaje(respuesta.data.mensaje);
         } catch (error) {
+            console.error(error);
             setMensaje('Error al generar el lote. Revisa la consola.');
         } finally {
             setCargando(false);
