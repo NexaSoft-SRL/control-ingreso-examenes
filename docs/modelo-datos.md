@@ -403,3 +403,24 @@ calificaciones.
 Su responsabilidad funcional concluye en el control y trazabilidad del ingreso,
 las situaciones excepcionales relacionadas y la información necesaria para
 monitoreo y reportes.
+
+## 10. Implementación de seguimiento por aula (HU-21)
+
+La migración `2026_10_16_020000_create_seguimiento_aula_tables.php` añade dos
+tablas operativas:
+
+- `asignaciones_seguimiento_aula` vincula usuario auxiliar, examen, aula y
+  docente que realizó la asignación. La combinación usuario-examen-aula es
+  única; al eliminar un examen se eliminan sus asignaciones.
+- `incidencias_aula` registra novedades humanas asociadas a examen y aula,
+  opcionalmente a un estudiante. Conserva reportante, tipo, detalle y fecha; la
+  atención conserva usuario y fecha de atención.
+
+Estas incidencias son distintas de `incidencias_ingreso`, que registra
+rechazos automáticos del punto de control. La captura de incidencias humanas
+por HU-19 todavía debe integrarse con `incidencias_aula`; el seguimiento puede
+consultar y marcar atendidas las incidencias que ya estén registradas allí.
+
+El listado de ausentes se deriva de habilitaciones activas, inscripciones en
+los grupos del examen e ingresos del examen. El tablero es de consulta: no
+crea ni modifica ingresos.
