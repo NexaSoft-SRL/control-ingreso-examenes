@@ -72,15 +72,22 @@ final class CanonicalUserSchemaTest extends TestCase
 
         $this->assertSame(
             [
+                'asignaciones_seguimiento_aula.asignado_por',
+                'asignaciones_seguimiento_aula.usuario_id',
                 'bitacora_operaciones.usuario_id',
                 'cargas_inscritos.cargada_por',
                 'conflictos_padron.reportado_por',
                 'conflictos_padron.resuelto_por',
+                'docente_auxiliares.auxiliar_id',
+                'docente_auxiliares.docente_id',
                 'docentes.user_id',
+                'examen_aula_personal.usuario_id',
                 'examenes.creado_por',
                 'expulsiones.registrada_por',
                 'habilitaciones.registrada_por',
                 'importaciones_oferta.ejecutada_por',
+                'incidencias_aula.atendida_por',
+                'incidencias_aula.reportada_por',
                 'incidencias_ingreso.registrado_por',
                 'ingresos.registrado_por',
                 'inscripciones.cargada_por',

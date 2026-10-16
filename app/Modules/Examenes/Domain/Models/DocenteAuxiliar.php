@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Examenes\Domain\Models;
 
-use App\Modules\Administracion\Domain\Models\User;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
@@ -39,21 +37,5 @@ final class DocenteAuxiliar extends Model
             'docente_id' => 'integer',
             'auxiliar_id' => 'integer',
         ];
-    }
-
-    /**
-     * @return BelongsTo<User, $this>
-     */
-    public function docente(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'docente_id');
-    }
-
-    /**
-     * @return BelongsTo<User, $this>
-     */
-    public function auxiliar(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'auxiliar_id');
     }
 }

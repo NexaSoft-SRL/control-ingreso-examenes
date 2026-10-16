@@ -381,7 +381,7 @@ final class LegacySchemaUpgradeTest extends TestCase
         $this->assertSame(
             0,
             Artisan::call('migrate:rollback', [
-                '--step' => 8,
+                '--step' => 10,
                 '--force' => true,
                 '--no-interaction' => true,
             ]),
@@ -527,7 +527,7 @@ final class LegacySchemaUpgradeTest extends TestCase
         $this->migrate();
 
         Artisan::call('migrate:rollback', [
-            '--step' => 8,
+            '--step' => 10,
             '--force' => true,
             '--no-interaction' => true,
         ]);
