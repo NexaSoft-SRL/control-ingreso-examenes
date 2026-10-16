@@ -4,8 +4,6 @@ import LectorQr from './LectorQr';
 import { ClipboardCheck, RefreshCw, Search } from 'lucide-react';
 import { api } from '../../api/cliente';
 import { estadoDe, mensajeDe } from '../../api/errores';
-import SelectorExamen from '../../componentes/SelectorExamen';
-import usarExamen from '../../componentes/usarExamen';
 
 const RESULTADOS = {
     ADMITIDO: 'Ingreso autorizado',
@@ -16,15 +14,11 @@ const RESULTADOS = {
     EXPULSADO: 'Estudiante expulsado',
 };
 
-function urlPunto(examenId, aulaId) {
-    return `/examenes/${examenId}/aulas/${aulaId}/punto-control`;
-}
-
 function interpretarFallo(error, alternativa) {
     const estado = estadoDe(error);
 
     if (estado === 403) {
-        return 'No tienes asignación para operar en este examen y aula.';
+        return 'No tienes asignación para operar en esta aula.';
     }
 
     if (estado === 401 || estado === 419) {
@@ -104,11 +98,15 @@ export default function PuntoControl() {
         };
     }, []);
 
-    const [examen, elegirExamen] = usarExamen(examenes);
-    const examenId = examen?.id ?? null;
-    const aulas = Array.isArray(examen?.aulas) ? examen.aulas : [];
+    const aulas = Array.from(
+        new Map(
+            examenes.flatMap((item) =>
+                (Array.isArray(item.aulas) ? item.aulas : []).map((aula) => [aula.id, aula])
+            )
+        ).values()
+    );
+
     const aulaValida = aulas.some((aula) => String(aula.id) === aulaId);
-    const punto = examenId && aulaValida ? urlPunto(examenId, aulaId) : null;
     const puerta = aulaValida ? `/aulas/${aulaId}/punto-control` : null;
 
     useEffect(() => {
@@ -138,7 +136,7 @@ export default function PuntoControl() {
         let activo = true;
         const controlador = new AbortController();
 
-        if (punto) {
+        if (puerta) {
             api.get(`${puerta}/ingresos`, {
                 params: { limite: 5 },
                 signal: controlador.signal,
@@ -161,7 +159,7 @@ export default function PuntoControl() {
             activo = false;
             controlador.abort();
         };
-    }, [puerta, punto]);
+    }, [puerta]);
 
     useEffect(() => {
         let activo = true;
@@ -169,8 +167,8 @@ export default function PuntoControl() {
 
         setIncidencias([]);
 
-        if (punto) {
-            api.get(`${punto}/incidencias`, {
+        if (puerta) {
+            api.get(`${puerta}/incidencias`, {
                 params: { limite: 20 },
                 signal: controlador.signal,
             })
@@ -194,7 +192,7 @@ export default function PuntoControl() {
             activo = false;
             controlador.abort();
         };
-    }, [punto]);
+    }, [puerta]);
 
     useEffect(() => {
         if (!puerta) return undefined;
@@ -233,19 +231,6 @@ export default function PuntoControl() {
             controlador.abort();
         };
     }, [puerta]);
-
-    const cambiarExamen = (id) => {
-        if (pendiente.current) return;
-        invalidarContexto();
-        elegirExamen(id);
-        setAulaId('');
-        setCandidato(null);
-        setVeredicto(null);
-        setHistorial([]);
-        setIncidencias([]);
-        setMensaje('');
-        setBloqueado(false);
-    };
 
     const cambiarAula = (id) => {
         if (pendiente.current) return;
@@ -365,7 +350,7 @@ export default function PuntoControl() {
                 version === versionContexto.current
             ) {
                 try {
-                    const respuesta = await api.get(`${punto}/incidencias`, {
+                    const respuesta = await api.get(`${puerta}/incidencias`, {
                         params: { limite: 20 },
                         signal: controlador.signal,
                     });
@@ -408,16 +393,14 @@ export default function PuntoControl() {
 
             <section className="grid gap-4 rounded-xl border border-slate-200 bg-white p-5 md:grid-cols-2">
                 {cargandoExamenes ? (
-                    <p role="status">Cargando exámenes…</p>
-                ) : examenes.length === 0 ? (
+                    <p role="status">Cargando aulas asignadas…</p>
+                ) : aulas.length === 0 ? (
                     <p>No tienes exámenes y aulas asignados para operar.</p>
                 ) : (
-                    <SelectorExamen
-                        valor={examenId}
-                        onCambiar={cambiarExamen}
-                        examenes={examenes}
-                        deshabilitado={ocupado}
-                    />
+                    <p className="text-sm text-slate-600">
+                        Selecciona el aula. El examen correspondiente se identificará
+                        automáticamente al consultar al estudiante.
+                    </p>
                 )}
 
                 <Aula

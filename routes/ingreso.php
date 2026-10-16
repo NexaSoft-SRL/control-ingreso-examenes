@@ -4,10 +4,19 @@ declare(strict_types=1);
 
 use App\Modules\Ingreso\Http\Controllers\ContextoPuntoControlController;
 use App\Modules\Ingreso\Http\Controllers\IdentificarEnPuertaController;
+use App\Modules\Ingreso\Http\Controllers\IncidenciasEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\IngresosRecientesEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\PuntoControlController;
 use App\Modules\Ingreso\Http\Controllers\RegistrarIngresoEnPuertaController;
 use Illuminate\Support\Facades\Route;
+
+Route::middleware(['auth', 'permiso:punto_control'])
+    ->get(
+        'api/aulas/{aula}/punto-control/incidencias',
+        IncidenciasEnPuertaController::class,
+    )
+    ->whereNumber('aula')
+    ->name('ingreso.puerta.incidencias');
 
 Route::middleware(['auth', 'permiso:punto_control'])
     ->get(

@@ -358,7 +358,7 @@ describe('PuntoControl HU-19', () => {
 
         await waitFor(() => {
             expect(api.get).toHaveBeenCalledWith(
-                '/examenes/10/aulas/8/punto-control/incidencias',
+                '/aulas/8/punto-control/incidencias',
                 expect.objectContaining({
                     signal: expect.any(AbortSignal),
                 })
@@ -638,10 +638,6 @@ describe('PuntoControl HU-19', () => {
 
         // Durante la consulta no pueden cambiar los datos
         // del contexto asociado a la solicitud.
-        const selectorExamen = screen.getByText('Examen').closest('label').querySelector('select');
-
-        expect(selectorExamen).toBeDisabled();
-
         const selectorAula = screen.getByRole('combobox', {
             name: 'Aula de control',
         });
@@ -820,7 +816,7 @@ describe('PuntoControl HU-19', () => {
         montar();
 
         expect(
-            await screen.findByText('No tienes asignación para operar en este examen y aula.')
+            await screen.findByText('No tienes asignación para operar en esta aula.')
         ).toBeInTheDocument();
 
         expect(screen.getByRole('button', { name: 'Consultar estudiante' })).toBeDisabled();
@@ -933,7 +929,7 @@ describe('PuntoControl HU-19', () => {
         ).not.toBeInTheDocument();
 
         expect(
-            screen.queryByText('No tienes asignación para operar en este examen y aula.')
+            screen.queryByText('No tienes asignación para operar en esta aula.')
         ).not.toBeInTheDocument();
 
         // El aula 8 debe poder habilitar una consulta nueva.
@@ -946,5 +942,82 @@ describe('PuntoControl HU-19', () => {
                 name: 'Consultar estudiante',
             })
         ).toBeEnabled();
+    });
+    it('opera una sola aula compartida por varios exámenes sin seleccionar examen', async () => {
+        api.get.mockImplementation((ruta) => {
+            if (ruta === '/punto-control/contexto') {
+                return Promise.resolve({
+                    data: {
+                        data: [
+                            examen,
+                            {
+                                ...examen,
+                                id: 11,
+                                asignatura: 'Matemáticas',
+                                aulas: [
+                                    { id: 7, nombre: 'A-101' },
+                                    { id: 8, nombre: 'A-102' },
+                                ],
+                            },
+                        ],
+                    },
+                });
+            }
+
+            return Promise.resolve({ data: { data: [] } });
+        });
+
+        montar();
+
+        const selectorAula = await screen.findByRole('combobox', {
+            name: 'Aula de control',
+        });
+
+        await screen.findByRole('option', { name: 'A-102' });
+
+        expect(screen.getAllByRole('option', { name: 'A-101' })).toHaveLength(1);
+
+        expect(screen.queryByText('Examen')).not.toBeInTheDocument();
+
+        fireEvent.change(selectorAula, {
+            target: { value: '7' },
+        });
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith(
+                '/aulas/7/punto-control/incidencias',
+                expect.objectContaining({
+                    params: { limite: 20 },
+                    signal: expect.any(AbortSignal),
+                })
+            );
+
+            expect(api.get).toHaveBeenCalledWith(
+                '/aulas/7/punto-control/ingresos',
+                expect.objectContaining({
+                    params: { limite: 5 },
+                    signal: expect.any(AbortSignal),
+                })
+            );
+        });
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
+            target: { value: '202100001' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
+
+        expect(await screen.findByText('Resultado de identificación')).toBeInTheDocument();
+
+        expect(api.post).toHaveBeenCalledWith(
+            '/aulas/7/punto-control/identificar',
+            {
+                tipo: 'codigo',
+                identificador: '202100001',
+            },
+            expect.objectContaining({
+                signal: expect.any(AbortSignal),
+            })
+        );
     });
 });
