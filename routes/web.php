@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Examenes\Http\Controllers\QRController;
 use Illuminate\Support\Facades\Route;
 
 require __DIR__.'/auth.php';
@@ -22,3 +23,4 @@ Route::view('/', 'app');
 
 Route::view('/{cualquiera}', 'app')
     ->where('cualquiera', '^(?!api).*$');
+Route::get('/api/demo-qr/{examen_id}', [QRController::class, 'generarLote']);
