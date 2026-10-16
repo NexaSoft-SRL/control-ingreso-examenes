@@ -22,3 +22,4 @@ Route::view('/', 'app');
 
 Route::view('/{cualquiera}', 'app')
     ->where('cualquiera', '^(?!api).*$');
+Route::get('/api/demo-qr/{examen_id}', [\App\Modules\Examenes\Http\Controllers\QRController::class, 'generarLote']);

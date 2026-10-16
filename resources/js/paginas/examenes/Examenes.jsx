@@ -23,6 +23,7 @@ import EstadoCarga from '../../componentes/EstadoCarga';
 import Insignia from '../../componentes/Insignia';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { colorDeAsignatura, diaMes, fechaLarga, mesDe, plural } from '../../utiles/texto';
+import CodigosQr from './examenes/CodigosQr';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
@@ -320,7 +321,10 @@ export default function Examenes() {
               .filter(Boolean)
               .join(' · ')
         : undefined;
-
+const mostrarHU20 = true; // Cambiar a false cuando termine la reunión
+    if (mostrarHU20) {
+        return <CodigosQr onNavigate={onNavigate} />;
+    }
     return (
         <div className="space-y-6">
             <Encabezado titulo="Exámenes" subtitulo={subtitulo}>
