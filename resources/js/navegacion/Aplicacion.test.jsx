@@ -37,6 +37,7 @@ const titulo = (nombre) => screen.findByRole('heading', { level: 1, name: nombre
 // El título de cada pantalla, por ruta.
 const TITULOS = {
     '/periodo': 'Período académico',
+    '/oferta': 'Oferta académica',
     '/aulas': 'Aulas y mapa',
     '/docentes': 'Docentes',
     '/estudiantes': 'Padrón',

@@ -41,6 +41,17 @@ Route::prefix('api')->middleware(['auth', 'permiso:periodo_oferta'])->group(func
 
     Route::post('/oferta/importaciones', [ImportacionOfertaController::class, 'store'])
         ->name('oferta.importaciones.store');
+
+    // HU-17: la oferta importada, en modo consulta.
+    Route::get('/oferta/asignaturas', [OfertaController::class, 'asignaturas'])
+        ->name('oferta.asignaturas');
+
+    Route::get('/oferta/niveles', [OfertaController::class, 'niveles'])
+        ->name('oferta.niveles');
+
+    Route::get('/oferta/asignaturas/{asignatura}/grupos', [OfertaController::class, 'grupos'])
+        ->whereNumber('asignatura')
+        ->name('oferta.asignaturas.grupos');
 });
 
 // Las carreras las usan Periodo y el Padron, que tienen permisos distintos.
