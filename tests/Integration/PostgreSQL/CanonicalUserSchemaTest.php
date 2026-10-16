@@ -81,6 +81,7 @@ final class CanonicalUserSchemaTest extends TestCase
                 'expulsiones.registrada_por',
                 'habilitaciones.registrada_por',
                 'importaciones_oferta.ejecutada_por',
+                'incidencias_ingreso.registrado_por',
                 'ingresos.registrado_por',
                 'inscripciones.cargada_por',
                 'login_attempts.user_id',

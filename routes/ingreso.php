@@ -29,4 +29,9 @@ Route::middleware(['auth', 'permiso:punto_control'])
             PuntoControlController::class,
             'recientes',
         ])->name('ingreso.recientes');
+
+        Route::get('incidencias', [
+            PuntoControlController::class,
+            'incidencias',
+        ])->name('ingreso.incidencias');
     });
