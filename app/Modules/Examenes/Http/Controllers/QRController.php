@@ -1,10 +1,10 @@
 <?php
+
 namespace App\Modules\Examenes\Http\Controllers;
 
 class QRController
 {
     /**
-     * @param int $examen_id
      * @return array<string, mixed>
      */
     public function generarLote(int $examen_id): array
@@ -18,11 +18,11 @@ class QRController
         $qrs_generados = [];
 
         foreach ($estudiantes_demo as $estudiante) {
-            $token = bin2hex(random_bytes(16)); 
-            $qr_url = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' . $token;
+            $token = bin2hex(random_bytes(16));
+            $qr_url = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='.$token;
 
             $qrs_generados[] = [
-                'estudiante' => $estudiante['nombres'] . ' ' . $estudiante['apellidos'],
+                'estudiante' => $estudiante['nombres'].' '.$estudiante['apellidos'],
                 'token' => $token,
                 'qr_base64' => $qr_url,
                 'aula' => $estudiante['aula'],
@@ -33,9 +33,9 @@ class QRController
 
         return [
             'success' => true,
-            'mensaje' => 'Lote de ' . count($qrs_generados) . ' credenciales generado exitosamente.',
+            'mensaje' => 'Lote de '.count($qrs_generados).' credenciales generado exitosamente.',
             'datos' => $qrs_generados,
-            'examen_info' => 'Examen #' . $examen_id . ' - Fecha Demo: ' . date('Y-m-d')
+            'examen_info' => 'Examen #'.$examen_id.' - Fecha Demo: '.date('Y-m-d'),
         ];
     }
 }
