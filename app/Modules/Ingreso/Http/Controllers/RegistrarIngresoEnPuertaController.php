@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 final class RegistrarIngresoEnPuertaController
@@ -38,17 +39,26 @@ final class RegistrarIngresoEnPuertaController
             'tipo' => [
                 'required',
                 'string',
-                Rule::in(['codigo', 'documento']),
+                Rule::in(['codigo', 'documento', 'qr']),
             ],
             'identificador' => [
                 'required',
                 'string',
-                'regex:/^[0-9]{5,10}$/D',
+                'max:2048',
             ],
         ]);
 
         $tipo = $request->string('tipo')->toString();
         $identificador = $request->string('identificador')->toString();
+
+        if (
+            $tipo !== 'qr'
+            && preg_match('/\\A[0-9]{5,10}\\z/D', $identificador) !== 1
+        ) {
+            throw ValidationException::withMessages([
+                'identificador' => 'Debe contener entre 5 y 10 dígitos.',
+            ]);
+        }
 
         try {
             // El examen se obtiene del servidor, nunca del cliente.
@@ -84,13 +94,25 @@ final class RegistrarIngresoEnPuertaController
                 );
             }
 
+            // El código fue descifrado y asociado a un examen autorizado.
+            $tipoRegistro = $tipo === 'qr' ? 'codigo' : $tipo;
+            $identificadorRegistro = $tipo === 'qr'
+                ? $resultado->codigoQrResuelto
+                : $identificador;
+
+            if ($identificadorRegistro === null) {
+                throw new DomainException(
+                    'No se pudo validar el código QR.'
+                );
+            }
+
             // Esta acción vuelve a validar las reglas antes de persistir.
             $veredicto = $registrar->ejecutar(
                 $usuarioId,
                 $examenId,
                 $aula,
-                $tipo,
-                $identificador,
+                $tipoRegistro,
+                $identificadorRegistro,
             );
         } catch (AccesoPuntoDenegado $error) {
             return response()->json([

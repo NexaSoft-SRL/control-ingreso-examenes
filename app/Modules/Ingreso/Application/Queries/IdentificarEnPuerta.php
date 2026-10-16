@@ -15,6 +15,7 @@ final readonly class IdentificarEnPuerta
     public function __construct(
         private ExamenesDePuerta $examenes,
         private ResolverIngresoAutorizadoEnPuerta $resolver,
+        private ResolverQrEnPuerta $resolverQr,
     ) {}
 
     public function ejecutar(
@@ -38,6 +39,30 @@ final readonly class IdentificarEnPuerta
             $aulaId,
             $fecha,
         );
+
+        if ($tipo === 'qr') {
+            [$examenId, $codigo] = $this->resolverQr->ejecutar(
+                $usuarioId,
+                $aulaId,
+                $examenes,
+                $identificador,
+            );
+
+            $resultado = $this->resolver->ejecutar(
+                $usuarioId,
+                $aulaId,
+                [$examenId],
+                'codigo',
+                $codigo,
+            );
+
+            return new ResultadoResolucionPuertaData(
+                $resultado->examenId,
+                $resultado->veredicto,
+                $resultado->ambiguo,
+                $codigo,
+            );
+        }
 
         return $this->resolver->ejecutar(
             $usuarioId,

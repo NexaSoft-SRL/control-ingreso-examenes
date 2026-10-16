@@ -12,6 +12,7 @@ final readonly class ResultadoResolucionPuertaData
         public ?int $examenId,
         public ?VeredictoIngreso $veredicto,
         public bool $ambiguo = false,
+        public ?string $codigoQrResuelto = null,
     ) {}
 
     public function puedeAdmitir(): bool

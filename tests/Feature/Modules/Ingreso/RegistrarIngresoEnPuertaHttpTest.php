@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature\Modules\Ingreso;
 
 use App\Modules\Academico\Domain\Models\Aula;
+use App\Modules\Academico\Domain\Models\Docente;
 use App\Modules\Administracion\Domain\Models\User;
+use App\Modules\Estudiantes\Domain\Enums\OrigenEstudiante;
 use App\Modules\Estudiantes\Domain\Models\Estudiante;
+use App\Modules\Estudiantes\Domain\Models\Inscripcion;
 use App\Modules\Examenes\Domain\Models\Examen;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
+use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\DatosAcademicos;
@@ -64,7 +68,7 @@ final class RegistrarIngresoEnPuertaHttpTest extends TestCase
 
         $this->actingAs($usuario)
             ->postJson(self::RUTA, [
-                'tipo' => 'qr',
+                'tipo' => 'invalido',
                 'identificador' => '20260017',
             ])
             ->assertUnprocessable()
@@ -218,5 +222,303 @@ final class RegistrarIngresoEnPuertaHttpTest extends TestCase
         );
 
         return [$usuario, $examen, $aula, $estudiante];
+    }
+
+    public function test_qr_valido_registra_ingreso(): void
+    {
+        [$usuario, $examen, $aula, $estudiante] =
+            $this->escenarioDePuerta();
+
+        $qr = app(CodigoQrGateway::class)->generar(
+            $examen->id,
+            $estudiante->codigo_universitario,
+        );
+
+        $this->actingAs($usuario)
+            ->postJson(
+                "/api/aulas/{$aula->id}/punto-control/ingresos",
+                ['tipo' => 'qr', 'identificador' => $qr],
+            )
+            ->assertCreated()
+            ->assertJsonPath('data.examen_id', $examen->id)
+            ->assertJsonPath('data.veredicto', 'ADMITIDO');
+
+        $this->assertDatabaseHas('ingresos', [
+            'examen_id' => $examen->id,
+            'estudiante_id' => $estudiante->id,
+            'aula_id' => $aula->id,
+        ]);
+    }
+
+    public function test_qr_de_otro_examen_no_registra_ingreso(): void
+    {
+        [$usuario, $examen, $aula, $estudiante] =
+            $this->escenarioDePuerta();
+
+        $qr = app(CodigoQrGateway::class)->generar(
+            $examen->id + 10000,
+            $estudiante->codigo_universitario,
+        );
+
+        $this->actingAs($usuario)
+            ->postJson(
+                "/api/aulas/{$aula->id}/punto-control/ingresos",
+                ['tipo' => 'qr', 'identificador' => $qr],
+            )
+            ->assertUnprocessable();
+
+        $this->assertDatabaseCount('ingresos', 0);
+    }
+
+    public function test_qr_manipulado_no_registra_ingreso(): void
+    {
+        [$usuario, $examen, $aula, $estudiante] =
+            $this->escenarioDePuerta();
+
+        $qr = app(CodigoQrGateway::class)->generar(
+            $examen->id,
+            $estudiante->codigo_universitario,
+        );
+
+        $this->actingAs($usuario)
+            ->postJson(
+                "/api/aulas/{$aula->id}/punto-control/ingresos",
+                [
+                    'tipo' => 'qr',
+                    'identificador' => $qr.'alterado',
+                ],
+            )
+            ->assertUnprocessable();
+
+        $this->assertDatabaseCount('ingresos', 0);
+    }
+
+    public function test_qr_selecciona_examen_correcto_entre_dos(): void
+    {
+        [$usuario, $examen, $aula, $estudiante] =
+            $this->escenarioDePuerta();
+
+        $docente = Docente::query()
+            ->where('user_id', $usuario->id)
+            ->firstOrFail();
+        $grupo = $this->grupo($docente);
+
+        $otroExamen = $this->examen(
+            $docente,
+            [$grupo],
+            [$aula],
+            [
+                'fecha' => $examen->fecha->format('Y-m-d'),
+                'hora_inicio' => $examen->hora_inicio,
+            ],
+        );
+
+        $this->habilitar($otroExamen, [$estudiante], $aula);
+
+        $qr = app(CodigoQrGateway::class)->generar(
+            $examen->id,
+            $estudiante->codigo_universitario,
+        );
+
+        $this->actingAs($usuario)
+            ->postJson(
+                "/api/aulas/{$aula->id}/punto-control/ingresos",
+                ['tipo' => 'qr', 'identificador' => $qr],
+            )
+            ->assertCreated()
+            ->assertJsonPath('data.examen_id', $examen->id);
+
+        $this->assertDatabaseCount('ingresos', 1);
+
+        $this->assertDatabaseHas('ingresos', [
+            'examen_id' => $examen->id,
+            'estudiante_id' => $estudiante->id,
+        ]);
+    }
+
+    public function test_identifica_qr_sin_registrar_ingreso(): void
+    {
+        [$usuario, $examen, $aula, $estudiante] =
+            $this->escenarioDePuerta();
+
+        $qr = app(CodigoQrGateway::class)->generar(
+            $examen->id,
+            $estudiante->codigo_universitario,
+        );
+
+        $this->actingAs($usuario)
+            ->postJson(
+                "/api/aulas/{$aula->id}/punto-control/identificar",
+                ['tipo' => 'qr', 'identificador' => $qr],
+            )
+            ->assertOk()
+            ->assertJsonPath('data.examen_id', $examen->id)
+            ->assertJsonPath('data.veredicto', 'ADMITIDO')
+            ->assertJsonPath('data.admisible', true);
+
+        $this->assertDatabaseCount('ingresos', 0);
+    }
+
+    public function test_qr_de_examen_no_autorizado_no_registra(): void
+    {
+        [$usuario, $examen, $aula, $estudiante] =
+            $this->escenarioDePuerta();
+
+        $docente = Docente::query()
+            ->where('user_id', $usuario->id)
+            ->firstOrFail();
+        $grupo = $this->grupo($docente);
+
+        $otroExamen = $this->examen(
+            $docente,
+            [$grupo],
+            [$aula],
+            [
+                'fecha' => $examen->fecha->format('Y-m-d'),
+                'hora_inicio' => $examen->hora_inicio,
+            ],
+        );
+
+        $this->habilitar($otroExamen, [$estudiante], $aula);
+
+        $qr = app(CodigoQrGateway::class)->generar(
+            $otroExamen->id,
+            $estudiante->codigo_universitario,
+        );
+
+        $this->actingAs($usuario)
+            ->postJson(
+                "/api/aulas/{$aula->id}/punto-control/ingresos",
+                ['tipo' => 'qr', 'identificador' => $qr],
+            )
+            ->assertUnprocessable();
+
+        $this->assertDatabaseCount('ingresos', 0);
+    }
+
+    public function test_identificacion_manual_ambigua_no_registra(): void
+    {
+        [$usuario, $examen, $aula, $estudiante] =
+            $this->escenarioDePuerta();
+
+        $otroExamen = $this->segundoExamenAutorizado(
+            $usuario,
+            $examen,
+            $aula,
+            $estudiante,
+        );
+
+        $this->actingAs($usuario)
+            ->postJson(
+                "/api/aulas/{$aula->id}/punto-control/identificar",
+                [
+                    'tipo' => 'codigo',
+                    'identificador' => $estudiante->codigo_universitario,
+                ],
+            )
+            ->assertOk()
+            ->assertJsonPath('data.ambiguo', true)
+            ->assertJsonPath('data.admisible', false)
+            ->assertJsonPath('data.examen_id', null);
+
+        $this->postJson(
+            "/api/aulas/{$aula->id}/punto-control/ingresos",
+            [
+                'tipo' => 'codigo',
+                'identificador' => $estudiante->codigo_universitario,
+            ],
+        )
+            ->assertConflict()
+            ->assertJsonPath('data.ambiguo', true);
+
+        $this->assertDatabaseCount('ingresos', 0);
+    }
+
+    public function test_qr_distingue_dos_examenes_autorizados(): void
+    {
+        [$usuario, $examen, $aula, $estudiante] =
+            $this->escenarioDePuerta();
+
+        $otroExamen = $this->segundoExamenAutorizado(
+            $usuario,
+            $examen,
+            $aula,
+            $estudiante,
+        );
+
+        $qr = app(CodigoQrGateway::class)->generar(
+            $otroExamen->id,
+            $estudiante->codigo_universitario,
+        );
+
+        $this->actingAs($usuario)
+            ->postJson(
+                "/api/aulas/{$aula->id}/punto-control/ingresos",
+                ['tipo' => 'qr', 'identificador' => $qr],
+            )
+            ->assertCreated()
+            ->assertJsonPath('data.examen_id', $otroExamen->id);
+
+        $this->assertDatabaseHas('ingresos', [
+            'examen_id' => $otroExamen->id,
+            'estudiante_id' => $estudiante->id,
+            'aula_id' => $aula->id,
+        ]);
+
+        $this->assertDatabaseMissing('ingresos', [
+            'examen_id' => $examen->id,
+            'estudiante_id' => $estudiante->id,
+        ]);
+    }
+
+    private function segundoExamenAutorizado(
+        User $usuario,
+        Examen $examen,
+        Aula $aula,
+        Estudiante $estudiante,
+    ): Examen {
+        $docente = Docente::query()
+            ->where('user_id', $usuario->id)
+            ->firstOrFail();
+
+        $grupo = $this->grupo($docente);
+
+        // El estudiante debe estar inscrito en ambos exámenes.
+        Inscripcion::create([
+            'estudiante_id' => $estudiante->id,
+            'grupo_id' => $grupo->id,
+            'via' => OrigenEstudiante::Administracion,
+        ]);
+
+        $otroExamen = $this->examen(
+            $docente,
+            [$grupo],
+            [$aula],
+            [
+                'fecha' => $examen->fecha->format('Y-m-d'),
+                'hora_inicio' => $examen->hora_inicio,
+                'duracion_minutos' => 90,
+            ],
+        );
+
+        $this->habilitar($otroExamen, [$estudiante], $aula);
+
+        $alcance = $this->createMock(AlcancePuntoControl::class);
+        $ids = [$examen->id, $otroExamen->id];
+
+        $alcance->method('puedeOperar')
+            ->willReturnCallback(
+                static fn (
+                    int $usuarioId,
+                    int $examenId,
+                    int $aulaId,
+                ): bool => $usuarioId === $usuario->id
+                    && in_array($examenId, $ids, true)
+                    && $aulaId === $aula->id,
+            );
+
+        $this->app->instance(AlcancePuntoControl::class, $alcance);
+
+        return $otroExamen;
     }
 }

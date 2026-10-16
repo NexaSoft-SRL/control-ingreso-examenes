@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 final class IdentificarEnPuertaController
@@ -31,13 +32,22 @@ final class IdentificarEnPuertaController
 
         /** @var array{tipo: string, identificador: string} $datos */
         $datos = $request->validate([
-            'tipo' => ['required', 'string', Rule::in(['codigo', 'documento'])],
+            'tipo' => ['required', 'string', Rule::in(['codigo', 'documento', 'qr'])],
             'identificador' => [
                 'required',
                 'string',
-                'regex:/^[0-9]{5,10}$/D',
+                'max:2048',
             ],
         ]);
+
+        if (
+            $datos['tipo'] !== 'qr'
+            && preg_match('/\\A[0-9]{5,10}\\z/D', $datos['identificador']) !== 1
+        ) {
+            throw ValidationException::withMessages([
+                'identificador' => 'Debe contener entre 5 y 10 dígitos.',
+            ]);
+        }
 
         try {
             $resultado = $identificar->ejecutar(

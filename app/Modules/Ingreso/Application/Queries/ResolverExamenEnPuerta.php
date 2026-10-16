@@ -63,7 +63,7 @@ final readonly class ResolverExamenEnPuerta
         $coincidencias = [];
 
         foreach (array_unique($examenesAbiertosIds) as $examenId) {
-            if (! is_int($examenId) || $examenId <= 0) {
+            if ($examenId <= 0) {
                 throw new InvalidArgumentException(
                     'Identificador de examen inválido.'
                 );
@@ -102,10 +102,21 @@ final readonly class ResolverExamenEnPuerta
             );
         }
 
-        foreach ($coincidencias as $resultado) {
-            if ($resultado->puedeAdmitir()) {
-                return $resultado;
-            }
+        $admisibles = array_values(array_filter(
+            $coincidencias,
+            static fn (ResultadoResolucionPuertaData $resultado): bool => $resultado->puedeAdmitir(),
+        ));
+
+        if (count($admisibles) === 1) {
+            return $admisibles[0];
+        }
+
+        if (count($admisibles) > 1) {
+            return new ResultadoResolucionPuertaData(
+                null,
+                null,
+                true,
+            );
         }
 
         if (count($coincidencias) === 1) {
