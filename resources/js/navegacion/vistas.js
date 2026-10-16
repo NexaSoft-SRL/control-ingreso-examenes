@@ -9,6 +9,7 @@ import {
     FileText,
     ListChecks,
     ScanLine,
+    Activity,
 } from 'lucide-react';
 
 // Fuente única de las pantallas. El menú (EsquemaApp), las rutas
@@ -98,6 +99,14 @@ export const VISTAS = [
         grupo: 'Exámenes',
         movil: true,
         permiso: 'punto_control',
+    },
+    {
+        ruta: '/seguimiento',
+        titulo: 'Seguimiento en vivo',
+        Icono: Activity,
+        grupo: 'Exámenes',
+        movil: true,
+        permiso: 'seguimiento_vivo',
     },
     {
         ruta: '/mis-grupos',
