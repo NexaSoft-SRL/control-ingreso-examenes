@@ -3,12 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Oferta from './Oferta';
 import RutaProtegida from '../../sesion/RutaProtegida';
 import { api } from '../../api/cliente';
-import {
-    errorHttp,
-    renderConSesion,
-    simularApi,
-    usuarioDePrueba,
-} from '../../test/apoyo';
+import { errorHttp, renderConSesion, simularApi, usuarioDePrueba } from '../../test/apoyo';
 
 vi.mock('../../api/cliente');
 
@@ -111,7 +106,7 @@ describe('Oferta académica', () => {
         });
     });
 
-        it('muestra el subtítulo con período, sigla y carrera; anual para la anual (criterios 2 y 5)', async () => {
+    it('muestra el subtítulo con período, sigla y carrera; anual para la anual (criterios 2 y 5)', async () => {
         montar();
         await cargada();
 
@@ -137,7 +132,6 @@ describe('Oferta académica', () => {
         );
     });
 
-
     it('muestra nombre, código, nivel, grupos e inscritos con singular (criterio 3)', async () => {
         montar();
         await cargada();
@@ -147,9 +141,7 @@ describe('Oferta académica', () => {
         expect(within(fila).getByText('11 grupos')).toBeInTheDocument();
         expect(within(fila).getByText('260 inscritos')).toBeInTheDocument();
 
-        const segunda = screen
-            .getByText('Accionamiento y Simulacion Electronica')
-            .closest('li');
+        const segunda = screen.getByText('Accionamiento y Simulacion Electronica').closest('li');
         expect(within(segunda).getByText('1 grupo')).toBeInTheDocument();
         expect(within(segunda).getByText('0 inscritos')).toBeInTheDocument();
     });

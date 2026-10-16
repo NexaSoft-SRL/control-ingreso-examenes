@@ -31,7 +31,7 @@ export const VISTAS = [
         permiso: 'periodo_oferta',
     },
 
-        {
+    {
         ruta: '/oferta',
         titulo: 'Oferta',
         Icono: GraduationCap,

@@ -41,15 +41,13 @@ export default function Oferta() {
 
     const consulta = usarConsulta('/oferta/asignaturas', { parametros: lista.parametros });
 
-
     // Los períodos detectados: vigentes y no vigentes, con su estado.
     const periodos = usarConsulta('/periodos', { parametros: { por_pagina: 50 } });
 
     // Las carreras de la facultad elegida.
-    const carreras = usarConsulta(
-        facultad ? `/oferta/carreras?facultad=${facultad}` : null,
-        { activa: Boolean(facultad) }
-    );
+    const carreras = usarConsulta(facultad ? `/oferta/carreras?facultad=${facultad}` : null, {
+        activa: Boolean(facultad),
+    });
 
     // Los niveles que hay en lo filtrado.
     const niveles = usarConsulta('/oferta/niveles', {
@@ -220,10 +218,7 @@ export default function Oferta() {
                                 </button>
 
                                 {expandida === a.id && (
-                                    <GruposDeAsignatura
-                                        asignaturaId={a.id}
-                                        buscar={lista.buscar}
-                                    />
+                                    <GruposDeAsignatura asignaturaId={a.id} buscar={lista.buscar} />
                                 )}
                             </li>
                         ))}

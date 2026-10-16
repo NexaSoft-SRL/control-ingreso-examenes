@@ -50,7 +50,7 @@ describe('EsquemaApp', () => {
 
         expect(enlaces(menus()[lateral])).toEqual([
             'Período',
-            'Oferta',   
+            'Oferta',
             'Aulas y mapa',
             'Docentes',
             'Padrón',
