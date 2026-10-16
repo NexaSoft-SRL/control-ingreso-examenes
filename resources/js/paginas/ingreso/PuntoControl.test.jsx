@@ -57,7 +57,7 @@ describe('PuntoControl HU-19', () => {
                 return Promise.resolve({ data: { data: [examen] } });
             }
 
-            if (ruta.endsWith('/ingresos')) {
+            if (ruta.endsWith('/ingresos') || ruta.endsWith('/incidencias')) {
                 return Promise.resolve({ data: { data: [] } });
             }
 
@@ -78,6 +78,357 @@ describe('PuntoControl HU-19', () => {
 
             return Promise.reject(new Error('Ruta inesperada'));
         });
+    });
+
+    it('BUG-04: presenta estudiante, rechazo y detalle de una incidencia', async () => {
+        api.get.mockImplementation((ruta) => {
+            if (ruta === '/punto-control/contexto') {
+                return Promise.resolve({ data: { data: [examen] } });
+            }
+
+            if (ruta.endsWith('/incidencias')) {
+                return Promise.resolve({
+                    data: {
+                        data: [
+                            {
+                                incidencia_id: 14,
+                                estudiante_id: 5,
+                                codigo: '202100001',
+                                nombres: 'Ana',
+                                apellidos: 'Rojas',
+                                tipo_rechazo: 'NO_HABILITADO',
+                                detalle: 'Documentación pendiente.',
+                                registrado_en: '2026-10-16 08:15:00',
+                            },
+                        ],
+                    },
+                });
+            }
+
+            return Promise.resolve({ data: { data: [] } });
+        });
+
+        await preparar();
+
+        const seccion = screen.getByRole('region', {
+            name: 'Incidencias de ingreso',
+        });
+
+        expect(await screen.findByText('Rojas, Ana')).toBeInTheDocument();
+        expect(seccion).toHaveTextContent('Documentación pendiente.');
+        expect(seccion).toHaveTextContent('Estudiante no habilitado');
+        expect(seccion).toHaveTextContent('2026-10-16 08:15:00');
+        expect(seccion).toHaveTextContent('202100001');
+    });
+
+    it('BUG-04: actualiza incidencias tras rechazar un ingreso', async () => {
+        let lecturas = 0;
+
+        api.get.mockImplementation((ruta) => {
+            if (ruta === '/punto-control/contexto') {
+                return Promise.resolve({ data: { data: [examen] } });
+            }
+
+            if (ruta.endsWith('/candidato')) {
+                return Promise.resolve({
+                    data: {
+                        data: {
+                            estudiante_id: 5,
+                            codigo: '202100001',
+                            nombre: 'Estudiante de prueba',
+                            inscrito: true,
+                            habilitado: false,
+                        },
+                    },
+                });
+            }
+
+            if (ruta.endsWith('/incidencias')) {
+                lecturas += 1;
+
+                return Promise.resolve({
+                    data: {
+                        data:
+                            lecturas > 1
+                                ? [
+                                      {
+                                          incidencia_id: 15,
+                                          estudiante_id: 5,
+                                          nombres: 'Ana',
+                                          apellidos: 'Rojas',
+                                          tipo_rechazo: 'NO_HABILITADO',
+                                          detalle: 'No cumple el requisito.',
+                                          registrado_en: '2026-10-16 08:20:00',
+                                      },
+                                  ]
+                                : [],
+                    },
+                });
+            }
+
+            return Promise.resolve({ data: { data: [] } });
+        });
+
+        api.post.mockResolvedValue({
+            data: {
+                data: {
+                    veredicto: 'NO_HABILITADO',
+                    admitido: false,
+                },
+            },
+        });
+
+        await preparar();
+
+        await waitFor(() => {
+            expect(lecturas).toBe(1);
+        });
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
+            target: { value: '202100001' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
+        await screen.findByText('Estudiante de prueba');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmar ingreso' }));
+
+        expect(await screen.findByText(/Detalle:\s*No cumple el requisito\./)).toBeInTheDocument();
+        expect(lecturas).toBe(2);
+    });
+
+    it('BUG-04: actualiza incidencias después de YA_INGRESO con HTTP 409', async () => {
+        let lecturas = 0;
+
+        api.get.mockImplementation((ruta) => {
+            if (ruta === '/punto-control/contexto') {
+                return Promise.resolve({ data: { data: [examen] } });
+            }
+
+            if (ruta.endsWith('/candidato')) {
+                return Promise.resolve({
+                    data: {
+                        data: {
+                            estudiante_id: 5,
+                            codigo: '202100001',
+                            nombre: 'Estudiante de prueba',
+                            inscrito: true,
+                            habilitado: true,
+                            aula_asignada_id: 7,
+                        },
+                    },
+                });
+            }
+
+            if (ruta.endsWith('/incidencias')) {
+                lecturas += 1;
+
+                return Promise.resolve({
+                    data: {
+                        data:
+                            lecturas > 1
+                                ? [
+                                      {
+                                          incidencia_id: 16,
+                                          estudiante_id: 5,
+                                          nombres: 'Ana',
+                                          apellidos: 'Rojas',
+                                          tipo_rechazo: 'YA_INGRESO',
+                                          detalle: 'El estudiante ya tiene un ingreso registrado.',
+                                          registrado_en: '2026-10-16 08:30:00',
+                                      },
+                                  ]
+                                : [],
+                    },
+                });
+            }
+
+            return Promise.resolve({ data: { data: [] } });
+        });
+
+        api.post.mockRejectedValue({
+            response: {
+                status: 409,
+                data: {
+                    data: {
+                        veredicto: 'YA_INGRESO',
+                        admitido: false,
+                    },
+                },
+            },
+        });
+
+        await preparar();
+
+        await waitFor(() => {
+            expect(lecturas).toBe(1);
+        });
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
+            target: { value: '202100001' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
+        await screen.findByText('Estudiante de prueba');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmar ingreso' }));
+
+        expect(await screen.findByText('Ingreso registrado anteriormente')).toBeInTheDocument();
+
+        expect(
+            await screen.findByText(/Detalle:\s*El estudiante ya tiene un ingreso registrado\./)
+        ).toBeInTheDocument();
+
+        expect(lecturas).toBe(2);
+        expect(api.post).toHaveBeenCalledTimes(1);
+    });
+
+    it('BUG-04: ignora incidencias antiguas al cambiar de aula', async () => {
+        let resolverAnterior;
+
+        api.get.mockImplementation((ruta) => {
+            if (ruta === '/punto-control/contexto') {
+                return Promise.resolve({
+                    data: {
+                        data: [
+                            {
+                                ...examen,
+                                aulas: [
+                                    { id: 7, nombre: 'A-101' },
+                                    { id: 8, nombre: 'A-102' },
+                                ],
+                            },
+                        ],
+                    },
+                });
+            }
+
+            if (ruta.endsWith('/incidencias') && ruta.includes('/aulas/7/')) {
+                return new Promise((resolver) => {
+                    resolverAnterior = resolver;
+                });
+            }
+
+            if (ruta.endsWith('/incidencias') && ruta.includes('/aulas/8/')) {
+                return Promise.resolve({ data: { data: [] } });
+            }
+
+            return Promise.resolve({ data: { data: [] } });
+        });
+
+        await preparar();
+
+        await waitFor(() => {
+            expect(resolverAnterior).toBeTypeOf('function');
+        });
+
+        fireEvent.change(screen.getByRole('combobox', { name: 'Aula de control' }), {
+            target: { value: '8' },
+        });
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith(
+                '/examenes/10/aulas/8/punto-control/incidencias',
+                expect.objectContaining({
+                    signal: expect.any(AbortSignal),
+                })
+            );
+        });
+
+        resolverAnterior({
+            data: {
+                data: [
+                    {
+                        incidencia_id: 99,
+                        nombres: 'ESTUDIANTE',
+                        apellidos: 'ANTIGUO',
+                        tipo_rechazo: 'NO_HABILITADO',
+                        detalle: 'No debe aparecer.',
+                        registrado_en: '2026-10-16 08:00:00',
+                    },
+                ],
+            },
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText('No hay incidencias para mostrar.')).toBeInTheDocument();
+        });
+
+        expect(screen.queryByText('ANTIGUO, ESTUDIANTE')).not.toBeInTheDocument();
+        expect(screen.queryByText(/No debe aparecer/)).not.toBeInTheDocument();
+    });
+
+    it('CA-2: muestra el motivo real del estudiante inhabilitado', async () => {
+        const original = api.get.getMockImplementation();
+
+        api.get.mockImplementation((ruta, opciones) => {
+            if (ruta.endsWith('/candidato')) {
+                return Promise.resolve({
+                    data: {
+                        data: {
+                            estudiante_id: 5,
+                            codigo: '202100001',
+                            nombre: 'Estudiante de prueba',
+                            inscrito: true,
+                            habilitado: false,
+                            motivo_inhabilitacion: 'Documentación académica pendiente.',
+                        },
+                    },
+                });
+            }
+
+            return original(ruta, opciones);
+        });
+
+        await preparar();
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
+            target: { value: '202100001' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
+        await screen.findByText('Estudiante de prueba');
+
+        expect(screen.getByText('Inhabilitado')).toBeInTheDocument();
+        expect(
+            screen.getByText(/Motivo:\s*Documentación académica pendiente\./)
+        ).toBeInTheDocument();
+    });
+
+    it('CA-3: distingue la ausencia de condición registrada', async () => {
+        const original = api.get.getMockImplementation();
+
+        api.get.mockImplementation((ruta, opciones) => {
+            if (ruta.endsWith('/candidato')) {
+                return Promise.resolve({
+                    data: {
+                        data: {
+                            estudiante_id: 5,
+                            codigo: '202100001',
+                            nombre: 'Estudiante de prueba',
+                            inscrito: true,
+                            habilitado: null,
+                            motivo_inhabilitacion: null,
+                        },
+                    },
+                });
+            }
+
+            return original(ruta, opciones);
+        });
+
+        await preparar();
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
+            target: { value: '202100001' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
+        await screen.findByText('Estudiante de prueba');
+
+        expect(screen.getByText('Sin condición de habilitación registrada')).toBeInTheDocument();
+
+        expect(screen.queryByText(/^Motivo:/)).not.toBeInTheDocument();
     });
 
     it('consulta antes de permitir confirmar el ingreso', async () => {

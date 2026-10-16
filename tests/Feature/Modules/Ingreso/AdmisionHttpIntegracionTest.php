@@ -74,6 +74,46 @@ final class AdmisionHttpIntegracionTest extends TestCase
             ->assertJsonPath('data.admitido', false);
 
         self::assertSame(1, DB::table('ingresos')->count());
+
+        $this->assertDatabaseHas('incidencias_ingreso', [
+            'examen_id' => $examen->id,
+            'aula_id' => $aula->id,
+            'estudiante_id' => $estudiante->id,
+            'registrado_por' => $usuario->id,
+            'tipo_rechazo' => 'YA_INGRESO',
+            'detalle' => 'El estudiante ya tiene un ingreso registrado.',
+        ]);
+
+        $this->assertDatabaseCount('incidencias_ingreso', 1);
+    }
+
+    public function test_consulta_candidato_muestra_motivo_real_de_inhabilitacion(): void
+    {
+        [$usuario, $examen, $aula, $estudiante] = $this->escenario();
+
+        $this->inhabilitar(
+            $examen,
+            [$estudiante],
+            'Documentación académica pendiente.',
+        );
+        $this->autorizarPunto($usuario, $examen, $aula);
+
+        $this->actingAs($usuario)
+            ->getJson(sprintf(
+                '/api/examenes/%d/aulas/%d/punto-control/candidato?tipo=codigo&identificador=%s',
+                $examen->id,
+                $aula->id,
+                $estudiante->codigo_universitario,
+            ))
+            ->assertOk()
+            ->assertJsonPath('data.habilitado', false)
+            ->assertJsonPath(
+                'data.motivo_inhabilitacion',
+                'Documentación académica pendiente.',
+            );
+
+        $this->assertDatabaseCount('ingresos', 0);
+        $this->assertDatabaseCount('incidencias_ingreso', 0);
     }
 
     public function test_no_habilitado_no_genera_ingreso(): void
@@ -93,6 +133,17 @@ final class AdmisionHttpIntegracionTest extends TestCase
             ->assertJsonPath('data.admitido', false);
 
         $this->assertDatabaseCount('ingresos', 0);
+
+        $this->assertDatabaseHas('incidencias_ingreso', [
+            'examen_id' => $examen->id,
+            'aula_id' => $aula->id,
+            'estudiante_id' => $estudiante->id,
+            'registrado_por' => $usuario->id,
+            'tipo_rechazo' => 'NO_HABILITADO',
+            'detalle' => 'No cumple el requisito.',
+        ]);
+
+        $this->assertDatabaseCount('incidencias_ingreso', 1);
     }
 
     public function test_estudiante_de_otra_aula_no_ingresa(): void
@@ -121,6 +172,17 @@ final class AdmisionHttpIntegracionTest extends TestCase
             ->assertJsonPath('data.admitido', false);
 
         $this->assertDatabaseCount('ingresos', 0);
+
+        $this->assertDatabaseHas('incidencias_ingreso', [
+            'examen_id' => $examen->id,
+            'aula_id' => $aula->id,
+            'estudiante_id' => $estudiante->id,
+            'registrado_por' => $usuario->id,
+            'tipo_rechazo' => 'OTRA_AULA',
+            'detalle' => 'El estudiante está asignado a otra aula.',
+        ]);
+
+        $this->assertDatabaseCount('incidencias_ingreso', 1);
     }
 
     public function test_aula_ajena_al_examen_es_rechazada(): void
@@ -169,6 +231,75 @@ final class AdmisionHttpIntegracionTest extends TestCase
         );
 
         return [$usuario, $examen, $aula, $estudiante];
+    }
+
+    public function test_sin_condicion_registrada_crea_incidencia_no_habilitado(): void
+    {
+        [$usuario, $examen, $aula, $estudiante] = $this->escenario();
+
+        $this->autorizarPunto($usuario, $examen, $aula);
+
+        $this->actingAs($usuario)
+            ->postJson($this->url($examen, $aula), [
+                'tipo' => 'codigo',
+                'identificador' => $estudiante->codigo_universitario,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.veredicto', 'NO_HABILITADO')
+            ->assertJsonPath('data.admitido', false);
+
+        $this->assertDatabaseHas('incidencias_ingreso', [
+            'examen_id' => $examen->id,
+            'estudiante_id' => $estudiante->id,
+            'tipo_rechazo' => 'NO_HABILITADO',
+            'detalle' => 'El estudiante no tiene condición de habilitación registrada para este examen.',
+        ]);
+
+        $this->assertDatabaseCount('ingresos', 0);
+        $this->assertDatabaseCount('incidencias_ingreso', 1);
+    }
+
+    public function test_estudiante_inexistente_crea_incidencia_sin_estudiante(): void
+    {
+        [$usuario, $examen, $aula] = $this->escenario();
+
+        $this->autorizarPunto($usuario, $examen, $aula);
+
+        $this->actingAs($usuario)
+            ->postJson($this->url($examen, $aula), [
+                'tipo' => 'codigo',
+                'identificador' => 'CODIGO-INEXISTENTE-999',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.veredicto', 'NO_CORRESPONDE')
+            ->assertJsonPath('data.admitido', false);
+
+        $this->assertDatabaseHas('incidencias_ingreso', [
+            'examen_id' => $examen->id,
+            'aula_id' => $aula->id,
+            'estudiante_id' => null,
+            'registrado_por' => $usuario->id,
+            'tipo_rechazo' => 'NO_CORRESPONDE',
+            'detalle' => 'Estudiante no encontrado.',
+        ]);
+
+        $this->assertDatabaseCount('ingresos', 0);
+        $this->assertDatabaseCount('incidencias_ingreso', 1);
+    }
+
+    public function test_operador_no_autorizado_no_crea_incidencia(): void
+    {
+        [$usuario, $examen, $aula, $estudiante] = $this->escenario();
+
+        $this->actingAs($usuario)
+            ->postJson($this->url($examen, $aula), [
+                'tipo' => 'codigo',
+                'identificador' => $estudiante->codigo_universitario,
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('ingresos', 0);
+        $this->assertDatabaseCount('incidencias_ingreso', 0);
     }
 
     private function autorizarPunto(

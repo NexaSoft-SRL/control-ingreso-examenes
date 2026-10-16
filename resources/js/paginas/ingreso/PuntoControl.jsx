@@ -78,6 +78,7 @@ export default function PuntoControl() {
     const [candidato, setCandidato] = useState(null);
     const [veredicto, setVeredicto] = useState(null);
     const [historial, setHistorial] = useState([]);
+    const [incidencias, setIncidencias] = useState([]);
     const [mensaje, setMensaje] = useState('');
     const [ocupado, setOcupado] = useState(false);
     const [bloqueado, setBloqueado] = useState(false);
@@ -161,6 +162,39 @@ export default function PuntoControl() {
         };
     }, [punto]);
 
+    useEffect(() => {
+        let activo = true;
+        const controlador = new AbortController();
+
+        setIncidencias([]);
+
+        if (punto) {
+            api.get(`${punto}/incidencias`, {
+                params: { limite: 20 },
+                signal: controlador.signal,
+            })
+                .then(({ data }) => {
+                    if (activo) {
+                        setIncidencias(Array.isArray(data?.data) ? data.data : []);
+                    }
+                })
+                .catch((error) => {
+                    if (activo && !controlador.signal.aborted) {
+                        setIncidencias([]);
+                        setMensaje(
+                            interpretarFallo(error, 'No se pudieron consultar las incidencias.')
+                        );
+                        if (estadoDe(error) === 403) setBloqueado(true);
+                    }
+                });
+        }
+
+        return () => {
+            activo = false;
+            controlador.abort();
+        };
+    }, [punto]);
+
     const cambiarExamen = (id) => {
         if (pendiente.current) return;
         invalidarContexto();
@@ -169,6 +203,7 @@ export default function PuntoControl() {
         setCandidato(null);
         setVeredicto(null);
         setHistorial([]);
+        setIncidencias([]);
         setMensaje('');
         setBloqueado(false);
     };
@@ -180,6 +215,7 @@ export default function PuntoControl() {
         setCandidato(null);
         setVeredicto(null);
         setHistorial([]);
+        setIncidencias([]);
         setMensaje('');
         setBloqueado(false);
     };
@@ -212,6 +248,8 @@ export default function PuntoControl() {
         setOcupado(true);
         setMensaje('');
 
+        let registroIntentado = false;
+
         const cuerpo = {
             tipo,
             identificador: identificador.trim(),
@@ -230,6 +268,7 @@ export default function PuntoControl() {
                 if (version !== versionContexto.current) return;
                 setCandidato(data?.data ?? null);
             } else {
+                registroIntentado = true;
                 const { data } = await api.post(`${punto}/ingresos`, cuerpo, {
                     signal: controlador.signal,
                 });
@@ -273,6 +312,38 @@ export default function PuntoControl() {
 
             if (estado === 403) setBloqueado(true);
         } finally {
+            if (
+                registroIntentado &&
+                !controlador.signal.aborted &&
+                version === versionContexto.current
+            ) {
+                try {
+                    const respuesta = await api.get(`${punto}/incidencias`, {
+                        params: { limite: 20 },
+                        signal: controlador.signal,
+                    });
+
+                    if (version === versionContexto.current) {
+                        setIncidencias(
+                            Array.isArray(respuesta.data?.data) ? respuesta.data.data : []
+                        );
+                    }
+                } catch (error) {
+                    if (!controlador.signal.aborted && version === versionContexto.current) {
+                        setMensaje(
+                            (anterior) =>
+                                anterior ||
+                                interpretarFallo(
+                                    error,
+                                    'No se pudieron actualizar las incidencias.'
+                                )
+                        );
+
+                        if (estadoDe(error) === 403) setBloqueado(true);
+                    }
+                }
+            }
+
             peticiones.current.delete(controlador);
             pendiente.current = false;
             setOcupado(false);
@@ -378,8 +449,16 @@ export default function PuntoControl() {
                         <p className="text-sm text-slate-700">
                             {candidato.habilitado === true
                                 ? 'Habilitado'
-                                : 'Habilitación no confirmada'}
+                                : candidato.habilitado === false
+                                  ? 'Inhabilitado'
+                                  : 'Sin condición de habilitación registrada'}
                         </p>
+                        {candidato.habilitado === false && (
+                            <p className="break-words text-sm text-red-700">
+                                Motivo:{' '}
+                                {candidato.motivo_inhabilitacion?.trim() || 'Motivo no disponible.'}
+                            </p>
+                        )}
 
                         <button
                             type="button"
@@ -438,6 +517,47 @@ export default function PuntoControl() {
                             >
                                 Ingreso #{registro.ingreso_id ?? '—'} · Estudiante{' '}
                                 {registro.estudiante_id ?? '—'}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </section>
+
+            <section
+                aria-label="Incidencias de ingreso"
+                className="space-y-4 rounded-xl border border-slate-200 bg-white p-5"
+            >
+                <h2 className="text-lg font-semibold text-slate-900">Incidencias de ingreso</h2>
+
+                {incidencias.length === 0 ? (
+                    <p className="text-sm text-slate-600">No hay incidencias para mostrar.</p>
+                ) : (
+                    <ul className="divide-y divide-slate-100">
+                        {incidencias.map((incidencia) => (
+                            <li
+                                key={incidencia.incidencia_id}
+                                className="space-y-2 py-3 text-sm text-slate-700"
+                            >
+                                <p className="font-semibold break-words text-slate-900">
+                                    {incidencia.nombres || incidencia.apellidos
+                                        ? [incidencia.apellidos, incidencia.nombres]
+                                              .filter(Boolean)
+                                              .join(', ')
+                                        : 'Estudiante no encontrado'}
+                                </p>
+                                {incidencia.codigo && (
+                                    <p className="break-all">Código: {incidencia.codigo}</p>
+                                )}
+                                <p className="break-words">
+                                    Rechazo:{' '}
+                                    {RESULTADOS[incidencia.tipo_rechazo] ?? incidencia.tipo_rechazo}
+                                </p>
+                                <p className="whitespace-pre-wrap break-words">
+                                    Detalle: {incidencia.detalle}
+                                </p>
+                                <p className="break-words text-slate-500">
+                                    Fecha: {incidencia.registrado_en}
+                                </p>
                             </li>
                         ))}
                     </ul>
