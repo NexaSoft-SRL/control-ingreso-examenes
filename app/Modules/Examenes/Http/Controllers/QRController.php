@@ -3,7 +3,11 @@ namespace App\Modules\Examenes\Http\Controllers;
 
 class QRController
 {
-    public function generarLote($examen_id)
+    /**
+     * @param int $examen_id
+     * @return array<string, mixed>
+     */
+    public function generarLote(int $examen_id): array
     {
         $estudiantes_demo = [
             ['id' => 1, 'nombres' => 'Alvarado Claros', 'apellidos' => 'Kevin René', 'aula' => 'Aula 251', 'piso' => '2do Piso', 'edificio' => 'Edificio Académico 1'],
