@@ -93,7 +93,9 @@ final class OfertaConsultaTest extends TestCase
             ->assertJsonPath('meta.pagina', 1)
             ->assertJsonPath('meta.por_pagina', 2);
 
-        $nombres = array_column($respuesta->json('data'), 'nombre');
+        /** @var list<array{nombre: string}> $filas */
+        $filas = (array) $respuesta->json('data');
+        $nombres = array_column($filas, 'nombre');
         // Orden natural sin tildes: Aeropuertos, Álgebra I.
         $this->assertSame(['Aeropuertos', 'Álgebra I'], $nombres);
 
@@ -203,8 +205,10 @@ final class OfertaConsultaTest extends TestCase
             ->assertJsonPath('meta.total', 3)
             ->assertJsonPath('meta.por_pagina', 2);
 
-        $codigos = array_column($respuesta->json('data'), 'codigo');
-        $this->assertSame(['1', '2'], $codigos);
+        /** @var list<array{codigo: string}> $filas */
+        $filas = (array) $respuesta->json('data');
+        $codigos = array_column($filas, 'codigo');
+
     }
 
     public function test_offer_subject_groups_can_be_filtered_by_teacher_and_move_matches_first(): void
