@@ -83,6 +83,7 @@ final class EsquemaReplanteoTest extends TestCase
         // Ingreso.
         'ingresos',
         'expulsiones',
+        'incidencias_ingreso',
     ];
 
     public function test_schema_has_exactly_the_expected_tables(): void
