@@ -12,6 +12,7 @@ use App\Modules\Ingreso\Application\Contracts\IncidenciaIngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciasIngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresosRecientesGateway;
+use App\Modules\Ingreso\Application\Contracts\SeguimientoAulaGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
 use App\Modules\Ingreso\Infrastructure\Persistence\AlcancePuntoControlSinAsignaciones;
 use App\Modules\Ingreso\Infrastructure\Persistence\ContextoOperativoSinAsignaciones;
@@ -19,6 +20,7 @@ use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEstadoExpulsionGatewa
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIncidenciaIngresoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIncidenciasIngresoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIngresosRecientesGateway;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentSeguimientoAulaGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\IngresoAuditadoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\VentanaExamen;
 use App\Modules\Ingreso\Infrastructure\QR\CodigoQrCifrado;
@@ -65,6 +67,11 @@ final class IngresoServiceProvider extends ServiceProvider
         $this->app->bind(
             IngresosRecientesGateway::class,
             EloquentIngresosRecientesGateway::class,
+        );
+
+        $this->app->bind(
+            SeguimientoAulaGateway::class,
+            EloquentSeguimientoAulaGateway::class,
         );
 
         $this->app->bind(

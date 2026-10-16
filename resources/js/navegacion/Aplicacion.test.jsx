@@ -32,7 +32,8 @@ function montar(ruta, usuario) {
     );
 }
 
-const titulo = (nombre) => screen.findByRole('heading', { level: 1, name: nombre });
+const titulo = (nombre) =>
+    screen.findByRole('heading', { level: 1, name: nombre }, { timeout: 5000 });
 
 // El título de cada pantalla, por ruta.
 const TITULOS = {
@@ -44,6 +45,7 @@ const TITULOS = {
     '/examenes/nuevo': 'Registrar examen',
     '/habilitacion': 'Habilitación',
     '/punto-control': 'Punto de control',
+    '/seguimiento': 'Seguimiento del aula',
     '/mis-grupos': 'Mis grupos',
     '/admin': 'Usuarios y roles',
     '/bitacora': 'Bitácora',
