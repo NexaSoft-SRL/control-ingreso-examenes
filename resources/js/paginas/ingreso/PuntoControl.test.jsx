@@ -124,6 +124,69 @@ describe('PuntoControl HU-19', () => {
         );
     });
 
+    it('BUG-03: informa horario cerrado sin inventar un ingreso previo', async () => {
+        api.post.mockRejectedValue({
+            response: {
+                status: 409,
+                data: {
+                    message: 'El punto de control está fuera del horario permitido.',
+                },
+            },
+        });
+
+        await preparar();
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
+            target: { value: '202100001' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
+        await screen.findByText('Estudiante de prueba');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmar ingreso' }));
+
+        expect(
+            await screen.findByText('El punto de control está fuera del horario permitido.')
+        ).toBeInTheDocument();
+
+        expect(screen.queryByText('Ingreso registrado anteriormente')).not.toBeInTheDocument();
+
+        expect(api.post).toHaveBeenCalledTimes(1);
+    });
+
+    it('BUG-03: conserva YA_INGRESO cuando el backend lo confirma', async () => {
+        api.post.mockRejectedValue({
+            response: {
+                status: 409,
+                data: {
+                    data: {
+                        veredicto: 'YA_INGRESO',
+                        admitido: false,
+                    },
+                },
+            },
+        });
+
+        await preparar();
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
+            target: { value: '202100001' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
+        await screen.findByText('Estudiante de prueba');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmar ingreso' }));
+
+        expect(await screen.findByText('Ingreso registrado anteriormente')).toBeInTheDocument();
+
+        expect(
+            screen.queryByText('El punto de control está fuera del horario permitido.')
+        ).not.toBeInTheDocument();
+
+        expect(api.post).toHaveBeenCalledTimes(1);
+    });
+
     it('bloquea la operación cuando el backend devuelve 403', async () => {
         api.get.mockImplementation((ruta) => {
             if (ruta === '/punto-control/contexto') {

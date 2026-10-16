@@ -254,13 +254,12 @@ export default function PuntoControl() {
 
             const estado = estadoDe(error);
 
-            if (operacion === 'registrar' && estado === 409) {
-                setVeredicto(
-                    error.response?.data?.data ?? {
-                        veredicto: 'YA_INGRESO',
-                        admitido: false,
-                    }
-                );
+            if (
+                operacion === 'registrar' &&
+                estado === 409 &&
+                error.response?.data?.data?.veredicto === 'YA_INGRESO'
+            ) {
+                setVeredicto(error.response.data.data);
             } else {
                 setMensaje(
                     interpretarFallo(
