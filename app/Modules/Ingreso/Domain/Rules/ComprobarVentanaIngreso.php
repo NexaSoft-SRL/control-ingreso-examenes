@@ -47,6 +47,8 @@ final readonly class ComprobarVentanaIngreso
 
         $fin = $inicio->modify("+{$duracionMinutos} minutes");
 
-        return $ahora >= $inicio && $ahora < $fin;
+        $apertura = $inicio->modify('-60 minutes');
+
+        return $ahora >= $apertura && $ahora < $fin;
     }
 }
