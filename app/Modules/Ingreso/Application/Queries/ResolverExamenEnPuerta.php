@@ -6,7 +6,7 @@ namespace App\Modules\Ingreso\Application\Queries;
 
 use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
-use App\Modules\Ingreso\Domain\Enums\VeredictoIngreso;
+use App\Modules\Ingreso\Application\DTOs\ResultadoResolucionPuertaData;
 use App\Modules\Ingreso\Domain\Rules\EvaluarIngreso;
 use InvalidArgumentException;
 
@@ -20,8 +20,7 @@ final readonly class ResolverExamenEnPuerta
     ) {}
 
     /**
-     * @param  list<int>  $examenesAbiertosIds  Exámenes abiertos,
-     *                                          autorizados y asociados al aula.
+     * @param  list<int>  $examenesAbiertosIds
      */
     public function resolverManual(
         array $examenesAbiertosIds,
@@ -29,6 +28,26 @@ final readonly class ResolverExamenEnPuerta
         string $tipoIdentificador,
         string $identificador,
     ): ?int {
+        return $this->resolverDetallado(
+            $examenesAbiertosIds,
+            $aulaId,
+            $tipoIdentificador,
+            $identificador,
+        )->examenId;
+    }
+
+    /**
+     * La lista de exámenes debe provenir de un contexto autorizado
+     * y validado por el servidor, nunca del cliente HTTP.
+     *
+     * @param  list<int>  $examenesAbiertosIds
+     */
+    public function resolverDetallado(
+        array $examenesAbiertosIds,
+        int $aulaId,
+        string $tipoIdentificador,
+        string $identificador,
+    ): ResultadoResolucionPuertaData {
         if ($aulaId <= 0 || $examenesAbiertosIds === []) {
             throw new InvalidArgumentException(
                 'La puerta requiere un aula y exámenes abiertos.'
@@ -77,25 +96,26 @@ final readonly class ResolverExamenEnPuerta
                 ),
             );
 
-            $coincidencias[] = [
-                'examen' => $examenId,
-                'veredicto' => $veredicto,
-            ];
+            $coincidencias[] = new ResultadoResolucionPuertaData(
+                $examenId,
+                $veredicto,
+            );
         }
 
-        foreach ($coincidencias as $coincidencia) {
-            if ($coincidencia['veredicto'] === VeredictoIngreso::Admitido) {
-                return $coincidencia['examen'];
+        foreach ($coincidencias as $resultado) {
+            if ($resultado->puedeAdmitir()) {
+                return $resultado;
             }
         }
 
-        // Si pertenece a un único examen, conservar su veredicto
-        // aunque no pueda ser admitido.
         if (count($coincidencias) === 1) {
-            return $coincidencias[0]['examen'];
+            return $coincidencias[0];
         }
 
-        // No decidir arbitrariamente entre varios exámenes rechazados.
-        return null;
+        return new ResultadoResolucionPuertaData(
+            null,
+            null,
+            count($coincidencias) > 1,
+        );
     }
 }
