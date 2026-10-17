@@ -13,6 +13,7 @@ const Login = lazy(() => import('../paginas/auth/Login'));
 // Un componente por ruta. Quién ve cada una sale de navegacion/vistas.js.
 export const PAGINAS = {
     '/periodo': lazy(() => import('../paginas/admin/Periodo')),
+    '/oferta': lazy(() => import('../paginas/admin/Oferta')),
     '/aulas': lazy(() => import('../paginas/admin/Aulas')),
     '/docentes': lazy(() => import('../paginas/admin/Docentes')),
     '/estudiantes': lazy(() => import('../paginas/estudiantes/Padron')),
@@ -20,6 +21,7 @@ export const PAGINAS = {
     '/examenes/nuevo': lazy(() => import('../paginas/examenes/RegistrarExamen')),
     '/habilitacion': lazy(() => import('../paginas/habilitacion/Habilitacion')),
     '/punto-control': lazy(() => import('../paginas/ingreso/PuntoControl')),
+    '/seguimiento': lazy(() => import('../paginas/ingreso/Seguimiento')),
     '/mis-grupos': lazy(() => import('../paginas/docente/MisGrupos')),
     '/admin': lazy(() => import('../paginas/admin/Usuarios')),
     '/bitacora': lazy(() => import('../paginas/admin/Bitacora')),

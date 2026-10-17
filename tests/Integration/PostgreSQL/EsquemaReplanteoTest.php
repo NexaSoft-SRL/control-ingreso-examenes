@@ -34,7 +34,7 @@ final class EsquemaReplanteoTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * Las 36 tablas del esquema; `migrations` va aparte.
+     * Las 40 tablas del esquema; `migrations` va aparte.
      *
      * @var list<string>
      */
@@ -81,8 +81,11 @@ final class EsquemaReplanteoTest extends TestCase
         // Habilitacion.
         'habilitaciones',
         // Ingreso.
+        'asignaciones_seguimiento_aula',
+        'incidencias_aula',
         'ingresos',
         'expulsiones',
+        'incidencias_ingreso',
     ];
 
     public function test_schema_has_exactly_the_expected_tables(): void

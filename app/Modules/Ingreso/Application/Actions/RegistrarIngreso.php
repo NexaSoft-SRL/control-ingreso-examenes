@@ -7,6 +7,7 @@ namespace App\Modules\Ingreso\Application\Actions;
 use App\Modules\Examenes\Application\Contracts\ExamenGateway;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
+use App\Modules\Ingreso\Application\Contracts\IncidenciaIngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
 use App\Modules\Ingreso\Application\Queries\ConsultarCandidato;
@@ -26,6 +27,7 @@ final readonly class RegistrarIngreso
         private VentanaPuntoControl $ventana,
         private EstadoExpulsionGateway $expulsiones,
         private EvaluarIngreso $evaluador,
+        private IncidenciaIngresoGateway $incidencias,
     ) {}
 
     public function ejecutar(
@@ -74,6 +76,15 @@ final readonly class RegistrarIngreso
         );
 
         if ($candidato === null) {
+            $this->incidencias->registrar(
+                $examenId,
+                $aulaId,
+                null,
+                $usuarioId,
+                VeredictoIngreso::NoCorresponde,
+                'Estudiante no encontrado.',
+            );
+
             return VeredictoIngreso::NoCorresponde;
         }
 
@@ -95,6 +106,26 @@ final readonly class RegistrarIngreso
         );
 
         if (! $veredicto->permiteIngreso()) {
+            $detalle = match ($veredicto) {
+                VeredictoIngreso::NoHabilitado => $candidato->habilitacion === null
+                        ? 'El estudiante no tiene condición de habilitación registrada para este examen.'
+                        : (trim((string) $candidato->habilitacion->motivo) ?: 'Estudiante inhabilitado sin motivo disponible.'),
+                VeredictoIngreso::OtraAula => 'El estudiante está asignado a otra aula.',
+                VeredictoIngreso::YaIngreso => 'El estudiante ya tiene un ingreso registrado.',
+                VeredictoIngreso::NoCorresponde => 'El estudiante no corresponde al examen o no tiene aula asignada.',
+                VeredictoIngreso::Expulsado => 'El estudiante está expulsado del examen.',
+                VeredictoIngreso::Admitido => throw new \LogicException('Una admisión no es un rechazo.'),
+            };
+
+            $this->incidencias->registrar(
+                $examenId,
+                $aulaId,
+                $estudianteId,
+                $usuarioId,
+                $veredicto,
+                $detalle,
+            );
+
             return $veredicto;
         }
 
@@ -105,8 +136,19 @@ final readonly class RegistrarIngreso
             $usuarioId,
         );
 
-        return $registrado
-            ? VeredictoIngreso::Admitido
-            : VeredictoIngreso::YaIngreso;
+        if (! $registrado) {
+            $this->incidencias->registrar(
+                $examenId,
+                $aulaId,
+                $estudianteId,
+                $usuarioId,
+                VeredictoIngreso::YaIngreso,
+                'El estudiante ya tiene un ingreso registrado.',
+            );
+
+            return VeredictoIngreso::YaIngreso;
+        }
+
+        return VeredictoIngreso::Admitido;
     }
 }
