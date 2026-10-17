@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
 final class ExamenAulaPersonal extends Model
 {
     public const ROL_A_CARGO = 'a_cargo';
+
     public const ROL_APOYO = 'apoyo';
 
     protected $table = 'examen_aula_personal';
