@@ -568,6 +568,13 @@ describe('RegistrarExamen · guardar', () => {
             normas_marcadas: [2, 7],
             grupos: [37],
             aulas: [32],
+            personal: [
+                {
+                    aula_id: 32,
+                    a_cargo: 7,
+                    apoyo: [],
+                },
+            ],
         });
 
         expect(
@@ -764,6 +771,13 @@ describe('RegistrarExamen · edición', () => {
             normas_conservadas: [],
             grupos: [37, 200],
             aulas: [32],
+            personal: [
+                {
+                    aula_id: 32,
+                    a_cargo: 7,
+                    apoyo: [],
+                },
+            ],
         });
         expect(api.post).not.toHaveBeenCalled();
     });

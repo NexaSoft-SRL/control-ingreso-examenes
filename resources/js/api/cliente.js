@@ -22,14 +22,27 @@ function emitir(evento) {
     oyentes.forEach((oyente) => oyente(evento));
 }
 
+api.interceptors.request.use((config) => {
+    try {
+        const token = localStorage.getItem('codigo_aula_token');
+        if (token && !config.headers['X-Codigo-Aula-Token']) {
+            config.headers['X-Codigo-Aula-Token'] = token;
+        }
+    } catch {
+        // Ignorar si localStorage no está disponible (ej. entorno de pruebas)
+    }
+    return config;
+});
+
 // 401 o 419 fuera de /auth/ → la sesión terminó. Una petición con
 // `{ silencioso: true }` no emite nada.
 export function interpretarError(error) {
     const estado = error?.response?.status;
     const ruta = String(error?.config?.url ?? '');
     const deAcceso = /(^|\/)auth\//.test(ruta);
+    const esColaborador = Boolean(error?.config?.headers?.['X-Codigo-Aula-Token']);
 
-    if (!error?.config?.silencioso) {
+    if (!error?.config?.silencioso && !esColaborador) {
         if ((estado === 401 || estado === 419) && !deAcceso) emitir(SIN_SESION);
     }
 

@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import { Eye, EyeOff, Lock } from 'lucide-react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { erroresDe, estadoDe } from '../../api/errores';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { destinoDe } from '../../navegacion/vistas';
@@ -185,6 +185,15 @@ export default function Login() {
                     <Boton type="submit" className="w-full" disabled={enviando}>
                         Iniciar sesión
                     </Boton>
+
+                    <div className="border-t border-slate-200 pt-4 text-center text-xs text-slate-600">
+                        <Link
+                            to="/acceso-aula"
+                            className="font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                        >
+                            Ingresar con código de aula
+                        </Link>
+                    </div>
                 </form>
             </div>
         </div>

@@ -18,7 +18,7 @@ final class AuxiliaresController
     public function index(Request $request, AuxiliaresDocenteGateway $gateway): JsonResponse
     {
         $usuarioId = (int) Auth::id();
-        $buscar = trim($request->string('buscar')->toString());
+        $buscar = trim($request->string('buscar')->toString() ?: $request->string('q')->toString());
 
         if (mb_strlen($buscar) >= 3) {
             $data = $gateway->buscar($buscar);
