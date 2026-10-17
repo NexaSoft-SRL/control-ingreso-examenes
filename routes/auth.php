@@ -11,6 +11,18 @@ Route::prefix('api/auth')
         Route::post('/login', [AuthenticationController::class, 'login'])
             ->name('login');
 
+        Route::post('/recuperar-contrasena', [AuthenticationController::class, 'solicitarRestablecimiento'])
+            ->middleware('throttle:6,1')
+            ->name('password.email');
+
+        Route::post('/restablecer-contrasena', [AuthenticationController::class, 'restablecerContrasena'])
+            ->middleware('throttle:6,1')
+            ->name('password.update');
+
+        Route::post('/cambiar-contrasena', [AuthenticationController::class, 'cambiarContrasena'])
+            ->middleware('auth')
+            ->name('password.change');
+
         Route::post('/logout', [AuthenticationController::class, 'logout'])
             ->middleware('auth')
             ->name('logout');

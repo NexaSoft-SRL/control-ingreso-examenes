@@ -37,7 +37,8 @@ final class SeguimientoAulaController
             'pagina' => ['sometimes', 'integer', 'min:1'],
         ]);
         $estado = $request->string('estado', 'faltan')->toString();
-        $buscar = $request->string('buscar')->toString();
+        $valorBuscar = $request->input('buscar');
+        $buscar = is_string($valorBuscar) ? $valorBuscar : '';
         $pagina = $request->integer('pagina', 1);
         $usuarioId = $this->usuarioId();
 

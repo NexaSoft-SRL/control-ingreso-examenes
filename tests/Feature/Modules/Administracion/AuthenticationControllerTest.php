@@ -13,13 +13,14 @@ class AuthenticationControllerTest extends TestCase
     public function test_active_user_can_login_with_valid_credentials(): void
     {
         $user = UserFactory::new()->createOne([
+            'usuario' => 'active-user',
             'email' => 'active-user@example.invalid',
             'password' => 'CorrectPassword123!',
             'is_active' => true,
         ]);
 
         $response = $this->postJson('/api/auth/login', [
-            'email' => 'active-user@example.invalid',
+            'usuario' => 'active-user',
             'password' => 'CorrectPassword123!',
         ]);
 
@@ -60,12 +61,13 @@ class AuthenticationControllerTest extends TestCase
     public function test_invalid_password_returns_generic_unauthorized_response(): void
     {
         UserFactory::new()->createOne([
+            'usuario' => 'known-user',
             'email' => 'known-user@example.invalid',
             'password' => 'CorrectPassword123!',
         ]);
 
         $response = $this->postJson('/api/auth/login', [
-            'email' => 'known-user@example.invalid',
+            'usuario' => 'known-user',
             'password' => 'IncorrectPassword123!',
         ]);
 
@@ -73,15 +75,16 @@ class AuthenticationControllerTest extends TestCase
             ->assertUnauthorized()
             ->assertExactJson([
                 'message' => 'Credenciales incorrectas.',
+                'intentos_restantes' => 4,
             ]);
 
         $this->assertGuest();
     }
 
-    public function test_unknown_email_returns_same_generic_unauthorized_response(): void
+    public function test_unknown_username_returns_same_generic_unauthorized_response(): void
     {
         $response = $this->postJson('/api/auth/login', [
-            'email' => 'unknown-user@example.invalid',
+            'usuario' => 'unknown-user',
             'password' => 'SomePassword123!',
         ]);
 
@@ -97,13 +100,14 @@ class AuthenticationControllerTest extends TestCase
     public function test_inactive_user_cannot_login(): void
     {
         UserFactory::new()->createOne([
+            'usuario' => 'inactive-user',
             'email' => 'inactive-user@example.invalid',
             'password' => 'CorrectPassword123!',
             'is_active' => false,
         ]);
 
         $response = $this->postJson('/api/auth/login', [
-            'email' => 'inactive-user@example.invalid',
+            'usuario' => 'inactive-user',
             'password' => 'CorrectPassword123!',
         ]);
 
@@ -123,7 +127,7 @@ class AuthenticationControllerTest extends TestCase
         $response
             ->assertUnprocessable()
             ->assertJsonValidationErrors([
-                'email',
+                'usuario',
                 'password',
             ]);
 
@@ -133,6 +137,7 @@ class AuthenticationControllerTest extends TestCase
     public function test_successful_login_regenerates_session_id(): void
     {
         UserFactory::new()->createOne([
+            'usuario' => 'session-rotation',
             'email' => 'session-rotation@example.invalid',
             'password' => 'CorrectPassword123!',
             'is_active' => true,
@@ -145,7 +150,7 @@ class AuthenticationControllerTest extends TestCase
         $previousSessionId = session()->getId();
 
         $this->postJson('/api/auth/login', [
-            'email' => 'session-rotation@example.invalid',
+            'usuario' => 'session-rotation',
             'password' => 'CorrectPassword123!',
         ])->assertOk();
 

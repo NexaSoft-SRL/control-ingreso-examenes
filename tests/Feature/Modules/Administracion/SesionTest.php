@@ -52,6 +52,7 @@ final class SesionTest extends TestCase
                     'docente_id' => $docente->getKey(),
                     'name' => 'Blanco Coca Leticia',
                     'email' => 'leticia.blanco@umss.edu.bo',
+                    'sesion_expira_en_minutos' => 15,
                 ],
             ]);
     }
@@ -102,12 +103,13 @@ final class SesionTest extends TestCase
     public function test_the_session_is_the_same_object_the_login_returns(): void
     {
         $this->usuarioConRol('Docente', [
+            'usuario' => 'leticia.blanco',
             'correo' => 'leticia.blanco@umss.edu.bo',
             'password' => 'Docente12345',
         ]);
 
         $acceso = $this->postJson('/api/auth/login', [
-            'email' => 'leticia.blanco@umss.edu.bo',
+            'usuario' => 'leticia.blanco',
             'password' => 'Docente12345',
         ])->assertOk();
 
@@ -116,7 +118,7 @@ final class SesionTest extends TestCase
         $this->assertSame($acceso->json('user'), $sesion->json('user'));
     }
 
-    public function test_a_temporary_password_does_not_force_the_change_yet(): void
+    public function test_a_temporary_password_requires_a_change(): void
     {
         $cuenta = $this->usuarioConRol('Docente', [
             'password_changed_at' => null,
@@ -126,7 +128,7 @@ final class SesionTest extends TestCase
         $this->actingAs($cuenta)
             ->getJson('/api/auth/sesion')
             ->assertOk()
-            ->assertJsonPath('user.debe_cambiar_contrasena', false);
+            ->assertJsonPath('user.debe_cambiar_contrasena', true);
     }
 
     public function test_an_account_without_role_has_an_empty_permission_list(): void

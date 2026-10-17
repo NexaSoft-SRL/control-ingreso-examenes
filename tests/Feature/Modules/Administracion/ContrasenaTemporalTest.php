@@ -20,8 +20,7 @@ use Tests\TestCase;
 
 /**
  * La contrasena temporal: su formato y su emision, al crear la cuenta y al
- * restablecerla. El vencimiento se guarda pero todavia no se aplica, y el
- * cambio obligatorio llega con el primer ingreso (HU-16).
+ * restablecerla, exigir su cambio inicial y aplicar el vencimiento.
  */
 final class ContrasenaTemporalTest extends TestCase
 {
@@ -112,30 +111,32 @@ final class ContrasenaTemporalTest extends TestCase
         );
     }
 
-    public function test_the_account_enters_by_email_with_the_temporary_password(): void
+    public function test_the_account_enters_by_username_and_must_change_the_temporary_password(): void
     {
         $cuenta = $this->crear('Flores Villarroel Corina', 'corina.flores', 'corina.flores@umss.edu.bo', 'Docente');
 
         $this->postJson('/api/auth/login', [
-            'email' => 'corina.flores@umss.edu.bo',
+            'usuario' => 'corina.flores',
             'password' => $cuenta->contrasenaTemporal,
         ])
             ->assertOk()
             ->assertJsonPath('user.usuario', 'corina.flores')
             ->assertJsonPath('user.rol', 'Docente')
-            ->assertJsonPath('user.debe_cambiar_contrasena', false);
+            ->assertJsonPath('user.debe_cambiar_contrasena', true);
     }
 
-    public function test_the_expiry_is_stored_but_not_enforced_yet(): void
+    public function test_the_temporary_password_is_rejected_after_72_hours(): void
     {
         $cuenta = $this->crear('Flores Villarroel Corina', 'corina.flores', 'corina.flores@umss.edu.bo', 'Docente');
 
         $this->travel(80)->hours();
 
         $this->postJson('/api/auth/login', [
-            'email' => 'corina.flores@umss.edu.bo',
+            'usuario' => 'corina.flores',
             'password' => $cuenta->contrasenaTemporal,
-        ])->assertOk();
+        ])
+            ->assertForbidden()
+            ->assertJsonPath('code', 'TEMPORARY_PASSWORD_EXPIRED');
     }
 
     public function test_a_new_temporary_password_replaces_the_previous_one(): void
@@ -179,12 +180,12 @@ final class ContrasenaTemporalTest extends TestCase
         ]);
 
         $this->postJson('/api/auth/login', [
-            'email' => 'corina@umss.edu.bo',
+            'usuario' => 'corina.flores',
             'password' => $primera->contrasenaTemporal,
         ])->assertUnauthorized();
 
         $this->postJson('/api/auth/login', [
-            'email' => 'corina@umss.edu.bo',
+            'usuario' => 'corina.flores',
             'password' => $segunda->contrasenaTemporal,
         ])->assertOk();
     }
