@@ -38,11 +38,6 @@ final class IngresoServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(
-            ExamenesDePuerta::class,
-            EloquentExamenesDePuerta::class,
-        );
-
-        $this->app->bind(
             IngresoGateway::class,
             IngresoAuditadoGateway::class,
         );
