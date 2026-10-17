@@ -98,9 +98,11 @@ final class AccesoConUsuarioTest extends TestCase
             ->assertOk()
             ->assertJsonPath('user.debe_cambiar_contrasena', false);
 
+        $actualizado = User::findOrFail($user->getKey());
+        self::assertInstanceOf(User::class, $actualizado);
         self::assertTrue(Hash::check(
             'NewStrongPassword123!',
-            User::findOrFail($user->getKey())->getAuthPassword(),
+            $actualizado->getAuthPassword(),
         ));
     }
 
@@ -182,9 +184,11 @@ final class AccesoConUsuarioTest extends TestCase
             'password_confirmation' => 'RecoveredPassword123!',
         ])->assertOk();
 
+        $recuperado = User::findOrFail($user->getKey());
+        self::assertInstanceOf(User::class, $recuperado);
         self::assertTrue(Hash::check(
             'RecoveredPassword123!',
-            User::findOrFail($user->getKey())->getAuthPassword(),
+            $recuperado->getAuthPassword(),
         ));
 
         $this->assertDatabaseMissing('password_reset_tokens', [
