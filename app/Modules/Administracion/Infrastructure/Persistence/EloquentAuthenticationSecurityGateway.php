@@ -52,8 +52,9 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                 $dummyPasswordHash,
                 &$contrasenaTemporalVencida,
             ): ?User {
+                $identificador = mb_strtolower(trim($identifier));
                 $user = User::query()
-                    ->where('usuario', mb_strtolower(trim($identifier)))
+                    ->where('usuario', $identificador)
                     ->lockForUpdate()
                     ->first();
 
@@ -224,8 +225,9 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
 
     public function intentosRestantes(string $usuario): ?int
     {
+        $identificador = mb_strtolower(trim($usuario));
         $user = User::query()
-            ->where('usuario', mb_strtolower(trim($usuario)))
+            ->where('usuario', $identificador)
             ->first();
 
         if (! $user instanceof User || ! $user->is_active) {
@@ -249,8 +251,9 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
 
     public function minutosDeBloqueo(string $usuario): ?int
     {
+        $identificador = mb_strtolower(trim($usuario));
         $user = User::query()
-            ->where('usuario', mb_strtolower(trim($usuario)))
+            ->where('usuario', $identificador)
             ->first();
 
         if (! $user instanceof User) {
