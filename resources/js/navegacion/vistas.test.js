@@ -5,9 +5,10 @@ import { CATALOGO_PERMISOS, usuarioDePrueba } from '../test/apoyo';
 const rutas = (usuario) => vistasDe(usuario).map((v) => v.ruta);
 
 describe('vistas por permiso', () => {
-    it('declara las once rutas del sprint, cada una con su permiso', () => {
+    it('declara las doce rutas del sprint, cada una con su permiso', () => {
         expect(VISTAS.map((v) => [v.ruta, v.permiso])).toEqual([
             ['/periodo', 'periodo_oferta'],
+            ['/oferta', 'periodo_oferta'],
             ['/aulas', 'aulas_docentes'],
             ['/docentes', 'aulas_docentes'],
             ['/estudiantes', 'padron_estudiantes'],
@@ -15,6 +16,7 @@ describe('vistas por permiso', () => {
             ['/examenes/nuevo', 'examenes'],
             ['/habilitacion', 'habilitacion'],
             ['/punto-control', 'punto_control'],
+            ['/seguimiento', 'seguimiento_vivo'],
             ['/mis-grupos', 'mis_grupos'],
             ['/admin', 'usuarios_roles'],
             ['/bitacora', 'bitacora'],
@@ -34,6 +36,7 @@ describe('vistas por permiso', () => {
     it('da las vistas de los permisos de la cuenta', () => {
         expect(rutas(usuarioDePrueba('Administrador'))).toEqual([
             '/periodo',
+            '/oferta',
             '/aulas',
             '/docentes',
             '/estudiantes',
@@ -48,9 +51,10 @@ describe('vistas por permiso', () => {
             '/examenes/nuevo',
             '/habilitacion',
             '/punto-control',
+            '/seguimiento',
             '/mis-grupos',
         ]);
-        expect(rutas(usuarioDePrueba('Auxiliar'))).toEqual(['/punto-control']);
+        expect(rutas(usuarioDePrueba('Auxiliar'))).toEqual(['/punto-control', '/seguimiento']);
         expect(rutas(null)).toEqual([]);
     });
 
@@ -59,7 +63,7 @@ describe('vistas por permiso', () => {
             rol: 'Coordinación',
             permisos: ['examenes', 'periodo_oferta'],
         });
-        expect(rutas(cuenta)).toEqual(['/periodo', '/examenes', '/examenes/nuevo']);
+        expect(rutas(cuenta)).toEqual(['/periodo', '/oferta', '/examenes', '/examenes/nuevo']);
         expect(entradaDe(cuenta)).toBe('/periodo');
     });
 

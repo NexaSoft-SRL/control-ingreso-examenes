@@ -14,6 +14,7 @@ use App\Modules\Habilitacion\Application\DTOs\HabilitacionData;
 use App\Modules\Ingreso\Application\Actions\RegistrarIngreso;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
+use App\Modules\Ingreso\Application\Contracts\IncidenciaIngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
 use App\Modules\Ingreso\Application\Queries\ConsultarCandidato;
@@ -26,6 +27,33 @@ use PHPUnit\Framework\TestCase;
 
 final class RegistrarIngresoTest extends TestCase
 {
+    public function test_motivo_en_blanco_usa_detalle_alternativo_y_registra_incidencia(): void
+    {
+        [$accion, $ingresos, $incidencias] = $this->escenario(
+            habilitado: false,
+            motivo: '   ',
+        );
+
+        $ingresos->method('yaIngreso')->willReturn(false);
+        $ingresos->expects(self::never())->method('registrar');
+
+        $incidencias->expects(self::once())
+            ->method('registrar')
+            ->with(
+                7,
+                30,
+                15,
+                2,
+                VeredictoIngreso::NoHabilitado,
+                'Estudiante inhabilitado sin motivo disponible.',
+            );
+
+        self::assertSame(
+            VeredictoIngreso::NoHabilitado,
+            $accion->ejecutar(2, 7, 30, 'codigo', '20260015'),
+        );
+    }
+
     public function test_admision_confirmada_por_persistencia(): void
     {
         [$accion, $ingresos] = $this->escenario();
@@ -112,12 +140,14 @@ final class RegistrarIngresoTest extends TestCase
     }
 
     /**
-     * @return array{RegistrarIngreso, IngresoGateway&MockObject}
+     * @return array{RegistrarIngreso, IngresoGateway&MockObject, IncidenciaIngresoGateway&MockObject}
      */
     private function escenario(
         bool $autorizado = true,
         bool $ventanaAbierta = true,
         bool $expulsado = false,
+        bool $habilitado = true,
+        ?string $motivo = null,
     ): array {
         $estudiante = new EstudianteData(
             15, '20260015', '12345', 'Ana', 'Rojas', true,
@@ -129,8 +159,8 @@ final class RegistrarIngresoTest extends TestCase
         );
 
         $habilitacion = new HabilitacionData(
-            7, 15, true, 30, 'Aula 30',
-            null, null, null, null,
+            7, 15, $habilitado, 30, 'Aula 30',
+            $motivo, null, null, null,
         );
 
         $examenes = $this->createMock(ExamenGateway::class);
@@ -157,6 +187,7 @@ final class RegistrarIngresoTest extends TestCase
         $expulsiones->method('estaExpulsado')->willReturn($expulsado);
 
         $ingresos = $this->createMock(IngresoGateway::class);
+        $incidencias = $this->createMock(IncidenciaIngresoGateway::class);
 
         $accion = new RegistrarIngreso(
             $examenes,
@@ -171,8 +202,9 @@ final class RegistrarIngresoTest extends TestCase
             $ventana,
             $expulsiones,
             new EvaluarIngreso,
+            $incidencias,
         );
 
-        return [$accion, $ingresos];
+        return [$accion, $ingresos, $incidencias];
     }
 }
