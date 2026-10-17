@@ -3,10 +3,17 @@
 namespace App\Modules\Administracion\Http\Controllers;
 
 use App\Modules\Administracion\Application\Actions\AuthenticateUser;
+use App\Modules\Administracion\Application\Actions\CambiarContrasena;
 use App\Modules\Administracion\Application\Actions\ConsultarSesion;
+use App\Modules\Administracion\Application\Actions\RestablecerContrasena;
+use App\Modules\Administracion\Application\Actions\SolicitarRestablecimientoContrasena;
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Application\DTOs\SesionData;
+use App\Modules\Administracion\Domain\Exceptions\ContrasenaTemporalVencidaException;
+use App\Modules\Administracion\Http\Requests\CambiarContrasenaRequest;
 use App\Modules\Administracion\Http\Requests\LoginRequest;
+use App\Modules\Administracion\Http\Requests\RestablecerContrasenaRequest;
+use App\Modules\Administracion\Http\Requests\SolicitarRestablecimientoRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -22,17 +29,26 @@ class AuthenticationController
 
     public function login(LoginRequest $request): JsonResponse
     {
-        /** @var array{email: string, password: string} $credentials */
+        /** @var array{usuario: string, password: string} $credentials */
         $credentials = $request->validated();
 
-        $user = $this->authenticateUser->execute(
-            $credentials['email'],
-            $credentials['password'],
-            $request->ip(),
-            $request->userAgent(),
-        );
+        try {
+            $user = $this->authenticateUser->execute(
+                $credentials['usuario'],
+                $credentials['password'],
+                $request->ip(),
+                $request->userAgent(),
+            );
+        } catch (ContrasenaTemporalVencidaException) {
+            return response()->json([
+                'code' => 'TEMPORARY_PASSWORD_EXPIRED',
+                'message' => 'La contraseña temporal venció. Solicita al administrador que restablezca tu acceso.',
+            ], Response::HTTP_FORBIDDEN);
+        }
 
         if ($user === null) {
+            $minutos = $this->authenticateUser->minutosDeBloqueo($credentials['usuario']);
+
             // Sin usuario no hay a quien atribuir el intento: queda
             // asentado con el identificador que se probo.
             $this->bitacora->registrar(
@@ -40,17 +56,28 @@ class AuthenticationController
                 'sesion.fallida',
                 'usuarios',
                 null,
-                sprintf('Intento fallido con el identificador %s.', $credentials['email']),
+                sprintf('Intento fallido con el identificador %s.', $credentials['usuario']),
             );
+
+            if ($minutos !== null) {
+                return response()->json([
+                    'message' => 'La cuenta está bloqueada temporalmente.',
+                    'minutos' => $minutos,
+                ], 423);
+            }
+
+            $intentosRestantes = $this->authenticateUser->intentosRestantes($credentials['usuario']);
 
             return response()->json([
                 'message' => 'Credenciales incorrectas.',
+                ...($intentosRestantes === null ? [] : ['intentos_restantes' => $intentosRestantes]),
             ], Response::HTTP_UNAUTHORIZED);
         }
 
         Auth::login($user);
 
         $request->session()->regenerate();
+        $request->session()->put('usuario_ultima_actividad', now()->getTimestamp());
 
         $id = $user->getKey();
 
@@ -126,6 +153,76 @@ class AuthenticationController
         return response()->noContent();
     }
 
+    public function cambiarContrasena(
+        CambiarContrasenaRequest $request,
+        CambiarContrasena $cambiar,
+    ): JsonResponse {
+        $usuarioId = Auth::id();
+
+        if (
+            ! is_int($usuarioId)
+            || ! $cambiar->execute(
+                $usuarioId,
+                $request->validated('contrasena_actual'),
+                $request->validated('password'),
+            )
+        ) {
+            return response()->json([
+                'message' => 'La contraseña actual no es correcta.',
+                'errors' => ['contrasena_actual' => ['La contraseña actual no es correcta.']],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $request->session()->put('usuario_ultima_actividad', now()->getTimestamp());
+        $sesion = $this->consultarSesion->execute($usuarioId);
+
+        if ($sesion === null) {
+            return $this->sinSesion();
+        }
+
+        $this->bitacora->registrar(
+            $usuarioId,
+            'contrasena.cambiar',
+            'usuarios',
+            $usuarioId,
+            null,
+        );
+
+        return response()->json([
+            'message' => 'La contraseña se actualizó correctamente.',
+            'user' => $this->usuario($sesion),
+        ]);
+    }
+
+    public function solicitarRestablecimiento(
+        SolicitarRestablecimientoRequest $request,
+        SolicitarRestablecimientoContrasena $solicitar,
+    ): JsonResponse {
+        $solicitar->execute($request->validated('correo'));
+
+        return response()->json([
+            'message' => 'Si la cuenta tiene ese correo de contacto, enviaremos instrucciones para recuperar el acceso.',
+        ]);
+    }
+
+    public function restablecerContrasena(
+        RestablecerContrasenaRequest $request,
+        RestablecerContrasena $restablecer,
+    ): JsonResponse {
+        $datos = $request->validated();
+
+        if (! $restablecer->execute($datos['correo'], $datos['token'], $datos['password'])) {
+            return response()->json([
+                'message' => 'El enlace de recuperación no es válido o venció. Solicita uno nuevo.',
+                'errors' => ['token' => ['El enlace de recuperación no es válido o venció.']],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return response()->json([
+            'message' => 'La contraseña se restableció. Ya puedes iniciar sesión.',
+        ]);
+    }
+
     private function sinSesion(): JsonResponse
     {
         return response()->json([
@@ -151,7 +248,8 @@ class AuthenticationController
             // abrir; quien las fuerce igual recibe un 403.
             'permisos' => $sesion->permisos,
             // El cambio obligatorio de la temporal llega con HU-16.
-            'debe_cambiar_contrasena' => false,
+            'debe_cambiar_contrasena' => $sesion->debeCambiarContrasena,
+            'sesion_expira_en_minutos' => (int) config('auth_security.inactividad_minutos', 15),
             'docente_id' => $sesion->docenteId,
             'name' => $sesion->nombre,
             'email' => $sesion->correo ?? '',

@@ -24,4 +24,14 @@ final readonly class AuthenticateUser
             $userAgent,
         );
     }
+
+    public function intentosRestantes(string $usuario): ?int
+    {
+        return $this->gateway->intentosRestantes($usuario);
+    }
+
+    public function minutosDeBloqueo(string $usuario): ?int
+    {
+        return $this->gateway->minutosDeBloqueo($usuario);
+    }
 }
