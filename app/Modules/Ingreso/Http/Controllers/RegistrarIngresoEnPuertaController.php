@@ -16,7 +16,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 final class RegistrarIngresoEnPuertaController
@@ -51,12 +50,15 @@ final class RegistrarIngresoEnPuertaController
         $tipo = $request->string('tipo')->toString();
         $identificador = $request->string('identificador')->toString();
 
-        if (
-            $tipo !== 'qr'
-            && preg_match('/\\A[0-9]{5,10}\\z/D', $identificador) !== 1
-        ) {
-            throw ValidationException::withMessages([
-                'identificador' => 'Debe contener entre 5 y 10 dígitos.',
+        if ($tipo !== 'qr') {
+            $request->validate([
+                'identificador' => [
+                    'required',
+                    'string',
+                    'regex:/\A[0-9]{5,10}\z/D',
+                ],
+            ], [
+                'identificador.regex' => 'Debe contener entre 5 y 10 dígitos.',
             ]);
         }
 
