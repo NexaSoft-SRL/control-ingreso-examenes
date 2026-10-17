@@ -34,4 +34,21 @@ final class EloquentAlcanceExamenGateway implements AlcanceExamenGateway
             ->where('creado_por', $usuarioId)
             ->exists();
     }
+
+    public function aulasQueAtiende(int $usuarioId, int $examenId): array
+    {
+        $aulas = [];
+        $filas = DB::table('examen_aula_personal')
+            ->where('examen_id', $examenId)
+            ->where('usuario_id', $usuarioId)
+            ->pluck('aula_id');
+
+        foreach ($filas as $aulaId) {
+            if (is_numeric($aulaId)) {
+                $aulas[] = (int) $aulaId;
+            }
+        }
+
+        return array_values(array_unique($aulas));
+    }
 }

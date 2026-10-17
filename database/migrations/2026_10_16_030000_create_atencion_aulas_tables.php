@@ -129,10 +129,24 @@ return new class extends Migration
                 'idx_accesos_codigo_aula_lookup',
             );
         });
+
+        // 5. Vincular accesos con código a los ingresos registrados
+        Schema::table('ingresos', function (Blueprint $table): void {
+            $table->foreignId('acceso_codigo_aula_id')
+                ->nullable()
+                ->constrained('accesos_codigo_aula')
+                ->nullOnDelete()
+                ->cascadeOnUpdate();
+        });
     }
 
     public function down(): void
     {
+        Schema::table('ingresos', function (Blueprint $table): void {
+            $table->dropForeign(['acceso_codigo_aula_id']);
+            $table->dropColumn('acceso_codigo_aula_id');
+        });
+
         Schema::dropIfExists('accesos_codigo_aula');
         Schema::dropIfExists('examen_aula_codigos');
         Schema::dropIfExists('examen_aula_personal');

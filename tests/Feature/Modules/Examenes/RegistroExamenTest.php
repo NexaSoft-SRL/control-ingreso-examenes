@@ -57,12 +57,26 @@ final class RegistroExamenTest extends TestCase
                 'nombre' => '624',
                 'ubicacion' => 'Edificio Académico 2 · 1° Piso',
                 'edificio_id' => $edificio->id,
+                'a_cargo' => [
+                    'id' => $docente->user_id,
+                    'nombre' => 'Blanco Coca Leticia',
+                    'rol' => 'rol de prueba',
+                ],
+                'apoyo' => [],
+                'codigo' => null,
             ])
             ->assertJsonPath('data.aulas_detalle.1', [
                 'aula_id' => $aulaB->id,
                 'nombre' => 'AUDINF',
                 'ubicacion' => null,
                 'edificio_id' => null,
+                'a_cargo' => [
+                    'id' => $docente->user_id,
+                    'nombre' => 'Blanco Coca Leticia',
+                    'rol' => 'rol de prueba',
+                ],
+                'apoyo' => [],
+                'codigo' => null,
             ]);
 
         $examenId = $respuesta->json('data.id');
@@ -531,5 +545,181 @@ final class RegistroExamenTest extends TestCase
         }
 
         $this->assertDatabaseHas('examenes', ['id' => $examen->id]);
+    }
+
+    public function test_an_exam_can_be_registered_with_custom_personal_per_room(): void
+    {
+        $docente = $this->docente('Docente Titular');
+        $auxiliar = $this->usuarioConRol('Auxiliar', ['nombre' => 'Auxiliar Juan']);
+        $asignatura = $this->asignatura('Programación 1', '101');
+        $grupo = $this->grupo($docente, $asignatura, 'G1');
+        $this->estudiantesInscritos($grupo, 2);
+        $aula = $this->aula('Aula 101');
+
+        $cuerpo = $this->cuerpo($asignatura, [$grupo], [$aula]);
+        $cuerpo['personal'] = [
+            [
+                'aula_id' => $aula->id,
+                'a_cargo' => $docente->user_id,
+                'apoyo' => [$auxiliar->id],
+            ],
+        ];
+
+        $respuesta = $this->actingAs($this->cuenta($docente))
+            ->postJson('/api/examenes', $cuerpo)
+            ->assertCreated();
+
+        $examenId = $respuesta->json('data.id');
+
+        $this->assertDatabaseHas('examen_aula_personal', [
+            'examen_id' => $examenId,
+            'aula_id' => $aula->id,
+            'usuario_id' => $docente->user_id,
+            'rol' => 'a_cargo',
+        ]);
+
+        $this->assertDatabaseHas('examen_aula_personal', [
+            'examen_id' => $examenId,
+            'aula_id' => $aula->id,
+            'usuario_id' => $auxiliar->id,
+            'rol' => 'apoyo',
+        ]);
+    }
+
+    public function test_rejects_personal_a_cargo_if_not_docente_nor_auxiliar(): void
+    {
+        $docente = $this->docente('Docente Titular');
+        $asignatura = $this->asignatura('Programación 1', '101');
+        $grupo = $this->grupo($docente, $asignatura, 'G1');
+        $aula = $this->aula('Aula 101');
+
+        // Usuario sin rol de docente ni auxiliar
+        $noValido = $this->usuarioConPermisos([]);
+
+        $cuerpo = $this->cuerpo($asignatura, [$grupo], [$aula]);
+        $cuerpo['personal'] = [
+            [
+                'aula_id' => $aula->id,
+                'a_cargo' => $noValido->id,
+                'apoyo' => [],
+            ],
+        ];
+
+        $this->actingAs($this->cuenta($docente))
+            ->postJson('/api/examenes', $cuerpo)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                "personal.{$aula->id}.a_cargo" => 'Debe ser docente o auxiliar.',
+            ]);
+    }
+
+    public function test_reverts_room_a_cargo_to_creator_when_its_docente_group_is_removed(): void
+    {
+        $docenteA = $this->docente('Docente A');
+        $docenteB = $this->docente('Docente B');
+        $this->cuenta($docenteB);
+
+        $asignatura = $this->asignatura('Programación 1', '101');
+        $grupoA = $this->grupo($docenteA, $asignatura, 'G1');
+        $grupoB = $this->grupo($docenteB, $asignatura, 'G2');
+        $this->estudiantesInscritos($grupoA, 2);
+        $this->estudiantesInscritos($grupoB, 2);
+        $aula = $this->aula('Aula 101');
+
+        $cuerpo = $this->cuerpo($asignatura, [$grupoA, $grupoB], [$aula]);
+        $cuerpo['personal'] = [
+            [
+                'aula_id' => $aula->id,
+                'a_cargo' => $docenteB->user_id,
+                'apoyo' => [],
+            ],
+        ];
+
+        $respuesta = $this->actingAs($this->cuenta($docenteA))
+            ->postJson('/api/examenes', $cuerpo)
+            ->assertCreated();
+
+        $examenId = $respuesta->json('data.id');
+        self::assertIsInt($examenId);
+
+        // Ahora actualizamos quitando el grupo de Docente B
+        $cuerpoActualizado = $this->cuerpo($asignatura, [$grupoA], [$aula]);
+        $cuerpoActualizado['personal'] = [
+            [
+                'aula_id' => $aula->id,
+                'a_cargo' => $docenteB->user_id,
+                'apoyo' => [],
+            ],
+        ];
+
+        $this->actingAs($this->cuenta($docenteA))
+            ->putJson("/api/examenes/{$examenId}", $cuerpoActualizado)
+            ->assertOk();
+
+        // Debe revertir a Docente A (creador)
+        $this->assertDatabaseHas('examen_aula_personal', [
+            'examen_id' => $examenId,
+            'aula_id' => $aula->id,
+            'usuario_id' => $docenteA->user_id,
+            'rol' => 'a_cargo',
+        ]);
+    }
+
+    public function test_exam_with_ingresos_allows_modifying_normas_and_personal(): void
+    {
+        $docente = $this->docente('Docente Titular');
+        $auxiliar = $this->usuarioConRol('Auxiliar', ['nombre' => 'Auxiliar Nuevo']);
+        $asignatura = $this->asignatura('Programación 1', '101');
+        $grupo = $this->grupo($docente, $asignatura, 'G1');
+        [$estudiante] = $this->estudiantesInscritos($grupo, 1);
+        $aula = $this->aula('Aula 101');
+
+        $cuerpo = $this->cuerpo($asignatura, [$grupo], [$aula]);
+        $respuesta = $this->actingAs($this->cuenta($docente))
+            ->postJson('/api/examenes', $cuerpo)
+            ->assertCreated();
+
+        $examenId = $respuesta->json('data.id');
+        self::assertIsInt($examenId);
+
+        // Simulamos un ingreso registrado
+        DB::table('ingresos')->insert([
+            'examen_id' => $examenId,
+            'estudiante_id' => $estudiante->id,
+            'aula_id' => $aula->id,
+            'registrado_por' => $docente->user_id,
+            'registrado_en' => now(),
+        ]);
+
+        // Modificamos normas y personal
+        $cuerpo['normas'] = 'Nuevas normas permitidas.';
+        $cuerpo['personal'] = [
+            [
+                'aula_id' => $aula->id,
+                'a_cargo' => $docente->user_id,
+                'apoyo' => [$auxiliar->id],
+            ],
+        ];
+
+        $this->actingAs($this->cuenta($docente))
+            ->putJson("/api/examenes/{$examenId}", $cuerpo)
+            ->assertOk()
+            ->assertJsonPath('data.normas', 'Nuevas normas permitidas.');
+
+        $this->assertDatabaseHas('examen_aula_personal', [
+            'examen_id' => $examenId,
+            'aula_id' => $aula->id,
+            'usuario_id' => $auxiliar->id,
+            'rol' => 'apoyo',
+        ]);
+
+        // Pero si intenta cambiar fecha/hora con ingresos, se rechaza con 409
+        $cuerpoConCambioDeHora = $cuerpo;
+        $cuerpoConCambioDeHora['hora_inicio'] = '14:00';
+
+        $this->actingAs($this->cuenta($docente))
+            ->putJson("/api/examenes/{$examenId}", $cuerpoConCambioDeHora)
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'El examen ya tiene ingresos registrados: solo se pueden cambiar las normas.');
     }
 }
