@@ -9,6 +9,7 @@ use App\Modules\Administracion\Application\Contracts\AuthenticationSecurityGatew
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Application\Contracts\ConsultaBitacoraGateway;
 use App\Modules\Administracion\Application\Contracts\ConsultaUsuariosGateway;
+use App\Modules\Administracion\Application\Contracts\CredencialesGateway;
 use App\Modules\Administracion\Application\Contracts\CuentaUsuarioGateway;
 use App\Modules\Administracion\Application\Contracts\GeneradorContrasenaTemporal;
 use App\Modules\Administracion\Application\Contracts\ProponedorUsuario;
@@ -19,6 +20,7 @@ use App\Modules\Administracion\Infrastructure\Persistence\EloquentAuthentication
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentBitacoraGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentConsultaBitacoraGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentConsultaUsuariosGateway;
+use App\Modules\Administracion\Infrastructure\Persistence\EloquentCredencialesGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentCuentaUsuarioGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentRolesGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentRolGateway;
@@ -51,6 +53,11 @@ final class AdministracionServiceProvider extends ServiceProvider
         $this->app->bind(
             CuentaUsuarioGateway::class,
             EloquentCuentaUsuarioGateway::class,
+        );
+
+        $this->app->bind(
+            CredencialesGateway::class,
+            EloquentCredencialesGateway::class,
         );
 
         $this->app->bind(

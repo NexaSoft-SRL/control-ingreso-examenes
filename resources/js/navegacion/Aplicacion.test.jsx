@@ -55,10 +55,10 @@ const TITULOS = {
 describe('Aplicacion', () => {
     beforeEach(() => window.history.replaceState(null, '', '/'));
 
-    it('sin sesión, la raíz lleva al inicio de sesión por correo', async () => {
+    it('sin sesión, la raíz lleva al inicio de sesión por usuario', async () => {
         montar('/', null);
-        expect(await titulo('Control de ingreso')).toBeInTheDocument();
-        expect(screen.getByLabelText(/Correo/)).toBeInTheDocument();
+        expect(await titulo('Ingreso al sistema')).toBeInTheDocument();
+        expect(screen.getByLabelText(/Usuario/)).toBeInTheDocument();
     });
 
     it('sin sesión, una ruta interna lleva al inicio de sesión', async () => {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Examenes\Http\Requests;
 
 use App\Modules\Examenes\Application\DTOs\GuardarExamenData;
+use App\Modules\Examenes\Application\DTOs\PersonalAulaData;
 use App\Modules\Examenes\Domain\Enums\TipoExamen;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -43,6 +44,11 @@ final class GuardarExamenRequest extends FormRequest
             // Ids de normas del examen cuya plantilla ya no existe.
             'normas_conservadas' => ['nullable', 'array'],
             'normas_conservadas.*' => ['integer', 'min:1'],
+            'personal' => ['nullable', 'array'],
+            'personal.*.aula_id' => ['required', 'integer'],
+            'personal.*.a_cargo' => ['nullable', 'integer'],
+            'personal.*.apoyo' => ['nullable', 'array'],
+            'personal.*.apoyo.*' => ['integer'],
         ];
     }
 
@@ -95,6 +101,26 @@ final class GuardarExamenRequest extends FormRequest
 
         $conservadas = $this->validated('normas_conservadas');
 
+        $personalDatos = [];
+        $personalInput = $this->validated('personal');
+        if (is_array($personalInput)) {
+            foreach ($personalInput as $item) {
+                if (is_array($item) && isset($item['aula_id'])) {
+                    $apoyo = [];
+                    foreach (is_array($item['apoyo'] ?? null) ? $item['apoyo'] : [] as $ap) {
+                        if (is_numeric($ap)) {
+                            $apoyo[] = (int) $ap;
+                        }
+                    }
+                    $personalDatos[] = new PersonalAulaData(
+                        aulaId: is_numeric($item['aula_id']) ? (int) $item['aula_id'] : 0,
+                        aCargo: isset($item['a_cargo']) && is_numeric($item['a_cargo']) ? (int) $item['a_cargo'] : 0,
+                        apoyo: array_values(array_unique($apoyo)),
+                    );
+                }
+            }
+        }
+
         return new GuardarExamenData(
             asignaturaId: $this->integer('asignatura_id'),
             tipo: $this->string('tipo')->toString(),
@@ -106,6 +132,7 @@ final class GuardarExamenRequest extends FormRequest
             aulas: $this->enteros($this->validated('aulas')),
             normasMarcadas: $this->enteros($this->validated('normas_marcadas')),
             normasConservadas: is_array($conservadas) ? $this->enteros($conservadas) : null,
+            personal: $personalDatos,
         );
     }
 

@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Modules\Examenes\Http\Controllers\AuxiliaresController;
+use App\Modules\Examenes\Http\Controllers\CodigoAulaController;
 use App\Modules\Examenes\Http\Controllers\ExamenController;
 use App\Modules\Examenes\Http\Controllers\OpcionesExamenController;
 use App\Modules\Examenes\Http\Controllers\PlantillaNormaController;
 use Illuminate\Support\Facades\Route;
 
-// Examenes y plantillas de normas (Examenes): HU-08.
+// Examenes y plantillas de normas (Examenes): HU-08, HU-18.
 //
 // Todas van bajo `/api`, con sesion (`auth`) y el permiso de su pantalla
 // (`permiso:<clave>`; `permiso:a|b` cuando alcanza con uno de varios). Que
@@ -37,6 +39,22 @@ Route::prefix('api')
         Route::delete('/examenes/{examen}', [ExamenController::class, 'destroy'])
             ->whereNumber('examen')
             ->name('examenes.destroy');
+
+        Route::get('/examenes/{examen}/aulas/{aula}/codigo', [CodigoAulaController::class, 'show'])
+            ->whereNumber('examen')
+            ->whereNumber('aula')
+            ->name('examenes.aulas.codigo.show');
+
+        Route::post('/examenes/{examen}/aulas/{aula}/codigo', [CodigoAulaController::class, 'store'])
+            ->whereNumber('examen')
+            ->whereNumber('aula')
+            ->name('examenes.aulas.codigo.store');
+
+        Route::get('/auxiliares', [AuxiliaresController::class, 'index'])->name('auxiliares.index');
+        Route::post('/auxiliares', [AuxiliaresController::class, 'store'])->name('auxiliares.store');
+        Route::delete('/auxiliares/{auxiliar}', [AuxiliaresController::class, 'destroy'])
+            ->whereNumber('auxiliar')
+            ->name('auxiliares.destroy');
 
         Route::get('/normas/plantillas', [PlantillaNormaController::class, 'index'])
             ->name('normas.plantillas.index');

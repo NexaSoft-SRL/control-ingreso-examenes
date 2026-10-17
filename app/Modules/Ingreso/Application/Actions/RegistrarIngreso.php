@@ -31,13 +31,18 @@ final readonly class RegistrarIngreso
     ) {}
 
     public function ejecutar(
-        int $usuarioId,
+        ?int $usuarioId,
         int $examenId,
         int $aulaId,
         string $tipoIdentificador,
         string $identificador,
+        ?int $accesoCodigoAulaId = null,
     ): VeredictoIngreso {
-        if ($usuarioId <= 0 || $examenId <= 0 || $aulaId <= 0) {
+        if (($usuarioId === null && $accesoCodigoAulaId === null) || $examenId <= 0 || $aulaId <= 0) {
+            throw new InvalidArgumentException('Identificadores inválidos.');
+        }
+
+        if ($usuarioId !== null && $usuarioId <= 0) {
             throw new InvalidArgumentException('Identificadores inválidos.');
         }
 
@@ -53,7 +58,7 @@ final readonly class RegistrarIngreso
             );
         }
 
-        if (! $this->alcance->puedeOperar(
+        if ($usuarioId !== null && ! $this->alcance->puedeOperar(
             $usuarioId,
             $examenId,
             $aulaId,
@@ -75,12 +80,14 @@ final readonly class RegistrarIngreso
             $identificador,
         );
 
+        $usuarioIncidencia = $usuarioId ?? $examen->creadoPor ?? 1;
+
         if ($candidato === null) {
             $this->incidencias->registrar(
                 $examenId,
                 $aulaId,
                 null,
-                $usuarioId,
+                $usuarioIncidencia,
                 VeredictoIngreso::NoCorresponde,
                 'Estudiante no encontrado.',
             );
@@ -121,7 +128,7 @@ final readonly class RegistrarIngreso
                 $examenId,
                 $aulaId,
                 $estudianteId,
-                $usuarioId,
+                $usuarioIncidencia,
                 $veredicto,
                 $detalle,
             );
@@ -134,6 +141,7 @@ final readonly class RegistrarIngreso
             $estudianteId,
             $aulaId,
             $usuarioId,
+            $accesoCodigoAulaId,
         );
 
         if (! $registrado) {
@@ -141,7 +149,7 @@ final readonly class RegistrarIngreso
                 $examenId,
                 $aulaId,
                 $estudianteId,
-                $usuarioId,
+                $usuarioIncidencia,
                 VeredictoIngreso::YaIngreso,
                 'El estudiante ya tiene un ingreso registrado.',
             );

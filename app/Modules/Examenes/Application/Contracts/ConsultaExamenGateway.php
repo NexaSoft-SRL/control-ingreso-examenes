@@ -77,4 +77,27 @@ interface ConsultaExamenGateway
      * El instante actual, ISO 8601 con la zona de la universidad.
      */
     public function horaServidor(): string;
+
+    /**
+     * Devuelve los IDs de usuarios autorizados como docentes de los grupos (con user_id no nulo).
+     *
+     * @param  list<int>  $grupoIds
+     * @return list<int>
+     */
+    public function docentesDeGrupos(array $grupoIds): array;
+
+    /**
+     * Comprueba que usuarios de la lista dada tienen rol Auxiliar.
+     *
+     * @param  list<int>  $usuarioIds
+     * @return list<int>
+     */
+    public function usuariosConRolAuxiliar(array $usuarioIds): array;
+
+    /**
+     * Devuelve los IDs de todos los docentes con cuenta de usuario.
+     *
+     * @return list<int>
+     */
+    public function todosLosDocentesConCuenta(): array;
 }

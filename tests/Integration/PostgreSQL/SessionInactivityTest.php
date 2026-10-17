@@ -34,13 +34,13 @@ final class SessionInactivityTest extends TestCase
     public function test_authenticated_session_expires_after_inactivity(): void
     {
         $user = UserFactory::new()->createOne([
-            'email' => 'expired-session@example.invalid',
+            'usuario' => 'expired-session',
             'password' => 'CorrectPassword123!',
             'is_active' => true,
         ]);
 
         $this->postJson('/api/auth/login', [
-            'email' => 'expired-session@example.invalid',
+            'usuario' => 'expired-session',
             'password' => 'CorrectPassword123!',
         ])->assertOk();
 
@@ -72,13 +72,13 @@ final class SessionInactivityTest extends TestCase
     public function test_authenticated_session_remains_valid_within_lifetime(): void
     {
         $user = UserFactory::new()->createOne([
-            'email' => 'active-session@example.invalid',
+            'usuario' => 'active-session',
             'password' => 'CorrectPassword123!',
             'is_active' => true,
         ]);
 
         $this->postJson('/api/auth/login', [
-            'email' => 'active-session@example.invalid',
+            'usuario' => 'active-session',
             'password' => 'CorrectPassword123!',
         ])->assertOk();
 
@@ -110,13 +110,13 @@ final class SessionInactivityTest extends TestCase
     public function test_logged_out_session_cannot_be_reused(): void
     {
         $user = UserFactory::new()->createOne([
-            'email' => 'logout-replay@example.invalid',
+            'usuario' => 'logout-replay',
             'password' => 'CorrectPassword123!',
             'is_active' => true,
         ]);
 
         $this->postJson('/api/auth/login', [
-            'email' => 'logout-replay@example.invalid',
+            'usuario' => 'logout-replay',
             'password' => 'CorrectPassword123!',
         ])->assertOk();
 

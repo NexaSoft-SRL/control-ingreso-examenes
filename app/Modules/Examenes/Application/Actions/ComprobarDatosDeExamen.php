@@ -10,6 +10,7 @@ use App\Modules\Examenes\Application\Contracts\PlantillaNormaGateway;
 use App\Modules\Examenes\Application\DTOs\ExamenActualData;
 use App\Modules\Examenes\Application\DTOs\GrupoDeExamenData;
 use App\Modules\Examenes\Application\DTOs\GuardarExamenData;
+use App\Modules\Examenes\Application\DTOs\PersonalAulaData;
 use App\Modules\Examenes\Domain\Enums\TipoExamen;
 use App\Modules\Examenes\Domain\Exceptions\DatoInvalidoException;
 use App\Modules\Examenes\Domain\Exceptions\GrupoYaTieneExamenException;
@@ -47,6 +48,10 @@ final readonly class ComprobarDatosDeExamen
 
         $this->comprobarNormasMarcadas($datos->normasMarcadas, $usuarioId);
 
+        $aulas = $actual !== null && $soloNormas ? $actual->aulas : $datos->aulas;
+        $grupos = $actual !== null && $soloNormas ? $actual->grupos : $datos->grupos;
+        $personal = $this->comprobarPersonal($datos->personal, $aulas, $grupos, $usuarioId);
+
         return new GuardarExamenData(
             asignaturaId: $datos->asignaturaId,
             tipo: $datos->tipo,
@@ -59,6 +64,7 @@ final readonly class ComprobarDatosDeExamen
             normasMarcadas: $datos->normasMarcadas,
             normasConservadas: $datos->normasConservadas,
             periodoId: $periodoId,
+            personal: $personal,
         );
     }
 
@@ -173,5 +179,94 @@ final readonly class ComprobarDatosDeExamen
         }
 
         return $primero->periodoId;
+    }
+
+    /**
+     * @param  list<PersonalAulaData>  $personal
+     * @param  list<int>  $aulaIds
+     * @param  list<int>  $grupoIds
+     * @return list<PersonalAulaData>
+     *
+     * @throws DatoInvalidoException
+     */
+    private function comprobarPersonal(
+        array $personal,
+        array $aulaIds,
+        array $grupoIds,
+        int $creadorId,
+    ): array {
+        if ($aulaIds === []) {
+            return [];
+        }
+
+        $porAula = [];
+        foreach ($personal as $item) {
+            $porAula[$item->aulaId] = $item;
+        }
+
+        $docentesDeGrupos = $this->consulta->docentesDeGrupos($grupoIds);
+        $docentesMap = array_flip(array_unique(array_merge([$creadorId], $docentesDeGrupos)));
+        $todosDocentes = array_flip($this->consulta->todosLosDocentesConCuenta());
+
+        $candidatos = [];
+        foreach ($aulaIds as $aulaId) {
+            if (isset($porAula[$aulaId])) {
+                $candidatos[] = $porAula[$aulaId]->aCargo;
+                foreach ($porAula[$aulaId]->apoyo as $ap) {
+                    $candidatos[] = $ap;
+                }
+            }
+        }
+
+        $auxiliaresValidos = array_flip($this->consulta->usuariosConRolAuxiliar(array_values(array_unique($candidatos))));
+
+        $resultado = [];
+        foreach ($aulaIds as $aulaId) {
+            if (! isset($porAula[$aulaId])) {
+                $resultado[] = new PersonalAulaData(
+                    aulaId: $aulaId,
+                    aCargo: $creadorId,
+                    apoyo: [],
+                );
+
+                continue;
+            }
+
+            $item = $porAula[$aulaId];
+            $aCargo = $item->aCargo > 0 ? $item->aCargo : $creadorId;
+            $esDocenteDeGrupo = isset($docentesMap[$aCargo]);
+            $esAuxiliar = isset($auxiliaresValidos[$aCargo]);
+            $esDocenteDeOtro = isset($todosDocentes[$aCargo]);
+
+            if ($esDocenteDeOtro && ! $esDocenteDeGrupo) {
+                // Criterio 2: si quitó ese grupo del examen, las aulas que tenía su docente vuelven a quien registra
+                $aCargo = $creadorId;
+            } elseif (! $esDocenteDeGrupo && ! $esAuxiliar) {
+                // Criterio 9: si alguien a cargo no es docente ni auxiliar, el sistema lo rechaza
+                throw new DatoInvalidoException(
+                    "personal.{$aulaId}.a_cargo",
+                    'Debe ser docente o auxiliar.',
+                );
+            }
+
+            // Criterio 3: apoyo ofrece solo auxiliares que no estén ya en esa aula, y quien pasa a estar a cargo sale del apoyo
+            $apoyoLimpio = [];
+            foreach ($item->apoyo as $apId) {
+                if ($apId === $aCargo) {
+                    continue;
+                }
+                if (isset($auxiliaresValidos[$apId]) && ! in_array($apId, $apoyoLimpio, true)) {
+                    $apoyoLimpio[] = $apId;
+                }
+            }
+
+            $resultado[] = new PersonalAulaData(
+                aulaId: $aulaId,
+                aCargo: $aCargo,
+                apoyo: $apoyoLimpio,
+            );
+        }
+
+        return $resultado;
     }
 }

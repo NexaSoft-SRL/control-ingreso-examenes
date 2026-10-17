@@ -10,7 +10,7 @@ use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
  * Politica cerrada hasta integrar las asignaciones de operadores.
  * Tener el permiso general no demuestra autorizacion para un aula.
  */
-final class AlcancePuntoControlSinAsignaciones implements AlcancePuntoControl
+class AlcancePuntoControlSinAsignaciones implements AlcancePuntoControl
 {
     public function puedeOperar(
         int $usuarioId,
