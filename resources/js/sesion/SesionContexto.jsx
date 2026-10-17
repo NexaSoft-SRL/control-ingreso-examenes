@@ -16,7 +16,7 @@ const SIN_PROVEEDOR = {
 export const SesionContexto = createContext(SIN_PROVEEDOR);
 export const FacultadesContexto = createContext([]);
 
-// { usuario, cargando, entrar(correo, password), salir(), actualizar(), puede(permiso) }
+// { usuario, cargando, entrar(usuario, password), salir(), actualizar(), puede(permiso) }
 export function useSesion() {
     return useContext(SesionContexto);
 }
@@ -99,10 +99,9 @@ export function ProveedorSesion({ children }) {
         };
     }, [usuarioId]);
 
-    // El acceso es por correo: la API lo recibe como `email`.
-    const entrar = useCallback(async (correo, password) => {
+    const entrar = useCallback(async (nombreUsuario, password) => {
         const respuesta = await api.post('/auth/login', {
-            email: String(correo).trim().toLowerCase(),
+            usuario: String(nombreUsuario).trim().toLowerCase(),
             password,
         });
         const cuenta = respuesta.data?.user ?? null;
@@ -118,6 +117,29 @@ export function ProveedorSesion({ children }) {
         }
         setUsuario(null);
     }, []);
+
+    useEffect(() => {
+        if (!usuario) return undefined;
+
+        const minutos = Number(usuario.sesion_expira_en_minutos) || 15;
+        let temporizador;
+        const reiniciar = () => {
+            window.clearTimeout(temporizador);
+            temporizador = window.setTimeout(() => salir(), minutos * 60 * 1000);
+        };
+
+        ['pointerdown', 'keydown', 'touchstart'].forEach((evento) =>
+            window.addEventListener(evento, reiniciar, { passive: true })
+        );
+        reiniciar();
+
+        return () => {
+            window.clearTimeout(temporizador);
+            ['pointerdown', 'keydown', 'touchstart'].forEach((evento) =>
+                window.removeEventListener(evento, reiniciar)
+            );
+        };
+    }, [usuario, salir]);
 
     const valor = useMemo(
         () => ({

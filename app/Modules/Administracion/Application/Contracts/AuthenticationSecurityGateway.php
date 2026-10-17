@@ -14,6 +14,10 @@ interface AuthenticationSecurityGateway
         ?string $userAgent,
     ): ?User;
 
+    public function intentosRestantes(string $usuario): ?int;
+
+    public function minutosDeBloqueo(string $usuario): ?int;
+
     /**
      * Datos de la sesion de una cuenta activa, o null si la cuenta no
      * existe o esta bloqueada.

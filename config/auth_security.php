@@ -11,6 +11,11 @@ return [
         15
     ),
 
+    'inactividad_minutos' => (int) env(
+        'AUTH_SESSION_IDLE_MINUTES',
+        15
+    ),
+
     // Horas que sirve una contrasena temporal desde que se emite.
     'horas_temporal' => (int) env(
         'AUTH_HORAS_TEMPORAL',
