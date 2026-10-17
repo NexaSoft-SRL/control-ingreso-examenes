@@ -8,8 +8,10 @@ use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Examenes\Application\Contracts\ExamenGateway;
 use App\Modules\Examenes\Application\DTOs\ExamenActualData;
 use App\Modules\Examenes\Application\DTOs\GuardarExamenData;
+use App\Modules\Examenes\Application\DTOs\PersonalAulaData;
 use App\Modules\Examenes\Domain\Models\Examen;
 use App\Modules\Examenes\Domain\Models\ExamenAula;
+use App\Modules\Examenes\Domain\Models\ExamenAulaPersonal;
 use App\Modules\Examenes\Domain\Models\ExamenGrupo;
 use App\Modules\Examenes\Domain\Models\ExamenNorma;
 use App\Modules\Examenes\Domain\Models\PlantillaNorma;
@@ -57,6 +59,7 @@ final class EloquentExamenGateway implements ExamenGateway
             duracionMinutos: $examen->duracion_minutos,
             grupos: $this->ids(ExamenGrupo::where('examen_id', $examenId)->pluck('grupo_id')->all()),
             aulas: $this->ids(ExamenAula::where('examen_id', $examenId)->pluck('aula_id')->all()),
+            creadoPor: (int) $examen->creado_por,
         );
     }
 
@@ -89,6 +92,7 @@ final class EloquentExamenGateway implements ExamenGateway
             }
 
             $this->sincronizarNormas($examen->id, $datos->normasMarcadas, null);
+            $this->sincronizarPersonal($examen->id, $datos->personal);
 
             $this->bitacora->registrar(
                 $usuarioId,
@@ -130,6 +134,7 @@ final class EloquentExamenGateway implements ExamenGateway
             $gruposCambiaron = $this->sincronizarGrupos($examenId, $datos->grupos);
             $this->sincronizarAulas($examenId, $datos->aulas);
             $this->sincronizarNormas($examenId, $datos->normasMarcadas, $datos->normasConservadas);
+            $this->sincronizarPersonal($examenId, $datos->personal);
 
             $this->bitacora->registrar(
                 $usuarioId,
@@ -224,7 +229,34 @@ final class EloquentExamenGateway implements ExamenGateway
                 ->whereIn('aula_id', $quitadas)
                 ->update(['aula_id' => null, 'updated_at' => now()]);
 
+            ExamenAulaPersonal::where('examen_id', $examenId)->whereIn('aula_id', $quitadas)->delete();
             ExamenAula::where('examen_id', $examenId)->whereIn('aula_id', $quitadas)->delete();
+        }
+    }
+
+    /**
+     * @param  list<PersonalAulaData>  $personal
+     */
+    private function sincronizarPersonal(int $examenId, array $personal): void
+    {
+        ExamenAulaPersonal::where('examen_id', $examenId)->delete();
+
+        foreach ($personal as $item) {
+            ExamenAulaPersonal::create([
+                'examen_id' => $examenId,
+                'aula_id' => $item->aulaId,
+                'usuario_id' => $item->aCargo,
+                'rol' => ExamenAulaPersonal::ROL_A_CARGO,
+            ]);
+
+            foreach ($item->apoyo as $apoyoId) {
+                ExamenAulaPersonal::create([
+                    'examen_id' => $examenId,
+                    'aula_id' => $item->aulaId,
+                    'usuario_id' => $apoyoId,
+                    'rol' => ExamenAulaPersonal::ROL_APOYO,
+                ]);
+            }
         }
     }
 

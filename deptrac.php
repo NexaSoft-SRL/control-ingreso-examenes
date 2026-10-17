@@ -111,6 +111,16 @@ return static function (DeptracConfig $config): void {
                             '#^Illuminate\\Validation\\(?:Rule|Rules\\Password)$#'
                         )
                     ),
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Support\\Facades\\RateLimiter$#'
+                        )
+                    ),
                 // Todo middleware devuelve la respuesta base de Symfony:
                 // es el tipo que exige el contrato de Laravel.
                 BoolConfig::create()

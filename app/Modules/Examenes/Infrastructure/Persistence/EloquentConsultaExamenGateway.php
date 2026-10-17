@@ -465,20 +465,81 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
                 'edificio.nombre as edificio',
             ]);
 
+        $personalFilas = DB::table('examen_aula_personal as p')
+            ->join('usuarios as u', 'u.id', '=', 'p.usuario_id')
+            ->leftJoin('docentes as d', 'd.user_id', '=', 'u.id')
+            ->join('roles as r', 'r.id', '=', 'u.role_id')
+            ->whereIn('p.examen_id', $examenIds)
+            ->get([
+                'p.examen_id',
+                'p.aula_id',
+                'p.usuario_id',
+                'p.rol as personal_rol',
+                'u.nombre as usuario_nombre',
+                'd.nombre_completo as docente_nombre',
+                'r.name as rol_nombre',
+            ]);
+
+        $personalPorExamenYAula = [];
+        foreach ($personalFilas as $pFila) {
+            $pCols = $this->columnas($pFila);
+            $exId = $this->entero($pCols['examen_id'] ?? null);
+            $auId = $this->entero($pCols['aula_id'] ?? null);
+            $uId = $this->entero($pCols['usuario_id'] ?? null);
+            $pRol = $this->cadena($pCols['personal_rol'] ?? null);
+            $nombre = $this->texto($pCols['docente_nombre'] ?? null) ?? $this->cadena($pCols['usuario_nombre'] ?? null);
+            $rol = strtolower($this->cadena($pCols['rol_nombre'] ?? null));
+
+            $info = [
+                'id' => $uId,
+                'nombre' => $nombre,
+                'rol' => $rol,
+            ];
+
+            if ($pRol === 'a_cargo') {
+                $personalPorExamenYAula[$exId][$auId]['a_cargo'] = $info;
+            } elseif ($pRol === 'apoyo') {
+                $personalPorExamenYAula[$exId][$auId]['apoyo'][] = $info;
+            }
+        }
+
+        $codigosFilas = DB::table('examen_aula_codigos')
+            ->whereIn('examen_id', $examenIds)
+            ->get(['examen_id', 'aula_id', 'codigo']);
+
+        $codigosPorExamenYAula = [];
+        foreach ($codigosFilas as $cFila) {
+            $cCols = $this->columnas($cFila);
+            $codigosPorExamenYAula[$this->entero($cCols['examen_id'] ?? null)][$this->entero($cCols['aula_id'] ?? null)] = $this->cadena($cCols['codigo'] ?? null);
+        }
+
         $porExamen = [];
 
         foreach ($filas as $fila) {
             $columnas = $this->columnas($fila);
             $edificio = $this->texto($columnas['edificio'] ?? null);
             $piso = $this->texto($columnas['piso'] ?? null);
+            $exId = $this->entero($columnas['examen_id'] ?? null);
+            $auId = $this->entero($columnas['aula_id'] ?? null);
 
-            $porExamen[$this->entero($columnas['examen_id'] ?? null)][] = new AulaDetalleData(
-                aulaId: $this->entero($columnas['aula_id'] ?? null),
+            /** @var array{id: int, nombre: string, rol?: string}|null $aCargo */
+            $aCargo = $personalPorExamenYAula[$exId][$auId]['a_cargo'] ?? null;
+
+            /** @var list<array{id: int, nombre: string, rol?: string}> $apoyo */
+            $apoyo = array_values($personalPorExamenYAula[$exId][$auId]['apoyo'] ?? []);
+
+            $codigo = $codigosPorExamenYAula[$exId][$auId] ?? null;
+
+            $porExamen[$exId][] = new AulaDetalleData(
+                aulaId: $auId,
                 nombre: $this->cadena($columnas['nombre'] ?? null),
                 ubicacion: $edificio === null
                     ? null
                     : $edificio.($piso === null || $piso === '' ? '' : ' · '.$piso),
                 edificioId: $this->enteroONulo($columnas['edificio_id'] ?? null),
+                aCargo: $aCargo,
+                apoyo: $apoyo,
+                codigo: $codigo,
             );
         }
 
@@ -652,5 +713,59 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         return $fin === false
             ? "{$fecha} {$hora}"
             : gmdate('Y-m-d H:i', $fin + $duracion * 60);
+    }
+
+    public function docentesDeGrupos(array $grupoIds): array
+    {
+        if ($grupoIds === []) {
+            return [];
+        }
+
+        $userIds = [];
+        $filas = DB::table('grupos as g')
+            ->join('docentes as d', 'd.id', '=', 'g.docente_id')
+            ->whereIn('g.id', $grupoIds)
+            ->whereNotNull('d.user_id')
+            ->pluck('d.user_id');
+
+        foreach ($filas as $id) {
+            $userIds[] = $this->entero($id);
+        }
+
+        return array_values(array_unique($userIds));
+    }
+
+    public function usuariosConRolAuxiliar(array $usuarioIds): array
+    {
+        if ($usuarioIds === []) {
+            return [];
+        }
+
+        $userIds = [];
+        $filas = DB::table('usuarios as u')
+            ->join('roles as r', 'r.id', '=', 'u.role_id')
+            ->whereIn('u.id', $usuarioIds)
+            ->where('r.name', 'Auxiliar')
+            ->pluck('u.id');
+
+        foreach ($filas as $id) {
+            $userIds[] = $this->entero($id);
+        }
+
+        return array_values(array_unique($userIds));
+    }
+
+    public function todosLosDocentesConCuenta(): array
+    {
+        $userIds = [];
+        $filas = DB::table('docentes')
+            ->whereNotNull('user_id')
+            ->pluck('user_id');
+
+        foreach ($filas as $id) {
+            $userIds[] = $this->entero($id);
+        }
+
+        return array_values(array_unique($userIds));
     }
 }

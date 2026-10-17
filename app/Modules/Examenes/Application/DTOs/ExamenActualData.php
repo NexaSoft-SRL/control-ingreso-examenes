@@ -24,5 +24,6 @@ final readonly class ExamenActualData
         public int $duracionMinutos,
         public array $grupos,
         public array $aulas,
+        public ?int $creadoPor = null,
     ) {}
 }

@@ -25,19 +25,22 @@ final readonly class IngresoAuditadoGateway implements IngresoGateway
         int $examenId,
         int $estudianteId,
         int $aulaId,
-        int $usuarioId,
+        ?int $usuarioId = null,
+        ?int $accesoCodigoAulaId = null,
     ): bool {
         return DB::transaction(function () use (
             $examenId,
             $estudianteId,
             $aulaId,
             $usuarioId,
+            $accesoCodigoAulaId,
         ): bool {
             $registrado = $this->ingresos->registrar(
                 $examenId,
                 $estudianteId,
                 $aulaId,
                 $usuarioId,
+                $accesoCodigoAulaId,
             );
 
             if (! $registrado) {
@@ -55,17 +58,16 @@ final readonly class IngresoAuditadoGateway implements IngresoGateway
                 );
             }
 
+            $detalle = $accesoCodigoAulaId !== null
+                ? sprintf('Examen %d; estudiante %d; aula %d; acceso código aula %d.', $examenId, $estudianteId, $aulaId, $accesoCodigoAulaId)
+                : sprintf('Examen %d; estudiante %d; aula %d.', $examenId, $estudianteId, $aulaId);
+
             $this->bitacora->registrar(
                 $usuarioId,
                 'INGRESO_ADMITIDO',
                 'ingresos',
                 $id,
-                sprintf(
-                    'Examen %d; estudiante %d; aula %d.',
-                    $examenId,
-                    $estudianteId,
-                    $aulaId,
-                ),
+                $detalle,
             );
 
             return true;
