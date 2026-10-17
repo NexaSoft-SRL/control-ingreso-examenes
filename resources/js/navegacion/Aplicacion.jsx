@@ -7,6 +7,8 @@ import EstadoCarga from '../componentes/EstadoCarga';
 import Boton from '../componentes/Boton';
 import Logo from '../componentes/Logo';
 import { VISTAS, destinoDe, entradaDe } from './vistas';
+import CambiarContrasena from '../paginas/auth/CambiarContrasena';
+import RecuperarContrasena from '../paginas/auth/RecuperarContrasena';
 
 const Login = lazy(() => import('../paginas/auth/Login'));
 const AccesoAula = lazy(() => import('../paginas/auth/AccesoAula'));
@@ -44,7 +46,22 @@ function ConMenu() {
 // `/` y cualquier dirección desconocida: la entrada de la cuenta o el acceso.
 function Inicio() {
     const { usuario } = usarSesion();
-    return <Navigate to={destinoDe(usuario)} replace />;
+    return (
+        <Navigate
+            to={usuario?.debe_cambiar_contrasena ? '/cambiar-contrasena' : destinoDe(usuario)}
+            replace
+        />
+    );
+}
+
+function CambioContrasenaForzado() {
+    const { usuario, cargando } = usarSesion();
+
+    if (cargando) return <PantallaDeCarga />;
+    if (!usuario) return <Navigate to="/login" replace />;
+    if (!usuario.debe_cambiar_contrasena) return <Navigate to={destinoDe(usuario)} replace />;
+
+    return <CambiarContrasena />;
 }
 
 // Una cuenta sin ninguna pantalla en el menú.
@@ -85,6 +102,9 @@ export function Rutas() {
             <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/acceso-aula" element={<AccesoAula />} />
+                <Route path="/recuperar-contrasena" element={<RecuperarContrasena />} />
+                <Route path="/restablecer-contrasena" element={<RecuperarContrasena />} />
+                <Route path="/cambiar-contrasena" element={<CambioContrasenaForzado />} />
                 <Route path="/sin-acceso" element={<SinAcceso />} />
                 <Route element={<ConMenu />}>
                     {VISTAS.map((v) => {

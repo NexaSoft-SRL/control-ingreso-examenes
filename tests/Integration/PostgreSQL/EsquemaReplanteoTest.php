@@ -34,7 +34,7 @@ final class EsquemaReplanteoTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * Las 36 tablas del esquema; `migrations` va aparte.
+     * Las 40 tablas del esquema; `migrations` va aparte.
      *
      * @var list<string>
      */

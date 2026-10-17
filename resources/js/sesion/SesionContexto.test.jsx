@@ -22,7 +22,7 @@ function Sonda() {
             <p>Facultades: {facultades.length}</p>
             <button
                 type="button"
-                onClick={() => entrar(' Leticia.Blanco@umss.edu.bo ', 'secreta').catch(() => {})}
+                onClick={() => entrar(' Leticia.Blanco ', 'secreta').catch(() => {})}
             >
                 Entrar
             </button>
@@ -82,7 +82,7 @@ describe('ProveedorSesion', () => {
         expect(api.get).toHaveBeenCalledTimes(1);
     });
 
-    it('entrar envía el correo como `email`, en minúsculas, y guarda la cuenta; salir la borra', async () => {
+    it('entrar envía el usuario en minúsculas y guarda la cuenta; salir la borra', async () => {
         simularApi(api, {
             'GET /auth/sesion': errorHttp(401),
             'POST /auth/login': {
@@ -98,7 +98,7 @@ describe('ProveedorSesion', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
         expect(await screen.findByText('Mamani Torrez Diego · Auxiliar')).toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith('/auth/login', {
-            email: 'leticia.blanco@umss.edu.bo',
+            usuario: 'leticia.blanco',
             password: 'secreta',
         });
 

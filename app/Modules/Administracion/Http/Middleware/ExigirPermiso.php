@@ -40,6 +40,13 @@ final class ExigirPermiso
             ], Response::HTTP_UNAUTHORIZED);
         }
 
+        if ($usuario->getAttribute('password_changed_at') === null) {
+            return response()->json([
+                'code' => 'PASSWORD_CHANGE_REQUIRED',
+                'message' => 'Debes cambiar tu contraseña temporal antes de continuar.',
+            ], 423);
+        }
+
         /** @var list<string> $lista */
         $lista = explode('|', $permisos);
 

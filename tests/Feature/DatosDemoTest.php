@@ -89,7 +89,7 @@ final class DatosDemoTest extends TestCase
 
         // La cuenta de demostracion entra por HTTP y recibe su sesion.
         $this->postJson('/api/auth/login', [
-            'email' => 'leticia.blanco@umss.edu.bo',
+            'usuario' => 'leticia.blanco',
             'password' => DemoSeeder::CLAVE_DOCENTE,
         ])
             ->assertOk()

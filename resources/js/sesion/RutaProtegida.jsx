@@ -28,6 +28,9 @@ export default function RutaProtegida({ ruta, permiso, children }) {
 
     if (cargando) return <PantallaDeCarga />;
     if (!usuario) return <Navigate to="/login" replace state={{ desde: ubicacion.pathname }} />;
+    if (usuario.debe_cambiar_contrasena && ubicacion.pathname !== '/cambiar-contrasena') {
+        return <Navigate to="/cambiar-contrasena" replace />;
+    }
 
     const vistas = vistasDe(usuario);
     if (vistas.length === 0) return <Navigate to="/sin-acceso" replace />;
