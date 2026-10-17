@@ -20,4 +20,11 @@ interface AlcanceExamenGateway
      * Solo quien lo registro modifica o elimina el examen.
      */
     public function loRegistro(int $usuarioId, int $examenId): bool;
+
+    /**
+     * Devuelve las aulas del examen que atiende el usuario (a cargo o apoyo).
+     *
+     * @return list<int>
+     */
+    public function aulasQueAtiende(int $usuarioId, int $examenId): array;
 }

@@ -9,16 +9,21 @@ export default function Dialogo({
     titulo,
     abierto = true,
     onCerrar,
+    alCerrar,
     acciones,
     ancho = 'max-w-md',
     children,
 }) {
+    const cerrar = onCerrar ?? alCerrar;
+
     useEffect(() => {
         if (!abierto) return undefined;
-        const tecla = (e) => e.key === 'Escape' && onCerrar();
+        const fn = onCerrar ?? alCerrar;
+        if (!fn) return undefined;
+        const tecla = (e) => e.key === 'Escape' && fn();
         window.addEventListener('keydown', tecla);
         return () => window.removeEventListener('keydown', tecla);
-    }, [abierto, onCerrar]);
+    }, [abierto, onCerrar, alCerrar]);
 
     if (!abierto) return null;
 
@@ -27,7 +32,7 @@ export default function Dialogo({
             <button
                 type="button"
                 aria-label="Cerrar"
-                onClick={onCerrar}
+                onClick={cerrar}
                 className="absolute inset-0 bg-slate-900/40"
             />
             <div
@@ -43,7 +48,7 @@ export default function Dialogo({
                     <button
                         type="button"
                         aria-label="Cerrar"
-                        onClick={onCerrar}
+                        onClick={cerrar}
                         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600"
                     >
                         <X className="h-5 w-5" />
@@ -63,7 +68,8 @@ export default function Dialogo({
 Dialogo.propTypes = {
     titulo: PropTypes.string.isRequired,
     abierto: PropTypes.bool,
-    onCerrar: PropTypes.func.isRequired,
+    onCerrar: PropTypes.func,
+    alCerrar: PropTypes.func,
     acciones: PropTypes.node,
     ancho: PropTypes.string,
     children: PropTypes.node,

@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { useEffect, useRef, useState } from 'react';
 import LectorQr from './LectorQr';
-import { ClipboardCheck, RefreshCw, Search } from 'lucide-react';
+import { ClipboardCheck, DoorOpen, LogOut, RefreshCw, Search } from 'lucide-react';
 import { api } from '../../api/cliente';
 import { estadoDe, mensajeDe } from '../../api/errores';
 import SelectorExamen from '../../componentes/SelectorExamen';
@@ -86,6 +86,25 @@ export default function PuntoControl() {
     const versionContexto = useRef(0);
     const peticiones = useRef(new Set());
     const [lectorAbierto, setLectorAbierto] = useState(false);
+    const [sesionColaborador, setSesionColaborador] = useState(() => {
+        try {
+            const guardada = localStorage.getItem('codigo_aula_sesion');
+            return guardada ? JSON.parse(guardada) : null;
+        } catch {
+            return null;
+        }
+    });
+
+    const cerrarSesionColaborador = () => {
+        try {
+            localStorage.removeItem('codigo_aula_token');
+            localStorage.removeItem('codigo_aula_sesion');
+        } catch {
+            // Ignorar
+        }
+        setSesionColaborador(null);
+        window.location.href = '/acceso-aula';
+    };
 
     const invalidarContexto = () => {
         versionContexto.current += 1;
@@ -113,6 +132,25 @@ export default function PuntoControl() {
     useEffect(() => {
         let activo = true;
 
+        if (sesionColaborador) {
+            setExamenes([
+                {
+                    id: sesionColaborador.examen_id,
+                    tipo: 'Examen',
+                    asignatura: { nombre: 'Examen' },
+                    aulas: [
+                        {
+                            id: sesionColaborador.aula_id,
+                            nombre: sesionColaborador.aula_nombre,
+                        },
+                    ],
+                },
+            ]);
+            setAulaId(String(sesionColaborador.aula_id));
+            setCargandoExamenes(false);
+            return;
+        }
+
         api.get('/punto-control/contexto')
             .then(({ data }) => {
                 if (activo) {
@@ -131,7 +169,7 @@ export default function PuntoControl() {
         return () => {
             activo = false;
         };
-    }, []);
+    }, [sesionColaborador]);
 
     useEffect(() => {
         let activo = true;
@@ -352,6 +390,26 @@ export default function PuntoControl() {
 
     return (
         <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6">
+            {sesionColaborador && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-900 shadow-sm">
+                    <div className="flex items-center gap-2">
+                        <DoorOpen className="h-5 w-5 text-primary-600 shrink-0" />
+                        <span>
+                            Colaborador de aula:{' '}
+                            <strong>{sesionColaborador.nombre_colaborador}</strong> · Aula{' '}
+                            <strong>{sesionColaborador.aula_nombre}</strong>
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={cerrarSesionColaborador}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-danger-700 hover:text-danger-800 hover:underline"
+                    >
+                        <LogOut className="h-3.5 w-3.5" /> Salir de aula
+                    </button>
+                </div>
+            )}
+
             <header>
                 <h1 className="text-2xl font-bold text-slate-900">Punto de control</h1>
                 <p className="mt-1 text-sm text-slate-600">

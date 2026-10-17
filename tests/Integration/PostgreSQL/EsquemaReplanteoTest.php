@@ -72,20 +72,24 @@ final class EsquemaReplanteoTest extends TestCase
         'conflictos_padron',
         'estudiantes',
         'inscripciones',
-        // Examenes.
+        // Examenes y atencion de aulas (HU-18).
+        'accesos_codigo_aula',
+        'docente_auxiliares',
         'examen_aula',
+        'examen_aula_codigos',
+        'examen_aula_personal',
         'examen_grupo',
         'examen_norma',
         'examenes',
         'plantillas_norma',
         // Habilitacion.
         'habilitaciones',
-        // Ingreso.
+        // Ingreso y seguimiento (HU-19, HU-21).
         'asignaciones_seguimiento_aula',
-        'incidencias_aula',
-        'ingresos',
         'expulsiones',
+        'incidencias_aula',
         'incidencias_ingreso',
+        'ingresos',
     ];
 
     public function test_schema_has_exactly_the_expected_tables(): void

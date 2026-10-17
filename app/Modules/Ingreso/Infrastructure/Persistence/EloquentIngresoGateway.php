@@ -22,20 +22,23 @@ final class EloquentIngresoGateway implements IngresoGateway
         int $examenId,
         int $estudianteId,
         int $aulaId,
-        int $usuarioId,
+        ?int $usuarioId = null,
+        ?int $accesoCodigoAulaId = null,
     ): bool {
         try {
             DB::transaction(static function () use (
                 $examenId,
                 $estudianteId,
                 $aulaId,
-                $usuarioId
+                $usuarioId,
+                $accesoCodigoAulaId,
             ): void {
                 DB::table('ingresos')->insert([
                     'examen_id' => $examenId,
                     'estudiante_id' => $estudianteId,
                     'aula_id' => $aulaId,
                     'registrado_por' => $usuarioId,
+                    'acceso_codigo_aula_id' => $accesoCodigoAulaId,
                     'registrado_en' => DB::raw('CURRENT_TIMESTAMP'),
                 ]);
             });

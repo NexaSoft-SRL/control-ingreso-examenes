@@ -33,6 +33,14 @@ export default function EsquemaApp({ children }) {
     const location = useLocation();
     const navegar = useNavigate();
     const { usuario: cuenta, salir } = usarSesion();
+
+    if (!cuenta) {
+        return (
+            <div className="min-h-dvh bg-slate-50">
+                <main className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">{children}</main>
+            </div>
+        );
+    }
     const todas = vistasDe(cuenta);
     const vistas = todas.filter((v) => !v.oculta);
     const actual = vistaDeRuta(todas, location.pathname);

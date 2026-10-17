@@ -72,6 +72,7 @@ final class AuthenticationHardeningTest extends TestCase
         );
 
         $user = UserFactory::new()->createOne([
+            'usuario' => 'rehash-user',
             'email' => 'rehash-user@example.invalid',
             'password' => $outdatedHash,
             'is_active' => true,
@@ -89,7 +90,7 @@ final class AuthenticationHardeningTest extends TestCase
         );
 
         $this->postJson('/api/auth/login', [
-            'email' => 'rehash-user@example.invalid',
+            'usuario' => 'rehash-user',
             'password' => $plainPassword,
         ])->assertOk();
 
@@ -119,6 +120,7 @@ final class AuthenticationHardeningTest extends TestCase
     public function test_failed_login_records_request_security_metadata(): void
     {
         $user = UserFactory::new()->createOne([
+            'usuario' => 'audit-metadata',
             'email' => 'audit-metadata@example.invalid',
             'password' => 'CorrectPassword123!',
             'is_active' => true,
@@ -132,7 +134,7 @@ final class AuthenticationHardeningTest extends TestCase
                 'HU-01.4 security audit'
             )
             ->postJson('/api/auth/login', [
-                'email' => 'audit-metadata@example.invalid',
+                'usuario' => 'audit-metadata',
                 'password' => 'IncorrectPassword123!',
             ])
             ->assertUnauthorized();
@@ -146,7 +148,7 @@ final class AuthenticationHardeningTest extends TestCase
         );
 
         $this->assertSame(
-            'audit-metadata@example.invalid',
+            'audit-metadata',
             (clone $attempt)->value('identifier')
         );
 
@@ -187,7 +189,7 @@ final class AuthenticationHardeningTest extends TestCase
             ->andReturnFalse();
 
         $this->postJson('/api/auth/login', [
-            'email' => 'timing-unknown@example.invalid',
+            'usuario' => 'timing-unknown',
             'password' => 'UnknownPassword123!',
         ])
             ->assertUnauthorized()

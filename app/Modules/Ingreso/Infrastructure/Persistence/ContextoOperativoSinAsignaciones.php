@@ -6,7 +6,7 @@ namespace App\Modules\Ingreso\Infrastructure\Persistence;
 
 use App\Modules\Ingreso\Application\Contracts\ContextoOperativoPuntoControl;
 
-final class ContextoOperativoSinAsignaciones implements ContextoOperativoPuntoControl
+class ContextoOperativoSinAsignaciones implements ContextoOperativoPuntoControl
 {
     public function examenesAutorizados(int $usuarioId): array
     {
