@@ -345,9 +345,9 @@ final class AdministracionCuentasTest extends TestCase
 
         $this->app->make('auth')->forgetGuards();
 
-        // El acceso es por correo y no dice por que rechaza.
+        // El acceso es por usuario y no dice por que rechaza.
         $this->postJson('/api/auth/login', [
-            'email' => 'propio@umss.edu.bo',
+            'usuario' => $this->cuenta->usuario,
             'password' => 'password',
         ])->assertUnauthorized();
 
