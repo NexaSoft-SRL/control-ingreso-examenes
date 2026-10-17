@@ -31,13 +31,14 @@ final class SeguimientoAulaController
         int $aula,
         SeguimientoAulaGateway $seguimiento,
     ): JsonResponse {
-        $filtros = $request->validate([
+        $request->validate([
             'estado' => ['sometimes', 'string', 'in:faltan,ingresaron'],
             'buscar' => ['sometimes', 'nullable', 'string', 'max:100'],
             'pagina' => ['sometimes', 'integer', 'min:1'],
         ]);
         $estado = $request->string('estado', 'faltan')->toString();
-        $buscar = $filtros['buscar'] ?? '';
+        $valorBuscar = $request->input('buscar');
+        $buscar = is_string($valorBuscar) ? $valorBuscar : '';
         $pagina = $request->integer('pagina', 1);
         $usuarioId = $this->usuarioId();
 

@@ -7,9 +7,9 @@ namespace App\Modules\Ingreso\Infrastructure\Persistence;
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Examenes\Application\Contracts\AlcanceExamenGateway;
 use App\Modules\Ingreso\Application\Contracts\SeguimientoAulaGateway;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use LogicException;
 
