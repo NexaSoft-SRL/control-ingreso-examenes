@@ -233,7 +233,7 @@ final readonly class ComprobarDatosDeExamen
             }
 
             $item = $porAula[$aulaId];
-            $aCargo = $item->aCargo;
+            $aCargo = $item->aCargo > 0 ? $item->aCargo : $creadorId;
             $esDocenteDeGrupo = isset($docentesMap[$aCargo]);
             $esAuxiliar = isset($auxiliaresValidos[$aCargo]);
             $esDocenteDeOtro = isset($todosDocentes[$aCargo]);

@@ -9,6 +9,7 @@ import Logo from '../componentes/Logo';
 import { VISTAS, destinoDe, entradaDe } from './vistas';
 
 const Login = lazy(() => import('../paginas/auth/Login'));
+const AccesoAula = lazy(() => import('../paginas/auth/AccesoAula'));
 
 // Un componente por ruta. Quién ve cada una sale de navegacion/vistas.js.
 export const PAGINAS = {
@@ -83,6 +84,7 @@ export function Rutas() {
         <Suspense fallback={<PantallaDeCarga />}>
             <Routes>
                 <Route path="/login" element={<Login />} />
+                <Route path="/acceso-aula" element={<AccesoAula />} />
                 <Route path="/sin-acceso" element={<SinAcceso />} />
                 <Route element={<ConMenu />}>
                     {VISTAS.map((v) => {

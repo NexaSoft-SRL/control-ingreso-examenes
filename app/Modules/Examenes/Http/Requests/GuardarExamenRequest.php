@@ -46,7 +46,7 @@ final class GuardarExamenRequest extends FormRequest
             'normas_conservadas.*' => ['integer', 'min:1'],
             'personal' => ['nullable', 'array'],
             'personal.*.aula_id' => ['required', 'integer'],
-            'personal.*.a_cargo' => ['required', 'integer'],
+            'personal.*.a_cargo' => ['nullable', 'integer'],
             'personal.*.apoyo' => ['nullable', 'array'],
             'personal.*.apoyo.*' => ['integer'],
         ];
@@ -105,7 +105,7 @@ final class GuardarExamenRequest extends FormRequest
         $personalInput = $this->validated('personal');
         if (is_array($personalInput)) {
             foreach ($personalInput as $item) {
-                if (is_array($item) && isset($item['aula_id'], $item['a_cargo'])) {
+                if (is_array($item) && isset($item['aula_id'])) {
                     $apoyo = [];
                     foreach (is_array($item['apoyo'] ?? null) ? $item['apoyo'] : [] as $ap) {
                         if (is_numeric($ap)) {
@@ -114,7 +114,7 @@ final class GuardarExamenRequest extends FormRequest
                     }
                     $personalDatos[] = new PersonalAulaData(
                         aulaId: is_numeric($item['aula_id']) ? (int) $item['aula_id'] : 0,
-                        aCargo: is_numeric($item['a_cargo']) ? (int) $item['a_cargo'] : 0,
+                        aCargo: isset($item['a_cargo']) && is_numeric($item['a_cargo']) ? (int) $item['a_cargo'] : 0,
                         apoyo: array_values(array_unique($apoyo)),
                     );
                 }
