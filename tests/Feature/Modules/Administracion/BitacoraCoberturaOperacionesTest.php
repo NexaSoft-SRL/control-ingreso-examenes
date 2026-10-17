@@ -22,12 +22,13 @@ final class BitacoraCoberturaOperacionesTest extends TestCase
     public function test_a_successful_login_is_recorded(): void
     {
         $usuario = UserFactory::new()->createOne([
+            'usuario' => 'auditoria',
             'correo' => 'auditoria@umss.edu.bo',
             'password' => Hash::make('Secreta12345'),
         ]);
 
         $this->postJson('/api/auth/login', [
-            'email' => 'auditoria@umss.edu.bo',
+            'usuario' => 'auditoria',
             'password' => 'Secreta12345',
         ])->assertOk();
 
@@ -40,12 +41,13 @@ final class BitacoraCoberturaOperacionesTest extends TestCase
     public function test_a_failed_login_is_recorded_without_a_user(): void
     {
         UserFactory::new()->createOne([
+            'usuario' => 'auditoria',
             'correo' => 'auditoria@umss.edu.bo',
             'password' => Hash::make('Secreta12345'),
         ]);
 
         $this->postJson('/api/auth/login', [
-            'email' => 'auditoria@umss.edu.bo',
+            'usuario' => 'auditoria',
             'password' => 'clave-equivocada',
         ])->assertUnauthorized();
 
