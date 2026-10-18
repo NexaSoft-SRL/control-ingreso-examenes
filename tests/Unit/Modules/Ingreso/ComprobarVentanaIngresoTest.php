@@ -18,7 +18,9 @@ final class ComprobarVentanaIngresoTest extends TestCase
     public static function horarios(): array
     {
         return [
-            'un segundo antes' => ['2026-10-20 07:59:59', false],
+            'antes de la apertura' => ['2026-10-20 06:59:59', false],
+            'apertura exacta' => ['2026-10-20 07:00:00', true],
+            'un segundo antes del examen' => ['2026-10-20 07:59:59', true],
             'inicio exacto' => ['2026-10-20 08:00:00', true],
             'durante el examen' => ['2026-10-20 09:00:00', true],
             'ultimo segundo' => ['2026-10-20 09:59:59', true],

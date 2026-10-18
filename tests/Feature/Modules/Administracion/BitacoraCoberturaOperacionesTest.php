@@ -27,7 +27,7 @@ final class BitacoraCoberturaOperacionesTest extends TestCase
         ]);
 
         $this->postJson('/api/auth/login', [
-            'email' => 'auditoria@umss.edu.bo',
+            'usuario' => $usuario->usuario,
             'password' => 'Secreta12345',
         ])->assertOk();
 
@@ -39,13 +39,13 @@ final class BitacoraCoberturaOperacionesTest extends TestCase
 
     public function test_a_failed_login_is_recorded_without_a_user(): void
     {
-        UserFactory::new()->createOne([
+        $usuario = UserFactory::new()->createOne([
             'correo' => 'auditoria@umss.edu.bo',
             'password' => Hash::make('Secreta12345'),
         ]);
 
         $this->postJson('/api/auth/login', [
-            'email' => 'auditoria@umss.edu.bo',
+            'usuario' => $usuario->usuario,
             'password' => 'clave-equivocada',
         ])->assertUnauthorized();
 

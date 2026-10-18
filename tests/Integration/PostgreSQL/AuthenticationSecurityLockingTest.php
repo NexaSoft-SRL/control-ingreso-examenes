@@ -36,6 +36,12 @@ final class AuthenticationSecurityLockingTest extends TestCase
                     ->exists()
             );
 
+            $usuarioLogin = DB::table('usuarios')
+                ->where('id', $userId)
+                ->value('usuario');
+
+            self::assertIsString($usuarioLogin);
+
             $lockingConnection->beginTransaction();
 
             $statement = $lockingConnection->prepare(
@@ -79,7 +85,7 @@ final class AuthenticationSecurityLockingTest extends TestCase
 
             try {
                 $gateway->authenticate(
-                    'locking-test@example.invalid',
+                    $usuarioLogin,
                     'IncorrectPassword123!',
                     '192.0.2.20',
                     'HU-01 PostgreSQL locking test',
@@ -126,9 +132,12 @@ final class AuthenticationSecurityLockingTest extends TestCase
             AuthenticationSecurityGateway::class
         );
 
+        $usuarioLogin = $user->getAttribute('usuario');
+        self::assertIsString($usuarioLogin);
+
         for ($attempt = 1; $attempt <= 3; $attempt++) {
             $gateway->authenticate(
-                'atomic-counter@example.invalid',
+                $usuarioLogin,
                 'IncorrectPassword123!',
                 '192.0.2.21',
                 'HU-01 PostgreSQL persistence test',
