@@ -100,7 +100,15 @@ final class AccesoConUsuarioTest extends TestCase
 
         self::assertTrue(Hash::check(
             'NewStrongPassword123!',
-            User::findOrFail($user->getKey())->getAuthPassword(),
+            (function () use ($user): string {
+                $id = $user->getKey();
+                self::assertIsInt($id);
+
+                $encontrado = User::query()->findOrFail($id);
+                self::assertInstanceOf(User::class, $encontrado);
+
+                return $encontrado->getAuthPassword();
+            })(),
         ));
     }
 
@@ -184,7 +192,15 @@ final class AccesoConUsuarioTest extends TestCase
 
         self::assertTrue(Hash::check(
             'RecoveredPassword123!',
-            User::findOrFail($user->getKey())->getAuthPassword(),
+            (function () use ($user): string {
+                $id = $user->getKey();
+                self::assertIsInt($id);
+
+                $encontrado = User::query()->findOrFail($id);
+                self::assertInstanceOf(User::class, $encontrado);
+
+                return $encontrado->getAuthPassword();
+            })(),
         ));
 
         $this->assertDatabaseMissing('password_reset_tokens', [
