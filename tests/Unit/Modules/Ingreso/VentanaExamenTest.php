@@ -36,7 +36,7 @@ final class VentanaExamenTest extends TestCase
         $zona = new DateTimeZone('America/La_Paz');
 
         $inicio = new DateTimeImmutable('now', $zona);
-        $inicio = $inicio->modify('-5 minutes');
+        $inicio = $inicio->modify('+30 minutes');
 
         $examen = new ExamenActualData(
             7,
