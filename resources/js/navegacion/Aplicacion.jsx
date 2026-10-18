@@ -11,6 +11,7 @@ import CambiarContrasena from '../paginas/auth/CambiarContrasena';
 import RecuperarContrasena from '../paginas/auth/RecuperarContrasena';
 
 const Login = lazy(() => import('../paginas/auth/Login'));
+const AccesoAula = lazy(() => import('../paginas/auth/AccesoAula'));
 
 // Un componente por ruta. Quién ve cada una sale de navegacion/vistas.js.
 export const PAGINAS = {
@@ -100,6 +101,7 @@ export function Rutas() {
         <Suspense fallback={<PantallaDeCarga />}>
             <Routes>
                 <Route path="/login" element={<Login />} />
+                <Route path="/acceso-aula" element={<AccesoAula />} />
                 <Route path="/recuperar-contrasena" element={<RecuperarContrasena />} />
                 <Route path="/restablecer-contrasena" element={<RecuperarContrasena />} />
                 <Route path="/cambiar-contrasena" element={<CambioContrasenaForzado />} />

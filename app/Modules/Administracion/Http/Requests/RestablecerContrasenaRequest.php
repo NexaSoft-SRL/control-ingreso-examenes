@@ -15,7 +15,7 @@ final class RestablecerContrasenaRequest extends FormRequest
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<string, list<mixed>>
      */
     public function rules(): array
     {

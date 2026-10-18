@@ -13,6 +13,19 @@ export default function RutaProtegida({ ruta, permiso, children }) {
     const { usuario, cargando, puede } = usarSesion();
     const ubicacion = useLocation();
 
+    let tieneTokenColaborador = false;
+    try {
+        tieneTokenColaborador =
+            (ruta === '/punto-control' || ubicacion.pathname === '/punto-control') &&
+            Boolean(localStorage.getItem('codigo_aula_token'));
+    } catch {
+        // Ignorar si localStorage no está disponible
+    }
+
+    if (tieneTokenColaborador && !usuario) {
+        return children ?? <Outlet />;
+    }
+
     if (cargando) return <PantallaDeCarga />;
     if (!usuario) return <Navigate to="/login" replace state={{ desde: ubicacion.pathname }} />;
     if (usuario.debe_cambiar_contrasena && ubicacion.pathname !== '/cambiar-contrasena') {

@@ -214,13 +214,23 @@ export default function Login() {
                         <Boton type="submit" className="w-full" disabled={enviando}>
                             {enviando ? 'Ingresando…' : 'Iniciar sesión'}
                         </Boton>
-                        <div className="text-center">
-                            <Link
-                                className="text-sm font-medium text-primary-700 hover:underline"
-                                to="/recuperar-contrasena"
-                            >
-                                ¿Olvidó su contraseña?
-                            </Link>
+                        <div className="space-y-2 text-center text-xs text-slate-600">
+                            <div>
+                                <Link
+                                    className="text-sm font-medium text-primary-700 hover:underline"
+                                    to="/recuperar-contrasena"
+                                >
+                                    ¿Olvidó su contraseña?
+                                </Link>
+                            </div>
+                            <div className="border-t border-slate-200 pt-3">
+                                <Link
+                                    to="/acceso-aula"
+                                    className="font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                                >
+                                    Ingresar con código de aula
+                                </Link>
+                            </div>
                         </div>
                     </form>
                     <p className="mt-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">

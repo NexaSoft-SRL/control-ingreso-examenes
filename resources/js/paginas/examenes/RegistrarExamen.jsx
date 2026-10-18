@@ -20,6 +20,7 @@ import Tarjeta from '../../componentes/Tarjeta';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { fechaLarga, normalizar, plural } from '../../utiles/texto';
 import NormasDelExamen from './NormasDelExamen';
+import AtencionAulas from './AtencionAulas';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
@@ -35,7 +36,12 @@ const duracionValida = (texto) =>
 const alternar = (lista, valor) =>
     lista.includes(valor) ? lista.filter((v) => v !== valor) : [...lista, valor];
 // En qué paso se corrige cada campo que rechaza el servidor.
-const pasoDe = (campo) => (campo.startsWith('grupos') ? 1 : campo.startsWith('aulas') ? 2 : 0);
+const pasoDe = (campo) =>
+    campo.startsWith('grupos')
+        ? 1
+        : campo.startsWith('aulas') || campo.startsWith('personal')
+          ? 2
+          : 0;
 
 function ubicacionDe(aula, facultad) {
     const lugar = [aula.edificio, aula.piso].filter(Boolean).join(' · ') || 'Sin edificio';
@@ -75,7 +81,15 @@ const FORMA_DETALLE = PropTypes.shape({
     ),
     grupos_detalle: PropTypes.arrayOf(FORMA_GRUPO),
     aulas_detalle: PropTypes.arrayOf(
-        PropTypes.shape({ aula_id: PropTypes.number.isRequired, nombre: PropTypes.string })
+        PropTypes.shape({
+            aula_id: PropTypes.number.isRequired,
+            nombre: PropTypes.string,
+            a_cargo: PropTypes.shape({ id: PropTypes.number, nombre: PropTypes.string }),
+            apoyo: PropTypes.arrayOf(
+                PropTypes.shape({ id: PropTypes.number, nombre: PropTypes.string })
+            ),
+            codigo: PropTypes.string,
+        })
     ),
 });
 
@@ -211,6 +225,40 @@ function Resumen({ examen, recien = false }) {
                             Registrado por {examen.registrado_por}
                         </p>
                     )}
+                    {aulas.length > 0 && (
+                        <div className="mt-3 space-y-2 border-t border-slate-200 pt-3">
+                            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                                Aulas y atención asignada
+                            </h4>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                                {aulas.map((a) => (
+                                    <div
+                                        key={a.aula_id}
+                                        className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-700 space-y-1"
+                                    >
+                                        <div className="flex items-center justify-between font-semibold text-slate-900">
+                                            <span>Aula {a.nombre}</span>
+                                            {a.codigo && (
+                                                <span className="font-mono bg-white px-2 py-0.5 rounded border border-slate-300 text-primary-700">
+                                                    Código: {a.codigo}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p>
+                                            <span className="text-slate-500">A cargo:</span>{' '}
+                                            {a.a_cargo?.nombre ?? 'Docente titular'}
+                                        </p>
+                                        <p>
+                                            <span className="text-slate-500">Apoyo:</span>{' '}
+                                            {Array.isArray(a.apoyo) && a.apoyo.length > 0
+                                                ? a.apoyo.map((aux) => aux.nombre).join(', ')
+                                                : 'Sin personal de apoyo'}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
             <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">
@@ -258,6 +306,18 @@ function Asistente({ asignaturas, tipos, periodos, inicial, pasoInicial, onExame
     // `null`: todavía no se tocó; valen los grupos propios de la asignatura.
     const [grupos, setGrupos] = useState(() => inicial?.grupos_detalle?.map((g) => g.id) ?? null);
     const [aulas, setAulas] = useState(() => inicial?.aulas_detalle?.map((a) => a.aula_id) ?? []);
+    const [atencion, setAtencion] = useState(() => {
+        const mapa = {};
+        for (const a of inicial?.aulas_detalle ?? []) {
+            mapa[a.aula_id] = {
+                a_cargo: a.a_cargo?.id ?? null,
+                apoyo: Array.isArray(a.apoyo) ? a.apoyo : [],
+                codigo: a.codigo ?? null,
+            };
+        }
+        return mapa;
+    });
+    const { usuario: cuenta } = usarSesion();
     const [buscado, setBuscado] = useState('');
     const [busqueda, setBusqueda] = useState('');
     const [edificio, setEdificio] = useState('');
@@ -383,8 +443,21 @@ function Asistente({ asignaturas, tipos, periodos, inicial, pasoInicial, onExame
 
     const cambiarAulas = (siguiente) => {
         setAulas(siguiente);
+        setAtencion((prev) => {
+            const nuevo = { ...prev };
+            for (const id of siguiente) {
+                if (!nuevo[id]) {
+                    nuevo[id] = { a_cargo: cuenta?.id ?? null, apoyo: [], codigo: null };
+                }
+            }
+            return nuevo;
+        });
         setErrores((previos) =>
-            Object.fromEntries(Object.entries(previos).filter(([c]) => !c.startsWith('aulas')))
+            Object.fromEntries(
+                Object.entries(previos).filter(
+                    ([c]) => !c.startsWith('aulas') && !c.startsWith('personal')
+                )
+            )
         );
     };
 
@@ -404,6 +477,17 @@ function Asistente({ asignaturas, tipos, periodos, inicial, pasoInicial, onExame
         setEnviando(true);
         setRechazo(null);
         setErrores({});
+        const personalPayload = aulas.map((aulaId) => {
+            const info = atencion[aulaId] ?? { a_cargo: cuenta?.id ?? null, apoyo: [] };
+            return {
+                aula_id: aulaId,
+                a_cargo: info.a_cargo ?? cuenta?.id ?? null,
+                apoyo: (info.apoyo ?? []).map((a) =>
+                    typeof a === 'object' && a !== null ? a.id : Number(a)
+                ),
+            };
+        });
+
         const cuerpo = {
             asignatura_id: asignaturaId,
             tipo,
@@ -414,6 +498,7 @@ function Asistente({ asignaturas, tipos, periodos, inicial, pasoInicial, onExame
             normas_marcadas: marcadas,
             grupos: elegidosIds,
             aulas,
+            personal: personalPayload,
         };
         try {
             const { data } = examen
@@ -430,6 +515,16 @@ function Asistente({ asignaturas, tipos, periodos, inicial, pasoInicial, onExame
             setConservadas(sueltasDe(guardado).map((n) => n.id));
             setGrupos((guardado.grupos_detalle ?? []).map((g) => g.id));
             setAulas((guardado.aulas_detalle ?? []).map((a) => a.aula_id));
+
+            const nuevoMapa = {};
+            for (const a of guardado.aulas_detalle ?? []) {
+                nuevoMapa[a.aula_id] = {
+                    a_cargo: a.a_cargo?.id ?? null,
+                    apoyo: Array.isArray(a.apoyo) ? a.apoyo : [],
+                    codigo: a.codigo ?? null,
+                };
+            }
+            setAtencion(nuevoMapa);
             setPaso(3);
             onExamen(guardado);
             avisar(sinPunto(data.message ?? (examen ? 'Examen guardado' : 'Examen registrado')));
@@ -814,6 +909,11 @@ function Asistente({ asignaturas, tipos, periodos, inicial, pasoInicial, onExame
                                 {errorDe('aulas')}
                             </p>
                         )}
+                        {errorDe('personal') && (
+                            <p role="alert" className={ERROR}>
+                                {errorDe('personal')}
+                            </p>
+                        )}
                         {rechazo && (
                             <p role="alert" className={ERROR}>
                                 {rechazo}
@@ -841,6 +941,42 @@ function Asistente({ asignaturas, tipos, periodos, inicial, pasoInicial, onExame
                             alto="h-56 lg:h-80"
                         />
                     </Tarjeta>
+                    <div className="lg:col-span-2">
+                        <AtencionAulas
+                            aulas={aulas}
+                            nombreAula={nombreAula}
+                            ubicacionAula={(id) => {
+                                const a = catalogo.find((item) => item.id === id);
+                                return a ? ubicacionDe(a, facultad) : '';
+                            }}
+                            docentesDisponibles={
+                                cuenta?.id
+                                    ? [
+                                          { id: cuenta.id, nombre: cuenta.nombre },
+                                          ...elegidos
+                                              .filter(
+                                                  (g) => g.docente && g.docente !== cuenta.nombre
+                                              )
+                                              .map((g) => ({
+                                                  id: g.docente_id ?? g.id,
+                                                  nombre: g.docente,
+                                              })),
+                                      ]
+                                    : elegidos
+                                          .filter((g) => g.docente)
+                                          .map((g) => ({
+                                              id: g.docente_id ?? g.id,
+                                              nombre: g.docente,
+                                          }))
+                            }
+                            cuenta={cuenta}
+                            atencion={atencion}
+                            onCambiarAtencion={setAtencion}
+                            examenId={examen?.id}
+                            fechaExamen={fecha}
+                            errores={errores}
+                        />
+                    </div>
                 </div>
             )}
 
