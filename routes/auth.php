@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Administracion\Http\Controllers\AuthenticationController;
+use App\Modules\Examenes\Http\Controllers\AccesoCodigoAulaController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api/auth')
@@ -29,4 +30,13 @@ Route::prefix('api/auth')
         // Sin `auth`: un invitado recibe aqui su 401 con el mensaje propio.
         Route::get('/sesion', [AuthenticationController::class, 'sesion'])
             ->name('sesion');
+
+        Route::post('/codigo-aula', [AccesoCodigoAulaController::class, 'ingresar'])
+            ->name('codigo-aula');
+
+        Route::post('/codigo-aula/salir', [AccesoCodigoAulaController::class, 'salir'])
+            ->name('codigo-aula.salir');
+
+        Route::get('/codigo-aula/sesion', [AccesoCodigoAulaController::class, 'sesion'])
+            ->name('codigo-aula.sesion');
     });

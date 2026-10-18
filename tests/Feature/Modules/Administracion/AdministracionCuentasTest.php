@@ -345,7 +345,7 @@ final class AdministracionCuentasTest extends TestCase
 
         $this->app->make('auth')->forgetGuards();
 
-        // El acceso es por usuario y no revela por qué se rechaza.
+        // El acceso es por usuario y no dice por que rechaza.
         $this->postJson('/api/auth/login', [
             'usuario' => $this->cuenta->usuario,
             'password' => 'password',

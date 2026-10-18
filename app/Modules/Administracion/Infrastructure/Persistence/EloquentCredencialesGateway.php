@@ -49,13 +49,10 @@ final class EloquentCredencialesGateway implements CredencialesGateway
         }
 
         $table = DB::table('password_reset_tokens');
-        /** @var object{created_at: string|null}|null $existente */
+        /** @var object{email: string, token: string, created_at: string|\DateTimeInterface|null}|null $existente */
         $existente = (clone $table)->where('email', $correoNormalizado)->first();
-
-        $configuracionThrottle = config('auth.passwords.users.throttle', 60);
-        $throttle = is_numeric($configuracionThrottle)
-            ? max(0, (int) $configuracionThrottle)
-            : 60;
+        $cfgThrottle = config('auth.passwords.users.throttle', 60);
+        $throttle = is_numeric($cfgThrottle) ? (int) $cfgThrottle : 60;
 
         if (
             $existente !== null
@@ -66,10 +63,8 @@ final class EloquentCredencialesGateway implements CredencialesGateway
         }
 
         $token = Str::random(64);
-        $configuracionExpire = config('auth.passwords.users.expire', 60);
-        $expire = is_numeric($configuracionExpire)
-            ? max(1, (int) $configuracionExpire)
-            : 60;
+        $cfgExpire = config('auth.passwords.users.expire', 60);
+        $expire = is_numeric($cfgExpire) ? (int) $cfgExpire : 60;
         $enlace = URL::to('/restablecer-contrasena?'.http_build_query([
             'correo' => $correoNormalizado,
             'token' => $token,
@@ -92,17 +87,20 @@ final class EloquentCredencialesGateway implements CredencialesGateway
         $correoNormalizado = mb_strtolower(trim($correo));
 
         return DB::transaction(function () use ($correoNormalizado, $token, $contrasena): bool {
-            /** @var object{token: string, created_at: string|null}|null $fila */
+            /** @var object{email: string, token: string, created_at: string|\DateTimeInterface|null}|null $fila */
             $fila = DB::table('password_reset_tokens')
                 ->where('email', $correoNormalizado)
                 ->lockForUpdate()
                 ->first();
 
+            $cfgExpire = config('auth.passwords.users.expire', 60);
+            $expire = is_numeric($cfgExpire) ? (int) $cfgExpire : 60;
+
             if (
                 $fila === null
                 || ! Hash::check($token, $fila->token)
                 || $fila->created_at === null
-                || now()->diffInMinutes($fila->created_at) > $this->minutosExpiracion()
+                || now()->diffInMinutes($fila->created_at) > $expire
             ) {
                 return false;
             }
@@ -127,21 +125,10 @@ final class EloquentCredencialesGateway implements CredencialesGateway
 
             DB::table('password_reset_tokens')->where('email', $correoNormalizado)->delete();
             $usuarioId = $usuario->getKey();
-
-            if (! is_int($usuarioId)) {
-                throw new \LogicException('Identificador de usuario inválido.');
-            }
-
-            DB::table('sessions')->where('user_id', (string) $usuarioId)->delete();
+            $sesionUserId = is_scalar($usuarioId) ? (string) $usuarioId : '';
+            DB::table('sessions')->where('user_id', $sesionUserId)->delete();
 
             return true;
         }, 3);
-    }
-
-    private function minutosExpiracion(): int
-    {
-        $valor = config('auth.passwords.users.expire', 60);
-
-        return is_numeric($valor) ? max(1, (int) $valor) : 60;
     }
 }

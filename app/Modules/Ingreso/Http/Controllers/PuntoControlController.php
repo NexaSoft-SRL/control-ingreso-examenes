@@ -7,6 +7,8 @@ namespace App\Modules\Ingreso\Http\Controllers;
 use App\Modules\Ingreso\Application\Actions\RegistrarIngreso;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
+use App\Modules\Ingreso\Application\Contracts\IncidenciasIngresoGateway;
+use App\Modules\Ingreso\Application\Contracts\IngresosRecientesGateway;
 use App\Modules\Ingreso\Application\Queries\ConsultarCandidato;
 use App\Modules\Ingreso\Application\Queries\ConsultarIncidenciasIngreso;
 use App\Modules\Ingreso\Application\Queries\ConsultarIngresosRecientes;
@@ -30,13 +32,14 @@ final class PuntoControlController
         ConsultarCandidato $consulta,
         CodigoQrGateway $qr,
     ): JsonResponse {
+        $acceso = $request->attributes->get('acceso_codigo_aula');
         $usuario = Auth::id();
 
-        if (! is_int($usuario)) {
+        if ($acceso === null && ! is_int($usuario)) {
             return $this->error('No hay una sesión activa.', 401);
         }
 
-        if (! $alcance->puedeOperar($usuario, $examen, $aula)) {
+        if ($acceso === null && ! $alcance->puedeOperar((int) $usuario, $examen, $aula)) {
             return $this->error('Punto de control no autorizado.', 403);
         }
 
@@ -90,13 +93,14 @@ final class PuntoControlController
         RegistrarIngreso $registrar,
         CodigoQrGateway $qr,
     ): JsonResponse {
+        $acceso = $request->attributes->get('acceso_codigo_aula');
         $usuario = Auth::id();
 
-        if (! is_int($usuario)) {
+        if ($acceso === null && ! is_int($usuario)) {
             return $this->error('No hay una sesión activa.', 401);
         }
 
-        if (! $alcance->puedeOperar($usuario, $examen, $aula)) {
+        if ($acceso === null && ! $alcance->puedeOperar((int) $usuario, $examen, $aula)) {
             return $this->error('Punto de control no autorizado.', 403);
         }
 
@@ -114,12 +118,17 @@ final class PuntoControlController
                 $tipo = 'codigo';
             }
 
+            $accesoId = is_object($acceso) && property_exists($acceso, 'id') && is_numeric($acceso->id)
+                ? (int) $acceso->id
+                : null;
+
             $veredicto = $registrar->ejecutar(
-                $usuario,
+                is_int($usuario) ? $usuario : null,
                 $examen,
                 $aula,
                 $tipo,
                 $identificador,
+                $accesoId,
             );
         } catch (AccesoPuntoDenegado $error) {
             return $this->error($error->getMessage(), 403);
@@ -149,14 +158,16 @@ final class PuntoControlController
         int $aula,
         AlcancePuntoControl $alcance,
         ConsultarIngresosRecientes $consulta,
+        IngresosRecientesGateway $ingresosGateway,
     ): JsonResponse {
+        $acceso = $request->attributes->get('acceso_codigo_aula');
         $usuario = Auth::id();
 
-        if (! is_int($usuario)) {
+        if ($acceso === null && ! is_int($usuario)) {
             return $this->error('No hay una sesión activa.', 401);
         }
 
-        if (! $alcance->puedeOperar($usuario, $examen, $aula)) {
+        if ($acceso === null && ! $alcance->puedeOperar((int) $usuario, $examen, $aula)) {
             return $this->error('Punto de control no autorizado.', 403);
         }
 
@@ -164,13 +175,22 @@ final class PuntoControlController
             'limite' => ['sometimes', 'integer', 'min:1', 'max:50'],
         ]);
 
+        $limite = $request->integer('limite', 20);
+
         try {
-            $filas = $consulta->ejecutar(
-                $usuario,
-                $examen,
-                $aula,
-                $request->integer('limite', 20),
-            );
+            if ($acceso !== null) {
+                if ($limite < 1 || $limite > 50) {
+                    throw new InvalidArgumentException('Parámetros de consulta inválidos.');
+                }
+                $filas = $ingresosGateway->recientes($examen, $aula, $limite);
+            } else {
+                $filas = $consulta->ejecutar(
+                    (int) $usuario,
+                    $examen,
+                    $aula,
+                    $limite,
+                );
+            }
         } catch (AccesoPuntoDenegado $error) {
             return $this->error($error->getMessage(), 403);
         } catch (InvalidArgumentException $error) {
@@ -189,14 +209,16 @@ final class PuntoControlController
         int $aula,
         AlcancePuntoControl $alcance,
         ConsultarIncidenciasIngreso $consulta,
+        IncidenciasIngresoGateway $incidenciasGateway,
     ): JsonResponse {
+        $acceso = $request->attributes->get('acceso_codigo_aula');
         $usuario = Auth::id();
 
-        if (! is_int($usuario)) {
+        if ($acceso === null && ! is_int($usuario)) {
             return $this->error('No hay una sesión activa.', 401);
         }
 
-        if (! $alcance->puedeOperar($usuario, $examen, $aula)) {
+        if ($acceso === null && ! $alcance->puedeOperar((int) $usuario, $examen, $aula)) {
             return $this->error('Punto de control no autorizado.', 403);
         }
 
@@ -204,13 +226,22 @@ final class PuntoControlController
             'limite' => ['sometimes', 'integer', 'min:1', 'max:50'],
         ]);
 
+        $limite = $request->integer('limite', 20);
+
         try {
-            $filas = $consulta->ejecutar(
-                $usuario,
-                $examen,
-                $aula,
-                $request->integer('limite', 20),
-            );
+            if ($acceso !== null) {
+                if ($limite < 1 || $limite > 50) {
+                    throw new InvalidArgumentException('Parámetros de consulta inválidos.');
+                }
+                $filas = $incidenciasGateway->recientes($examen, $aula, $limite);
+            } else {
+                $filas = $consulta->ejecutar(
+                    (int) $usuario,
+                    $examen,
+                    $aula,
+                    $limite,
+                );
+            }
         } catch (AccesoPuntoDenegado $error) {
             return $this->error($error->getMessage(), 403);
         } catch (InvalidArgumentException $error) {

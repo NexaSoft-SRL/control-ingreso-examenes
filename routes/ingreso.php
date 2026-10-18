@@ -9,6 +9,7 @@ use App\Modules\Ingreso\Http\Controllers\IngresosRecientesEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\PuntoControlController;
 use App\Modules\Ingreso\Http\Controllers\RegistrarIngresoEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\SeguimientoAulaController;
+use App\Modules\Ingreso\Http\Middleware\VerificarAccesoPuntoControl;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'permiso:punto_control'])
@@ -47,7 +48,7 @@ Route::middleware(['auth', 'permiso:punto_control'])
     ->get('api/punto-control/contexto', ContextoPuntoControlController::class)
     ->name('ingreso.contexto');
 
-Route::middleware(['auth', 'permiso:punto_control'])
+Route::middleware([VerificarAccesoPuntoControl::class])
     ->prefix('api/examenes/{examen}/aulas/{aula}/punto-control')
     ->whereNumber('examen')
     ->whereNumber('aula')

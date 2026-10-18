@@ -18,6 +18,7 @@ interface IngresoGateway
         int $examenId,
         int $estudianteId,
         int $aulaId,
-        int $usuarioId,
+        ?int $usuarioId = null,
+        ?int $accesoCodigoAulaId = null,
     ): bool;
 }

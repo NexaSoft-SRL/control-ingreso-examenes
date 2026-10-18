@@ -15,14 +15,16 @@ use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresosRecientesGateway;
 use App\Modules\Ingreso\Application\Contracts\SeguimientoAulaGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
-use App\Modules\Ingreso\Infrastructure\Persistence\AlcancePuntoControlSinAsignaciones;
-use App\Modules\Ingreso\Infrastructure\Persistence\ContextoOperativoSinAsignaciones;
+use App\Modules\Ingreso\Application\Contracts\VerificacionPuntoControlGateway;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentAlcancePuntoControl;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentContextoOperativoPuntoControl;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEstadoExpulsionGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentExamenesDePuerta;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIncidenciaIngresoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIncidenciasIngresoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIngresosRecientesGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentSeguimientoAulaGateway;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentVerificacionPuntoControlGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\IngresoAuditadoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\VentanaExamen;
 use App\Modules\Ingreso\Infrastructure\QR\CodigoQrCifrado;
@@ -63,12 +65,12 @@ final class IngresoServiceProvider extends ServiceProvider
 
         $this->app->bind(
             AlcancePuntoControl::class,
-            AlcancePuntoControlSinAsignaciones::class,
+            EloquentAlcancePuntoControl::class,
         );
 
         $this->app->bind(
             ContextoOperativoPuntoControl::class,
-            ContextoOperativoSinAsignaciones::class,
+            EloquentContextoOperativoPuntoControl::class,
         );
 
         $this->app->bind(
@@ -86,5 +88,9 @@ final class IngresoServiceProvider extends ServiceProvider
             CodigoQrCifrado::class,
         );
 
+        $this->app->bind(
+            VerificacionPuntoControlGateway::class,
+            EloquentVerificacionPuntoControlGateway::class,
+        );
     }
 }
