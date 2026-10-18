@@ -25,7 +25,11 @@ final class GestionarSesionUsuario
 
         $ahora = now()->getTimestamp();
         $ultimaActividad = $request->session()->get('usuario_ultima_actividad');
-        $limite = max(1, (int) config('auth_security.inactividad_minutos', 15)) * 60;
+        $configuracion = config('auth_security.inactividad_minutos', 15);
+        $minutos = is_numeric($configuracion)
+            ? max(1, (int) $configuracion)
+            : 15;
+        $limite = $minutos * 60;
 
         if (is_int($ultimaActividad) && $ahora - $ultimaActividad >= $limite) {
             Auth::guard('web')->logout();

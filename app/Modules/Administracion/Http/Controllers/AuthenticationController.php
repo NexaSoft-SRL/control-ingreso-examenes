@@ -159,12 +159,15 @@ class AuthenticationController
     ): JsonResponse {
         $usuarioId = Auth::id();
 
+        /** @var array{contrasena_actual: string, password: string} $datos */
+        $datos = $request->validated();
+
         if (
             ! is_int($usuarioId)
             || ! $cambiar->execute(
                 $usuarioId,
-                $request->validated('contrasena_actual'),
-                $request->validated('password'),
+                $datos['contrasena_actual'],
+                $datos['password'],
             )
         ) {
             return response()->json([
@@ -198,7 +201,10 @@ class AuthenticationController
         SolicitarRestablecimientoRequest $request,
         SolicitarRestablecimientoContrasena $solicitar,
     ): JsonResponse {
-        $solicitar->execute($request->validated('correo'));
+        /** @var array{correo: string} $datos */
+        $datos = $request->validated();
+
+        $solicitar->execute($datos['correo']);
 
         return response()->json([
             'message' => 'Si la cuenta tiene ese correo de contacto, enviaremos instrucciones para recuperar el acceso.',
@@ -209,6 +215,7 @@ class AuthenticationController
         RestablecerContrasenaRequest $request,
         RestablecerContrasena $restablecer,
     ): JsonResponse {
+        /** @var array{correo: string, token: string, password: string} $datos */
         $datos = $request->validated();
 
         if (! $restablecer->execute($datos['correo'], $datos['token'], $datos['password'])) {
@@ -238,6 +245,11 @@ class AuthenticationController
      */
     private function usuario(SesionData $sesion): array
     {
+        $configuracion = config('auth_security.inactividad_minutos', 15);
+        $inactividadMinutos = is_numeric($configuracion)
+            ? max(1, (int) $configuracion)
+            : 15;
+
         return [
             'id' => $sesion->id,
             'nombre' => $sesion->nombre,
@@ -249,7 +261,7 @@ class AuthenticationController
             'permisos' => $sesion->permisos,
             // El cambio obligatorio de la temporal llega con HU-16.
             'debe_cambiar_contrasena' => $sesion->debeCambiarContrasena,
-            'sesion_expira_en_minutos' => (int) config('auth_security.inactividad_minutos', 15),
+            'sesion_expira_en_minutos' => $inactividadMinutos,
             'docente_id' => $sesion->docenteId,
             'name' => $sesion->nombre,
             'email' => $sesion->correo ?? '',
