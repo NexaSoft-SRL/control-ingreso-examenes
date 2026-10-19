@@ -79,6 +79,34 @@ describe('Seguimiento HU-21', () => {
         expect(screen.getByText('Actualización automática cada 15 segundos')).toBeInTheDocument();
     });
 
+    it('abre el aula que llega en la dirección desde «En curso»', async () => {
+        const otra = { ...aula, aula_id: 8, aula: 'A-102' };
+        api.get.mockImplementation((ruta) => {
+            if (ruta === '/seguimiento/aulas') {
+                return Promise.resolve({ data: { data: [aula, otra] } });
+            }
+
+            if (ruta === '/seguimiento/examenes/10/aulas/8') {
+                return Promise.resolve({
+                    data: { data: { ...detalle, aula: { id: 8, nombre: 'A-102' } } },
+                });
+            }
+
+            return Promise.reject(new Error(`Ruta inesperada: ${ruta}`));
+        });
+
+        renderConSesion(<Seguimiento />, {
+            usuario: usuarioDePrueba('Docente'),
+            ruta: '/seguimiento?examen=10&aula=8',
+        });
+
+        expect(await screen.findByRole('heading', { name: 'Aula A-102' })).toBeInTheDocument();
+        expect(api.get).not.toHaveBeenCalledWith(
+            '/seguimiento/examenes/10/aulas/7',
+            expect.anything()
+        );
+    });
+
     it('distingue un error del servidor de una pérdida de conexión', async () => {
         api.get.mockImplementation((ruta) => {
             if (ruta === '/seguimiento/aulas') {
