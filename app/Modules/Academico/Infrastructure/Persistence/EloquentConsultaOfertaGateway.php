@@ -222,7 +222,19 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
                 })
             );
 
-        $this->enPeriodos($consulta, 'g.periodo_id', $filtros['periodo_ids']);
+        /** @var list<int> $periodos */
+        $periodos = $filtros['periodo_ids'];
+        if (empty($periodos)) {
+            $hoy = $this->hoy();
+            /** @var list<int> $periodos */
+            $periodos = DB::table('periodos')
+                ->where('fecha_inicio', '<=', $hoy)
+                ->where('fecha_fin', '>=', $hoy)
+                ->pluck('id')
+                ->all();
+        }
+
+        $this->enPeriodos($consulta, 'g.periodo_id', $periodos);
 
         if ($texto !== '') {
             $consulta->where(function (Builder $q) use ($texto): void {
@@ -255,7 +267,7 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
 
         $inscritos = $this->inscritosPorAsignatura(
             $asignaturaIds,
-            $filtros['periodo_ids'],
+            $periodos,
             $facultadId,
         );
 
@@ -308,7 +320,19 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
             $consulta->where('pe.carrera_id', $filtros['carrera_id']);
         }
 
-        $this->enPeriodos($consulta, 'g.periodo_id', $filtros['periodo_ids']);
+        /** @var list<int> $periodos */
+        $periodos = $filtros['periodo_ids'];
+        if (empty($periodos)) {
+            $hoy = $this->hoy();
+            /** @var list<int> $periodos */
+            $periodos = DB::table('periodos')
+                ->where('fecha_inicio', '<=', $hoy)
+                ->where('fecha_fin', '>=', $hoy)
+                ->pluck('id')
+                ->all();
+        }
+
+        $this->enPeriodos($consulta, 'g.periodo_id', $periodos);
 
         $texto = $this->normalizar((string) ($filtros['buscar'] ?? ''));
         if ($texto !== '') {
@@ -364,7 +388,19 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
             ->where('g.asignatura_id', $asignaturaId)
             ->when($facultadId > 0, fn (Builder $q) => $q->where('g.facultad_id', $facultadId));
 
-        $this->enPeriodos($consulta, 'g.periodo_id', $periodoIds);
+        /** @var list<int> $periodos */
+        $periodos = $periodoIds;
+        if (empty($periodos)) {
+            $hoy = $this->hoy();
+            /** @var list<int> $periodos */
+            $periodos = DB::table('periodos')
+                ->where('fecha_inicio', '<=', $hoy)
+                ->where('fecha_fin', '>=', $hoy)
+                ->pluck('id')
+                ->all();
+        }
+
+        $this->enPeriodos($consulta, 'g.periodo_id', $periodos);
 
         $total = (clone $consulta)->count('g.id');
         $texto = $this->normalizar((string) ($buscar ?? ''));
@@ -376,7 +412,8 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
             );
         }
 
-        $consulta->orderByRaw('g.codigo COLLATE "C"');
+        $consulta->orderByRaw("CAST(NULLIF(regexp_replace(g.codigo, '\D', '', 'g'), '') AS INTEGER) ASC NULLS LAST");
+        $consulta->orderByRaw('g.codigo ASC');
 
         $filas = $consulta
             ->forPage($pagina->pagina, $pagina->porPagina)
