@@ -110,11 +110,11 @@ describe('Oferta académica', () => {
         montar();
         await cargada();
 
-        expect(screen.getByText('Períodos vigentes')).toBeInTheDocument();
+        expect(screen.getByText(/Períodos 2\/2026 y 0\/2026/)).toBeInTheDocument();
 
         fireEvent.change(screen.getByLabelText('Facultad'), { target: { value: 'fcyt' } });
         await waitFor(() =>
-            expect(screen.getByText('Períodos vigentes · FCyT')).toBeInTheDocument()
+            expect(screen.getByText(/Períodos 2\/2026 y 0\/2026 · FCyT/)).toBeInTheDocument()
         );
 
         fireEvent.change(await screen.findByLabelText('Carrera'), {
@@ -122,13 +122,13 @@ describe('Oferta académica', () => {
         });
         await waitFor(() =>
             expect(
-                screen.getByText('Períodos vigentes · FCyT · Ingeniería de Sistemas')
+                screen.getByText(/Períodos 2\/2026 y 0\/2026 · FCyT · Ingeniería de Sistemas/)
             ).toBeInTheDocument()
         );
 
         fireEvent.change(screen.getByLabelText('Carrera'), { target: { value: '11' } });
         await waitFor(() =>
-            expect(screen.getByText('Período anual · FCyT · Arquitectura')).toBeInTheDocument()
+            expect(screen.getByText(/Período anual · FCyT · Arquitectura/)).toBeInTheDocument()
         );
     });
 
