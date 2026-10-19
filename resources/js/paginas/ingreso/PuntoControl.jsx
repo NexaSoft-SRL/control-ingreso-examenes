@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import LectorQr from './LectorQr';
 import { ClipboardCheck, DoorOpen, LogOut, RefreshCw, Search } from 'lucide-react';
 import { api } from '../../api/cliente';
@@ -66,7 +67,9 @@ Aula.propTypes = {
 export default function PuntoControl() {
     const [examenes, setExamenes] = useState([]);
     const [cargandoExamenes, setCargandoExamenes] = useState(true);
-    const [aulaId, setAulaId] = useState('');
+    // `?aula=` llega desde «En curso» (HU-22) con el aula ya elegida.
+    const [parametros] = useSearchParams();
+    const [aulaId, setAulaId] = useState(() => parametros.get('aula') ?? '');
     const [tipo, setTipo] = useState('codigo');
     const [identificador, setIdentificador] = useState('');
     const [candidato, setCandidato] = useState(null);

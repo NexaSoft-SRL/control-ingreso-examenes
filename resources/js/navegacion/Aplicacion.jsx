@@ -23,6 +23,7 @@ export const PAGINAS = {
     '/examenes': lazy(() => import('../paginas/examenes/Examenes')),
     '/examenes/nuevo': lazy(() => import('../paginas/examenes/RegistrarExamen')),
     '/habilitacion': lazy(() => import('../paginas/habilitacion/Habilitacion')),
+    '/en-curso': lazy(() => import('../paginas/monitoreo/EnCurso')),
     '/punto-control': lazy(() => import('../paginas/ingreso/PuntoControl')),
     '/seguimiento': lazy(() => import('../paginas/ingreso/Seguimiento')),
     '/mis-grupos': lazy(() => import('../paginas/docente/MisGrupos')),

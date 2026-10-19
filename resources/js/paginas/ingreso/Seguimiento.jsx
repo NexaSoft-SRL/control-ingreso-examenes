@@ -14,7 +14,7 @@ import {
     UserPlus,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { estadoDe, mensajeDe } from '../../api/errores';
 import { usarSesion } from '../../sesion/SesionContexto';
@@ -232,7 +232,13 @@ export default function Seguimiento() {
     const { usuario } = usarSesion();
     const esDocente = usuario?.rol === 'Docente';
     const [aulas, setAulas] = useState([]);
-    const [seleccion, setSeleccion] = useState(null);
+    // `?examen=&aula=` llega desde «En curso» (HU-22) con el aula ya elegida.
+    const [parametros] = useSearchParams();
+    const [seleccion, setSeleccion] = useState(() => {
+        const examenId = Number(parametros.get('examen'));
+        const aulaId = Number(parametros.get('aula'));
+        return examenId && aulaId ? { examen_id: examenId, aula_id: aulaId } : null;
+    });
     const [detalle, setDetalle] = useState(null);
     const [estado, setEstado] = useState('faltan');
     const [busqueda, setBusqueda] = useState('');
