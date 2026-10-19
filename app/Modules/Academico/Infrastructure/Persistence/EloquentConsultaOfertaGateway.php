@@ -24,7 +24,10 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
         $aulas = $this->conteoPorFacultad('aulas');
         $facultades = [];
 
-        foreach (DB::table('facultades')->orderBy('orden')->orderBy('id')->get() as $fila) {
+        /** @var list<\stdClass> $filas */
+        $filas = DB::table('facultades')->orderBy('orden')->orderBy('id')->get()->all();
+
+        foreach ($filas as $fila) {
             $id = $this->entero($fila->id);
 
             $facultades[] = [
@@ -128,7 +131,10 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
 
         $oferta = [];
 
-        foreach (DB::table('facultades')->orderBy('orden')->orderBy('id')->get() as $fila) {
+        /** @var list<\stdClass> $filas */
+        $filas = DB::table('facultades')->orderBy('orden')->orderBy('id')->get()->all();
+
+        foreach ($filas as $fila) {
             $id = $this->entero($fila->id);
             $importacion = $this->importacionDe($id);
 
@@ -185,11 +191,8 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
     }
 
     /**
-     * Asignaturas de la oferta con sus grupos e inscritos, filtradas por
-     * periodo, facultad, carrera, nivel y busqueda.
-     *
      * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null}  $filtros
-     * @return array{filas: list<array<string, mixed>>, total: int}
+     * @return array{filas: list<array<string, mixed>>, total: int, total_grupos: int}
      */
     public function asignaturasDeOferta(array $filtros, PaginaData $pagina): array
     {
@@ -215,7 +218,7 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
                     $sub->selectRaw('1')
                         ->from('plan_estudios as pe')
                         ->whereColumn('pe.asignatura_id', 'g.asignatura_id')
-                        ->where('pe.nivel', $filtros['nivel']);
+                        ->whereRaw('upper(pe.nivel) = ?', [mb_strtoupper((string) $filtros['nivel'])]);
                 })
             );
 
@@ -223,18 +226,19 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
 
         if ($texto !== '') {
             $consulta->where(function (Builder $q) use ($texto): void {
-                $q->whereRaw($this->sinTildes('a.nombre').' like ?', ['%'.$texto.'%'])
-                    ->orWhereRaw($this->sinTildes('a.codigo').' like ?', ['%'.$texto.'%'])
+                $q->whereRaw($this->sinTildes('a.nombre').' like ?', [$this->patron($texto)])
+                    ->orWhereRaw($this->sinTildes('a.codigo').' like ?', [$this->patron($texto)])
                     ->orWhereExists(function (Builder $sub) use ($texto): void {
                         $sub->selectRaw('1')
                             ->from('docentes as d')
                             ->whereColumn('d.id', 'g.docente_id')
-                            ->whereRaw($this->sinTildes('d.nombre_completo').' like ?', ['%'.$texto.'%']);
+                            ->whereRaw($this->sinTildes('d.nombre_completo').' like ?', [$this->patron($texto)]);
                     });
             });
         }
 
         $total = (clone $consulta)->distinct()->count('a.id');
+        $totalGrupos = (clone $consulta)->distinct()->count('g.id');
 
         $paginadas = $consulta
             ->groupBy('a.id', 'a.codigo', 'a.nombre', 'g.facultad_id', 'f.sigla')
@@ -278,13 +282,11 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
         return [
             'filas' => $filas,
             'total' => $total,
+            'total_grupos' => $totalGrupos,
         ];
     }
 
     /**
-     * Los niveles (semestre o anio) que hay en lo filtrado, en el orden del
-     * plan de estudios, no alfabetico.
-     *
      * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null}  $filtros
      * @return list<string>
      */
@@ -311,8 +313,8 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
         $texto = $this->normalizar((string) ($filtros['buscar'] ?? ''));
         if ($texto !== '') {
             $consulta->where(function (Builder $q) use ($texto): void {
-                $q->whereRaw($this->sinTildes('a.nombre').' like ?', ['%'.$texto.'%'])
-                    ->orWhereRaw($this->sinTildes('a.codigo').' like ?', ['%'.$texto.'%']);
+                $q->whereRaw($this->sinTildes('a.nombre').' like ?', [$this->patron($texto)])
+                    ->orWhereRaw($this->sinTildes('a.codigo').' like ?', [$this->patron($texto)]);
             });
         }
 
@@ -321,14 +323,20 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
             $niveles[] = $this->nivelLegible($this->cadena($fila->nivel));
         }
 
-        // Orden del plan: primero los años (si los hay), luego los semestres,
-        // y dentro de cada uno por número natural.
         usort($niveles, static function (string $a, string $b): int {
-            $aAnio = str_starts_with(mb_strtolower($a), 'año');
-            $bAnio = str_starts_with(mb_strtolower($b), 'año');
+            $anios = [
+                'Primer año' => 1,
+                'Segundo año' => 2,
+                'Tercer año' => 3,
+                'Cuarto año' => 4,
+                'Quinto año' => 5,
+            ];
 
-            if ($aAnio !== $bAnio) {
-                return $aAnio ? -1 : 1;
+            $valA = $anios[$a] ?? (str_starts_with($a, 'Semestre') ? 100 : 50);
+            $valB = $anios[$b] ?? (str_starts_with($b, 'Semestre') ? 100 : 50);
+
+            if ($valA !== $valB) {
+                return $valA <=> $valB;
             }
 
             return strnatcasecmp($a, $b);
@@ -338,9 +346,6 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
     }
 
     /**
-     * Los grupos de una asignatura con su docente, horarios, aula e inscritos.
-     * Cuando hay `$buscar`, los grupos cuyo docente coincide van primero.
-     *
      * @param  list<int>  $periodoIds
      * @return array{filas: list<array<string, mixed>>, total: int}
      */
@@ -348,19 +353,32 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
         int $asignaturaId,
         array $periodoIds,
         ?string $buscar,
+        ?string $facultadClave,
         PaginaData $pagina,
     ): array {
+        $facultadId = $this->facultadId($facultadClave);
+
         $consulta = DB::table('grupos as g')
             ->join('periodos as p', 'p.id', '=', 'g.periodo_id')
             ->leftJoin('docentes as d', 'd.id', '=', 'g.docente_id')
-            ->where('g.asignatura_id', $asignaturaId);
+            ->where('g.asignatura_id', $asignaturaId)
+            ->when($facultadId > 0, fn (Builder $q) => $q->where('g.facultad_id', $facultadId));
 
         $this->enPeriodos($consulta, 'g.periodo_id', $periodoIds);
 
         $total = (clone $consulta)->count('g.id');
+        $texto = $this->normalizar((string) ($buscar ?? ''));
+
+        if ($texto !== '') {
+            $consulta->orderByRaw(
+                'case when '.$this->sinTildes('d.nombre_completo').' like ? then 0 else 1 end',
+                [$this->patron($texto)]
+            );
+        }
+
+        $consulta->orderByRaw('g.codigo COLLATE "C"');
 
         $filas = $consulta
-            ->orderBy('g.codigo')
             ->forPage($pagina->pagina, $pagina->porPagina)
             ->get([
                 'g.id', 'g.codigo', 'g.docente_id',
@@ -375,7 +393,6 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
 
         $horarios = $this->horariosDe($ids);
         $inscritos = $this->inscritosDe($ids);
-        $texto = $this->normalizar((string) ($buscar ?? ''));
 
         $grupos = [];
         foreach ($filas as $fila) {
@@ -385,21 +402,10 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
                 'id' => $id,
                 'codigo' => $this->cadena($fila->codigo),
                 'docente' => $docente,
-                'docente_coincide' => $texto !== '' && $docente !== null
-                    && str_contains($this->normalizar($docente), $texto),
                 'periodo' => $this->cadena($fila->periodo),
                 'horarios' => $horarios[$id] ?? [],
                 'inscritos' => $inscritos[$id] ?? 0,
             ];
-        }
-
-        if ($texto !== '') {
-            usort($grupos, fn (array $a, array $b): int => ($b['docente_coincide'] <=> $a['docente_coincide'])
-                ?: strnatcasecmp($a['codigo'], $b['codigo']));
-        }
-
-        foreach ($grupos as &$grupo) {
-            unset($grupo['docente_coincide']);
         }
 
         return ['filas' => $grupos, 'total' => $total];
@@ -533,8 +539,6 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
                 $grupos[$this->entero($fila->periodo_id)] = $this->entero($fila->total);
             }
 
-            // Las carreras anuales tienen sus grupos en el periodo anual;
-            // las demas, en los otros.
             $conCarrera = DB::table('grupos as g')
                 ->join('periodos as p', 'p.id', '=', 'g.periodo_id')
                 ->join('plan_estudios as pe', 'pe.asignatura_id', '=', 'g.asignatura_id')
@@ -621,9 +625,6 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
         ];
     }
 
-    /**
-     * Acota una consulta sobre `plan_estudios pe` + `carreras c`.
-     */
     private function delPlan(Builder $plan, ?int $facultadId, ?int $carreraId): void
     {
         if ($carreraId !== null) {
@@ -636,9 +637,6 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
     }
 
     /**
-     * El nivel de cada asignatura en la carrera pedida o, sin carrera, el
-     * primero entre las carreras de la facultad.
-     *
      * @param  list<int>  $asignaturaIds
      * @return array<int, string>
      */
@@ -661,7 +659,6 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
 
             if (! isset($niveles[$id]) || strnatcasecmp($nivel, $niveles[$id]) < 0) {
                 $niveles[$id] = $nivel;
-
             }
         }
 
@@ -669,9 +666,6 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
     }
 
     /**
-     * Cuantos inscritos tiene cada asignatura en los periodos y la facultad
-     * indicados.
-     *
      * @param  list<int>  $asignaturaIds
      * @param  list<int>  $periodoIds
      * @return array<int, int>
