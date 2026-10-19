@@ -68,7 +68,7 @@ interface ConsultaOfertaGateway
      * periodo, facultad, carrera, nivel y búsqueda.
      *
      * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null}  $filtros
-     * @return array{filas: list<array<string, mixed>>, total: int}
+     * @return array{filas: list<array<string, mixed>>, total: int, total_grupos: int}
      */
     public function asignaturasDeOferta(array $filtros, PaginaData $pagina): array;
 
@@ -83,6 +83,7 @@ interface ConsultaOfertaGateway
         int $asignaturaId,
         array $periodoIds,
         ?string $buscar,
+        ?string $facultadClave,
         PaginaData $pagina,
     ): array;
 
