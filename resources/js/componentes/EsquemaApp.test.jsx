@@ -83,11 +83,13 @@ describe('EsquemaApp', () => {
         expect(enlaces(menus()[lateral])).toEqual([
             'Exámenes',
             'Mis grupos',
+            'En curso',
             'Punto de control',
             'Seguimiento en vivo',
         ]);
         expect(enlaces(menus()[inferior])).toEqual([
             'Exámenes',
+            'En curso',
             'Punto de control',
             'Seguimiento en vivo',
             'Mis grupos',
@@ -103,7 +105,7 @@ describe('EsquemaApp', () => {
             permisos: ['examenes', 'periodo_oferta'],
         });
 
-        expect(enlaces(menus()[lateral])).toEqual(['Período', 'Oferta', 'Exámenes']);
+        expect(enlaces(menus()[lateral])).toEqual(['Período', 'Oferta', 'Exámenes', 'En curso']);
         expect(screen.getAllByText('Coordinación')).toHaveLength(2);
     });
 

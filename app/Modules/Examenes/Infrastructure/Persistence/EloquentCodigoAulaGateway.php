@@ -7,6 +7,7 @@ namespace App\Modules\Examenes\Infrastructure\Persistence;
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Examenes\Application\Contracts\CodigoAulaGateway;
 use App\Modules\Examenes\Domain\Models\ExamenAulaCodigo;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 final readonly class EloquentCodigoAulaGateway implements CodigoAulaGateway
@@ -40,7 +41,18 @@ final readonly class EloquentCodigoAulaGateway implements CodigoAulaGateway
 
     public function generar(int $examenId, int $aulaId, int $usuarioId): array
     {
-        $codigo = str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+        do {
+            $codigo = str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+            $enUso = DB::table('examen_aula_codigos as c')
+                ->join('examenes as e', 'e.id', '=', 'c.examen_id')
+                ->where('c.codigo', $codigo)
+                ->where(function (Builder $q) use ($examenId, $aulaId): void {
+                    $q->where('c.examen_id', '!=', $examenId)
+                        ->orWhere('c.aula_id', '!=', $aulaId);
+                })
+                ->whereDate('e.fecha', now()->toDateString())
+                ->exists();
+        } while ($enUso);
 
         /** @var ExamenAulaCodigo|null $existente */
         $existente = ExamenAulaCodigo::where('examen_id', $examenId)

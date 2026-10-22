@@ -5,7 +5,7 @@ import { CATALOGO_PERMISOS, usuarioDePrueba } from '../test/apoyo';
 const rutas = (usuario) => vistasDe(usuario).map((v) => v.ruta);
 
 describe('vistas por permiso', () => {
-    it('declara las doce rutas del sprint, cada una con su permiso', () => {
+    it('declara las rutas del sprint, cada una con su permiso', () => {
         expect(VISTAS.map((v) => [v.ruta, v.permiso])).toEqual([
             ['/periodo', 'periodo_oferta'],
             ['/oferta', 'periodo_oferta'],
@@ -15,6 +15,7 @@ describe('vistas por permiso', () => {
             ['/examenes', 'examenes'],
             ['/examenes/nuevo', 'examenes'],
             ['/habilitacion', 'habilitacion'],
+            ['/en-curso', 'examenes'],
             ['/punto-control', 'punto_control'],
             ['/seguimiento', 'seguimiento_vivo'],
             ['/mis-grupos', 'mis_grupos'],
@@ -50,6 +51,7 @@ describe('vistas por permiso', () => {
             '/examenes',
             '/examenes/nuevo',
             '/habilitacion',
+            '/en-curso',
             '/punto-control',
             '/seguimiento',
             '/mis-grupos',
@@ -63,7 +65,13 @@ describe('vistas por permiso', () => {
             rol: 'Coordinación',
             permisos: ['examenes', 'periodo_oferta'],
         });
-        expect(rutas(cuenta)).toEqual(['/periodo', '/oferta', '/examenes', '/examenes/nuevo']);
+        expect(rutas(cuenta)).toEqual([
+            '/periodo',
+            '/oferta',
+            '/examenes',
+            '/examenes/nuevo',
+            '/en-curso',
+        ]);
         expect(entradaDe(cuenta)).toBe('/periodo');
     });
 

@@ -86,30 +86,6 @@ Route::middleware(['auth', 'permiso:seguimiento_vivo'])
         ])->whereNumber('examen')->whereNumber('aula')
             ->name('seguimiento.aula');
 
-        Route::get('examenes/{examen}/asignaciones', [
-            SeguimientoAulaController::class,
-            'asignaciones',
-        ])->whereNumber('examen')
-            ->name('seguimiento.asignaciones');
-
-        Route::get('examenes/{examen}/auxiliares', [
-            SeguimientoAulaController::class,
-            'auxiliares',
-        ])->whereNumber('examen')
-            ->name('seguimiento.auxiliares');
-
-        Route::post('examenes/{examen}/asignaciones', [
-            SeguimientoAulaController::class,
-            'asignar',
-        ])->whereNumber('examen')
-            ->name('seguimiento.asignar');
-
-        Route::delete('examenes/{examen}/asignaciones/{asignacion}', [
-            SeguimientoAulaController::class,
-            'quitarAsignacion',
-        ])->whereNumber('examen')->whereNumber('asignacion')
-            ->name('seguimiento.quitar-asignacion');
-
         Route::patch('incidencias/{incidencia}/atendida', [
             SeguimientoAulaController::class,
             'atenderIncidencia',

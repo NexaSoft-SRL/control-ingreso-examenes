@@ -10,6 +10,7 @@ import {
     ListChecks,
     ScanLine,
     Activity,
+    Radio,
 } from 'lucide-react';
 
 // Fuente única de las pantallas. El menú (EsquemaApp), las rutas
@@ -91,6 +92,15 @@ export const VISTAS = [
         oculta: true,
         padre: '/examenes',
         permiso: 'habilitacion',
+    },
+    // HU-22: el examen en curso del docente. Es de quien ve sus exámenes.
+    {
+        ruta: '/en-curso',
+        titulo: 'En curso',
+        Icono: Radio,
+        grupo: 'Exámenes',
+        movil: true,
+        permiso: 'examenes',
     },
     {
         ruta: '/punto-control',

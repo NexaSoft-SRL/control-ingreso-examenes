@@ -36,12 +36,12 @@ final class OpcionesDeGruposTest extends TestCase
             ->assertOk()
             ->assertExactJson([
                 'propios' => [
-                    ['id' => $dos->id, 'codigo' => '2', 'docente' => 'Blanco Coca Leticia', 'inscritos' => 3, 'periodo' => $this->periodoVigente()->codigo],
-                    ['id' => $diez->id, 'codigo' => '10', 'docente' => 'Blanco Coca Leticia', 'inscritos' => 0, 'periodo' => $this->periodoVigente()->codigo],
+                    ['id' => $dos->id, 'codigo' => '2', 'docente' => 'Blanco Coca Leticia', 'docente_id' => $this->cuenta($docente)->id, 'inscritos' => 3, 'periodo' => $this->periodoVigente()->codigo],
+                    ['id' => $diez->id, 'codigo' => '10', 'docente' => 'Blanco Coca Leticia', 'docente_id' => $this->cuenta($docente)->id, 'inscritos' => 0, 'periodo' => $this->periodoVigente()->codigo],
                 ],
                 'otros' => [
-                    ['id' => $tres->id, 'codigo' => '3', 'docente' => null, 'inscritos' => 1, 'periodo' => $this->periodoVigente()->codigo],
-                    ['id' => $cinco->id, 'codigo' => '5', 'docente' => 'Taborga Acha Fidel', 'inscritos' => 0, 'periodo' => $this->periodoVigente()->codigo],
+                    ['id' => $tres->id, 'codigo' => '3', 'docente' => null, 'docente_id' => null, 'inscritos' => 1, 'periodo' => $this->periodoVigente()->codigo],
+                    ['id' => $cinco->id, 'codigo' => '5', 'docente' => 'Taborga Acha Fidel', 'docente_id' => $this->cuenta($otro)->id, 'inscritos' => 0, 'periodo' => $this->periodoVigente()->codigo],
                 ],
             ]);
     }
