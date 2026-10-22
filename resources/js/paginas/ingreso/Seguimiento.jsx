@@ -10,8 +10,6 @@ import {
     LoaderCircle,
     RefreshCw,
     Search,
-    UserMinus,
-    UserPlus,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -30,7 +28,22 @@ function fechaYHora(fecha, hora) {
 }
 
 function estadoLegible(tipo) {
-    return tipo.replaceAll('_', ' ').toLocaleLowerCase('es');
+    const etiquetas = {
+        OTRA_NOVEDAD: 'Otra novedad',
+        SUPLANTACION: 'Suplantación',
+    };
+    return etiquetas[tipo] ?? tipo.replaceAll('_', ' ').toLocaleLowerCase('es');
+}
+
+function tipoExamenLegible(tipo) {
+    const etiquetas = {
+        PRIMER_PARCIAL: 'Primer parcial',
+        SEGUNDO_PARCIAL: 'Segundo parcial',
+        FINAL: 'Examen final',
+        SEGUNDA_INSTANCIA: 'Segunda instancia',
+        MESA: 'Examen de mesa',
+    };
+    return etiquetas[tipo] ?? tipo;
 }
 
 function Cifras({ cifras }) {
@@ -66,168 +79,6 @@ Cifras.propTypes = {
     }).isRequired,
 };
 
-function GestionarAuxiliares({ aulaSeleccionada, examenId, alCambiar }) {
-    const [abierto, setAbierto] = useState(false);
-    const [datos, setDatos] = useState({ aulas: [], auxiliares: [], data: [] });
-    const [auxiliarId, setAuxiliarId] = useState('');
-    const [aulaId, setAulaId] = useState('');
-    const [cargando, setCargando] = useState(false);
-    const [error, setError] = useState('');
-
-    const cargar = useCallback(async () => {
-        setCargando(true);
-        setError('');
-        try {
-            const { data } = await api.get(`/seguimiento/examenes/${examenId}/asignaciones`);
-            setDatos({
-                aulas: Array.isArray(data?.aulas) ? data.aulas : [],
-                auxiliares: Array.isArray(data?.auxiliares) ? data.auxiliares : [],
-                data: Array.isArray(data?.data) ? data.data : [],
-            });
-        } catch (fallo) {
-            setError(mensajeDe(fallo, 'No se pudieron cargar las asignaciones.'));
-        } finally {
-            setCargando(false);
-        }
-    }, [examenId]);
-
-    useEffect(() => {
-        if (abierto) void cargar();
-    }, [abierto, cargar]);
-
-    const guardar = async (evento) => {
-        evento.preventDefault();
-        if (!auxiliarId || !aulaId) return;
-        setError('');
-        try {
-            await api.post(`/seguimiento/examenes/${examenId}/asignaciones`, {
-                usuario_id: Number(auxiliarId),
-                aula_id: Number(aulaId),
-            });
-            setAuxiliarId('');
-            await cargar();
-            alCambiar();
-        } catch (fallo) {
-            setError(mensajeDe(fallo, 'No se pudo asignar el auxiliar.'));
-        }
-    };
-
-    const quitar = async (id) => {
-        setError('');
-        try {
-            await api.delete(`/seguimiento/examenes/${examenId}/asignaciones/${id}`);
-            await cargar();
-            alCambiar();
-        } catch (fallo) {
-            setError(mensajeDe(fallo, 'No se pudo retirar la asignación.'));
-        }
-    };
-
-    return (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4">
-            <button
-                type="button"
-                className="flex w-full items-center justify-between gap-3 text-left font-semibold text-slate-900"
-                aria-expanded={abierto}
-                onClick={() => setAbierto((valor) => !valor)}
-            >
-                <span className="flex items-center gap-2">
-                    <UserPlus size={18} aria-hidden="true" />
-                    Asignar auxiliares a aulas
-                </span>
-                <span className="text-sm font-medium text-primary-700">
-                    {abierto ? 'Cerrar' : 'Administrar'}
-                </span>
-            </button>
-            {abierto && (
-                <div className="mt-4 space-y-4">
-                    <form className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]" onSubmit={guardar}>
-                        <label className="space-y-1 text-sm font-medium text-slate-700">
-                            Auxiliar
-                            <select
-                                className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
-                                value={auxiliarId}
-                                onChange={(evento) => setAuxiliarId(evento.target.value)}
-                                required
-                            >
-                                <option value="">Seleccionar auxiliar</option>
-                                {datos.auxiliares.map((persona) => (
-                                    <option key={persona.id} value={persona.id}>
-                                        {persona.nombre} · {persona.usuario}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <label className="space-y-1 text-sm font-medium text-slate-700">
-                            Aula
-                            <select
-                                className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
-                                value={aulaId || aulaSeleccionada}
-                                onChange={(evento) => setAulaId(evento.target.value)}
-                                required
-                            >
-                                <option value="">Seleccionar aula</option>
-                                {datos.aulas.map((aula) => (
-                                    <option key={aula.id} value={aula.id}>
-                                        {aula.nombre}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <button
-                            type="submit"
-                            disabled={cargando || !auxiliarId || !(aulaId || aulaSeleccionada)}
-                            className="self-end rounded-lg bg-primary-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                        >
-                            Asignar
-                        </button>
-                    </form>
-                    {error && (
-                        <p role="alert" className="text-sm text-rose-700">
-                            {error}
-                        </p>
-                    )}
-                    {cargando ? (
-                        <p className="text-sm text-slate-600">Cargando asignaciones…</p>
-                    ) : datos.data.length === 0 ? (
-                        <p className="text-sm text-slate-600">Aún no hay auxiliares asignados.</p>
-                    ) : (
-                        <ul className="divide-y divide-slate-100">
-                            {datos.data.map((fila) => (
-                                <li
-                                    key={fila.id}
-                                    className="flex items-center justify-between gap-3 py-2 text-sm"
-                                >
-                                    <span className="min-w-0">
-                                        <span className="block truncate font-medium text-slate-900">
-                                            {fila.auxiliar}
-                                        </span>
-                                        <span className="text-slate-600">{fila.aula}</span>
-                                    </span>
-                                    <button
-                                        type="button"
-                                        className="rounded-lg px-3 py-2 text-rose-700 hover:bg-rose-50"
-                                        onClick={() => void quitar(fila.id)}
-                                        aria-label={`Quitar asignación de ${fila.auxiliar} en ${fila.aula}`}
-                                    >
-                                        <UserMinus size={18} aria-hidden="true" />
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </div>
-            )}
-        </section>
-    );
-}
-
-GestionarAuxiliares.propTypes = {
-    aulaSeleccionada: PropTypes.number.isRequired,
-    examenId: PropTypes.number.isRequired,
-    alCambiar: PropTypes.func.isRequired,
-};
-
 export default function Seguimiento() {
     const { usuario } = usarSesion();
     const esDocente = usuario?.rol === 'Docente';
@@ -248,6 +99,7 @@ export default function Seguimiento() {
     const [error, setError] = useState('');
     const [desconectado, setDesconectado] = useState(false);
     const [accion, setAccion] = useState('');
+    const [aviso, setAviso] = useState('');
     const errores = useRef(0);
     const controlador = useRef(null);
     const seleccionRef = useRef(seleccion);
@@ -345,6 +197,9 @@ export default function Seguimiento() {
 
     useEffect(() => {
         setDetalle(null);
+    }, [seleccion]);
+
+    useEffect(() => {
         if (seleccion) void actualizar();
     }, [actualizar, seleccion]);
 
@@ -368,15 +223,19 @@ export default function Seguimiento() {
 
     const elegirAula = (aula) => {
         setError('');
+        setBusqueda('');
+        setPagina(1);
         setSeleccion({ examen_id: aula.examen_id, aula_id: aula.aula_id });
     };
 
     const atender = async (id) => {
         setAccion(String(id));
         setError('');
+        setAviso('');
         try {
             await api.patch(`/seguimiento/incidencias/${id}/atendida`);
             await actualizar();
+            setAviso('Incidencia atendida.');
         } catch (fallo) {
             setError(mensajeDe(fallo, 'No se pudo atender la incidencia.'));
         } finally {
@@ -404,22 +263,29 @@ export default function Seguimiento() {
                         Asistencia y novedades del examen, sin modificar ingresos.
                     </p>
                 </div>
-                <Link
-                    to="/examenes"
-                    className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                    <ArrowLeft size={16} aria-hidden="true" />
-                    Exámenes
-                </Link>
+                {esDocente && (
+                    <Link
+                        to="/en-curso"
+                        className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                        <ArrowLeft size={16} aria-hidden="true" />
+                        En curso
+                    </Link>
+                )}
             </header>
 
+            {aviso && (
+                <div role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
+                    {aviso}
+                </div>
+            )}
             {desconectado && (
                 <div
                     role="status"
                     className="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900"
                 >
                     <AlertTriangle size={18} aria-hidden="true" />
-                    Sin conexión. Se conservan los últimos datos; se volverá a intentar.
+                    Sin conexión. Se conservan los últimos datos; se reintentará automáticamente.
                 </div>
             )}
             {error && (
@@ -437,8 +303,8 @@ export default function Seguimiento() {
                     <h2 className="mt-3 font-semibold text-slate-900">Sin aulas asignadas</h2>
                     <p className="mt-1 text-sm text-slate-600">
                         {esDocente
-                            ? 'No tienes aulas de examen disponibles para seguimiento.'
-                            : 'Pide al docente del examen que te asigne un aula.'}
+                            ? 'No hay aulas de examen disponibles para seguimiento.'
+                            : 'Todavía no tienes aulas asignadas para el seguimiento.'}
                     </p>
                 </section>
             ) : (
@@ -481,7 +347,8 @@ export default function Seguimiento() {
                                             Aula {detalle.aula.nombre}
                                         </h2>
                                         <p className="mt-1 text-sm text-slate-600">
-                                            {detalle.examen.tipo} · {detalle.examen.asignatura} ·{' '}
+                                            {tipoExamenLegible(detalle.examen.tipo)} ·{' '}
+                                            {detalle.examen.asignatura} ·{' '}
                                             {fechaYHora(detalle.examen.fecha, detalle.examen.hora)}
                                             {' · Servidor '}
                                             {new Date(
@@ -513,14 +380,6 @@ export default function Seguimiento() {
                                     Actualización automática cada 15 segundos
                                 </p>
                             </section>
-
-                            {seleccionada.puede_asignar && (
-                                <GestionarAuxiliares
-                                    examenId={seleccion.examen_id}
-                                    aulaSeleccionada={seleccion.aula_id}
-                                    alCambiar={() => void cargarAulas()}
-                                />
-                            )}
 
                             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
                                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4">
@@ -594,6 +453,9 @@ export default function Seguimiento() {
                                                     </span>
                                                     <span className="block text-xs text-slate-600">
                                                         {estudiante.codigo}
+                                                        {estudiante.grupos?.length
+                                                            ? ` · ${estudiante.grupos.join(', ')}`
+                                                            : ''}
                                                         {estudiante.registrado_en
                                                             ? ` · ${estudiante.registrado_en.slice(11, 16)}`
                                                             : ''}
