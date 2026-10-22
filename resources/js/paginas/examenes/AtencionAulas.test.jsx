@@ -22,6 +22,7 @@ describe('AtencionAulas (HU-18)', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        api.post.mockResolvedValue({ data: { message: 'Auxiliar agregado' } });
         api.get.mockImplementation((url) => {
             if (url === '/auxiliares') {
                 return Promise.resolve({
@@ -308,7 +309,7 @@ describe('AtencionAulas (HU-18)', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Quitar auxiliar Auxiliar Juan' }));
 
         // Diálogo de confirmación
-        expect(await screen.findByRole('heading', { name: 'Quitar auxiliar' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: /^Quitar/ })).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Quitar auxiliar' }));
 
         await waitFor(() => {

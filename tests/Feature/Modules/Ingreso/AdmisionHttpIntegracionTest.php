@@ -289,9 +289,10 @@ final class AdmisionHttpIntegracionTest extends TestCase
 
     public function test_operador_no_autorizado_no_crea_incidencia(): void
     {
-        [$usuario, $examen, $aula, $estudiante] = $this->escenario();
+        [, $examen, $aula, $estudiante] = $this->escenario();
+        $noAutorizado = $this->usuarioConPermisos(['punto_control']);
 
-        $this->actingAs($usuario)
+        $this->actingAs($noAutorizado)
             ->postJson($this->url($examen, $aula), [
                 'tipo' => 'codigo',
                 'identificador' => $estudiante->codigo_universitario,

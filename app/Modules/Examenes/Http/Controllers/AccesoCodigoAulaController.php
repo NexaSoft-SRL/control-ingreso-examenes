@@ -23,18 +23,28 @@ final class AccesoCodigoAulaController
             ], Response::HTTP_TOO_MANY_REQUESTS);
         }
 
-        $request->validate([
-            'codigo' => ['required', 'string', 'regex:/^[0-9]{6}$/'],
-            'nombre_colaborador' => ['required', 'string', 'min:3', 'max:120'],
-        ], [
-            'codigo.required' => 'Seis dígitos',
-            'codigo.regex' => 'Seis dígitos',
-            'nombre_colaborador.required' => 'Mínimo 3 caracteres',
-            'nombre_colaborador.min' => 'Mínimo 3 caracteres',
-        ]);
-
         $codigo = trim($request->string('codigo')->toString());
         $nombreColaborador = trim($request->string('nombre_colaborador')->toString());
+
+        $errores = [];
+        if ($codigo === '' || ! preg_match('/^[0-9]{6}$/', $codigo)) {
+            $errores['codigo'] = ['Seis dígitos'];
+        }
+
+        if ($nombreColaborador === '' || mb_strlen($nombreColaborador) < 3) {
+            $errores['nombre_colaborador'] = ['Mínimo 3 caracteres'];
+        } elseif (mb_strlen($nombreColaborador) > 120) {
+            $errores['nombre_colaborador'] = ['Máximo 120 caracteres'];
+        }
+
+        if ($errores !== []) {
+            $primerError = reset($errores)[0];
+
+            return response()->json([
+                'message' => $primerError,
+                'errors' => $errores,
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         $resultado = $gateway->ingresar($codigo, $nombreColaborador);
 

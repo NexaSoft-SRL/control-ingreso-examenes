@@ -321,13 +321,13 @@ describe('RegistrarExamen · paso 1, examen', () => {
         expect(screen.getByRole('heading', { name: 'Registrar examen' })).toBeInTheDocument();
         expect(screen.getByText('Período 2/2026')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /Exámenes/ })).toHaveAttribute('href', '/examenes');
-        // Sin el paso «Quién atiende».
+        // Con el paso «Quién atiende» (BUG-17).
         const pasos = screen.getAllByRole('list')[0];
         expect(
             within(pasos)
                 .getAllByRole('listitem')
                 .map((p) => p.textContent)
-        ).toEqual(['1Examen', '2Grupos', '3Aulas', '4Listo']);
+        ).toEqual(['1Examen', '2Grupos', '3Aulas', '4Quién atiende', '5Listo']);
     });
 
     it('sin fecha u hora no avanza y señala «Obligatorio»', async () => {

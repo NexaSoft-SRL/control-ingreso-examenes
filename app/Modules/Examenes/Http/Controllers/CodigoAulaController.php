@@ -21,7 +21,7 @@ final class CodigoAulaController
         $usuarioId = (int) Auth::id();
 
         if (! $alcance->esDocenteDelExamen($usuarioId, $examen)) {
-            return response()->json(['message' => 'Este examen no es tuyo.'], Response::HTTP_FORBIDDEN);
+            return response()->json(['message' => 'Examen no autorizado.'], Response::HTTP_FORBIDDEN);
         }
 
         if (! $gateway->aulaPerteneceAlExamen($examen, $aula)) {
@@ -47,7 +47,7 @@ final class CodigoAulaController
         $usuarioId = (int) Auth::id();
 
         if (! $alcance->esDocenteDelExamen($usuarioId, $examen)) {
-            return response()->json(['message' => 'Este examen no es tuyo.'], Response::HTTP_FORBIDDEN);
+            return response()->json(['message' => 'Examen no autorizado.'], Response::HTTP_FORBIDDEN);
         }
 
         if (! $gateway->aulaPerteneceAlExamen($examen, $aula)) {
