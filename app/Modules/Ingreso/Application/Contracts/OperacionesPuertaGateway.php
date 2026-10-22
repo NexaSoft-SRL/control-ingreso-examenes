@@ -18,6 +18,7 @@ interface OperacionesPuertaGateway
         int $examenId,
         ?int $estudianteId,
     ): ?string;
+
     public function examenDeIngreso(
         int $ingresoId,
         int $aulaId,

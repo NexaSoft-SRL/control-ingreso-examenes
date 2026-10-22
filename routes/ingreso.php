@@ -7,7 +7,9 @@ use App\Modules\Ingreso\Http\Controllers\ExpulsarIngresoEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\IdentificarEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\IncidenciasEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\IngresosRecientesEnPuertaController;
+use App\Modules\Ingreso\Http\Controllers\ListarIncidenciasManualesPuertaController;
 use App\Modules\Ingreso\Http\Controllers\PuntoControlController;
+use App\Modules\Ingreso\Http\Controllers\RegistrarIncidenciaManualPuertaController;
 use App\Modules\Ingreso\Http\Controllers\RegistrarIngresoEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\SeguimientoAulaController;
 use App\Modules\Ingreso\Http\Middleware\VerificarAccesoPuntoControl;
@@ -50,6 +52,22 @@ Route::middleware(['auth', 'permiso:punto_control'])
     ->whereNumber('aula')
     ->whereNumber('ingreso')
     ->name('ingreso.puerta.expulsar');
+
+Route::middleware(['auth', 'permiso:punto_control'])
+    ->post(
+        'api/aulas/{aula}/punto-control/incidencias-manuales',
+        RegistrarIncidenciaManualPuertaController::class,
+    )
+    ->whereNumber('aula')
+    ->name('ingreso.puerta.incidencia-manual');
+
+Route::middleware(['auth', 'permiso:punto_control'])
+    ->get(
+        'api/aulas/{aula}/punto-control/incidencias-manuales',
+        ListarIncidenciasManualesPuertaController::class,
+    )
+    ->whereNumber('aula')
+    ->name('ingreso.puerta.incidencias-manuales');
 
 Route::middleware(['auth', 'permiso:punto_control'])
     ->get('api/punto-control/contexto', ContextoPuntoControlController::class)
