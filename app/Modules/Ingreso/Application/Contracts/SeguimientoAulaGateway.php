@@ -38,30 +38,6 @@ interface SeguimientoAulaGateway
     ): array;
 
     /**
-     * @return list<array<string, mixed>>
-     */
-    public function asignaciones(int $examenId): array;
-
-    /**
-     * @return list<array{id: int, nombre: string}>
-     */
-    public function aulasDelExamen(int $examenId): array;
-
-    /**
-     * @return list<array{id: int, nombre: string, usuario: string}>
-     */
-    public function auxiliares(): array;
-
-    public function asignarAuxiliar(
-        int $usuarioId,
-        int $examenId,
-        int $aulaId,
-        int $asignadoPor,
-    ): int;
-
-    public function quitarAsignacion(int $asignacionId, int $examenId): bool;
-
-    /**
      * @return array{examen_id: int, aula_id: int}|null
      */
     public function ubicacionIncidencia(int $incidenciaId): ?array;

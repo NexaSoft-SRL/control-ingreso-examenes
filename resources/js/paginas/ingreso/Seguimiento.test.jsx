@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import Seguimiento from './Seguimiento';
 import { api } from '../../api/cliente';
 import { renderConSesion, usuarioDePrueba } from '../../test/apoyo';
@@ -124,5 +124,25 @@ describe('Seguimiento HU-21', () => {
             )
         ).toBeInTheDocument();
         expect(screen.queryByText(/Sin conexión/)).not.toBeInTheDocument();
+    });
+
+    it('mantiene el foco en la búsqueda mientras actualiza los resultados', async () => {
+        renderConSesion(<Seguimiento />, { usuario: usuarioDePrueba('Auxiliar') });
+
+        const busqueda = await screen.findByRole('searchbox', {
+            name: 'Buscar por nombre, código o documento',
+        });
+        busqueda.focus();
+        fireEvent.change(busqueda, { target: { value: 'alvaro alvarez' } });
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith(
+                '/seguimiento/examenes/10/aulas/7',
+                expect.objectContaining({
+                    params: { estado: 'faltan', buscar: 'alvaro alvarez', pagina: 1 },
+                })
+            );
+        });
+        expect(document.activeElement).toBe(busqueda);
     });
 });

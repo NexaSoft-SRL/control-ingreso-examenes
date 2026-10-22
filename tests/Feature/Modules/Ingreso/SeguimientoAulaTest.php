@@ -40,8 +40,19 @@ final class SeguimientoAulaTest extends TestCase
             ->where('id', $estudiantes[27]->id)
             ->update(['nombres' => 'Álvaro', 'apellidos' => 'Álvarez']);
 
+        $ingresos = [];
         foreach (array_slice($estudiantes, 0, 26) as $estudiante) {
-            $this->ingresar($examen, $estudiante, $aulaA);
+            $ingresos[] = $this->ingresar($examen, $estudiante, $aulaA);
+        }
+
+        foreach ($ingresos as $indice => $ingresoId) {
+            DB::table('ingresos')
+                ->where('id', $ingresoId)
+                ->update([
+                    'registrado_en' => now()
+                        ->subMinutes(count($ingresos) - $indice)
+                        ->format('Y-m-d H:i:s'),
+                ]);
         }
 
         $this->ingresar($examen, $estudiantes[26], $aulaB);
@@ -52,7 +63,7 @@ final class SeguimientoAulaTest extends TestCase
             ->assertJsonCount(2, 'data');
 
         $this->getJson(sprintf(
-            '/api/seguimiento/examenes/%d/aulas/%d?estado=faltan&buscar=alvarez',
+            '/api/seguimiento/examenes/%d/aulas/%d?estado=faltan&buscar=alvaro%%20alvarez',
             $examen->id,
             $aulaA->id,
         ))
@@ -62,7 +73,16 @@ final class SeguimientoAulaTest extends TestCase
             ->assertJsonPath('data.cifras.asignados', 28)
             ->assertJsonPath('data.pagina.total', 1)
             ->assertJsonPath('data.estudiantes.0.nombres', 'Álvaro')
-            ->assertJsonPath('data.estudiantes.0.apellidos', 'Álvarez');
+            ->assertJsonPath('data.estudiantes.0.apellidos', 'Álvarez')
+            ->assertJsonPath('data.estudiantes.0.grupos.0', 'Grupo '.$grupo->codigo);
+
+        $this->getJson(sprintf(
+            '/api/seguimiento/examenes/%d/aulas/%d?estado=ingresaron&pagina=1',
+            $examen->id,
+            $aulaA->id,
+        ))
+            ->assertOk()
+            ->assertJsonPath('data.estudiantes.0.estudiante_id', $estudiantes[25]->id);
 
         $this->getJson(sprintf(
             '/api/seguimiento/examenes/%d/aulas/%d?buscar=',
@@ -87,10 +107,11 @@ final class SeguimientoAulaTest extends TestCase
             ->assertJsonPath('data.pagina.por_pagina', 25)
             ->assertJsonPath('data.pagina.total', 26)
             ->assertJsonPath('data.pagina.actual', 2)
-            ->assertJsonCount(1, 'data.estudiantes');
+            ->assertJsonCount(1, 'data.estudiantes')
+            ->assertJsonPath('data.estudiantes.0.estudiante_id', $estudiantes[0]->id);
     }
 
-    public function test_docente_asigna_auxiliar_y_es_el_unico_que_atiende_incidencias(): void
+    public function test_auxiliar_solo_ve_aulas_asignadas_y_docente_atiende_incidencias(): void
     {
         $docenteCuenta = $this->usuarioConPermisos(['seguimiento_vivo']);
         $docente = $this->docenteConCuenta($docenteCuenta);
@@ -100,17 +121,14 @@ final class SeguimientoAulaTest extends TestCase
         $examen = $this->examen($docente, [$grupo], [$aula, $otraAula]);
         $auxiliar = $this->usuarioConRol('Auxiliar');
 
-        $this->actingAs($auxiliar)
-            ->getJson('/api/seguimiento/aulas')
-            ->assertOk()
-            ->assertExactJson(['data' => []]);
-
-        $this->actingAs($docenteCuenta)
-            ->postJson("/api/seguimiento/examenes/{$examen->id}/asignaciones", [
-                'usuario_id' => $auxiliar->id,
-                'aula_id' => $aula->id,
-            ])
-            ->assertCreated();
+        DB::table('examen_aula_personal')->insert([
+            'examen_id' => $examen->id,
+            'aula_id' => $aula->id,
+            'usuario_id' => $auxiliar->id,
+            'rol' => 'apoyo',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $this->actingAs($auxiliar)
             ->getJson('/api/seguimiento/aulas')
@@ -149,22 +167,11 @@ final class SeguimientoAulaTest extends TestCase
             'atendida_por' => $docenteCuenta->id,
         ]);
 
-        $asignacionId = DB::table('asignaciones_seguimiento_aula')
-            ->where('usuario_id', $auxiliar->id)
-            ->where('examen_id', $examen->id)
-            ->value('id');
-
-        if (! is_numeric($asignacionId)) {
-            self::fail('La asignación creada debe existir.');
-        }
-
-        $this->deleteJson(
-            "/api/seguimiento/examenes/{$examen->id}/asignaciones/{$asignacionId}",
-        )->assertOk();
-
-        $this->actingAs($auxiliar)
-            ->getJson('/api/seguimiento/aulas')
-            ->assertOk()
-            ->assertExactJson(['data' => []]);
+        $this->assertDatabaseHas('examen_aula_personal', [
+            'examen_id' => $examen->id,
+            'aula_id' => $aula->id,
+            'usuario_id' => $auxiliar->id,
+            'rol' => 'apoyo',
+        ]);
     }
 }
