@@ -23,6 +23,7 @@ final class EloquentIngresosRecientesGateway implements IngresosRecientesGateway
 
         $filas = DB::table('ingresos as i')
             ->join('estudiantes as e', 'e.id', '=', 'i.estudiante_id')
+            ->leftJoin('expulsiones as ex', 'ex.ingreso_id', '=', 'i.id')
             ->leftJoin('usuarios as u', 'u.id', '=', 'i.registrado_por')
             ->where('i.examen_id', $examenId)
             ->where('i.aula_id', $aulaId)
@@ -31,6 +32,7 @@ final class EloquentIngresosRecientesGateway implements IngresosRecientesGateway
             ->limit($limite)
             ->get([
                 'i.id as ingreso_id',
+                'ex.id as expulsion_id',
                 'i.estudiante_id',
                 'e.codigo_universitario as codigo',
                 'e.nombres',
@@ -46,6 +48,7 @@ final class EloquentIngresosRecientesGateway implements IngresosRecientesGateway
             /**
              * @var object{
              *   ingreso_id: int,
+             *   expulsion_id: int|null,
              *   estudiante_id: int,
              *   codigo: string,
              *   nombres: string,
@@ -57,6 +60,7 @@ final class EloquentIngresosRecientesGateway implements IngresosRecientesGateway
              */
             $resultado[] = [
                 'ingreso_id' => $fila->ingreso_id,
+                'expulsado' => $fila->expulsion_id !== null,
                 'estudiante_id' => $fila->estudiante_id,
                 'codigo' => $fila->codigo,
                 'nombres' => $fila->nombres,
