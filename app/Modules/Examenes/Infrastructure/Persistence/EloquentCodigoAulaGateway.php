@@ -7,6 +7,7 @@ namespace App\Modules\Examenes\Infrastructure\Persistence;
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Examenes\Application\Contracts\CodigoAulaGateway;
 use App\Modules\Examenes\Domain\Models\ExamenAulaCodigo;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 final readonly class EloquentCodigoAulaGateway implements CodigoAulaGateway
@@ -45,7 +46,7 @@ final readonly class EloquentCodigoAulaGateway implements CodigoAulaGateway
             $enUso = DB::table('examen_aula_codigos as c')
                 ->join('examenes as e', 'e.id', '=', 'c.examen_id')
                 ->where('c.codigo', $codigo)
-                ->where(function ($q) use ($examenId, $aulaId): void {
+                ->where(function (Builder $q) use ($examenId, $aulaId): void {
                     $q->where('c.examen_id', '!=', $examenId)
                         ->orWhere('c.aula_id', '!=', $aulaId);
                 })
