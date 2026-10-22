@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Http\Controllers;
 
 use App\Modules\Ingreso\Application\Actions\RegistrarIngreso;
+use App\Modules\Ingreso\Application\Contracts\OperacionesPuertaGateway;
 use App\Modules\Ingreso\Application\Queries\IdentificarEnPuerta;
 use App\Modules\Ingreso\Domain\Enums\VeredictoIngreso;
 use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
@@ -25,6 +26,7 @@ final class RegistrarIngresoEnPuertaController
         int $aula,
         IdentificarEnPuerta $identificar,
         RegistrarIngreso $registrar,
+        OperacionesPuertaGateway $operaciones,
     ): JsonResponse {
         $usuarioId = Auth::id();
 
@@ -79,6 +81,18 @@ final class RegistrarIngresoEnPuertaController
                 ! $resultado->puedeAdmitir()
                 && ($resultado->ambiguo || $resultado->examenId === null)
             ) {
+                // BUG-04: una solicitud de ingreso denegada tambien se audita
+                // si no es posible atribuirla a un examen unico. Nunca
+                // adjudicarla arbitrariamente a uno de los examenes del aula.
+                // Se conserva una huella del identificador, no el QR ni el CI.
+                $operaciones->auditarIntentoNoResuelto(
+                    $aula,
+                    $usuarioId,
+                    $tipo,
+                    $identificador,
+                    $resultado->ambiguo,
+                );
+
                 return response()->json([
                     'message' => $resultado->ambiguo
                         ? 'Identificación ambigua entre exámenes.'
@@ -139,11 +153,21 @@ final class RegistrarIngresoEnPuertaController
             default => Response::HTTP_CONFLICT,
         };
 
+        $fechaIngreso = $veredicto === VeredictoIngreso::Admitido
+            ? $operaciones->fechaIngreso(
+                $examenId,
+                $resultado->candidato?->estudiante->id,
+            )
+            : null;
+
         return response()->json([
             'data' => [
                 'examen_id' => $examenId,
                 'veredicto' => $veredicto->value,
                 'admitido' => $veredicto->permiteIngreso(),
+                'codigo' => $resultado->candidato?->estudiante->codigoUniversitario,
+                'nombre' => $resultado->candidato?->estudiante->nombreCompleto(),
+                'registrado_en' => $fechaIngreso,
             ],
         ], $estado);
     }
