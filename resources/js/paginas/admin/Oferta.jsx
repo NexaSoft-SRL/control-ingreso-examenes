@@ -77,7 +77,12 @@ export default function Oferta() {
         } else if (carreraElegida?.regimen === 'Anual') {
             partes.push('Período anual');
         } else {
-            partes.push('Períodos vigentes');
+            const vigentes = (periodos.datos ?? [])
+                .filter((p) => p.estado === 'Vigente')
+                .map((p) => p.codigo);
+            partes.push(
+                vigentes.length > 0 ? `Períodos ${vigentes.join(' y ')}` : 'Períodos vigentes'
+            );
         }
 
         if (facultad) {
@@ -153,12 +158,16 @@ export default function Oferta() {
                         ))}
                     </Seleccion>
 
-                    <Buscador
-                        valor={lista.buscar}
-                        onCambiar={lista.ponerBuscar}
-                        placeholder="Asignatura, código o docente"
-                        className="col-span-2 lg:col-span-1"
-                    />
+                    <div className="block col-span-2 lg:col-span-1">
+                        <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                            Buscar
+                        </span>
+                        <Buscador
+                            valor={lista.buscar}
+                            onCambiar={lista.ponerBuscar}
+                            placeholder="Asignatura, código o docente"
+                        />
+                    </div>
                 </div>
             </Tarjeta>
 
@@ -166,10 +175,10 @@ export default function Oferta() {
                 sinRelleno
                 titulo="Asignaturas"
                 acciones={
-                    consulta.meta?.total > 0 && (
+                    consulta.meta?.total_grupos > 0 && (
                         <Insignia tono="neutro">
-                            {MILES(consulta.meta.total)}{' '}
-                            {SINGULAR(consulta.meta.total, 'grupo', 'grupos')}
+                            {MILES(consulta.meta.total_grupos)}{' '}
+                            {SINGULAR(consulta.meta.total_grupos, 'grupo', 'grupos')}
                         </Insignia>
                     )
                 }
@@ -218,7 +227,12 @@ export default function Oferta() {
                                 </button>
 
                                 {expandida === a.id && (
-                                    <GruposDeAsignatura asignaturaId={a.id} buscar={lista.buscar} />
+                                    <GruposDeAsignatura
+                                        asignaturaId={a.id}
+                                        buscar={lista.buscar}
+                                        periodo={periodo}
+                                        facultad={facultad}
+                                    />
                                 )}
                             </li>
                         ))}
@@ -235,10 +249,10 @@ export default function Oferta() {
 }
 
 // Los grupos de una asignatura, cargados al desplegar, de a 10.
-function GruposDeAsignatura({ asignaturaId, buscar }) {
+function GruposDeAsignatura({ asignaturaId, buscar, periodo, facultad }) {
     const lista = usarPaginaServidor({
         porPagina: GRUPOS_POR_PAGINA,
-        filtros: { asignaturaId, buscar },
+        filtros: { asignaturaId, buscar, periodo, facultad },
     });
 
     const consulta = usarConsulta(`/oferta/asignaturas/${asignaturaId}/grupos`, {
@@ -272,7 +286,8 @@ function GruposDeAsignatura({ asignaturaId, buscar }) {
                                 >
                                     {g.docente ?? 'Por designar'}
                                 </span>
-                                <span className="block truncate text-slate-600">
+
+                                <span className="block whitespace-normal text-slate-600">
                                     {(g.horarios ?? [])
                                         .map((h) => `${h.dia} ${h.hora} · ${h.aula ?? 'sin aula'}`)
                                         .join(' · ')}
@@ -299,6 +314,8 @@ function GruposDeAsignatura({ asignaturaId, buscar }) {
 GruposDeAsignatura.propTypes = {
     asignaturaId: PropTypes.number.isRequired,
     buscar: PropTypes.string,
+    periodo: PropTypes.string,
+    facultad: PropTypes.string,
 };
 
 Oferta.propTypes = {};

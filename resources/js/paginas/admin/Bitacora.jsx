@@ -45,6 +45,11 @@ const etiquetaOperacion = {
     'docente.registrar': 'Alta de docente',
     'asignatura.registrar': 'Registro de asignatura',
     'asignatura.eliminar': 'Eliminación de asignatura',
+    'auxiliar.agregar': 'Alta de auxiliar',
+    'auxiliar.quitar': 'Baja de auxiliar',
+    'examen_aula_codigo.generar': 'Código de aula generado',
+    'examen_aula_codigo.regenerar': 'Código de aula regenerado',
+    'acceso_codigo_aula.ingreso': 'Entrada con código de aula',
 };
 
 const etiquetaTabla = {
@@ -63,6 +68,9 @@ const etiquetaTabla = {
     periodos: 'Período',
     roles: 'Rol',
     usuarios: 'Usuario',
+    docente_auxiliares: 'Auxiliar',
+    accesos_codigo_aula: 'Acceso con código',
+    examen_aula_codigos: 'Código de aula',
 };
 
 const CAMPO =
@@ -302,6 +310,17 @@ function Bitacora() {
                                 <div className="font-semibold text-slate-800">
                                     {operacion.usuario ? (
                                         nombreDe(operacion.usuario)
+                                    ) : operacion.operacion === 'acceso_codigo_aula.ingreso' ? (
+                                        (() => {
+                                            const coincidencia =
+                                                /Ingreso con código de aula:\s*(.+?)\s+en aula/i.exec(
+                                                    operacion.descripcion ?? ''
+                                                );
+                                            const nombre = coincidencia
+                                                ? coincidencia[1]
+                                                : 'Colaborador';
+                                            return `${nombre} (código de aula)`;
+                                        })()
                                     ) : (
                                         <span className="font-normal text-slate-500 italic">
                                             {operacion.operacion === 'sesion.fallida'

@@ -99,6 +99,32 @@ final class AccesoConCodigoDeAulaTest extends TestCase
             ->assertJsonPath('message', 'Código no válido');
     }
 
+    public function test_mensajes_de_validacion_en_espanol_sin_resumen_laravel(): void
+    {
+        // Ambos campos con error: debe mostrar el primer error en español sin "(and 1 more error)"
+        $this->postJson('/api/auth/codigo-aula', [
+            'codigo' => '12',
+            'nombre_colaborador' => 'An',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Seis dígitos')
+            ->assertJsonValidationErrors([
+                'codigo' => 'Seis dígitos',
+                'nombre_colaborador' => 'Mínimo 3 caracteres',
+            ]);
+
+        // Nombre de más de 120 caracteres
+        $this->postJson('/api/auth/codigo-aula', [
+            'codigo' => '123456',
+            'nombre_colaborador' => str_repeat('A', 121),
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Máximo 120 caracteres')
+            ->assertJsonValidationErrors([
+                'nombre_colaborador' => 'Máximo 120 caracteres',
+            ]);
+    }
+
     public function test_rate_limiting_responde_429_al_cuarto_intento_fallido_en_5_minutos(): void
     {
         // 3 intentos fallidos con código inexistente

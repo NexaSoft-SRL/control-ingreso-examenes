@@ -28,7 +28,10 @@ final readonly class ListarAsignaturasDeOferta
 
         return [
             'data' => $resultado['filas'],
-            'meta' => $pagina->meta($resultado['total']),
+            'meta' => [
+                ...$pagina->meta($resultado['total']),
+                'total_grupos' => $resultado['total_grupos'],
+            ],
         ];
     }
 
@@ -46,6 +49,7 @@ final readonly class ListarAsignaturasDeOferta
             $asignaturaId,
             $filtros['periodo_ids'],
             $buscar,
+            $filtros['facultad'],
             $pagina,
         );
 
