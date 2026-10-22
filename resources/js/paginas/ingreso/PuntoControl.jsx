@@ -2,12 +2,13 @@ import PropTypes from 'prop-types';
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import LectorQr from './LectorQr';
+import IncidenciasManuales from './IncidenciasManuales';
 import { ClipboardCheck, DoorOpen, LogOut, RefreshCw, Search } from 'lucide-react';
 import { api } from '../../api/cliente';
 import { estadoDe, mensajeDe } from '../../api/errores';
 
 const RESULTADOS = {
-    ADMITIDO: 'Ingreso autorizado',
+    ADMITIDO: 'Puede ingresar',
     NO_HABILITADO: 'Estudiante no habilitado',
     OTRA_AULA: 'Corresponde a otra aula',
     YA_INGRESO: 'Ingreso registrado anteriormente',
@@ -75,6 +76,10 @@ export default function PuntoControl() {
     const [candidato, setCandidato] = useState(null);
     const [veredicto, setVeredicto] = useState(null);
     const [historial, setHistorial] = useState([]);
+    const [excepcionContextual, setExcepcionContextual] = useState(null);
+    const [ingresoAExpulsar, setIngresoAExpulsar] = useState(null);
+    const [motivoExpulsion, setMotivoExpulsion] = useState('');
+    const [guardandoExpulsion, setGuardandoExpulsion] = useState(false);
     const [incidencias, setIncidencias] = useState([]);
     const [mensaje, setMensaje] = useState('');
     const [ocupado, setOcupado] = useState(false);
@@ -278,9 +283,12 @@ export default function PuntoControl() {
         invalidarContexto();
         setAulaId(id);
         setCandidato(null);
+        setExcepcionContextual(null);
         setVeredicto(null);
         setHistorial([]);
         setIncidencias([]);
+        setIngresoAExpulsar(null);
+        setMotivoExpulsion('');
         setMensaje('');
         setBloqueado(false);
     };
@@ -292,6 +300,7 @@ export default function PuntoControl() {
         setIdentificador(nuevoIdentificador);
         setCandidato(null);
         setVeredicto(null);
+        setExcepcionContextual(null);
         setMensaje('');
     };
 
@@ -324,6 +333,7 @@ export default function PuntoControl() {
             if (operacion === 'consultar') {
                 setCandidato(null);
                 setVeredicto(null);
+                setExcepcionContextual(null);
 
                 const { data } = await api.post(`${puerta}/identificar`, cuerpo, {
                     signal: controlador.signal,
@@ -338,7 +348,9 @@ export default function PuntoControl() {
 
                 setCandidato({
                     ...resultado,
-                    codigo: tipo === 'qr' ? 'QR verificado' : identificador.trim(),
+                    codigo:
+                        resultado.codigo ??
+                        (tipo === 'qr' ? 'QR verificado' : identificador.trim()),
                 });
             } else {
                 registroIntentado = true;
@@ -420,6 +432,56 @@ export default function PuntoControl() {
             peticiones.current.delete(controlador);
             pendiente.current = false;
             setOcupado(false);
+        }
+    };
+
+    const confirmarExpulsion = async () => {
+        const motivo = motivoExpulsion.trim();
+
+        if (
+            !puerta ||
+            sesionColaborador ||
+            bloqueado ||
+            ocupado ||
+            pendiente.current ||
+            guardandoExpulsion ||
+            ingresoAExpulsar === null ||
+            motivo.length < 5 ||
+            motivo.length > 500
+        ) {
+            return;
+        }
+
+        const version = versionContexto.current;
+        const ingresoId = ingresoAExpulsar;
+
+        setGuardandoExpulsion(true);
+        setMensaje('');
+
+        try {
+            await api.post(`${puerta}/ingresos/${ingresoId}/expulsion`, { motivo });
+
+            if (version !== versionContexto.current) return;
+
+            const respuesta = await api.get(`${puerta}/ingresos`, {
+                params: { limite: 5 },
+            });
+
+            if (version !== versionContexto.current) return;
+
+            setHistorial(Array.isArray(respuesta.data?.data) ? respuesta.data.data : []);
+
+            setIngresoAExpulsar(null);
+            setMotivoExpulsion('');
+            setMensaje('Expulsión registrada correctamente.');
+        } catch (error) {
+            if (version !== versionContexto.current) return;
+
+            setMensaje(interpretarFallo(error, 'No se pudo registrar la expulsión.'));
+
+            if (estadoDe(error) === 403) setBloqueado(true);
+        } finally {
+            setGuardandoExpulsion(false);
         }
     };
 
@@ -546,11 +608,69 @@ export default function PuntoControl() {
                                   candidato.veredicto ??
                                   'No se encontró un examen inequívoco')}
                         </p>
+                        {candidato.sin_revisar && (
+                            <p className="text-sm text-amber-800">
+                                Sin revisar: no hay habilitación registrada.
+                            </p>
+                        )}
+                        {candidato.motivo_inhabilitacion && (
+                            <p className="text-sm text-red-700">
+                                Motivo: {candidato.motivo_inhabilitacion}
+                            </p>
+                        )}
+                        {candidato.revisado_por && (
+                            <p className="text-sm text-slate-600">
+                                Revisado por: {candidato.revisado_por}
+                            </p>
+                        )}
+                        {candidato.aula_asignada_nombre && (
+                            <p className="text-sm text-slate-600">
+                                Aula asignada: {candidato.aula_asignada_nombre}
+                            </p>
+                        )}
                         {candidato.examen_id != null && (
                             <p className="text-sm text-slate-600">
                                 Examen identificado: {candidato.examen_id}
                             </p>
                         )}
+
+                        {!sesionColaborador &&
+                            !bloqueado &&
+                            candidato.ambiguo !== true &&
+                            candidato.examen_id != null &&
+                            examenes.some(
+                                (examen) =>
+                                    String(examen.id) === String(candidato.examen_id) &&
+                                    (examen.aulas ?? []).some(
+                                        (aula) => String(aula.id) === String(aulaId)
+                                    )
+                            ) && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const sugerido =
+                                            candidato.veredicto === 'NO_HABILITADO'
+                                                ? 'EXCEPCION_NO_HABILITADO'
+                                                : candidato.veredicto === 'OTRA_AULA'
+                                                  ? 'EXCEPCION_CAMBIO_AULA'
+                                                  : 'EXCEPCION_IDENTIFICACION';
+
+                                        setExcepcionContextual({
+                                            examenId: candidato.examen_id,
+                                            tipo: sugerido,
+                                            codigo:
+                                                candidato.inscrito === true &&
+                                                /^[0-9]{5,10}$/.test(candidato.codigo ?? '')
+                                                    ? candidato.codigo
+                                                    : '',
+                                            solicitud: Date.now(),
+                                        });
+                                    }}
+                                    className="mb-3 block rounded-lg border border-amber-400 bg-amber-50 px-4 py-2 font-medium text-amber-900"
+                                >
+                                    Situación excepcional
+                                </button>
+                            )}
 
                         <button
                             type="button"
@@ -612,13 +732,102 @@ export default function PuntoControl() {
                                 key={registro.ingreso_id ?? indice}
                                 className="py-3 text-sm text-slate-700"
                             >
-                                Ingreso #{registro.ingreso_id ?? '—'} · Estudiante{' '}
-                                {registro.estudiante_id ?? '—'}
+                                <span className="font-semibold">
+                                    {[registro.apellidos, registro.nombres]
+                                        .filter(Boolean)
+                                        .join(', ') || 'Estudiante sin nombre'}
+                                </span>
+                                {' · Código: '}
+                                {registro.codigo ?? '—'}
+                                {' · Hora: '}
+                                {registro.registrado_en ?? '—'}
+                                {registro.expulsado === true && (
+                                    <p className="mt-2 font-semibold text-red-700">Expulsado</p>
+                                )}
+
+                                {!sesionColaborador &&
+                                    registro.expulsado !== true &&
+                                    registro.ingreso_id != null && (
+                                        <button
+                                            type="button"
+                                            disabled={ocupado || bloqueado || guardandoExpulsion}
+                                            onClick={() => {
+                                                setIngresoAExpulsar(registro.ingreso_id);
+                                                setMotivoExpulsion('');
+                                            }}
+                                            className="mt-2 block rounded-lg border border-red-300 px-3 py-2 font-medium text-red-700 disabled:opacity-50"
+                                        >
+                                            Expulsar estudiante
+                                        </button>
+                                    )}
+
+                                {ingresoAExpulsar === registro.ingreso_id &&
+                                    registro.expulsado !== true &&
+                                    !sesionColaborador && (
+                                        <div className="mt-3 space-y-2 rounded-lg border border-red-200 p-3">
+                                            <label className="block text-sm font-medium">
+                                                Motivo de expulsión
+                                                <textarea
+                                                    aria-label="Motivo de expulsión"
+                                                    value={motivoExpulsion}
+                                                    rows={3}
+                                                    maxLength={500}
+                                                    onChange={(evento) =>
+                                                        setMotivoExpulsion(evento.target.value)
+                                                    }
+                                                    className="mt-1 block w-full rounded-lg border border-slate-300 p-2"
+                                                />
+                                            </label>
+
+                                            <p className="text-xs text-slate-600">
+                                                Entre 5 y 500 caracteres.
+                                            </p>
+
+                                            <div className="flex flex-wrap gap-2">
+                                                <button
+                                                    type="button"
+                                                    disabled={
+                                                        guardandoExpulsion ||
+                                                        bloqueado ||
+                                                        ocupado ||
+                                                        motivoExpulsion.trim().length < 5 ||
+                                                        motivoExpulsion.trim().length > 500
+                                                    }
+                                                    onClick={confirmarExpulsion}
+                                                    className="rounded-lg bg-red-700 px-3 py-2 text-white disabled:opacity-50"
+                                                >
+                                                    {guardandoExpulsion
+                                                        ? 'Guardando…'
+                                                        : 'Confirmar expulsión'}
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    disabled={guardandoExpulsion}
+                                                    onClick={() => {
+                                                        setIngresoAExpulsar(null);
+                                                        setMotivoExpulsion('');
+                                                    }}
+                                                    className="rounded-lg border border-slate-300 px-3 py-2"
+                                                >
+                                                    Cancelar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                             </li>
                         ))}
                     </ul>
                 )}
             </section>
+
+            {!sesionColaborador && aulaValida && (
+                <IncidenciasManuales
+                    aulaId={aulaId}
+                    examenes={examenes}
+                    sugerencia={excepcionContextual}
+                />
+            )}
 
             <section
                 aria-label="Incidencias de ingreso"
