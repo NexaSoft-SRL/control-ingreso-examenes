@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Ingreso\Http\Controllers\ContextoPuntoControlController;
+use App\Modules\Ingreso\Http\Controllers\ExpulsarIngresoEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\IdentificarEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\IncidenciasEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\IngresosRecientesEnPuertaController;
@@ -43,6 +44,12 @@ Route::middleware(['auth', 'permiso:punto_control'])
     )
     ->whereNumber('aula')
     ->name('ingreso.puerta.registrar');
+
+Route::middleware(['auth', 'permiso:punto_control'])
+    ->post('api/aulas/{aula}/punto-control/ingresos/{ingreso}/expulsion', ExpulsarIngresoEnPuertaController::class)
+    ->whereNumber('aula')
+    ->whereNumber('ingreso')
+    ->name('ingreso.puerta.expulsar');
 
 Route::middleware(['auth', 'permiso:punto_control'])
     ->get('api/punto-control/contexto', ContextoPuntoControlController::class)
