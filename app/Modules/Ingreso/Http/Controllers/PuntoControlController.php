@@ -19,6 +19,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
 
@@ -70,6 +71,29 @@ final class PuntoControlController
             return $this->error('Estudiante no encontrado.', 404);
         }
 
+        $admisible = false;
+        $veredicto = VeredictoIngreso::NoCorresponde->value;
+
+        if (! $candidato->inscrito) {
+            $veredicto = VeredictoIngreso::NoCorresponde->value;
+        } elseif ($candidato->habilitacion === null || ! $candidato->habilitacion->habilitado) {
+            $veredicto = VeredictoIngreso::NoHabilitado->value;
+        } elseif ($candidato->habilitacion->aulaId !== $aula) {
+            $veredicto = VeredictoIngreso::OtraAula->value;
+        } else {
+            $yaIngreso = DB::table('ingresos')
+                ->where('examen_id', $examen)
+                ->where('estudiante_id', $candidato->estudiante->id)
+                ->exists();
+
+            if ($yaIngreso) {
+                $veredicto = VeredictoIngreso::YaIngreso->value;
+            } else {
+                $veredicto = VeredictoIngreso::Admitido->value;
+                $admisible = true;
+            }
+        }
+
         return response()->json([
             'data' => [
                 'estudiante_id' => $candidato->estudiante->id,
@@ -81,6 +105,9 @@ final class PuntoControlController
                     ? $candidato->habilitacion->motivo
                     : null,
                 'aula_asignada_id' => $candidato->habilitacion?->aulaId,
+                'examen_id' => $examen,
+                'admisible' => $admisible,
+                'veredicto' => $veredicto,
             ],
         ]);
     }

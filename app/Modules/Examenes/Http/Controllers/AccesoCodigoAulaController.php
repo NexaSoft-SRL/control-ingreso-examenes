@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Validator;
 
 final class AccesoCodigoAulaController
 {
@@ -23,7 +24,7 @@ final class AccesoCodigoAulaController
             ], Response::HTTP_TOO_MANY_REQUESTS);
         }
 
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'codigo' => ['required', 'string', 'regex:/^[0-9]{6}$/'],
             'nombre_colaborador' => ['required', 'string', 'min:3', 'max:120'],
         ], [
@@ -31,7 +32,15 @@ final class AccesoCodigoAulaController
             'codigo.regex' => 'Seis dígitos',
             'nombre_colaborador.required' => 'Mínimo 3 caracteres',
             'nombre_colaborador.min' => 'Mínimo 3 caracteres',
+            'nombre_colaborador.max' => 'Máximo 120 caracteres',
         ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         $codigo = trim($request->string('codigo')->toString());
         $nombreColaborador = trim($request->string('nombre_colaborador')->toString());

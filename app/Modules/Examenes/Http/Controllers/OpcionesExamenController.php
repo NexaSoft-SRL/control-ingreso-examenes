@@ -23,6 +23,7 @@ final class OpcionesExamenController
             'id' => $grupo->id,
             'codigo' => $grupo->codigo,
             'docente' => $grupo->docente,
+            'docente_id' => $grupo->docenteCuentaId,
             'inscritos' => $grupo->inscritos,
             'periodo' => $grupo->periodoCodigo,
         ];

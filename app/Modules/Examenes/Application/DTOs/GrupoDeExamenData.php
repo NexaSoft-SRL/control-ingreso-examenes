@@ -19,5 +19,6 @@ final readonly class GrupoDeExamenData
         public string $periodoCodigo,
         public ?string $periodoInicio,
         public ?string $periodoFin,
+        public ?int $docenteCuentaId = null,
     ) {}
 }

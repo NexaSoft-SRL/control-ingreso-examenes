@@ -131,4 +131,42 @@ final class PuertaTest extends TestCase
             ->assertForbidden()
             ->assertJsonPath('message', 'Punto de control no autorizado.');
     }
+
+    public function test_docente_creador_opera_aula_aunque_este_a_cargo_de_otra_persona(): void
+    {
+        $usuarioCreador = $this->usuarioConPermisos(['examenes', 'punto_control']);
+        $docenteCreador = $this->docenteConCuenta($usuarioCreador, 'Docente Creadora');
+        $cuentaCreador = $this->cuenta($docenteCreador);
+
+        $usuarioApoyo = $this->usuarioConPermisos(['examenes', 'punto_control']);
+        $docenteApoyo = $this->docenteConCuenta($usuarioApoyo, 'Docente Apoyo');
+        $cuentaApoyo = $this->cuenta($docenteApoyo);
+
+        $grupo = $this->grupo($docenteCreador);
+        $aula = $this->aula('617');
+        [$estudiante] = $this->estudiantesInscritos($grupo, 1);
+
+        $inicio = now()->subMinutes(10);
+        $examen = $this->examen($docenteCreador, [$grupo], [$aula], [
+            'fecha' => $inicio->toDateString(),
+            'hora_inicio' => $inicio->format('H:i:00'),
+            'duracion_minutos' => 90,
+        ]);
+
+        $this->habilitar($examen, [$estudiante], $aula);
+
+        // Aula 617 puesta a cargo de Docente Apoyo
+        \App\Modules\Examenes\Domain\Models\ExamenAulaPersonal::create([
+            'examen_id' => $examen->id,
+            'aula_id' => $aula->id,
+            'usuario_id' => $cuentaApoyo->id,
+            'rol' => \App\Modules\Examenes\Domain\Models\ExamenAulaPersonal::ROL_A_CARGO,
+        ]);
+
+        // Docente creador opera el punto de control sin ser rechazado con 403
+        $this->actingAs($cuentaCreador)
+            ->getJson("/api/examenes/{$examen->id}/aulas/{$aula->id}/punto-control/candidato?tipo=codigo&identificador={$estudiante->codigo_universitario}")
+            ->assertOk()
+            ->assertJsonPath('data.codigo', $estudiante->codigo_universitario);
+    }
 }

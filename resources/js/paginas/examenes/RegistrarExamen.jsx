@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
-import { ArrowRight, CheckCircle2, DoorOpen, ScrollText, Users, X } from 'lucide-react';
+import { ArrowRight, Check, CheckCircle2, Copy, DoorOpen, KeyRound, RefreshCw, ScrollText, Users, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
@@ -10,6 +10,7 @@ import { useAviso } from '../../componentes/Aviso';
 import Boton from '../../componentes/Boton';
 import Buscador from '../../componentes/Buscador';
 import Campo from '../../componentes/Campo';
+import Dialogo from '../../componentes/Dialogo';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
 import Insignia from '../../componentes/Insignia';
@@ -24,7 +25,7 @@ import AtencionAulas from './AtencionAulas';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
-const PASOS = ['Examen', 'Grupos', 'Aulas', 'Listo'];
+const PASOS = ['Examen', 'Grupos', 'Aulas', 'Quién atiende', 'Listo'];
 // Con más grupos que estos, la lista lleva buscador y desplazamiento propio.
 const MUCHOS_GRUPOS = 8;
 const VACIO = 'rounded-lg border border-slate-200 py-4 text-center text-sm text-slate-600';
@@ -39,9 +40,11 @@ const alternar = (lista, valor) =>
 const pasoDe = (campo) =>
     campo.startsWith('grupos')
         ? 1
-        : campo.startsWith('aulas') || campo.startsWith('personal')
+        : campo.startsWith('aulas')
           ? 2
-          : 0;
+          : campo.startsWith('personal')
+            ? 3
+            : 0;
 
 function ubicacionDe(aula, facultad) {
     const lugar = [aula.edificio, aula.piso].filter(Boolean).join(' · ') || 'Sin edificio';
@@ -166,10 +169,69 @@ FilaAula.propTypes = {
 // el docente de un grupo incluido, que no lo modifica.
 function Resumen({ examen, recien = false }) {
     const { puede } = usarSesion();
+    const [aviso, avisar] = useAviso();
     const grupos = examen.grupos_detalle ?? [];
     const aulas = examen.aulas_detalle ?? [];
     const marcadas = examen.normas_marcadas ?? [];
     const libres = (examen.normas ?? '').trim();
+
+    const [aulaParaCodigo, setAulaParaCodigo] = useState(null);
+    const [codigos, setCodigos] = useState(() =>
+        Object.fromEntries(aulas.map((a) => [a.aula_id, a.codigo]))
+    );
+    const [generandoCodigo, setGenerandoCodigo] = useState(false);
+    const [copiado, setCopiado] = useState(false);
+
+    const copiarCodigo = async (codigo) => {
+        if (!codigo) return;
+        let copiadoExito = false;
+        if (navigator?.clipboard?.writeText) {
+            try {
+                await navigator.clipboard.writeText(codigo);
+                copiadoExito = true;
+            } catch {
+                copiadoExito = false;
+            }
+        }
+
+        if (!copiadoExito) {
+            try {
+                const textarea = document.createElement('textarea');
+                textarea.value = codigo;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                copiadoExito = document.execCommand('copy');
+                document.body.removeChild(textarea);
+            } catch {
+                copiadoExito = false;
+            }
+        }
+
+        if (copiadoExito) {
+            setCopiado(true);
+            avisar('Código copiado');
+            setTimeout(() => setCopiado(false), 2000);
+        } else {
+            avisar('Error al copiar el código', 'error');
+        }
+    };
+
+    const generarCodigoAula = async (aulaId, esRegenerar = false) => {
+        setGenerandoCodigo(true);
+        try {
+            const { data } = await api.post(`/examenes/${examen.id}/aulas/${aulaId}/codigo`);
+            const nuevoCodigo = data?.data?.codigo;
+            setCodigos((prev) => ({ ...prev, [aulaId]: nuevoCodigo }));
+            avisar(esRegenerar ? 'Código regenerado' : 'Código generado');
+        } catch (error) {
+            avisar(mensajeDe(error, 'No se pudo generar el código'), 'error');
+        } finally {
+            setGenerandoCodigo(false);
+        }
+    };
 
     return (
         <Tarjeta>
@@ -231,31 +293,39 @@ function Resumen({ examen, recien = false }) {
                                 Aulas y atención asignada
                             </h4>
                             <div className="grid gap-2 sm:grid-cols-2">
-                                {aulas.map((a) => (
-                                    <div
-                                        key={a.aula_id}
-                                        className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-700 space-y-1"
-                                    >
-                                        <div className="flex items-center justify-between font-semibold text-slate-900">
-                                            <span>Aula {a.nombre}</span>
-                                            {a.codigo && (
-                                                <span className="font-mono bg-white px-2 py-0.5 rounded border border-slate-300 text-primary-700">
-                                                    Código: {a.codigo}
-                                                </span>
-                                            )}
+                                {aulas.map((a) => {
+                                    const codigo = codigos[a.aula_id] ?? a.codigo;
+                                    return (
+                                        <div
+                                            key={a.aula_id}
+                                            className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-700 space-y-1"
+                                        >
+                                            <div className="flex items-center justify-between font-semibold text-slate-900">
+                                                <span>Aula {a.nombre}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAulaParaCodigo(a)}
+                                                    aria-label={`Código de acceso del aula ${a.nombre}`}
+                                                    title="Código de acceso"
+                                                    className={`flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 ${FOCO}`}
+                                                >
+                                                    <KeyRound className="h-3.5 w-3.5" />
+                                                    {codigo ? `Código: ${codigo}` : 'Llave'}
+                                                </button>
+                                            </div>
+                                            <p>
+                                                <span className="text-slate-500">A cargo:</span>{' '}
+                                                {a.a_cargo?.nombre ?? 'Docente titular'}
+                                            </p>
+                                            <p>
+                                                <span className="text-slate-500">Apoyo:</span>{' '}
+                                                {Array.isArray(a.apoyo) && a.apoyo.length > 0
+                                                    ? a.apoyo.map((aux) => aux.nombre).join(', ')
+                                                    : 'Sin personal de apoyo'}
+                                            </p>
                                         </div>
-                                        <p>
-                                            <span className="text-slate-500">A cargo:</span>{' '}
-                                            {a.a_cargo?.nombre ?? 'Docente titular'}
-                                        </p>
-                                        <p>
-                                            <span className="text-slate-500">Apoyo:</span>{' '}
-                                            {Array.isArray(a.apoyo) && a.apoyo.length > 0
-                                                ? a.apoyo.map((aux) => aux.nombre).join(', ')
-                                                : 'Sin personal de apoyo'}
-                                        </p>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -277,6 +347,106 @@ function Resumen({ examen, recien = false }) {
                     </Link>
                 )}
             </div>
+
+            {aulaParaCodigo !== null && (
+                <Dialogo
+                    abierto={aulaParaCodigo !== null}
+                    onCerrar={() => {
+                        setAulaParaCodigo(null);
+                        setCopiado(false);
+                    }}
+                    titulo="Código de acceso"
+                >
+                    {(() => {
+                        const aula = aulaParaCodigo;
+                        const codigo = codigos[aula.aula_id] ?? aula.codigo;
+                        return (
+                            <div className="space-y-4">
+                                <div className="rounded-lg bg-slate-50 p-3 text-xs space-y-1.5 border border-slate-200">
+                                    <p>
+                                        <span className="font-semibold text-slate-700">Aula:</span>{' '}
+                                        {aula.nombre}
+                                    </p>
+                                    <p>
+                                        <span className="font-semibold text-slate-700">
+                                            A cargo:
+                                        </span>{' '}
+                                        {aula.a_cargo?.nombre ?? 'Sin asignar'}
+                                    </p>
+                                    <p>
+                                        <span className="font-semibold text-slate-700">
+                                            Fecha del examen:
+                                        </span>{' '}
+                                        {fechaLarga(examen.fecha)}
+                                    </p>
+                                </div>
+
+                                {codigo ? (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between rounded-lg border border-slate-300 bg-white p-3">
+                                            <span className="font-mono text-xl font-bold tracking-widest text-slate-900">
+                                                {codigo}
+                                            </span>
+                                            <div className="flex gap-2">
+                                                <Boton
+                                                    type="button"
+                                                    tamano="chico"
+                                                    variante="secundario"
+                                                    onClick={() => copiarCodigo(codigo)}
+                                                >
+                                                    {copiado ? (
+                                                        <Check className="h-3.5 w-3.5 text-success-600" />
+                                                    ) : (
+                                                        <Copy className="h-3.5 w-3.5" />
+                                                    )}
+                                                    {copiado ? 'Copiado' : 'Copiar'}
+                                                </Boton>
+                                                <Boton
+                                                    type="button"
+                                                    tamano="chico"
+                                                    variante="secundario"
+                                                    disabled={generandoCodigo}
+                                                    onClick={() =>
+                                                        generarCodigoAula(aula.aula_id, true)
+                                                    }
+                                                >
+                                                    <RefreshCw className="h-3.5 w-3.5" />
+                                                    Regenerar
+                                                </Boton>
+                                            </div>
+                                        </div>
+                                        <p className="text-xs text-slate-500">
+                                            El código anterior dejará de ser válido.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        <p className="text-xs text-slate-600">
+                                            Sin código generado.
+                                        </p>
+                                        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                            <span className="text-xs font-medium text-slate-500">
+                                                Sin código
+                                            </span>
+                                            <Boton
+                                                type="button"
+                                                tamano="chico"
+                                                disabled={generandoCodigo}
+                                                onClick={() =>
+                                                    generarCodigoAula(aula.aula_id, false)
+                                                }
+                                            >
+                                                {generandoCodigo ? 'Generando...' : 'Generar'}
+                                            </Boton>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
+                </Dialogo>
+            )}
+            {aviso}
         </Tarjeta>
     );
 }
@@ -525,7 +695,7 @@ function Asistente({ asignaturas, tipos, periodos, inicial, pasoInicial, onExame
                 };
             }
             setAtencion(nuevoMapa);
-            setPaso(3);
+            setPaso(4);
             onExamen(guardado);
             avisar(sinPunto(data.message ?? (examen ? 'Examen guardado' : 'Examen registrado')));
         } catch (fallo) {
@@ -923,13 +1093,22 @@ function Asistente({ asignaturas, tipos, periodos, inicial, pasoInicial, onExame
                             <Boton type="button" variante="secundario" onClick={() => setPaso(1)}>
                                 Atrás
                             </Boton>
-                            <Boton
-                                type="button"
-                                disabled={enviando || elegidosIds.length === 0}
-                                onClick={guardar}
-                            >
-                                {examen ? 'Guardar examen' : 'Registrar examen'}
-                            </Boton>
+                            <div className="flex gap-2">
+                                <Boton
+                                    type="button"
+                                    disabled={enviando || elegidosIds.length === 0}
+                                    onClick={guardar}
+                                >
+                                    {examen ? 'Guardar examen' : 'Registrar examen'}
+                                </Boton>
+                                <Boton
+                                    type="button"
+                                    disabled={aulas.length === 0}
+                                    onClick={() => setPaso(3)}
+                                >
+                                    Continuar <ArrowRight className="h-4 w-4" />
+                                </Boton>
+                            </div>
                         </div>
                     </Tarjeta>
                     <Tarjeta titulo="Ubicación">
@@ -941,46 +1120,56 @@ function Asistente({ asignaturas, tipos, periodos, inicial, pasoInicial, onExame
                             alto="h-56 lg:h-80"
                         />
                     </Tarjeta>
-                    <div className="lg:col-span-2">
-                        <AtencionAulas
-                            aulas={aulas}
-                            nombreAula={nombreAula}
-                            ubicacionAula={(id) => {
-                                const a = catalogo.find((item) => item.id === id);
-                                return a ? ubicacionDe(a, facultad) : '';
-                            }}
-                            docentesDisponibles={
-                                cuenta?.id
-                                    ? [
-                                          { id: cuenta.id, nombre: cuenta.nombre },
-                                          ...elegidos
-                                              .filter(
-                                                  (g) => g.docente && g.docente !== cuenta.nombre
-                                              )
-                                              .map((g) => ({
-                                                  id: g.docente_id ?? g.id,
-                                                  nombre: g.docente,
-                                              })),
-                                      ]
-                                    : elegidos
-                                          .filter((g) => g.docente)
-                                          .map((g) => ({
-                                              id: g.docente_id ?? g.id,
-                                              nombre: g.docente,
-                                          }))
+                </div>
+            )}
+
+            {paso === 3 && (
+                <div>
+                    <AtencionAulas
+                        aulas={aulas}
+                        aulasGuardadas={examen?.aulas_detalle?.map((a) => a.aula_id) ?? []}
+                        nombreAula={nombreAula}
+                        ubicacionAula={(id) => {
+                            const a = catalogo.find((item) => item.id === id);
+                            return a ? ubicacionDe(a, facultad) : '';
+                        }}
+                        docentesDisponibles={(() => {
+                            const lista = cuenta?.id ? [{ id: cuenta.id, nombre: cuenta.nombre }] : [];
+                            const vistos = new Set(lista.map((d) => d.id));
+                            const fuenteGrupos =
+                                elegidos.length > 0 ? elegidos : (examen?.grupos_detalle ?? []);
+                            for (const g of fuenteGrupos) {
+                                const idDoc = g.docente_id;
+                                if (g.docente && idDoc && !vistos.has(idDoc)) {
+                                    vistos.add(idDoc);
+                                    lista.push({ id: idDoc, nombre: g.docente });
+                                }
                             }
-                            cuenta={cuenta}
-                            atencion={atencion}
-                            onCambiarAtencion={setAtencion}
-                            examenId={examen?.id}
-                            fechaExamen={fecha}
-                            errores={errores}
-                        />
+                            return lista;
+                        })()}
+                        cuenta={cuenta}
+                        atencion={atencion}
+                        onCambiarAtencion={setAtencion}
+                        examenId={examen?.id}
+                        fechaExamen={fecha}
+                        errores={errores}
+                    />
+                    <div className="mt-5 flex justify-between gap-2">
+                        <Boton type="button" variante="secundario" onClick={() => setPaso(2)}>
+                            Atrás
+                        </Boton>
+                        <Boton
+                            type="button"
+                            disabled={enviando || elegidosIds.length === 0}
+                            onClick={guardar}
+                        >
+                            {examen ? 'Guardar examen' : 'Registrar examen'}
+                        </Boton>
                     </div>
                 </div>
             )}
 
-            {paso === 3 && examen && <Resumen examen={examen} recien />}
+            {paso === 4 && examen && <Resumen examen={examen} recien />}
             {aviso}
         </>
     );
@@ -1019,7 +1208,7 @@ Asistente.propTypes = {
 export default function RegistrarExamen() {
     const [parametros] = useSearchParams();
     const examenId = Number(parametros.get('examen')) || null;
-    const pasoPedido = Math.min(Math.max(Number(parametros.get('paso')) || 0, 0), 2);
+    const pasoPedido = Math.min(Math.max(Number(parametros.get('paso')) || 0, 0), 3);
 
     const misGrupos = usarConsulta('/docente/grupos');
     const tipos = usarConsulta('/examenes/tipos');

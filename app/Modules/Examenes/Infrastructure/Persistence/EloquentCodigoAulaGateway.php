@@ -40,7 +40,18 @@ final readonly class EloquentCodigoAulaGateway implements CodigoAulaGateway
 
     public function generar(int $examenId, int $aulaId, int $usuarioId): array
     {
-        $codigo = str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+        do {
+            $codigo = str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+            $enUso = DB::table('examen_aula_codigos as c')
+                ->join('examenes as e', 'e.id', '=', 'c.examen_id')
+                ->where('c.codigo', $codigo)
+                ->where(function ($q) use ($examenId, $aulaId): void {
+                    $q->where('c.examen_id', '!=', $examenId)
+                        ->orWhere('c.aula_id', '!=', $aulaId);
+                })
+                ->whereDate('e.fecha', now()->toDateString())
+                ->exists();
+        } while ($enUso);
 
         /** @var ExamenAulaCodigo|null $existente */
         $existente = ExamenAulaCodigo::where('examen_id', $examenId)

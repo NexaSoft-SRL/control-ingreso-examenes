@@ -14,16 +14,28 @@ final class EloquentAuxiliaresDocenteGateway implements AuxiliaresDocenteGateway
 {
     public function buscar(string $termino): array
     {
-        $busqueda = mb_strtolower($termino);
+        $normalizar = static fn (string $texto): string => strtr(
+            mb_strtolower(trim($texto)),
+            [
+                'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u',
+                'ü' => 'u', 'ñ' => 'n',
+            ]
+        );
+        $busqueda = $normalizar($termino);
+
+        $driver = DB::connection()->getDriverName();
+        $expr = $driver === 'pgsql'
+            ? "TRANSLATE(LOWER(%s), 'áéíóúüñÁÉÍÓÚÜÑ', 'aeiouunaeiouun')"
+            : 'LOWER(%s)';
 
         $filas = DB::table('usuarios as u')
             ->join('roles as r', 'r.id', '=', 'u.role_id')
             ->where('r.name', 'Auxiliar')
             ->where('u.is_active', true)
-            ->where(function (Builder $consulta) use ($busqueda): void {
-                $consulta->whereRaw('LOWER(u.nombre) LIKE ?', ["%{$busqueda}%"])
-                    ->orWhereRaw('LOWER(u.usuario) LIKE ?', ["%{$busqueda}%"])
-                    ->orWhereRaw('LOWER(u.correo) LIKE ?', ["%{$busqueda}%"]);
+            ->where(function (Builder $consulta) use ($busqueda, $expr): void {
+                $consulta->whereRaw(sprintf($expr, 'u.nombre').' LIKE ?', ["%{$busqueda}%"])
+                    ->orWhereRaw(sprintf($expr, 'u.usuario').' LIKE ?', ["%{$busqueda}%"])
+                    ->orWhereRaw(sprintf($expr, 'u.correo').' LIKE ?', ["%{$busqueda}%"]);
             })
             ->orderBy('u.nombre')
             ->limit(20)
@@ -60,7 +72,9 @@ final class EloquentAuxiliaresDocenteGateway implements AuxiliaresDocenteGateway
         }
 
         $filas = DB::table('usuarios as u')
+            ->join('roles as r', 'r.id', '=', 'u.role_id')
             ->whereIn('u.id', $todosIds)
+            ->where('r.name', 'Auxiliar')
             ->where('u.is_active', true)
             ->orderBy('u.nombre')
             ->get(['u.id', 'u.nombre', 'u.usuario', 'u.correo']);

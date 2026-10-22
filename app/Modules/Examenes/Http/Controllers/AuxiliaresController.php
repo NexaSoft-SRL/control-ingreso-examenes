@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 final class AuxiliaresController
 {
@@ -44,6 +45,40 @@ final class AuxiliaresController
         BitacoraGateway $bitacora,
     ): JsonResponse {
         $usuarioId = (int) Auth::id();
+
+        if ($request->has('auxiliar_id')) {
+            $auxiliarId = $request->integer('auxiliar_id');
+            $auxUsuario = DB::table('usuarios as u')
+                ->join('roles as r', 'r.id', '=', 'u.role_id')
+                ->where('u.id', $auxiliarId)
+                ->where('r.name', 'Auxiliar')
+                ->where('u.is_active', true)
+                ->first(['u.id', 'u.nombre', 'u.usuario', 'u.correo']);
+
+            if ($auxUsuario === null) {
+                return response()->json(['message' => 'Auxiliar no encontrado.'], Response::HTTP_NOT_FOUND);
+            }
+
+            $gateway->agregar($usuarioId, (int) $auxUsuario->id);
+
+            $bitacora->registrar(
+                $usuarioId,
+                'auxiliar.agregar',
+                'docente_auxiliares',
+                (int) $auxUsuario->id,
+                "Auxiliar agregado: {$auxUsuario->nombre} ({$auxUsuario->usuario})",
+            );
+
+            return response()->json([
+                'message' => 'Auxiliar agregado',
+                'data' => [
+                    'id' => (int) $auxUsuario->id,
+                    'nombre' => (string) $auxUsuario->nombre,
+                    'codigo' => (string) $auxUsuario->usuario,
+                    'correo' => (string) $auxUsuario->correo,
+                ],
+            ], Response::HTTP_OK);
+        }
 
         $request->validate([
             'nombre_completo' => ['required', 'string', 'min:3'],
@@ -126,7 +161,7 @@ final class AuxiliaresController
                 return response()->json(['message' => 'Auxiliar no encontrado.'], Response::HTTP_NOT_FOUND);
             }
 
-            return response()->json(['message' => 'Este auxiliar no está en tu lista.'], Response::HTTP_FORBIDDEN);
+            return response()->json(['message' => 'El auxiliar no pertenece a la lista.'], Response::HTTP_FORBIDDEN);
         }
 
         if ($gateway->tieneExamenPendiente($usuarioId, $auxiliar)) {
@@ -136,6 +171,9 @@ final class AuxiliaresController
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $auxUsuario = DB::table('usuarios')->where('id', $auxiliar)->first(['nombre', 'usuario']);
+        $nombreAuxiliar = $auxUsuario ? "{$auxUsuario->nombre} ({$auxUsuario->usuario})" : (string) $auxiliar;
+
         $gateway->quitar($usuarioId, $auxiliar);
 
         $bitacora->registrar(
@@ -143,7 +181,7 @@ final class AuxiliaresController
             'auxiliar.quitar',
             'docente_auxiliares',
             $auxiliar,
-            "Auxiliar quitado: {$auxiliar}",
+            "Auxiliar quitado: {$nombreAuxiliar}",
         );
 
         return response()->json(['message' => 'Auxiliar quitado']);
