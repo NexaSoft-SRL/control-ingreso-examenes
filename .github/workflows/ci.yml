@@ -1,14 +1,16 @@
 # Quality gates de integración continua.
 #
-# Se ejecutan en cada push y en los pull requests dirigidos a main.
+# Se ejecutan en cada push y en PR hacia develop, qa y main.
 # Para bloquear merges, estos checks deben configurarse como obligatorios
-# en la protección de la rama main.
+# en la protección de develop, qa y main.
 
 name: CI
 
 on:
   pull_request:
     branches:
+      - develop
+      - qa
       - main
   push:
     branches:
@@ -79,7 +81,7 @@ jobs:
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
             export MIGRATION_GUARD_BASE="${{ github.event.pull_request.base.sha }}"
-          elif [[ "$GITHUB_REF_NAME" == "main" ]]; then
+          elif [[ "$GITHUB_REF_NAME" =~ ^(main|qa|develop)$ ]]; then
             export MIGRATION_GUARD_BASE="${{ github.event.before }}"
 
             if [[ "$MIGRATION_GUARD_BASE" =~ ^0+$ ]]; then
