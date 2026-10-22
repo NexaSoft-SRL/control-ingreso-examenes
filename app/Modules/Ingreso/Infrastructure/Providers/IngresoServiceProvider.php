@@ -13,6 +13,7 @@ use App\Modules\Ingreso\Application\Contracts\IncidenciaIngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciasIngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresosRecientesGateway;
+use App\Modules\Ingreso\Application\Contracts\OperacionesPuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\SeguimientoAulaGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
 use App\Modules\Ingreso\Application\Contracts\VerificacionPuntoControlGateway;
@@ -23,6 +24,7 @@ use App\Modules\Ingreso\Infrastructure\Persistence\EloquentExamenesDePuerta;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIncidenciaIngresoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIncidenciasIngresoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIngresosRecientesGateway;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentOperacionesPuertaGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentSeguimientoAulaGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentVerificacionPuntoControlGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\IngresoAuditadoGateway;
@@ -34,6 +36,11 @@ final class IngresoServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(
+            OperacionesPuertaGateway::class,
+            EloquentOperacionesPuertaGateway::class,
+        );
+
         $this->app->bind(
             ExamenesDePuerta::class,
             EloquentExamenesDePuerta::class,
