@@ -8,6 +8,7 @@ use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Examenes\Application\Contracts\AlcanceExamenGateway;
 use App\Modules\Ingreso\Application\Contracts\SeguimientoAulaGateway;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use LogicException;
@@ -49,7 +50,7 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
         } else {
             $consulta->join(
                 'examen_aula_personal as eap',
-                static function ($join) use ($usuarioId): void {
+                static function (JoinClause $join) use ($usuarioId): void {
                     $join->on('eap.examen_id', '=', 'ea.examen_id')
                         ->on('eap.aula_id', '=', 'ea.aula_id')
                         ->where('eap.usuario_id', '=', $usuarioId);
@@ -288,6 +289,7 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
                 ->get(['i.estudiante_id', 'g.codigo']);
 
             foreach ($grupos as $grupo) {
+                /** @var object{estudiante_id: int|string, codigo: string} $grupo */
                 $gruposPorEstudiante[(int) $grupo->estudiante_id][] = 'Grupo '.(string) $grupo->codigo;
             }
         }
