@@ -186,4 +186,44 @@ final class EloquentAuxiliaresDocenteGateway implements AuxiliaresDocenteGateway
             'correo' => $correo,
         ];
     }
+
+    public function obtenerPorId(int $auxiliarId): ?array
+    {
+        /** @var object{id: int, nombre: string, usuario: string, correo: string}|null $fila */
+        $fila = DB::table('usuarios as u')
+            ->join('roles as r', 'r.id', '=', 'u.role_id')
+            ->where('u.id', $auxiliarId)
+            ->where('r.name', 'Auxiliar')
+            ->where('u.is_active', true)
+            ->first(['u.id', 'u.nombre', 'u.usuario', 'u.correo']);
+
+        if ($fila === null) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $fila->id,
+            'nombre' => (string) $fila->nombre,
+            'usuario' => (string) $fila->usuario,
+            'correo' => (string) $fila->correo,
+        ];
+    }
+
+    public function obtenerUsuario(int $usuarioId): ?array
+    {
+        /** @var object{id: int, nombre: string, usuario: string}|null $fila */
+        $fila = DB::table('usuarios')
+            ->where('id', $usuarioId)
+            ->first(['id', 'nombre', 'usuario']);
+
+        if ($fila === null) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $fila->id,
+            'nombre' => (string) $fila->nombre,
+            'usuario' => (string) $fila->usuario,
+        ];
+    }
 }

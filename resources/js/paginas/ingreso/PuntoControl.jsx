@@ -586,9 +586,7 @@ export default function PuntoControl() {
                     <div className="space-y-3 rounded-lg bg-slate-50 p-4">
                         <h3 className="font-semibold">Resultado de identificación</h3>
                         {candidato.nombre && (
-                            <p className="text-base font-bold text-slate-900">
-                                {candidato.nombre}
-                            </p>
+                            <p className="text-base font-bold text-slate-900">{candidato.nombre}</p>
                         )}
                         <p className="break-all text-sm text-slate-700">
                             Identificador: {candidato.codigo}

@@ -27,6 +27,16 @@ interface AuxiliaresDocenteGateway
 
     public function existeUsuario(int $auxiliarId): bool;
 
+    /**
+     * @return array{id: int, nombre: string, usuario: string, correo: string}|null
+     */
+    public function obtenerPorId(int $auxiliarId): ?array;
+
+    /**
+     * @return array{id: int, nombre: string, usuario: string}|null
+     */
+    public function obtenerUsuario(int $usuarioId): ?array;
+
     public function tieneExamenPendiente(int $docenteId, int $auxiliarId): bool;
 
     public function quitar(int $docenteId, int $auxiliarId): void;

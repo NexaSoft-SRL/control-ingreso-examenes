@@ -1,6 +1,17 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
-import { ArrowRight, Check, CheckCircle2, Copy, DoorOpen, KeyRound, RefreshCw, ScrollText, Users, X } from 'lucide-react';
+import {
+    ArrowRight,
+    Check,
+    CheckCircle2,
+    Copy,
+    DoorOpen,
+    KeyRound,
+    RefreshCw,
+    ScrollText,
+    Users,
+    X,
+} from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
@@ -1134,7 +1145,9 @@ function Asistente({ asignaturas, tipos, periodos, inicial, pasoInicial, onExame
                             return a ? ubicacionDe(a, facultad) : '';
                         }}
                         docentesDisponibles={(() => {
-                            const lista = cuenta?.id ? [{ id: cuenta.id, nombre: cuenta.nombre }] : [];
+                            const lista = cuenta?.id
+                                ? [{ id: cuenta.id, nombre: cuenta.nombre }]
+                                : [];
                             const vistos = new Set(lista.map((d) => d.id));
                             const fuenteGrupos =
                                 elegidos.length > 0 ? elegidos : (examen?.grupos_detalle ?? []);

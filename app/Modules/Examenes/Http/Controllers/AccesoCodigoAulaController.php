@@ -9,7 +9,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Validator;
 
 final class AccesoCodigoAulaController
 {
@@ -24,26 +23,28 @@ final class AccesoCodigoAulaController
             ], Response::HTTP_TOO_MANY_REQUESTS);
         }
 
-        $validator = Validator::make($request->all(), [
-            'codigo' => ['required', 'string', 'regex:/^[0-9]{6}$/'],
-            'nombre_colaborador' => ['required', 'string', 'min:3', 'max:120'],
-        ], [
-            'codigo.required' => 'Seis dígitos',
-            'codigo.regex' => 'Seis dígitos',
-            'nombre_colaborador.required' => 'Mínimo 3 caracteres',
-            'nombre_colaborador.min' => 'Mínimo 3 caracteres',
-            'nombre_colaborador.max' => 'Máximo 120 caracteres',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => $validator->errors()->first(),
-                'errors' => $validator->errors(),
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
         $codigo = trim($request->string('codigo')->toString());
         $nombreColaborador = trim($request->string('nombre_colaborador')->toString());
+
+        $errores = [];
+        if ($codigo === '' || ! preg_match('/^[0-9]{6}$/', $codigo)) {
+            $errores['codigo'] = ['Seis dígitos'];
+        }
+
+        if ($nombreColaborador === '' || mb_strlen($nombreColaborador) < 3) {
+            $errores['nombre_colaborador'] = ['Mínimo 3 caracteres'];
+        } elseif (mb_strlen($nombreColaborador) > 120) {
+            $errores['nombre_colaborador'] = ['Máximo 120 caracteres'];
+        }
+
+        if ($errores !== []) {
+            $primerError = reset($errores)[0];
+
+            return response()->json([
+                'message' => $primerError,
+                'errors' => $errores,
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         $resultado = $gateway->ingresar($codigo, $nombreColaborador);
 
