@@ -16,6 +16,7 @@ const FOCO =
 
 export default function AtencionAulas({
     aulas,
+    aulasGuardadas = null,
     nombreAula,
     ubicacionAula,
     docentesDisponibles = [],
@@ -40,6 +41,7 @@ export default function AtencionAulas({
     const [falloNombre, setFalloNombre] = useState(null);
     const [falloCodigo, setFalloCodigo] = useState(null);
     const [creandoAuxiliar, setCreandoAuxiliar] = useState(false);
+    const [formKey, setFormKey] = useState(0);
 
     // Diálogo para quitar auxiliar de la lista (CA-8)
     const [auxiliarParaQuitar, setAuxiliarParaQuitar] = useState(null);
@@ -227,6 +229,7 @@ export default function AtencionAulas({
 
             setNuevoNombre('');
             setNuevoCodigo('');
+            setFormKey((k) => k + 1);
         } catch (error) {
             const erroresServidor = erroresDe(error);
             if (erroresServidor?.nombre_completo) {
@@ -318,12 +321,41 @@ export default function AtencionAulas({
         }
     };
 
-    const copiarCodigo = (codigo) => {
+    const copiarCodigo = async (codigo) => {
         if (!codigo) return;
-        navigator.clipboard.writeText(codigo);
-        setCopiado(true);
-        avisar('Código copiado');
-        setTimeout(() => setCopiado(false), 2000);
+        let copiadoExito = false;
+        if (navigator?.clipboard?.writeText) {
+            try {
+                await navigator.clipboard.writeText(codigo);
+                copiadoExito = true;
+            } catch {
+                copiadoExito = false;
+            }
+        }
+
+        if (!copiadoExito) {
+            try {
+                const textarea = document.createElement('textarea');
+                textarea.value = codigo;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                copiadoExito = document.execCommand('copy');
+                document.body.removeChild(textarea);
+            } catch {
+                copiadoExito = false;
+            }
+        }
+
+        if (copiadoExito) {
+            setCopiado(true);
+            avisar('Código copiado');
+            setTimeout(() => setCopiado(false), 2000);
+        } else {
+            avisar('Error al copiar el código', 'error');
+        }
     };
 
     // CA-1: Si el examen no tiene aulas muestra «Sin aulas»
@@ -352,10 +384,6 @@ export default function AtencionAulas({
                             </h3>
                             <Insignia tono="neutro">{plural(cantidadAulas, 'aula')}</Insignia>
                         </div>
-                        <p className="mt-0.5 text-xs text-slate-600">
-                            Indica quién está a cargo y quién apoya en cada aula para el control de
-                            ingreso.
-                        </p>
                     </div>
 
                     {/* CA-4: Botón Repartir */}
@@ -407,25 +435,35 @@ export default function AtencionAulas({
                                     </div>
 
                                     {/* CA-11: Llave para abrir «Código de acceso» */}
-                                    <button
-                                        type="button"
-                                        disabled={!examenId}
-                                        onClick={() => setAulaParaCodigo(aulaId)}
-                                        aria-label={`Código de acceso del aula ${nombre}`}
-                                        title={
-                                            examenId
-                                                ? 'Código de acceso'
-                                                : 'Disponible tras guardar el examen'
-                                        }
-                                        className={`flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
-                                            examenId
-                                                ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
-                                                : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
-                                        } ${FOCO}`}
-                                    >
-                                        <KeyRound className="h-3.5 w-3.5" />
-                                        {info.codigo ? info.codigo : 'Llave'}
-                                    </button>
+                                    {(() => {
+                                        const aulaGuardada = Boolean(
+                                            examenId &&
+                                                (aulasGuardadas !== null
+                                                    ? aulasGuardadas.includes(aulaId)
+                                                    : true)
+                                        );
+                                        return (
+                                            <button
+                                                type="button"
+                                                disabled={!aulaGuardada}
+                                                onClick={() => setAulaParaCodigo(aulaId)}
+                                                aria-label={`Código de acceso del aula ${nombre}`}
+                                                title={
+                                                    aulaGuardada
+                                                        ? 'Código de acceso'
+                                                        : 'Disponible tras guardar el examen'
+                                                }
+                                                className={`flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                                                    aulaGuardada
+                                                        ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                                                        : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                } ${FOCO}`}
+                                            >
+                                                <KeyRound className="h-3.5 w-3.5" />
+                                                {info.codigo ? info.codigo : 'Llave'}
+                                            </button>
+                                        );
+                                    })()}
                                 </div>
 
                                 {/* CA-2: A cargo */}
@@ -442,7 +480,7 @@ export default function AtencionAulas({
                                         <optgroup label="Docentes">
                                             {cuenta && (
                                                 <option value={cuenta.id}>
-                                                    {cuenta.nombre} (Tú)
+                                                    {cuenta.nombre}
                                                 </option>
                                             )}
                                             {docentesDisponibles
@@ -575,7 +613,7 @@ export default function AtencionAulas({
                 <div className="space-y-2 border-t border-slate-200 pt-4">
                     <Buscador
                         etiqueta="Buscar auxiliar"
-                        placeholder="Escribe al menos 3 letras para buscar..."
+                        placeholder="Buscar auxiliar"
                         valor={busqueda}
                         onCambiar={setBusqueda}
                     />
@@ -610,10 +648,39 @@ export default function AtencionAulas({
                                                         yaEstaEnLista ? 'secundario' : 'primario'
                                                     }
                                                     disabled={yaEstaEnLista}
-                                                    onClick={() => {
-                                                        setMisAuxiliares((prev) => [...prev, aux]);
-                                                        avisar('Auxiliar agregado');
-                                                        setBusqueda('');
+                                                    onClick={async () => {
+                                                        try {
+                                                            const { data } = await api.post(
+                                                                '/auxiliares',
+                                                                {
+                                                                    auxiliar_id: aux.id,
+                                                                    nombre_completo: aux.nombre,
+                                                                    codigo_estudiante:
+                                                                        aux.codigo || aux.usuario,
+                                                                }
+                                                            );
+                                                            const nuevo = data?.data ?? aux;
+                                                            setMisAuxiliares((prev) => {
+                                                                if (
+                                                                    prev.some(
+                                                                        (a) => a.id === nuevo.id
+                                                                    )
+                                                                ) {
+                                                                    return prev;
+                                                                }
+                                                                return [...prev, nuevo];
+                                                            });
+                                                            avisar('Auxiliar agregado');
+                                                            setBusqueda('');
+                                                        } catch (e) {
+                                                            avisar(
+                                                                mensajeDe(
+                                                                    e,
+                                                                    'Error al agregar auxiliar'
+                                                                ),
+                                                                'error'
+                                                            );
+                                                        }
                                                     }}
                                                 >
                                                     {yaEstaEnLista ? 'Agregado' : 'Agregar'}
@@ -633,6 +700,7 @@ export default function AtencionAulas({
 
                 {/* CA-6, CA-7: Formulario de Auxiliar nuevo */}
                 <form
+                    key={formKey}
                     onSubmit={agregarNuevoAuxiliar}
                     noValidate
                     className="space-y-3 rounded-lg border border-slate-200 bg-slate-50/50 p-4"
@@ -681,7 +749,7 @@ export default function AtencionAulas({
                 >
                     <div className="space-y-3">
                         <p className="text-xs text-slate-600">
-                            Elige a un auxiliar de tu lista para apoyar en esta puerta:
+                            Seleccionar auxiliar para apoyar en esta aula:
                         </p>
                         <ul className="divide-y divide-slate-100 max-h-56 overflow-y-auto border border-slate-200 rounded-lg">
                             {misAuxiliares
@@ -742,13 +810,12 @@ export default function AtencionAulas({
                 <Dialogo
                     abierto={Boolean(auxiliarParaQuitar)}
                     onCerrar={() => setAuxiliarParaQuitar(null)}
-                    titulo="Quitar auxiliar"
+                    titulo={auxiliarParaQuitar ? `Quitar a ${auxiliarParaQuitar.nombre}` : 'Quitar auxiliar'}
                 >
                     <div className="space-y-4">
                         <p className="text-sm text-slate-700">
-                            ¿Seguro que deseas quitar a <strong>{auxiliarParaQuitar.nombre}</strong>{' '}
-                            de tu lista de auxiliares? Saldrá también de las aulas asignadas y estas
-                            volverán al docente.
+                            Se quitará a <strong>{auxiliarParaQuitar.nombre}</strong> de la
+                            lista de auxiliares y de las aulas asignadas.
                         </p>
                         <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
                             <Boton
@@ -847,14 +914,13 @@ export default function AtencionAulas({
                                             </div>
                                         </div>
                                         <p className="text-xs text-slate-500">
-                                            Regenerar el código dejará sin efecto el anterior y
-                                            cerrará los accesos abiertos con él.
+                                            El código anterior dejará de ser válido.
                                         </p>
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
                                         <p className="text-xs text-slate-600">
-                                            Esta aula aún no tiene código de acceso generado.
+                                            Sin código generado.
                                         </p>
                                         <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-3">
                                             <span className="text-xs font-medium text-slate-500">
@@ -884,6 +950,7 @@ export default function AtencionAulas({
 
 AtencionAulas.propTypes = {
     aulas: PropTypes.arrayOf(PropTypes.number).isRequired,
+    aulasGuardadas: PropTypes.arrayOf(PropTypes.number),
     nombreAula: PropTypes.func.isRequired,
     ubicacionAula: PropTypes.func,
     docentesDisponibles: PropTypes.arrayOf(

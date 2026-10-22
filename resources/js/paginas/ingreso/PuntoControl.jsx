@@ -89,7 +89,12 @@ export default function PuntoControl() {
         }
     });
 
-    const cerrarSesionColaborador = () => {
+    const cerrarSesionColaborador = async () => {
+        try {
+            await api.post('/auth/codigo-aula/salir');
+        } catch {
+            // Ignorar
+        }
         try {
             localStorage.removeItem('codigo_aula_token');
             localStorage.removeItem('codigo_aula_sesion');
@@ -99,6 +104,31 @@ export default function PuntoControl() {
         setSesionColaborador(null);
         window.location.href = '/acceso-aula';
     };
+
+    useEffect(() => {
+        if (!sesionColaborador) return undefined;
+
+        const verificarVigencia = async () => {
+            try {
+                await api.get('/auth/codigo-aula/sesion', { silencioso: true });
+            } catch (error) {
+                const estado = estadoDe(error);
+                if (estado === 401 || estado === 419) {
+                    try {
+                        localStorage.removeItem('codigo_aula_token');
+                        localStorage.removeItem('codigo_aula_sesion');
+                    } catch {
+                        // Ignorar
+                    }
+                    setSesionColaborador(null);
+                    window.location.href = '/acceso-aula';
+                }
+            }
+        };
+
+        const intervalo = setInterval(verificarVigencia, 15000);
+        return () => clearInterval(intervalo);
+    }, [sesionColaborador]);
 
     const invalidarContexto = () => {
         versionContexto.current += 1;
@@ -126,7 +156,11 @@ export default function PuntoControl() {
     );
 
     const aulaValida = aulas.some((aula) => String(aula.id) === aulaId);
-    const puerta = aulaValida ? `/aulas/${aulaId}/punto-control` : null;
+    const puerta = sesionColaborador
+        ? `/examenes/${sesionColaborador.examen_id}/aulas/${sesionColaborador.aula_id}/punto-control`
+        : aulaValida
+          ? `/aulas/${aulaId}/punto-control`
+          : null;
 
     useEffect(() => {
         let activo = true;
@@ -322,12 +356,21 @@ export default function PuntoControl() {
                 setCandidato(null);
                 setVeredicto(null);
 
-                const { data } = await api.post(`${puerta}/identificar`, cuerpo, {
-                    signal: controlador.signal,
-                });
+                let resultado;
+                if (sesionColaborador) {
+                    const { data } = await api.get(`${puerta}/candidato`, {
+                        params: cuerpo,
+                        signal: controlador.signal,
+                    });
+                    resultado = data?.data;
+                } else {
+                    const { data } = await api.post(`${puerta}/identificar`, cuerpo, {
+                        signal: controlador.signal,
+                    });
+                    resultado = data?.data;
+                }
 
                 if (version !== versionContexto.current) return;
-                const resultado = data?.data;
 
                 if (!resultado || typeof resultado.admisible !== 'boolean') {
                     throw new Error('Respuesta de identificación incompleta.');
@@ -335,7 +378,10 @@ export default function PuntoControl() {
 
                 setCandidato({
                     ...resultado,
-                    codigo: tipo === 'qr' ? 'QR verificado' : identificador.trim(),
+                    codigo:
+                        tipo === 'qr'
+                            ? 'QR verificado'
+                            : (resultado.codigo ?? identificador.trim()),
                 });
             } else {
                 registroIntentado = true;
@@ -430,6 +476,12 @@ export default function PuntoControl() {
                             Colaborador de aula:{' '}
                             <strong>{sesionColaborador.nombre_colaborador}</strong> · Aula{' '}
                             <strong>{sesionColaborador.aula_nombre}</strong>
+                            {sesionColaborador.expira_en && (
+                                <span className="text-primary-700 ml-1">
+                                    · Acceso válido hasta las{' '}
+                                    <strong>{sesionColaborador.expira_en.slice(11, 16)}</strong>
+                                </span>
+                            )}
                         </span>
                     </div>
                     <button
@@ -533,6 +585,11 @@ export default function PuntoControl() {
                 {candidato && (
                     <div className="space-y-3 rounded-lg bg-slate-50 p-4">
                         <h3 className="font-semibold">Resultado de identificación</h3>
+                        {candidato.nombre && (
+                            <p className="text-base font-bold text-slate-900">
+                                {candidato.nombre}
+                            </p>
+                        )}
                         <p className="break-all text-sm text-slate-700">
                             Identificador: {candidato.codigo}
                         </p>

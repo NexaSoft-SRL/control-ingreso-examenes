@@ -439,6 +439,7 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
                 periodoCodigo: $this->cadena($columnas['periodo_codigo'] ?? null),
                 periodoInicio: $inicio === null ? null : $this->fecha($inicio),
                 periodoFin: $fin === null ? null : $this->fecha($fin),
+                docenteCuentaId: $this->enteroONulo($columnas['docente_cuenta'] ?? null),
             );
         }
 

@@ -35,15 +35,15 @@ export default function AccesoAula() {
             setFalloCodigo('Obligatorio');
             hayErrores = true;
         } else if (!/^\d{6}$/.test(cod)) {
-            setFalloCodigo('Debe tener 6 dígitos numéricos');
+            setFalloCodigo('Seis dígitos');
             hayErrores = true;
         }
 
         if (!nom) {
             setFalloNombre('Obligatorio');
             hayErrores = true;
-        } else if (nom.length < 2) {
-            setFalloNombre('Al menos 2 caracteres');
+        } else if (nom.length < 3) {
+            setFalloNombre('Mínimo 3 caracteres');
             hayErrores = true;
         }
 
@@ -53,7 +53,7 @@ export default function AccesoAula() {
         setEnviando(true);
 
         try {
-            const { data } = await api.post('/auth/acceso-codigo-aula', {
+            const { data } = await api.post('/auth/codigo-aula', {
                 codigo: cod,
                 nombre_colaborador: nom,
             });
@@ -90,8 +90,7 @@ export default function AccesoAula() {
                         Acceso a Puerta de Aula
                     </h1>
                     <p className="mt-1 text-xs text-slate-600">
-                        Ingresa el código de 6 dígitos brindado por el docente para operar el punto
-                        de control.
+                        Código de 6 dígitos brindado por el docente para operar el punto de control.
                     </p>
                 </div>
 
@@ -111,7 +110,7 @@ export default function AccesoAula() {
                     />
 
                     <Campo
-                        etiqueta="Tu nombre y apellido"
+                        etiqueta="Nombre"
                         value={nombre}
                         onChange={(e) => {
                             setNombre(e.target.value);
@@ -138,12 +137,12 @@ export default function AccesoAula() {
 
                     <div className="border-t border-slate-200 pt-4 text-center">
                         <p className="text-xs text-slate-600">
-                            ¿Tienes cuenta institucional?{' '}
+                            ¿Tiene cuenta institucional?{' '}
                             <Link
                                 to="/login"
                                 className="font-medium text-primary-600 hover:text-primary-700 hover:underline"
                             >
-                                Iniciar sesión con correo
+                                Iniciar sesión con usuario
                             </Link>
                         </p>
                     </div>

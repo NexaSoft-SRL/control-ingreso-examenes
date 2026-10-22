@@ -36,7 +36,7 @@ describe('AccesoAula', () => {
             screen.getByRole('heading', { name: 'Acceso a Puerta de Aula' })
         ).toBeInTheDocument();
         expect(screen.getByLabelText('Código de aula')).toBeInTheDocument();
-        expect(screen.getByLabelText('Tu nombre y apellido')).toBeInTheDocument();
+        expect(screen.getByLabelText('Nombre')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Ingresar al aula/i })).toBeInTheDocument();
     });
 
@@ -53,11 +53,11 @@ describe('AccesoAula', () => {
         expect(api.post).not.toHaveBeenCalled();
 
         fireEvent.change(screen.getByLabelText(/Código de aula/), { target: { value: '123' } });
-        fireEvent.change(screen.getByLabelText(/Tu nombre y apellido/), { target: { value: 'A' } });
+        fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'A' } });
         fireEvent.click(screen.getByRole('button', { name: /Ingresar al aula/i }));
 
-        expect(await screen.findByText('Debe tener 6 dígitos numéricos')).toBeInTheDocument();
-        expect(screen.getByText('Al menos 2 caracteres')).toBeInTheDocument();
+        expect(await screen.findByText('Seis dígitos')).toBeInTheDocument();
+        expect(screen.getByText('Mínimo 3 caracteres')).toBeInTheDocument();
         expect(api.post).not.toHaveBeenCalled();
     });
 
@@ -92,13 +92,13 @@ describe('AccesoAula', () => {
         );
 
         fireEvent.change(screen.getByLabelText('Código de aula'), { target: { value: '123456' } });
-        fireEvent.change(screen.getByLabelText('Tu nombre y apellido'), {
+        fireEvent.change(screen.getByLabelText('Nombre'), {
             target: { value: 'Carlos Gómez' },
         });
         fireEvent.click(screen.getByRole('button', { name: /Ingresar al aula/i }));
 
         await waitFor(() => {
-            expect(api.post).toHaveBeenCalledWith('/auth/acceso-codigo-aula', {
+            expect(api.post).toHaveBeenCalledWith('/auth/codigo-aula', {
                 codigo: '123456',
                 nombre_colaborador: 'Carlos Gómez',
             });
@@ -127,7 +127,7 @@ describe('AccesoAula', () => {
         );
 
         fireEvent.change(screen.getByLabelText('Código de aula'), { target: { value: '999999' } });
-        fireEvent.change(screen.getByLabelText('Tu nombre y apellido'), {
+        fireEvent.change(screen.getByLabelText('Nombre'), {
             target: { value: 'Carlos Gómez' },
         });
         fireEvent.click(screen.getByRole('button', { name: /Ingresar al aula/i }));
