@@ -54,4 +54,60 @@ final class EloquentOperacionesPuertaGateway implements OperacionesPuertaGateway
         return is_string($fecha) ? $fecha : null;
     }
 
+    public function examenDeIngreso(
+        int $ingresoId,
+        int $aulaId,
+    ): ?int {
+        $valor = DB::table('ingresos')
+            ->where('id', $ingresoId)
+            ->where('aula_id', $aulaId)
+            ->value('examen_id');
+
+        if (! is_int($valor) && ! is_string($valor)) {
+            return null;
+        }
+
+        return (int) $valor;
+    }
+
+    public function expulsar(
+        int $ingresoId,
+        int $aulaId,
+        int $usuarioId,
+        string $motivo,
+    ): bool {
+        return DB::transaction(
+            static function () use (
+                $ingresoId,
+                $aulaId,
+                $usuarioId,
+                $motivo,
+            ): bool {
+                $ingreso = DB::table('ingresos')
+                    ->where('id', $ingresoId)
+                    ->where('aula_id', $aulaId)
+                    ->lockForUpdate()
+                    ->first(['id']);
+
+                if ($ingreso === null) {
+                    return false;
+                }
+
+                if (DB::table('expulsiones')
+                    ->where('ingreso_id', $ingresoId)
+                    ->exists()) {
+                    return false;
+                }
+
+                DB::table('expulsiones')->insert([
+                    'ingreso_id' => $ingresoId,
+                    'registrada_por' => $usuarioId,
+                    'motivo' => trim($motivo),
+                    'registrada_en' => DB::raw('CURRENT_TIMESTAMP'),
+                ]);
+
+                return true;
+            },
+        );
+    }
 }
