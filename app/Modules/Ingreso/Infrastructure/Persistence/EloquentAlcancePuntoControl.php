@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Infrastructure\Persistence;
 
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 class EloquentAlcancePuntoControl extends AlcancePuntoControlSinAsignaciones implements AlcancePuntoControl
@@ -26,6 +27,28 @@ class EloquentAlcancePuntoControl extends AlcancePuntoControlSinAsignaciones imp
             ->exists();
 
         if ($asignadoEnAtencion) {
+            return true;
+        }
+
+        // 2. Docente creador del examen o docente de un grupo incluido
+        $esDocenteDelExamen = DB::table('examenes as e')
+            ->join('examen_aula as ea', 'ea.examen_id', '=', 'e.id')
+            ->where('e.id', $examenId)
+            ->where('ea.aula_id', $aulaId)
+            ->where(function (Builder $query) use ($usuarioId): void {
+                $query->where('e.creado_por', $usuarioId)
+                    ->orWhereExists(function (Builder $sub) use ($usuarioId): void {
+                        $sub->selectRaw('1')
+                            ->from('examen_grupo as eg')
+                            ->join('grupos as g', 'g.id', '=', 'eg.grupo_id')
+                            ->join('docentes as d', 'd.id', '=', 'g.docente_id')
+                            ->whereColumn('eg.examen_id', 'e.id')
+                            ->where('d.user_id', $usuarioId);
+                    });
+            })
+            ->exists();
+
+        if ($esDocenteDelExamen) {
             return true;
         }
 

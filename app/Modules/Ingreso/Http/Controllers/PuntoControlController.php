@@ -8,6 +8,7 @@ use App\Modules\Ingreso\Application\Actions\RegistrarIngreso;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciasIngresoGateway;
+use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresosRecientesGateway;
 use App\Modules\Ingreso\Application\Queries\ConsultarCandidato;
 use App\Modules\Ingreso\Application\Queries\ConsultarIncidenciasIngreso;
@@ -31,6 +32,7 @@ final class PuntoControlController
         AlcancePuntoControl $alcance,
         ConsultarCandidato $consulta,
         CodigoQrGateway $qr,
+        IngresoGateway $ingresoGateway,
     ): JsonResponse {
         $acceso = $request->attributes->get('acceso_codigo_aula');
         $usuario = Auth::id();
@@ -70,6 +72,26 @@ final class PuntoControlController
             return $this->error('Estudiante no encontrado.', 404);
         }
 
+        $admisible = false;
+        $veredicto = VeredictoIngreso::NoCorresponde->value;
+
+        if (! $candidato->inscrito) {
+            $veredicto = VeredictoIngreso::NoCorresponde->value;
+        } elseif ($candidato->habilitacion === null || ! $candidato->habilitacion->habilitado) {
+            $veredicto = VeredictoIngreso::NoHabilitado->value;
+        } elseif ($candidato->habilitacion->aulaId !== $aula) {
+            $veredicto = VeredictoIngreso::OtraAula->value;
+        } else {
+            $yaIngreso = $ingresoGateway->yaIngreso($examen, $candidato->estudiante->id);
+
+            if ($yaIngreso) {
+                $veredicto = VeredictoIngreso::YaIngreso->value;
+            } else {
+                $veredicto = VeredictoIngreso::Admitido->value;
+                $admisible = true;
+            }
+        }
+
         return response()->json([
             'data' => [
                 'estudiante_id' => $candidato->estudiante->id,
@@ -81,6 +103,9 @@ final class PuntoControlController
                     ? $candidato->habilitacion->motivo
                     : null,
                 'aula_asignada_id' => $candidato->habilitacion?->aulaId,
+                'examen_id' => $examen,
+                'admisible' => $admisible,
+                'veredicto' => $veredicto,
             ],
         ]);
     }
