@@ -12,7 +12,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 final class AuxiliaresController
 {
@@ -48,34 +47,29 @@ final class AuxiliaresController
 
         if ($request->has('auxiliar_id')) {
             $auxiliarId = $request->integer('auxiliar_id');
-            $auxUsuario = DB::table('usuarios as u')
-                ->join('roles as r', 'r.id', '=', 'u.role_id')
-                ->where('u.id', $auxiliarId)
-                ->where('r.name', 'Auxiliar')
-                ->where('u.is_active', true)
-                ->first(['u.id', 'u.nombre', 'u.usuario', 'u.correo']);
+            $auxUsuario = $gateway->obtenerPorId($auxiliarId);
 
             if ($auxUsuario === null) {
                 return response()->json(['message' => 'Auxiliar no encontrado.'], Response::HTTP_NOT_FOUND);
             }
 
-            $gateway->agregar($usuarioId, (int) $auxUsuario->id);
+            $gateway->agregar($usuarioId, (int) $auxUsuario['id']);
 
             $bitacora->registrar(
                 $usuarioId,
                 'auxiliar.agregar',
                 'docente_auxiliares',
-                (int) $auxUsuario->id,
-                "Auxiliar agregado: {$auxUsuario->nombre} ({$auxUsuario->usuario})",
+                (int) $auxUsuario['id'],
+                "Auxiliar agregado: {$auxUsuario['nombre']} ({$auxUsuario['usuario']})",
             );
 
             return response()->json([
                 'message' => 'Auxiliar agregado',
                 'data' => [
-                    'id' => (int) $auxUsuario->id,
-                    'nombre' => (string) $auxUsuario->nombre,
-                    'codigo' => (string) $auxUsuario->usuario,
-                    'correo' => (string) $auxUsuario->correo,
+                    'id' => (int) $auxUsuario['id'],
+                    'nombre' => (string) $auxUsuario['nombre'],
+                    'codigo' => (string) $auxUsuario['usuario'],
+                    'correo' => (string) $auxUsuario['correo'],
                 ],
             ], Response::HTTP_OK);
         }
@@ -171,8 +165,8 @@ final class AuxiliaresController
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $auxUsuario = DB::table('usuarios')->where('id', $auxiliar)->first(['nombre', 'usuario']);
-        $nombreAuxiliar = $auxUsuario ? "{$auxUsuario->nombre} ({$auxUsuario->usuario})" : (string) $auxiliar;
+        $auxUsuario = $gateway->obtenerUsuario($auxiliar);
+        $nombreAuxiliar = $auxUsuario !== null ? "{$auxUsuario['nombre']} ({$auxUsuario['usuario']})" : (string) $auxiliar;
 
         $gateway->quitar($usuarioId, $auxiliar);
 

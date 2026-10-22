@@ -6,6 +6,7 @@ namespace Tests\Feature\Modules\Ingreso;
 
 use App\Modules\Academico\Domain\Models\Aula;
 use App\Modules\Examenes\Domain\Models\AccesoCodigoAula;
+use App\Modules\Examenes\Domain\Models\ExamenAulaPersonal;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Modules\Examenes\ArmaExamenes;
 use Tests\TestCase;
@@ -156,11 +157,11 @@ final class PuertaTest extends TestCase
         $this->habilitar($examen, [$estudiante], $aula);
 
         // Aula 617 puesta a cargo de Docente Apoyo
-        \App\Modules\Examenes\Domain\Models\ExamenAulaPersonal::create([
+        ExamenAulaPersonal::create([
             'examen_id' => $examen->id,
             'aula_id' => $aula->id,
             'usuario_id' => $cuentaApoyo->id,
-            'rol' => \App\Modules\Examenes\Domain\Models\ExamenAulaPersonal::ROL_A_CARGO,
+            'rol' => ExamenAulaPersonal::ROL_A_CARGO,
         ]);
 
         // Docente creador opera el punto de control sin ser rechazado con 403

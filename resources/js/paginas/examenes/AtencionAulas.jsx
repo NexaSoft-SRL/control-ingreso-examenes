@@ -438,9 +438,9 @@ export default function AtencionAulas({
                                     {(() => {
                                         const aulaGuardada = Boolean(
                                             examenId &&
-                                                (aulasGuardadas !== null
-                                                    ? aulasGuardadas.includes(aulaId)
-                                                    : true)
+                                            (aulasGuardadas !== null
+                                                ? aulasGuardadas.includes(aulaId)
+                                                : true)
                                         );
                                         return (
                                             <button
@@ -479,9 +479,7 @@ export default function AtencionAulas({
                                     >
                                         <optgroup label="Docentes">
                                             {cuenta && (
-                                                <option value={cuenta.id}>
-                                                    {cuenta.nombre}
-                                                </option>
+                                                <option value={cuenta.id}>{cuenta.nombre}</option>
                                             )}
                                             {docentesDisponibles
                                                 .filter((d) => d.id !== cuenta?.id)
@@ -810,12 +808,16 @@ export default function AtencionAulas({
                 <Dialogo
                     abierto={Boolean(auxiliarParaQuitar)}
                     onCerrar={() => setAuxiliarParaQuitar(null)}
-                    titulo={auxiliarParaQuitar ? `Quitar a ${auxiliarParaQuitar.nombre}` : 'Quitar auxiliar'}
+                    titulo={
+                        auxiliarParaQuitar
+                            ? `Quitar a ${auxiliarParaQuitar.nombre}`
+                            : 'Quitar auxiliar'
+                    }
                 >
                     <div className="space-y-4">
                         <p className="text-sm text-slate-700">
-                            Se quitará a <strong>{auxiliarParaQuitar.nombre}</strong> de la
-                            lista de auxiliares y de las aulas asignadas.
+                            Se quitará a <strong>{auxiliarParaQuitar.nombre}</strong> de la lista de
+                            auxiliares y de las aulas asignadas.
                         </p>
                         <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
                             <Boton
