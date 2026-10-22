@@ -49,11 +49,11 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
             });
         } else {
             $consulta->join(
-                'asignaciones_seguimiento_aula as asa',
+                'examen_aula_personal as eap',
                 static function (JoinClause $join) use ($usuarioId): void {
-                    $join->on('asa.examen_id', '=', 'ea.examen_id')
-                        ->on('asa.aula_id', '=', 'ea.aula_id')
-                        ->where('asa.usuario_id', '=', $usuarioId);
+                    $join->on('eap.examen_id', '=', 'ea.examen_id')
+                        ->on('eap.aula_id', '=', 'ea.aula_id')
+                        ->where('eap.usuario_id', '=', $usuarioId);
                 },
             );
         }
@@ -134,7 +134,7 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
 
     public function tieneAsignacion(int $usuarioId, int $examenId, int $aulaId): bool
     {
-        return DB::table('asignaciones_seguimiento_aula')
+        return DB::table('examen_aula_personal')
             ->where('usuario_id', $usuarioId)
             ->where('examen_id', $examenId)
             ->where('aula_id', $aulaId)
@@ -147,17 +147,7 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
             return true;
         }
 
-        $esAuxiliar = DB::table('usuarios as u')
-            ->join('roles as r', 'r.id', '=', 'u.role_id')
-            ->where('u.id', $usuarioId)
-            ->where('r.name', 'Auxiliar')
-            ->exists();
-
-        if (! $esAuxiliar) {
-            return false;
-        }
-
-        return DB::table('asignaciones_seguimiento_aula')
+        return DB::table('examen_aula_personal')
             ->where('usuario_id', $usuarioId)
             ->where('examen_id', $examenId)
             ->where('aula_id', $aulaId)
@@ -241,15 +231,17 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
         $buscar = $this->normalizar($busqueda);
 
         if ($buscar !== '') {
-            $patron = '%'.addcslashes($buscar, '%_\\').'%';
-            $registros->where(function (Builder $consulta) use ($patron): void {
-                foreach (['nombres', 'apellidos', 'codigo_universitario', 'documento_identidad'] as $columna) {
-                    $consulta->orWhereRaw(
-                        "translate(lower(e.{$columna}), 'áéíóúüñ', 'aeiouun') LIKE ?",
-                        [$patron],
-                    );
-                }
-            });
+            foreach (preg_split('/\s+/u', $buscar, -1, PREG_SPLIT_NO_EMPTY) ?: [] as $termino) {
+                $patron = '%'.addcslashes($termino, '%_\\').'%';
+                $registros->where(function (Builder $consulta) use ($patron): void {
+                    foreach (['nombres', 'apellidos', 'codigo_universitario', 'documento_identidad'] as $columna) {
+                        $consulta->orWhereRaw(
+                            "translate(lower(e.{$columna}), 'áéíóúüñ', 'aeiouun') LIKE ?",
+                            [$patron],
+                        );
+                    }
+                });
+            }
         }
 
         $total = (int) (clone $registros)->count();
@@ -272,13 +264,35 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
             $columnas[] = 'x.registrada_en as expulsado_en';
         }
 
+        if ($estado === 'ingresaron') {
+            $registros->orderByDesc('i.registrado_en')
+                ->orderByDesc('i.id');
+        } else {
+            $registros->orderByRaw("translate(lower(e.apellidos), 'áéíóúüñ', 'aeiouun')")
+                ->orderByRaw("translate(lower(e.nombres), 'áéíóúüñ', 'aeiouun')")
+                ->orderBy('e.codigo_universitario');
+        }
+
         $filas = $registros
-            ->orderByRaw("translate(lower(e.apellidos), 'áéíóúüñ', 'aeiouun')")
-            ->orderByRaw("translate(lower(e.nombres), 'áéíóúüñ', 'aeiouun')")
-            ->orderBy('e.codigo_universitario')
             ->offset(($pagina - 1) * self::POR_PAGINA)
             ->limit(self::POR_PAGINA)
             ->get($columnas);
+
+        $gruposPorEstudiante = [];
+        if ($filas->isNotEmpty()) {
+            $grupos = DB::table('inscripciones as i')
+                ->join('examen_grupo as eg', 'eg.grupo_id', '=', 'i.grupo_id')
+                ->join('grupos as g', 'g.id', '=', 'i.grupo_id')
+                ->where('eg.examen_id', $examenId)
+                ->whereIn('i.estudiante_id', $filas->pluck('estudiante_id')->unique()->all())
+                ->orderBy('g.codigo')
+                ->get(['i.estudiante_id', 'g.codigo']);
+
+            foreach ($grupos as $grupo) {
+                /** @var object{estudiante_id: int|string, codigo: string} $grupo */
+                $gruposPorEstudiante[(int) $grupo->estudiante_id][] = 'Grupo '.(string) $grupo->codigo;
+            }
+        }
 
         $estudiantes = [];
 
@@ -299,6 +313,7 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
                 'codigo' => (string) $fila->codigo,
                 'nombres' => (string) $fila->nombres,
                 'apellidos' => (string) $fila->apellidos,
+                'grupos' => $gruposPorEstudiante[(int) $fila->estudiante_id] ?? [],
                 'aula_id' => (int) $fila->aula_id,
                 'estado' => $estado === 'faltan'
                     ? 'Ausente'
@@ -412,149 +427,6 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
                 'total' => $total,
             ],
         ];
-    }
-
-    public function asignaciones(int $examenId): array
-    {
-        $asignaciones = DB::table('asignaciones_seguimiento_aula as a')
-            ->join('usuarios as u', 'u.id', '=', 'a.usuario_id')
-            ->join('aulas as au', 'au.id', '=', 'a.aula_id')
-            ->where('a.examen_id', $examenId)
-            ->orderBy('au.nombre')
-            ->orderBy('u.nombre')
-            ->get([
-                'a.id',
-                'a.usuario_id',
-                'a.aula_id',
-                'u.nombre as auxiliar',
-                'au.nombre as aula',
-            ])
-            ->map(static function (object $fila): array {
-                /**
-                 * @var object{
-                 *   id: int,
-                 *   usuario_id: int,
-                 *   aula_id: int,
-                 *   auxiliar: string,
-                 *   aula: string
-                 * } $fila
-                 */
-
-                return [
-                    'id' => (int) $fila->id,
-                    'usuario_id' => (int) $fila->usuario_id,
-                    'aula_id' => (int) $fila->aula_id,
-                    'auxiliar' => (string) $fila->auxiliar,
-                    'aula' => (string) $fila->aula,
-                ];
-            })
-            ->values()
-            ->all();
-
-        return array_values($asignaciones);
-    }
-
-    public function aulasDelExamen(int $examenId): array
-    {
-        $aulas = DB::table('examen_aula as ea')
-            ->join('aulas as a', 'a.id', '=', 'ea.aula_id')
-            ->where('ea.examen_id', $examenId)
-            ->orderByRaw("translate(lower(a.nombre), 'áéíóúüñ', 'aeiouun')")
-            ->get(['a.id', 'a.nombre'])
-            ->map(static function (object $fila): array {
-                /** @var object{id: int, nombre: string} $fila */
-
-                return [
-                    'id' => (int) $fila->id,
-                    'nombre' => (string) $fila->nombre,
-                ];
-            })
-            ->values()
-            ->all();
-
-        return array_values($aulas);
-    }
-
-    public function auxiliares(): array
-    {
-        $auxiliares = DB::table('usuarios as u')
-            ->join('roles as r', 'r.id', '=', 'u.role_id')
-            ->where('r.name', 'Auxiliar')
-            ->where('u.is_active', true)
-            ->orderBy('u.nombre')
-            ->get(['u.id', 'u.nombre', 'u.usuario'])
-            ->map(static function (object $fila): array {
-                /**
-                 * @var object{id: int, nombre: string, usuario: string} $fila
-                 */
-
-                return [
-                    'id' => (int) $fila->id,
-                    'nombre' => (string) $fila->nombre,
-                    'usuario' => (string) $fila->usuario,
-                ];
-            })
-            ->values()
-            ->all();
-
-        return array_values($auxiliares);
-    }
-
-    public function asignarAuxiliar(
-        int $usuarioId,
-        int $examenId,
-        int $aulaId,
-        int $asignadoPor,
-    ): int {
-        $esAuxiliar = DB::table('usuarios as u')
-            ->join('roles as r', 'r.id', '=', 'u.role_id')
-            ->where('u.id', $usuarioId)
-            ->where('r.name', 'Auxiliar')
-            ->where('u.is_active', true)
-            ->exists();
-
-        if (! $esAuxiliar || ! $this->aulaPerteneceAExamen($examenId, $aulaId)) {
-            throw new InvalidArgumentException('El auxiliar o el aula no son válidos para este examen.');
-        }
-
-        $existente = DB::table('asignaciones_seguimiento_aula')
-            ->where('usuario_id', $usuarioId)
-            ->where('examen_id', $examenId)
-            ->where('aula_id', $aulaId)
-            ->value('id');
-
-        if (is_numeric($existente)) {
-            return (int) $existente;
-        }
-
-        DB::table('asignaciones_seguimiento_aula')->upsert([[
-            'usuario_id' => $usuarioId,
-            'examen_id' => $examenId,
-            'aula_id' => $aulaId,
-            'asignado_por' => $asignadoPor,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]], ['usuario_id', 'examen_id', 'aula_id'], ['updated_at']);
-
-        $identificador = DB::table('asignaciones_seguimiento_aula')
-            ->where('usuario_id', $usuarioId)
-            ->where('examen_id', $examenId)
-            ->where('aula_id', $aulaId)
-            ->value('id');
-
-        if (! is_numeric($identificador)) {
-            throw new LogicException('No se pudo recuperar la asignación registrada.');
-        }
-
-        return (int) $identificador;
-    }
-
-    public function quitarAsignacion(int $asignacionId, int $examenId): bool
-    {
-        return DB::table('asignaciones_seguimiento_aula')
-            ->where('id', $asignacionId)
-            ->where('examen_id', $examenId)
-            ->delete() === 1;
     }
 
     public function ubicacionIncidencia(int $incidenciaId): ?array
