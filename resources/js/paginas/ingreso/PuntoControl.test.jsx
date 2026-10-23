@@ -388,6 +388,221 @@ describe('PuntoControl HU-19', () => {
         expect(screen.queryByText(/No debe aparecer/)).not.toBeInTheDocument();
     });
 
+    it('BUG-06: registra una situación excepcional contextual sin admitir', async () => {
+        api.post.mockImplementation((ruta) => {
+            if (ruta.endsWith('/identificar')) {
+                return Promise.resolve({
+                    data: {
+                        data: {
+                            examen_id: 10,
+                            veredicto: 'NO_HABILITADO',
+                            ambiguo: false,
+                            admisible: false,
+                            codigo: '202100001',
+                            nombre: 'Estudiante de prueba',
+                            inscrito: true,
+                            habilitado: false,
+                            motivo_inhabilitacion: 'Documentación pendiente.',
+                        },
+                    },
+                });
+            }
+
+            if (ruta.endsWith('/incidencias-manuales')) {
+                return Promise.resolve({
+                    data: { data: { incidencia_id: 55 } },
+                });
+            }
+
+            return Promise.reject(new Error(`POST inesperado: ${ruta}`));
+        });
+
+        const getOriginal = api.get.getMockImplementation();
+
+        api.get.mockImplementation((ruta, opciones) => {
+            if (ruta.endsWith('/incidencias-manuales')) {
+                return Promise.resolve({ data: { data: [] } });
+            }
+
+            return getOriginal(ruta, opciones);
+        });
+
+        await preparar();
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
+            target: { value: '202100001' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
+
+        expect(await screen.findByText('Estudiante no habilitado')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Confirmar ingreso' })).toBeDisabled();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Situación excepcional' }));
+
+        expect(screen.getByRole('combobox', { name: 'Examen de incidencia manual' })).toHaveValue(
+            '10'
+        );
+
+        expect(screen.getByRole('combobox', { name: 'Tipo de incidencia manual' })).toHaveValue(
+            'EXCEPCION_NO_HABILITADO'
+        );
+
+        expect(
+            screen.getByRole('textbox', { name: 'Código universitario para incidencia' })
+        ).toHaveValue('202100001');
+
+        const registrar = screen.getByRole('button', {
+            name: 'Registrar incidencia manual',
+        });
+
+        expect(registrar).toBeDisabled();
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'Detalle de incidencia manual' }), {
+            target: { value: 'Documento original pendiente de revisión.' },
+        });
+
+        fireEvent.click(registrar);
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/incidencias-manuales', {
+                examen_id: 10,
+                codigo_universitario: '202100001',
+                tipo: 'EXCEPCION_NO_HABILITADO',
+                detalle: 'Documento original pendiente de revisión.',
+            });
+        });
+
+        expect(api.post.mock.calls.some(([ruta]) => ruta.endsWith('/ingresos'))).toBe(false);
+    });
+
+    it('BUG-06: no ofrece situación excepcional con examen ambiguo', async () => {
+        api.post.mockResolvedValue({
+            data: {
+                data: {
+                    examen_id: null,
+                    veredicto: null,
+                    ambiguo: true,
+                    admisible: false,
+                    codigo: null,
+                },
+            },
+        });
+
+        await preparar();
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
+            target: { value: '202100001' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
+
+        expect(
+            await screen.findByText('Identificación ambigua entre exámenes')
+        ).toBeInTheDocument();
+
+        expect(
+            screen.queryByRole('button', { name: 'Situación excepcional' })
+        ).not.toBeInTheDocument();
+
+        expect(api.post).toHaveBeenCalledTimes(1);
+    });
+
+    it('BUG-06: nueva identificación invalida excepción anterior', async () => {
+        let consultas = 0;
+
+        api.post.mockImplementation((ruta) => {
+            if (ruta.endsWith('/identificar')) {
+                consultas += 1;
+
+                return Promise.resolve({
+                    data: {
+                        data:
+                            consultas === 1
+                                ? {
+                                      examen_id: 10,
+                                      veredicto: 'NO_HABILITADO',
+                                      ambiguo: false,
+                                      admisible: false,
+                                      codigo: '202100001',
+                                      inscrito: true,
+                                      habilitado: false,
+                                  }
+                                : {
+                                      examen_id: null,
+                                      veredicto: null,
+                                      ambiguo: true,
+                                      admisible: false,
+                                      codigo: null,
+                                  },
+                    },
+                });
+            }
+
+            return Promise.reject(new Error(`POST inesperado: ${ruta}`));
+        });
+
+        const getOriginal = api.get.getMockImplementation();
+
+        api.get.mockImplementation((ruta, opciones) => {
+            if (ruta.endsWith('/incidencias-manuales')) {
+                return Promise.resolve({ data: { data: [] } });
+            }
+
+            return getOriginal(ruta, opciones);
+        });
+
+        await preparar();
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
+            target: { value: '202100001' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
+
+        expect(await screen.findByText('Estudiante no habilitado')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Situación excepcional' }));
+
+        expect(
+            await screen.findByRole('combobox', {
+                name: 'Tipo de incidencia manual',
+            })
+        ).toHaveValue('EXCEPCION_NO_HABILITADO');
+
+        expect(
+            screen.getByRole('textbox', {
+                name: 'Código universitario para incidencia',
+            })
+        ).toHaveValue('202100001');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
+
+        expect(
+            await screen.findByText('Identificación ambigua entre exámenes')
+        ).toBeInTheDocument();
+
+        expect(
+            screen.queryByRole('button', { name: 'Situación excepcional' })
+        ).not.toBeInTheDocument();
+
+        expect(
+            screen.getByRole('combobox', {
+                name: 'Tipo de incidencia manual',
+            })
+        ).toHaveValue('INCIDENTE_GENERAL');
+
+        expect(
+            screen.getByRole('textbox', {
+                name: 'Código universitario para incidencia',
+            })
+        ).toHaveValue('');
+
+        expect(api.post.mock.calls.some(([ruta]) => ruta.endsWith('/incidencias-manuales'))).toBe(
+            false
+        );
+    });
+
     it('CA-2: muestra el motivo real del estudiante inhabilitado', async () => {
         api.post.mockResolvedValue({
             data: {
@@ -478,7 +693,7 @@ describe('PuntoControl HU-19', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Confirmar ingreso' }));
 
-        await screen.findByText('Ingreso autorizado');
+        await screen.findByText('Ingreso registrado correctamente.');
 
         expect(api.post).toHaveBeenCalledWith(
             '/aulas/7/punto-control/ingresos',
@@ -801,8 +1016,12 @@ describe('PuntoControl HU-19', () => {
 
         await preparar();
 
-        expect(await screen.findByText(/Ingreso #42/)).toBeInTheDocument();
-        expect(screen.getByText(/Estudiante 5/)).toBeInTheDocument();
+        expect(await screen.findByText(/de prueba, Estudiante/)).toBeInTheDocument();
+        expect(screen.getByText(/Código: 202100001/)).toBeInTheDocument();
+        expect(screen.getByText(/Hora: 2026-10-15 08:10:00/)).toBeInTheDocument();
+
+        expect(screen.queryByText(/Ingreso #42/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Estudiante 5/)).not.toBeInTheDocument();
     });
 
     it('informa el fallo de carga del contexto sin permitir operar', async () => {
@@ -1019,5 +1238,145 @@ describe('PuntoControl HU-19', () => {
                 signal: expect.any(AbortSignal),
             })
         );
+    });
+
+    it('BUG-05: expulsa mediante la API y refleja el estado persistido', async () => {
+        let expulsado = false;
+
+        const registro = {
+            ingreso_id: 91,
+            estudiante_id: 5,
+            codigo: '202100001',
+            nombres: 'Ana',
+            apellidos: 'Rojas',
+            registrado_en: '2026-10-22 09:15:00',
+        };
+
+        api.get.mockImplementation((ruta) => {
+            if (ruta === '/punto-control/contexto') {
+                return Promise.resolve({ data: { data: [examen] } });
+            }
+
+            if (ruta === '/aulas/7/punto-control/ingresos') {
+                return Promise.resolve({
+                    data: { data: [{ ...registro, expulsado }] },
+                });
+            }
+
+            if (ruta.endsWith('/incidencias')) {
+                return Promise.resolve({ data: { data: [] } });
+            }
+
+            return Promise.reject(new Error('Ruta GET inesperada'));
+        });
+
+        api.post.mockImplementation((ruta, datos) => {
+            if (ruta === '/aulas/7/punto-control/ingresos/91/expulsion') {
+                if (datos.motivo !== 'Incumplimiento de normas') {
+                    return Promise.reject(new Error('Motivo inesperado'));
+                }
+
+                expulsado = true;
+
+                return Promise.resolve({
+                    data: {
+                        data: { ingreso_id: 91, expulsado: true },
+                    },
+                });
+            }
+
+            return Promise.reject(new Error('Ruta POST inesperada'));
+        });
+
+        await preparar();
+
+        fireEvent.click(
+            await screen.findByRole('button', {
+                name: 'Expulsar estudiante',
+            })
+        );
+
+        fireEvent.change(
+            screen.getByRole('textbox', {
+                name: 'Motivo de expulsión',
+            }),
+            { target: { value: 'Incumplimiento de normas' } }
+        );
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Confirmar expulsión',
+            })
+        );
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/ingresos/91/expulsion', {
+                motivo: 'Incumplimiento de normas',
+            });
+        });
+
+        expect(await screen.findByText('Expulsado')).toBeInTheDocument();
+
+        await waitFor(() => {
+            expect(
+                screen.queryByRole('button', {
+                    name: 'Expulsar estudiante',
+                })
+            ).not.toBeInTheDocument();
+        });
+    });
+
+    it('BUG-05: rechaza un motivo corto sin realizar escrituras', async () => {
+        api.get.mockImplementation((ruta) => {
+            if (ruta === '/punto-control/contexto') {
+                return Promise.resolve({ data: { data: [examen] } });
+            }
+
+            if (ruta.endsWith('/ingresos')) {
+                return Promise.resolve({
+                    data: {
+                        data: [
+                            {
+                                ingreso_id: 91,
+                                codigo: '202100001',
+                                nombres: 'Ana',
+                                apellidos: 'Rojas',
+                                registrado_en: '2026-10-22 09:15:00',
+                                expulsado: false,
+                            },
+                        ],
+                    },
+                });
+            }
+
+            if (ruta.endsWith('/incidencias')) {
+                return Promise.resolve({ data: { data: [] } });
+            }
+
+            return Promise.reject(new Error('Ruta GET inesperada'));
+        });
+
+        await preparar();
+
+        fireEvent.click(
+            await screen.findByRole('button', {
+                name: 'Expulsar estudiante',
+            })
+        );
+
+        fireEvent.change(
+            screen.getByRole('textbox', {
+                name: 'Motivo de expulsión',
+            }),
+            { target: { value: 'abc' } }
+        );
+
+        expect(
+            screen.getByRole('button', {
+                name: 'Confirmar expulsión',
+            })
+        ).toBeDisabled();
+
+        expect(api.post).not.toHaveBeenCalled();
     });
 });

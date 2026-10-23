@@ -78,6 +78,18 @@ final class IdentificarEnPuertaController
                 'veredicto' => $resultado->veredicto?->value,
                 'ambiguo' => $resultado->ambiguo,
                 'admisible' => $resultado->puedeAdmitir(),
+                'codigo' => $resultado->candidato?->estudiante->codigoUniversitario,
+                'nombre' => $resultado->candidato?->estudiante->nombreCompleto(),
+                'inscrito' => $resultado->candidato?->inscrito,
+                'habilitado' => $resultado->candidato?->habilitacion?->habilitado,
+                'motivo_inhabilitacion' => $resultado->candidato?->habilitacion?->habilitado === false
+                    ? $resultado->candidato->habilitacion->motivo : null,
+                'revisado_por' => $resultado->candidato?->habilitacion?->registradaPor,
+                'sin_revisar' => $resultado->candidato !== null
+                    && $resultado->candidato->inscrito
+                    && $resultado->candidato->habilitacion === null,
+                'aula_asignada_id' => $resultado->candidato?->habilitacion?->aulaId,
+                'aula_asignada_nombre' => $resultado->candidato?->habilitacion?->aulaNombre,
             ],
         ]);
     }
