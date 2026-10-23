@@ -99,6 +99,7 @@ final readonly class ResolverExamenEnPuerta
             $coincidencias[] = new ResultadoResolucionPuertaData(
                 $examenId,
                 $veredicto,
+                candidato: $candidato,
             );
         }
 
