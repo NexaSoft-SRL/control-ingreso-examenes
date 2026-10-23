@@ -61,6 +61,7 @@ final readonly class IdentificarEnPuerta
                 $resultado->veredicto,
                 $resultado->ambiguo,
                 $codigo,
+                $resultado->candidato,
             );
         }
 
