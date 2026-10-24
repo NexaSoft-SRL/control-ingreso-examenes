@@ -205,6 +205,38 @@ final class AccesoConUsuarioTest extends TestCase
             ->assertJsonValidationErrors(['token']);
     }
 
+    public function test_expired_recovery_token_cannot_reset_password(): void
+    {
+        $user = UserFactory::new()->createOne([
+            'usuario' => 'recuperacion-vencida',
+            'correo' => 'recuperacion-vencida@example.invalid',
+            'password' => 'OriginalPassword123!',
+        ]);
+        $token = 'recovery-token-expired';
+
+        DB::table('password_reset_tokens')->insert([
+            'email' => $user->correo,
+            'token' => Hash::make($token),
+            'created_at' => now()->subMinutes(60),
+        ]);
+
+        $this->postJson('/api/auth/restablecer-contrasena', [
+            'correo' => $user->correo,
+            'token' => $token,
+            'password' => 'RecoveredPassword123!',
+            'password_confirmation' => 'RecoveredPassword123!',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['token']);
+
+        $usuarioSinCambios = User::findOrFail($user->getKey());
+        self::assertInstanceOf(User::class, $usuarioSinCambios);
+        self::assertTrue(Hash::check(
+            'OriginalPassword123!',
+            $usuarioSinCambios->getAuthPassword(),
+        ));
+    }
+
     public function test_recovery_response_does_not_reveal_unknown_emails(): void
     {
         Mail::fake();
