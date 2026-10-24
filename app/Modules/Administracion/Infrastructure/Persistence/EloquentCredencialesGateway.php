@@ -7,7 +7,6 @@ namespace App\Modules\Administracion\Infrastructure\Persistence;
 use App\Modules\Administracion\Application\Contracts\CredencialesGateway;
 use App\Modules\Administracion\Domain\Models\User;
 use App\Modules\Administracion\Infrastructure\Mail\EnlaceRestablecimientoMail;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -27,7 +26,7 @@ final class EloquentCredencialesGateway implements CredencialesGateway
 
             $usuario->forceFill([
                 'password' => Hash::make($nuevaContrasena),
-                'password_changed_at' => now(),
+                'password_changed_at' => date('Y-m-d H:i:s'),
                 'password_temporal_expira_en' => null,
                 'failed_login_attempts' => 0,
                 'locked_until' => null,
@@ -55,10 +54,16 @@ final class EloquentCredencialesGateway implements CredencialesGateway
         $cfgThrottle = config('auth.passwords.users.throttle', 60);
         $throttle = is_numeric($cfgThrottle) ? (int) $cfgThrottle : 60;
 
+        $createdAtTimestamp = null;
+        if ($existente !== null && $existente->created_at !== null) {
+            $createdAtTimestamp = is_string($existente->created_at) 
+                ? strtotime($existente->created_at) 
+                : ($existente->created_at instanceof \DateTimeInterface ? $existente->created_at->getTimestamp() : null);
+        }
+
         if (
-            $existente !== null
-            && $existente->created_at !== null
-            && now()->diffInSeconds($existente->created_at) < $throttle
+            $createdAtTimestamp !== null
+            && (time() - $createdAtTimestamp) < $throttle
         ) {
             return;
         }
@@ -73,7 +78,7 @@ final class EloquentCredencialesGateway implements CredencialesGateway
 
         DB::table('password_reset_tokens')->updateOrInsert(
             ['email' => $correoNormalizado],
-            ['token' => Hash::make($token), 'created_at' => now()],
+            ['token' => Hash::make($token), 'created_at' => date('Y-m-d H:i:s')],
         );
 
         Mail::to($correoNormalizado)->send(new EnlaceRestablecimientoMail(
@@ -105,9 +110,11 @@ final class EloquentCredencialesGateway implements CredencialesGateway
                 return false;
             }
 
-            $expiraEn = Carbon::parse($fila->created_at)->addMinutes($expire);
+            $createdAtString = is_string($fila->created_at) ? $fila->created_at : 'now';
+            $expiraEn = new \DateTime($createdAtString);
+            $expiraEn->modify("+{$expire} minutes");
 
-            if (now()->greaterThanOrEqualTo($expiraEn)) {
+            if (new \DateTime() >= $expiraEn) {
                 return false;
             }
 
@@ -123,7 +130,7 @@ final class EloquentCredencialesGateway implements CredencialesGateway
 
             $usuario->forceFill([
                 'password' => Hash::make($contrasena),
-                'password_changed_at' => now(),
+                'password_changed_at' => date('Y-m-d H:i:s'),
                 'password_temporal_expira_en' => null,
                 'failed_login_attempts' => 0,
                 'locked_until' => null,
