@@ -116,7 +116,7 @@ final class EloquentCredencialesGateway implements CredencialesGateway
             $expiraEn = new \DateTime($createdAtString);
             $expiraEn->modify("+{$expire} minutes");
 
-            if (new \DateTime() >= $expiraEn) {
+            if (new \DateTime >= $expiraEn) {
                 return false;
             }
 
