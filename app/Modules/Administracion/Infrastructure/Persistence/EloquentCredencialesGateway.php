@@ -7,6 +7,7 @@ namespace App\Modules\Administracion\Infrastructure\Persistence;
 use App\Modules\Administracion\Application\Contracts\CredencialesGateway;
 use App\Modules\Administracion\Domain\Models\User;
 use App\Modules\Administracion\Infrastructure\Mail\EnlaceRestablecimientoMail;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -98,10 +99,15 @@ final class EloquentCredencialesGateway implements CredencialesGateway
 
             if (
                 $fila === null
-                || ! Hash::check($token, $fila->token)
                 || $fila->created_at === null
-                || now()->diffInMinutes($fila->created_at) > $expire
+                || ! Hash::check($token, $fila->token)
             ) {
+                return false;
+            }
+
+            $expiraEn = Carbon::parse($fila->created_at)->addMinutes($expire);
+
+            if (now()->greaterThanOrEqualTo($expiraEn)) {
                 return false;
             }
 
