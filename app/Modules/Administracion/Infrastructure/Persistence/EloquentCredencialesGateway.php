@@ -56,9 +56,11 @@ final class EloquentCredencialesGateway implements CredencialesGateway
 
         $createdAtTimestamp = null;
         if ($existente !== null && $existente->created_at !== null) {
-            $createdAtTimestamp = is_string($existente->created_at) 
-                ? strtotime($existente->created_at) 
-                : ($existente->created_at instanceof \DateTimeInterface ? $existente->created_at->getTimestamp() : null);
+            if (is_string($existente->created_at)) {
+                $createdAtTimestamp = strtotime($existente->created_at);
+            } else {
+                $createdAtTimestamp = $existente->created_at->getTimestamp();
+            }
         }
 
         if (
