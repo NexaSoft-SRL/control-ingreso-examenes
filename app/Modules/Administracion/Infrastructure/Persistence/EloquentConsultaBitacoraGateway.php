@@ -47,10 +47,18 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
         }
 
         if ($filtros->operacion !== null) {
-            $query->where(
-                'bitacora.operacion',
-                $filtros->operacion,
-            );
+            if ($filtros->operacion === 'contrasena.restablecimiento') {
+                $query->whereIn('bitacora.operacion', [
+                    'contrasena.solicitar_restablecimiento',
+                    'contrasena.restablecer_por_enlace',
+                    'usuario.restablecer_temporal',
+                ]);
+            } else {
+                $query->where(
+                    'bitacora.operacion',
+                    $filtros->operacion,
+                );
+            }
         }
 
         // Un solo dia es el rango que empieza y termina en el mismo dia.

@@ -9,7 +9,7 @@ vi.mock('../../api/cliente', () => ({ api: { post: vi.fn() } }));
 describe('RecuperarContrasena', () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it('solicita instrucciones usando el correo de contacto', async () => {
+    it('solicita instrucciones usando el nombre de usuario', async () => {
         api.post.mockResolvedValue({
             data: {
                 message:
@@ -18,17 +18,25 @@ describe('RecuperarContrasena', () => {
         });
         renderConSesion(<RecuperarContrasena />, { ruta: '/recuperar-contrasena' });
 
-        fireEvent.change(screen.getByLabelText('Correo electrónico'), {
-            target: { value: 'ana@example.invalid' },
+        fireEvent.change(screen.getByLabelText('Usuario'), {
+            target: { value: 'ana.rojas' },
         });
         fireEvent.click(screen.getByRole('button', { name: 'Enviar instrucciones' }));
 
         await waitFor(() =>
             expect(api.post).toHaveBeenCalledWith('/auth/recuperar-contrasena', {
-                correo: 'ana@example.invalid',
+                usuario: 'ana.rojas',
             })
         );
         expect(await screen.findByRole('status')).toHaveTextContent('enviaremos instrucciones');
+    });
+
+    it('exige el usuario antes de solicitar instrucciones', async () => {
+        renderConSesion(<RecuperarContrasena />, { ruta: '/recuperar-contrasena' });
+        fireEvent.click(screen.getByRole('button', { name: 'Enviar instrucciones' }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('Ingrese su nombre de usuario.');
+        expect(api.post).not.toHaveBeenCalled();
     });
 
     it('restablece con token de un solo uso y nueva contraseña confirmada', async () => {

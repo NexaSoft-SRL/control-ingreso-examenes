@@ -20,6 +20,9 @@ const etiquetaOperacion = {
     'usuario.bloquear': 'Bloqueo de cuenta',
     'usuario.desbloquear': 'Desbloqueo de cuenta',
     'usuario.restablecer_temporal': 'Restablecimiento de contraseña',
+    'contrasena.solicitar_restablecimiento': 'Solicitud de enlace de recuperación',
+    'contrasena.restablecer_por_enlace': 'Restablecimiento de contraseña',
+    'contrasena.restablecimiento': 'Restablecimiento de contraseña',
     'rol.crear': 'Creación de rol',
     'rol.modificar': 'Edición de rol',
     'rol.eliminar': 'Eliminación de rol',
@@ -79,6 +82,15 @@ const CAMPO =
 // La API da `name`; el contrato nuevo de cuentas, `nombre`.
 const nombreDe = (usuario) => usuario?.nombre ?? usuario?.name ?? '';
 
+const categoriaOperacion = (codigo) =>
+    [
+        'usuario.restablecer_temporal',
+        'contrasena.solicitar_restablecimiento',
+        'contrasena.restablecer_por_enlace',
+    ].includes(codigo)
+        ? 'contrasena.restablecimiento'
+        : codigo;
+
 const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
 // Se parsea el texto tal cual llega para no correr la hora por la zona horaria del navegador.
@@ -115,6 +127,10 @@ function Bitacora() {
     const [usuariosConocidos, setUsuariosConocidos] = React.useState([]);
     const [operacionesConocidas, setOperacionesConocidas] = React.useState(
         Object.keys(etiquetaOperacion)
+    );
+    const opcionesOperacion = React.useMemo(
+        () => [...new Set(operacionesConocidas.map(categoriaOperacion))],
+        [operacionesConocidas]
     );
 
     const [usuarioFiltro, setUsuarioFiltro] = React.useState('');
@@ -262,7 +278,7 @@ function Bitacora() {
                         onChange={(e) => setOperacionFiltro(e.target.value)}
                     >
                         <option value="">Todas las operaciones</option>
-                        {operacionesConocidas.map((codigo) => (
+                        {opcionesOperacion.map((codigo) => (
                             <option key={codigo} value={codigo}>
                                 {etiquetaOperacion[codigo] ?? codigo}
                             </option>

@@ -200,7 +200,7 @@ class AuthenticationController
         SolicitarRestablecimientoRequest $request,
         SolicitarRestablecimientoContrasena $solicitar,
     ): JsonResponse {
-        $solicitar->execute($request->string('correo')->toString());
+        $solicitar->execute($request->string('usuario')->toString());
 
         return response()->json([
             'message' => 'Si la cuenta tiene ese correo de contacto, enviaremos instrucciones para recuperar el acceso.',

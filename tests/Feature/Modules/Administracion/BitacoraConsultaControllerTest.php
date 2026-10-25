@@ -157,6 +157,39 @@ final class BitacoraConsultaControllerTest extends TestCase
             );
     }
 
+    public function test_password_reset_filter_includes_link_requests_link_resets_and_temporary_resets(): void
+    {
+        $authenticatedUser = UserFactory::new()->createOne();
+        $account = UserFactory::new()->createOne();
+
+        foreach ([
+            'contrasena.solicitar_restablecimiento',
+            'contrasena.restablecer_por_enlace',
+            'usuario.restablecer_temporal',
+        ] as $operation) {
+            $this->insertAuditOperation(
+                usuarioId: $this->modelId($account),
+                operacion: $operation,
+                fecha: '2026-09-21 09:00:00',
+            );
+        }
+
+        $this->insertAuditOperation(
+            usuarioId: $this->modelId($account),
+            operacion: 'sesion.iniciar',
+            fecha: '2026-09-21 10:00:00',
+        );
+
+        $this->actingAs($authenticatedUser)
+            ->getJson('/api/bitacora?operacion=contrasena.restablecimiento')
+            ->assertOk()
+            ->assertJsonCount(3, 'data')
+            ->assertJsonPath('data.0.usuario.id', $this->modelId($account))
+            ->assertJsonPath('data.0.operacion', 'usuario.restablecer_temporal')
+            ->assertJsonPath('data.1.operacion', 'contrasena.restablecer_por_enlace')
+            ->assertJsonPath('data.2.operacion', 'contrasena.solicitar_restablecimiento');
+    }
+
     public function test_can_combine_all_audit_filters(): void
     {
         $authenticatedUser = UserFactory::new()->createOne();
