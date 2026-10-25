@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import Login from './Login';
+import RecuperarContrasena from './RecuperarContrasena';
 import { errorHttp, renderConSesion, usuarioDePrueba } from '../../test/apoyo';
 
 function Donde() {
@@ -12,6 +13,7 @@ function montar({ usuario = null, entrar = vi.fn() } = {}) {
     return renderConSesion(
         <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/recuperar-contrasena" element={<RecuperarContrasena />} />
             <Route path="*" element={<Donde />} />
         </Routes>,
         { usuario, ruta: '/login', sesion: { entrar } }
@@ -35,6 +37,16 @@ describe('Login', () => {
         expect(screen.getByText('Sistema Institucional de Verificación')).toBeInTheDocument();
         expect(screen.getByLabelText(/Usuario/)).toHaveAttribute('type', 'text');
         expect(screen.getByLabelText(/^Contraseña/)).toHaveAttribute('type', 'password');
+    });
+
+    it('prefills the recovery form with the username entered on the login page', () => {
+        montar();
+        fireEvent.change(screen.getByLabelText(/Usuario/), {
+            target: { value: 'leticia.blanco' },
+        });
+        fireEvent.click(screen.getByRole('link', { name: '¿Olvidó su contraseña?' }));
+
+        expect(screen.getByLabelText('Usuario')).toHaveValue('leticia.blanco');
     });
 
     it('no trae textos explicativos ni voseo', () => {

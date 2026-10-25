@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Modules\Administracion\Infrastructure\Persistence;
 
+use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Application\Contracts\CredencialesGateway;
 use App\Modules\Administracion\Domain\Models\User;
 use App\Modules\Administracion\Infrastructure\Mail\EnlaceRestablecimientoMail;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -15,6 +17,10 @@ use Illuminate\Support\Str;
 
 final class EloquentCredencialesGateway implements CredencialesGateway
 {
+    public function __construct(
+        private readonly BitacoraGateway $bitacora,
+    ) {}
+
     public function cambiar(int $usuarioId, string $contrasenaActual, string $nuevaContrasena): bool
     {
         return DB::transaction(function () use ($usuarioId, $contrasenaActual, $nuevaContrasena): bool {
@@ -36,11 +42,11 @@ final class EloquentCredencialesGateway implements CredencialesGateway
         }, 3);
     }
 
-    public function solicitarRestablecimiento(string $correo): void
+    public function solicitarRestablecimiento(string $usuarioIdentificador): void
     {
-        $correoNormalizado = mb_strtolower(trim($correo));
+        $usuarioNormalizado = mb_strtolower(trim($usuarioIdentificador));
         $usuario = User::query()
-            ->whereRaw('lower(correo) = ?', [$correoNormalizado])
+            ->where('usuario', $usuarioNormalizado)
             ->where('is_active', true)
             ->first();
 
@@ -48,26 +54,25 @@ final class EloquentCredencialesGateway implements CredencialesGateway
             return;
         }
 
+        $correo = $usuario->getAttribute('correo');
+
+        if (! is_string($correo) || trim($correo) === '') {
+            return;
+        }
+
+        $correoNormalizado = mb_strtolower(trim($correo));
         $table = DB::table('password_reset_tokens');
         /** @var object{email: string, token: string, created_at: string|\DateTimeInterface|null}|null $existente */
         $existente = (clone $table)->where('email', $correoNormalizado)->first();
         $cfgThrottle = config('auth.passwords.users.throttle', 60);
         $throttle = is_numeric($cfgThrottle) ? (int) $cfgThrottle : 60;
 
-        $createdAtTimestamp = null;
         if ($existente !== null && $existente->created_at !== null) {
-            if (is_string($existente->created_at)) {
-                $createdAtTimestamp = strtotime($existente->created_at);
-            } else {
-                $createdAtTimestamp = $existente->created_at->getTimestamp();
-            }
-        }
+            $proximaSolicitud = Carbon::parse($existente->created_at)->addSeconds($throttle);
 
-        if (
-            $createdAtTimestamp !== null
-            && (time() - $createdAtTimestamp) < $throttle
-        ) {
-            return;
+            if (now()->lessThan($proximaSolicitud)) {
+                return;
+            }
         }
 
         $token = Str::random(64);
@@ -80,7 +85,7 @@ final class EloquentCredencialesGateway implements CredencialesGateway
 
         DB::table('password_reset_tokens')->updateOrInsert(
             ['email' => $correoNormalizado],
-            ['token' => Hash::make($token), 'created_at' => date('Y-m-d H:i:s')],
+            ['token' => Hash::make($token), 'created_at' => now()],
         );
 
         Mail::to($correoNormalizado)->send(new EnlaceRestablecimientoMail(
@@ -88,6 +93,20 @@ final class EloquentCredencialesGateway implements CredencialesGateway
             enlace: $enlace,
             minutosVigencia: $expire,
         ));
+
+        $usuarioId = $usuario->getKey();
+
+        if (! is_int($usuarioId)) {
+            throw new \LogicException('La cuenta no tiene un identificador entero válido.');
+        }
+
+        $this->bitacora->registrar(
+            $usuarioId,
+            'contrasena.solicitar_restablecimiento',
+            'usuarios',
+            $usuarioId,
+            'Se solicitó un enlace de recuperación de contraseña.',
+        );
     }
 
     public function restablecer(string $correo, string $token, string $contrasena): bool
@@ -142,6 +161,18 @@ final class EloquentCredencialesGateway implements CredencialesGateway
             $usuarioId = $usuario->getKey();
             $sesionUserId = is_scalar($usuarioId) ? (string) $usuarioId : '';
             DB::table('sessions')->where('user_id', $sesionUserId)->delete();
+
+            if (! is_int($usuarioId)) {
+                throw new \LogicException('La cuenta no tiene un identificador entero válido.');
+            }
+
+            $this->bitacora->registrar(
+                $usuarioId,
+                'contrasena.restablecer_por_enlace',
+                'usuarios',
+                $usuarioId,
+                'Contraseña restablecida mediante enlace de recuperación.',
+            );
 
             return true;
         }, 3);

@@ -219,6 +219,7 @@ export default function Login() {
                                 <Link
                                     className="text-sm font-medium text-primary-700 hover:underline"
                                     to="/recuperar-contrasena"
+                                    state={{ usuario: usuario.trim() }}
                                 >
                                     ¿Olvidó su contraseña?
                                 </Link>
