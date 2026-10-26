@@ -418,6 +418,9 @@ final class PortalEstudianteTest extends TestCase
         $this->get("/api/estudiantes/{$this->estudiante->id}/foto")
             ->assertOk()
             ->assertHeader('Content-Type', 'image/jpeg');
+        $this->getJson("/api/estudiantes/{$this->estudiante->id}")
+            ->assertJsonPath('data.con_foto', true)
+            ->assertJsonPath('data.foto_subida_en', fn (?string $fecha): bool => $fecha !== null);
         $this->assertDatabaseHas('bitacora_operaciones', [
             'usuario_id' => $admin->id,
             'operacion' => 'estudiante.foto.reemplazar',
