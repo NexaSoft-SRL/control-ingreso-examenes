@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Administracion\Infrastructure\Providers;
 
 use App\Modules\Administracion\Application\Actions\ProponerUsuario;
+use App\Modules\Administracion\Application\Contracts\AlmacenImagenes;
 use App\Modules\Administracion\Application\Contracts\AuthenticationSecurityGateway;
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Application\Contracts\ConsultaBitacoraGateway;
@@ -17,6 +18,7 @@ use App\Modules\Administracion\Application\Contracts\RegistroCorreoGateway;
 use App\Modules\Administracion\Application\Contracts\RolesGateway;
 use App\Modules\Administracion\Application\Contracts\RolGateway;
 use App\Modules\Administracion\Application\Contracts\Transaccion;
+use App\Modules\Administracion\Infrastructure\Files\AlmacenImagenesEnDisco;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentAuthenticationSecurityGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentBitacoraGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentConsultaBitacoraGateway;
@@ -37,6 +39,11 @@ final class AdministracionServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(
+            AlmacenImagenes::class,
+            AlmacenImagenesEnDisco::class,
+        );
+
         $this->app->bind(
             AuthenticationSecurityGateway::class,
             EloquentAuthenticationSecurityGateway::class,
