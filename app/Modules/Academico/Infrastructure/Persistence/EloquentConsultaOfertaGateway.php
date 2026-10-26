@@ -191,7 +191,7 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
     }
 
     /**
-     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null}  $filtros
+     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null, sin_lista?: bool}  $filtros
      * @return array{filas: list<array<string, mixed>>, total: int, total_grupos: int}
      */
     public function asignaturasDeOferta(array $filtros, PaginaData $pagina): array
@@ -225,6 +225,23 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
         $this->enPeriodosOVigentes($consulta, $filtros['periodo_ids']);
 
         $this->conTexto($consulta, $texto);
+
+        // «Con grupos sin lista»: la asignatura tiene en esa facultad algun
+        // grupo sin inscritos cargados; la fila cuenta todos sus grupos.
+        if ($filtros['sin_lista'] ?? false) {
+            $consulta->whereExists(function (Builder $sub) use ($filtros): void {
+                $sub->selectRaw('1')
+                    ->from('grupos as gl')
+                    ->whereColumn('gl.asignatura_id', 'g.asignatura_id')
+                    ->whereColumn('gl.facultad_id', 'g.facultad_id')
+                    ->whereNotExists(function (Builder $inscritos): void {
+                        $inscritos->selectRaw('1')
+                            ->from('inscripciones as il')
+                            ->whereColumn('il.grupo_id', 'gl.id');
+                    });
+                $this->enPeriodosOVigentes($sub, $filtros['periodo_ids'], 'gl.periodo_id');
+            });
+        }
 
         // Una fila por asignatura y facultad: una asignatura de servicio que
         // se dicta en dos facultades sale dos veces, cada una con lo suyo.
@@ -273,7 +290,7 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
     }
 
     /**
-     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null}  $filtros
+     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null, sin_lista?: bool}  $filtros
      * @return list<string>
      */
     public function nivelesDeOferta(array $filtros): array
@@ -410,7 +427,7 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
      *
      * @param  list<int>  $periodoIds
      */
-    private function enPeriodosOVigentes(Builder $consulta, array $periodoIds): void
+    private function enPeriodosOVigentes(Builder $consulta, array $periodoIds, string $columna = 'g.periodo_id'): void
     {
         if ($periodoIds === []) {
             $hoy = $this->hoy();
@@ -428,7 +445,7 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
             return;
         }
 
-        $consulta->whereIn('g.periodo_id', $periodoIds);
+        $consulta->whereIn($columna, $periodoIds);
     }
 
     /**
