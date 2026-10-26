@@ -332,6 +332,23 @@ final class EloquentEmisionQrGateway implements EmisionQrGateway
         return $this->credenciales($examenId, $consulta);
     }
 
+    public function sinEnviar(int $examenId, FiltroCodigosData $filtro): int
+    {
+        return $this->filtrados($examenId, $filtro)
+            ->whereNotNull('codigo.id')
+            ->whereNull('codigo.enviado_en')
+            ->count();
+    }
+
+    public function porReenviar(int $examenId, FiltroCodigosData $filtro, string $desde): int
+    {
+        return $this->sinEnvioDesde(
+            $this->filtrados($examenId, $filtro)->whereNotNull('codigo.id'),
+            'CODIGO_QR',
+            $desde,
+        )->count();
+    }
+
     /**
      * @return list<CredencialData>
      */

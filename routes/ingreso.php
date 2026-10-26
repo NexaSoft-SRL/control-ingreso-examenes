@@ -128,6 +128,7 @@ Route::middleware(['auth', 'permiso:codigos_qr'])
     ->group(function (): void {
         Route::get('/', [CodigoQrController::class, 'index'])->name('index');
         Route::post('/', [CodigoQrController::class, 'store'])->name('emitir');
+        Route::post('/envios', [CodigoQrController::class, 'enviar'])->name('enviar');
         Route::get('/hoja', [CodigoQrController::class, 'hoja'])->name('hoja');
         Route::get('/{estudiante}', [CodigoQrController::class, 'show'])->name('credencial');
     });

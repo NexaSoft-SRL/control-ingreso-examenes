@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Http\Controllers;
 
 use App\Modules\Ingreso\Application\Actions\EmitirCodigosQr;
+use App\Modules\Ingreso\Application\Actions\EnviarCodigosQr;
 use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
 use App\Modules\Ingreso\Application\Queries\ArmarHojaDeCredenciales;
 use App\Modules\Ingreso\Application\Queries\ConsultarCredencial;
@@ -103,6 +104,43 @@ final class CodigoQrController
         }
 
         return response()->json(['data' => $credencial]);
+    }
+
+    /**
+     * El codigo de cada estudiante del filtro, a su correo institucional.
+     */
+    public function enviar(
+        int $examen,
+        FiltroCodigosRequest $request,
+        EnviarCodigosQr $enviar,
+        EmisionQrGateway $codigos,
+    ): JsonResponse {
+        $usuarioId = Auth::id();
+
+        if (! is_int($usuarioId)) {
+            return $this->sinSesion();
+        }
+
+        if ($codigos->examen($examen) === null) {
+            return $this->noEncontrado('Examen no encontrado.');
+        }
+
+        try {
+            $resultado = $enviar->execute($examen, $request->toData(), $usuarioId, $request->tanda());
+        } catch (ExamenAjenoException $excepcion) {
+            return $this->ajeno($excepcion);
+        } catch (SinCodigosException $excepcion) {
+            return $this->conflicto($excepcion);
+        }
+
+        return response()->json([
+            'message' => $resultado['encolados'] === 1
+                ? '1 código enviado.'
+                : $resultado['encolados'].' códigos enviados.',
+            'encolados' => $resultado['encolados'],
+            'pendientes' => $resultado['pendientes'],
+            'tanda' => $resultado['tanda'],
+        ], Response::HTTP_ACCEPTED);
     }
 
     /**
