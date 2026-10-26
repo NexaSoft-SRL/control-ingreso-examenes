@@ -37,15 +37,23 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
 
         if ($esDocente) {
             $consulta->where(function (Builder $consulta) use ($usuarioId): void {
-                $consulta->where('e.creado_por', $usuarioId)
-                    ->orWhereExists(function (Builder $subconsulta) use ($usuarioId): void {
-                        $subconsulta->selectRaw('1')
-                            ->from('examen_grupo as eg')
-                            ->join('grupos as g', 'g.id', '=', 'eg.grupo_id')
-                            ->join('docentes as d', 'd.id', '=', 'g.docente_id')
-                            ->whereColumn('eg.examen_id', 'e.id')
-                            ->where('d.user_id', $usuarioId);
-                    });
+                $consulta->where(function (Builder $propios) use ($usuarioId): void {
+                    $propios->where('e.creado_por', $usuarioId)
+                        ->orWhereExists(function (Builder $subconsulta) use ($usuarioId): void {
+                            $subconsulta->selectRaw('1')
+                                ->from('examen_grupo as eg')
+                                ->join('grupos as g', 'g.id', '=', 'eg.grupo_id')
+                                ->join('docentes as d', 'd.id', '=', 'g.docente_id')
+                                ->whereColumn('eg.examen_id', 'e.id')
+                                ->where('d.user_id', $usuarioId);
+                        });
+                })->orWhereExists(function (Builder $asignacion) use ($usuarioId): void {
+                    $asignacion->selectRaw('1')
+                        ->from('examen_aula_personal as eap')
+                        ->whereColumn('eap.examen_id', 'ea.examen_id')
+                        ->whereColumn('eap.aula_id', 'ea.aula_id')
+                        ->where('eap.usuario_id', $usuarioId);
+                });
             });
         } else {
             $consulta->join(
@@ -446,6 +454,15 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
         int $usuarioId,
     ): bool {
         return DB::transaction(function () use ($incidenciaId, $usuarioId): bool {
+            $ubicacion = DB::table('incidencias_aula as incidencia')
+                ->join('aulas as aula', 'aula.id', '=', 'incidencia.aula_id')
+                ->where('incidencia.id', $incidenciaId)
+                ->first(['incidencia.examen_id', 'aula.nombre as aula']);
+
+            if ($ubicacion === null) {
+                return false;
+            }
+
             $actualizada = DB::table('incidencias_aula')
                 ->where('id', $incidenciaId)
                 ->whereNull('atendida_en')
@@ -458,12 +475,23 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
                 return false;
             }
 
+            $columnasUbicacion = get_object_vars($ubicacion);
+            $aula = $columnasUbicacion['aula'] ?? null;
+            $examenId = filter_var(
+                $columnasUbicacion['examen_id'] ?? null,
+                FILTER_VALIDATE_INT,
+            );
+
+            if (! is_string($aula) || ! is_int($examenId) || $examenId <= 0) {
+                throw new LogicException('La ubicacion de la incidencia no es valida.');
+            }
+
             $this->bitacora->registrar(
                 $usuarioId,
                 'INCIDENCIA_AULA_ATENDIDA',
                 'incidencias_aula',
                 $incidenciaId,
-                'Incidencia de aula marcada como atendida.',
+                sprintf('Incidencia de %s, examen %d.', $aula, $examenId),
             );
 
             return true;

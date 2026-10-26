@@ -82,6 +82,70 @@ describe('MapaCampus', () => {
         expect(screen.getByText('Bloque Central')).toBeInTheDocument();
     });
 
+    it('separa rótulos de edificios cercanos para mantenerlos legibles', () => {
+        const edificios = [0, 1, 2, 3].map((indice) => {
+            const desplazamiento = indice * 0.0001;
+            return {
+                ...EDIFICIOS[0],
+                id: indice + 20,
+                poligono: EDIFICIOS[0].poligono.map(([lon, lat]) => [
+                    lon + desplazamiento,
+                    lat + desplazamiento,
+                ]),
+                centro: [
+                    EDIFICIOS[0].centro[0] + desplazamiento,
+                    EDIFICIOS[0].centro[1] + desplazamiento,
+                ],
+            };
+        });
+        const rotulosEdificio = {
+            20: 'Aula 607',
+            21: 'Aula 606, 608, 608A, 608B, 609, 609A',
+            22: 'Aula 612',
+            23: 'Aula 613, 614, 615, 616',
+        };
+        const { container } = renderConSesion(
+            <MapaCampus
+                edificios={edificios}
+                caja={CAJA}
+                resaltados={[20, 21, 22, 23]}
+                rotulosEdificio={rotulosEdificio}
+            />
+        );
+        const etiquetas = [...container.querySelectorAll('svg text')];
+        const cajas = etiquetas.map((etiqueta) => {
+            const fontSize = Number(etiqueta.getAttribute('font-size'));
+            const x = Number(etiqueta.getAttribute('x'));
+            const y = Number(etiqueta.getAttribute('y')) - fontSize * 0.35;
+            const ancho = etiqueta.textContent.length * fontSize * 0.58;
+            const alto = fontSize * 1.5;
+
+            return {
+                izquierda: x - ancho / 2,
+                derecha: x + ancho / 2,
+                arriba: y - alto / 2,
+                abajo: y + alto / 2,
+                margen: fontSize * 0.25,
+            };
+        });
+
+        expect(etiquetas).toHaveLength(4);
+
+        for (let i = 0; i < cajas.length; i += 1) {
+            for (let j = i + 1; j < cajas.length; j += 1) {
+                const a = cajas[i];
+                const b = cajas[j];
+                const separadas =
+                    a.derecha + a.margen <= b.izquierda ||
+                    a.izquierda - a.margen >= b.derecha ||
+                    a.abajo + a.margen <= b.arriba ||
+                    a.arriba - a.margen >= b.abajo;
+
+                expect(separadas).toBe(true);
+            }
+        }
+    });
+
     it('avisa el edificio elegido y no falla sin edificios', () => {
         const onElegir = vi.fn();
         const { container, rerender } = renderConSesion(

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Administracion\Infrastructure\Persistence;
 
+use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Application\Contracts\CredencialesGateway;
 use App\Modules\Administracion\Domain\Models\User;
 use App\Modules\Administracion\Infrastructure\Mail\EnlaceRestablecimientoMail;
@@ -12,9 +13,12 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
+use LogicException;
 
 final class EloquentCredencialesGateway implements CredencialesGateway
 {
+    public function __construct(private readonly BitacoraGateway $bitacora) {}
+
     public function cambiar(int $usuarioId, string $contrasenaActual, string $nuevaContrasena): bool
     {
         return DB::transaction(function () use ($usuarioId, $contrasenaActual, $nuevaContrasena): bool {
@@ -36,18 +40,25 @@ final class EloquentCredencialesGateway implements CredencialesGateway
         }, 3);
     }
 
-    public function solicitarRestablecimiento(string $correo): void
+    public function solicitarRestablecimiento(string $usuario): void
     {
-        $correoNormalizado = mb_strtolower(trim($correo));
-        $usuario = User::query()
-            ->whereRaw('lower(correo) = ?', [$correoNormalizado])
+        $usuarioNormalizado = mb_strtolower(trim($usuario));
+        $cuenta = User::query()
+            ->whereRaw('lower(usuario) = ?', [$usuarioNormalizado])
             ->where('is_active', true)
             ->first();
 
-        if (! $usuario instanceof User) {
+        if (! $cuenta instanceof User) {
             return;
         }
 
+        $correo = $cuenta->getAttribute('correo');
+
+        if (! is_string($correo) || trim($correo) === '') {
+            throw new LogicException('La cuenta no tiene un correo valido.');
+        }
+
+        $correoNormalizado = mb_strtolower(trim($correo));
         $table = DB::table('password_reset_tokens');
         /** @var object{email: string, token: string, created_at: string|\DateTimeInterface|null}|null $existente */
         $existente = (clone $table)->where('email', $correoNormalizado)->first();
@@ -84,10 +95,24 @@ final class EloquentCredencialesGateway implements CredencialesGateway
         );
 
         Mail::to($correoNormalizado)->send(new EnlaceRestablecimientoMail(
-            nombre: $usuario->name,
+            nombre: $cuenta->name,
             enlace: $enlace,
             minutosVigencia: $expire,
         ));
+
+        $usuarioId = $cuenta->getKey();
+
+        if (! is_int($usuarioId)) {
+            throw new LogicException('El identificador de la cuenta no es valido.');
+        }
+
+        $this->bitacora->registrar(
+            $usuarioId,
+            'contrasena.solicitar_restablecimiento',
+            'usuarios',
+            $usuarioId,
+            'Se solicitó un enlace de recuperación de contraseña.',
+        );
     }
 
     public function restablecer(string $correo, string $token, string $contrasena): bool
@@ -116,7 +141,7 @@ final class EloquentCredencialesGateway implements CredencialesGateway
             $expiraEn = new \DateTime($createdAtString);
             $expiraEn->modify("+{$expire} minutes");
 
-            if (new \DateTime() >= $expiraEn) {
+            if (new \DateTime >= $expiraEn) {
                 return false;
             }
 
@@ -140,8 +165,21 @@ final class EloquentCredencialesGateway implements CredencialesGateway
 
             DB::table('password_reset_tokens')->where('email', $correoNormalizado)->delete();
             $usuarioId = $usuario->getKey();
-            $sesionUserId = is_scalar($usuarioId) ? (string) $usuarioId : '';
+
+            if (! is_int($usuarioId)) {
+                throw new LogicException('El identificador de la cuenta no es valido.');
+            }
+
+            $sesionUserId = (string) $usuarioId;
             DB::table('sessions')->where('user_id', $sesionUserId)->delete();
+
+            $this->bitacora->registrar(
+                $usuarioId,
+                'contrasena.restablecer_por_enlace',
+                'usuarios',
+                $usuarioId,
+                'Contraseña restablecida mediante enlace de recuperación.',
+            );
 
             return true;
         }, 3);

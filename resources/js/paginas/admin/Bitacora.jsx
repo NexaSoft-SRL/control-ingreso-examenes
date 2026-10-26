@@ -53,6 +53,7 @@ const etiquetaOperacion = {
     'examen_aula_codigo.generar': 'Código de aula generado',
     'examen_aula_codigo.regenerar': 'Código de aula regenerado',
     'acceso_codigo_aula.ingreso': 'Entrada con código de aula',
+    INCIDENCIA_AULA_ATENDIDA: 'Atención de incidencia',
 };
 
 const etiquetaTabla = {
@@ -74,6 +75,7 @@ const etiquetaTabla = {
     docente_auxiliares: 'Auxiliar',
     accesos_codigo_aula: 'Acceso con código',
     examen_aula_codigos: 'Código de aula',
+    incidencias_aula: 'Incidencia de aula',
 };
 
 const CAMPO =
