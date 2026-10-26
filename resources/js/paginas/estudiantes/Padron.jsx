@@ -15,6 +15,7 @@ import Tarjeta from '../../componentes/Tarjeta';
 import CargaInscripciones from './CargaInscripciones';
 import Conflictos from './Conflictos';
 import FichaEstudiante, { Origen } from './FichaEstudiante';
+import { BotonPlazoFotos } from './PlazoFotos';
 
 const POR_PAGINA = 25;
 const TH = 'px-4 py-3 font-medium';
@@ -56,6 +57,7 @@ export default function Padron() {
     return (
         <div className="space-y-6">
             <Encabezado titulo="Padrón">
+                <BotonPlazoFotos avisar={avisar} />
                 <Boton onClick={() => setCargando(true)}>
                     <Upload className="h-4 w-4" aria-hidden="true" /> Cargar inscripciones
                 </Boton>
