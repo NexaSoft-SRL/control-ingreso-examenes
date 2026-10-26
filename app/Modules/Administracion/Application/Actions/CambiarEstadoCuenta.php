@@ -34,7 +34,7 @@ final readonly class CambiarEstadoCuenta
         ?int $administradorId,
     ): bool {
         if (! $activo && $usuarioId === $administradorId) {
-            throw new BloqueoPropioException('No puedes bloquear tu propia cuenta.');
+            throw new BloqueoPropioException('No puede bloquear su propia cuenta.');
         }
 
         $cuenta = $this->consulta->buscar($usuarioId);

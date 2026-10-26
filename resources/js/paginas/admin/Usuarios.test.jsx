@@ -191,7 +191,7 @@ function servidor({ roles: rolesIniciales = ROLES, propio = 'Administrador' } = 
         const rechazo = erroresDeCuenta(data, id);
         if (rechazo) return rechazo;
         if (data.activo === false && id === 7) {
-            return errorHttp(422, { message: 'No puedes bloquear tu propia cuenta.' });
+            return errorHttp(422, { message: 'No puede bloquear su propia cuenta.' });
         }
         const { activo, ...campos } = data;
         Object.assign(cuenta, campos);
@@ -222,7 +222,7 @@ function servidor({ roles: rolesIniciales = ROLES, propio = 'Administrador' } = 
         }
         if (data.permisos.length === 0) errors.permisos = ['Al menos un permiso'];
         else if (rol?.nombre === propio && !data.permisos.includes('usuarios_roles')) {
-            errors.permisos = ['No puedes quitar «Usuarios y roles» a tu propio rol.'];
+            errors.permisos = ['No puede quitar «Usuarios y roles» a su propio rol.'];
         }
         return Object.keys(errors).length > 0 ? validacion(errors) : null;
     };
@@ -583,7 +583,7 @@ describe('Usuarios y roles · cuentas', () => {
         fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
 
         expect(await within(dialogo).findByRole('alert')).toHaveTextContent(
-            'No puedes bloquear tu propia cuenta.'
+            'No puede bloquear su propia cuenta.'
         );
         expect(screen.getByRole('dialog', { name: 'Editar usuario' })).toBeInTheDocument();
         expect(within(fila('Administración académica')).getByText('Activo')).toBeInTheDocument();
@@ -820,7 +820,7 @@ describe('Usuarios y roles · permisos por rol', () => {
 
         const alerta = await screen.findByRole('alert');
         expect(alerta).toHaveTextContent(
-            'Administrador: No puedes quitar «Usuarios y roles» a tu propio rol.'
+            'Administrador: No puede quitar «Usuarios y roles» a su propio rol.'
         );
         expect(alerta).toHaveTextContent('Auxiliar: Al menos un permiso');
         // El que sí se pudo queda guardado; los rechazados siguen pendientes.

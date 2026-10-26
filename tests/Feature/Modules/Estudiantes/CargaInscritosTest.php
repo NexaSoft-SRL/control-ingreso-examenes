@@ -546,7 +546,7 @@ final class CargaInscritosTest extends TestCase
 
         $this->cargarLista($docente, $ajeno, ['202104821,7928194,Kevin René,Alvarado Claros'])
             ->assertForbidden()
-            ->assertExactJson(['message' => 'Este grupo no es tuyo.', 'alcance' => true]);
+            ->assertExactJson(['message' => 'Grupo no autorizado.', 'alcance' => true]);
 
         $this->assertDatabaseCount('estudiantes', 0);
         $this->assertDatabaseCount('cargas_inscritos', 0);

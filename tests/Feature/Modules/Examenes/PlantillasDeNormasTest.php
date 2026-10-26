@@ -261,7 +261,7 @@ final class PlantillasDeNormasTest extends TestCase
         $this->actingAs($cuenta)
             ->putJson(self::RUTA."/{$ajena->id}", ['texto' => 'Sin calculadora'])
             ->assertForbidden()
-            ->assertExactJson(['message' => 'Esta plantilla no es tuya.', 'alcance' => true]);
+            ->assertExactJson(['message' => 'Plantilla no autorizada.', 'alcance' => true]);
 
         $this->actingAs($cuenta)
             ->deleteJson(self::RUTA."/{$ajena->id}")

@@ -78,7 +78,7 @@ describe('AtencionAulas (HU-18)', () => {
                 atencion={atencion}
                 onCambiarAtencion={vi.fn()}
                 examenId={5}
-                fechaExamen="martes 20 de octubre"
+                fechaExamen="2026-10-20"
             />
         );
 
@@ -347,7 +347,7 @@ describe('AtencionAulas (HU-18)', () => {
                 atencion={atencion}
                 onCambiarAtencion={onCambiarAtencion}
                 examenId={7}
-                fechaExamen="viernes 23 de octubre"
+                fechaExamen="2026-10-23"
             />
         );
 
@@ -384,7 +384,7 @@ describe('AtencionAulas (HU-18)', () => {
                 atencion={{ 101: { a_cargo: 1, apoyo: [], codigo: '654321' } }}
                 onCambiarAtencion={onCambiarAtencion}
                 examenId={7}
-                fechaExamen="viernes 23 de octubre"
+                fechaExamen="2026-10-23"
             />
         );
 

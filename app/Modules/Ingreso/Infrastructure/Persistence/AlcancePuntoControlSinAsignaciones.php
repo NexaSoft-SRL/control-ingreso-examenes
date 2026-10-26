@@ -19,4 +19,11 @@ class AlcancePuntoControlSinAsignaciones implements AlcancePuntoControl
     ): bool {
         return false;
     }
+
+    public function aulasOperables(
+        int $usuarioId,
+        int $examenId,
+    ): array {
+        return [];
+    }
 }

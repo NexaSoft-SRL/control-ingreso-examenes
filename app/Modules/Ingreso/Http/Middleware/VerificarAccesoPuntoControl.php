@@ -66,7 +66,7 @@ final class VerificarAccesoPuntoControl
 
             return response()->json([
                 'message' => sprintf(
-                    'Tu rol (%s) no tiene acceso a esta sección. Pide al administrador que le habilite el permiso.',
+                    'Su rol (%s) no tiene acceso a esta sección. Solicite el permiso al administrador.',
                     $rol,
                 ),
                 'permiso_requerido' => 'punto_control',

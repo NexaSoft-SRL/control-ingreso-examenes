@@ -7,9 +7,12 @@ namespace App\Modules\Ingreso\Http\Controllers;
 use App\Modules\Examenes\Application\Contracts\ExamenGateway;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaManualPuertaGateway;
+use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
+use App\Modules\Ingreso\Domain\Enums\TipoIncidenciaPuerta;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 final class RegistrarIncidenciaManualPuertaController
 {
@@ -19,6 +22,7 @@ final class RegistrarIncidenciaManualPuertaController
         ExamenGateway $examenes,
         AlcancePuntoControl $alcance,
         IncidenciaManualPuertaGateway $incidencias,
+        VentanaPuntoControl $ventana,
     ): JsonResponse {
         $usuarioId = Auth::id();
 
@@ -30,14 +34,16 @@ final class RegistrarIncidenciaManualPuertaController
 
         if ($aula <= 0) {
             return response()->json([
-                'message' => 'Aula inválida.',
+                'message' => 'Aula no válida.',
             ], 422);
         }
 
         $datos = $request->validate([
             'examen_id' => ['required', 'integer', 'min:1'],
-            'tipo' => ['required', 'string', 'min:3', 'max:60'],
-            'detalle' => ['required', 'string', 'min:5', 'max:2000'],
+            // N5: catalogo cerrado; las situaciones excepcionales van por
+            // su propia ruta (admiten o no segun el tipo).
+            'tipo' => ['required', 'string', Rule::in(TipoIncidenciaPuerta::comunes())],
+            'detalle' => ['required', 'string', 'min:5', 'max:500'],
             'estudiante_id' => [
                 'nullable',
                 'integer',
@@ -51,11 +57,19 @@ final class RegistrarIncidenciaManualPuertaController
                 'regex:/^[0-9]{5,10}$/',
                 'prohibits:estudiante_id',
             ],
+        ], [
+            'examen_id.required' => 'Obligatorio',
+            'tipo.required' => 'Obligatorio',
+            'tipo.in' => 'Tipo no válido',
+            'detalle.required' => 'Obligatorio',
+            'detalle.min' => 'Mínimo 5 caracteres',
+            'detalle.max' => 'Máximo 500 caracteres',
+            'codigo_universitario.regex' => 'Código SIS no válido',
         ]);
 
         if (! is_array($datos)) {
             return response()->json([
-                'message' => 'Datos de incidencia inválidos.',
+                'message' => 'Datos de incidencia no válidos.',
             ], 422);
         }
 
@@ -63,7 +77,7 @@ final class RegistrarIncidenciaManualPuertaController
 
         if (! is_int($examenIdValor)) {
             return response()->json([
-                'message' => 'Examen inválido.',
+                'message' => 'Examen no válido.',
             ], 422);
         }
 
@@ -79,8 +93,15 @@ final class RegistrarIncidenciaManualPuertaController
 
         if (! $alcance->puedeOperar($usuarioId, $examenId, $aula)) {
             return response()->json([
-                'message' => 'No atiendes este examen en esta aula.',
+                'message' => 'Sin asignación en esta aula.',
             ], 403);
+        }
+
+        // N3: solo durante la ventana del examen.
+        if (! $ventana->estaAbierta($examenId)) {
+            return response()->json([
+                'message' => 'Fuera del horario del examen.',
+            ], 409);
         }
 
         $tipoValor = $datos['tipo'] ?? null;
@@ -88,7 +109,7 @@ final class RegistrarIncidenciaManualPuertaController
 
         if (! is_string($tipoValor) || ! is_string($detalleValor)) {
             return response()->json([
-                'message' => 'Tipo o detalle inválidos.',
+                'message' => 'Tipo o detalle no válidos.',
             ], 422);
         }
 
@@ -100,10 +121,10 @@ final class RegistrarIncidenciaManualPuertaController
             || mb_strlen($detalle) < 5
         ) {
             return response()->json([
-                'message' => 'El tipo y el detalle deben contener texto válido.',
+                'message' => 'Detalle no válido.',
                 'errors' => [
                     'detalle' => [
-                        'El detalle debe tener al menos cinco caracteres.',
+                        'Mínimo 5 caracteres',
                     ],
                 ],
             ], 422);
@@ -113,7 +134,7 @@ final class RegistrarIncidenciaManualPuertaController
 
         if ($estudianteValor !== null && ! is_int($estudianteValor)) {
             return response()->json([
-                'message' => 'Estudiante inválido.',
+                'message' => 'Estudiante no válido.',
             ], 422);
         }
 
@@ -124,7 +145,7 @@ final class RegistrarIncidenciaManualPuertaController
         if ($codigoValor !== null) {
             if (! is_string($codigoValor)) {
                 return response()->json([
-                    'message' => 'Código universitario inválido.',
+                    'message' => 'Código universitario no válido.',
                 ], 422);
             }
 
@@ -178,6 +199,7 @@ final class RegistrarIncidenciaManualPuertaController
                 'examen_id' => $examenId,
                 'aula_id' => $aula,
                 'tipo' => $tipo,
+                'tipo_etiqueta' => TipoIncidenciaPuerta::tryFrom($tipo)?->etiqueta() ?? $tipo,
                 'detalle' => $detalle,
                 'estudiante_id' => $estudianteId,
             ],

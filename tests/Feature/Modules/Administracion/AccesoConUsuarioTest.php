@@ -135,7 +135,8 @@ final class AccesoConUsuarioTest extends TestCase
             'password' => 'Temporary123!',
         ])
             ->assertStatus(403)
-            ->assertJsonPath('code', 'TEMPORARY_PASSWORD_EXPIRED');
+            ->assertJsonPath('code', 'TEMPORARY_PASSWORD_EXPIRED')
+            ->assertJsonPath('message', 'Contraseña temporal vencida.');
 
         $this->assertGuest();
     }
@@ -169,7 +170,7 @@ final class AccesoConUsuarioTest extends TestCase
             ->assertOk()
             ->assertJsonPath(
                 'message',
-                'Si la cuenta tiene ese correo de contacto, enviaremos instrucciones para recuperar el acceso.',
+                'Si la cuenta tiene correo registrado, recibirá el enlace de recuperación.',
             );
 
         $this->assertDatabaseHas('bitacora_operaciones', [
@@ -219,7 +220,7 @@ final class AccesoConUsuarioTest extends TestCase
             'token' => $rawToken,
             'password' => 'RecoveredPassword123!',
             'password_confirmation' => 'RecoveredPassword123!',
-        ])->assertOk();
+        ])->assertOk()->assertExactJson(['message' => 'Contraseña actualizada.']);
 
         $this->assertDatabaseHas('bitacora_operaciones', [
             'usuario_id' => $user->getKey(),
@@ -293,7 +294,7 @@ final class AccesoConUsuarioTest extends TestCase
         $response
             ->assertOk()
             ->assertExactJson([
-                'message' => 'Si la cuenta tiene ese correo de contacto, enviaremos instrucciones para recuperar el acceso.',
+                'message' => 'Si la cuenta tiene correo registrado, recibirá el enlace de recuperación.',
             ]);
 
         Mail::assertNothingSent();
@@ -355,5 +356,164 @@ final class AccesoConUsuarioTest extends TestCase
             'password' => 'RecoveredPassword123!',
             'password_confirmation' => 'RecoveredPassword123!',
         ])->assertOk();
+    }
+
+    public function test_recovery_for_an_account_without_email_answers_like_an_unknown_account(): void
+    {
+        Mail::fake();
+
+        $user = UserFactory::new()->createOne([
+            'usuario' => 'sin.correo',
+            'correo' => null,
+        ]);
+
+        // Ni 500 ni traza: la misma respuesta que una cuenta inexistente.
+        $conCuenta = $this->postJson('/api/auth/recuperar-contrasena', [
+            'usuario' => 'sin.correo',
+        ]);
+        $sinCuenta = $this->postJson('/api/auth/recuperar-contrasena', [
+            'usuario' => 'no.existe',
+        ]);
+
+        $conCuenta->assertOk();
+        $sinCuenta->assertOk();
+        self::assertSame($sinCuenta->json(), $conCuenta->json());
+
+        Mail::assertNothingSent();
+        $this->assertDatabaseCount('password_reset_tokens', 0);
+        $this->assertDatabaseMissing('bitacora_operaciones', [
+            'usuario_id' => $user->getKey(),
+            'operacion' => 'contrasena.solicitar_restablecimiento',
+        ]);
+    }
+
+    public function test_recovery_with_an_email_in_the_username_field_gets_a_spanish_message(): void
+    {
+        $this->postJson('/api/auth/recuperar-contrasena', [
+            'usuario' => 'leticia.blanco@umss.edu.bo',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.usuario.0', 'Usuario no válido.');
+
+        $this->postJson('/api/auth/login', [
+            'usuario' => str_repeat('a', 61),
+            'password' => 'x',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.usuario.0', 'El campo usuario admite como máximo 60 caracteres.');
+    }
+
+    public function test_temporary_password_is_changed_without_typing_it_again(): void
+    {
+        $user = UserFactory::new()->createOne([
+            'usuario' => 'primer.ingreso',
+            'password' => 'Fa7-Kmq4-Ru9',
+            'password_changed_at' => null,
+            'password_temporal_expira_en' => now()->addHours(72),
+        ]);
+
+        $this->actingAs($user)
+            ->postJson('/api/auth/cambiar-contrasena', [
+                'password' => 'Corina2026x',
+                'password_confirmation' => 'Corina2026x',
+            ])
+            ->assertOk()
+            ->assertJsonPath('user.debe_cambiar_contrasena', false);
+
+        $this->assertDatabaseHas('bitacora_operaciones', [
+            'usuario_id' => $user->getKey(),
+            'operacion' => 'contrasena.cambiar',
+        ]);
+    }
+
+    public function test_an_own_password_still_requires_the_current_one(): void
+    {
+        $user = UserFactory::new()->createOne([
+            'password' => 'OwnPassword2026',
+            'password_changed_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->postJson('/api/auth/cambiar-contrasena', [
+                'password' => 'Another2026x',
+                'password_confirmation' => 'Another2026x',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['contrasena_actual']);
+    }
+
+    public function test_password_change_messages_are_in_spanish(): void
+    {
+        $user = UserFactory::new()->createOne([
+            'password' => 'Fa7-Kmq4-Ru9',
+            'password_changed_at' => null,
+            'password_temporal_expira_en' => now()->addHours(72),
+        ]);
+
+        // Repetir la temporal.
+        $this->actingAs($user)
+            ->postJson('/api/auth/cambiar-contrasena', [
+                'contrasena_actual' => 'Fa7-Kmq4-Ru9',
+                'password' => 'Fa7-Kmq4-Ru9',
+                'password_confirmation' => 'Fa7-Kmq4-Ru9',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.password.0', 'La contraseña nueva debe ser distinta de la actual.');
+
+        $this->actingAs($user)
+            ->postJson('/api/auth/cambiar-contrasena', [
+                'password' => 'Fa7-Kmq4-Ru9',
+                'password_confirmation' => 'Fa7-Kmq4-Ru9',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.password.0', 'La contraseña nueva debe ser distinta de la temporal.');
+
+        $this->actingAs($user)
+            ->postJson('/api/auth/cambiar-contrasena', [
+                'password' => 'abc',
+                'password_confirmation' => 'abd',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.password', [
+                'La confirmación del campo contraseña no coincide.',
+                'El campo contraseña debe tener al menos 10 caracteres.',
+                'El campo contraseña debe tener mayúscula y minúscula.',
+                'El campo contraseña debe tener al menos un número.',
+            ]);
+    }
+
+    public function test_a_truncated_recovery_link_gets_a_spanish_message(): void
+    {
+        $this->postJson('/api/auth/restablecer-contrasena', [
+            'correo' => 'leticia.blanco@umss.edu.bo',
+            'token' => 'abc123',
+            'password' => 'Leticia-2026x',
+            'password_confirmation' => 'Leticia-2026x',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.token.0', 'Enlace no válido o vencido.');
+    }
+
+    public function test_room_code_access_is_not_blocked_by_an_open_temporary_session(): void
+    {
+        $user = UserFactory::new()->createOne([
+            'password_changed_at' => null,
+            'password_temporal_expira_en' => now()->addHours(72),
+        ]);
+
+        // Otra persona en la misma computadora: el codigo se evalua (aqui no
+        // existe), sin el 423 de la cuenta temporal.
+        $this->actingAs($user)
+            ->postJson('/api/auth/codigo-aula', [
+                'codigo' => '123456',
+                'nombre_colaborador' => 'Ana Rojas',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Código no válido');
+
+        $this->actingAs($user)
+            ->getJson('/api/aulas')
+            ->assertStatus(423)
+            ->assertJsonPath('message', 'Cambie su contraseña temporal para continuar.');
     }
 }

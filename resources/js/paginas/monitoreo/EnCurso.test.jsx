@@ -47,6 +47,7 @@ const aula = (cambios) => {
         compartida: [],
         codigo_acceso: false,
         a_mi_cargo: false,
+        puede_operar: false,
         ...cambios,
     };
     return { faltan: Math.max(base.asignados - base.ingresados, 0), ...base, ...cambios };
@@ -61,6 +62,7 @@ const AULAS = [
         asignados: 51,
         codigo_acceso: true,
         a_mi_cargo: true,
+        puede_operar: true,
         ultimo_registro: '2026-10-09T16:05:12-04:00',
     }),
     aula({
@@ -70,6 +72,8 @@ const AULAS = [
         ingresados: 19,
         incidencias_sin_atender: 1,
         compartida: ['Cálculo I · Primer parcial'],
+        // La docente del examen opera su puerta sin estar a cargo del aula.
+        puede_operar: true,
         ultimo_registro: '2026-10-09T16:04:30-04:00',
     }),
     aula({
@@ -299,9 +303,9 @@ describe('EnCurso (HU-22)', () => {
         montar();
         await cargado();
 
-        expect(screen.getByText('Ingreso abierto · Último registro 16:05:12')).toBeVisible();
-        expect(within(tarjetaDe('691B')).getByText('Último registro 16:05:12')).toBeVisible();
-        expect(within(tarjetaDe('691A')).getByText('Último registro 16:04:30')).toBeVisible();
+        expect(screen.getByText('Ingreso abierto · Último registro 16:05')).toBeVisible();
+        expect(within(tarjetaDe('691B')).getByText('Último registro 16:05')).toBeVisible();
+        expect(within(tarjetaDe('691A')).getByText('Último registro 16:04')).toBeVisible();
         expect(within(tarjetaDe('691E')).queryByText(/Último registro/)).toBeNull();
     });
 
@@ -344,7 +348,7 @@ describe('EnCurso (HU-22)', () => {
         await act(async () => vi.advanceTimersByTimeAsync(10000));
 
         expect(within(tarjetaDe('691A')).getByText('30 de 50 · Faltan 20')).toBeVisible();
-        expect(screen.getByText('Ingreso abierto · Último registro 16:07:48')).toBeVisible();
+        expect(screen.getByText('Ingreso abierto · Último registro 16:07')).toBeVisible();
         expect(pedidosDel('/en-curso/1')).toBe(2);
     });
 
@@ -410,14 +414,108 @@ describe('EnCurso (HU-22)', () => {
         expect(within(atendida).queryByRole('button')).toBeNull();
     });
 
-    it('ofrece reportar una incidencia desde el examen abierto', async () => {
+    it('reporta una incidencia con el examen elegido y el aula de la lista', async () => {
+        rutas['POST /aulas/*/punto-control/incidencias-manuales'] = {
+            message: 'Incidencia registrada.',
+        };
+        simularApi(api, rutas);
         montar();
         await cargado();
 
-        expect(screen.getByRole('link', { name: 'Reportar incidencia' })).toHaveAttribute(
-            'href',
-            '/punto-control'
+        expect(screen.queryByRole('link', { name: /Reportar/ })).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Incidencia' }));
+        const dialogo = screen.getByRole('dialog', { name: 'Incidencia' });
+        expect(within(dialogo).getByText('16:07 · Blanco Coca Leticia')).toBeVisible();
+
+        // Solo las aulas cuya puerta opera la cuenta.
+        const opciones = within(within(dialogo).getByRole('combobox', { name: /Aula/ }))
+            .getAllByRole('option')
+            .map((o) => o.textContent);
+        expect(opciones).toEqual(['Elegir', '691B', '691A']);
+
+        fireEvent.change(within(dialogo).getByRole('combobox', { name: /Aula/ }), {
+            target: { value: '31' },
+        });
+        fireEvent.change(within(dialogo).getByRole('combobox', { name: /Tipo/ }), {
+            target: { value: 'CONDUCTA' },
+        });
+        fireEvent.change(within(dialogo).getByRole('textbox', { name: /Código SIS/ }), {
+            target: { value: '202100123' },
+        });
+        fireEvent.change(within(dialogo).getByRole('textbox', { name: /Detalle/ }), {
+            target: { value: 'Conversa durante el examen.' },
+        });
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Registrar' }));
+
+        expect(await screen.findByText('Incidencia registrada')).toBeVisible();
+        expect(api.post).toHaveBeenCalledWith('/aulas/31/punto-control/incidencias-manuales', {
+            examen_id: 1,
+            tipo: 'CONDUCTA',
+            detalle: 'Conversa durante el examen.',
+            codigo_universitario: '202100123',
+        });
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(pedidosDel('/en-curso/1')).toBe(2);
+    });
+
+    it('con una sola aula operable la deja fija y muestra el error del servidor', async () => {
+        rutas['GET /en-curso/1'] = () =>
+            tablero(AULAS.map((a) => ({ ...a, puede_operar: a.aula_id === 35 })));
+        rutas['POST /aulas/*/punto-control/incidencias-manuales'] = errorHttp(422, {
+            message: 'El código no corresponde a un estudiante del examen.',
+            errors: {
+                codigo_universitario: ['No se encontró un estudiante del examen con ese código.'],
+            },
+        });
+        simularApi(api, rutas);
+        montar();
+        await cargado();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Incidencia' }));
+        const dialogo = screen.getByRole('dialog', { name: 'Incidencia' });
+        expect(within(dialogo).getByText('Aula 691E · 16:07 · Blanco Coca Leticia')).toBeVisible();
+        expect(within(dialogo).queryByRole('combobox', { name: /Aula/ })).toBeNull();
+
+        fireEvent.change(within(dialogo).getByRole('combobox', { name: /Tipo/ }), {
+            target: { value: 'OTRO' },
+        });
+        fireEvent.change(within(dialogo).getByRole('textbox', { name: /Código SIS/ }), {
+            target: { value: '99999' },
+        });
+        fireEvent.change(within(dialogo).getByRole('textbox', { name: /Detalle/ }), {
+            target: { value: 'Llegó sin documento.' },
+        });
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Registrar' }));
+
+        expect(
+            await within(dialogo).findByText(
+                'No se encontró un estudiante del examen con ese código.'
+            )
+        ).toBeVisible();
+        expect(api.post).toHaveBeenCalledWith(
+            '/aulas/35/punto-control/incidencias-manuales',
+            expect.objectContaining({ examen_id: 1, tipo: 'OTRO' })
         );
+    });
+
+    it('no ofrece reportar incidencias sin aulas operables, sin permiso o fuera del día', async () => {
+        rutas['GET /en-curso/1'] = () => tablero(AULAS.map((a) => ({ ...a, puede_operar: false })));
+        simularApi(api, rutas);
+        const { unmount } = montar();
+        await cargado();
+        expect(screen.queryByRole('button', { name: 'Incidencia' })).toBeNull();
+        unmount();
+
+        rutas['GET /en-curso/1'] = () => tablero();
+        simularApi(api, rutas);
+        const otra = montar('/en-curso', usuarioDePrueba('Docente', { permisos: ['examenes'] }));
+        await cargado();
+        expect(screen.queryByRole('button', { name: 'Incidencia' })).toBeNull();
+        otra.unmount();
+
+        montar('/en-curso?examen=3');
+        await screen.findByRole('heading', { name: 'Aula INFLAB' });
+        expect(screen.queryByRole('button', { name: 'Incidencia' })).toBeNull();
     });
 
     it('muestra el mensaje del servidor si la incidencia ya estaba atendida', async () => {
@@ -491,9 +589,6 @@ describe('EnCurso (HU-22)', () => {
     });
 
     it('lleva a la lista y a la puerta de cada aula', async () => {
-        rutas['GET /en-curso/1'] = () =>
-            tablero(AULAS.map((a) => (a.aula_id === 31 ? { ...a, a_mi_cargo: true } : a)));
-        simularApi(api, rutas);
         montar();
         await cargado();
 
@@ -507,7 +602,7 @@ describe('EnCurso (HU-22)', () => {
         );
     });
 
-    it('solo ofrece controlar las aulas asignadas a la cuenta', async () => {
+    it('ofrece controlar cada aula cuya puerta opera la cuenta, esté o no a su cargo', async () => {
         montar();
         await cargado();
 
@@ -515,7 +610,10 @@ describe('EnCurso (HU-22)', () => {
             'href',
             '/punto-control?aula=32'
         );
-        expect(screen.queryByRole('link', { name: 'Controlar el aula 691A' })).toBeNull();
+        expect(screen.getByRole('link', { name: 'Controlar el aula 691A' })).toHaveAttribute(
+            'href',
+            '/punto-control?aula=31'
+        );
         expect(screen.queryByRole('link', { name: 'Controlar el aula 691E' })).toBeNull();
     });
 

@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Http\Controllers;
 
 use App\Modules\Ingreso\Application\Actions\RegistrarIngreso;
+use App\Modules\Ingreso\Application\Actions\RegistrarIntentoEnPuerta;
+use App\Modules\Ingreso\Application\Contracts\ExamenesDePuerta;
 use App\Modules\Ingreso\Application\Contracts\OperacionesPuertaGateway;
+use App\Modules\Ingreso\Application\Queries\DetallarVeredictoPuerta;
 use App\Modules\Ingreso\Application\Queries\IdentificarEnPuerta;
 use App\Modules\Ingreso\Domain\Enums\VeredictoIngreso;
 use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
@@ -27,6 +30,9 @@ final class RegistrarIngresoEnPuertaController
         IdentificarEnPuerta $identificar,
         RegistrarIngreso $registrar,
         OperacionesPuertaGateway $operaciones,
+        RegistrarIntentoEnPuerta $intentos,
+        DetallarVeredictoPuerta $detallar,
+        ExamenesDePuerta $examenesDePuerta,
     ): JsonResponse {
         $usuarioId = Auth::id();
 
@@ -47,7 +53,7 @@ final class RegistrarIngresoEnPuertaController
                 'string',
                 'max:2048',
             ],
-        ]);
+        ], IdentificarEnPuertaController::MENSAJES);
 
         $tipo = $request->string('tipo')->toString();
         $identificador = $request->string('identificador')->toString();
@@ -64,6 +70,12 @@ final class RegistrarIngresoEnPuertaController
             ]);
         }
 
+        $ahora = new DateTimeImmutable(
+            'now',
+            new DateTimeZone('America/La_Paz'),
+        );
+        $fecha = $ahora->format('Y-m-d');
+
         try {
             // El examen se obtiene del servidor, nunca del cliente.
             $resultado = $identificar->ejecutar(
@@ -71,37 +83,37 @@ final class RegistrarIngresoEnPuertaController
                 $aula,
                 $tipo,
                 $identificador,
-                new DateTimeImmutable(
-                    'now',
-                    new DateTimeZone('America/La_Paz'),
-                ),
+                $ahora,
             );
 
             if (
                 ! $resultado->puedeAdmitir()
                 && ($resultado->ambiguo || $resultado->examenId === null)
             ) {
-                // BUG-04: una solicitud de ingreso denegada tambien se audita
-                // si no es posible atribuirla a un examen unico. Nunca
-                // adjudicarla arbitrariamente a uno de los examenes del aula.
-                // Se conserva una huella del identificador, no el QR ni el CI.
-                $operaciones->auditarIntentoNoResuelto(
-                    $aula,
+                // BUG-04: el intento queda registrado y distinguido (no
+                // inscrito, sin registro, QR no valido, ambiguo) sin
+                // adjudicarlo a uno de los examenes del aula.
+                $intentos->ejecutar(
                     $usuarioId,
+                    $aula,
                     $tipo,
                     $identificador,
-                    $resultado->ambiguo,
+                    $resultado,
                 );
 
                 return response()->json([
                     'message' => $resultado->ambiguo
                         ? 'Identificación ambigua entre exámenes.'
                         : 'Ingreso no autorizado para este estudiante.',
-                    'data' => [
-                        'veredicto' => $resultado->veredicto?->value,
-                        'ambiguo' => $resultado->ambiguo,
-                        'admitido' => false,
-                    ],
+                    'data' => $detallar->detallar(
+                        $resultado,
+                        null,
+                        $aula,
+                        $fecha,
+                        $tipo,
+                        $identificador,
+                        $examenesDePuerta->examenesDelAula($aula, $fecha),
+                    ),
                 ], Response::HTTP_CONFLICT);
             }
 
@@ -153,7 +165,7 @@ final class RegistrarIngresoEnPuertaController
             default => Response::HTTP_CONFLICT,
         };
 
-        $fechaIngreso = $veredicto === VeredictoIngreso::Admitido
+        $fechaIngreso = in_array($veredicto, [VeredictoIngreso::Admitido, VeredictoIngreso::YaIngreso], true)
             ? $operaciones->fechaIngreso(
                 $examenId,
                 $resultado->candidato?->estudiante->id,
@@ -162,11 +174,17 @@ final class RegistrarIngresoEnPuertaController
 
         return response()->json([
             'data' => [
+                ...$detallar->detallar(
+                    $resultado,
+                    $veredicto,
+                    $aula,
+                    $fecha,
+                    $tipo,
+                    $identificador,
+                ),
                 'examen_id' => $examenId,
                 'veredicto' => $veredicto->value,
                 'admitido' => $veredicto->permiteIngreso(),
-                'codigo' => $resultado->candidato?->estudiante->codigoUniversitario,
-                'nombre' => $resultado->candidato?->estudiante->nombreCompleto(),
                 'registrado_en' => $fechaIngreso,
             ],
         ], $estado);

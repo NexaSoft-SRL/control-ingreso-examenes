@@ -710,6 +710,32 @@ class DemoSeeder extends Seeder
             "Traer la hoja de respuestas sellada por la jefatura.\nLas mochilas quedan al frente del aula.",
         );
 
+        // Quien atiende cada aula (HU-18): las dos docentes y el auxiliar,
+        // para que la puerta, la lista del aula y «En curso» tengan alcance
+        // por persona y no solo por ser docente del examen.
+        if ($examenHoy['nuevo']) {
+            [$a691B, $a691A, $a691E, $a617, $a624] = $examenHoy['aulas'];
+            $personal = [
+                [$a691B, $leticia, 'a_cargo'],
+                [$a691A, $carla, 'a_cargo'],
+                [$a691E, $this->cuentas['diego.mamani'], 'a_cargo'],
+                [$a691E, $leticia, 'apoyo'],
+                [$a617, $leticia, 'a_cargo'],
+                [$a624, $carla, 'a_cargo'],
+            ];
+
+            foreach ($personal as [$aulaId, $usuarioId, $rol]) {
+                DB::table('examen_aula_personal')->insert([
+                    'examen_id' => $examenHoy['id'],
+                    'aula_id' => $aulaId,
+                    'usuario_id' => $usuarioId,
+                    'rol' => $rol,
+                    'created_at' => now()->subDays(6),
+                    'updated_at' => now()->subDays(6),
+                ]);
+            }
+        }
+
         // El parcial de Calculo I de otro docente, a la misma hora y
         // tambien en la 691A: aula compartida.
         $examenCalculo = $this->examen(

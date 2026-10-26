@@ -9,7 +9,9 @@ use App\Modules\Administracion\Application\Actions\RestablecerContrasena;
 use App\Modules\Administracion\Application\Actions\SolicitarRestablecimientoContrasena;
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Application\DTOs\SesionData;
+use App\Modules\Administracion\Domain\Exceptions\ContrasenaRepetidaException;
 use App\Modules\Administracion\Domain\Exceptions\ContrasenaTemporalVencidaException;
+use App\Modules\Administracion\Domain\Exceptions\CuentaDesactivadaException;
 use App\Modules\Administracion\Http\Requests\CambiarContrasenaRequest;
 use App\Modules\Administracion\Http\Requests\LoginRequest;
 use App\Modules\Administracion\Http\Requests\RestablecerContrasenaRequest;
@@ -42,8 +44,22 @@ class AuthenticationController
         } catch (ContrasenaTemporalVencidaException) {
             return response()->json([
                 'code' => 'TEMPORARY_PASSWORD_EXPIRED',
-                'message' => 'La contraseña temporal venció. Solicita al administrador que restablezca tu acceso.',
+                'message' => 'Contraseña temporal vencida.',
             ], Response::HTTP_FORBIDDEN);
+        } catch (CuentaDesactivadaException) {
+            $this->bitacora->registrar(
+                null,
+                'sesion.fallida',
+                'usuarios',
+                null,
+                sprintf('Intento con la cuenta desactivada %s.', $credentials['usuario']),
+            );
+
+            // Sin minutos: el bloqueo es de la administracion, no por intentos.
+            return response()->json([
+                'code' => 'ACCOUNT_DISABLED',
+                'message' => 'Cuenta bloqueada.',
+            ], Response::HTTP_LOCKED);
         }
 
         if ($user === null) {
@@ -158,17 +174,27 @@ class AuthenticationController
         CambiarContrasena $cambiar,
     ): JsonResponse {
         $usuarioId = Auth::id();
-        $actual = $request->string('contrasena_actual')->toString();
+        // Con la contrasena temporal no se pide la actual: la sesion se
+        // abrio con ella hace un momento.
+        $actual = $request->filled('contrasena_actual')
+            ? $request->string('contrasena_actual')->toString()
+            : null;
         $nueva = $request->string('password')->toString();
 
-        if (
-            ! is_int($usuarioId)
-            || ! $cambiar->execute(
-                $usuarioId,
-                $actual,
-                $nueva,
-            )
-        ) {
+        try {
+            $cambiada = is_int($usuarioId) && $cambiar->execute($usuarioId, $actual, $nueva);
+        } catch (ContrasenaRepetidaException) {
+            $mensaje = $actual === null
+                ? 'La contraseña nueva debe ser distinta de la temporal.'
+                : 'La contraseña nueva debe ser distinta de la actual.';
+
+            return response()->json([
+                'message' => $mensaje,
+                'errors' => ['password' => [$mensaje]],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if (! $cambiada) {
             return response()->json([
                 'message' => 'La contraseña actual no es correcta.',
                 'errors' => ['contrasena_actual' => ['La contraseña actual no es correcta.']],
@@ -203,7 +229,8 @@ class AuthenticationController
         $solicitar->execute($request->string('usuario')->toString());
 
         return response()->json([
-            'message' => 'Si la cuenta tiene ese correo de contacto, enviaremos instrucciones para recuperar el acceso.',
+            // La misma respuesta exista o no la cuenta, tenga o no correo.
+            'message' => 'Si la cuenta tiene correo registrado, recibirá el enlace de recuperación.',
         ]);
     }
 
@@ -217,13 +244,13 @@ class AuthenticationController
 
         if (! $restablecer->execute($correo, $token, $password)) {
             return response()->json([
-                'message' => 'El enlace de recuperación no es válido o venció. Solicita uno nuevo.',
-                'errors' => ['token' => ['El enlace de recuperación no es válido o venció.']],
+                'message' => 'Enlace no válido o vencido.',
+                'errors' => ['token' => ['Enlace no válido o vencido.']],
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         return response()->json([
-            'message' => 'La contraseña se restableció. Ya puedes iniciar sesión.',
+            'message' => 'Contraseña actualizada.',
         ]);
     }
 

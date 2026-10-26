@@ -1,7 +1,6 @@
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
@@ -21,6 +20,7 @@ import usarExamen from '../../componentes/usarExamen';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { diaMes } from '../../utiles/texto';
 import EnCursoAulas, { avanceDe, horaDe } from './EnCursoAulas';
+import IncidenciaEnCurso from './IncidenciaEnCurso';
 
 export const INTERVALO = 10000;
 // Con más aulas que estas, las tarjetas pasan a una rejilla compacta.
@@ -58,7 +58,7 @@ function Incidencias({ items, atender, atendiendo }) {
                                 {tipoDe(i.tipo)}
                             </Insignia>
                             <span className="tabular-nums">
-                                Aula {i.aula} · {horaDe(i.reportada_en).slice(0, 5)}
+                                Aula {i.aula} · {horaDe(i.reportada_en)}
                             </span>
                         </p>
                         {i.estudiante && (
@@ -74,7 +74,7 @@ function Incidencias({ items, atender, atendiendo }) {
                         <p className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-success-700">
                             <CheckCircle2 className="h-4 w-4" />
                             <span>
-                                Atendida · {i.atendida_por} · {horaDe(i.atendida_en).slice(0, 5)}
+                                Atendida · {i.atendida_por} · {horaDe(i.atendida_en)}
                             </span>
                         </p>
                     ) : (
@@ -118,7 +118,7 @@ Incidencias.propTypes = {
 // El examen mientras se toma: cifras, incidencias, aulas y mapa. Se monta de
 // nuevo con cada examen (`key`), así el cambio limpia filtros y orden.
 function Tablero({ examen, examenes, elegir }) {
-    const { puede } = usarSesion();
+    const { usuario, puede } = usarSesion();
     const [aviso, avisar] = useAviso();
     const [filtro, setFiltro] = useState(null);
     const [orden, setOrden] = useState('avance');
@@ -137,6 +137,12 @@ function Tablero({ examen, examenes, elegir }) {
     const denso = aulas.length > MAXIMO_TARJETAS;
     const visibles = aulas.filter(filtro ? FILTROS[filtro] : () => true).sort(ORDENES[orden][1]);
     const cuenta = (clave) => aulas.filter(FILTROS[clave]).length;
+    // Las incidencias se reportan el día del examen, en las aulas cuya puerta
+    // opera la cuenta (la misma regla que la puerta).
+    const esHoy = Boolean(tablero) && String(tablero.hora_servidor).slice(0, 10) === examen.fecha;
+    const operables = aulas
+        .filter((a) => a.puede_operar)
+        .map((a) => ({ id: a.aula_id, nombre: a.nombre }));
     const ultimoRegistro = tablero?.ultimo_registro
         ? `Último registro ${horaDe(tablero.ultimo_registro)}`
         : 'Sin registros';
@@ -191,13 +197,14 @@ function Tablero({ examen, examenes, elegir }) {
                             {diaMes(examen.fecha)}, {examen.hora}
                         </Insignia>
                     ))}
-                {abierto && puede('punto_control') && (
-                    <Link
-                        to="/punto-control"
-                        className="inline-flex min-h-11 items-center justify-center rounded-lg border border-primary-600 px-4 text-sm font-semibold text-primary-700 hover:bg-primary-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
-                    >
-                        Reportar incidencia
-                    </Link>
+                {esHoy && puede('punto_control') && operables.length > 0 && (
+                    <IncidenciaEnCurso
+                        examenId={examen.id}
+                        aulas={operables}
+                        por={usuario?.nombre}
+                        hora={horaDe(tablero.hora_servidor)}
+                        alRegistrar={vivo.recargar}
+                    />
                 )}
             </Encabezado>
 

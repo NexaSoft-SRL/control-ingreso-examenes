@@ -11,7 +11,7 @@ use RuntimeException;
  */
 final class GrupoAjenoException extends RuntimeException
 {
-    public function __construct(string $mensaje = 'Este grupo no es tuyo.')
+    public function __construct(string $mensaje = 'Grupo no autorizado.')
     {
         parent::__construct($mensaje);
     }

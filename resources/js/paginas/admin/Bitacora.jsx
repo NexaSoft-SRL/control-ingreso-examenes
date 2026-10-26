@@ -20,6 +20,7 @@ const etiquetaOperacion = {
     'usuario.bloquear': 'Bloqueo de cuenta',
     'usuario.desbloquear': 'Desbloqueo de cuenta',
     'usuario.restablecer_temporal': 'Restablecimiento de contraseña',
+    'contrasena.cambiar': 'Cambio de contraseña',
     'contrasena.solicitar_restablecimiento': 'Solicitud de enlace de recuperación',
     'contrasena.restablecer_por_enlace': 'Restablecimiento de contraseña',
     'contrasena.restablecimiento': 'Restablecimiento de contraseña',
@@ -54,6 +55,10 @@ const etiquetaOperacion = {
     'examen_aula_codigo.regenerar': 'Código de aula regenerado',
     'acceso_codigo_aula.ingreso': 'Entrada con código de aula',
     INCIDENCIA_AULA_ATENDIDA: 'Atención de incidencia',
+    INGRESO_ADMITIDO: 'Ingreso al examen',
+    'puerta.expulsion': 'Expulsión de estudiante',
+    'puerta.excepcion': 'Situación excepcional',
+    'incidencia.registrar': 'Registro de incidencia',
 };
 
 const etiquetaTabla = {
@@ -76,6 +81,7 @@ const etiquetaTabla = {
     accesos_codigo_aula: 'Acceso con código',
     examen_aula_codigos: 'Código de aula',
     incidencias_aula: 'Incidencia de aula',
+    ingresos: 'Ingreso',
 };
 
 const CAMPO =
@@ -84,12 +90,10 @@ const CAMPO =
 // La API da `name`; el contrato nuevo de cuentas, `nombre`.
 const nombreDe = (usuario) => usuario?.nombre ?? usuario?.name ?? '';
 
+// El restablecimiento (por el administrador o con el enlace) es una sola
+// opción del filtro; la solicitud del enlace tiene la suya.
 const categoriaOperacion = (codigo) =>
-    [
-        'usuario.restablecer_temporal',
-        'contrasena.solicitar_restablecimiento',
-        'contrasena.restablecer_por_enlace',
-    ].includes(codigo)
+    ['usuario.restablecer_temporal', 'contrasena.restablecer_por_enlace'].includes(codigo)
         ? 'contrasena.restablecimiento'
         : codigo;
 
@@ -118,6 +122,11 @@ function describirEntidad(operacion) {
     }
 
     const tabla = etiquetaTabla[operacion.tabla_afectada] ?? operacion.tabla_afectada;
+
+    // Una cuenta se muestra por su usuario, no por su id.
+    if (operacion.registro_etiqueta) {
+        return `${tabla} ${operacion.registro_etiqueta}`;
+    }
 
     return operacion.registro_id === null ? tabla : `${tabla} #${operacion.registro_id}`;
 }
@@ -328,17 +337,8 @@ function Bitacora() {
                                 <div className="font-semibold text-slate-800">
                                     {operacion.usuario ? (
                                         nombreDe(operacion.usuario)
-                                    ) : operacion.operacion === 'acceso_codigo_aula.ingreso' ? (
-                                        (() => {
-                                            const coincidencia =
-                                                /Ingreso con código de aula:\s*(.+?)\s+en aula/i.exec(
-                                                    operacion.descripcion ?? ''
-                                                );
-                                            const nombre = coincidencia
-                                                ? coincidencia[1]
-                                                : 'Colaborador';
-                                            return `${nombre} (código de aula)`;
-                                        })()
+                                    ) : operacion.actor ? (
+                                        operacion.actor
                                     ) : (
                                         <span className="font-normal text-slate-500 italic">
                                             {operacion.operacion === 'sesion.fallida'

@@ -278,6 +278,132 @@ final class OfertaConsultaTest extends TestCase
         $this->assertSame(['Año 1', 'Semestre 1', 'Semestre 2'], $respuesta->json('data'));
     }
 
+    public function test_a_subject_shared_by_two_faculties_gets_one_row_per_faculty(): void
+    {
+        $fcyt = $this->facultad();
+        $fhce = $this->facultad('fhce');
+        $periodo = $this->periodo('2/2026', -10, 10);
+        $didactica = $this->asignatura('Didáctica General', '1801033');
+
+        $this->grupo(null, $didactica, '1', $periodo, $fhce);
+        $this->grupo(null, $didactica, '2', $periodo, $fhce);
+        $this->grupo(null, $didactica, '1', $periodo, $fcyt);
+        $this->grupo(null, $this->asignatura('Álgebra I', '2008053'), '1', $periodo, $fcyt);
+
+        $sesion = $this->actingAs($this->usuarioConPermisos(['periodo_oferta']));
+
+        // Con todas las facultades: una fila por asignatura y facultad, y el
+        // total cuenta esas filas.
+        $sesion->getJson('/api/oferta/asignaturas')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 3)
+            ->assertJsonPath('meta.total_grupos', 4)
+            ->assertJsonCount(3, 'data')
+            ->assertJsonPath('data.*.nombre', ['Álgebra I', 'Didáctica General', 'Didáctica General'])
+            ->assertJsonPath('data.1.facultad', 'FCyT')
+            ->assertJsonPath('data.1.facultad_clave', 'fcyt')
+            ->assertJsonPath('data.1.grupos', 1)
+            ->assertJsonPath('data.2.facultad', 'FHCE')
+            ->assertJsonPath('data.2.facultad_clave', 'fhce')
+            ->assertJsonPath('data.2.grupos', 2);
+
+        $sesion->getJson('/api/oferta/asignaturas?buscar=didactica general')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonCount(2, 'data');
+
+        // Los grupos de cada fila: solo los de su facultad.
+        $sesion->getJson("/api/oferta/asignaturas/{$didactica->id}/grupos?facultad=fhce")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2);
+
+        $sesion->getJson("/api/oferta/asignaturas/{$didactica->id}/grupos?facultad=fcyt")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1);
+    }
+
+    public function test_offer_subject_groups_follow_the_period_faculty_and_search_filters(): void
+    {
+        $fcyt = $this->facultad();
+        $fce = $this->facultad('fce');
+        $vigente = $this->periodo('2/2026', -10, 10);
+        $cerrado = $this->periodo('1/2026', -200, -100, TipoPeriodo::Semestre1);
+        $calculo = $this->asignatura('Cálculo I', '2008054');
+
+        $fiorilo = $this->docenteSinCuenta('Fiorilo Lozada Amilcar');
+        $otro = $this->docenteSinCuenta('Blanco Coca Leticia');
+
+        $this->grupo($otro, $calculo, '1', $vigente, $fcyt);
+        $this->grupo($fiorilo, $calculo, '2', $vigente, $fcyt);
+        $this->grupo($otro, $calculo, '3', $vigente, $fcyt);
+        $this->grupo($fiorilo, $calculo, '4', $vigente, $fce);
+        $this->grupo($otro, $calculo, '9', $cerrado, $fcyt);
+
+        $sesion = $this->actingAs($this->usuarioConPermisos(['periodo_oferta']));
+        $grupos = "/api/oferta/asignaturas/{$calculo->id}/grupos";
+
+        // Por defecto, solo los períodos vigentes.
+        $sesion->getJson($grupos)->assertOk()->assertJsonPath('meta.total', 4);
+
+        // Por período: el cerrado sigue consultable.
+        $sesion->getJson("{$grupos}?periodo={$cerrado->id}")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.codigo', '9');
+
+        // Por facultad.
+        $sesion->getJson("{$grupos}?facultad=fcyt")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 3)
+            ->assertJsonPath('data.*.codigo', ['1', '2', '3']);
+
+        // Buscando un docente: solo sus grupos, y la fila cuenta los mismos.
+        $sesion->getJson('/api/oferta/asignaturas?facultad=fcyt&buscar=fiorilo')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.grupos', 1);
+
+        $sesion->getJson("{$grupos}?facultad=fcyt&buscar=fiorilo")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.*.codigo', ['2']);
+
+        // Buscando la asignatura: todos sus grupos.
+        $sesion->getJson("{$grupos}?facultad=fcyt&buscar=calculo")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 3);
+    }
+
+    public function test_without_a_current_period_the_default_offer_is_empty(): void
+    {
+        $facultad = $this->facultad();
+        $carrera = $this->carrera($facultad, 'Ingeniería de Sistemas');
+        $cerrado = $this->periodo('1/2026', -200, -100, TipoPeriodo::Semestre1);
+        $asignatura = $this->asignatura('Programación I', '2010010');
+        $this->enPlan($carrera, $asignatura, 'SEMESTRE 1');
+        $this->grupo(null, $asignatura, '1', $cerrado, $facultad);
+
+        $sesion = $this->actingAs($this->usuarioConPermisos(['periodo_oferta']));
+
+        // «Vigentes» sin ningún período vigente: nada, no todo.
+        $sesion->getJson('/api/oferta/asignaturas')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0)
+            ->assertJsonPath('meta.total_grupos', 0)
+            ->assertJsonCount(0, 'data');
+
+        $sesion->getJson("/api/oferta/asignaturas/{$asignatura->id}/grupos")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+
+        $sesion->getJson('/api/oferta/niveles')->assertOk()->assertJsonCount(0, 'data');
+
+        // El período cerrado, pedido por su id, sí se ve.
+        $sesion->getJson("/api/oferta/asignaturas?periodo={$cerrado->id}")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1);
+    }
+
     public function test_offer_subjects_reject_invalid_filters_and_unknown_assignments(): void
     {
         $this->facultad();

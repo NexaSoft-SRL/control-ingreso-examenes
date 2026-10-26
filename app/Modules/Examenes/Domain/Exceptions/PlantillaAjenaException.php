@@ -18,7 +18,7 @@ final class PlantillaAjenaException extends RuntimeException
         parent::__construct(
             $predefinida
                 ? 'Las normas predefinidas no se modifican.'
-                : 'Esta plantilla no es tuya.',
+                : 'Plantilla no autorizada.',
         );
     }
 }

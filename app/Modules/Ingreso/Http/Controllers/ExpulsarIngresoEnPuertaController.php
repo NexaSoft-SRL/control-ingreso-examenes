@@ -6,6 +6,7 @@ namespace App\Modules\Ingreso\Http\Controllers;
 
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\OperacionesPuertaGateway;
+use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,6 +19,7 @@ final class ExpulsarIngresoEnPuertaController
         int $ingreso,
         AlcancePuntoControl $alcance,
         OperacionesPuertaGateway $operaciones,
+        VentanaPuntoControl $ventana,
     ): JsonResponse {
         $usuarioId = Auth::id();
 
@@ -29,17 +31,21 @@ final class ExpulsarIngresoEnPuertaController
 
         $datos = $request->validate([
             'motivo' => ['required', 'string', 'min:5', 'max:500'],
+        ], [
+            'motivo.required' => 'Obligatorio',
+            'motivo.min' => 'Mínimo 5 caracteres',
+            'motivo.max' => 'Máximo 500 caracteres',
         ]);
 
         if ($aula <= 0 || $ingreso <= 0) {
             return response()->json([
-                'message' => 'Identificadores inválidos.',
+                'message' => 'Identificadores no válidos.',
             ], 422);
         }
 
         if (! is_array($datos)) {
             return response()->json([
-                'message' => 'Datos inválidos.',
+                'message' => 'Datos no válidos.',
             ], 422);
         }
 
@@ -47,7 +53,7 @@ final class ExpulsarIngresoEnPuertaController
 
         if (! is_string($motivo)) {
             return response()->json([
-                'message' => 'Motivo inválido.',
+                'message' => 'Motivo no válido.',
             ], 422);
         }
 
@@ -68,8 +74,28 @@ final class ExpulsarIngresoEnPuertaController
             $aula,
         )) {
             return response()->json([
-                'message' => 'No atiendes este punto de control.',
+                'message' => 'Sin asignación en esta aula.',
             ], 403);
+        }
+
+        $horaPrevia = $operaciones->horaExpulsion($ingreso);
+
+        if ($horaPrevia !== null) {
+            return response()->json([
+                'message' => 'Ya estaba expulsado.',
+                'data' => [
+                    'ingreso_id' => $ingreso,
+                    'expulsado' => true,
+                    'hora' => $horaPrevia,
+                ],
+            ], 409);
+        }
+
+        // N3: fuera de la ventana del examen no se expulsa.
+        if (! $ventana->estaAbierta($examenId)) {
+            return response()->json([
+                'message' => 'Fuera del horario del examen.',
+            ], 409);
         }
 
         $creada = $operaciones->expulsar(
@@ -81,15 +107,23 @@ final class ExpulsarIngresoEnPuertaController
 
         if (! $creada) {
             return response()->json([
-                'message' => 'El ingreso ya fue expulsado.',
+                'message' => 'Ya estaba expulsado.',
+                'data' => [
+                    'ingreso_id' => $ingreso,
+                    'expulsado' => true,
+                    'hora' => $operaciones->horaExpulsion($ingreso),
+                ],
             ], 409);
         }
 
+        $hora = $operaciones->horaExpulsion($ingreso);
+
         return response()->json([
-            'message' => 'Expulsión registrada.',
+            'message' => 'Expulsión registrada',
             'data' => [
                 'ingreso_id' => $ingreso,
                 'expulsado' => true,
+                'hora' => $hora,
             ],
         ], 201);
     }

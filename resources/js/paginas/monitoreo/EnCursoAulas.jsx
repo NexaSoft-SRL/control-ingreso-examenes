@@ -12,8 +12,8 @@ const ENLACE =
 export const avanceDe = (aula) =>
     aula.asignados ? Math.min(Math.round((aula.ingresados / aula.asignados) * 100), 100) : 0;
 
-// '2026-10-09T16:05:12-04:00' → '16:05:12'.
-export const horaDe = (instante) => String(instante ?? '').slice(11, 19);
+// '2026-10-09T16:05:12-04:00' → '16:05'.
+export const horaDe = (instante) => String(instante ?? '').slice(11, 16);
 
 const textoIncidencias = (n) => plural(n, 'incidencia');
 
@@ -62,6 +62,7 @@ const formaAula = PropTypes.shape({
     compartida: PropTypes.arrayOf(PropTypes.string),
     codigo_acceso: PropTypes.bool,
     a_mi_cargo: PropTypes.bool,
+    puede_operar: PropTypes.bool,
 });
 
 Barra.propTypes = { aula: formaAula.isRequired, className: PropTypes.string };
@@ -97,10 +98,12 @@ Enlaces.propTypes = {
 
 // Las aulas del examen en curso (GET /api/en-curso/{examen}). Con pocas, una
 // tarjeta por aula; `denso` las pasa a una rejilla compacta. «Lista» abre el
-// seguimiento del aula (HU-21) y «Controlar», su puerta (HU-19).
+// seguimiento del aula (HU-21) y «Controlar», su puerta (HU-19), solo en
+// las aulas cuya puerta la cuenta opera (`puede_operar`, del servidor).
 export default function EnCursoAulas({ aulas, examenId, denso, abierto, conLista, conControl }) {
     const lista = (a) => (conLista ? `/seguimiento?examen=${examenId}&aula=${a.aula_id}` : null);
-    const control = (a) => (conControl && a.a_mi_cargo ? `/punto-control?aula=${a.aula_id}` : null);
+    const control = (a) =>
+        conControl && a.puede_operar ? `/punto-control?aula=${a.aula_id}` : null;
 
     if (denso) {
         return (
@@ -140,8 +143,7 @@ export default function EnCursoAulas({ aulas, examenId, denso, abierto, conLista
                                 )}
                                 {[
                                     `Faltan ${a.faltan}`,
-                                    a.ultimo_registro &&
-                                        `Último ${horaDe(a.ultimo_registro).slice(0, 5)}`,
+                                    a.ultimo_registro && `Último ${horaDe(a.ultimo_registro)}`,
                                     encargado.rol,
                                     apoyo.length > 0 && `+${apoyo.length} apoyo`,
                                     abierto && a.ingresados === 0 && 'Sin ingresos',

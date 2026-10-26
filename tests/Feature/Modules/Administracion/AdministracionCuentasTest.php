@@ -345,10 +345,16 @@ final class AdministracionCuentasTest extends TestCase
 
         $this->app->make('auth')->forgetGuards();
 
-        // El acceso es por usuario y no dice por que rechaza.
+        // Con la contrasena correcta avisa que la cuenta esta bloqueada (sin
+        // minutos); con otra, la respuesta generica.
         $this->postJson('/api/auth/login', [
             'usuario' => $this->cuenta->usuario,
             'password' => 'password',
+        ])->assertStatus(423)->assertJsonPath('code', 'ACCOUNT_DISABLED');
+
+        $this->postJson('/api/auth/login', [
+            'usuario' => $this->cuenta->usuario,
+            'password' => 'otra-clave',
         ])->assertUnauthorized();
 
         $this->assertGuest();
@@ -397,7 +403,7 @@ final class AdministracionCuentasTest extends TestCase
                 'activo' => false,
             ])
             ->assertUnprocessable()
-            ->assertExactJson(['message' => 'No puedes bloquear tu propia cuenta.']);
+            ->assertExactJson(['message' => 'No puede bloquear su propia cuenta.']);
 
         // Tampoco se guardo el resto de la edicion.
         $this->assertDatabaseHas('usuarios', [

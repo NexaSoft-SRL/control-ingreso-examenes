@@ -1,8 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { api } from '../../api/cliente';
+import { erroresDe, mensajeDe } from '../../api/errores';
+import Boton from '../../componentes/Boton';
+import Campo from '../../componentes/Campo';
+import Seleccion, { AreaTexto } from '../../componentes/Seleccion';
+import { TIPOS_COMUNES, TIPOS_INCIDENCIA } from './tiposIncidencia';
 
-export default function IncidenciasManuales({ aulaId, examenes, sugerencia = null }) {
+// Incidencias comunes de la puerta (catálogo cerrado del servidor). Las
+// situaciones excepcionales se registran desde el veredicto.
+const DETALLE_MAXIMO = 500;
+
+const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
+const horaDe = (instante) => String(instante ?? '').slice(11, 16);
+
+export default function IncidenciasManuales({ aulaId, examenes }) {
     const disponibles = useMemo(
         () =>
             examenes.filter((examen) =>
@@ -17,17 +29,17 @@ export default function IncidenciasManuales({ aulaId, examenes, sugerencia = nul
     const [estudiante, setEstudiante] = useState('');
     const [registros, setRegistros] = useState([]);
     const [mensaje, setMensaje] = useState('');
+    const [errores, setErrores] = useState({});
     const [guardando, setGuardando] = useState(false);
     const [actualizando, setActualizando] = useState(false);
     const [version, setVersion] = useState(0);
     const contextoActual = useRef('');
     const montado = useRef(false);
 
-    const examenId = disponibles.some((item) => String(item.id) === eleccion)
-        ? eleccion
-        : disponibles.length === 1
-          ? String(disponibles[0].id)
-          : '';
+    // Con dos exámenes en el aula, se elige a cuál va la incidencia.
+    let examenId = '';
+    if (disponibles.some((item) => String(item.id) === eleccion)) examenId = eleccion;
+    else if (disponibles.length === 1) examenId = String(disponibles[0].id);
 
     useEffect(() => {
         setEleccion('');
@@ -35,37 +47,8 @@ export default function IncidenciasManuales({ aulaId, examenes, sugerencia = nul
         setDetalle('');
         setEstudiante('');
         setMensaje('');
+        setErrores({});
     }, [aulaId]);
-
-    const huboSugerencia = useRef(false);
-
-    useEffect(() => {
-        if (!sugerencia) {
-            if (huboSugerencia.current) {
-                huboSugerencia.current = false;
-                setEleccion('');
-                setTipo('INCIDENTE_GENERAL');
-                setDetalle('');
-                setEstudiante('');
-                setMensaje('');
-            }
-            return;
-        }
-
-        const examenPermitido = disponibles.some(
-            (examen) => String(examen.id) === String(sugerencia.examenId)
-        );
-
-        if (!examenPermitido) return;
-
-        huboSugerencia.current = true;
-
-        setEleccion(String(sugerencia.examenId));
-        setTipo(sugerencia.tipo);
-        setEstudiante(sugerencia.codigo);
-        setDetalle('');
-        setMensaje('Completa el motivo y confirma la situación excepcional.');
-    }, [sugerencia, disponibles]);
 
     useEffect(() => {
         montado.current = true;
@@ -111,7 +94,7 @@ export default function IncidenciasManuales({ aulaId, examenes, sugerencia = nul
                 }
             } catch {
                 if (vigente) {
-                    setMensaje('No se pudieron consultar las incidencias manuales.');
+                    setMensaje('No se pudieron consultar las incidencias');
                 }
             } finally {
                 if (vigente) setActualizando(false);
@@ -131,14 +114,20 @@ export default function IncidenciasManuales({ aulaId, examenes, sugerencia = nul
 
         const texto = detalle.trim();
 
-        if (guardando || !examenId || !aulaId || texto.length < 5 || texto.length > 2000) {
+        if (
+            guardando ||
+            !examenId ||
+            !aulaId ||
+            texto.length < 5 ||
+            texto.length > DETALLE_MAXIMO
+        ) {
             return;
         }
 
         const codigo = estudiante.trim();
 
         if (codigo !== '' && !/^[0-9]{5,10}$/.test(codigo)) {
-            setMensaje('El código universitario debe tener entre 5 y 10 dígitos.');
+            setErrores({ codigo_universitario: 'Código SIS no válido' });
             return;
         }
 
@@ -146,6 +135,7 @@ export default function IncidenciasManuales({ aulaId, examenes, sugerencia = nul
 
         setGuardando(true);
         setMensaje('');
+        setErrores({});
 
         try {
             await api.post(`/aulas/${aulaId}/punto-control/incidencias-manuales`, {
@@ -158,14 +148,16 @@ export default function IncidenciasManuales({ aulaId, examenes, sugerencia = nul
             if (montado.current && contextoActual.current === contextoSolicitud) {
                 setDetalle('');
                 setEstudiante('');
-                setMensaje('Incidencia manual registrada.');
+                setMensaje('Incidencia registrada');
                 setVersion((anterior) => anterior + 1);
             }
         } catch (error) {
             if (montado.current && contextoActual.current === contextoSolicitud) {
-                setMensaje(
-                    error?.response?.data?.message ?? 'No se pudo registrar la incidencia manual.'
-                );
+                const campos = erroresDe(error);
+                setErrores(campos);
+                if (Object.keys(campos).length === 0) {
+                    setMensaje(sinPunto(mensajeDe(error, 'No se pudo registrar la incidencia')));
+                }
             }
         } finally {
             if (montado.current && contextoActual.current === contextoSolicitud) {
@@ -176,113 +168,121 @@ export default function IncidenciasManuales({ aulaId, examenes, sugerencia = nul
 
     return (
         <section
-            aria-label="Incidencias manuales"
+            aria-label="Incidencias del aula"
             className="space-y-4 rounded-xl border border-slate-200 bg-white p-5"
         >
-            <h2 className="text-lg font-semibold">Incidencias manuales</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Incidencias del aula</h2>
 
-            <form onSubmit={registrar} className="space-y-3">
-                <label className="block text-sm">
-                    Examen correspondiente
-                    <select
-                        aria-label="Examen de incidencia manual"
+            <form onSubmit={registrar} className="space-y-3" noValidate>
+                {disponibles.length > 1 && (
+                    <Seleccion
+                        etiqueta="Examen"
+                        aria-label="Examen de la incidencia"
                         value={examenId}
                         onChange={(evento) => setEleccion(evento.target.value)}
-                        className="mt-1 block w-full rounded-lg border p-2"
                     >
                         <option value="">Seleccionar examen</option>
                         {disponibles.map((examen) => (
                             <option key={examen.id} value={String(examen.id)}>
-                                {examen.asignatura?.nombre ?? 'Examen'} —{' '}
-                                {examen.tipo ?? 'Sin tipo'} (#{examen.id})
+                                {[examen.asignatura?.nombre, examen.tipo_etiqueta ?? examen.tipo]
+                                    .filter(Boolean)
+                                    .join(' · ')}
                             </option>
                         ))}
-                    </select>
-                </label>
+                    </Seleccion>
+                )}
 
-                <label className="block text-sm">
-                    Tipo
-                    <select
-                        aria-label="Tipo de incidencia manual"
-                        value={tipo}
-                        onChange={(evento) => setTipo(evento.target.value)}
-                        className="mt-1 block w-full rounded-lg border p-2"
-                    >
-                        <option value="INCIDENTE_GENERAL">Incidente general</option>
-                        <option value="EXCEPCION_IDENTIFICACION">
-                            Excepción: problema de identificación
+                <Seleccion
+                    etiqueta="Tipo"
+                    aria-label="Tipo de incidencia"
+                    value={tipo}
+                    onChange={(evento) => setTipo(evento.target.value)}
+                >
+                    {TIPOS_COMUNES.map((clave) => (
+                        <option key={clave} value={clave}>
+                            {TIPOS_INCIDENCIA[clave]}
                         </option>
-                        <option value="EXCEPCION_CAMBIO_AULA">Excepción: cambio de aula</option>
-                        <option value="EXCEPCION_NO_HABILITADO">
-                            Excepción: estudiante no habilitado
-                        </option>
-                        <option value="DOCUMENTO_OBSERVADO">Documento observado</option>
-                        <option value="CONDUCTA">Conducta</option>
-                        <option value="OTRO">Otro</option>
-                    </select>
-                </label>
+                    ))}
+                </Seleccion>
 
-                <label className="block text-sm">
-                    Código universitario (opcional)
-                    <input
-                        aria-label="Código universitario para incidencia"
-                        value={estudiante}
-                        onChange={(evento) => setEstudiante(evento.target.value)}
-                        className="mt-1 block w-full rounded-lg border p-2"
-                        inputMode="numeric"
-                    />
-                </label>
+                <Campo
+                    etiqueta="Código SIS (opcional)"
+                    aria-label="Código SIS de la incidencia"
+                    value={estudiante}
+                    error={errores.codigo_universitario}
+                    onChange={(evento) => setEstudiante(evento.target.value)}
+                    inputMode="numeric"
+                    autoComplete="off"
+                />
 
-                <label className="block text-sm">
-                    Detalle
-                    <textarea
-                        aria-label="Detalle de incidencia manual"
-                        value={detalle}
-                        onChange={(evento) => setDetalle(evento.target.value)}
-                        maxLength={2000}
-                        rows={3}
-                        className="mt-1 block w-full rounded-lg border p-2"
-                    />
-                </label>
+                <AreaTexto
+                    etiqueta="Detalle"
+                    requerido
+                    aria-label="Detalle de la incidencia"
+                    value={detalle}
+                    error={errores.detalle}
+                    pie={`${detalle.trim().length}/${DETALLE_MAXIMO}`}
+                    onChange={(evento) => setDetalle(evento.target.value)}
+                    maxLength={DETALLE_MAXIMO}
+                    rows={3}
+                />
 
-                <button
+                <Boton
                     type="submit"
                     disabled={
                         guardando ||
                         !examenId ||
                         detalle.trim().length < 5 ||
-                        detalle.trim().length > 2000
+                        detalle.trim().length > DETALLE_MAXIMO
                     }
-                    className="rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
                 >
-                    {guardando ? 'Registrando…' : 'Registrar incidencia manual'}
-                </button>
+                    {guardando ? 'Registrando…' : 'Registrar incidencia'}
+                </Boton>
             </form>
 
             {mensaje && (
-                <p role="status" className="text-sm">
+                <p role="status" className="text-sm text-slate-800">
                     {mensaje}
                 </p>
             )}
 
-            <h3 className="font-medium">Historial manual</h3>
-            {actualizando && <p className="text-sm">Consultando…</p>}
+            <h3 className="font-medium text-slate-900">Registradas</h3>
+            {actualizando && <p className="text-sm text-slate-600">Consultando…</p>}
             {!actualizando && registros.length === 0 && (
-                <p className="text-sm text-slate-600">Sin incidencias manuales.</p>
+                <p className="text-sm text-slate-600">Sin incidencias</p>
             )}
-            <ul className="divide-y">
+            <ul className="divide-y divide-slate-100">
                 {registros.map((registro) => (
-                    <li key={registro.incidencia_id} className="py-3 text-sm">
-                        <p className="font-semibold">{registro.tipo}</p>
-                        <p className="whitespace-pre-wrap break-words">{registro.detalle}</p>
-                        <p>
-                            {registro.estudiante_id
-                                ? `Estudiante: ${[registro.apellidos, registro.nombres].filter(Boolean).join(', ') || registro.estudiante_id}`
-                                : 'Incidencia general'}
+                    <li key={registro.incidencia_id} className="space-y-1 py-3 text-sm">
+                        <p className="font-semibold text-slate-900">
+                            {registro.tipo_etiqueta ??
+                                TIPOS_INCIDENCIA[registro.tipo] ??
+                                registro.tipo}
                         </p>
-                        <p>Operador: {registro.operador ?? registro.reportada_por}</p>
-                        <p>Fecha: {registro.reportada_en}</p>
-                        <p>{registro.atendida_en ? 'Atendida' : 'Pendiente'}</p>
+                        <p className="whitespace-pre-wrap break-words text-slate-700">
+                            {registro.detalle}
+                        </p>
+                        {registro.estudiante_id && (
+                            <p className="text-slate-700">
+                                {[
+                                    [registro.apellidos, registro.nombres]
+                                        .filter(Boolean)
+                                        .join(', '),
+                                    registro.codigo,
+                                ]
+                                    .filter(Boolean)
+                                    .join(' · ')}
+                            </p>
+                        )}
+                        <p className="text-slate-600">
+                            {[
+                                registro.operador,
+                                registro.hora ?? horaDe(registro.reportada_en),
+                                registro.atendida_en ? 'Atendida' : 'Pendiente',
+                            ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                        </p>
                     </li>
                 ))}
             </ul>
@@ -293,10 +293,4 @@ export default function IncidenciasManuales({ aulaId, examenes, sugerencia = nul
 IncidenciasManuales.propTypes = {
     aulaId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
     examenes: PropTypes.arrayOf(PropTypes.object).isRequired,
-    sugerencia: PropTypes.shape({
-        examenId: PropTypes.number.isRequired,
-        tipo: PropTypes.string.isRequired,
-        codigo: PropTypes.string.isRequired,
-        solicitud: PropTypes.number.isRequired,
-    }),
 };

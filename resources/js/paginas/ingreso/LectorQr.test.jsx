@@ -90,7 +90,9 @@ describe('LectorQr', () => {
 
         render(<LectorQr alDetectar={vi.fn()} alCerrar={vi.fn()} />);
 
-        expect(await screen.findByText(/no permite la lectura QR nativa/)).toBeInTheDocument();
+        expect(
+            await screen.findByText('Cámara no disponible en este navegador')
+        ).toBeInTheDocument();
 
         expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
     });
@@ -98,9 +100,28 @@ describe('LectorQr', () => {
     it('informa cuando se deniega acceso a la cámara', async () => {
         navigator.mediaDevices.getUserMedia.mockRejectedValue(new Error('Permission denied'));
 
-        render(<LectorQr alDetectar={vi.fn()} alCerrar={vi.fn()} />);
+        const alFallar = vi.fn();
+        render(<LectorQr alDetectar={vi.fn()} alCerrar={vi.fn()} alFallar={alFallar} />);
 
-        expect(await screen.findByText(/No se pudo iniciar la cámara/)).toBeInTheDocument();
+        expect(
+            await screen.findByText('Cámara no disponible: sin permiso de acceso')
+        ).toBeInTheDocument();
+        expect(alFallar).toHaveBeenCalledOnce();
+    });
+
+    it('BUG-21: sin HTTPS pide conexión segura y avisa para abrir el ingreso manual', async () => {
+        vi.stubGlobal('isSecureContext', false);
+        const alFallar = vi.fn();
+
+        render(<LectorQr alDetectar={vi.fn()} alCerrar={vi.fn()} alFallar={alFallar} />);
+
+        expect(
+            await screen.findByText('Cámara no disponible: requiere conexión segura (HTTPS)')
+        ).toBeInTheDocument();
+        expect(alFallar).toHaveBeenCalledWith(
+            'Cámara no disponible: requiere conexión segura (HTTPS)'
+        );
+        expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
     });
 
     it('libera la cámara cuando el permiso llega después de cerrar', async () => {

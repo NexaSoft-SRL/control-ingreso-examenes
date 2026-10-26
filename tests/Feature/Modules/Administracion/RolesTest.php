@@ -340,8 +340,8 @@ final class RolesTest extends TestCase
             ->putJson("/api/roles/{$administrador}", ['permisos' => ['bitacora', 'periodo_oferta']])
             ->assertUnprocessable()
             ->assertExactJson([
-                'message' => 'No puedes quitar «Usuarios y roles» a tu propio rol.',
-                'errors' => ['permisos' => ['No puedes quitar «Usuarios y roles» a tu propio rol.']],
+                'message' => 'No puede quitar «Usuarios y roles» a su propio rol.',
+                'errors' => ['permisos' => ['No puede quitar «Usuarios y roles» a su propio rol.']],
             ]);
 
         $this->assertSame(7, DB::table('permission_role')->where('role_id', $administrador)->count());

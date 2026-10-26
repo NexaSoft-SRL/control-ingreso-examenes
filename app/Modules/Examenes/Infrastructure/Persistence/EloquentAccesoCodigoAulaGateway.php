@@ -17,38 +17,39 @@ final readonly class EloquentAccesoCodigoAulaGateway implements AccesoCodigoAula
 
     public function ingresar(string $codigo, string $nombreColaborador): ?array
     {
-        /** @var object{id: int, examen_id: int, aula_id: int, codigo: string}|null $codigoRegistro */
-        $codigoRegistro = DB::table('examen_aula_codigos')
-            ->where('codigo', $codigo)
-            ->first();
+        // El mismo código puede servir otro día en otra aula: vale el del
+        // examen cuya ventana está abierta ahora.
+        $candidatos = DB::table('examen_aula_codigos as c')
+            ->join('examenes as e', 'e.id', '=', 'c.examen_id')
+            ->where('c.codigo', $codigo)
+            ->get(['c.examen_id', 'c.aula_id', 'e.fecha', 'e.hora_inicio', 'e.duracion_minutos']);
+
+        $ahora = now()->timestamp;
+        $codigoRegistro = null;
+        $ventanaFin = 0;
+
+        foreach ($candidatos as $candidato) {
+            /** @var object{examen_id: int, aula_id: int, fecha: string, hora_inicio: string, duracion_minutos: int} $candidato */
+            $fecha = substr((string) $candidato->fecha, 0, 10);
+            $horaInicio = substr((string) $candidato->hora_inicio, 0, 5);
+            $inicioTs = strtotime("{$fecha} {$horaInicio}:00");
+
+            if ($inicioTs === false) {
+                continue;
+            }
+
+            $ventanaInicio = $inicioTs - (60 * 60); // 60 minutos previos al inicio
+            $fin = $inicioTs + ((int) $candidato->duracion_minutos * 60); // fin del examen
+
+            if ($ahora >= $ventanaInicio && $ahora <= $fin) {
+                $codigoRegistro = $candidato;
+                $ventanaFin = $fin;
+
+                break;
+            }
+        }
 
         if ($codigoRegistro === null) {
-            return null;
-        }
-
-        /** @var object{id: int, fecha: string, hora_inicio: string, duracion_minutos: int}|null $examen */
-        $examen = DB::table('examenes')
-            ->where('id', $codigoRegistro->examen_id)
-            ->first();
-
-        if ($examen === null) {
-            return null;
-        }
-
-        $fecha = substr((string) $examen->fecha, 0, 10);
-        $horaInicio = substr((string) $examen->hora_inicio, 0, 5);
-        $duracion = (int) $examen->duracion_minutos;
-
-        $inicioTs = strtotime("{$fecha} {$horaInicio}:00");
-        if ($inicioTs === false) {
-            return null;
-        }
-
-        $ventanaInicio = $inicioTs - (60 * 60); // 60 minutos previos al inicio
-        $ventanaFin = $inicioTs + ($duracion * 60); // fin del examen
-        $ahora = now()->timestamp;
-
-        if ($ahora < $ventanaInicio || $ahora > $ventanaFin) {
             return null;
         }
 

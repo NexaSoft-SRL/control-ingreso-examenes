@@ -6,6 +6,7 @@ namespace App\Modules\Administracion\Infrastructure\Persistence;
 
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Application\Contracts\CredencialesGateway;
+use App\Modules\Administracion\Domain\Exceptions\ContrasenaRepetidaException;
 use App\Modules\Administracion\Domain\Models\User;
 use App\Modules\Administracion\Infrastructure\Mail\EnlaceRestablecimientoMail;
 use Illuminate\Support\Facades\DB;
@@ -19,13 +20,28 @@ final class EloquentCredencialesGateway implements CredencialesGateway
 {
     public function __construct(private readonly BitacoraGateway $bitacora) {}
 
-    public function cambiar(int $usuarioId, string $contrasenaActual, string $nuevaContrasena): bool
+    public function cambiar(int $usuarioId, ?string $contrasenaActual, string $nuevaContrasena): bool
     {
         return DB::transaction(function () use ($usuarioId, $contrasenaActual, $nuevaContrasena): bool {
             $usuario = User::query()->whereKey($usuarioId)->lockForUpdate()->first();
 
-            if (! $usuario instanceof User || ! Hash::check($contrasenaActual, $usuario->getAuthPassword())) {
+            if (! $usuario instanceof User) {
                 return false;
+            }
+
+            $hash = $usuario->getAuthPassword();
+
+            if ($contrasenaActual === null) {
+                // Solo la cuenta con temporal cambia sin la actual.
+                if ($usuario->getAttribute('password_changed_at') !== null) {
+                    return false;
+                }
+            } elseif (! Hash::check($contrasenaActual, $hash)) {
+                return false;
+            }
+
+            if (Hash::check($nuevaContrasena, $hash)) {
+                throw new ContrasenaRepetidaException;
             }
 
             $usuario->forceFill([
@@ -54,8 +70,11 @@ final class EloquentCredencialesGateway implements CredencialesGateway
 
         $correo = $cuenta->getAttribute('correo');
 
+        // Sin correo no hay a donde enviar el enlace: la respuesta es la
+        // misma que para una cuenta inexistente (la restablece el
+        // administrador con una temporal).
         if (! is_string($correo) || trim($correo) === '') {
-            throw new LogicException('La cuenta no tiene un correo valido.');
+            return;
         }
 
         $correoNormalizado = mb_strtolower(trim($correo));

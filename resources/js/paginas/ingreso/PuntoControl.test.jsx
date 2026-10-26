@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import PuntoControl from './PuntoControl';
 import { api } from '../../api/cliente';
@@ -13,1370 +13,592 @@ vi.mock('../../api/cliente', () => ({
 
 const examen = {
     id: 10,
-    fecha: '2026-10-15',
-    tipo: 'parcial',
-    asignatura: 'Programación',
-    aulas: [{ id: 7, nombre: 'A-101' }],
+    fecha: '2026-10-26',
+    tipo: 'PRIMER_PARCIAL',
+    tipo_etiqueta: 'Primer parcial',
+    hora: '08:00',
+    abierto: true,
+    asignatura: { nombre: 'Introducción a la Programación' },
+    aulas: [
+        { id: 7, nombre: '691A', edificio: 'Edificio Académico 2', piso: '1.er piso' },
+        { id: 8, nombre: '691B', edificio: 'Edificio Académico 2', piso: '2.º piso' },
+    ],
 };
 
-const IDENTIFICACION = {
+const puerta = (aula = 7) => ({
+    data: {
+        aula: {
+            id: aula,
+            nombre: aula === 7 ? '691A' : '691B',
+            edificio: 'Edificio Académico 2',
+            piso: aula === 7 ? '1.er piso' : '2.º piso',
+            edificio_id: 3,
+        },
+        fecha: '2026-10-26',
+        hora_servidor: '08:40',
+        abierta: true,
+        examenes: [
+            {
+                id: 10,
+                asignatura: 'Introducción a la Programación',
+                tipo: 'Primer parcial',
+                hora: '08:00',
+                hora_fin: '09:30',
+                abierto: true,
+                ingresados: 3,
+                asignados: 20,
+                faltan: 17,
+                normas: 'Sin celulares.',
+                normas_marcadas: ['Llevar carnet'],
+            },
+        ],
+    },
+});
+
+const fila = (id, extra = {}) => ({
+    ingreso_id: id,
     examen_id: 10,
-    veredicto: 'ADMITIDO',
-    ambiguo: false,
-    admisible: true,
-};
+    estudiante_id: id,
+    codigo: `20221${String(id).padStart(4, '0')}`,
+    nombres: `Nombre${id}`,
+    apellidos: `Apellido${id}`,
+    registrado_en: '2026-10-26 08:39:20',
+    hora: '08:39',
+    expulsado: false,
+    es_excepcion: false,
+    ...extra,
+});
 
-function montar() {
+let respuestas;
+
+function montar(ruta = '/control') {
     return render(
-        <MemoryRouter>
+        <MemoryRouter initialEntries={[ruta]}>
             <PuntoControl />
         </MemoryRouter>
     );
 }
 
-async function preparar() {
-    montar();
+async function verificarCodigo(codigo = '202210098') {
+    const campo = await screen.findByRole('textbox', { name: 'Identificador' });
+    fireEvent.change(campo, { target: { value: codigo } });
+    fireEvent.click(screen.getByRole('button', { name: 'Verificar' }));
+}
 
-    await screen.findByRole('combobox', { name: 'Aula de control' });
-
-    await waitFor(() => {
-        expect(screen.getByRole('option', { name: 'A-101' })).toBeInTheDocument();
-    });
-
-    fireEvent.change(screen.getByRole('combobox', { name: 'Aula de control' }), {
-        target: { value: '7' },
-    });
-
-    await waitFor(() => {
-        expect(api.get).toHaveBeenCalledWith('/aulas/7/punto-control/ingresos', {
-            params: { limite: 5 },
-            signal: expect.any(AbortSignal),
-        });
-    });
+function rechazo(data, status = 409) {
+    return Promise.reject({ response: { status, data: { message: 'x', data } } });
 }
 
 describe('PuntoControl HU-19', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-
-        api.post.mockImplementation((ruta) => {
-            if (ruta.endsWith('/identificar')) {
-                return Promise.resolve({ data: { data: IDENTIFICACION } });
-            }
-            if (ruta.endsWith('/ingresos')) {
-                return Promise.resolve({
-                    data: { data: { examen_id: 10, veredicto: 'ADMITIDO', admitido: true } },
-                });
-            }
-            return Promise.reject(new Error('Ruta POST inesperada'));
-        });
+        localStorage.clear();
+        respuestas = {
+            ingresos: { data: [fila(1)], meta: { total: 1 } },
+            incidencias: { data: [] },
+        };
 
         api.get.mockImplementation((ruta) => {
-            if (ruta === '/punto-control/contexto') {
+            if (ruta === '/punto-control/contexto')
                 return Promise.resolve({ data: { data: [examen] } });
+            if (/^\/aulas\/\d+\/punto-control$/.test(ruta)) {
+                return Promise.resolve({ data: puerta(Number(ruta.split('/')[2])) });
             }
-
-            if (ruta.endsWith('/ingresos') || ruta.endsWith('/incidencias')) {
+            if (ruta.endsWith('/punto-control/ingresos'))
+                return Promise.resolve({ data: respuestas.ingresos });
+            if (ruta.endsWith('/punto-control/incidencias')) {
+                return Promise.resolve({ data: respuestas.incidencias });
+            }
+            if (ruta.endsWith('/incidencias-manuales'))
                 return Promise.resolve({ data: { data: [] } });
-            }
-
-            if (ruta.endsWith('/candidato')) {
-                return Promise.resolve({
-                    data: {
-                        data: {
-                            estudiante_id: 5,
-                            codigo: '202100001',
-                            nombre: 'Estudiante de prueba',
-                            inscrito: true,
-                            habilitado: true,
-                            aula_asignada_id: 7,
-                        },
-                    },
-                });
-            }
-
-            return Promise.reject(new Error('Ruta inesperada'));
+            if (ruta === '/edificios') return Promise.reject(new Error('sin mapa'));
+            return Promise.reject(new Error(`Ruta inesperada ${ruta}`));
         });
     });
 
-    it('BUG-04: presenta estudiante, rechazo y detalle de una incidencia', async () => {
-        api.get.mockImplementation((ruta) => {
-            if (ruta === '/punto-control/contexto') {
-                return Promise.resolve({ data: { data: [examen] } });
-            }
-
-            if (ruta.endsWith('/incidencias')) {
-                return Promise.resolve({
-                    data: {
-                        data: [
-                            {
-                                incidencia_id: 14,
-                                estudiante_id: 5,
-                                codigo: '202100001',
-                                nombres: 'Ana',
-                                apellidos: 'Rojas',
-                                tipo_rechazo: 'NO_HABILITADO',
-                                detalle: 'Documentación pendiente.',
-                                registrado_en: '2026-10-16 08:15:00',
-                            },
-                        ],
-                    },
-                });
-            }
-
-            return Promise.resolve({ data: { data: [] } });
-        });
-
-        await preparar();
-
-        const seccion = screen.getByRole('region', {
-            name: 'Incidencias de ingreso',
-        });
-
-        expect(await screen.findByText('Rojas, Ana')).toBeInTheDocument();
-        expect(seccion).toHaveTextContent('Documentación pendiente.');
-        expect(seccion).toHaveTextContent('Estudiante no habilitado');
-        expect(seccion).toHaveTextContent('2026-10-16 08:15:00');
-        expect(seccion).toHaveTextContent('202100001');
+    afterEach(() => {
+        vi.useRealTimers();
     });
 
-    it('BUG-04: actualiza incidencias tras rechazar un ingreso', async () => {
-        let lecturas = 0;
+    it('BUG-22 y BUG-07: abre la primera aula con examen y muestra ubicación, exámenes y normas', async () => {
+        montar();
 
-        api.get.mockImplementation((ruta) => {
-            if (ruta === '/punto-control/contexto') {
-                return Promise.resolve({ data: { data: [examen] } });
-            }
+        expect(await screen.findByText('Aula 691A')).toBeInTheDocument();
+        expect(await screen.findByText('Edificio Académico 2 · 1.er piso')).toBeInTheDocument();
 
-            if (ruta.endsWith('/candidato')) {
-                return Promise.resolve({
-                    data: {
-                        data: {
-                            estudiante_id: 5,
-                            codigo: '202100001',
-                            nombre: 'Estudiante de prueba',
-                            inscrito: true,
-                            habilitado: false,
-                        },
-                    },
-                });
-            }
+        const lista = await screen.findByRole('list', { name: 'Exámenes del aula' });
+        expect(within(lista).getByText('Introducción a la Programación')).toBeInTheDocument();
+        expect(within(lista).getByText(/Primer parcial · 08:00–09:30/)).toBeInTheDocument();
+        expect(within(lista).getByText('3 / 20 ingresados')).toBeInTheDocument();
+        expect(within(lista).getByText('Faltan 17')).toBeInTheDocument();
 
-            if (ruta.endsWith('/incidencias')) {
-                lecturas += 1;
+        fireEvent.click(screen.getByRole('button', { name: 'Normas' }));
+        expect(screen.getByText('Llevar carnet')).toBeInTheDocument();
+        expect(screen.getByText('Sin celulares.')).toBeInTheDocument();
 
-                return Promise.resolve({
-                    data: {
-                        data:
-                            lecturas > 1
-                                ? [
-                                      {
-                                          incidencia_id: 15,
-                                          estudiante_id: 5,
-                                          nombres: 'Ana',
-                                          apellidos: 'Rojas',
-                                          tipo_rechazo: 'NO_HABILITADO',
-                                          detalle: 'No cumple el requisito.',
-                                          registrado_en: '2026-10-16 08:20:00',
-                                      },
-                                  ]
-                                : [],
-                    },
-                });
-            }
-
-            return Promise.resolve({ data: { data: [] } });
-        });
-
-        api.post.mockImplementation((ruta) =>
-            ruta.endsWith('/identificar')
-                ? Promise.resolve({ data: { data: IDENTIFICACION } })
-                : Promise.reject({
-                      response: {
-                          status: 409,
-                          data: {
-                              data: {
-                                  veredicto: 'NO_HABILITADO',
-                                  admitido: false,
-                              },
-                          },
-                      },
-                  })
-        );
-
-        await preparar();
-
-        await waitFor(() => {
-            expect(lecturas).toBe(1);
-        });
-
-        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
-            target: { value: '202100001' },
-        });
-
-        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-        await screen.findByText('Resultado de identificación');
-
-        fireEvent.click(screen.getByRole('button', { name: 'Confirmar ingreso' }));
-
-        expect(await screen.findByText(/Detalle:\s*No cumple el requisito\./)).toBeInTheDocument();
-        expect(lecturas).toBe(2);
+        // Sin párrafos explicativos ni tuteo (BUG-17).
+        expect(screen.queryByText(/Identifica al estudiante/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Selecciona el aula/)).not.toBeInTheDocument();
     });
 
-    it('BUG-04: actualiza incidencias después de YA_INGRESO con HTTP 409', async () => {
-        let lecturas = 0;
+    it('BUG-22: «Cambiar» lista las aulas con «Actual» y cambia de puerta', async () => {
+        montar();
 
-        api.get.mockImplementation((ruta) => {
-            if (ruta === '/punto-control/contexto') {
-                return Promise.resolve({ data: { data: [examen] } });
-            }
+        fireEvent.click(await screen.findByRole('button', { name: 'Cambiar' }));
+        const dialogo = screen.getByRole('dialog', { name: 'Aula' });
+        expect(within(dialogo).getByText('Actual')).toBeInTheDocument();
 
-            if (ruta.endsWith('/candidato')) {
-                return Promise.resolve({
-                    data: {
-                        data: {
-                            estudiante_id: 5,
-                            codigo: '202100001',
-                            nombre: 'Estudiante de prueba',
-                            inscrito: true,
-                            habilitado: true,
-                            aula_asignada_id: 7,
-                        },
-                    },
-                });
-            }
+        fireEvent.click(within(dialogo).getByText('Aula 691B'));
 
-            if (ruta.endsWith('/incidencias')) {
-                lecturas += 1;
-
-                return Promise.resolve({
-                    data: {
-                        data:
-                            lecturas > 1
-                                ? [
-                                      {
-                                          incidencia_id: 16,
-                                          estudiante_id: 5,
-                                          nombres: 'Ana',
-                                          apellidos: 'Rojas',
-                                          tipo_rechazo: 'YA_INGRESO',
-                                          detalle: 'El estudiante ya tiene un ingreso registrado.',
-                                          registrado_en: '2026-10-16 08:30:00',
-                                      },
-                                  ]
-                                : [],
-                    },
-                });
-            }
-
-            return Promise.resolve({ data: { data: [] } });
-        });
-
-        api.post.mockImplementation((ruta) =>
-            ruta.endsWith('/identificar')
-                ? Promise.resolve({ data: { data: IDENTIFICACION } })
-                : Promise.reject({
-                      response: {
-                          status: 409,
-                          data: {
-                              data: {
-                                  veredicto: 'YA_INGRESO',
-                                  admitido: false,
-                              },
-                          },
-                      },
-                  })
-        );
-
-        await preparar();
-
+        expect(await screen.findByText('Aula 691B')).toBeInTheDocument();
         await waitFor(() => {
-            expect(lecturas).toBe(1);
+            expect(api.get).toHaveBeenCalledWith('/aulas/8/punto-control', expect.anything());
         });
-
-        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
-            target: { value: '202100001' },
-        });
-
-        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-        await screen.findByText('Resultado de identificación');
-
-        fireEvent.click(screen.getByRole('button', { name: 'Confirmar ingreso' }));
-
-        expect(await screen.findByText('Ingreso registrado anteriormente')).toBeInTheDocument();
-
-        expect(
-            await screen.findByText(/Detalle:\s*El estudiante ya tiene un ingreso registrado\./)
-        ).toBeInTheDocument();
-
-        expect(lecturas).toBe(2);
-        expect(api.post).toHaveBeenCalledTimes(2);
     });
 
-    it('BUG-04: ignora incidencias antiguas al cambiar de aula', async () => {
-        let resolverAnterior;
+    it('respeta el aula que llega en ?aula= desde «En curso»', async () => {
+        montar('/control?aula=8');
 
-        api.get.mockImplementation((ruta) => {
-            if (ruta === '/punto-control/contexto') {
-                return Promise.resolve({
-                    data: {
-                        data: [
-                            {
-                                ...examen,
-                                aulas: [
-                                    { id: 7, nombre: 'A-101' },
-                                    { id: 8, nombre: 'A-102' },
-                                ],
-                            },
-                        ],
-                    },
-                });
-            }
-
-            if (ruta.endsWith('/incidencias') && ruta.includes('/aulas/7/')) {
-                return new Promise((resolver) => {
-                    resolverAnterior = resolver;
-                });
-            }
-
-            if (ruta.endsWith('/incidencias') && ruta.includes('/aulas/8/')) {
-                return Promise.resolve({ data: { data: [] } });
-            }
-
-            return Promise.resolve({ data: { data: [] } });
-        });
-
-        await preparar();
-
-        await waitFor(() => {
-            expect(resolverAnterior).toBeTypeOf('function');
-        });
-
-        fireEvent.change(screen.getByRole('combobox', { name: 'Aula de control' }), {
-            target: { value: '8' },
-        });
-
-        await waitFor(() => {
-            expect(api.get).toHaveBeenCalledWith(
-                '/aulas/8/punto-control/incidencias',
-                expect.objectContaining({
-                    signal: expect.any(AbortSignal),
-                })
-            );
-        });
-
-        resolverAnterior({
-            data: {
-                data: [
-                    {
-                        incidencia_id: 99,
-                        nombres: 'ESTUDIANTE',
-                        apellidos: 'ANTIGUO',
-                        tipo_rechazo: 'NO_HABILITADO',
-                        detalle: 'No debe aparecer.',
-                        registrado_en: '2026-10-16 08:00:00',
-                    },
-                ],
-            },
-        });
-
-        await waitFor(() => {
-            expect(screen.getByText('No hay incidencias para mostrar.')).toBeInTheDocument();
-        });
-
-        expect(screen.queryByText('ANTIGUO, ESTUDIANTE')).not.toBeInTheDocument();
-        expect(screen.queryByText(/No debe aparecer/)).not.toBeInTheDocument();
+        expect(await screen.findByText('Aula 691B')).toBeInTheDocument();
     });
 
-    it('BUG-06: registra una situación excepcional contextual sin admitir', async () => {
-        api.post.mockImplementation((ruta) => {
-            if (ruta.endsWith('/identificar')) {
-                return Promise.resolve({
-                    data: {
-                        data: {
-                            examen_id: 10,
-                            veredicto: 'NO_HABILITADO',
-                            ambiguo: false,
-                            admisible: false,
-                            codigo: '202100001',
-                            nombre: 'Estudiante de prueba',
-                            inscrito: true,
-                            habilitado: false,
-                            motivo_inhabilitacion: 'Documentación pendiente.',
-                        },
-                    },
-                });
-            }
-
-            if (ruta.endsWith('/incidencias-manuales')) {
-                return Promise.resolve({
-                    data: { data: { incidencia_id: 55 } },
-                });
-            }
-
-            return Promise.reject(new Error(`POST inesperado: ${ruta}`));
-        });
-
-        const getOriginal = api.get.getMockImplementation();
-
-        api.get.mockImplementation((ruta, opciones) => {
-            if (ruta.endsWith('/incidencias-manuales')) {
-                return Promise.resolve({ data: { data: [] } });
-            }
-
-            return getOriginal(ruta, opciones);
-        });
-
-        await preparar();
-
-        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
-            target: { value: '202100001' },
-        });
-
-        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-
-        expect(await screen.findByText('Estudiante no habilitado')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Confirmar ingreso' })).toBeDisabled();
-
-        fireEvent.click(screen.getByRole('button', { name: 'Situación excepcional' }));
-
-        expect(screen.getByRole('combobox', { name: 'Examen de incidencia manual' })).toHaveValue(
-            '10'
-        );
-
-        expect(screen.getByRole('combobox', { name: 'Tipo de incidencia manual' })).toHaveValue(
-            'EXCEPCION_NO_HABILITADO'
-        );
-
-        expect(
-            screen.getByRole('textbox', { name: 'Código universitario para incidencia' })
-        ).toHaveValue('202100001');
-
-        const registrar = screen.getByRole('button', {
-            name: 'Registrar incidencia manual',
-        });
-
-        expect(registrar).toBeDisabled();
-
-        fireEvent.change(screen.getByRole('textbox', { name: 'Detalle de incidencia manual' }), {
-            target: { value: 'Documento original pendiente de revisión.' },
-        });
-
-        fireEvent.click(registrar);
-
-        await waitFor(() => {
-            expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/incidencias-manuales', {
-                examen_id: 10,
-                codigo_universitario: '202100001',
-                tipo: 'EXCEPCION_NO_HABILITADO',
-                detalle: 'Documento original pendiente de revisión.',
-            });
-        });
-
-        expect(api.post.mock.calls.some(([ruta]) => ruta.endsWith('/ingresos'))).toBe(false);
-    });
-
-    it('BUG-06: no ofrece situación excepcional con examen ambiguo', async () => {
+    it('BUG-19: verifica y registra en un paso, con nombre, código, examen y hora', async () => {
         api.post.mockResolvedValue({
             data: {
                 data: {
-                    examen_id: null,
-                    veredicto: null,
-                    ambiguo: true,
-                    admisible: false,
-                    codigo: null,
-                },
-            },
-        });
-
-        await preparar();
-
-        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
-            target: { value: '202100001' },
-        });
-
-        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-
-        expect(
-            await screen.findByText('Identificación ambigua entre exámenes')
-        ).toBeInTheDocument();
-
-        expect(
-            screen.queryByRole('button', { name: 'Situación excepcional' })
-        ).not.toBeInTheDocument();
-
-        expect(api.post).toHaveBeenCalledTimes(1);
-    });
-
-    it('BUG-06: nueva identificación invalida excepción anterior', async () => {
-        let consultas = 0;
-
-        api.post.mockImplementation((ruta) => {
-            if (ruta.endsWith('/identificar')) {
-                consultas += 1;
-
-                return Promise.resolve({
-                    data: {
-                        data:
-                            consultas === 1
-                                ? {
-                                      examen_id: 10,
-                                      veredicto: 'NO_HABILITADO',
-                                      ambiguo: false,
-                                      admisible: false,
-                                      codigo: '202100001',
-                                      inscrito: true,
-                                      habilitado: false,
-                                  }
-                                : {
-                                      examen_id: null,
-                                      veredicto: null,
-                                      ambiguo: true,
-                                      admisible: false,
-                                      codigo: null,
-                                  },
+                    veredicto: 'ADMITIDO',
+                    admitido: true,
+                    estudiante: { id: 5, codigo: '202210098', nombre: 'Vega Escóbar, Silvia' },
+                    examen: {
+                        id: 10,
+                        asignatura: 'Introducción a la Programación',
+                        tipo: 'Primer parcial',
                     },
-                });
-            }
-
-            return Promise.reject(new Error(`POST inesperado: ${ruta}`));
-        });
-
-        const getOriginal = api.get.getMockImplementation();
-
-        api.get.mockImplementation((ruta, opciones) => {
-            if (ruta.endsWith('/incidencias-manuales')) {
-                return Promise.resolve({ data: { data: [] } });
-            }
-
-            return getOriginal(ruta, opciones);
-        });
-
-        await preparar();
-
-        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
-            target: { value: '202100001' },
-        });
-
-        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-
-        expect(await screen.findByText('Estudiante no habilitado')).toBeInTheDocument();
-
-        fireEvent.click(screen.getByRole('button', { name: 'Situación excepcional' }));
-
-        expect(
-            await screen.findByRole('combobox', {
-                name: 'Tipo de incidencia manual',
-            })
-        ).toHaveValue('EXCEPCION_NO_HABILITADO');
-
-        expect(
-            screen.getByRole('textbox', {
-                name: 'Código universitario para incidencia',
-            })
-        ).toHaveValue('202100001');
-
-        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-
-        expect(
-            await screen.findByText('Identificación ambigua entre exámenes')
-        ).toBeInTheDocument();
-
-        expect(
-            screen.queryByRole('button', { name: 'Situación excepcional' })
-        ).not.toBeInTheDocument();
-
-        expect(
-            screen.getByRole('combobox', {
-                name: 'Tipo de incidencia manual',
-            })
-        ).toHaveValue('INCIDENTE_GENERAL');
-
-        expect(
-            screen.getByRole('textbox', {
-                name: 'Código universitario para incidencia',
-            })
-        ).toHaveValue('');
-
-        expect(api.post.mock.calls.some(([ruta]) => ruta.endsWith('/incidencias-manuales'))).toBe(
-            false
-        );
-    });
-
-    it('CA-2: muestra el motivo real del estudiante inhabilitado', async () => {
-        api.post.mockResolvedValue({
-            data: {
-                data: {
-                    examen_id: 10,
-                    veredicto: 'NO_HABILITADO',
-                    ambiguo: false,
-                    admisible: false,
+                    dato: 'Registrado a las 08:39',
                 },
             },
         });
 
-        await preparar();
+        montar();
+        await verificarCodigo();
 
-        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
-            target: { value: '202100001' },
-        });
-
-        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-
-        expect(await screen.findByText('Estudiante no habilitado')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Confirmar ingreso' })).toBeDisabled();
-        expect(api.post).toHaveBeenCalledTimes(1);
-    });
-
-    it('CA-3: distingue la ausencia de condición registrada', async () => {
-        api.post.mockResolvedValue({
-            data: {
-                data: {
-                    examen_id: null,
-                    veredicto: null,
-                    ambiguo: true,
-                    admisible: false,
-                },
-            },
-        });
-
-        await preparar();
-
-        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
-            target: { value: '202100001' },
-        });
-
-        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-
-        expect(
-            await screen.findByText('Identificación ambigua entre exámenes')
-        ).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Confirmar ingreso' })).toBeDisabled();
-        expect(api.post).toHaveBeenCalledTimes(1);
-    });
-
-    it('consulta antes de permitir confirmar el ingreso', async () => {
-        await preparar();
-
-        expect(screen.queryByRole('button', { name: 'Confirmar ingreso' })).not.toBeInTheDocument();
-
-        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
-            target: { value: '202100001' },
-        });
-
-        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-
-        expect(await screen.findByText('Resultado de identificación')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Confirmar ingreso' })).toBeEnabled();
-    });
-
-    it('registra solo después de confirmar', async () => {
-        api.post.mockImplementation((ruta) =>
-            Promise.resolve({
-                data: {
-                    data: ruta.endsWith('/identificar')
-                        ? IDENTIFICACION
-                        : { examen_id: 10, veredicto: 'ADMITIDO', admitido: true },
-                },
-            })
-        );
-
-        await preparar();
-
-        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
-            target: { value: '202100001' },
-        });
-        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-        await screen.findByText('Resultado de identificación');
-
-        expect(api.post).toHaveBeenCalledTimes(1);
-
-        fireEvent.click(screen.getByRole('button', { name: 'Confirmar ingreso' }));
-
-        await screen.findByText('Ingreso registrado correctamente.');
-
-        expect(api.post).toHaveBeenCalledWith(
-            '/aulas/7/punto-control/ingresos',
-            {
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/ingresos', {
                 tipo: 'codigo',
-                identificador: '202100001',
-            },
-            { signal: expect.any(AbortSignal) }
-        );
-    });
-
-    it('BUG-03: informa horario cerrado sin inventar un ingreso previo', async () => {
-        api.post.mockImplementation((ruta) =>
-            ruta.endsWith('/identificar')
-                ? Promise.resolve({ data: { data: IDENTIFICACION } })
-                : Promise.reject({
-                      response: {
-                          status: 409,
-                          data: {
-                              message: 'El punto de control está fuera del horario permitido.',
-                          },
-                      },
-                  })
-        );
-
-        await preparar();
-
-        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
-            target: { value: '202100001' },
-        });
-
-        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-        await screen.findByText('Resultado de identificación');
-
-        fireEvent.click(screen.getByRole('button', { name: 'Confirmar ingreso' }));
-
-        expect(
-            await screen.findByText('El punto de control está fuera del horario permitido.')
-        ).toBeInTheDocument();
-
-        expect(screen.queryByText('Ingreso registrado anteriormente')).not.toBeInTheDocument();
-
-        expect(api.post).toHaveBeenCalledTimes(2);
-    });
-
-    it('BUG-03: conserva YA_INGRESO cuando el backend lo confirma', async () => {
-        api.post.mockImplementation((ruta) =>
-            ruta.endsWith('/identificar')
-                ? Promise.resolve({ data: { data: IDENTIFICACION } })
-                : Promise.reject({
-                      response: {
-                          status: 409,
-                          data: {
-                              data: {
-                                  veredicto: 'YA_INGRESO',
-                                  admitido: false,
-                              },
-                          },
-                      },
-                  })
-        );
-
-        await preparar();
-
-        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
-            target: { value: '202100001' },
-        });
-
-        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-        await screen.findByText('Resultado de identificación');
-
-        fireEvent.click(screen.getByRole('button', { name: 'Confirmar ingreso' }));
-
-        expect(await screen.findByText('Ingreso registrado anteriormente')).toBeInTheDocument();
-
-        expect(
-            screen.queryByText('El punto de control está fuera del horario permitido.')
-        ).not.toBeInTheDocument();
-
-        expect(api.post).toHaveBeenCalledTimes(2);
-    });
-
-    it('bloquea la operación cuando el backend devuelve 403', async () => {
-        api.get.mockImplementation((ruta) => {
-            if (ruta === '/punto-control/contexto') {
-                return Promise.resolve({ data: { data: [examen] } });
-            }
-
-            return Promise.reject({
-                response: { status: 403, data: { message: 'No autorizado' } },
+                identificador: '202210098',
             });
         });
 
-        await preparar();
-
+        const veredicto = await screen.findByText('Ingreso admitido');
+        const tarjeta = veredicto.closest('[role="status"]');
+        expect(within(tarjeta).getByText('Vega Escóbar, Silvia')).toBeInTheDocument();
+        expect(within(tarjeta).getByText('Código SIS 202210098')).toBeInTheDocument();
         expect(
-            await screen.findByText('Punto de control bloqueado por falta de asignación.')
+            within(tarjeta).getByText('Introducción a la Programación · Primer parcial')
         ).toBeInTheDocument();
+        expect(within(tarjeta).getByText('Registrado a las 08:39')).toBeInTheDocument();
+        expect(within(tarjeta).queryByText('Situación excepcional')).not.toBeInTheDocument();
 
-        expect(screen.getByRole('button', { name: 'Consultar estudiante' })).toBeDisabled();
+        fireEvent.click(screen.getByRole('button', { name: /Siguiente/ }));
+        expect(await screen.findByRole('textbox', { name: 'Identificador' })).toBeInTheDocument();
     });
 
-    it('mantiene el contexto mientras una consulta está pendiente', async () => {
-        let responder;
+    it('BUG-11: «Ya ingresó» con hora y aula, sin situación excepcional (N4)', async () => {
+        api.post.mockImplementation(() =>
+            rechazo({
+                veredicto: 'YA_INGRESO',
+                estudiante: { id: 5, codigo: '202210098', nombre: 'Vega Escóbar, Silvia' },
+                dato: 'Ya ingresó a las 08:39 por el aula 691A',
+            })
+        );
 
-        const pendiente = new Promise((resolver) => {
-            responder = resolver;
-        });
+        montar();
+        await verificarCodigo();
 
-        api.post.mockImplementation((ruta) => {
-            if (ruta.endsWith('/identificar')) return pendiente;
-            return Promise.reject(new Error('POST inesperado'));
-        });
+        expect(await screen.findByText('Ya ingresó')).toBeInTheDocument();
+        expect(screen.getByText('Ya ingresó a las 08:39 por el aula 691A')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Situación excepcional' })
+        ).not.toBeInTheDocument();
+    });
 
-        api.get.mockImplementation((ruta) => {
-            if (ruta === '/punto-control/contexto') {
-                return Promise.resolve({
-                    data: {
-                        data: [
-                            {
-                                ...examen,
-                                aulas: [
-                                    { id: 7, nombre: 'A-101' },
-                                    { id: 8, nombre: 'A-102' },
-                                ],
-                            },
-                        ],
+    it('BUG-14: distingue «No registrado» de «No es de esta aula»', async () => {
+        api.post
+            .mockImplementationOnce(() =>
+                rechazo({
+                    veredicto: 'NO_CORRESPONDE',
+                    causa: 'NO_REGISTRADO',
+                    estudiante: null,
+                    dato: '99999999 · sin registro en el padrón',
+                    pie: 'Intento registrado',
+                })
+            )
+            .mockImplementationOnce(() =>
+                rechazo({
+                    veredicto: 'NO_CORRESPONDE',
+                    causa: 'NO_INSCRITO',
+                    estudiante: { id: 9, codigo: '202310308', nombre: 'Rojas, Ana' },
+                    dato: 'No inscrito en los exámenes del aula 691A',
+                    examen_correspondiente: {
+                        texto: 'Su examen: Cálculo I · Primer parcial · 10:00',
+                        aula: '617',
                     },
-                });
-            }
-
-            if (ruta.endsWith('/candidato')) return pendiente;
-
-            return Promise.resolve({ data: { data: [] } });
-        });
-
-        await preparar();
-
-        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
-            target: { value: '202100001' },
-        });
-
-        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-
-        await waitFor(() => {
-            expect(api.post).toHaveBeenCalledWith(
-                '/aulas/7/punto-control/identificar',
-                {
-                    tipo: 'codigo',
-                    identificador: '202100001',
-                },
-                expect.objectContaining({
-                    signal: expect.any(AbortSignal),
+                    pie: 'Intento registrado',
                 })
             );
-        });
-
-        // Durante la consulta no pueden cambiar los datos
-        // del contexto asociado a la solicitud.
-        const selectorAula = screen.getByRole('combobox', {
-            name: 'Aula de control',
-        });
-
-        expect(selectorAula).toBeDisabled();
-        expect(selectorAula).toHaveValue('7');
-
-        expect(
-            screen.getByRole('combobox', {
-                name: 'Tipo de identificación',
-            })
-        ).toBeDisabled();
-
-        expect(
-            screen.getByRole('textbox', {
-                name: 'Identificador',
-            })
-        ).toBeDisabled();
-
-        const llamada = api.post.mock.calls.find(([ruta]) => ruta.endsWith('/identificar'));
-
-        responder({
-            data: {
-                data: {
-                    ...IDENTIFICACION,
-                    estudiante_id: 5,
-                    codigo: '202100001',
-                    nombre: 'Estudiante de prueba',
-                    habilitado: true,
-                },
-            },
-        });
-
-        await screen.findByText('Resultado de identificación');
-
-        expect(llamada[2].signal).toBeInstanceOf(AbortSignal);
-    });
-
-    it('cancela una consulta pendiente al desmontar la pantalla', async () => {
-        let responder;
-
-        const pendiente = new Promise((resolver) => {
-            responder = resolver;
-        });
-
-        api.post.mockImplementation((ruta) => {
-            if (ruta.endsWith('/identificar')) return pendiente;
-            return Promise.reject(new Error('POST inesperado'));
-        });
-
-        api.get.mockImplementation((ruta) => {
-            if (ruta === '/punto-control/contexto') {
-                return Promise.resolve({ data: { data: [examen] } });
-            }
-
-            if (ruta.endsWith('/candidato')) {
-                return pendiente;
-            }
-
-            return Promise.resolve({ data: { data: [] } });
-        });
-
-        const vista = montar();
-
-        await screen.findByRole('option', { name: 'A-101' });
-
-        fireEvent.change(screen.getByRole('combobox', { name: 'Aula de control' }), {
-            target: { value: '7' },
-        });
-
-        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
-            target: { value: '202100001' },
-        });
-
-        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-
-        let señal;
-
-        await waitFor(() => {
-            const llamada = api.post.mock.calls.find(([ruta]) => ruta.endsWith('/identificar'));
-
-            expect(llamada).toBeDefined();
-
-            señal = llamada[2].signal;
-        });
-
-        expect(señal.aborted).toBe(false);
-
-        vista.unmount();
-
-        expect(señal.aborted).toBe(true);
-
-        responder({
-            data: {
-                data: {
-                    ...IDENTIFICACION,
-                    estudiante_id: 5,
-                    codigo: '202100001',
-                    nombre: 'Estudiante obsoleto',
-                    habilitado: true,
-                },
-            },
-        });
-    });
-
-    it('sin asignaciones no permite operar ni consultar ingresos', async () => {
-        api.get.mockResolvedValue({
-            data: { data: [] },
-        });
 
         montar();
+        await verificarCodigo('99999999');
 
+        expect(await screen.findByText('No registrado')).toBeInTheDocument();
+        expect(screen.getByText('Intento registrado')).toBeInTheDocument();
+        // N4: también con el no inscrito o sin registro.
+        expect(screen.getByRole('button', { name: 'Situación excepcional' })).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /Siguiente/ }));
+        await verificarCodigo('202310308');
+
+        expect(await screen.findByText('No es de esta aula')).toBeInTheDocument();
         expect(
-            await screen.findByText('No tienes exámenes y aulas asignados para operar.')
+            screen.getByText('Su examen: Cálculo I · Primer parcial · 10:00 · Aula 617')
         ).toBeInTheDocument();
-
-        expect(
-            screen.getByRole('button', {
-                name: 'Consultar estudiante',
-            })
-        ).toBeDisabled();
-
-        expect(
-            screen.getByRole('button', {
-                name: 'Abrir cámara QR',
-            })
-        ).toBeDisabled();
-
-        expect(api.get).toHaveBeenCalledWith('/punto-control/contexto');
-        expect(api.get).toHaveBeenCalledTimes(1);
-        expect(api.post.mock.calls.some(([ruta]) => ruta.endsWith('/ingresos'))).toBe(false);
     });
 
-    it('muestra el identificador real del historial Laravel', async () => {
-        api.get.mockImplementation((ruta) => {
-            if (ruta === '/punto-control/contexto') {
-                return Promise.resolve({ data: { data: [examen] } });
-            }
+    it('BUG-08: «Otra aula» muestra aula, edificio y piso', async () => {
+        api.post.mockImplementation(() =>
+            rechazo({
+                veredicto: 'OTRA_AULA',
+                estudiante: { id: 5, codigo: '202110007', nombre: 'Paz, Luis' },
+                examen: {
+                    id: 10,
+                    asignatura: 'Introducción a la Programación',
+                    tipo: 'Primer parcial',
+                },
+                aula_correcta: {
+                    id: 8,
+                    nombre: '691B',
+                    edificio: 'Edificio Académico 2',
+                    piso: '2.º piso',
+                    edificio_id: 3,
+                },
+            })
+        );
 
-            if (ruta.endsWith('/ingresos')) {
+        montar();
+        await verificarCodigo('202110007');
+
+        expect(await screen.findByText('Otra aula')).toBeInTheDocument();
+        expect(screen.getByText('Aula 691B')).toBeInTheDocument();
+        expect(screen.getAllByText('Edificio Académico 2 · 2.º piso').length).toBeGreaterThan(0);
+        expect(screen.getByRole('button', { name: 'Admitir como excepción' })).toBeInTheDocument();
+    });
+
+    it('N1 y N6: el cambio de aula admite como excepción, con el motivo enfocado', async () => {
+        const desplazar = vi.fn();
+        Element.prototype.scrollIntoView = desplazar;
+
+        api.post.mockImplementation((ruta) => {
+            if (ruta.endsWith('/excepciones')) {
                 return Promise.resolve({
                     data: {
-                        data: [
-                            {
-                                ingreso_id: 42,
-                                estudiante_id: 5,
-                                codigo: '202100001',
-                                nombres: 'Estudiante',
-                                apellidos: 'de prueba',
-                                aula_id: 7,
-                                registrado_en: '2026-10-15 08:10:00',
-                                operador: 'Auxiliar',
-                            },
-                        ],
+                        message: 'Admitido como excepción',
+                        data: { admitido: true, ingreso: { id: 40, hora: '08:41' } },
                     },
                 });
             }
-
-            return Promise.reject(new Error('Ruta inesperada'));
-        });
-
-        await preparar();
-
-        expect(await screen.findByText(/de prueba, Estudiante/)).toBeInTheDocument();
-        expect(screen.getByText(/Código: 202100001/)).toBeInTheDocument();
-        expect(screen.getByText(/Hora: 2026-10-15 08:10:00/)).toBeInTheDocument();
-
-        expect(screen.queryByText(/Ingreso #42/)).not.toBeInTheDocument();
-        expect(screen.queryByText(/Estudiante 5/)).not.toBeInTheDocument();
-    });
-
-    it('informa el fallo de carga del contexto sin permitir operar', async () => {
-        api.get.mockRejectedValue({
-            response: {
-                status: 403,
-                data: { message: 'No autorizado' },
-            },
+            return rechazo({
+                veredicto: 'OTRA_AULA',
+                estudiante: { id: 5, codigo: '202110007', nombre: 'Paz, Luis' },
+                examen: {
+                    id: 10,
+                    asignatura: 'Introducción a la Programación',
+                    tipo: 'Primer parcial',
+                },
+                aula_correcta: { id: 8, nombre: '691B' },
+            });
         });
 
         montar();
+        await verificarCodigo('202110007');
 
-        expect(
-            await screen.findByText('No tienes asignación para operar en esta aula.')
-        ).toBeInTheDocument();
+        fireEvent.click(await screen.findByRole('button', { name: 'Admitir como excepción' }));
 
-        expect(screen.getByRole('button', { name: 'Consultar estudiante' })).toBeDisabled();
+        const motivo = screen.getByRole('textbox', { name: /Motivo/ });
+        await waitFor(() => expect(motivo).toHaveFocus());
+        expect(desplazar).toHaveBeenCalled();
+        expect(screen.getByRole('combobox', { name: 'Tipo' })).toHaveValue('EXCEPCION_CAMBIO_AULA');
 
-        expect(api.post.mock.calls.some(([ruta]) => ruta.endsWith('/ingresos'))).toBe(false);
-    });
+        fireEvent.change(motivo, { target: { value: 'El aula 691B está cerrada.' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Registrar' }));
 
-    it('ignora un 403 tardío del historial al cambiar de aula', async () => {
-        let rechazarHistorialAnterior;
-
-        const historialAnterior = new Promise((resolver, rechazar) => {
-            rechazarHistorialAnterior = rechazar;
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/excepciones', {
+                tipo: 'EXCEPCION_CAMBIO_AULA',
+                motivo: 'El aula 691B está cerrada.',
+                estudiante_id: 5,
+                examen_id: 10,
+            });
         });
 
-        const examenConDosAulas = {
-            ...examen,
-            aulas: [
-                { id: 7, nombre: 'A-101' },
-                { id: 8, nombre: 'A-102' },
+        expect(await screen.findByText('Admitido como excepción')).toBeInTheDocument();
+        expect(screen.getByText(/Ingresó a las 08:41/)).toBeInTheDocument();
+    });
+
+    it('N4: con el no habilitado no ofrece cambio de aula', async () => {
+        api.post.mockImplementation(() =>
+            rechazo({
+                veredicto: 'NO_HABILITADO',
+                estudiante: { id: 6, codigo: '202610014', nombre: 'Lima, Eva' },
+                examen: {
+                    id: 10,
+                    asignatura: 'Introducción a la Programación',
+                    tipo: 'Primer parcial',
+                },
+                dato: 'No entregó las prácticas 1 y 2.',
+                pie: 'Registrado por Blanco Coca Leticia · 6 oct',
+            })
+        );
+
+        montar();
+        await verificarCodigo('202610014');
+
+        expect(await screen.findByText('No entregó las prácticas 1 y 2.')).toBeInTheDocument();
+        expect(screen.getByText('Registrado por Blanco Coca Leticia · 6 oct')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Situación excepcional' }));
+        const opciones = within(screen.getByRole('combobox', { name: 'Tipo' }))
+            .getAllByRole('option')
+            .map((o) => o.textContent);
+        expect(opciones).toEqual(['Problema de identificación', 'Estudiante no habilitado']);
+    });
+
+    it('BUG-20: al leer un QR verifica solo, con «Verificando…»', async () => {
+        let resolver;
+        api.post.mockImplementation(
+            () =>
+                new Promise((r) => {
+                    resolver = r;
+                })
+        );
+        vi.stubGlobal('isSecureContext', true);
+        Object.defineProperty(navigator, 'mediaDevices', {
+            configurable: true,
+            value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [] }) },
+        });
+        vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+        vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+        const detect = vi.fn().mockResolvedValue([{ rawValue: 'SCIQR1:abc' }]);
+        vi.stubGlobal(
+            'BarcodeDetector',
+            class {
+                detect = detect;
+            }
+        );
+        vi.stubGlobal('requestAnimationFrame', (fn) => {
+            setTimeout(fn, 0);
+            return 1;
+        });
+        vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+        montar();
+        fireEvent.click(await screen.findByRole('button', { name: 'Leer código QR' }));
+
+        expect(await screen.findByText('Verificando…')).toBeInTheDocument();
+        expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/ingresos', {
+            tipo: 'qr',
+            identificador: 'SCIQR1:abc',
+        });
+
+        resolver({
+            data: {
+                data: { veredicto: 'ADMITIDO', admitido: true, dato: 'Registrado a las 08:42' },
+            },
+        });
+        expect(await screen.findByText('Registrado a las 08:42')).toBeInTheDocument();
+        vi.unstubAllGlobals();
+    });
+
+    it('BUG-21: sin cámara deja la identificación manual a la vista', async () => {
+        vi.stubGlobal('isSecureContext', false);
+
+        montar();
+        fireEvent.click(await screen.findByRole('button', { name: 'Leer código QR' }));
+
+        expect(
+            await screen.findByText('Cámara no disponible: requiere conexión segura (HTTPS)')
+        ).toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: 'Identificador' })).toBeInTheDocument();
+        vi.unstubAllGlobals();
+    });
+
+    it('BUG-12 y BUG-13: recientes con hora corta y botón de actualizar', async () => {
+        montar();
+
+        expect(await screen.findByText('Apellido1, Nombre1')).toBeInTheDocument();
+        expect(screen.getByText('· 08:39')).toBeInTheDocument();
+        expect(screen.queryByText(/2026-10-26 08:39:20/)).not.toBeInTheDocument();
+
+        const antes = api.get.mock.calls.filter(
+            ([r]) => r === '/aulas/7/punto-control/ingresos'
+        ).length;
+        fireEvent.click(screen.getByRole('button', { name: 'Actualizar ingresos' }));
+        await waitFor(() => {
+            expect(
+                api.get.mock.calls.filter(([r]) => r === '/aulas/7/punto-control/ingresos').length
+            ).toBeGreaterThan(antes);
+        });
+    });
+
+    it('BUG-23: «Ver los N» con búsqueda y «Sin resultados»', async () => {
+        respuestas.ingresos = { data: [fila(1), fila(2)], meta: { total: 10 } };
+
+        montar();
+        fireEvent.click(await screen.findByRole('button', { name: 'Ver los 10' }));
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/aulas/7/punto-control/ingresos', {
+                params: { todos: 1 },
+            });
+        });
+
+        respuestas.ingresos = { data: [], meta: { total: 10 } };
+        fireEvent.change(screen.getByRole('textbox', { name: 'Buscar ingreso' }), {
+            target: { value: 'zzz' },
+        });
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/aulas/7/punto-control/ingresos', {
+                params: { todos: 1, buscar: 'zzz' },
+            });
+        });
+        expect(await screen.findByText('Sin resultados')).toBeInTheDocument();
+    });
+
+    it('BUG-23: avisa «Sin conexión» tras fallos seguidos del sondeo', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        montar();
+        expect(await screen.findByText('Aula 691A')).toBeInTheDocument();
+
+        api.get.mockImplementation(() => Promise.reject(new Error('Network Error')));
+        for (let i = 0; i < 3; i += 1) {
+            await vi.advanceTimersByTimeAsync(10000);
+        }
+
+        expect(await screen.findByText('Sin conexión')).toBeInTheDocument();
+    });
+
+    it('BUG-05 y N7: expulsa con motivo y marca «Expulsado» con su hora', async () => {
+        api.post.mockResolvedValue({ data: { data: { expulsado: true, hora: '09:10' } } });
+
+        montar();
+        fireEvent.click(await screen.findByRole('button', { name: 'Expulsar' }));
+
+        const motivo = screen.getByRole('textbox', { name: /Motivo de expulsión/ });
+        fireEvent.change(motivo, { target: { value: 'abc' } });
+        expect(screen.getByRole('button', { name: 'Confirmar expulsión' })).toBeDisabled();
+
+        respuestas.ingresos = {
+            data: [fila(1, { expulsado: true, expulsado_a: '09:10' })],
+            meta: { total: 1 },
+        };
+        fireEvent.change(motivo, { target: { value: 'Uso de celular.' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmar expulsión' }));
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/ingresos/1/expulsion', {
+                motivo: 'Uso de celular.',
+            });
+        });
+        expect(await screen.findByText('Expulsado · 09:10')).toBeInTheDocument();
+    });
+
+    it('BUG-04: lista los intentos con su tipo legible', async () => {
+        respuestas.incidencias = {
+            data: [
+                {
+                    incidencia_id: 1,
+                    tipo_rechazo: 'NO_REGISTRADO',
+                    detalle: 'Código 99999999 sin registro en el padrón.',
+                    registrado_en: '2026-10-26 08:40:00',
+                    hora: '08:40',
+                    operador: 'Blanco Coca Leticia',
+                },
+                {
+                    incidencia_id: 2,
+                    tipo_rechazo: 'QR_NO_VALIDO',
+                    detalle: 'Código QR no válido.',
+                    registrado_en: '2026-10-26 08:41:00',
+                    hora: '08:41',
+                },
             ],
         };
 
-        api.get.mockImplementation((ruta) => {
-            if (ruta === '/punto-control/contexto') {
-                return Promise.resolve({
-                    data: { data: [examenConDosAulas] },
-                });
-            }
-
-            if (ruta === '/aulas/7/punto-control/ingresos') {
-                return historialAnterior;
-            }
-
-            if (ruta === '/aulas/8/punto-control/ingresos') {
-                return Promise.resolve({
-                    data: { data: [] },
-                });
-            }
-
-            return Promise.reject(new Error('Ruta inesperada'));
-        });
-
         montar();
 
-        const selectorAula = await screen.findByRole('combobox', {
-            name: 'Aula de control',
-        });
-
-        await screen.findByRole('option', { name: 'A-102' });
-
-        fireEvent.change(selectorAula, {
-            target: { value: '7' },
-        });
-
-        let señalAnterior;
-
-        await waitFor(() => {
-            const llamada = api.get.mock.calls.find(
-                ([ruta]) => ruta === '/aulas/7/punto-control/ingresos'
-            );
-
-            expect(llamada).toBeDefined();
-            señalAnterior = llamada[1].signal;
-        });
-
-        expect(señalAnterior.aborted).toBe(false);
-
-        fireEvent.change(selectorAula, {
-            target: { value: '8' },
-        });
-
-        await waitFor(() => {
-            expect(señalAnterior.aborted).toBe(true);
-        });
-
-        await waitFor(() => {
-            expect(api.get).toHaveBeenCalledWith(
-                '/aulas/8/punto-control/ingresos',
-                expect.objectContaining({
-                    params: { limite: 5 },
-                    signal: expect.any(AbortSignal),
-                })
-            );
-        });
-
-        // Simula un cliente HTTP que entrega un error incluso
-        // después de haber recibido la señal de cancelación.
-        rechazarHistorialAnterior({
-            response: {
-                status: 403,
-                data: { message: 'Acceso anterior denegado' },
-            },
-        });
-
-        await waitFor(() => {
-            expect(selectorAula).toHaveValue('8');
-        });
-
-        // Permite procesar la promesa antigua antes de comprobar el estado.
-        await waitFor(() => {
-            expect(
-                screen.getByRole('button', {
-                    name: 'Consultar estudiante',
-                })
-            ).toBeDisabled();
-        });
-
-        expect(
-            screen.queryByText('Punto de control bloqueado por falta de asignación.')
-        ).not.toBeInTheDocument();
-
-        expect(
-            screen.queryByText('No tienes asignación para operar en esta aula.')
-        ).not.toBeInTheDocument();
-
-        // El aula 8 debe poder habilitar una consulta nueva.
-        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
-            target: { value: '202100001' },
-        });
-
-        expect(
-            screen.getByRole('button', {
-                name: 'Consultar estudiante',
-            })
-        ).toBeEnabled();
+        const seccion = await screen.findByRole('region', { name: 'Incidencias de ingreso' });
+        expect(await within(seccion).findByText('Sin registro')).toBeInTheDocument();
+        expect(within(seccion).getByText('Código QR no válido')).toBeInTheDocument();
+        expect(within(seccion).getByText('Blanco Coca Leticia · 08:40')).toBeInTheDocument();
     });
-    it('opera una sola aula compartida por varios exámenes sin seleccionar examen', async () => {
-        api.get.mockImplementation((ruta) => {
-            if (ruta === '/punto-control/contexto') {
-                return Promise.resolve({
-                    data: {
-                        data: [
-                            examen,
-                            {
-                                ...examen,
-                                id: 11,
-                                asignatura: 'Matemáticas',
-                                aulas: [
-                                    { id: 7, nombre: 'A-101' },
-                                    { id: 8, nombre: 'A-102' },
-                                ],
-                            },
-                        ],
-                    },
-                });
-            }
 
-            return Promise.resolve({ data: { data: [] } });
+    it('bloquea la operación cuando el servidor responde 403', async () => {
+        api.post.mockRejectedValue({
+            response: { status: 403, data: { message: 'Sin asignación en esta aula.' } },
         });
 
         montar();
+        await verificarCodigo();
 
-        const selectorAula = await screen.findByRole('combobox', {
-            name: 'Aula de control',
-        });
+        expect(await screen.findByRole('alert')).toHaveTextContent('Sin asignación en esta aula');
+        expect(screen.queryByRole('textbox', { name: 'Identificador' })).not.toBeInTheDocument();
+    });
 
-        await screen.findByRole('option', { name: 'A-102' });
+    it('valida el identificador antes de enviar', async () => {
+        montar();
+        await verificarCodigo('12');
 
-        expect(screen.getAllByRole('option', { name: 'A-101' })).toHaveLength(1);
+        expect(await screen.findByText('Código SIS no válido')).toBeInTheDocument();
+        expect(api.post).not.toHaveBeenCalled();
+    });
 
-        expect(screen.queryByText('Examen')).not.toBeInTheDocument();
+    it('sin aulas asignadas no opera', async () => {
+        api.get.mockImplementation((ruta) =>
+            ruta === '/punto-control/contexto'
+                ? Promise.resolve({ data: { data: [] } })
+                : Promise.reject(new Error('no'))
+        );
 
-        fireEvent.change(selectorAula, {
-            target: { value: '7' },
-        });
+        montar();
+
+        expect(await screen.findByText('Sin aulas asignadas hoy')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Verificar' })).not.toBeInTheDocument();
+    });
+
+    it('con código de aula usa las rutas del examen y no ofrece expulsar', async () => {
+        localStorage.setItem(
+            'codigo_aula_sesion',
+            JSON.stringify({
+                examen_id: 10,
+                aula_id: 7,
+                aula_nombre: '691A',
+                nombre_colaborador: 'Ana Rocha',
+            })
+        );
+        api.post.mockResolvedValue({ data: { data: { veredicto: 'ADMITIDO', admitido: true } } });
+
+        montar('/aula');
+
+        expect(await screen.findByText('Ana Rocha')).toBeInTheDocument();
+        await verificarCodigo();
 
         await waitFor(() => {
-            expect(api.get).toHaveBeenCalledWith(
-                '/aulas/7/punto-control/incidencias',
-                expect.objectContaining({
-                    params: { limite: 20 },
-                    signal: expect.any(AbortSignal),
-                })
-            );
-
-            expect(api.get).toHaveBeenCalledWith(
-                '/aulas/7/punto-control/ingresos',
-                expect.objectContaining({
-                    params: { limite: 5 },
-                    signal: expect.any(AbortSignal),
-                })
-            );
-        });
-
-        fireEvent.change(screen.getByRole('textbox', { name: 'Identificador' }), {
-            target: { value: '202100001' },
-        });
-
-        fireEvent.click(screen.getByRole('button', { name: 'Consultar estudiante' }));
-
-        expect(await screen.findByText('Resultado de identificación')).toBeInTheDocument();
-
-        expect(api.post).toHaveBeenCalledWith(
-            '/aulas/7/punto-control/identificar',
-            {
+            expect(api.post).toHaveBeenCalledWith('/examenes/10/aulas/7/punto-control/ingresos', {
                 tipo: 'codigo',
-                identificador: '202100001',
-            },
-            expect.objectContaining({
-                signal: expect.any(AbortSignal),
-            })
-        );
-    });
-
-    it('BUG-05: expulsa mediante la API y refleja el estado persistido', async () => {
-        let expulsado = false;
-
-        const registro = {
-            ingreso_id: 91,
-            estudiante_id: 5,
-            codigo: '202100001',
-            nombres: 'Ana',
-            apellidos: 'Rojas',
-            registrado_en: '2026-10-22 09:15:00',
-        };
-
-        api.get.mockImplementation((ruta) => {
-            if (ruta === '/punto-control/contexto') {
-                return Promise.resolve({ data: { data: [examen] } });
-            }
-
-            if (ruta === '/aulas/7/punto-control/ingresos') {
-                return Promise.resolve({
-                    data: { data: [{ ...registro, expulsado }] },
-                });
-            }
-
-            if (ruta.endsWith('/incidencias')) {
-                return Promise.resolve({ data: { data: [] } });
-            }
-
-            return Promise.reject(new Error('Ruta GET inesperada'));
-        });
-
-        api.post.mockImplementation((ruta, datos) => {
-            if (ruta === '/aulas/7/punto-control/ingresos/91/expulsion') {
-                if (datos.motivo !== 'Incumplimiento de normas') {
-                    return Promise.reject(new Error('Motivo inesperado'));
-                }
-
-                expulsado = true;
-
-                return Promise.resolve({
-                    data: {
-                        data: { ingreso_id: 91, expulsado: true },
-                    },
-                });
-            }
-
-            return Promise.reject(new Error('Ruta POST inesperada'));
-        });
-
-        await preparar();
-
-        fireEvent.click(
-            await screen.findByRole('button', {
-                name: 'Expulsar estudiante',
-            })
-        );
-
-        fireEvent.change(
-            screen.getByRole('textbox', {
-                name: 'Motivo de expulsión',
-            }),
-            { target: { value: 'Incumplimiento de normas' } }
-        );
-
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'Confirmar expulsión',
-            })
-        );
-
-        await waitFor(() => {
-            expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/ingresos/91/expulsion', {
-                motivo: 'Incumplimiento de normas',
+                identificador: '202210098',
             });
         });
-
-        expect(await screen.findByText('Expulsado')).toBeInTheDocument();
-
-        await waitFor(() => {
-            expect(
-                screen.queryByRole('button', {
-                    name: 'Expulsar estudiante',
-                })
-            ).not.toBeInTheDocument();
-        });
-    });
-
-    it('BUG-05: rechaza un motivo corto sin realizar escrituras', async () => {
-        api.get.mockImplementation((ruta) => {
-            if (ruta === '/punto-control/contexto') {
-                return Promise.resolve({ data: { data: [examen] } });
-            }
-
-            if (ruta.endsWith('/ingresos')) {
-                return Promise.resolve({
-                    data: {
-                        data: [
-                            {
-                                ingreso_id: 91,
-                                codigo: '202100001',
-                                nombres: 'Ana',
-                                apellidos: 'Rojas',
-                                registrado_en: '2026-10-22 09:15:00',
-                                expulsado: false,
-                            },
-                        ],
-                    },
-                });
-            }
-
-            if (ruta.endsWith('/incidencias')) {
-                return Promise.resolve({ data: { data: [] } });
-            }
-
-            return Promise.reject(new Error('Ruta GET inesperada'));
-        });
-
-        await preparar();
-
-        fireEvent.click(
-            await screen.findByRole('button', {
-                name: 'Expulsar estudiante',
-            })
-        );
-
-        fireEvent.change(
-            screen.getByRole('textbox', {
-                name: 'Motivo de expulsión',
-            }),
-            { target: { value: 'abc' } }
-        );
-
-        expect(
-            screen.getByRole('button', {
-                name: 'Confirmar expulsión',
-            })
-        ).toBeDisabled();
-
-        expect(api.post).not.toHaveBeenCalled();
+        expect(await screen.findByText('Ingreso admitido')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Expulsar' })).not.toBeInTheDocument();
+        expect(api.get).not.toHaveBeenCalledWith('/punto-control/contexto', expect.anything());
     });
 });

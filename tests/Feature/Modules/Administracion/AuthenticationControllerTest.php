@@ -97,7 +97,7 @@ class AuthenticationControllerTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_inactive_user_cannot_login(): void
+    public function test_inactive_user_with_the_correct_password_is_told_the_account_is_locked(): void
     {
         UserFactory::new()->createOne([
             'usuario' => 'inactive-user',
@@ -111,7 +111,32 @@ class AuthenticationControllerTest extends TestCase
             'password' => 'CorrectPassword123!',
         ]);
 
+        // Sin minutos: no es el bloqueo por intentos.
         $response
+            ->assertStatus(423)
+            ->assertExactJson([
+                'code' => 'ACCOUNT_DISABLED',
+                'message' => 'Cuenta bloqueada.',
+            ]);
+
+        $this->assertGuest();
+    }
+
+    public function test_inactive_user_with_a_wrong_password_gets_the_generic_response(): void
+    {
+        UserFactory::new()->createOne([
+            'usuario' => 'inactive-user',
+            'email' => 'inactive-user@example.invalid',
+            'password' => 'CorrectPassword123!',
+            'is_active' => false,
+        ]);
+
+        // Sin la contrasena no se revela que la cuenta existe y esta
+        // desactivada: la misma respuesta que un usuario inexistente.
+        $this->postJson('/api/auth/login', [
+            'usuario' => 'inactive-user',
+            'password' => 'WrongPassword123!',
+        ])
             ->assertUnauthorized()
             ->assertExactJson([
                 'message' => 'Credenciales incorrectas.',

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Queries;
 
+use App\Modules\Estudiantes\Application\DTOs\EstudianteData;
 use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
 use App\Modules\Ingreso\Application\DTOs\ResultadoResolucionPuertaData;
+use App\Modules\Ingreso\Domain\Enums\CausaIntento;
 use App\Modules\Ingreso\Domain\Rules\EvaluarIngreso;
 use InvalidArgumentException;
 
@@ -61,6 +63,7 @@ final readonly class ResolverExamenEnPuerta
         }
 
         $coincidencias = [];
+        $enPadron = null;
 
         foreach (array_unique($examenesAbiertosIds) as $examenId) {
             if ($examenId <= 0) {
@@ -75,7 +78,13 @@ final readonly class ResolverExamenEnPuerta
                 $identificador,
             );
 
-            if ($candidato === null || ! $candidato->inscrito) {
+            if ($candidato === null) {
+                continue;
+            }
+
+            if (! $candidato->inscrito) {
+                $enPadron ??= $candidato->estudiante;
+
                 continue;
             }
 
@@ -124,10 +133,25 @@ final readonly class ResolverExamenEnPuerta
             return $coincidencias[0];
         }
 
+        if (count($coincidencias) > 1) {
+            return new ResultadoResolucionPuertaData(null, null, true);
+        }
+
+        // Nadie lo espera en el aula: distinguir a quien esta en el padron
+        // (no inscrito en estos examenes) de un codigo que no existe.
+        return $this->sinExamen($enPadron);
+    }
+
+    private function sinExamen(
+        ?EstudianteData $estudiante,
+    ): ResultadoResolucionPuertaData {
         return new ResultadoResolucionPuertaData(
             null,
             null,
-            count($coincidencias) > 1,
+            causa: $estudiante === null
+                ? CausaIntento::NoRegistrado
+                : CausaIntento::NoInscrito,
+            estudiante: $estudiante,
         );
     }
 }

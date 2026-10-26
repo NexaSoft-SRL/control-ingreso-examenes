@@ -812,8 +812,23 @@ describe('RegistrarExamen · edición', () => {
         expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     });
 
+    it('un aula sin personal guardado muestra el mismo encargado en la tarjeta y en el código', async () => {
+        detalle = { ...DETALLE, propio: false, registrado_por: 'Rodriguez Bilbao Erika' };
+        montar('/examenes/nuevo?examen=4&paso=2');
+
+        await screen.findByText('Registrado por Rodriguez Bilbao Erika');
+        expect(screen.getByText('Rodriguez Bilbao Erika', { selector: 'p' })).toBeInTheDocument();
+        expect(screen.queryByText(/Docente titular/)).not.toBeInTheDocument();
+
+        pulsar('Código de acceso del aula 691B');
+        const dialogo = await screen.findByRole('dialog');
+        expect(within(dialogo).getByText(/Rodriguez Bilbao Erika/)).toBeInTheDocument();
+        expect(within(dialogo).queryByText(/Sin asignar/)).not.toBeInTheDocument();
+        expect(within(dialogo).getByText(/lunes 23 de noviembre/)).toBeInTheDocument();
+    });
+
     it.each([
-        [403, 'Este examen no es tuyo.', 'Este examen no es tuyo'],
+        [403, 'Examen no autorizado.', 'Examen no autorizado'],
         [404, 'Examen no encontrado.', 'Examen no encontrado'],
     ])('un %i al abrirlo muestra la negativa', async (estado, message, texto) => {
         api.get.mockImplementation(async (url) => {

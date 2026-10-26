@@ -9,7 +9,7 @@ import Buscador from '../../componentes/Buscador';
 import Campo from '../../componentes/Campo';
 import Dialogo from '../../componentes/Dialogo';
 import Insignia from '../../componentes/Insignia';
-import { plural } from '../../utiles/texto';
+import { fechaLarga, plural } from '../../utiles/texto';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
@@ -879,7 +879,7 @@ export default function AtencionAulas({
                                         <span className="font-semibold text-slate-700">
                                             Fecha del examen:
                                         </span>{' '}
-                                        {fechaExamen || 'Sin fecha fijada'}
+                                        {fechaExamen ? fechaLarga(fechaExamen) : 'Sin fecha fijada'}
                                     </p>
                                 </div>
 

@@ -381,7 +381,7 @@ final class LegacySchemaUpgradeTest extends TestCase
         $this->assertSame(
             0,
             Artisan::call('migrate:rollback', [
-                '--step' => 11,
+                '--step' => $this->pasosHastaElRediseno(),
                 '--force' => true,
                 '--no-interaction' => true,
             ]),
@@ -527,7 +527,7 @@ final class LegacySchemaUpgradeTest extends TestCase
         $this->migrate();
 
         Artisan::call('migrate:rollback', [
-            '--step' => 11,
+            '--step' => $this->pasosHastaElRediseno(),
             '--force' => true,
             '--no-interaction' => true,
         ]);
@@ -856,5 +856,19 @@ final class LegacySchemaUpgradeTest extends TestCase
             $expectedTable,
             $row['referenced_table']
         );
+    }
+
+    /**
+     * Migraciones desde la de roles creables (inclusive): deshacerlas
+     * devuelve al diseno anterior aunque se agreguen migraciones nuevas.
+     */
+    private function pasosHastaElRediseno(): int
+    {
+        $archivos = glob(database_path('migrations/*.php')) ?: [];
+
+        return count(array_filter(
+            $archivos,
+            static fn (string $archivo): bool => basename($archivo) >= '2026_10_09_000300',
+        ));
     }
 }

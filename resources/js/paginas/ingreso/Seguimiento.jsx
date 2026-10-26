@@ -6,16 +6,22 @@ import {
     Check,
     ChevronLeft,
     ChevronRight,
-    Clock3,
     LoaderCircle,
     RefreshCw,
+    ScanLine,
     Search,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { estadoDe, mensajeDe } from '../../api/errores';
+import { useAviso } from '../../componentes/Aviso';
 import { usarSesion } from '../../sesion/SesionContexto';
+import IncidenciaAula from './IncidenciaAula';
+import { tipoIncidenciaLegible } from './tiposIncidencia';
+
+// La búsqueda viaja al servidor 300 ms después de la última tecla.
+const ESPERA_BUSQUEDA = 300;
 
 function nombreEstudiante(estudiante) {
     return `${estudiante.apellidos}, ${estudiante.nombres}`;
@@ -27,13 +33,8 @@ function fechaYHora(fecha, hora) {
     return `${dia}/${mes}/${anio}${hora ? ` · ${hora}` : ''}`;
 }
 
-function estadoLegible(tipo) {
-    const etiquetas = {
-        OTRA_NOVEDAD: 'Otra novedad',
-        SUPLANTACION: 'Suplantación',
-    };
-    return etiquetas[tipo] ?? tipo.replaceAll('_', ' ').toLocaleLowerCase('es');
-}
+// '2026-10-26 08:41:20' o '2026-10-26T08:41:20-04:00' → '08:41'.
+const horaDe = (instante) => String(instante ?? '').slice(11, 16);
 
 function tipoExamenLegible(tipo) {
     const etiquetas = {
@@ -79,27 +80,32 @@ Cifras.propTypes = {
     }).isRequired,
 };
 
+// «Mi aula» (HU-21): presentes, ausentes e incidencias de un aula del examen
+// de hoy. El auxiliar ve las aulas que atiende; el docente llega desde «En
+// curso» a cualquiera de su examen. Es de consulta: no registra ingresos.
 export default function Seguimiento() {
-    const { usuario } = usarSesion();
+    const { usuario, puede } = usarSesion();
     const esDocente = usuario?.rol === 'Docente';
+    const [aviso, avisar] = useAviso();
     const [aulas, setAulas] = useState([]);
     // `?examen=&aula=` llega desde «En curso» (HU-22) con el aula ya elegida.
     const [parametros] = useSearchParams();
-    const [seleccion, setSeleccion] = useState(() => {
+    const [pedida, setPedida] = useState(() => {
         const examenId = Number(parametros.get('examen'));
         const aulaId = Number(parametros.get('aula'));
         return examenId && aulaId ? { examen_id: examenId, aula_id: aulaId } : null;
     });
+    const [seleccion, setSeleccion] = useState(pedida);
     const [detalle, setDetalle] = useState(null);
     const [estado, setEstado] = useState('faltan');
     const [busqueda, setBusqueda] = useState('');
+    const [buscado, setBuscado] = useState('');
     const [pagina, setPagina] = useState(1);
     const [cargando, setCargando] = useState(true);
     const [actualizando, setActualizando] = useState(false);
     const [error, setError] = useState('');
     const [desconectado, setDesconectado] = useState(false);
     const [accion, setAccion] = useState('');
-    const [aviso, setAviso] = useState('');
     const errores = useRef(0);
     const controlador = useRef(null);
     const seleccionRef = useRef(seleccion);
@@ -132,7 +138,7 @@ export default function Seguimiento() {
             }
         } catch (fallo) {
             if (estadoDe(fallo) !== 0) {
-                setError(mensajeDe(fallo, 'No se pudieron cargar tus aulas.'));
+                setError(mensajeDe(fallo, 'No se pudieron cargar las aulas.'));
             }
         } finally {
             setCargando(false);
@@ -150,7 +156,7 @@ export default function Seguimiento() {
                 const { data } = await api.get(
                     `/seguimiento/examenes/${seleccion.examen_id}/aulas/${seleccion.aula_id}`,
                     {
-                        params: { estado, buscar: String(busqueda ?? ''), pagina },
+                        params: { estado, buscar: buscado, pagina },
                         signal: actual.signal,
                     }
                 );
@@ -172,18 +178,18 @@ export default function Seguimiento() {
                 setDesconectado(false);
                 const mensaje =
                     codigoEstado === 401 || codigoEstado === 419
-                        ? 'Tu sesión venció o ya no está activa. Inicia sesión nuevamente.'
+                        ? 'Sesión vencida'
                         : codigoEstado === 403 || codigoEstado === 404
-                          ? mensajeDe(fallo, 'No puedes consultar esta aula.')
+                          ? mensajeDe(fallo, 'Sin acceso')
                           : codigoEstado >= 500
-                            ? 'El servidor no pudo actualizar el seguimiento. Inténtalo de nuevo.'
-                            : mensajeDe(fallo, 'No se pudo actualizar el seguimiento.');
+                            ? 'No se pudo actualizar la lista'
+                            : mensajeDe(fallo, 'No se pudo actualizar la lista');
                 setError(mensaje);
             } finally {
                 if (!actual.signal.aborted) setActualizando(false);
             }
         },
-        [busqueda, estado, pagina, seleccion]
+        [buscado, estado, pagina, seleccion]
     );
 
     useEffect(() => {
@@ -217,13 +223,23 @@ export default function Seguimiento() {
         };
     }, [actualizar]);
 
+    // Espera a que se deje de teclear antes de pedir la lista.
+    useEffect(() => {
+        const texto = busqueda.trim();
+        if (texto === buscado) return undefined;
+        const reloj = window.setTimeout(() => setBuscado(texto), ESPERA_BUSQUEDA);
+        return () => window.clearTimeout(reloj);
+    }, [busqueda, buscado]);
+
     useEffect(() => {
         setPagina(1);
-    }, [estado, busqueda, seleccion]);
+    }, [estado, buscado, seleccion]);
 
     const elegirAula = (aula) => {
         setError('');
         setBusqueda('');
+        setBuscado('');
+        setPedida(null);
         setPagina(1);
         setSeleccion({ examen_id: aula.examen_id, aula_id: aula.aula_id });
     };
@@ -231,13 +247,12 @@ export default function Seguimiento() {
     const atender = async (id) => {
         setAccion(String(id));
         setError('');
-        setAviso('');
         try {
             await api.patch(`/seguimiento/incidencias/${id}/atendida`);
+            avisar('Incidencia atendida');
             await actualizar();
-            setAviso('Incidencia atendida.');
         } catch (fallo) {
-            setError(mensajeDe(fallo, 'No se pudo atender la incidencia.'));
+            avisar(mensajeDe(fallo, 'No se pudo atender'), 'error');
         } finally {
             setAccion('');
         }
@@ -247,22 +262,29 @@ export default function Seguimiento() {
         return (
             <div className="flex min-h-48 items-center justify-center gap-2 text-slate-600">
                 <LoaderCircle className="animate-spin" size={20} aria-hidden="true" />
-                Cargando aulas asignadas…
+                Cargando…
             </div>
         );
     }
 
+    // Se pidió un aula que no es de la cuenta o no es de hoy: se avisa en vez
+    // de cambiar en silencio a otra.
+    const pedidaNoDisponible =
+        pedida !== null &&
+        !aulas.some(
+            (aula) => aula.examen_id === pedida.examen_id && aula.aula_id === pedida.aula_id
+        );
+    const operaPuerta = Boolean(detalle?.puede_operar) && puede('punto_control');
+    const esHoy =
+        detalle !== null &&
+        String(detalle.examen.hora_servidor ?? '').slice(0, 10) === detalle.examen.fecha;
+
     return (
         <main className="mx-auto w-full max-w-6xl space-y-4 px-3 py-4 sm:px-6 sm:py-6">
             <header className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-slate-950">
-                        Seguimiento del aula
-                    </h1>
-                    <p className="mt-1 text-sm text-slate-600">
-                        Asistencia y novedades del examen, sin modificar ingresos.
-                    </p>
-                </div>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-950">
+                    {esDocente ? 'Lista del aula' : 'Mi aula'}
+                </h1>
                 {esDocente && (
                     <Link
                         to="/en-curso"
@@ -274,13 +296,13 @@ export default function Seguimiento() {
                 )}
             </header>
 
-            {aviso && (
-                <div
+            {pedidaNoDisponible && aulas.length > 0 && (
+                <p
                     role="status"
-                    className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800"
+                    className="rounded-xl bg-amber-50 p-3 text-sm font-medium text-amber-900"
                 >
-                    {aviso}
-                </div>
+                    Aula pedida no disponible
+                </p>
             )}
             {desconectado && (
                 <div
@@ -288,7 +310,7 @@ export default function Seguimiento() {
                     className="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900"
                 >
                     <AlertTriangle size={18} aria-hidden="true" />
-                    Sin conexión. Se conservan los últimos datos; se reintentará automáticamente.
+                    Sin conexión
                 </div>
             )}
             {error && (
@@ -303,16 +325,11 @@ export default function Seguimiento() {
             {aulas.length === 0 ? (
                 <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
                     <Activity className="mx-auto text-slate-400" size={28} aria-hidden="true" />
-                    <h2 className="mt-3 font-semibold text-slate-900">Sin aulas asignadas</h2>
-                    <p className="mt-1 text-sm text-slate-600">
-                        {esDocente
-                            ? 'No hay aulas de examen disponibles para seguimiento.'
-                            : 'Todavía no tienes aulas asignadas para el seguimiento.'}
-                    </p>
+                    <h2 className="mt-3 font-semibold text-slate-900">Sin aula asignada</h2>
                 </section>
             ) : (
                 <>
-                    <nav aria-label="Aulas asignadas" className="flex gap-2 overflow-x-auto pb-1">
+                    <nav aria-label="Aula" className="flex gap-2 overflow-x-auto pb-1">
                         {aulas.map((aula) => {
                             const activa =
                                 aula.examen_id === seleccion?.examen_id &&
@@ -363,25 +380,47 @@ export default function Seguimiento() {
                                             })}
                                         </p>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => void actualizar()}
-                                        disabled={actualizando}
-                                        className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50"
-                                    >
-                                        <RefreshCw
-                                            size={16}
-                                            className={actualizando ? 'animate-spin' : ''}
-                                            aria-hidden="true"
-                                        />
-                                        Actualizar
-                                    </button>
+                                    <div className="flex flex-wrap gap-2">
+                                        {esHoy && operaPuerta && (
+                                            <IncidenciaAula
+                                                examenId={seleccionada.examen_id}
+                                                aula={{
+                                                    id: detalle.aula.id,
+                                                    nombre: detalle.aula.nombre,
+                                                }}
+                                                por={usuario?.nombre}
+                                                hora={horaDe(detalle.examen.hora_servidor)}
+                                                alRegistrar={() => {
+                                                    avisar('Incidencia registrada');
+                                                    void actualizar({ silencioso: true });
+                                                }}
+                                            />
+                                        )}
+                                        {detalle.abierto && operaPuerta && (
+                                            <Link
+                                                to={`/punto-control?examen=${seleccionada.examen_id}&aula=${detalle.aula.id}`}
+                                                className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                                            >
+                                                <ScanLine size={16} aria-hidden="true" />
+                                                Controlar
+                                            </Link>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => void actualizar()}
+                                            disabled={actualizando}
+                                            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50"
+                                        >
+                                            <RefreshCw
+                                                size={16}
+                                                className={actualizando ? 'animate-spin' : ''}
+                                                aria-hidden="true"
+                                            />
+                                            Actualizar
+                                        </button>
+                                    </div>
                                 </div>
                                 <Cifras cifras={detalle.cifras} />
-                                <p className="mt-3 inline-flex items-center gap-1 text-xs text-slate-500">
-                                    <Clock3 size={14} aria-hidden="true" />
-                                    Actualización automática cada 15 segundos
-                                </p>
                             </section>
 
                             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -433,9 +472,7 @@ export default function Seguimiento() {
 
                                 {detalle.estudiantes.length === 0 ? (
                                     <p className="p-8 text-center text-sm text-slate-600">
-                                        {busqueda
-                                            ? 'Sin resultados.'
-                                            : 'No hay estudiantes en esta lista.'}
+                                        {buscado ? 'Sin resultados' : 'Sin estudiantes'}
                                     </p>
                                 ) : (
                                     <ul
@@ -522,15 +559,13 @@ export default function Seguimiento() {
                                     </h3>
                                 </header>
                                 {detalle.incidencias.length === 0 ? (
-                                    <p className="p-5 text-sm text-slate-600">
-                                        No hay incidencias reportadas por personas.
-                                    </p>
+                                    <p className="p-5 text-sm text-slate-600">Sin incidencias</p>
                                 ) : (
                                     <>
                                         {detalle.cifras.incidencias >
                                             detalle.incidencias.length && (
                                             <p className="px-4 pt-3 text-xs text-slate-500">
-                                                Mostrando las 50 incidencias más recientes.
+                                                Últimas 50
                                             </p>
                                         )}
                                         <ul className="divide-y divide-slate-100">
@@ -539,12 +574,8 @@ export default function Seguimiento() {
                                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                                         <div className="flex flex-wrap items-center gap-2">
                                                             <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-800">
-                                                                {estadoLegible(incidencia.tipo)}
-                                                            </span>
-                                                            <span className="text-xs text-slate-500">
-                                                                {incidencia.reportada_en.slice(
-                                                                    11,
-                                                                    16
+                                                                {tipoIncidenciaLegible(
+                                                                    incidencia.tipo
                                                                 )}
                                                             </span>
                                                         </div>
@@ -554,10 +585,14 @@ export default function Seguimiento() {
                                                                     size={14}
                                                                     aria-hidden="true"
                                                                 />
-                                                                Atendida por{' '}
-                                                                {incidencia.atendida_por}
+                                                                {[
+                                                                    `Atendida por ${incidencia.atendida_por ?? '—'}`,
+                                                                    horaDe(incidencia.atendida_en),
+                                                                ]
+                                                                    .filter(Boolean)
+                                                                    .join(' · ')}
                                                             </span>
-                                                        ) : seleccionada.puede_asignar ? (
+                                                        ) : detalle.puede_atender ? (
                                                             <button
                                                                 type="button"
                                                                 disabled={
@@ -587,11 +622,13 @@ export default function Seguimiento() {
                                                         {incidencia.detalle}
                                                     </p>
                                                     <p className="text-xs text-slate-500">
-                                                        Reportó {incidencia.reportante} ·{' '}
-                                                        {incidencia.rol_reportante}
-                                                        {incidencia.atendida_en
-                                                            ? ` · ${incidencia.atendida_en.slice(11, 16)}`
-                                                            : ''}
+                                                        {[
+                                                            `Reportó ${incidencia.reportante}`,
+                                                            incidencia.rol_reportante,
+                                                            horaDe(incidencia.reportada_en),
+                                                        ]
+                                                            .filter(Boolean)
+                                                            .join(' · ')}
                                                     </p>
                                                 </li>
                                             ))}
@@ -603,6 +640,7 @@ export default function Seguimiento() {
                     )}
                 </>
             )}
+            {aviso}
         </main>
     );
 }

@@ -286,7 +286,7 @@ final class RegistroExamenTest extends TestCase
         $this->actingAs($this->cuenta($ajeno))
             ->getJson("/api/examenes/{$examen->id}")
             ->assertForbidden()
-            ->assertExactJson(['message' => 'Este examen no es tuyo.', 'alcance' => true]);
+            ->assertExactJson(['message' => 'Examen no autorizado.', 'alcance' => true]);
 
         $this->actingAs($this->cuenta($ajeno))
             ->getJson('/api/examenes/999999')
@@ -362,7 +362,7 @@ final class RegistroExamenTest extends TestCase
         $this->actingAs($this->cuenta($sumado))
             ->putJson("/api/examenes/{$examen->id}", $this->cuerpo($asignatura, [$propio, $ajeno]))
             ->assertForbidden()
-            ->assertExactJson(['message' => 'Este examen no es tuyo.', 'alcance' => true]);
+            ->assertExactJson(['message' => 'Examen no autorizado.', 'alcance' => true]);
 
         $this->actingAs($this->cuenta($sumado))
             ->deleteJson("/api/examenes/{$examen->id}")
@@ -721,5 +721,67 @@ final class RegistroExamenTest extends TestCase
             ->putJson("/api/examenes/{$examenId}", $cuerpoConCambioDeHora)
             ->assertStatus(409)
             ->assertJsonPath('message', 'El examen ya tiene ingresos registrados: solo se pueden cambiar las normas.');
+    }
+
+    public function test_a_blocked_account_cannot_be_in_charge_of_a_room(): void
+    {
+        $docenteA = $this->docente('Docente A');
+        $docenteB = $this->docente('Docente B');
+        $cuentaB = $this->cuenta($docenteB);
+        $cuentaB->forceFill(['is_active' => false])->save();
+
+        $asignatura = $this->asignatura('Programación 1', '101');
+        $grupoA = $this->grupo($docenteA, $asignatura, 'G1');
+        $grupoB = $this->grupo($docenteB, $asignatura, 'G2');
+        $aula = $this->aula('Aula 101');
+
+        // La lista de «A cargo» no ofrece la cuenta bloqueada.
+        $this->actingAs($this->cuenta($docenteA))
+            ->getJson("/api/examenes/opciones/grupos?asignatura_id={$asignatura->id}")
+            ->assertOk()
+            ->assertJsonPath('otros.0.id', $grupoB->id)
+            ->assertJsonPath('otros.0.docente', 'Docente B')
+            ->assertJsonPath('otros.0.docente_id', null);
+
+        $cuerpo = $this->cuerpo($asignatura, [$grupoA, $grupoB], [$aula]);
+        $cuerpo['personal'] = [
+            [
+                'aula_id' => $aula->id,
+                'a_cargo' => $cuentaB->id,
+                'apoyo' => [],
+            ],
+        ];
+
+        $this->actingAs($this->cuenta($docenteA))
+            ->postJson('/api/examenes', $cuerpo)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                "personal.{$aula->id}.a_cargo" => 'La cuenta de quien está a cargo está inactiva.',
+            ]);
+
+        $this->assertDatabaseMissing('examen_aula_personal', ['usuario_id' => $cuentaB->id]);
+    }
+
+    public function test_a_room_without_personal_is_in_charge_of_who_registered(): void
+    {
+        $docente = $this->docente('Docente Titular');
+        $asignatura = $this->asignatura('Programación 1', '101');
+        $grupo = $this->grupo($docente, $asignatura, 'G1');
+        $aula = $this->aula('Aula 101');
+
+        $examenId = $this->actingAs($this->cuenta($docente))
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [$aula]))
+            ->assertCreated()
+            ->json('data.id');
+        self::assertIsInt($examenId);
+
+        // Un examen anterior a «Quién atiende» no tiene personal guardado.
+        DB::table('examen_aula_personal')->where('examen_id', $examenId)->delete();
+
+        $this->actingAs($this->cuenta($docente))
+            ->getJson("/api/examenes/{$examenId}")
+            ->assertOk()
+            ->assertJsonPath('data.aulas_detalle.0.a_cargo.id', $this->cuenta($docente)->id)
+            ->assertJsonPath('data.aulas_detalle.0.a_cargo.nombre', 'Docente Titular');
     }
 }

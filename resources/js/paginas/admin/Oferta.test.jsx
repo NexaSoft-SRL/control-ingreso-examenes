@@ -49,6 +49,14 @@ const ASIGNATURAS = {
     meta: { total: 2, pagina: 1, por_pagina: 15 },
 };
 
+const DIDACTICA = {
+    id: 200,
+    codigo: '1801033',
+    nombre: 'Didactica General',
+    nivel: 'Semestre 1',
+    inscritos: 0,
+};
+
 const GRUPOS = {
     data: [
         {
@@ -84,7 +92,7 @@ function montar(usuario = usuarioDePrueba('Administrador')) {
     return renderConSesion(<Oferta />, { usuario, ruta: '/oferta' });
 }
 
-const buscador = () => screen.getByLabelText('Asignatura, código o docente');
+const buscador = () => screen.getByLabelText('Buscar');
 
 async function cargada() {
     await screen.findByText('Introduccion a la Programacion');
@@ -331,6 +339,93 @@ describe('Oferta académica', () => {
 
         const filtros = screen.getByLabelText('Período').closest('label').parentElement;
         expect(filtros.className).toMatch(/grid-cols-2/);
-        expect(filtros.className).toMatch(/lg:grid-cols-5/);
+        expect(filtros.className).toMatch(/lg:grid-cols-\[/);
+    });
+
+    it('el buscador tiene su etiqueta asociada (BUG-10)', async () => {
+        montar();
+        await cargada();
+
+        expect(screen.getByRole('searchbox', { name: 'Buscar' })).toHaveAttribute(
+            'placeholder',
+            'Asignatura, código o docente'
+        );
+    });
+
+    it('una asignatura compartida sale por facultad y cada fila despliega solo lo suyo (N-01)', async () => {
+        simular({
+            'GET /oferta/asignaturas': {
+                data: [
+                    { ...DIDACTICA, facultad: 'FCyT', facultad_clave: 'fcyt', grupos: 1 },
+                    { ...DIDACTICA, facultad: 'FHCE', facultad_clave: 'fhce', grupos: 2 },
+                ],
+                meta: { total: 2, pagina: 1, por_pagina: 15 },
+            },
+        });
+        montar();
+
+        const [fcyt, fhce] = await screen.findAllByRole('button', { name: /Didactica General/ });
+        expect(fcyt).toHaveTextContent('1801033 · Semestre 1 · FCyT');
+        expect(fhce).toHaveTextContent('1801033 · Semestre 1 · FHCE');
+        expect(screen.getByRole('navigation', { name: 'Paginación' })).toHaveTextContent(
+            '2 asignaturas'
+        );
+
+        fireEvent.click(fhce);
+        expect(fhce).toHaveAttribute('aria-expanded', 'true');
+        expect(fcyt).toHaveAttribute('aria-expanded', 'false');
+
+        await waitFor(() =>
+            expect(api.get).toHaveBeenCalledWith('/oferta/asignaturas/200/grupos', {
+                params: { pagina: 1, por_pagina: 10, facultad: 'fhce' },
+            })
+        );
+    });
+
+    it('los grupos desplegados se vuelven a pedir al cambiar período, facultad o búsqueda (N-02)', async () => {
+        montar();
+        await cargada();
+
+        fireEvent.click(screen.getByRole('button', { name: /Introduccion a la Programacion/ }));
+        await screen.findByText('Salazar Serrudo Carla');
+
+        fireEvent.change(buscador(), { target: { value: 'Salazar' } });
+        await waitFor(() =>
+            expect(api.get).toHaveBeenCalledWith(
+                '/oferta/asignaturas/100/grupos',
+                expect.objectContaining({
+                    params: expect.objectContaining({ buscar: 'Salazar', pagina: 1 }),
+                })
+            )
+        );
+
+        fireEvent.change(screen.getByLabelText('Período'), { target: { value: '3' } });
+        await waitFor(() =>
+            expect(api.get).toHaveBeenCalledWith(
+                '/oferta/asignaturas/100/grupos',
+                expect.objectContaining({
+                    params: expect.objectContaining({ periodo: '3', buscar: 'Salazar' }),
+                })
+            )
+        );
+
+        fireEvent.change(screen.getByLabelText('Facultad'), { target: { value: 'fcyt' } });
+        await waitFor(() =>
+            expect(api.get).toHaveBeenCalledWith(
+                '/oferta/asignaturas/100/grupos',
+                expect.objectContaining({
+                    params: expect.objectContaining({ facultad: 'fcyt', periodo: '3' }),
+                })
+            )
+        );
+    });
+
+    it('el nombre del docente no se recorta (N-03)', async () => {
+        montar();
+        await cargada();
+
+        fireEvent.click(screen.getByRole('button', { name: /Introduccion a la Programacion/ }));
+        const docente = await screen.findByText('Salazar Serrudo Carla');
+        expect(docente.className).not.toMatch(/truncate/);
     });
 });

@@ -343,14 +343,14 @@ describe('Mis grupos · lista de inscritos', () => {
         servidor(POCOS(), {
             rutas: {
                 'GET /docente/grupos/*/inscritos': errorHttp(403, {
-                    message: 'Este grupo no es tuyo.',
+                    message: 'Grupo no autorizado.',
                     alcance: true,
                 }),
             },
         });
         renderConSesion(<MisGrupos />);
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('Este grupo no es tuyo.');
+        expect(await screen.findByRole('alert')).toHaveTextContent('Grupo no autorizado.');
         expect(screen.queryByRole('table')).not.toBeInTheDocument();
     });
 });
@@ -559,7 +559,7 @@ describe('Mis grupos · grupo sin lista', () => {
 
     it.each([
         [409, { message: 'El período del grupo ya no está vigente.', codigo: 'PERIODO_CERRADO' }],
-        [403, { message: 'Este grupo no es tuyo.', alcance: true }],
+        [403, { message: 'Grupo no autorizado.', alcance: true }],
     ])('muestra la negativa %i del servidor', async (estado, cuerpo) => {
         await abrirSinLista({ carga: errorHttp(estado, cuerpo) });
 

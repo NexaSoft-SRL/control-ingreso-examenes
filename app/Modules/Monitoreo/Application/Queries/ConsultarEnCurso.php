@@ -8,6 +8,7 @@ use App\Modules\Examenes\Application\Contracts\AlcanceExamenGateway;
 use App\Modules\Examenes\Application\Contracts\ConsultaExamenGateway;
 use App\Modules\Examenes\Application\Contracts\ExamenGateway;
 use App\Modules\Examenes\Application\DTOs\AulaDetalleData;
+use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
 use App\Modules\Monitoreo\Application\Contracts\EnCursoGateway;
 use App\Modules\Monitoreo\Application\DTOs\AulaEnCursoData;
@@ -23,7 +24,8 @@ use LogicException;
  * El examen en curso, aula por aula (HU-22). Solo lo ve un docente del
  * examen. Quien atiende cada aula y su codigo salen del examen (HU-18);
  * el aula compartida, de la misma regla que usa el registro del examen;
- * si el ingreso esta abierto, de la ventana de la puerta (HU-19).
+ * si el ingreso esta abierto, de la ventana de la puerta (HU-19), y si la
+ * cuenta opera la puerta de cada aula, del alcance de esa puerta.
  */
 final readonly class ConsultarEnCurso
 {
@@ -33,6 +35,7 @@ final readonly class ConsultarEnCurso
         private AlcanceExamenGateway $alcance,
         private VentanaPuntoControl $ventana,
         private EnCursoGateway $enCurso,
+        private AlcancePuntoControl $puerta,
     ) {}
 
     public function ejecutar(int $usuarioId, int $examenId): TableroEnCursoData
@@ -100,7 +103,7 @@ final readonly class ConsultarEnCurso
             horaServidor: $this->consulta->horaServidor(),
             avance: $avanceVisible,
             aulas: array_map(
-                static fn (AulaDetalleData $aula): AulaEnCursoData => new AulaEnCursoData(
+                fn (AulaDetalleData $aula): AulaEnCursoData => new AulaEnCursoData(
                     aulaId: $aula->aulaId,
                     nombre: $aula->nombre,
                     ubicacion: $aula->ubicacion,
@@ -112,6 +115,7 @@ final readonly class ConsultarEnCurso
                     compartida: $compartidas[$aula->aulaId] ?? [],
                     codigoAcceso: $aula->codigo !== null,
                     aMiCargo: in_array($aula->aulaId, $mias, true),
+                    puedeOperar: $this->puerta->puedeOperar($usuarioId, $examenId, $aula->aulaId),
                 ),
                 $aulasDetalle,
             ),

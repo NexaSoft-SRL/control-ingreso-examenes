@@ -10,7 +10,7 @@ final readonly class CambiarContrasena
 {
     public function __construct(private CredencialesGateway $gateway) {}
 
-    public function execute(int $usuarioId, string $actual, string $nueva): bool
+    public function execute(int $usuarioId, ?string $actual, string $nueva): bool
     {
         return $this->gateway->cambiar($usuarioId, $actual, $nueva);
     }

@@ -1,15 +1,22 @@
 import PropTypes from 'prop-types';
 import { useEffect, useRef, useState } from 'react';
 
-export default function LectorQr({ alDetectar, alCerrar }) {
+// La cámara exige conexión segura (HTTPS, o localhost).
+function conexionSegura() {
+    return typeof window === 'undefined' || window.isSecureContext !== false;
+}
+
+export default function LectorQr({ alDetectar, alCerrar, alFallar }) {
     const video = useRef(null);
     const detectar = useRef(alDetectar);
+    const fallar = useRef(alFallar);
     const [error, setError] = useState('');
     const [iniciando, setIniciando] = useState(true);
 
     useEffect(() => {
         detectar.current = alDetectar;
-    }, [alDetectar]);
+        fallar.current = alFallar;
+    }, [alDetectar, alFallar]);
 
     useEffect(() => {
         let cerrado = false;
@@ -32,15 +39,23 @@ export default function LectorQr({ alDetectar, alCerrar }) {
             }
         };
 
+        const sinCamara = (texto) => {
+            setError(texto);
+            setIniciando(false);
+            fallar.current?.(texto);
+        };
+
         const iniciar = async () => {
+            if (!conexionSegura()) {
+                sinCamara('Cámara no disponible: requiere conexión segura (HTTPS)');
+                return;
+            }
+
             if (
                 !navigator.mediaDevices?.getUserMedia ||
                 typeof window.BarcodeDetector !== 'function'
             ) {
-                setError(
-                    'Este navegador no permite la lectura QR nativa. Utiliza la identificación manual.'
-                );
-                setIniciando(false);
+                sinCamara('Cámara no disponible en este navegador');
                 return;
             }
 
@@ -107,10 +122,7 @@ export default function LectorQr({ alDetectar, alCerrar }) {
                 animacion = requestAnimationFrame(explorar);
             } catch {
                 if (!cerrado) {
-                    setError(
-                        'No se pudo iniciar la cámara. Comprueba los permisos y vuelve a intentarlo.'
-                    );
-                    setIniciando(false);
+                    sinCamara('Cámara no disponible: sin permiso de acceso');
                 }
 
                 detener();
@@ -128,25 +140,27 @@ export default function LectorQr({ alDetectar, alCerrar }) {
             className="space-y-3 rounded-xl border border-slate-300 bg-slate-50 p-4"
         >
             <div className="flex items-center justify-between gap-3">
-                <h3 className="font-semibold text-slate-900">Escanear código QR</h3>
+                <h3 className="font-semibold text-slate-900">Código QR del estudiante</h3>
 
                 <button
                     type="button"
                     onClick={alCerrar}
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    className="min-h-11 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 >
                     Cerrar cámara
                 </button>
             </div>
 
-            <video
-                ref={video}
-                aria-label="Vista de cámara"
-                autoPlay
-                muted
-                playsInline
-                className="aspect-video w-full rounded-lg bg-slate-900 object-cover"
-            />
+            {!error && (
+                <video
+                    ref={video}
+                    aria-label="Vista de cámara"
+                    autoPlay
+                    muted
+                    playsInline
+                    className="aspect-video w-full rounded-lg bg-slate-900 object-cover"
+                />
+            )}
 
             {iniciando && !error && (
                 <p role="status" className="text-sm text-slate-600">
@@ -159,10 +173,6 @@ export default function LectorQr({ alDetectar, alCerrar }) {
                     {error}
                 </p>
             )}
-
-            <p className="text-xs text-slate-600">
-                Coloca el QR dentro de la imagen. La lectura no registra automáticamente el ingreso.
-            </p>
         </section>
     );
 }
@@ -170,4 +180,5 @@ export default function LectorQr({ alDetectar, alCerrar }) {
 LectorQr.propTypes = {
     alDetectar: PropTypes.func.isRequired,
     alCerrar: PropTypes.func.isRequired,
+    alFallar: PropTypes.func,
 };

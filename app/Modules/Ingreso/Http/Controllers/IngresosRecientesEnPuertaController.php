@@ -4,23 +4,30 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Http\Controllers;
 
-use App\Modules\Examenes\Application\Contracts\ExamenGateway;
-use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
-use App\Modules\Ingreso\Application\Contracts\ExamenesDePuerta;
-use App\Modules\Ingreso\Application\Contracts\IngresosRecientesGateway;
+use App\Modules\Ingreso\Application\Contracts\DetallePuertaGateway;
+use App\Modules\Ingreso\Application\Queries\ExamenesOperablesEnAula;
+use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * Ingresos del aula (BUG-12, BUG-23): los cinco ultimos o, con
+ * `todos=1`, todos los del dia, con busqueda por nombre o codigo.
+ */
 final readonly class IngresosRecientesEnPuertaController
 {
+    private const RECIENTES = 5;
+
+    private const TODOS = 500;
+
     public function __invoke(
+        Request $request,
         int $aula,
-        ExamenesDePuerta $examenesDePuerta,
-        ExamenGateway $examenes,
-        AlcancePuntoControl $alcance,
-        IngresosRecientesGateway $ingresos,
+        ExamenesOperablesEnAula $operables,
+        DetallePuertaGateway $detalle,
     ): JsonResponse {
         $usuarioId = Auth::id();
 
@@ -32,69 +39,43 @@ final readonly class IngresosRecientesEnPuertaController
 
         if ($aula <= 0) {
             return response()->json([
-                'message' => 'Aula inválida.',
+                'message' => 'Aula no válida.',
             ], 422);
         }
+
+        $request->validate([
+            'todos' => ['sometimes', 'boolean'],
+            'buscar' => ['sometimes', 'nullable', 'string', 'max:100'],
+        ]);
 
         $fecha = (new DateTimeImmutable(
             'now',
             new DateTimeZone('America/La_Paz'),
         ))->format('Y-m-d');
 
-        $ids = $examenesDePuerta->examenesDelAula(
-            $aula,
-            $fecha,
-        );
-
-        $autorizados = [];
-
-        foreach (array_unique($ids) as $examenId) {
-            $examen = $examenes->actual($examenId);
-
-            if (
-                $examen !== null
-                && in_array($aula, $examen->aulas, true)
-                && $alcance->puedeOperar(
-                    $usuarioId,
-                    $examenId,
-                    $aula,
-                )
-            ) {
-                $autorizados[] = $examenId;
-            }
-        }
-
-        if ($autorizados === []) {
+        try {
+            $autorizados = $operables->ejecutar($usuarioId, $aula, $fecha);
+        } catch (AccesoPuntoDenegado $error) {
             return response()->json([
-                'message' => 'No atiendes esta aula.',
+                'message' => $error->getMessage(),
             ], 403);
         }
 
-        $filas = [];
+        $todos = $request->boolean('todos');
+        $buscar = $todos ? $request->string('buscar')->trim()->toString() : '';
 
-        foreach ($autorizados as $examenId) {
-            foreach ($ingresos->recientes($examenId, $aula, 5) as $fila) {
-                $filas[] = [
-                    ...$fila,
-                    'examen_id' => $examenId,
-                ];
-            }
-        }
-
-        usort(
-            $filas,
-            static fn (array $a, array $b): int => (strcmp(
-                $b['registrado_en'],
-                $a['registrado_en'],
-            ) ?: ($b['ingreso_id'] <=> $a['ingreso_id'])),
+        $filas = $detalle->ingresosDelAula(
+            $aula,
+            $autorizados,
+            $buscar === '' ? null : $buscar,
+            $todos ? self::TODOS : self::RECIENTES,
         );
-
-        $filas = array_slice($filas, 0, 5);
 
         return response()->json([
             'data' => $filas,
             'meta' => [
                 'cantidad' => count($filas),
+                'total' => $detalle->totalIngresos($aula, $autorizados),
             ],
         ]);
     }

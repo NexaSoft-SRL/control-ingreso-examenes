@@ -47,7 +47,7 @@ const TITULOS = {
     '/habilitacion': 'Habilitación',
     '/en-curso': 'En curso',
     '/punto-control': 'Punto de control',
-    '/seguimiento': 'Seguimiento del aula',
+    '/seguimiento': 'Mi aula',
     '/mis-grupos': 'Mis grupos',
     '/admin': 'Usuarios y roles',
     '/bitacora': 'Bitácora',
@@ -58,7 +58,7 @@ describe('Aplicacion', () => {
 
     it('sin sesión, la raíz lleva al inicio de sesión por usuario', async () => {
         montar('/', null);
-        expect(await titulo('Ingreso al sistema')).toBeInTheDocument();
+        expect(await titulo('Control de ingreso a exámenes')).toBeInTheDocument();
         expect(screen.getByLabelText(/Usuario/)).toBeInTheDocument();
     });
 

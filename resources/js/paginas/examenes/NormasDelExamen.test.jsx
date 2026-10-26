@@ -210,7 +210,7 @@ describe('NormasDelExamen', () => {
 
     it('un rechazo del servidor queda en el diálogo', async () => {
         api.delete.mockRejectedValueOnce(
-            errorHttp(403, { message: 'Esta plantilla no es tuya.', alcance: true })
+            errorHttp(403, { message: 'Plantilla no autorizada.', alcance: true })
         );
         montar();
 
@@ -219,7 +219,7 @@ describe('NormasDelExamen', () => {
         );
         fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Quitar' }));
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('Esta plantilla no es tuya.');
+        expect(await screen.findByRole('alert')).toHaveTextContent('Plantilla no autorizada.');
         expect(await casilla('Hoja de fórmulas A4')).toBeInTheDocument();
     });
 

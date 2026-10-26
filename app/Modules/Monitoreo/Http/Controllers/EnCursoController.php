@@ -125,6 +125,7 @@ final class EnCursoController
             'compartida' => $aula->compartida,
             'codigo_acceso' => $aula->codigoAcceso,
             'a_mi_cargo' => $aula->aMiCargo,
+            'puede_operar' => $aula->puedeOperar,
         ];
     }
 

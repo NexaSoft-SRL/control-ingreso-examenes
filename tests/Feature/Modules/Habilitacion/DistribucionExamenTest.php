@@ -305,7 +305,7 @@ final class DistribucionExamenTest extends TestCase
         $this->actingAs($otra)
             ->postJson("/api/examenes/{$examen->id}/reparto")
             ->assertForbidden()
-            ->assertExactJson(['message' => 'Este examen no es tuyo.', 'alcance' => true]);
+            ->assertExactJson(['message' => 'Examen no autorizado.', 'alcance' => true]);
 
         $this->assertSame(2, $this->sinAula($examen));
     }

@@ -404,6 +404,7 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         $filas = $consulta
             ->join('periodos as periodo', 'periodo.id', '=', 'grupo.periodo_id')
             ->leftJoin('docentes as docente', 'docente.id', '=', 'grupo.docente_id')
+            ->leftJoin('usuarios as cuenta_docente', 'cuenta_docente.id', '=', 'docente.user_id')
             ->select([
                 'grupo.id',
                 'grupo.codigo',
@@ -413,6 +414,7 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
                 'periodo.fecha_fin',
                 'docente.nombre_completo as docente',
                 'docente.user_id as docente_cuenta',
+                'cuenta_docente.is_active as docente_activo',
             ])
             ->selectSub(
                 DB::table('inscripciones as inscripcion')
@@ -439,7 +441,10 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
                 periodoCodigo: $this->cadena($columnas['periodo_codigo'] ?? null),
                 periodoInicio: $inicio === null ? null : $this->fecha($inicio),
                 periodoFin: $fin === null ? null : $this->fecha($fin),
-                docenteCuentaId: $this->enteroONulo($columnas['docente_cuenta'] ?? null),
+                // Una cuenta bloqueada no se ofrece para estar a cargo.
+                docenteCuentaId: ($columnas['docente_activo'] ?? false) === true
+                    ? $this->enteroONulo($columnas['docente_cuenta'] ?? null)
+                    : null,
             );
         }
 
@@ -504,6 +509,31 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
             }
         }
 
+        // Sin personal guardado, el aula queda a cargo de quien registró el
+        // examen (la misma regla con que se guarda).
+        $creadores = [];
+        $creadorFilas = DB::table('examenes as examen')
+            ->join('usuarios as u', 'u.id', '=', 'examen.creado_por')
+            ->leftJoin('docentes as d', 'd.user_id', '=', 'u.id')
+            ->join('roles as r', 'r.id', '=', 'u.role_id')
+            ->whereIn('examen.id', $examenIds)
+            ->get([
+                'examen.id as examen_id',
+                'u.id as usuario_id',
+                'u.nombre as usuario_nombre',
+                'd.nombre_completo as docente_nombre',
+                'r.name as rol_nombre',
+            ]);
+
+        foreach ($creadorFilas as $cFila) {
+            $cCols = $this->columnas($cFila);
+            $creadores[$this->entero($cCols['examen_id'] ?? null)] = [
+                'id' => $this->entero($cCols['usuario_id'] ?? null),
+                'nombre' => $this->texto($cCols['docente_nombre'] ?? null) ?? $this->cadena($cCols['usuario_nombre'] ?? null),
+                'rol' => strtolower($this->cadena($cCols['rol_nombre'] ?? null)),
+            ];
+        }
+
         $codigosFilas = DB::table('examen_aula_codigos')
             ->whereIn('examen_id', $examenIds)
             ->get(['examen_id', 'aula_id', 'codigo']);
@@ -524,7 +554,7 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
             $auId = $this->entero($columnas['aula_id'] ?? null);
 
             /** @var array{id: int, nombre: string, rol?: string}|null $aCargo */
-            $aCargo = $personalPorExamenYAula[$exId][$auId]['a_cargo'] ?? null;
+            $aCargo = $personalPorExamenYAula[$exId][$auId]['a_cargo'] ?? $creadores[$exId] ?? null;
 
             /** @var list<array{id: int, nombre: string, rol?: string}> $apoyo */
             $apoyo = array_values($personalPorExamenYAula[$exId][$auId]['apoyo'] ?? []);
@@ -725,8 +755,9 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         $userIds = [];
         $filas = DB::table('grupos as g')
             ->join('docentes as d', 'd.id', '=', 'g.docente_id')
+            ->join('usuarios as u', 'u.id', '=', 'd.user_id')
             ->whereIn('g.id', $grupoIds)
-            ->whereNotNull('d.user_id')
+            ->where('u.is_active', true)
             ->pluck('d.user_id');
 
         foreach ($filas as $id) {
@@ -747,7 +778,27 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
             ->join('roles as r', 'r.id', '=', 'u.role_id')
             ->whereIn('u.id', $usuarioIds)
             ->where('r.name', 'Auxiliar')
+            ->where('u.is_active', true)
             ->pluck('u.id');
+
+        foreach ($filas as $id) {
+            $userIds[] = $this->entero($id);
+        }
+
+        return array_values(array_unique($userIds));
+    }
+
+    public function cuentasInactivas(array $usuarioIds): array
+    {
+        if ($usuarioIds === []) {
+            return [];
+        }
+
+        $userIds = [];
+        $filas = DB::table('usuarios')
+            ->whereIn('id', $usuarioIds)
+            ->where('is_active', false)
+            ->pluck('id');
 
         foreach ($filas as $id) {
             $userIds[] = $this->entero($id);

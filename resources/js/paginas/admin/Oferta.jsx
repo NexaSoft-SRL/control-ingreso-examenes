@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import usarConsulta from '../../api/usarConsulta';
 import usarPaginaServidor from '../../api/usarPaginaServidor';
-import Buscador from '../../componentes/Buscador';
+import Campo from '../../componentes/Campo';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
 import Insignia from '../../componentes/Insignia';
@@ -16,6 +16,10 @@ const POR_PAGINA = 15;
 const GRUPOS_POR_PAGINA = 10;
 const MILES = (n) => Number(n ?? 0).toLocaleString('es-BO');
 const SINGULAR = (n, uno, varios) => (n === 1 ? uno : varios);
+
+// Una asignatura de servicio sale una vez por facultad: la fila se identifica
+// por asignatura y facultad.
+const CLAVE_FILA = (a) => `${a.id}-${a.facultad_clave ?? ''}`;
 
 // Oferta académica: qué se dicta en el período. Solo consulta; la oferta se
 // corrige volviendo a importar (pantalla Período), no editando aquí.
@@ -104,7 +108,7 @@ export default function Oferta() {
             </Encabezado>
 
             <Tarjeta>
-                <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-[repeat(4,minmax(0,1fr))_minmax(0,1.5fr)]">
                     <Seleccion
                         etiqueta="Período"
                         value={periodo}
@@ -158,16 +162,15 @@ export default function Oferta() {
                         ))}
                     </Seleccion>
 
-                    <div className="block col-span-2 lg:col-span-1">
-                        <span className="mb-1.5 block text-sm font-medium text-slate-700">
-                            Buscar
-                        </span>
-                        <Buscador
-                            valor={lista.buscar}
-                            onCambiar={lista.ponerBuscar}
-                            placeholder="Asignatura, código o docente"
-                        />
-                    </div>
+                    <Campo
+                        etiqueta="Buscar"
+                        type="search"
+                        className="col-span-2 min-w-0 lg:col-span-1"
+                        placeholder="Asignatura, código o docente"
+                        maxLength={100}
+                        value={lista.buscar}
+                        onChange={(e) => lista.ponerBuscar(e.target.value)}
+                    />
                 </div>
             </Tarjeta>
 
@@ -192,50 +195,60 @@ export default function Oferta() {
                     filas={POR_PAGINA}
                 >
                     <ul className="divide-y divide-slate-200">
-                        {asignaturas.map((a) => (
-                            <li key={a.id}>
-                                <button
-                                    type="button"
-                                    aria-expanded={expandida === a.id}
-                                    onClick={() => setExpandida(expandida === a.id ? null : a.id)}
-                                    className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"
-                                >
-                                    <ChevronRight
-                                        className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
-                                            expandida === a.id ? 'rotate-90' : ''
-                                        }`}
-                                        aria-hidden="true"
-                                    />
-                                    <span className="min-w-0 flex-1">
-                                        <span className="block truncate text-sm font-medium text-slate-800">
-                                            {a.nombre}
+                        {asignaturas.map((a) => {
+                            const clave = CLAVE_FILA(a);
+                            const abierta = expandida === clave;
+                            return (
+                                <li key={clave}>
+                                    <button
+                                        type="button"
+                                        aria-expanded={abierta}
+                                        onClick={() => setExpandida(abierta ? null : clave)}
+                                        className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"
+                                    >
+                                        <ChevronRight
+                                            className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${
+                                                abierta ? 'rotate-90' : ''
+                                            }`}
+                                            aria-hidden="true"
+                                        />
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block truncate text-sm font-medium text-slate-800">
+                                                {a.nombre}
+                                            </span>
+                                            <span className="block text-xs text-slate-600">
+                                                {[
+                                                    a.codigo,
+                                                    a.nivel ?? 'Sin nivel',
+                                                    !facultad && a.facultad,
+                                                ]
+                                                    .filter(Boolean)
+                                                    .join(' · ')}
+                                            </span>
                                         </span>
-                                        <span className="block text-xs text-slate-600">
-                                            {a.codigo} · {a.nivel ?? 'Sin nivel'}
+                                        <span className="shrink-0 text-right text-xs text-slate-600">
+                                            <span className="block">
+                                                {MILES(a.grupos)}{' '}
+                                                {SINGULAR(a.grupos, 'grupo', 'grupos')}
+                                            </span>
+                                            <span className="block">
+                                                {MILES(a.inscritos)}{' '}
+                                                {SINGULAR(a.inscritos, 'inscrito', 'inscritos')}
+                                            </span>
                                         </span>
-                                    </span>
-                                    <span className="shrink-0 text-right text-xs text-slate-600">
-                                        <span className="block">
-                                            {MILES(a.grupos)}{' '}
-                                            {SINGULAR(a.grupos, 'grupo', 'grupos')}
-                                        </span>
-                                        <span className="block">
-                                            {MILES(a.inscritos)}{' '}
-                                            {SINGULAR(a.inscritos, 'inscrito', 'inscritos')}
-                                        </span>
-                                    </span>
-                                </button>
+                                    </button>
 
-                                {expandida === a.id && (
-                                    <GruposDeAsignatura
-                                        asignaturaId={a.id}
-                                        buscar={lista.buscar}
-                                        periodo={periodo}
-                                        facultad={facultad}
-                                    />
-                                )}
-                            </li>
-                        ))}
+                                    {abierta && (
+                                        <GruposDeAsignatura
+                                            asignaturaId={a.id}
+                                            buscar={lista.filtrosVigentes.buscar}
+                                            periodo={periodo}
+                                            facultad={facultad || a.facultad_clave || ''}
+                                        />
+                                    )}
+                                </li>
+                            );
+                        })}
                     </ul>
                     <Paginacion
                         {...lista.paginacion(consulta.meta)}
@@ -248,15 +261,19 @@ export default function Oferta() {
     );
 }
 
-// Los grupos de una asignatura, cargados al desplegar, de a 10.
+// Los grupos de una asignatura en una facultad, cargados al desplegar, de a 10.
+// Siguen a los filtros vigentes: al cambiar período, facultad o búsqueda se
+// vuelven a pedir desde la página 1.
 function GruposDeAsignatura({ asignaturaId, buscar, periodo, facultad }) {
-    const lista = usarPaginaServidor({
-        porPagina: GRUPOS_POR_PAGINA,
-        filtros: { asignaturaId, buscar, periodo, facultad },
-    });
+    const lista = usarPaginaServidor({ porPagina: GRUPOS_POR_PAGINA });
+    const { irA } = lista;
+
+    useEffect(() => {
+        irA(1);
+    }, [irA, buscar, periodo, facultad]);
 
     const consulta = usarConsulta(`/oferta/asignaturas/${asignaturaId}/grupos`, {
-        parametros: lista.parametros,
+        parametros: { ...lista.parametros, periodo, facultad, buscar },
     });
 
     return (
@@ -280,7 +297,7 @@ function GruposDeAsignatura({ asignaturaId, buscar, periodo, facultad }) {
                             </span>
                             <span className="min-w-0 flex-1">
                                 <span
-                                    className={`block truncate text-sm font-medium ${
+                                    className={`block break-words text-sm font-medium ${
                                         g.docente ? 'text-slate-800' : 'text-danger-700'
                                     }`}
                                 >

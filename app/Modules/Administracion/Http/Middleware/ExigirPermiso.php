@@ -36,14 +36,14 @@ final class ExigirPermiso
 
         if (! $usuario instanceof User) {
             return response()->json([
-                'message' => 'Debes iniciar sesión.',
+                'message' => 'Inicie sesión.',
             ], Response::HTTP_UNAUTHORIZED);
         }
 
         if ($usuario->getAttribute('password_changed_at') === null) {
             return response()->json([
                 'code' => 'PASSWORD_CHANGE_REQUIRED',
-                'message' => 'Debes cambiar tu contraseña temporal antes de continuar.',
+                'message' => 'Cambie su contraseña temporal para continuar.',
             ], 423);
         }
 
@@ -55,7 +55,7 @@ final class ExigirPermiso
 
             return response()->json([
                 'message' => sprintf(
-                    'Tu rol (%s) no tiene acceso a esta sección. Pide al administrador que le habilite el permiso.',
+                    'Su rol (%s) no tiene acceso a esta sección. Solicite el permiso al administrador.',
                     $rol,
                 ),
                 'permiso_requerido' => $permisos,

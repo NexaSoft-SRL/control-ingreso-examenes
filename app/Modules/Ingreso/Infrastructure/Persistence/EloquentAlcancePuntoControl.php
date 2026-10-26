@@ -6,8 +6,14 @@ namespace App\Modules\Ingreso\Infrastructure\Persistence;
 
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Fuente unica: el personal por aula del examen (`examen_aula_personal`,
+ * HU-18) y los docentes del examen. La tabla vieja
+ * `asignaciones_seguimiento_aula` ya no concede la puerta: nadie la escribe.
+ */
 class EloquentAlcancePuntoControl extends AlcancePuntoControlSinAsignaciones implements AlcancePuntoControl
 {
     public function puedeOperar(
@@ -19,22 +25,24 @@ class EloquentAlcancePuntoControl extends AlcancePuntoControlSinAsignaciones imp
             return false;
         }
 
-        // 1. Personal asignado en examen_aula_personal (a_cargo o apoyo)
-        $asignadoEnAtencion = DB::table('examen_aula_personal')
-            ->where('examen_id', $examenId)
-            ->where('aula_id', $aulaId)
-            ->where('usuario_id', $usuarioId)
-            ->exists();
+        return in_array($aulaId, $this->aulasOperables($usuarioId, $examenId), true);
+    }
 
-        if ($asignadoEnAtencion) {
-            return true;
+    public function aulasOperables(
+        int $usuarioId,
+        int $examenId,
+    ): array {
+        if ($usuarioId <= 0 || $examenId <= 0) {
+            return [];
         }
 
-        // 2. Docente creador del examen o docente de un grupo incluido
+        $aulasDelExamen = DB::table('examen_aula')
+            ->where('examen_id', $examenId);
+
+        // 1. Docente creador del examen o docente de un grupo incluido:
+        //    todas las aulas del examen.
         $esDocenteDelExamen = DB::table('examenes as e')
-            ->join('examen_aula as ea', 'ea.examen_id', '=', 'e.id')
             ->where('e.id', $examenId)
-            ->where('ea.aula_id', $aulaId)
             ->where(function (Builder $query) use ($usuarioId): void {
                 $query->where('e.creado_por', $usuarioId)
                     ->orWhereExists(function (Builder $sub) use ($usuarioId): void {
@@ -48,15 +56,29 @@ class EloquentAlcancePuntoControl extends AlcancePuntoControlSinAsignaciones imp
             })
             ->exists();
 
-        if ($esDocenteDelExamen) {
-            return true;
+        $ids = $esDocenteDelExamen
+            ? $aulasDelExamen->pluck('aula_id')
+            // 2. Personal asignado al aula (a cargo o apoyo).
+            : DB::table('examen_aula_personal as p')
+                ->join('examen_aula as ea', static function (JoinClause $join): void {
+                    $join->on('ea.examen_id', '=', 'p.examen_id')
+                        ->on('ea.aula_id', '=', 'p.aula_id');
+                })
+                ->where('p.examen_id', $examenId)
+                ->where('p.usuario_id', $usuarioId)
+                ->pluck('p.aula_id');
+
+        $aulas = [];
+
+        foreach ($ids as $id) {
+            if (is_numeric($id)) {
+                $aulas[] = (int) $id;
+            }
         }
 
-        // 3. Auxiliar asignado en asignaciones_seguimiento_aula (HU-21)
-        return DB::table('asignaciones_seguimiento_aula')
-            ->where('examen_id', $examenId)
-            ->where('aula_id', $aulaId)
-            ->where('usuario_id', $usuarioId)
-            ->exists();
+        $aulas = array_values(array_unique($aulas));
+        sort($aulas);
+
+        return $aulas;
     }
 }

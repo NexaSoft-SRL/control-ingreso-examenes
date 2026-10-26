@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Modules\Ingreso;
 
+use App\Modules\Administracion\Domain\Models\User;
+use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\DatosAcademicos;
@@ -96,7 +98,34 @@ final class SeguimientoAulaTest extends TestCase
             $aulaA->id,
         ))
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('buscar');
+            ->assertJsonPath('errors.buscar.0', 'La búsqueda debe ser un texto.');
+
+        $this->getJson(sprintf(
+            '/api/seguimiento/examenes/%d/aulas/%d?pagina=abc',
+            $examen->id,
+            $aulaA->id,
+        ))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.pagina.0', 'La página debe ser un número entero.');
+
+        $this->getJson(sprintf(
+            '/api/seguimiento/examenes/%d/aulas/%d?estado%%5B%%5D=x',
+            $examen->id,
+            $aulaA->id,
+        ))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.estado.0', 'El estado no es válido.');
+
+        // El nombre tal como lo muestra la lista: «Apellidos, Nombres».
+        $this->getJson(sprintf(
+            '/api/seguimiento/examenes/%d/aulas/%d?estado=faltan&buscar=%s',
+            $examen->id,
+            $aulaA->id,
+            rawurlencode('  Álvarez,  Álvaro '),
+        ))
+            ->assertOk()
+            ->assertJsonPath('data.pagina.total', 1)
+            ->assertJsonPath('data.estudiantes.0.apellidos', 'Álvarez');
 
         $this->getJson(sprintf(
             '/api/seguimiento/examenes/%d/aulas/%d?estado=ingresaron&pagina=2',
@@ -111,7 +140,7 @@ final class SeguimientoAulaTest extends TestCase
             ->assertJsonPath('data.estudiantes.0.estudiante_id', $estudiantes[0]->id);
     }
 
-    public function test_auxiliar_solo_ve_aulas_asignadas_y_docente_atiende_incidencias(): void
+    public function test_auxiliar_solo_ve_aulas_asignadas_y_atiende_las_incidencias_de_su_aula(): void
     {
         $docenteCuenta = $this->usuarioConPermisos(['seguimiento_vivo']);
         $docente = $this->docenteConCuenta($docenteCuenta);
@@ -151,12 +180,31 @@ final class SeguimientoAulaTest extends TestCase
             'reportada_en' => now(),
         ]);
 
+        $otraIncidenciaId = DB::table('incidencias_aula')->insertGetId([
+            'examen_id' => $examen->id,
+            'aula_id' => $otraAula->id,
+            'reportada_por' => $docenteCuenta->id,
+            'tipo' => 'CONDUCTA',
+            'detalle' => 'Incidencia de otra aula',
+            'reportada_en' => now(),
+        ]);
+
+        // El personal del aula atiende las de su aula, no las de otra.
         $this->actingAs($auxiliar)
-            ->patchJson("/api/seguimiento/incidencias/{$incidenciaId}/atendida")
-            ->assertForbidden();
+            ->patchJson("/api/seguimiento/incidencias/{$otraIncidenciaId}/atendida")
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Solo atiende las incidencias de sus aulas.');
+
+        $this->patchJson("/api/seguimiento/incidencias/{$incidenciaId}/atendida")
+            ->assertOk();
+
+        $this->assertDatabaseHas('incidencias_aula', [
+            'id' => $incidenciaId,
+            'atendida_por' => $auxiliar->id,
+        ]);
 
         $this->actingAs($docenteCuenta)
-            ->patchJson("/api/seguimiento/incidencias/{$incidenciaId}/atendida")
+            ->patchJson("/api/seguimiento/incidencias/{$otraIncidenciaId}/atendida")
             ->assertOk();
 
         $this->patchJson("/api/seguimiento/incidencias/{$incidenciaId}/atendida")
@@ -164,7 +212,7 @@ final class SeguimientoAulaTest extends TestCase
             ->assertJsonPath('message', 'La incidencia ya estaba atendida.');
 
         $this->assertDatabaseHas('incidencias_aula', [
-            'id' => $incidenciaId,
+            'id' => $otraIncidenciaId,
             'atendida_por' => $docenteCuenta->id,
         ]);
 
@@ -174,5 +222,85 @@ final class SeguimientoAulaTest extends TestCase
             'usuario_id' => $auxiliar->id,
             'rol' => 'apoyo',
         ]);
+    }
+
+    public function test_solo_muestra_las_aulas_de_los_examenes_de_hoy(): void
+    {
+        $docenteCuenta = $this->usuarioConPermisos(['seguimiento_vivo', 'punto_control']);
+        $docente = $this->docenteConCuenta($docenteCuenta);
+        $grupo = $this->grupo($docente);
+        $aulaHoy = $this->aula('HU21-HOY');
+        $aulaFutura = $this->aula('HU21-FUTURA');
+        $hoy = $this->examen($docente, [$grupo], [$aulaHoy]);
+        $futuro = $this->examen($docente, [$grupo], [$aulaFutura], [
+            'fecha' => now()->addDays(2)->toDateString(),
+        ]);
+
+        $this->actingAs($docenteCuenta)
+            ->getJson('/api/seguimiento/aulas')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.examen_id', $hoy->id)
+            ->assertJsonPath('data.0.aula_id', $aulaHoy->id);
+
+        $this->getJson(sprintf(
+            '/api/seguimiento/examenes/%d/aulas/%d',
+            $futuro->id,
+            $aulaFutura->id,
+        ))
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Disponible solo el día del examen.');
+
+        // El docente del examen opera la puerta del aula y el ingreso está abierto.
+        $this->getJson(sprintf(
+            '/api/seguimiento/examenes/%d/aulas/%d',
+            $hoy->id,
+            $aulaHoy->id,
+        ))
+            ->assertOk()
+            ->assertJsonPath('data.puede_operar', true)
+            ->assertJsonPath('data.abierto', true)
+            ->assertJsonPath('data.puede_atender', true);
+
+        $ajeno = $this->usuarioConRol('Auxiliar');
+        $this->actingAs($ajeno)
+            ->getJson(sprintf(
+                '/api/seguimiento/examenes/%d/aulas/%d',
+                $hoy->id,
+                $aulaHoy->id,
+            ))
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Aula fuera de su asignación.');
+    }
+
+    public function test_el_auxiliar_de_la_demo_ve_el_aula_que_tiene_a_cargo(): void
+    {
+        $this->freezeTime();
+        $this->seed(DemoSeeder::class);
+
+        $auxiliar = User::query()->where('usuario', 'diego.mamani')->firstOrFail();
+        $asignacion = DB::table('examen_aula_personal')
+            ->where('usuario_id', $auxiliar->id);
+        $examenId = (clone $asignacion)->value('examen_id');
+        $aulaId = (clone $asignacion)->value('aula_id');
+
+        $this->assertIsInt($examenId);
+        $this->assertIsInt($aulaId);
+        $this->assertSame('691E', DB::table('aulas')->where('id', $aulaId)->value('nombre'));
+
+        $this->actingAs($auxiliar)
+            ->getJson('/api/seguimiento/aulas')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.aula', '691E');
+
+        $this->getJson(sprintf(
+            '/api/seguimiento/examenes/%d/aulas/%d',
+            $examenId,
+            $aulaId,
+        ))
+            ->assertOk()
+            ->assertJsonPath('data.aula.nombre', '691E')
+            ->assertJsonPath('data.puede_operar', true);
     }
 }

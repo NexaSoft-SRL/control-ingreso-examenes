@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Application\Actions;
 
 use App\Modules\Examenes\Application\Contracts\ExamenGateway;
+use App\Modules\Habilitacion\Application\DTOs\HabilitacionData;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaIngresoGateway;
@@ -16,6 +17,7 @@ use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
 use App\Modules\Ingreso\Domain\Rules\EvaluarIngreso;
 use DomainException;
 use InvalidArgumentException;
+use LogicException;
 
 final readonly class RegistrarIngreso
 {
@@ -83,7 +85,7 @@ final readonly class RegistrarIngreso
         $usuarioIncidencia = $usuarioId ?? $examen->creadoPor ?? 1;
 
         if ($candidato === null) {
-            $this->incidencias->registrar(
+            $this->registrarRechazo(
                 $examenId,
                 $aulaId,
                 null,
@@ -113,24 +115,13 @@ final readonly class RegistrarIngreso
         );
 
         if (! $veredicto->permiteIngreso()) {
-            $detalle = match ($veredicto) {
-                VeredictoIngreso::NoHabilitado => $candidato->habilitacion === null
-                        ? 'El estudiante no tiene condición de habilitación registrada para este examen.'
-                        : (trim((string) $candidato->habilitacion->motivo) ?: 'Estudiante inhabilitado sin motivo disponible.'),
-                VeredictoIngreso::OtraAula => 'El estudiante está asignado a otra aula.',
-                VeredictoIngreso::YaIngreso => 'El estudiante ya tiene un ingreso registrado.',
-                VeredictoIngreso::NoCorresponde => 'El estudiante no corresponde al examen o no tiene aula asignada.',
-                VeredictoIngreso::Expulsado => 'El estudiante está expulsado del examen.',
-                VeredictoIngreso::Admitido => throw new \LogicException('Una admisión no es un rechazo.'),
-            };
-
-            $this->incidencias->registrar(
+            $this->registrarRechazo(
                 $examenId,
                 $aulaId,
                 $estudianteId,
                 $usuarioIncidencia,
                 $veredicto,
-                $detalle,
+                self::detalleDeRechazo($veredicto, $candidato->habilitacion),
             );
 
             return $veredicto;
@@ -145,7 +136,7 @@ final readonly class RegistrarIngreso
         );
 
         if (! $registrado) {
-            $this->incidencias->registrar(
+            $this->registrarRechazo(
                 $examenId,
                 $aulaId,
                 $estudianteId,
@@ -158,5 +149,55 @@ final readonly class RegistrarIngreso
         }
 
         return VeredictoIngreso::Admitido;
+    }
+
+    // Leer otra vez a la misma persona en la misma puerta no suma
+    // incidencias: una por intento cada diez minutos.
+    public const REPETIDO_MINUTOS = 10;
+
+    public static function detalleDeRechazo(
+        VeredictoIngreso $veredicto,
+        ?HabilitacionData $habilitacion,
+    ): string {
+        return match ($veredicto) {
+            VeredictoIngreso::NoHabilitado => $habilitacion === null
+                    ? 'Sin revisar: sin condición de habilitación registrada.'
+                    : (trim((string) $habilitacion->motivo) ?: 'No habilitado, sin motivo registrado.'),
+            VeredictoIngreso::OtraAula => $habilitacion?->aulaNombre !== null
+                ? sprintf('Asignado al aula %s.', $habilitacion->aulaNombre)
+                : 'El estudiante está asignado a otra aula.',
+            VeredictoIngreso::YaIngreso => 'El estudiante ya tiene un ingreso registrado.',
+            VeredictoIngreso::NoCorresponde => 'El estudiante no corresponde al examen o no tiene aula asignada.',
+            VeredictoIngreso::Expulsado => 'El estudiante está expulsado del examen.',
+            VeredictoIngreso::Admitido => throw new LogicException('Una admisión no es un rechazo.'),
+        };
+    }
+
+    private function registrarRechazo(
+        int $examenId,
+        int $aulaId,
+        ?int $estudianteId,
+        int $usuarioId,
+        VeredictoIngreso $veredicto,
+        string $detalle,
+    ): void {
+        if ($this->incidencias->repetidoReciente(
+            $aulaId,
+            $estudianteId,
+            $veredicto->value,
+            $detalle,
+            self::REPETIDO_MINUTOS,
+        )) {
+            return;
+        }
+
+        $this->incidencias->registrar(
+            $examenId,
+            $aulaId,
+            $estudianteId,
+            $usuarioId,
+            $veredicto,
+            $detalle,
+        );
     }
 }

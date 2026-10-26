@@ -74,7 +74,7 @@ final class OpcionesDeGruposTest extends TestCase
         $this->actingAs($cuenta)
             ->getJson('/api/examenes/opciones/grupos')
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['asignatura_id' => 'Elige la asignatura.']);
+            ->assertJsonValidationErrors(['asignatura_id' => 'Elija la asignatura.']);
 
         $this->actingAs($cuenta)
             ->getJson('/api/examenes/opciones/grupos?asignatura_id=999999')

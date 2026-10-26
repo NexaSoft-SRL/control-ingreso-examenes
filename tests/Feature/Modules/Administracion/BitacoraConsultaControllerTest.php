@@ -157,7 +157,7 @@ final class BitacoraConsultaControllerTest extends TestCase
             );
     }
 
-    public function test_password_reset_filter_includes_link_requests_link_resets_and_temporary_resets(): void
+    public function test_password_reset_filter_includes_link_resets_and_temporary_resets_but_not_link_requests(): void
     {
         $authenticatedUser = UserFactory::new()->createOne();
         $account = UserFactory::new()->createOne();
@@ -183,11 +183,46 @@ final class BitacoraConsultaControllerTest extends TestCase
         $this->actingAs($authenticatedUser)
             ->getJson('/api/bitacora?operacion=contrasena.restablecimiento')
             ->assertOk()
-            ->assertJsonCount(3, 'data')
+            ->assertJsonCount(2, 'data')
             ->assertJsonPath('data.0.usuario.id', $this->modelId($account))
             ->assertJsonPath('data.0.operacion', 'usuario.restablecer_temporal')
-            ->assertJsonPath('data.1.operacion', 'contrasena.restablecer_por_enlace')
-            ->assertJsonPath('data.2.operacion', 'contrasena.solicitar_restablecimiento');
+            ->assertJsonPath('data.1.operacion', 'contrasena.restablecer_por_enlace');
+
+        // La solicitud del enlace se filtra aparte.
+        $this->actingAs($authenticatedUser)
+            ->getJson('/api/bitacora?operacion=contrasena.solicitar_restablecimiento')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.operacion', 'contrasena.solicitar_restablecimiento');
+    }
+
+    public function test_an_affected_account_is_shown_by_its_username(): void
+    {
+        $authenticatedUser = UserFactory::new()->createOne();
+        $account = UserFactory::new()->createOne(['usuario' => 'corina.flores']);
+
+        DB::table('bitacora_operaciones')->insert([
+            'usuario_id' => $this->modelId($account),
+            'operacion' => 'contrasena.cambiar',
+            'tabla_afectada' => 'usuarios',
+            'registro_id' => $this->modelId($account),
+            'descripcion' => null,
+            'fecha_operacion' => '2026-09-21 09:00:00',
+        ]);
+
+        $this->insertAuditOperation(
+            usuarioId: $this->modelId($account),
+            operacion: 'asignatura.registrar',
+            fecha: '2026-09-21 08:00:00',
+        );
+
+        $this->actingAs($authenticatedUser)
+            ->getJson('/api/bitacora')
+            ->assertOk()
+            ->assertJsonPath('data.0.operacion', 'contrasena.cambiar')
+            ->assertJsonPath('data.0.registro_etiqueta', 'corina.flores')
+            // Otra tabla con el mismo id no toma el nombre de una cuenta.
+            ->assertJsonPath('data.1.registro_etiqueta', null);
     }
 
     public function test_can_combine_all_audit_filters(): void

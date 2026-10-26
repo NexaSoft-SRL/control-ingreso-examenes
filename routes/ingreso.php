@@ -8,12 +8,27 @@ use App\Modules\Ingreso\Http\Controllers\IdentificarEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\IncidenciasEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\IngresosRecientesEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\ListarIncidenciasManualesPuertaController;
+use App\Modules\Ingreso\Http\Controllers\PuertaAulaController;
 use App\Modules\Ingreso\Http\Controllers\PuntoControlController;
+use App\Modules\Ingreso\Http\Controllers\RegistrarExcepcionPuertaController;
 use App\Modules\Ingreso\Http\Controllers\RegistrarIncidenciaManualPuertaController;
 use App\Modules\Ingreso\Http\Controllers\RegistrarIngresoEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\SeguimientoAulaController;
 use App\Modules\Ingreso\Http\Middleware\VerificarAccesoPuntoControl;
 use Illuminate\Support\Facades\Route;
+
+Route::middleware(['auth', 'permiso:punto_control'])
+    ->get('api/aulas/{aula}/punto-control', PuertaAulaController::class)
+    ->whereNumber('aula')
+    ->name('ingreso.puerta.aula');
+
+Route::middleware(['auth', 'permiso:punto_control'])
+    ->post(
+        'api/aulas/{aula}/punto-control/excepciones',
+        RegistrarExcepcionPuertaController::class,
+    )
+    ->whereNumber('aula')
+    ->name('ingreso.puerta.excepcion');
 
 Route::middleware(['auth', 'permiso:punto_control'])
     ->get(

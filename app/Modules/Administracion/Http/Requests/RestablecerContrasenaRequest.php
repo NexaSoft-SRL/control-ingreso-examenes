@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Modules\Administracion\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rules\Password;
 
 final class RestablecerContrasenaRequest extends FormRequest
 {
@@ -26,8 +25,24 @@ final class RestablecerContrasenaRequest extends FormRequest
                 'required',
                 'string',
                 'confirmed',
-                Password::min(12)->mixedCase()->numbers()->symbols(),
+                ...ReglasContrasena::reglas(),
             ],
+        ];
+    }
+
+    /**
+     * Un enlace alterado o recortado se informa igual que uno vencido.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        $enlace = 'Enlace no válido o vencido.';
+
+        return [
+            'correo.*' => $enlace,
+            'token.*' => $enlace,
+            ...ReglasContrasena::mensajes(),
         ];
     }
 }

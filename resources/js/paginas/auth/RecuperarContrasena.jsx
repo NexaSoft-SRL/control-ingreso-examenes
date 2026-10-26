@@ -1,82 +1,203 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Boton from '../../componentes/Boton';
+import Campo from '../../componentes/Campo';
 import Logo from '../../componentes/Logo';
 import { api } from '../../api/cliente';
 import { erroresDe } from '../../api/errores';
+import { ListaReglas, cumpleReglas } from './reglasContrasena';
 
-const politicaCumplida = (valor) =>
-    valor.length >= 12 &&
-    /[a-z]/.test(valor) &&
-    /[A-Z]/.test(valor) &&
-    /\d/.test(valor) &&
-    /[^A-Za-z0-9]/.test(valor);
+// Se valida lo que se envía: sin los espacios de los extremos.
+const SOLO_USUARIO = (valor) =>
+    /^[a-z0-9._-]+$/i.test(String(valor).trim()) ? null : 'Usuario no válido';
 
+const ENLACE_INVALIDO = 'Enlace no válido o vencido';
+
+// Dos pantallas: la solicitud del enlace (por usuario) y la del enlace del
+// correo (`/restablecer-contrasena?correo=…&token=…`).
 export default function RecuperarContrasena() {
     const ubicacion = useLocation();
     const navegar = useNavigate();
     const parametros = new URLSearchParams(ubicacion.search);
     const token = parametros.get('token');
-    const correoInicial = parametros.get('correo') ?? '';
-    const esRestablecimiento = Boolean(token && correoInicial);
+    const correo = parametros.get('correo') ?? '';
+    const esRestablecimiento = ubicacion.pathname === '/restablecer-contrasena' || Boolean(token);
     const [usuario, setUsuario] = useState(ubicacion.state?.usuario ?? '');
-    const [nueva, setNueva] = useState('');
-    const [confirmacion, setConfirmacion] = useState('');
+    const [clave, setClave] = useState('');
+    const [repetida, setRepetida] = useState('');
+    const [errores, setErrores] = useState({});
     const [mensaje, setMensaje] = useState('');
     const [error, setError] = useState('');
+    const [invalido, setInvalido] = useState(esRestablecimiento && !(token && correo));
     const [enviando, setEnviando] = useState(false);
+    const cumple = cumpleReglas(clave);
+    const coincide = clave !== '' && clave === repetida;
 
-    async function enviar(evento) {
+    async function solicitar(evento) {
         evento.preventDefault();
         setMensaje('');
         setError('');
-        if (!esRestablecimiento && !usuario.trim()) {
-            setError('Ingrese su nombre de usuario.');
-            return;
-        }
+        const nombre = usuario.trim();
+        if (!nombre) return setError('Obligatorio');
+        if (SOLO_USUARIO(nombre)) return setError(SOLO_USUARIO(nombre));
 
         setEnviando(true);
         try {
-            if (esRestablecimiento) {
-                if (!politicaCumplida(nueva)) {
-                    setError('Use al menos 12 caracteres, mayúscula, minúscula, número y símbolo.');
-                    setEnviando(false);
-                    return;
-                }
-                if (nueva !== confirmacion) {
-                    setError('La confirmación no coincide con la nueva contraseña.');
-                    setEnviando(false);
-                    return;
-                }
-                const respuesta = await api.post('/auth/restablecer-contrasena', {
-                    correo: correoInicial,
-                    token,
-                    password: nueva,
-                    password_confirmation: confirmacion,
-                });
-                setMensaje(respuesta.data?.message ?? 'La contraseña se restableció.');
-                return;
-            }
-
-            const respuesta = await api.post('/auth/recuperar-contrasena', {
-                usuario: usuario.trim(),
-            });
+            const respuesta = await api.post('/auth/recuperar-contrasena', { usuario: nombre });
             setMensaje(
                 respuesta.data?.message ??
-                    'Si la cuenta tiene ese correo, enviaremos instrucciones.'
+                    'Si la cuenta tiene correo registrado, recibirá el enlace de recuperación.'
             );
         } catch (fallo) {
             const campos = erroresDe(fallo);
-            setError(
-                campos.token ??
-                    campos.correo ??
-                    campos.password ??
-                    fallo?.response?.data?.message ??
-                    'No se pudo procesar la solicitud.'
-            );
+            setError(campos.usuario ?? 'No se pudo enviar el enlace');
         } finally {
             setEnviando(false);
         }
+    }
+
+    async function restablecer(evento) {
+        evento.preventDefault();
+        if (!(cumple && coincide) || enviando) return;
+
+        setEnviando(true);
+        setErrores({});
+        setError('');
+        try {
+            const respuesta = await api.post('/auth/restablecer-contrasena', {
+                correo,
+                token,
+                password: clave,
+                password_confirmation: repetida,
+            });
+            setMensaje(respuesta.data?.message ?? 'Contraseña actualizada.');
+        } catch (fallo) {
+            const campos = erroresDe(fallo);
+            if (campos.password || campos.password_confirmation) {
+                setErrores(campos);
+            } else if (campos.token || campos.correo) {
+                // Lo rechazado es el enlace: vencido, usado o alterado.
+                setInvalido(true);
+            } else {
+                setError(fallo?.response?.data?.message ?? 'No se pudo guardar');
+            }
+        } finally {
+            setEnviando(false);
+        }
+    }
+
+    function contenido() {
+        if (!esRestablecimiento) {
+            return (
+                <form
+                    className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+                    onSubmit={solicitar}
+                    noValidate
+                >
+                    <Campo
+                        etiqueta="Usuario"
+                        requerido
+                        type="text"
+                        autoComplete="username"
+                        autoCapitalize="none"
+                        spellCheck={false}
+                        value={usuario}
+                        validar={SOLO_USUARIO}
+                        error={error || undefined}
+                        onChange={(evento) => {
+                            setUsuario(evento.target.value);
+                            setError('');
+                        }}
+                    />
+                    {mensaje && (
+                        <p
+                            role="status"
+                            className="rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-900"
+                        >
+                            {mensaje}
+                        </p>
+                    )}
+                    <Boton type="submit" className="w-full" disabled={enviando}>
+                        {enviando ? 'Enviando…' : 'Enviar enlace'}
+                    </Boton>
+                </form>
+            );
+        }
+
+        if (invalido) {
+            return (
+                <p
+                    role="alert"
+                    className="rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-danger-700 shadow-sm"
+                >
+                    {ENLACE_INVALIDO}
+                </p>
+            );
+        }
+
+        if (mensaje) {
+            return (
+                <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                    <p
+                        role="status"
+                        className="rounded-lg bg-success-50 px-3 py-2 text-sm text-success-700"
+                    >
+                        {mensaje}
+                    </p>
+                    <Boton
+                        type="button"
+                        className="w-full"
+                        onClick={() => navegar('/login', { replace: true })}
+                    >
+                        Iniciar sesión
+                    </Boton>
+                </div>
+            );
+        }
+
+        return (
+            <form
+                className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+                onSubmit={restablecer}
+                noValidate
+            >
+                <Campo
+                    etiqueta="Contraseña"
+                    requerido
+                    type="password"
+                    autoComplete="new-password"
+                    value={clave}
+                    error={errores.password}
+                    onChange={(evento) => {
+                        setClave(evento.target.value);
+                        setErrores({});
+                    }}
+                />
+                <ListaReglas clave={clave} />
+                <Campo
+                    etiqueta="Repetir contraseña"
+                    requerido
+                    type="password"
+                    autoComplete="new-password"
+                    value={repetida}
+                    error={errores.password_confirmation}
+                    onChange={(evento) => setRepetida(evento.target.value)}
+                    validar={(valor) => (valor === clave ? null : 'No coincide')}
+                />
+                {error && (
+                    <p role="alert" className="text-sm text-danger-700">
+                        {error}
+                    </p>
+                )}
+                <Boton
+                    type="submit"
+                    className="w-full"
+                    disabled={!(cumple && coincide) || enviando}
+                >
+                    {enviando ? 'Guardando…' : 'Restablecer contraseña'}
+                </Boton>
+            </form>
+        );
     }
 
     return (
@@ -92,101 +213,18 @@ export default function RecuperarContrasena() {
             </header>
             <main className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-5xl items-center justify-center px-4 py-10">
                 <section className="w-full max-w-md">
-                    <h1 className="text-2xl font-bold text-slate-900">
-                        {esRestablecimiento ? 'Restablecer contraseña' : 'Recuperar contraseña'}
+                    <h1 className="mb-6 text-2xl font-bold text-slate-900">
+                        {esRestablecimiento ? 'Contraseña nueva' : 'Recuperar contraseña'}
                     </h1>
-                    <p className="mb-6 mt-1 text-sm text-slate-600">
-                        {esRestablecimiento
-                            ? 'Elija una nueva contraseña segura para su cuenta.'
-                            : 'Enviaremos las instrucciones al correo de contacto de su cuenta.'}
-                    </p>
-                    <form
-                        className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
-                        onSubmit={enviar}
-                        noValidate
-                    >
-                        {!esRestablecimiento && (
-                            <label className="block text-sm font-medium text-slate-700">
-                                Usuario
-                                <input
-                                    className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm"
-                                    type="text"
-                                    autoComplete="username"
-                                    value={usuario}
-                                    onChange={(evento) => setUsuario(evento.target.value)}
-                                    required
-                                />
-                            </label>
-                        )}
-                        {esRestablecimiento && (
-                            <>
-                                <label className="block text-sm font-medium text-slate-700">
-                                    Nueva contraseña
-                                    <input
-                                        className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm"
-                                        type="password"
-                                        autoComplete="new-password"
-                                        value={nueva}
-                                        onChange={(evento) => setNueva(evento.target.value)}
-                                        required
-                                    />
-                                </label>
-                                <label className="block text-sm font-medium text-slate-700">
-                                    Confirmar nueva contraseña
-                                    <input
-                                        className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm"
-                                        type="password"
-                                        autoComplete="new-password"
-                                        value={confirmacion}
-                                        onChange={(evento) => setConfirmacion(evento.target.value)}
-                                        required
-                                    />
-                                </label>
-                                <p className="text-xs text-slate-600">
-                                    Mínimo 12 caracteres e incluya mayúscula, minúscula, número y
-                                    símbolo.
-                                </p>
-                            </>
-                        )}
-                        {mensaje && (
-                            <p
-                                role="status"
-                                className="rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-900"
-                            >
-                                {mensaje}
-                            </p>
-                        )}
-                        {error && (
-                            <p role="alert" className="text-sm text-danger-700">
-                                {error}
-                            </p>
-                        )}
-                        {mensaje && esRestablecimiento ? (
-                            <Boton
-                                type="button"
-                                className="w-full"
-                                onClick={() => navegar('/login', { replace: true })}
-                            >
-                                Ir al inicio de sesión
-                            </Boton>
-                        ) : (
-                            <Boton type="submit" className="w-full" disabled={enviando}>
-                                {enviando
-                                    ? 'Procesando…'
-                                    : esRestablecimiento
-                                      ? 'Restablecer contraseña'
-                                      : 'Enviar instrucciones'}
-                            </Boton>
-                        )}
-                        <div className="text-center">
-                            <Link
-                                className="text-sm font-medium text-primary-700 hover:underline"
-                                to="/login"
-                            >
-                                Volver al inicio de sesión
-                            </Link>
-                        </div>
-                    </form>
+                    {contenido()}
+                    <div className="mt-4 text-center">
+                        <Link
+                            className="text-sm font-medium text-primary-700 hover:underline"
+                            to="/login"
+                        >
+                            Volver al inicio de sesión
+                        </Link>
+                    </div>
                 </section>
             </main>
         </div>

@@ -29,7 +29,7 @@ trait RespuestasDeExamen
     protected function ajeno(): JsonResponse
     {
         return response()->json([
-            'message' => 'Este examen no es tuyo.',
+            'message' => 'Examen no autorizado.',
             'alcance' => true,
         ], Response::HTTP_FORBIDDEN);
     }
