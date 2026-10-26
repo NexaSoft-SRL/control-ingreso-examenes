@@ -144,7 +144,7 @@ export default function InscritosDelGrupo({
                                             {e.nombre}
                                         </p>
                                         <p className="text-xs text-slate-600">
-                                            <span className="font-mono">{e.codigo}</span> · CI{' '}
+                                            <span className="font-mono">{e.codigo}</span> · C.I.{' '}
                                             {e.documento}
                                         </p>
                                     </div>
@@ -155,7 +155,7 @@ export default function InscritosDelGrupo({
                         <table className="hidden w-full text-left text-sm sm:table">
                             <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-600">
                                 <tr>
-                                    {['Código', 'Estudiante', 'Documento', 'Origen'].map((t) => (
+                                    {['Código SIS', 'Estudiante', 'C.I.', 'Origen'].map((t) => (
                                         <th
                                             key={t}
                                             scope="col"

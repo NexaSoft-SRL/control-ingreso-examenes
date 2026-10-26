@@ -7,8 +7,8 @@ import { codigoDe, erroresDe, estadoDe, mensajeDe } from '../../api/errores';
 import Boton from '../../componentes/Boton';
 
 const COLUMNAS = {
-    codigo_universitario: 'Código universitario',
-    documento_identidad: 'Documento de identidad',
+    codigo_universitario: 'Código SIS',
+    documento_identidad: 'C.I.',
     nombres: 'Nombres',
     apellidos: 'Apellidos',
 };

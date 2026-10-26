@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload } from 'lucide-react';
+import { ClipboardList, GraduationCap, TriangleAlert, Upload, UserPen } from 'lucide-react';
 import usarConsulta from '../../api/usarConsulta';
 import usarPaginaServidor from '../../api/usarPaginaServidor';
 import { useAviso } from '../../componentes/Aviso';
@@ -62,14 +62,24 @@ export default function Padron() {
             </Encabezado>
 
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <Dato etiqueta="Estudiantes" valor={miles(cifras.estudiantes)} />
-                <Dato etiqueta="Inscripciones" valor={miles(cifras.inscripciones)} />
+                <Dato
+                    etiqueta="Estudiantes"
+                    icono={GraduationCap}
+                    valor={miles(cifras.estudiantes)}
+                />
+                <Dato
+                    etiqueta="Inscripciones"
+                    icono={ClipboardList}
+                    valor={miles(cifras.inscripciones)}
+                />
                 <Dato
                     etiqueta="Cargados por docentes"
+                    icono={UserPen}
                     valor={miles(cifras.cargados_por_docentes)}
                 />
                 <Dato
                     etiqueta="Conflictos pendientes"
+                    icono={TriangleAlert}
                     valor={miles(pendientes)}
                     tono={pendientes > 0 ? 'advertencia' : 'neutro'}
                     onClick={() => setPestana('conflictos')}
@@ -82,14 +92,14 @@ export default function Padron() {
                 className="flex w-fit max-w-full gap-1 rounded-lg border border-slate-200 bg-white p-1 text-sm font-medium"
             >
                 {[
-                    ['padron', 'Estudiantes'],
+                    ['padron', 'Estudiantes', null],
+                    // La cifra va como en los filtros: «Conflictos 3».
                     [
                         'conflictos',
-                        typeof pendientes === 'number'
-                            ? `Conflictos (${pendientes})`
-                            : 'Conflictos',
+                        'Conflictos',
+                        typeof pendientes === 'number' ? pendientes : null,
                     ],
-                ].map(([clave, etiqueta]) => (
+                ].map(([clave, etiqueta, conteo]) => (
                     <button
                         key={clave}
                         type="button"
@@ -103,6 +113,14 @@ export default function Padron() {
                         }`}
                     >
                         {etiqueta}
+                        {conteo !== null && ' '}
+                        {conteo !== null && (
+                            <span
+                                className={`ml-1 tabular-nums ${pestana === clave ? 'text-primary-100' : 'text-slate-500'}`}
+                            >
+                                {miles(conteo)}
+                            </span>
+                        )}
                     </button>
                 ))}
             </div>
@@ -175,7 +193,7 @@ export default function Padron() {
                                                 <Origen origen={e.origen} />
                                             </span>
                                             <span className="block text-xs text-slate-600">
-                                                <span className="font-mono">{e.codigo}</span> · CI{' '}
+                                                <span className="font-mono">{e.codigo}</span> · C.I.{' '}
                                                 {e.documento}
                                             </span>
                                             <span className="flex min-w-0 items-center gap-3 text-xs text-slate-600">
@@ -193,13 +211,13 @@ export default function Padron() {
                                 <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-600">
                                     <tr>
                                         <th scope="col" className={TH}>
-                                            Código
+                                            Código SIS
                                         </th>
                                         <th scope="col" className={TH}>
                                             Estudiante
                                         </th>
                                         <th scope="col" className={TH}>
-                                            Documento
+                                            C.I.
                                         </th>
                                         <th scope="col" className={TH}>
                                             Facultad

@@ -277,7 +277,7 @@ function elegirArchivo(dialogo, archivo) {
 }
 
 async function abrirConflictos() {
-    fireEvent.click(await screen.findByRole('tab', { name: 'Conflictos (2)' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Conflictos 2' }));
     await screen.findByText('Código 202311988');
 }
 
@@ -299,9 +299,9 @@ describe('Padrón · cifras y lista (criterio 1)', () => {
             .getAllByRole('columnheader')
             .map((th) => th.textContent);
         expect(cabeceras).toEqual([
-            'Código',
+            'Código SIS',
             'Estudiante',
-            'Documento',
+            'C.I.',
             'Facultad',
             'Carrera',
             'Grupos',
@@ -354,7 +354,7 @@ describe('Padrón · cifras y lista (criterio 1)', () => {
         expect(tabla()).toHaveClass('hidden', 'sm:table');
         const primera = within(tarjetas).getAllByRole('listitem')[0];
         expect(primera).toHaveTextContent('Aguilar Bustamante Adriana');
-        expect(primera).toHaveTextContent('202110007 · CI 5000000');
+        expect(primera).toHaveTextContent('202110007 · C.I. 5000000');
         expect(primera).toHaveTextContent('Licenciatura en Fisica · 2 grupos');
     });
 
@@ -762,7 +762,7 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
         servidor({ conflictos: [] });
         montar({ usuario: usuarioDePrueba('Administrador') });
 
-        fireEvent.click(await screen.findByRole('tab', { name: 'Conflictos (0)' }));
+        fireEvent.click(await screen.findByRole('tab', { name: 'Conflictos 0' }));
         expect(await screen.findByText('Sin conflictos')).toBeInTheDocument();
     });
 
@@ -787,7 +787,7 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
         expect(await screen.findByText('202311988 sin cambios')).toBeInTheDocument();
         await waitFor(() => expect(screen.queryByText('Código 202311988')).not.toBeInTheDocument());
         expect(pedidos.resoluciones).toEqual([{ id: 1, resolucion: 'MANTENER_PADRON' }]);
-        expect(await screen.findByRole('tab', { name: 'Conflictos (1)' })).toBeInTheDocument();
+        expect(await screen.findByRole('tab', { name: 'Conflictos 1' })).toBeInTheDocument();
     });
 
     it('«Usar carga nueva» envía USAR_CARGA y avisa', async () => {
@@ -822,7 +822,7 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
             'Ese documento pertenece a otro estudiante'
         );
         expect(screen.getByText('Código 202311988')).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: 'Conflictos (2)' })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: 'Conflictos 2' })).toBeInTheDocument();
     });
 
     it('un conflicto ya resuelto avisa y recarga la lista', async () => {
@@ -848,7 +848,7 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
         servidor({ conflictos: seis });
         montar({ usuario: usuarioDePrueba('Administrador') });
 
-        fireEvent.click(await screen.findByRole('tab', { name: 'Conflictos (6)' }));
+        fireEvent.click(await screen.findByRole('tab', { name: 'Conflictos 6' }));
         await screen.findByText('Código 202312000');
         expect(screen.getAllByRole('button', { name: 'Mantener padrón' })).toHaveLength(5);
         expect(screen.getByText('1–5 de 6 conflictos')).toBeInTheDocument();
