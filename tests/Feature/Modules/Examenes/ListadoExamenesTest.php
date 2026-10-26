@@ -9,6 +9,7 @@ use App\Modules\Academico\Domain\Models\Periodo;
 use App\Modules\Estudiantes\Domain\Models\Inscripcion;
 use App\Modules\Examenes\Domain\Enums\TipoExamen;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -66,7 +67,7 @@ final class ListadoExamenesTest extends TestCase
         $this->assertArrayNotHasKey('normas', (array) $respuesta->json('data.0'));
     }
 
-    public function test_progress_goes_from_missing_rooms_to_missing_qr_codes_and_never_to_ready(): void
+    public function test_progress_goes_from_missing_rooms_to_missing_qr_codes_and_to_ready(): void
     {
         $docente = $this->docente();
         $asignatura = $this->asignatura();
@@ -113,8 +114,7 @@ final class ListadoExamenesTest extends TestCase
             ->assertJsonPath('data.0.avance.habilitacion', 'ahora')
             ->assertJsonPath('data.0.estado', 'Falta habilitar');
 
-        // 4. Todos revisados: el paso de los codigos queda pendiente y es
-        // el estado maximo.
+        // 4. Todos revisados: falta emitir los codigos QR.
         $this->habilitar($examen, [$estudiantes[3]], $aula);
 
         $respuesta = $this->actingAs($cuenta)->getJson('/api/examenes')
@@ -128,6 +128,26 @@ final class ListadoExamenesTest extends TestCase
             ->assertJsonPath('data.0.accion', ['clave' => 'emitir_qr', 'paso' => null]);
 
         $this->assertArrayNotHasKey('auxiliares', (array) $respuesta->json('data.0'));
+
+        // 5. Con el codigo QR de cada habilitado, el examen esta listo.
+        foreach ([$estudiantes[0], $estudiantes[1], $estudiantes[3]] as $estudiante) {
+            DB::table('codigos_qr')->insert([
+                'examen_id' => $examen->id,
+                'estudiante_id' => $estudiante->id,
+                'contenido' => 'SCIQR1:prueba-'.$estudiante->id,
+                'emitido_en' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($cuenta)->getJson('/api/examenes')
+            ->assertJsonPath('data.0.qr_emitidos', 3)
+            ->assertJsonPath('data.0.avance', [
+                'grupos' => 'ok', 'aulas' => 'ok', 'habilitacion' => 'ok', 'qr' => 'ok',
+            ])
+            ->assertJsonPath('data.0.estado', 'Listo')
+            ->assertJsonPath('data.0.accion', ['clave' => 'ver_qr', 'paso' => null]);
     }
 
     public function test_nobody_enabled_is_not_a_finished_enabling(): void

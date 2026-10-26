@@ -8,8 +8,8 @@ use App\Modules\Examenes\Domain\Enums\TipoExamen;
 
 /**
  * Los cuatro pasos de un examen (grupos, aulas, habilitacion y codigos QR),
- * su estado y el paso que sigue. Los codigos QR todavia no se emiten: ese
- * paso queda siempre pendiente y el estado maximo es «Faltan códigos QR».
+ * su estado y el paso que sigue. Esta «Listo» cuando cada habilitado tiene
+ * su codigo QR (HU-20).
  */
 final class AvanceDeExamen
 {
@@ -34,14 +34,17 @@ final class AvanceDeExamen
         int $aulas,
         int $habilitados,
         int $sinRevisar,
+        int $conCodigoQr = 0,
     ): array {
         $hayAulas = $aulas > 0;
         $habilitado = $sinRevisar === 0 && $habilitados > 0;
+        $conCodigos = $habilitado && $conCodigoQr >= $habilitados;
 
         [$estado, $accion, $paso] = match (true) {
             ! $hayAulas => ['Faltan aulas', 'elegir_aulas', 2],
             ! $habilitado => ['Falta habilitar', 'habilitar', null],
-            default => ['Faltan códigos QR', 'emitir_qr', null],
+            ! $conCodigos => ['Faltan códigos QR', 'emitir_qr', null],
+            default => ['Listo', 'ver_qr', null],
         };
 
         return [
@@ -52,7 +55,11 @@ final class AvanceDeExamen
                 $hayAulas => self::AHORA,
                 default => self::FALTA,
             },
-            'qr' => $habilitado ? self::AHORA : self::FALTA,
+            'qr' => match (true) {
+                $conCodigos && $hayAulas => self::OK,
+                $habilitado && $hayAulas => self::AHORA,
+                default => self::FALTA,
+            },
             'estado' => $estado,
             'accion' => $accion,
             'paso' => $paso,
