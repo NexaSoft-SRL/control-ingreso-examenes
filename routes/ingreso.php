@@ -132,4 +132,5 @@ Route::middleware(['auth', 'permiso:codigos_qr'])
         Route::post('/avisos', [CodigoQrController::class, 'avisar'])->name('avisar');
         Route::get('/hoja', [CodigoQrController::class, 'hoja'])->name('hoja');
         Route::get('/{estudiante}', [CodigoQrController::class, 'show'])->name('credencial');
+        Route::post('/{estudiante}/envio', [CodigoQrController::class, 'reenviar'])->name('reenviar');
     });
