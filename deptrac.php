@@ -213,6 +213,17 @@ return static function (DeptracConfig $config): void {
                             '#^PhpOffice\\PhpSpreadsheet\\.*#'
                         )
                     ),
+                // La imagen del codigo QR se dibuja en el servidor (HU-20).
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('endroid/qr-code')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Endroid\\QrCode\\.*#'
+                        )
+                    ),
                 // El correo, la generacion de enlaces externos y las cadenas
                 // aleatorias son detalles de infraestructura.
                 BoolConfig::create()
