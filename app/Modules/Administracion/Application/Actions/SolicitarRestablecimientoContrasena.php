@@ -10,8 +10,8 @@ final readonly class SolicitarRestablecimientoContrasena
 {
     public function __construct(private CredencialesGateway $gateway) {}
 
-    public function execute(string $correo): void
+    public function execute(string $usuario): void
     {
-        $this->gateway->solicitarRestablecimiento($correo);
+        $this->gateway->solicitarRestablecimiento($usuario);
     }
 }

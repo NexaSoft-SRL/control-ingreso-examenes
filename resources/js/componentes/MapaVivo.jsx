@@ -72,6 +72,63 @@ function coleccion(edificios) {
     };
 }
 
+function acomodarRotulos(mapa, marcadores) {
+    const { width, height } = mapa.getContainer().getBoundingClientRect();
+    const ocupados = [];
+    const candidatos = (ancho, alto) => [
+        [0, -alto - 6],
+        [0, alto + 6],
+        [ancho / 2 + 6, 0],
+        [-ancho / 2 - 6, 0],
+        [ancho / 2 + 6, -alto - 6],
+        [-ancho / 2 - 6, -alto - 6],
+        [ancho / 2 + 6, alto + 6],
+        [-ancho / 2 - 6, alto + 6],
+    ];
+
+    marcadores.forEach((marcador) => {
+        const elemento = marcador.getElement();
+        const punto = mapa.project(marcador.getLngLat());
+        const ancho = elemento.offsetWidth || elemento.textContent.length * 8;
+        const alto = elemento.offsetHeight || 24;
+        let desplazamiento = null;
+
+        for (const [x, y] of candidatos(ancho, alto)) {
+            const caja = {
+                izquierda: punto.x + x - ancho / 2,
+                derecha: punto.x + x + ancho / 2,
+                arriba: punto.y + y - alto / 2,
+                abajo: punto.y + y + alto / 2,
+            };
+            const dentro =
+                caja.izquierda >= 4 &&
+                caja.derecha <= width - 4 &&
+                caja.arriba >= 4 &&
+                caja.abajo <= height - 4;
+            const libre = ocupados.every(
+                (otra) =>
+                    caja.derecha + 4 <= otra.izquierda ||
+                    caja.izquierda - 4 >= otra.derecha ||
+                    caja.abajo + 4 <= otra.arriba ||
+                    caja.arriba - 4 >= otra.abajo
+            );
+
+            if (dentro && libre) {
+                desplazamiento = { x, y, caja };
+                break;
+            }
+        }
+
+        desplazamiento ??= {
+            x: 0,
+            y: -alto,
+            caja: null,
+        };
+        marcador.setOffset([desplazamiento.x, desplazamiento.y]);
+        if (desplazamiento.caja) ocupados.push(desplazamiento.caja);
+    });
+}
+
 export default function MapaVivo({ edificios, onElegir, alto }) {
     const contenedor = useRef(null);
     const mapa = useRef(null);
@@ -95,7 +152,7 @@ export default function MapaVivo({ edificios, onElegir, alto }) {
                 const texto = document.createElement('div');
                 texto.className = 'mapa-rotulo';
                 texto.textContent = e.rotulo;
-                return new maplibregl.Marker({ element: texto, anchor: 'bottom', offset: [0, -6] })
+                return new maplibregl.Marker({ element: texto, anchor: 'center' })
                     .setLngLat(e.centro ?? e.poligono[0])
                     .addTo(m);
             });
@@ -109,6 +166,7 @@ export default function MapaVivo({ edificios, onElegir, alto }) {
                 duration: animar ? 600 : 0,
             });
         }
+        requestAnimationFrame(() => acomodarRotulos(m, rotulos.current));
     };
 
     useEffect(() => {
@@ -200,6 +258,8 @@ export default function MapaVivo({ edificios, onElegir, alto }) {
                 }
                 sobre = null;
             });
+            m.on('moveend', () => acomodarRotulos(m, rotulos.current));
+            m.on('resize', () => acomodarRotulos(m, rotulos.current));
 
             // La atribución queda plegada tras su botón: abierta tapa un mapa pequeño.
             contenedor.current
