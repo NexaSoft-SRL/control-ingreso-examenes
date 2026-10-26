@@ -51,6 +51,7 @@ final class InscritosDeGrupoTest extends TestCase
                 'nombre' => 'Apellido 1, Nombre 1',
                 'documento' => $deAdministracion->documento_identidad,
                 'origen' => 'Administración',
+                'foto' => ['subida_en' => null, 'habilitada_hasta' => null],
             ])
             ->assertJsonPath('meta', ['total' => 2, 'pagina' => 1, 'por_pagina' => 25]);
     }
