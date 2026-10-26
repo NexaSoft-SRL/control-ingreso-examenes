@@ -91,4 +91,23 @@ interface EmisionQrGateway
      * registrado desde `$desde`.
      */
     public function porReenviar(int $examenId, FiltroCodigosData $filtro, string $desde): int;
+
+    /**
+     * Los habilitados del filtro, tengan o no codigo, para avisarles. Con
+     * `$desde`, sin los que ya tienen un aviso registrado desde entonces.
+     *
+     * @return list<CredencialData>
+     */
+    public function paraAvisar(
+        int $examenId,
+        FiltroCodigosData $filtro,
+        ?int $limite = null,
+        ?string $desde = null,
+    ): array;
+
+    /**
+     * Cuantos habilitados del filtro no tienen un aviso registrado desde
+     * `$desde`.
+     */
+    public function porAvisar(int $examenId, FiltroCodigosData $filtro, string $desde): int;
 }

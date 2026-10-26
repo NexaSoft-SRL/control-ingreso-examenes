@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Contracts;
 
+use App\Modules\Ingreso\Application\DTOs\AvisoData;
 use App\Modules\Ingreso\Application\DTOs\CredencialData;
 
 /**
- * Los correos de los codigos QR: cada uno deja su fila en `envios_correo`
+ * Los correos de los codigos QR y de los avisos: cada uno deja su fila en `envios_correo`
  * y la bitacora registra el lote.
  */
 interface CorreoQrGateway
@@ -31,4 +32,12 @@ interface CorreoQrGateway
      * @param  list<CredencialData>  $credenciales
      */
     public function encolar(int $examenId, array $credenciales, int $usuarioId): int;
+
+    /**
+     * Encola un aviso por estudiante: fecha, hora, aula, normas y
+     * recomendaciones. Devuelve cuantos encolo.
+     *
+     * @param  list<CredencialData>  $destinatarios
+     */
+    public function avisar(int $examenId, array $destinatarios, AvisoData $aviso, int $usuarioId): int;
 }
