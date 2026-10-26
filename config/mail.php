@@ -115,4 +115,20 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Desvio global para pruebas
+    |--------------------------------------------------------------------------
+    |
+    | Con MAIL_TO_ADDRESS, todo correo va a esa direccion en lugar de a sus
+    | destinatarios reales (Laravel lo aplica con `alwaysTo`). Se usa en QA
+    | para no escribir a los estudiantes; en produccion queda vacio.
+    |
+    */
+
+    'to' => env('MAIL_TO_ADDRESS') ? [
+        'address' => env('MAIL_TO_ADDRESS'),
+        'name' => env('MAIL_TO_NAME', 'Pruebas'),
+    ] : null,
+
 ];

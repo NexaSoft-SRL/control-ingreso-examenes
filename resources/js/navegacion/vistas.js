@@ -11,6 +11,7 @@ import {
     ScanLine,
     Activity,
     Radio,
+    QrCode,
 } from 'lucide-react';
 
 // Fuente única de las pantallas. El menú (EsquemaApp), las rutas
@@ -92,6 +93,17 @@ export const VISTAS = [
         oculta: true,
         padre: '/examenes',
         permiso: 'habilitacion',
+    },
+    // HU-20: los códigos QR también son de un examen: se llega desde su
+    // acción «Emitir códigos» o su enlace «Códigos QR» en la lista.
+    {
+        ruta: '/codigos-qr',
+        titulo: 'Códigos QR',
+        Icono: QrCode,
+        grupo: 'Docencia',
+        oculta: true,
+        padre: '/examenes',
+        permiso: 'codigos_qr',
     },
     // HU-22: el examen en curso del docente. Es de quien ve sus exámenes.
     {

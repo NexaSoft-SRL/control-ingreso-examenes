@@ -264,6 +264,7 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         $aulas = $this->aulasPorExamen($ids);
         $inscritos = $this->inscritosPorExamen($ids);
         $condiciones = $this->condicionesPorExamen($ids);
+        $codigosQr = $this->codigosQrPorExamen($ids);
         $normas = $this->normasPorExamen($ids);
         $juntos = $this->juntosPorExamen($ids, $usuarioId);
         $ahora = now();
@@ -306,9 +307,8 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
                 habilitados: $habilitados,
                 noHabilitados: $noHabilitados,
                 sinRevisar: $sinRevisar,
-                // Los codigos QR todavia no se emiten.
-                qrEmitidos: 0,
-                avance: $this->avance(count($aulasDelExamen), $habilitados, $sinRevisar),
+                qrEmitidos: $codigosQr[$id] ?? 0,
+                avance: $this->avance(count($aulasDelExamen), $habilitados, $sinRevisar, $codigosQr[$id] ?? 0),
                 propio: $this->entero($columnas['creado_por'] ?? null) === $usuarioId,
                 registradoPor: $this->texto($columnas['creador_docente'] ?? null)
                     ?? $this->cadena($columnas['creador_nombre'] ?? null),
@@ -329,9 +329,9 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         return $examenes;
     }
 
-    private function avance(int $aulas, int $habilitados, int $sinRevisar): AvanceData
+    private function avance(int $aulas, int $habilitados, int $sinRevisar, int $conCodigoQr): AvanceData
     {
-        $avance = AvanceDeExamen::calcular($aulas, $habilitados, $sinRevisar);
+        $avance = AvanceDeExamen::calcular($aulas, $habilitados, $sinRevisar, $conCodigoQr);
 
         return new AvanceData(
             grupos: $avance['grupos'],
@@ -680,6 +680,36 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         }
 
         return $condiciones;
+    }
+
+    /**
+     * Cuantos habilitados de cada examen tienen su codigo QR (HU-20). Los
+     * codigos son del modulo Ingreso: se leen por nombre de tabla.
+     *
+     * @param  list<int>  $examenIds
+     * @return array<int, int>
+     */
+    private function codigosQrPorExamen(array $examenIds): array
+    {
+        $filas = DB::table('codigos_qr as codigo')
+            ->join('habilitaciones as habilitacion', function (JoinClause $union): void {
+                $union->on('habilitacion.examen_id', '=', 'codigo.examen_id')
+                    ->on('habilitacion.estudiante_id', '=', 'codigo.estudiante_id');
+            })
+            ->whereIn('codigo.examen_id', $examenIds)
+            ->where('habilitacion.habilitado', true)
+            ->groupBy('codigo.examen_id')
+            ->selectRaw('codigo.examen_id, count(*) as emitidos')
+            ->get();
+
+        $codigos = [];
+
+        foreach ($filas as $fila) {
+            $columnas = $this->columnas($fila);
+            $codigos[$this->entero($columnas['examen_id'] ?? null)] = $this->entero($columnas['emitidos'] ?? null);
+        }
+
+        return $codigos;
     }
 
     /**

@@ -13,6 +13,7 @@ use App\Modules\Administracion\Application\Contracts\CredencialesGateway;
 use App\Modules\Administracion\Application\Contracts\CuentaUsuarioGateway;
 use App\Modules\Administracion\Application\Contracts\GeneradorContrasenaTemporal;
 use App\Modules\Administracion\Application\Contracts\ProponedorUsuario;
+use App\Modules\Administracion\Application\Contracts\RegistroCorreoGateway;
 use App\Modules\Administracion\Application\Contracts\RolesGateway;
 use App\Modules\Administracion\Application\Contracts\RolGateway;
 use App\Modules\Administracion\Application\Contracts\Transaccion;
@@ -22,6 +23,7 @@ use App\Modules\Administracion\Infrastructure\Persistence\EloquentConsultaBitaco
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentConsultaUsuariosGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentCredencialesGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentCuentaUsuarioGateway;
+use App\Modules\Administracion\Infrastructure\Persistence\EloquentRegistroCorreoGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentRolesGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentRolGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\GeneradorContrasenaTemporalAleatorio;
@@ -43,6 +45,11 @@ final class AdministracionServiceProvider extends ServiceProvider
         $this->app->bind(
             BitacoraGateway::class,
             EloquentBitacoraGateway::class,
+        );
+
+        $this->app->bind(
+            RegistroCorreoGateway::class,
+            EloquentRegistroCorreoGateway::class,
         );
 
         $this->app->bind(

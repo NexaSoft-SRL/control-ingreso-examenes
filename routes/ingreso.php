@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\Ingreso\Http\Controllers\CodigoQrController;
 use App\Modules\Ingreso\Http\Controllers\ContextoPuntoControlController;
 use App\Modules\Ingreso\Http\Controllers\ExpulsarIngresoEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\IdentificarEnPuertaController;
@@ -131,4 +132,20 @@ Route::middleware(['auth', 'permiso:seguimiento_vivo'])
             'atenderIncidencia',
         ])->whereNumber('incidencia')
             ->name('seguimiento.atender-incidencia');
+    });
+
+// HU-20: codigos QR y avisos por correo de un examen. Ademas del permiso,
+// cada accion exige ser docente del examen.
+Route::middleware(['auth', 'permiso:codigos_qr'])
+    ->prefix('api/examenes/{examen}/codigos-qr')
+    ->whereNumber(['examen', 'estudiante'])
+    ->name('codigos-qr.')
+    ->group(function (): void {
+        Route::get('/', [CodigoQrController::class, 'index'])->name('index');
+        Route::post('/', [CodigoQrController::class, 'store'])->name('emitir');
+        Route::post('/envios', [CodigoQrController::class, 'enviar'])->name('enviar');
+        Route::post('/avisos', [CodigoQrController::class, 'avisar'])->name('avisar');
+        Route::get('/hoja', [CodigoQrController::class, 'hoja'])->name('hoja');
+        Route::get('/{estudiante}', [CodigoQrController::class, 'show'])->name('credencial');
+        Route::post('/{estudiante}/envio', [CodigoQrController::class, 'reenviar'])->name('reenviar');
     });

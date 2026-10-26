@@ -8,8 +8,11 @@ use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\ContextoOperativoPuntoControl;
 use App\Modules\Ingreso\Application\Contracts\DetallePuertaGateway;
+use App\Modules\Ingreso\Application\Contracts\CorreoQrGateway;
+use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
 use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
 use App\Modules\Ingreso\Application\Contracts\ExamenesDePuerta;
+use App\Modules\Ingreso\Application\Contracts\GeneradorImagenQr;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaIngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaManualPuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciasIngresoGateway;
@@ -22,6 +25,8 @@ use App\Modules\Ingreso\Application\Contracts\VerificacionPuntoControlGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentAlcancePuntoControl;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentContextoOperativoPuntoControl;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentDetallePuertaGateway;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentCorreoQrGateway;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEmisionQrGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEstadoExpulsionGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentExamenesDePuerta;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIncidenciaIngresoGateway;
@@ -34,6 +39,7 @@ use App\Modules\Ingreso\Infrastructure\Persistence\EloquentVerificacionPuntoCont
 use App\Modules\Ingreso\Infrastructure\Persistence\IngresoAuditadoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\VentanaExamen;
 use App\Modules\Ingreso\Infrastructure\QR\CodigoQrCifrado;
+use App\Modules\Ingreso\Infrastructure\QR\GeneradorImagenQrEndroid;
 use Illuminate\Support\ServiceProvider;
 
 final class IngresoServiceProvider extends ServiceProvider
@@ -112,6 +118,22 @@ final class IngresoServiceProvider extends ServiceProvider
         $this->app->bind(
             VerificacionPuntoControlGateway::class,
             EloquentVerificacionPuntoControlGateway::class,
+        );
+
+        // HU-20: los codigos QR emitidos de cada examen.
+        $this->app->bind(
+            EmisionQrGateway::class,
+            EloquentEmisionQrGateway::class,
+        );
+
+        $this->app->bind(
+            CorreoQrGateway::class,
+            EloquentCorreoQrGateway::class,
+        );
+
+        $this->app->bind(
+            GeneradorImagenQr::class,
+            GeneradorImagenQrEndroid::class,
         );
     }
 }
