@@ -76,11 +76,14 @@ final class CanonicalUserSchemaTest extends TestCase
                 'asignaciones_seguimiento_aula.usuario_id',
                 'bitacora_operaciones.usuario_id',
                 'cargas_inscritos.cargada_por',
+                'codigos_qr.emitido_por',
                 'conflictos_padron.reportado_por',
                 'conflictos_padron.resuelto_por',
                 'docente_auxiliares.auxiliar_id',
                 'docente_auxiliares.docente_id',
                 'docentes.user_id',
+                'envios_correo.solicitado_por',
+                'estudiantes.foto_habilitada_por',
                 'examen_aula_personal.usuario_id',
                 'examenes.creado_por',
                 'expulsiones.registrada_por',
@@ -95,6 +98,7 @@ final class CanonicalUserSchemaTest extends TestCase
                 'login_attempts.user_id',
                 'periodos.ajustado_por',
                 'plantillas_norma.usuario_id',
+                'plazos_foto.fijado_por',
             ],
             $actual
         );
