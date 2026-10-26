@@ -28,7 +28,7 @@ const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
 const ENLACE = `inline-flex min-h-10 shrink-0 items-center rounded-lg text-sm font-medium hover:underline ${FOCO}`;
 
-// Los pasos del avance. El de códigos QR queda siempre pendiente (HU-20).
+// Los pasos del avance.
 const PASOS = [
     {
         clave: 'grupos',
@@ -48,16 +48,21 @@ const PASOS = [
         texto: 'Habilitación',
         detalle: (e) => (e.habilitados ? `${e.habilitados} de ${e.inscritos}` : 'Pendiente'),
     },
-    { clave: 'qr', Icono: QrCode, texto: 'Códigos QR', detalle: () => 'Pendiente' },
+    {
+        clave: 'qr',
+        Icono: QrCode,
+        texto: 'Códigos QR',
+        detalle: (e) => (e.qr_emitidos ? `${e.qr_emitidos} de ${e.habilitados}` : 'Pendiente'),
+    },
 ];
 
 const pendiente = (e) => e.estado !== 'Listo';
 const PENDIENTES = 'pendientes';
 const tipoDe = (e) => e.tipo_texto ?? e.tipo;
 
-// A dónde lleva la acción siguiente. `emitir_qr` no tiene destino todavía y
-// las aulas solo las elige quien registró el examen.
-function accionDe(e, puedeHabilitar) {
+// A dónde lleva la acción siguiente. Las aulas solo las elige quien registró
+// el examen; los códigos, quien tiene el permiso «Códigos QR».
+function accionDe(e, puedeHabilitar, puedeEmitir) {
     const clave = e.accion?.clave;
     if (clave === 'elegir_aulas' && e.propio) {
         return {
@@ -71,6 +76,9 @@ function accionDe(e, puedeHabilitar) {
             texto: empezada ? 'Terminar habilitación' : 'Habilitar',
             a: `/habilitacion?examen=${e.id}`,
         };
+    }
+    if (clave === 'emitir_qr' && puedeEmitir) {
+        return { texto: 'Emitir códigos', a: `/codigos-qr?examen=${e.id}` };
     }
     return null;
 }
@@ -87,6 +95,7 @@ const FORMA_EXAMEN = PropTypes.shape({
     inscritos: PropTypes.number,
     aulas: PropTypes.arrayOf(PropTypes.string).isRequired,
     habilitados: PropTypes.number,
+    qr_emitidos: PropTypes.number,
     no_habilitados: PropTypes.number,
     avance: PropTypes.objectOf(PropTypes.string).isRequired,
     estado: PropTypes.string,
@@ -103,7 +112,8 @@ function TarjetaExamen({ e, destacado = false, plegado = false, onEliminar }) {
     const { puede } = usarSesion();
     const [abierto, setAbierto] = useState(destacado || (pendiente(e) && !plegado));
     const puedeHabilitar = puede('habilitacion');
-    const accion = accionDe(e, puedeHabilitar);
+    const puedeEmitir = puede('codigos_qr');
+    const accion = accionDe(e, puedeHabilitar, puedeEmitir);
     const nombre = e.asignatura.nombre;
     const titulo = `${tipoDe(e)} · ${nombre}`;
     const hechos = PASOS.filter((p) => e.avance[p.clave] === 'ok').length;
@@ -116,6 +126,8 @@ function TarjetaExamen({ e, destacado = false, plegado = false, onEliminar }) {
               : e.aulas.join(', ');
     const verHabilitacion =
         puedeHabilitar && e.aulas.length > 0 && accion?.a !== `/habilitacion?examen=${e.id}`;
+    const verCodigos =
+        puedeEmitir && (e.habilitados ?? 0) > 0 && accion?.a !== `/codigos-qr?examen=${e.id}`;
 
     return (
         <article
@@ -210,6 +222,14 @@ function TarjetaExamen({ e, destacado = false, plegado = false, onEliminar }) {
                                     className={`${ENLACE} text-slate-700`}
                                 >
                                     Habilitación
+                                </Link>
+                            )}
+                            {verCodigos && (
+                                <Link
+                                    to={`/codigos-qr?examen=${e.id}`}
+                                    className={`${ENLACE} text-slate-700`}
+                                >
+                                    Códigos QR
                                 </Link>
                             )}
                             {e.propio && (
