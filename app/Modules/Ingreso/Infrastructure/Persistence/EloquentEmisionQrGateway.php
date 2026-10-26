@@ -6,6 +6,8 @@ namespace App\Modules\Ingreso\Infrastructure\Persistence;
 
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
+use App\Modules\Ingreso\Application\DTOs\AulaData;
+use App\Modules\Ingreso\Application\DTOs\CredencialData;
 use App\Modules\Ingreso\Application\DTOs\ExamenQrData;
 use App\Modules\Ingreso\Application\DTOs\FiltroCodigosData;
 use Illuminate\Database\Query\Builder;
@@ -30,6 +32,8 @@ final class EloquentEmisionQrGateway implements EmisionQrGateway
         'SEGUNDA_INSTANCIA' => 'Segunda instancia',
         'MESA' => 'Examen de mesa',
     ];
+
+    private const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
     /**
      * El grupo del estudiante en el examen; si esta en dos, el de menor
@@ -85,6 +89,7 @@ final class EloquentEmisionQrGateway implements EmisionQrGateway
         $tipo = $this->texto($columnas['tipo'] ?? null) ?? '';
         $normas = trim($this->texto($columnas['normas'] ?? null) ?? '');
 
+        $fecha = substr($this->texto($columnas['fecha'] ?? null) ?? '', 0, 10);
         $marcadas = [];
 
         foreach (DB::table('examen_norma')->where('examen_id', $examenId)->orderBy('orden')->orderBy('id')->pluck('texto') as $texto) {
@@ -94,7 +99,8 @@ final class EloquentEmisionQrGateway implements EmisionQrGateway
         return new ExamenQrData(
             id: $examenId,
             texto: (self::TIPOS[$tipo] ?? $tipo).' · '.($this->texto($columnas['asignatura'] ?? null) ?? ''),
-            fecha: substr($this->texto($columnas['fecha'] ?? null) ?? '', 0, 10),
+            fecha: $fecha,
+            fechaTexto: $this->fechaTexto($fecha),
             hora: substr($this->texto($columnas['hora_inicio'] ?? null) ?? '', 0, 5),
             duracion: $this->entero($columnas['duracion_minutos'] ?? 0),
             facultad: $this->texto($columnas['facultad'] ?? null),
@@ -281,6 +287,131 @@ final class EloquentEmisionQrGateway implements EmisionQrGateway
         }
 
         return ['grupos' => $grupos, 'aulas' => $aulas];
+    }
+
+    public function credencial(int $examenId, int $estudianteId): ?CredencialData
+    {
+        $examen = $this->examen($examenId);
+
+        if ($examen === null) {
+            return null;
+        }
+
+        $fila = $this->conDatos($this->habilitados($examenId))
+            ->where('habilitacion.estudiante_id', $estudianteId)
+            ->first();
+
+        return $fila === null ? null : $this->credencialDe($this->columnas($fila), $examen);
+    }
+
+    /**
+     * @return list<CredencialData>
+     */
+    public function emitidas(
+        int $examenId,
+        FiltroCodigosData $filtro,
+        ?int $limite = null,
+        bool $soloSinEnviar = false,
+        ?string $desde = null,
+    ): array {
+        $consulta = $this->conDatos($this->filtrados($examenId, $filtro))
+            ->whereNotNull('codigo.id');
+
+        if ($soloSinEnviar) {
+            $consulta->whereNull('codigo.enviado_en');
+        }
+
+        if ($desde !== null) {
+            $this->sinEnvioDesde($consulta, 'CODIGO_QR', $desde);
+        }
+
+        if ($limite !== null) {
+            $consulta->limit($limite);
+        }
+
+        return $this->credenciales($examenId, $consulta);
+    }
+
+    /**
+     * @return list<CredencialData>
+     */
+    private function credenciales(int $examenId, Builder $consulta): array
+    {
+        $examen = $this->examen($examenId);
+
+        if ($examen === null) {
+            return [];
+        }
+
+        $credenciales = [];
+
+        foreach ($this->ordenados($consulta)->get() as $fila) {
+            $credenciales[] = $this->credencialDe($this->columnas($fila), $examen);
+        }
+
+        return $credenciales;
+    }
+
+    /**
+     * Deja fuera a quien ya tiene un correo de ese tipo registrado desde
+     * que empezo la tanda: asi una tanda no repite destinatarios.
+     */
+    private function sinEnvioDesde(Builder $consulta, string $tipo, string $desde): Builder
+    {
+        $instante = $this->deIso($desde);
+
+        return $consulta->whereNotExists(function (Builder $envio) use ($tipo, $instante): void {
+            $envio->selectRaw('1')
+                ->from('envios_correo as previo')
+                ->whereColumn('previo.examen_id', 'habilitacion.examen_id')
+                ->whereColumn('previo.estudiante_id', 'habilitacion.estudiante_id')
+                ->where('previo.tipo', $tipo)
+                ->where('previo.created_at', '>=', $instante);
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $columnas
+     */
+    private function credencialDe(array $columnas, ExamenQrData $examen): CredencialData
+    {
+        $aulaId = $this->enteroONulo($columnas['aula_id'] ?? null);
+        $codigo = $this->texto($columnas['codigo_universitario'] ?? null) ?? '';
+
+        return new CredencialData(
+            examenId: $examen->id,
+            estudianteId: $this->entero($columnas['estudiante_id'] ?? null),
+            facultad: $examen->facultad,
+            examen: $examen->texto,
+            fecha: $examen->fecha,
+            fechaTexto: $examen->fechaTexto,
+            hora: $examen->hora,
+            duracion: $examen->duracion,
+            estudiante: $this->nombreDe($columnas['apellidos'] ?? null, $columnas['nombres'] ?? null),
+            codigo: $codigo,
+            correo: $this->correoInstitucional($codigo),
+            aula: $aulaId === null ? null : new AulaData(
+                id: $aulaId,
+                nombre: $this->texto($columnas['aula'] ?? null) ?? '',
+                edificio: $this->texto($columnas['edificio'] ?? null),
+                piso: $this->texto($columnas['piso'] ?? null),
+                edificioId: $this->enteroONulo($columnas['edificio_id'] ?? null),
+            ),
+            contenido: $this->texto($columnas['contenido'] ?? null),
+            enviadoEn: $this->iso($this->texto($columnas['enviado_en'] ?? null)),
+        );
+    }
+
+    /**
+     * «2026-10-30» → «30 oct 2026».
+     */
+    private function fechaTexto(string $fecha): string
+    {
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fecha, $partes) !== 1) {
+            return $fecha;
+        }
+
+        return sprintf('%d %s %s', (int) $partes[3], self::MESES[(int) $partes[2] - 1] ?? '', $partes[1]);
     }
 
     /**

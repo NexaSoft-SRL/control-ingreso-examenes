@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Contracts;
 
+use App\Modules\Ingreso\Application\DTOs\CredencialData;
 use App\Modules\Ingreso\Application\DTOs\ExamenQrData;
 use App\Modules\Ingreso\Application\DTOs\FiltroCodigosData;
 
@@ -58,4 +59,25 @@ interface EmisionQrGateway
      * @return array{grupos: list<array{id: int, codigo: string}>, aulas: list<array{aula_id: int, nombre: string}>}
      */
     public function opciones(int $examenId): array;
+
+    /**
+     * Nulo si el estudiante no esta habilitado en el examen.
+     */
+    public function credencial(int $examenId, int $estudianteId): ?CredencialData;
+
+    /**
+     * Las credenciales con codigo emitido que pasan el filtro, por
+     * apellidos. Con `$soloSinEnviar`, solo las que aun no se recibieron.
+     * Con `$desde` (el instante en que empezo una tanda de envios), sin las
+     * que ya tienen un envio registrado desde entonces.
+     *
+     * @return list<CredencialData>
+     */
+    public function emitidas(
+        int $examenId,
+        FiltroCodigosData $filtro,
+        ?int $limite = null,
+        bool $soloSinEnviar = false,
+        ?string $desde = null,
+    ): array;
 }

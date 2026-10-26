@@ -10,6 +10,7 @@ use App\Modules\Ingreso\Application\Contracts\ContextoOperativoPuntoControl;
 use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
 use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
 use App\Modules\Ingreso\Application\Contracts\ExamenesDePuerta;
+use App\Modules\Ingreso\Application\Contracts\GeneradorImagenQr;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaIngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaManualPuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciasIngresoGateway;
@@ -34,6 +35,7 @@ use App\Modules\Ingreso\Infrastructure\Persistence\EloquentVerificacionPuntoCont
 use App\Modules\Ingreso\Infrastructure\Persistence\IngresoAuditadoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\VentanaExamen;
 use App\Modules\Ingreso\Infrastructure\QR\CodigoQrCifrado;
+use App\Modules\Ingreso\Infrastructure\QR\GeneradorImagenQrEndroid;
 use Illuminate\Support\ServiceProvider;
 
 final class IngresoServiceProvider extends ServiceProvider
@@ -113,6 +115,11 @@ final class IngresoServiceProvider extends ServiceProvider
         $this->app->bind(
             EmisionQrGateway::class,
             EloquentEmisionQrGateway::class,
+        );
+
+        $this->app->bind(
+            GeneradorImagenQr::class,
+            GeneradorImagenQrEndroid::class,
         );
     }
 }

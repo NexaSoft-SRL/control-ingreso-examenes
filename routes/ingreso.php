@@ -123,9 +123,11 @@ Route::middleware(['auth', 'permiso:seguimiento_vivo'])
 // cada accion exige ser docente del examen.
 Route::middleware(['auth', 'permiso:codigos_qr'])
     ->prefix('api/examenes/{examen}/codigos-qr')
-    ->whereNumber('examen')
+    ->whereNumber(['examen', 'estudiante'])
     ->name('codigos-qr.')
     ->group(function (): void {
         Route::get('/', [CodigoQrController::class, 'index'])->name('index');
         Route::post('/', [CodigoQrController::class, 'store'])->name('emitir');
+        Route::get('/hoja', [CodigoQrController::class, 'hoja'])->name('hoja');
+        Route::get('/{estudiante}', [CodigoQrController::class, 'show'])->name('credencial');
     });
