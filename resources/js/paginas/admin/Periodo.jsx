@@ -295,7 +295,7 @@ export default function Periodo() {
 
     return (
         <div className="space-y-6">
-            <Encabezado titulo="Período académico" subtitulo={subtituloDe(datos)}>
+            <Encabezado titulo="Período" subtitulo={subtituloDe(datos)}>
                 {datos && (
                     <Insignia tono={principal ? 'exito' : 'neutro'} punto>
                         {principal

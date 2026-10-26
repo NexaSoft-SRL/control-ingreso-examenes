@@ -6,6 +6,7 @@ import Logo from './Logo';
 import { usarSesion } from '../sesion/SesionContexto';
 import { vistaDeRuta, vistasDe } from '../navegacion/vistas';
 import { iniciales } from '../utiles/texto';
+import usarTituloPestana from '../utiles/usarTituloPestana';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
@@ -33,6 +34,9 @@ export default function EsquemaApp({ children }) {
     const location = useLocation();
     const navegar = useNavigate();
     const { usuario: cuenta, salir } = usarSesion();
+    const todas = vistasDe(cuenta);
+    const actual = vistaDeRuta(todas, location.pathname);
+    usarTituloPestana(actual?.titulo);
 
     if (!cuenta) {
         return (
@@ -41,9 +45,7 @@ export default function EsquemaApp({ children }) {
             </div>
         );
     }
-    const todas = vistasDe(cuenta);
     const vistas = todas.filter((v) => !v.oculta);
-    const actual = vistaDeRuta(todas, location.pathname);
     const rutaActiva = actual?.padre ?? actual?.ruta;
     const grupos = [...new Set(vistas.map((v) => v.grupo ?? ''))];
     // Hasta cuatro en la barra y el resto en «Más»; si lo que sobra es una

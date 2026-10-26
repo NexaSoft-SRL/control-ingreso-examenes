@@ -37,7 +37,7 @@ const titulo = (nombre) =>
 
 // El título de cada pantalla, por ruta.
 const TITULOS = {
-    '/periodo': 'Período académico',
+    '/periodo': 'Período',
     '/oferta': 'Oferta académica',
     '/aulas': 'Aulas y mapa',
     '/docentes': 'Docentes',
@@ -69,7 +69,7 @@ describe('Aplicacion', () => {
     });
 
     it.each([
-        ['Administrador', 'Período académico'],
+        ['Administrador', 'Período'],
         ['Docente', 'Exámenes'],
     ])('la raíz lleva al %s a su entrada', async (rol, nombre) => {
         montar('/', usuarioDePrueba(rol));
@@ -96,7 +96,7 @@ describe('Aplicacion', () => {
             permisos: ['examenes', 'periodo_oferta'],
         });
         const { unmount } = montar('/', cuenta);
-        expect(await titulo('Período académico')).toBeInTheDocument();
+        expect(await titulo('Período')).toBeInTheDocument();
         unmount();
 
         montar('/habilitacion', cuenta);

@@ -1,11 +1,12 @@
 import PropTypes from 'prop-types';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 // Campo de formulario. Para todas las pantallas a la vez:
 //  - `requerido` pone el asterisco: se sabe qué es obligatorio antes de enviar.
 //  - `validar` corre mientras se escribe, no recién al enviar.
 //  - `sufijo` fija lo que no hace falta teclear (el dominio del correo).
 //  - `error` muestra el mensaje del servidor (validación 422) bajo el campo.
+//  - El mensaje queda ligado al campo (`aria-describedby`) y se anuncia.
 export default function Campo({
     etiqueta,
     error,
@@ -16,6 +17,7 @@ export default function Campo({
     className = '',
     ...props
 }) {
+    const id = useId();
     const [valor, setValor] = useState(props.defaultValue ?? '');
     const [tocado, setTocado] = useState(false);
 
@@ -45,6 +47,7 @@ export default function Campo({
                     className="min-h-11 min-w-0 flex-1 bg-transparent px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-500 focus:outline-none"
                     aria-required={requerido || undefined}
                     aria-invalid={errorVivo ? 'true' : undefined}
+                    aria-describedby={errorVivo ? `${id}-error` : ayuda ? `${id}-ayuda` : undefined}
                     {...props}
                     onChange={(e) => {
                         setValor(e.target.value);
@@ -52,7 +55,9 @@ export default function Campo({
                         props.onChange?.(e);
                     }}
                     onBlur={(e) => {
-                        setTocado(true);
+                        // Pasar por un campo vacío no es un error: «Obligatorio»
+                        // sale al escribir y borrar, o al enviar.
+                        if (String(e.target.value).trim() !== '') setTocado(true);
                         props.onBlur?.(e);
                     }}
                 />
@@ -63,9 +68,19 @@ export default function Campo({
                 )}
             </span>
             {errorVivo ? (
-                <span className="mt-1.5 block text-sm text-danger-600">{errorVivo}</span>
+                <span
+                    id={`${id}-error`}
+                    aria-live="polite"
+                    className="mt-1.5 block text-sm text-danger-600"
+                >
+                    {errorVivo}
+                </span>
             ) : (
-                ayuda && <span className="mt-1.5 block text-xs text-slate-500">{ayuda}</span>
+                ayuda && (
+                    <span id={`${id}-ayuda`} className="mt-1.5 block text-xs text-slate-500">
+                        {ayuda}
+                    </span>
+                )
             )}
         </label>
     );

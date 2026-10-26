@@ -7,7 +7,7 @@ import {
     History,
     UsersRound,
     FileText,
-    ListChecks,
+    UserCheck,
     ScanLine,
     Activity,
     Radio,
@@ -88,7 +88,7 @@ export const VISTAS = [
     {
         ruta: '/habilitacion',
         titulo: 'Habilitación',
-        Icono: ListChecks,
+        Icono: UserCheck,
         grupo: 'Docencia',
         oculta: true,
         padre: '/examenes',

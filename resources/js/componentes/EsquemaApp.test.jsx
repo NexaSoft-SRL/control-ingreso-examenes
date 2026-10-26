@@ -45,6 +45,11 @@ describe('EsquemaApp', () => {
         expect(screen.getByText('Estoy en /examenes')).toBeInTheDocument();
     });
 
+    it('la pestaña dice la pantalla, con el mismo título del menú', () => {
+        montar('Docente', '/examenes/nuevo');
+        expect(document.title).toBe('Registrar examen · Control de ingreso a exámenes');
+    });
+
     it('el administrador ve sus dos secciones, tres vistas en la barra y el resto en «Más»', () => {
         montar('Administrador', '/periodo');
 

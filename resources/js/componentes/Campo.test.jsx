@@ -3,16 +3,32 @@ import { describe, expect, it, vi } from 'vitest';
 import Campo from './Campo';
 
 describe('Campo', () => {
-    it('marca el obligatorio y valida al tocar', () => {
+    it('marca el obligatorio sin acusar al que solo pasó por el campo', () => {
         render(<Campo etiqueta="Usuario" requerido />);
         const campo = screen.getByLabelText(/Usuario/);
 
         expect(campo).toHaveAttribute('aria-required', 'true');
+        fireEvent.focus(campo);
+        fireEvent.blur(campo);
         expect(screen.queryByText('Obligatorio')).not.toBeInTheDocument();
 
-        fireEvent.blur(campo);
+        // Escribir y borrar sí lo marca.
+        fireEvent.change(campo, { target: { value: 'ana' } });
+        fireEvent.change(campo, { target: { value: '' } });
         expect(screen.getByText('Obligatorio')).toBeInTheDocument();
         expect(campo).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    it('al salir de un campo con algo escrito lo valida', () => {
+        render(
+            <Campo
+                etiqueta="Código"
+                defaultValue="12a"
+                validar={(v) => (/^\d+$/.test(v) ? null : 'Solo dígitos')}
+            />
+        );
+        fireEvent.blur(screen.getByLabelText('Código'));
+        expect(screen.getByText('Solo dígitos')).toBeInTheDocument();
     });
 
     it('valida mientras se escribe y avisa el cambio', () => {
@@ -50,6 +66,6 @@ describe('Campo', () => {
 
         expect(screen.getByText('@umss.edu')).toBeInTheDocument();
         fireEvent.blur(screen.getByLabelText(/Correo/));
-        expect(screen.getByText('Obligatorio')).toBeInTheDocument();
+        expect(screen.queryByText('Obligatorio')).not.toBeInTheDocument();
     });
 });

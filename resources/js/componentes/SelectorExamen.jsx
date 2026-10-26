@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import IconoAsignatura from './IconoAsignatura';
 import { colorDeAsignatura, diaMes } from '../utiles/texto';
 
 // Los exámenes llegan de GET /api/examenes: la asignatura es un objeto.
@@ -14,15 +15,25 @@ function textoDe(examen) {
 // dependen de un examen, porque el docente puede tener varios, de
 // distintas asignaturas. `examenes` es la lista (o una parte: por ejemplo,
 // los de hoy). Con muchos exámenes, la lista se agrupa por asignatura.
-export default function SelectorExamen({ valor, onCambiar, examenes, deshabilitado = false }) {
-    const examen = examenes.find((e) => e.id === valor) ?? examenes[0];
+export default function SelectorExamen({
+    valor,
+    onCambiar,
+    examenes: recibidos,
+    deshabilitado = false,
+}) {
+    // Por fecha y hora, como en el resto de las pantallas.
+    const examenes = [...recibidos].sort((a, b) =>
+        `${a.fecha ?? ''} ${a.hora ?? ''}`.localeCompare(`${b.fecha ?? ''} ${b.hora ?? ''}`)
+    );
+    const examen = recibidos.find((e) => e.id === valor) ?? recibidos[0];
     if (!examen) return null;
 
     return (
         <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/40">
-            <span
-                className="h-10 w-1.5 shrink-0 rounded-full"
-                style={{ backgroundColor: colorDeAsignatura(nombreDe(examen)) }}
+            <IconoAsignatura
+                nombre={nombreDe(examen)}
+                color={colorDeAsignatura(nombreDe(examen))}
+                tamano="md"
             />
             <span className="min-w-0 flex-1">
                 <span className="block text-xs font-medium uppercase tracking-wide text-slate-600">
@@ -65,6 +76,7 @@ SelectorExamen.propTypes = {
         PropTypes.shape({
             id: PropTypes.number.isRequired,
             fecha: PropTypes.string,
+            hora: PropTypes.string,
             tipo: PropTypes.string,
             tipo_texto: PropTypes.string,
             asignatura: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),

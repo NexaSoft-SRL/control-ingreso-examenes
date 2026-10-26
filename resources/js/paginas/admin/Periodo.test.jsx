@@ -138,7 +138,7 @@ describe('Periodo', () => {
         montar();
         await cargada();
 
-        expect(screen.getByRole('heading', { name: 'Período académico' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Período' })).toBeInTheDocument();
         expect(
             screen.getByText('Hoy: 9 oct 2026 · Primeros parciales 12 – 31 oct')
         ).toBeInTheDocument();
