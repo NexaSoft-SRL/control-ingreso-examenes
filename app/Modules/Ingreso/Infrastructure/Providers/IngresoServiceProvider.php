@@ -7,6 +7,7 @@ namespace App\Modules\Ingreso\Infrastructure\Providers;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\ContextoOperativoPuntoControl;
+use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
 use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
 use App\Modules\Ingreso\Application\Contracts\ExamenesDePuerta;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaIngresoGateway;
@@ -20,6 +21,7 @@ use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
 use App\Modules\Ingreso\Application\Contracts\VerificacionPuntoControlGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentAlcancePuntoControl;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentContextoOperativoPuntoControl;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEmisionQrGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEstadoExpulsionGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentExamenesDePuerta;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIncidenciaIngresoGateway;
@@ -105,6 +107,12 @@ final class IngresoServiceProvider extends ServiceProvider
         $this->app->bind(
             VerificacionPuntoControlGateway::class,
             EloquentVerificacionPuntoControlGateway::class,
+        );
+
+        // HU-20: los codigos QR emitidos de cada examen.
+        $this->app->bind(
+            EmisionQrGateway::class,
+            EloquentEmisionQrGateway::class,
         );
     }
 }
