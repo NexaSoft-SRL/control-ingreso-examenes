@@ -10,23 +10,24 @@ use App\Modules\Ingreso\Application\Contracts\ExamenesDePuerta;
 use App\Modules\Ingreso\Application\Contracts\OperacionesPuertaGateway;
 use App\Modules\Ingreso\Application\Queries\DetallarVeredictoPuerta;
 use App\Modules\Ingreso\Application\Queries\IdentificarEnPuerta;
+use App\Modules\Ingreso\Application\Queries\ResolverIdentificador;
 use App\Modules\Ingreso\Domain\Enums\VeredictoIngreso;
 use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
+use App\Modules\Ingreso\Http\Requests\IdentificarEnPuertaRequest;
 use DateTimeImmutable;
 use DateTimeZone;
 use DomainException;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\Rule;
 use InvalidArgumentException;
 
 final class RegistrarIngresoEnPuertaController
 {
     public function __invoke(
-        Request $request,
+        IdentificarEnPuertaRequest $request,
         int $aula,
+        ResolverIdentificador $identificadores,
         IdentificarEnPuerta $identificar,
         RegistrarIngreso $registrar,
         OperacionesPuertaGateway $operaciones,
@@ -42,33 +43,10 @@ final class RegistrarIngresoEnPuertaController
             ], 401);
         }
 
-        $request->validate([
-            'tipo' => [
-                'required',
-                'string',
-                Rule::in(['codigo', 'documento', 'qr']),
-            ],
-            'identificador' => [
-                'required',
-                'string',
-                'max:2048',
-            ],
-        ], IdentificarEnPuertaController::MENSAJES);
-
-        $tipo = $request->string('tipo')->toString();
-        $identificador = $request->string('identificador')->toString();
-
-        if ($tipo !== 'qr') {
-            $request->validate([
-                'identificador' => [
-                    'required',
-                    'string',
-                    'regex:/\A[0-9]{5,10}\z/D',
-                ],
-            ], [
-                'identificador.regex' => 'Debe contener entre 5 y 10 dígitos.',
-            ]);
-        }
+        $resuelto = $identificadores->ejecutar($request->tipo(), $request->identificador());
+        $tipo = $resuelto['tipo'];
+        $identificador = $resuelto['valor'];
+        $medio = $resuelto['medio'];
 
         $ahora = new DateTimeImmutable(
             'now',
@@ -96,7 +74,7 @@ final class RegistrarIngresoEnPuertaController
                 $intentos->ejecutar(
                     $usuarioId,
                     $aula,
-                    $tipo,
+                    $medio,
                     $identificador,
                     $resultado,
                 );
@@ -110,7 +88,7 @@ final class RegistrarIngresoEnPuertaController
                         null,
                         $aula,
                         $fecha,
-                        $tipo,
+                        $medio,
                         $identificador,
                         $examenesDePuerta->examenesDelAula($aula, $fecha),
                     ),
@@ -138,13 +116,15 @@ final class RegistrarIngresoEnPuertaController
             }
 
             // Esta acción vuelve a validar las reglas antes de persistir.
-            $veredicto = $registrar->ejecutar(
+            $registro = $registrar->ejecutarDetallado(
                 $usuarioId,
                 $examenId,
                 $aula,
                 $tipoRegistro,
                 $identificadorRegistro,
+                porQr: $tipo === 'qr',
             );
+            $veredicto = $registro->veredicto;
         } catch (AccesoPuntoDenegado $error) {
             return response()->json([
                 'message' => $error->getMessage(),
@@ -179,8 +159,9 @@ final class RegistrarIngresoEnPuertaController
                     $veredicto,
                     $aula,
                     $fecha,
-                    $tipo,
+                    $medio,
                     $identificador,
+                    incidenciaRegistrada: $registro->incidenciaRegistrada,
                 ),
                 'examen_id' => $examenId,
                 'veredicto' => $veredicto->value,

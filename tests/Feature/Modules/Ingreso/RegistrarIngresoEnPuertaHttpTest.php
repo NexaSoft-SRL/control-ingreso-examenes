@@ -964,7 +964,7 @@ final class RegistrarIngresoEnPuertaHttpTest extends TestCase
         $this->assertDatabaseCount('ingresos', 0);
     }
 
-    public function test_identificacion_manual_ambigua_no_registra(): void
+    public function test_en_dos_examenes_del_aula_elige_el_que_lo_admite(): void
     {
         [$usuario, $examen, $aula, $estudiante] =
             $this->escenarioDePuerta();
@@ -985,9 +985,9 @@ final class RegistrarIngresoEnPuertaHttpTest extends TestCase
                 ],
             )
             ->assertOk()
-            ->assertJsonPath('data.ambiguo', true)
-            ->assertJsonPath('data.admisible', false)
-            ->assertJsonPath('data.examen_id', null);
+            ->assertJsonPath('data.ambiguo', false)
+            ->assertJsonPath('data.admisible', true)
+            ->assertJsonPath('data.examen_id', $examen->id);
 
         $this->postJson(
             "/api/aulas/{$aula->id}/punto-control/ingresos",
@@ -996,10 +996,14 @@ final class RegistrarIngresoEnPuertaHttpTest extends TestCase
                 'identificador' => $estudiante->codigo_universitario,
             ],
         )
-            ->assertConflict()
-            ->assertJsonPath('data.ambiguo', true);
+            ->assertCreated()
+            ->assertJsonPath('data.examen_id', $examen->id);
 
-        $this->assertDatabaseCount('ingresos', 0);
+        $this->assertDatabaseHas('ingresos', [
+            'examen_id' => $examen->id,
+            'estudiante_id' => $estudiante->id,
+        ]);
+        $this->assertDatabaseMissing('ingresos', ['examen_id' => $otroExamen->id]);
     }
 
     public function test_qr_distingue_dos_examenes_autorizados(): void
@@ -1106,10 +1110,16 @@ final class RegistrarIngresoEnPuertaHttpTest extends TestCase
             ->postJson($url, $datos)
             ->assertCreated();
 
+        // Pasada la relectura, otra lectura del mismo ingreso es un intento.
+        DB::table('ingresos')->update([
+            'registrado_en' => DB::raw("registrado_en - interval '3 minutes'"),
+        ]);
+
         $this->postJson($url, $datos)
             ->assertConflict()
             ->assertJsonPath('data.veredicto', 'YA_INGRESO')
-            ->assertJsonPath('data.admitido', false);
+            ->assertJsonPath('data.admitido', false)
+            ->assertJsonPath('data.pie', 'Incidencia registrada');
 
         $this->assertDatabaseCount('ingresos', 1);
         $this->assertDatabaseCount('incidencias_ingreso', 1);

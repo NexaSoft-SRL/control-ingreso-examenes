@@ -62,7 +62,8 @@ final readonly class ResolverExamenEnPuerta
             );
         }
 
-        $coincidencias = [];
+        $mejor = null;
+        $menor = PHP_INT_MAX;
         $enPadron = null;
 
         foreach (array_unique($examenesAbiertosIds) as $examenId) {
@@ -89,52 +90,38 @@ final readonly class ResolverExamenEnPuerta
             }
 
             $estudianteId = $candidato->estudiante->id;
+            $yaIngreso = $this->ingresos->yaIngreso($examenId, $estudianteId);
+            $expulsado = $this->expulsiones->estaExpulsado($examenId, $estudianteId);
 
             $veredicto = $this->evaluador->evaluar(
                 inscrito: true,
                 habilitado: $candidato->habilitacion?->habilitado,
-                aulaAsignadaId: $candidato->habilitacion?->aulaId,
-                aulaControlId: $aulaId,
-                yaIngreso: $this->ingresos->yaIngreso(
+                yaIngreso: $yaIngreso,
+                expulsado: $expulsado,
+            );
+
+            // En mas de un examen del aula a la vez: el que puede
+            // admitirlo (sin ingreso, habilitado y con esta aula) y, si
+            // no, el que mas se le acerque.
+            $puesto = $this->evaluador->puesto(
+                $yaIngreso || $expulsado,
+                $candidato->habilitacion?->habilitado,
+                $candidato->habilitacion?->aulaId,
+                $aulaId,
+            );
+
+            if ($puesto < $menor) {
+                $menor = $puesto;
+                $mejor = new ResultadoResolucionPuertaData(
                     $examenId,
-                    $estudianteId,
-                ),
-                expulsado: $this->expulsiones->estaExpulsado(
-                    $examenId,
-                    $estudianteId,
-                ),
-            );
-
-            $coincidencias[] = new ResultadoResolucionPuertaData(
-                $examenId,
-                $veredicto,
-                candidato: $candidato,
-            );
+                    $veredicto,
+                    candidato: $candidato,
+                );
+            }
         }
 
-        $admisibles = array_values(array_filter(
-            $coincidencias,
-            static fn (ResultadoResolucionPuertaData $resultado): bool => $resultado->puedeAdmitir(),
-        ));
-
-        if (count($admisibles) === 1) {
-            return $admisibles[0];
-        }
-
-        if (count($admisibles) > 1) {
-            return new ResultadoResolucionPuertaData(
-                null,
-                null,
-                true,
-            );
-        }
-
-        if (count($coincidencias) === 1) {
-            return $coincidencias[0];
-        }
-
-        if (count($coincidencias) > 1) {
-            return new ResultadoResolucionPuertaData(null, null, true);
+        if ($mejor !== null) {
+            return $mejor;
         }
 
         // Nadie lo espera en el aula: distinguir a quien esta en el padron

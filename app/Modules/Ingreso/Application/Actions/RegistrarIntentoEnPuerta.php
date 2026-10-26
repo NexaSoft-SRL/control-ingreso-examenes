@@ -108,9 +108,11 @@ final readonly class RegistrarIntentoEnPuerta
                 $aula,
             ),
             // Un codigo universitario se muestra; un C.I. no se guarda.
-            CausaIntento::NoRegistrado => $tipo === 'codigo'
-                ? sprintf('Código %s sin registro en el padrón.', trim($identificador))
-                : 'Documento sin registro en el padrón.',
+            CausaIntento::NoRegistrado => match ($tipo) {
+                'codigo' => sprintf('Código %s sin registro en el padrón.', trim($identificador)),
+                'documento' => 'Documento sin registro en el padrón.',
+                default => 'Código SIS o C.I. sin registro en el padrón.',
+            },
             CausaIntento::QrNoValido => 'Código QR no válido.',
         };
 

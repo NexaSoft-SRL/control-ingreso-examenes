@@ -8,6 +8,7 @@ use App\Modules\Ingreso\Application\Contracts\IncidenciaIngresoGateway;
 use App\Modules\Ingreso\Domain\Enums\CausaIntento;
 use App\Modules\Ingreso\Domain\Enums\VeredictoIngreso;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -91,6 +92,44 @@ final class EloquentIncidenciaIngresoGateway implements IncidenciaIngresoGateway
                     : $consulta->where('estudiante_id', $estudianteId);
             })
             ->where('registrado_en', '>=', $desde)
+            ->exists();
+    }
+
+    public function registrarIngresoRepetido(
+        int $examenId,
+        int $aulaId,
+        int $estudianteId,
+        int $ingresoId,
+        ?int $usuarioId,
+        ?int $accesoCodigoAulaId,
+        string $detalle,
+    ): void {
+        $autor = $usuarioId ?? DB::table('examenes')->where('id', $examenId)->value('creado_por');
+
+        DB::table('incidencias_ingreso')->insert([
+            'examen_id' => $examenId,
+            'aula_id' => $aulaId,
+            'estudiante_id' => $estudianteId,
+            'registrado_por' => is_numeric($autor) ? (int) $autor : null,
+            'tipo_rechazo' => VeredictoIngreso::YaIngreso->value,
+            'detalle' => trim($detalle),
+            'registrado_en' => DB::raw('CURRENT_TIMESTAMP'),
+        ]);
+    }
+
+    public function ingresoRepetidoReciente(int $ingresoId, int $aulaId, int $minutos): bool
+    {
+        $desde = now()->subMinutes($minutos)->format('Y-m-d H:i:s');
+
+        return DB::table('incidencias_ingreso as incidencia')
+            ->join('ingresos as ingreso', static function (JoinClause $join): void {
+                $join->on('ingreso.examen_id', '=', 'incidencia.examen_id')
+                    ->on('ingreso.estudiante_id', '=', 'incidencia.estudiante_id');
+            })
+            ->where('ingreso.id', $ingresoId)
+            ->where('incidencia.aula_id', $aulaId)
+            ->where('incidencia.tipo_rechazo', VeredictoIngreso::YaIngreso->value)
+            ->where('incidencia.registrado_en', '>=', $desde)
             ->exists();
     }
 }

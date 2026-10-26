@@ -42,4 +42,24 @@ interface IncidenciaIngresoGateway
         string $detalle,
         int $minutos,
     ): bool;
+
+    /**
+     * Una identificacion que ya entro, leida otra vez: queda como
+     * incidencia del ingreso.
+     */
+    public function registrarIngresoRepetido(
+        int $examenId,
+        int $aulaId,
+        int $estudianteId,
+        int $ingresoId,
+        ?int $usuarioId,
+        ?int $accesoCodigoAulaId,
+        string $detalle,
+    ): void;
+
+    /**
+     * Si ese ingreso ya dejo un ingreso repetido en esa aula en los
+     * ultimos minutos.
+     */
+    public function ingresoRepetidoReciente(int $ingresoId, int $aulaId, int $minutos): bool;
 }
