@@ -70,7 +70,7 @@ trait ConsultasDePadron
 
     private function nombreCompleto(mixed $apellidos, mixed $nombres): string
     {
-        return trim($this->texto($apellidos).', '.$this->texto($nombres), ', ');
+        return trim($this->texto($apellidos).' '.$this->texto($nombres));
     }
 
     private function texto(mixed $valor): ?string

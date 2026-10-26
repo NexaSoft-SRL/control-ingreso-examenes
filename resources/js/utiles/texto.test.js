@@ -26,7 +26,7 @@ describe('utiles de texto', () => {
 
     it('da el nombre completo y las iniciales', () => {
         expect(nombreCompleto({ apellidos: 'Aguilar Cossío', nombres: 'Mariana' })).toBe(
-            'Aguilar Cossío, Mariana'
+            'Aguilar Cossío Mariana'
         );
         expect(iniciales('Blanco Coca Leticia')).toBe('BC');
         expect(iniciales('')).toBe('');

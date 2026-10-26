@@ -46,10 +46,10 @@ final class DescargaDeListaTest extends TestCase
             [
                 ['Código', 'Estudiante', 'Documento', 'Correo institucional', 'Origen'],
                 // Los ceros a la izquierda se conservan.
-                ['00901349', 'Aguilar Cossío, Mariana', '06492819', '00901349@est.umss.edu', 'Docente'],
+                ['00901349', 'Aguilar Cossío Mariana', '06492819', '00901349@est.umss.edu', 'Docente'],
                 [
                     $deAdministracion->codigo_universitario,
-                    'Apellido 1, Nombre 1',
+                    'Apellido 1 Nombre 1',
                     (string) $deAdministracion->documento_identidad,
                     $deAdministracion->codigo_universitario.'@est.umss.edu',
                     'Administración',

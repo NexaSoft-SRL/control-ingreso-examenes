@@ -116,7 +116,7 @@ final class SeguimientoAulaTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonPath('errors.estado.0', 'El estado no es válido.');
 
-        // El nombre tal como lo muestra la lista: «Apellidos, Nombres».
+        // El nombre tal como lo muestra la lista: «Apellidos Nombres»; la coma también se tolera.
         $this->getJson(sprintf(
             '/api/seguimiento/examenes/%d/aulas/%d?estado=faltan&buscar=%s',
             $examen->id,

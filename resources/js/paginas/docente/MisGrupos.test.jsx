@@ -30,7 +30,7 @@ function estudiantes(cantidad) {
     return Array.from({ length: cantidad }, (_, i) => ({
         id: i + 1,
         codigo: String(202400001 + i),
-        nombre: `Apellido${String(i + 1).padStart(3, '0')}, Nombre`,
+        nombre: `Apellido${String(i + 1).padStart(3, '0')} Nombre`,
         documento: String(5000001 + i),
         origen: i % 2 === 0 ? 'Docente' : 'Administración',
     }));
@@ -263,7 +263,7 @@ describe('Mis grupos · lista de inscritos', () => {
 
         const primera = within(tabla).getAllByRole('row')[1];
         expect(primera).toHaveTextContent('202400001');
-        expect(primera).toHaveTextContent('Apellido001, Nombre');
+        expect(primera).toHaveTextContent('Apellido001 Nombre');
         expect(primera).toHaveTextContent('5000001');
         expect(primera).toHaveTextContent('Docente');
         expect(within(tabla).getAllByRole('row')[2]).toHaveTextContent('Administración');

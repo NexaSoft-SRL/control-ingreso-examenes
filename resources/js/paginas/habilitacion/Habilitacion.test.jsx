@@ -37,7 +37,7 @@ const inscritos = () =>
     Array.from({ length: 60 }, (_, i) => ({
         estudiante_id: i + 1,
         codigo: String(202100001 + i),
-        nombre: `Apellido${String(i + 1).padStart(2, '0')}, Nombre`,
+        nombre: `Apellido${String(i + 1).padStart(2, '0')} Nombre`,
         documento: String(5000000 + i),
         grupo: i % 2 === 0 ? '1' : '2',
         estado: i === 0 ? 'no' : i < 40 ? 'habilitado' : 'pendiente',
@@ -98,7 +98,7 @@ const lotes = () => api.post.mock.calls.filter(([url]) => url.endsWith('/habilit
 const casillaDe = (nombre) => screen.getAllByLabelText(`Seleccionar a ${nombre}`)[0];
 const casillaPagina = () => screen.getAllByRole('checkbox', { name: 'Seleccionar la página' })[0];
 const dato = (etiqueta) => screen.getByText(etiqueta, { selector: 'span' }).parentElement;
-const cargada = () => screen.findAllByText('Apellido01, Nombre');
+const cargada = () => screen.findAllByText('Apellido01 Nombre');
 
 let alumnos;
 let rutas;
@@ -146,14 +146,14 @@ describe('Habilitacion', () => {
         ).toEqual(['Código', 'Estudiante', 'Grupo', 'Condición', 'Aula', 'Motivo']);
         expect(within(tabla).getAllByRole('row')).toHaveLength(26);
 
-        const fila = within(tabla).getByText('Apellido01, Nombre').closest('tr');
+        const fila = within(tabla).getByText('Apellido01 Nombre').closest('tr');
         expect(within(fila).getByText('202100001')).toBeInTheDocument();
         expect(within(fila).getByText('No habilitado')).toBeInTheDocument();
         expect(within(fila).getByText('No presentó el proyecto')).toBeInTheDocument();
         expect(
             within(fila).getByText('Blanco Coca Leticia · 9 oct 2026, 14:05')
         ).toBeInTheDocument();
-        expect(within(tabla).getByText('Apellido02, Nombre').closest('tr')).toHaveTextContent(
+        expect(within(tabla).getByText('Apellido02 Nombre').closest('tr')).toHaveTextContent(
             '691B'
         );
         expect(screen.getByText('1–25 de 60 estudiantes')).toBeInTheDocument();
@@ -183,7 +183,7 @@ describe('Habilitacion', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }));
 
-        expect(await screen.findAllByText('Apellido26, Nombre')).not.toHaveLength(0);
+        expect(await screen.findAllByText('Apellido26 Nombre')).not.toHaveLength(0);
         expect(ultimaConsulta()).toEqual({ pagina: 2, por_pagina: 25 });
         expect(screen.getByText('26–50 de 60 estudiantes')).toBeInTheDocument();
     });
@@ -193,7 +193,7 @@ describe('Habilitacion', () => {
         await cargada();
         fireEvent.click(screen.getByRole('button', { name: /^No habilitados/ }));
         await waitFor(() => expect(ultimaConsulta().condicion).toBe('no'));
-        fireEvent.click(casillaDe('Apellido01, Nombre'));
+        fireEvent.click(casillaDe('Apellido01 Nombre'));
         expect(screen.getAllByText('1 seleccionado')).not.toHaveLength(0);
 
         fireEvent.change(screen.getByRole('combobox', { name: /Examen/ }), {
@@ -228,7 +228,7 @@ describe('Habilitacion', () => {
             expect(ultimaConsulta()).toEqual({ buscar: '202100007', pagina: 1, por_pagina: 25 })
         );
         expect(await screen.findByText('1 estudiante')).toBeInTheDocument();
-        expect(screen.queryByText('Apellido01, Nombre')).not.toBeInTheDocument();
+        expect(screen.queryByText('Apellido01 Nombre')).not.toBeInTheDocument();
 
         fireEvent.change(buscador, { target: { value: 'zzz' } });
 
@@ -305,19 +305,19 @@ describe('Habilitacion', () => {
         await cargada();
         expect(screen.queryByLabelText(/Motivo de la inhabilitación/)).not.toBeInTheDocument();
 
-        fireEvent.click(casillaDe('Apellido03, Nombre'));
+        fireEvent.click(casillaDe('Apellido03 Nombre'));
         expect(screen.getAllByText('1 seleccionado')).not.toHaveLength(0);
         expect(screen.getByLabelText(/Motivo de la inhabilitación/)).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }));
-        await screen.findAllByText('Apellido26, Nombre');
+        await screen.findAllByText('Apellido26 Nombre');
         fireEvent.click(casillaPagina());
         expect(screen.getAllByText('26 seleccionados')).not.toHaveLength(0);
 
         fireEvent.click(screen.getByRole('button', { name: 'Página anterior' }));
         await cargada();
-        expect(casillaDe('Apellido03, Nombre')).toBeChecked();
-        expect(casillaDe('Apellido04, Nombre')).not.toBeChecked();
+        expect(casillaDe('Apellido03 Nombre')).toBeChecked();
+        expect(casillaDe('Apellido04 Nombre')).not.toBeChecked();
         expect(casillaPagina()).not.toBeChecked();
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Habilitar' })[0]);
@@ -379,13 +379,13 @@ describe('Habilitacion', () => {
         expect(screen.queryByText(/seleccionado/)).not.toBeInTheDocument();
         expect(screen.queryByLabelText(/Motivo de la inhabilitación/)).not.toBeInTheDocument();
         expect(casillaPagina()).not.toBeChecked();
-        expect(casillaDe('Apellido01, Nombre')).not.toBeChecked();
+        expect(casillaDe('Apellido01 Nombre')).not.toBeChecked();
     });
 
     it('habilita la selección, avisa cuántos fueron y actualiza la lista y las cifras', async () => {
         montar();
         await cargada();
-        fireEvent.click(casillaDe('Apellido01, Nombre'));
+        fireEvent.click(casillaDe('Apellido01 Nombre'));
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Habilitar' })[0]);
 
@@ -400,8 +400,8 @@ describe('Habilitacion', () => {
     it('inhabilita con motivo: queda a la vista y sin aula', async () => {
         montar();
         await cargada();
-        fireEvent.click(casillaDe('Apellido02, Nombre'));
-        fireEvent.click(casillaDe('Apellido03, Nombre'));
+        fireEvent.click(casillaDe('Apellido02 Nombre'));
+        fireEvent.click(casillaDe('Apellido03 Nombre'));
         fireEvent.change(screen.getByLabelText(/Motivo de la inhabilitación/), {
             target: { value: '  Sin prácticas aprobadas ' },
         });
@@ -415,7 +415,7 @@ describe('Habilitacion', () => {
         ]);
         const fila = await waitFor(() => {
             const tr = within(screen.getByRole('table'))
-                .getByText('Apellido02, Nombre')
+                .getByText('Apellido02 Nombre')
                 .closest('tr');
             expect(tr).toHaveTextContent('Sin prácticas aprobadas');
             return tr;
@@ -429,7 +429,7 @@ describe('Habilitacion', () => {
     it('con un motivo de menos de cinco caracteres no cambia a nadie', async () => {
         montar();
         await cargada();
-        fireEvent.click(casillaDe('Apellido02, Nombre'));
+        fireEvent.click(casillaDe('Apellido02 Nombre'));
         const motivo = screen.getByLabelText(/Motivo de la inhabilitación/);
         expect(motivo).toHaveAttribute('maxlength', '1000');
         expect(screen.getByText('0/1000')).toBeInTheDocument();
@@ -459,7 +459,7 @@ describe('Habilitacion', () => {
         simularApi(api, rutas);
         montar();
         await cargada();
-        fireEvent.click(casillaDe('Apellido02, Nombre'));
+        fireEvent.click(casillaDe('Apellido02 Nombre'));
         fireEvent.change(screen.getByLabelText(/Motivo de la inhabilitación/), {
             target: { value: 'Motivo cualquiera' },
         });
@@ -479,7 +479,7 @@ describe('Habilitacion', () => {
         simularApi(api, rutas);
         montar();
         await cargada();
-        fireEvent.click(casillaDe('Apellido02, Nombre'));
+        fireEvent.click(casillaDe('Apellido02 Nombre'));
         fireEvent.change(screen.getByLabelText(/Motivo de la inhabilitación/), {
             target: { value: 'Sin prácticas aprobadas' },
         });
@@ -494,7 +494,7 @@ describe('Habilitacion', () => {
             'Sin prácticas aprobadas'
         );
         const fila = within(screen.getByRole('table'))
-            .getByText('Apellido02, Nombre')
+            .getByText('Apellido02 Nombre')
             .closest('tr');
         expect(within(fila).getByText('Habilitado')).toBeInTheDocument();
     });
@@ -569,7 +569,7 @@ describe('Habilitacion', () => {
         simularApi(api, rutas);
         montar();
         await cargada();
-        fireEvent.click(casillaDe('Apellido02, Nombre'));
+        fireEvent.click(casillaDe('Apellido02 Nombre'));
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Habilitar' })[0]);
 
@@ -584,7 +584,7 @@ describe('Habilitacion', () => {
         expect(tabla.parentElement).toHaveClass('hidden', 'md:block', 'overflow-x-auto');
         const tarjetas = screen.getByText('Seleccionar la página').closest('div');
         expect(tarjetas).toHaveClass('md:hidden');
-        const tarjeta = within(tarjetas).getByText('Apellido02, Nombre').closest('li');
+        const tarjeta = within(tarjetas).getByText('Apellido02 Nombre').closest('li');
         expect(tarjeta).toHaveTextContent('202100002 · Grupo 2 · Aula 691B');
         expect(within(tarjeta).getByText('Habilitado')).toBeInTheDocument();
         expect(within(tarjetas).getByText('No presentó el proyecto')).toBeInTheDocument();

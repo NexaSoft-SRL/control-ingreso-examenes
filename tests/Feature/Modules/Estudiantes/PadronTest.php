@@ -52,7 +52,7 @@ final class PadronTest extends TestCase
             ->assertJsonPath('data.0', [
                 'id' => $estudiante->id,
                 'codigo' => '202104821',
-                'nombre' => 'Aguilar Cossío, Mariana',
+                'nombre' => 'Aguilar Cossío Mariana',
                 'documento' => '7928194',
                 'facultad' => 'FCyT',
                 'carrera' => 'Ing. Informática',
@@ -111,8 +111,8 @@ final class PadronTest extends TestCase
             ->assertJsonCount(10, 'data')
             ->assertJsonPath('meta.total', 30)
             ->assertJsonPath('meta.por_pagina', 10)
-            ->assertJsonPath('data.0.nombre', 'Apellido 1, Nombre 1')
-            ->assertJsonPath('data.1.nombre', 'Apellido 10, Nombre 10');
+            ->assertJsonPath('data.0.nombre', 'Apellido 1 Nombre 1')
+            ->assertJsonPath('data.1.nombre', 'Apellido 10 Nombre 10');
 
         $tercera = $this->actingAs($administrador)
             ->getJson('/api/estudiantes?por_pagina=10&pagina=3')

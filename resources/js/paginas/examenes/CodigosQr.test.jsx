@@ -54,7 +54,7 @@ const habilitados = ({ emitidos = true } = {}) =>
     Array.from({ length: 45 }, (_, i) => ({
         estudiante_id: i + 1,
         codigo: String(202100001 + i),
-        nombre: `Apellido${String(i + 1).padStart(2, '0')}, Nombre`,
+        nombre: `Apellido${String(i + 1).padStart(2, '0')} Nombre`,
         grupo: i % 2 === 0 ? '1' : '2',
         aula: AULAS[i % 2].nombre,
         emitido: emitidos,
@@ -136,7 +136,7 @@ const avisos = () =>
     api.post.mock.calls.filter(([url]) => url === `${RUTA}/avisos`).map(([, cuerpo]) => cuerpo);
 const ENVIADO = { enviado_en: '2026-10-09T10:00:00-04:00', envio: 'enviado', error: null };
 const dato = (etiqueta) => screen.getByText(etiqueta, { selector: 'span' }).parentElement;
-const cargada = () => screen.findByText('Apellido01, Nombre', { selector: 'span' });
+const cargada = () => screen.findByText('Apellido01 Nombre', { selector: 'span' });
 
 let alumnos;
 let rutas;
@@ -216,9 +216,9 @@ describe('Códigos QR', () => {
         expect(screen.getByText('1–25 de 45 códigos')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }));
-        const ultima = await screen.findByText('Apellido45, Nombre', { selector: 'span' });
+        const ultima = await screen.findByText('Apellido45 Nombre', { selector: 'span' });
         expect(ultima.closest('button')).toHaveTextContent('Sin enviar');
-        expect(screen.getByText('Apellido44, Nombre').closest('button')).toHaveTextContent(
+        expect(screen.getByText('Apellido44 Nombre').closest('button')).toHaveTextContent(
             'Fallido'
         );
         expect(consultas().at(-1)).toEqual({ pagina: 2, por_pagina: 25 });
@@ -231,7 +231,7 @@ describe('Códigos QR', () => {
         const tarjeta = (await screen.findByRole('heading', { name: 'Credencial' })).closest(
             'section'
         );
-        await within(tarjeta).findByText('Apellido01, Nombre');
+        await within(tarjeta).findByText('Apellido01 Nombre');
         expect(tarjeta).toHaveTextContent('UMSS · FCyT');
         expect(tarjeta).toHaveTextContent('Primer parcial · Introducción a la Programación');
         expect(tarjeta).toHaveTextContent('Código SIS 202100001');
@@ -250,8 +250,8 @@ describe('Códigos QR', () => {
             await screen.findByRole('heading', { name: 'Ubicación · aula 691A' })
         ).toBeInTheDocument();
 
-        fireEvent.click(screen.getByText('Apellido02, Nombre').closest('button'));
-        await within(tarjeta).findByText('Apellido02, Nombre');
+        fireEvent.click(screen.getByText('Apellido02 Nombre').closest('button'));
+        await within(tarjeta).findByText('Apellido02 Nombre');
         expect(tarjeta).toHaveTextContent('Aula 691B');
         expect(api.get).toHaveBeenCalledWith(`${RUTA}/2`, expect.anything());
     });
@@ -418,7 +418,7 @@ describe('Códigos QR', () => {
         const tarjeta = (await screen.findByRole('heading', { name: 'Credencial' })).closest(
             'section'
         );
-        await within(tarjeta).findByText('Apellido44, Nombre');
+        await within(tarjeta).findByText('Apellido44 Nombre');
         expect(within(tarjeta).getByText('Fallido')).toBeInTheDocument();
         expect(within(tarjeta).getByRole('alert')).toHaveTextContent('Buzón inexistente.');
         expect(within(tarjeta).getByRole('button', { name: /Reenviar/ })).toBeEnabled();
@@ -520,7 +520,7 @@ describe('Códigos QR', () => {
         const tarjeta = (await screen.findByRole('heading', { name: 'Credencial' })).closest(
             'section'
         );
-        await within(tarjeta).findByText('Apellido45, Nombre');
+        await within(tarjeta).findByText('Apellido45 Nombre');
         expect(within(tarjeta).getByText('Sin enviar')).toBeInTheDocument();
 
         fireEvent.click(within(tarjeta).getByRole('button', { name: /^Enviar$/ }));
