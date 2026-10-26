@@ -467,4 +467,18 @@ describe('Periodo', () => {
         expect(boton.className).toContain('min-h-11');
         expect(boton.parentElement.className).toContain('flex-wrap');
     });
+
+    it('si la fuente no cambió avisa que la oferta ya está al día', async () => {
+        simular({
+            'POST /oferta/importaciones': {
+                message: 'La oferta de FCyT ya está al día.',
+                data: { estado: 'importada', sin_cambios: true },
+            },
+        });
+        montar();
+        await cargada();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Importar FCyT' }));
+        expect(await screen.findByText('La oferta de FCyT ya está al día')).toBeInTheDocument();
+    });
 });

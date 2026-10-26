@@ -256,9 +256,11 @@ export default function Periodo() {
 
         poner({ estado: 'importando' });
         try {
-            await api.post('/oferta/importaciones', { facultad: clave });
+            // Si la fuente no cambió, el servidor no hace nada y lo dice.
+            const { data } = await api.post('/oferta/importaciones', { facultad: clave });
             await recargarTodo();
             poner(undefined);
+            avisar(String(data?.message ?? `Oferta de ${sigla} importada`).replace(/\.$/, ''));
         } catch (error) {
             if (estadoDe(error) === 409) {
                 // Otra importación de la misma facultad sigue en curso.

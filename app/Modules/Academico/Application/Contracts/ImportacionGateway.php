@@ -50,4 +50,11 @@ interface ImportacionGateway
      * transaccion, ya revertida.
      */
     public function fallar(int $importacionId, string $error): void;
+
+    /**
+     * La huella de la ultima importacion correcta de la facultad.
+     */
+    public function ultimaHuella(int $facultadId): ?string;
+
+    public function guardarHuella(int $importacionId, string $huella): void;
 }

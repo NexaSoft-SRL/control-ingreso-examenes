@@ -118,11 +118,18 @@ final class ImportarOfertaTest extends TestCase
 
         $antes = $this->conteos();
 
-        $this->assertTrue($this->importar('fcyt')->importada);
-        $this->assertTrue($this->importar('fce')->importada);
+        // La fuente no cambio: no se vuelve a importar ni se registra nada.
+        $this->assertTrue($this->importar('fcyt')->sinCambios);
+        $this->assertTrue($this->importar('fce')->sinCambios);
 
         $this->assertSame($antes, $this->conteos());
-        $this->assertDatabaseCount('importaciones_oferta', 4);
+        $this->assertDatabaseCount('importaciones_oferta', 2);
+
+        // Con otra huella (la fuente cambio) se importa de nuevo sin duplicar.
+        DB::table('importaciones_oferta')->update(['huella' => 'otra']);
+        $this->assertFalse($this->importar('fcyt')->sinCambios);
+        $this->assertSame($antes, $this->conteos());
+        $this->assertDatabaseCount('importaciones_oferta', 3);
     }
 
     public function test_the_markers_of_a_vacant_post_leave_the_group_without_teacher(): void
