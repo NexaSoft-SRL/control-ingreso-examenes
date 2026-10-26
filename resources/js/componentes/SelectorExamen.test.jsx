@@ -33,6 +33,18 @@ describe('SelectorExamen', () => {
         expect(onCambiar).toHaveBeenCalledWith(1);
     });
 
+    it('ordena por fecha y hora', () => {
+        const desordenados = [
+            { ...examen(1, 'Cálculo I', '2026-10-20'), hora: '08:15' },
+            { ...examen(2, 'Física I', '2026-10-12'), hora: '14:15' },
+            { ...examen(3, 'Álgebra I', '2026-10-12'), hora: '09:45' },
+        ];
+        render(<SelectorExamen valor={1} onCambiar={() => {}} examenes={desordenados} />);
+
+        expect(screen.getAllByRole('option').map((o) => o.value)).toEqual(['3', '2', '1']);
+        expect(screen.getByRole('combobox', { name: /Examen/ })).toHaveValue('1');
+    });
+
     it('con más de seis agrupa por asignatura', () => {
         const muchos = Array.from({ length: 8 }, (_, i) =>
             examen(i + 1, i < 4 ? 'Cálculo I' : 'Álgebra I')

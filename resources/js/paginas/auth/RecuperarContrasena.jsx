@@ -6,6 +6,7 @@ import Logo from '../../componentes/Logo';
 import { api } from '../../api/cliente';
 import { erroresDe } from '../../api/errores';
 import { ListaReglas, cumpleReglas } from './reglasContrasena';
+import usarTituloPestana from '../../utiles/usarTituloPestana';
 
 // Se valida lo que se envía: sin los espacios de los extremos.
 const SOLO_USUARIO = (valor) =>
@@ -22,6 +23,7 @@ export default function RecuperarContrasena() {
     const token = parametros.get('token');
     const correo = parametros.get('correo') ?? '';
     const esRestablecimiento = ubicacion.pathname === '/restablecer-contrasena' || Boolean(token);
+    usarTituloPestana(esRestablecimiento ? 'Restablecer contraseña' : 'Recuperar contraseña');
     const [usuario, setUsuario] = useState(ubicacion.state?.usuario ?? '');
     const [clave, setClave] = useState('');
     const [repetida, setRepetida] = useState('');

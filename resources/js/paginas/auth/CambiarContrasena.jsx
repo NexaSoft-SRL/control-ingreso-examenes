@@ -8,12 +8,14 @@ import { erroresDe } from '../../api/errores';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { destinoDe } from '../../navegacion/vistas';
 import { ListaReglas, cumpleReglas } from './reglasContrasena';
+import usarTituloPestana from '../../utiles/usarTituloPestana';
 
 // Primer ingreso: la cuenta entró con una contraseña temporal y no puede usar
 // el sistema hasta cambiarla. Con la temporal el servidor no pide la actual.
 export default function CambiarContrasena() {
     const navegar = useNavigate();
     const { actualizar, salir } = usarSesion();
+    usarTituloPestana('Primer ingreso');
     const [clave, setClave] = useState('');
     const [repetida, setRepetida] = useState('');
     const [errores, setErrores] = useState({});
