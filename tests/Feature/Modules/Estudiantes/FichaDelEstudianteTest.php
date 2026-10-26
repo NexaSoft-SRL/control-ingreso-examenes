@@ -80,7 +80,9 @@ final class FichaDelEstudianteTest extends TestCase
             ->assertJsonPath('data.correo', '202104821@est.umss.edu')
             ->assertJsonPath('data.facultad', 'FCyT')
             ->assertJsonPath('data.carrera', 'Ing. Informática')
-            ->assertJsonPath('data.origen', 'Verificado')
+            ->assertJsonPath('data.origen', 'Administración')
+            ->assertJsonPath('data.con_foto', false)
+            ->assertJsonPath('data.foto_subida_en', null)
             ->assertJsonCount(2, 'data.materias')
             ->assertJsonFragment([
                 'asignatura' => [

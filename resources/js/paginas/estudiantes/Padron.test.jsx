@@ -77,7 +77,7 @@ const ESTUDIANTES = [
         documento: '5048724',
         facultad: 'FCyT',
         carrera_id: 12,
-        origen: 'Verificado',
+        origen: 'Administración',
         materias: [],
     },
     {
@@ -87,7 +87,7 @@ const ESTUDIANTES = [
         documento: '8673040',
         facultad: 'FACH',
         carrera_id: 39,
-        origen: 'Verificado',
+        origen: 'Administración',
         materias: [],
     },
 ];
@@ -314,7 +314,7 @@ describe('Padrón · cifras y lista (criterio 1)', () => {
         expect(primera).toHaveTextContent('FCyT');
         expect(primera).toHaveTextContent('Licenciatura en Fisica');
         expect(primera).toHaveTextContent('Docente');
-        expect(filasDeTabla()[1]).toHaveTextContent('Verificado');
+        expect(filasDeTabla()[1]).toHaveTextContent('Administración');
 
         expect(api.get).toHaveBeenCalledWith('/estudiantes', {
             params: { pagina: 1, por_pagina: 25 },
@@ -459,11 +459,11 @@ describe('Padrón · ficha del estudiante (criterio 5)', () => {
         expect(ficha).toHaveTextContent('5000000');
         expect(ficha).toHaveTextContent('202110007@est.umss.edu');
         expect(ficha).toHaveTextContent('Licenciatura en Fisica');
-        expect(within(ficha).getByText('Origen').nextSibling).toHaveTextContent('Docente');
+        expect(within(ficha).getByRole('group', { name: 'Origen' })).toHaveTextContent('Docente');
 
         const [primera, segunda] = within(materias).getAllByRole('listitem');
         expect(primera).toHaveTextContent('Introduccion a la Programacion');
-        expect(primera).toHaveTextContent('2010010 · Grupo 1 · 2/2026');
+        expect(primera).toHaveTextContent('2010010Grupo 12/2026');
         expect(primera).toHaveTextContent('Salazar Serrudo Carla');
         expect(segunda).toHaveTextContent('Algebra I');
         expect(segunda).toHaveTextContent('Grupo 8');
@@ -483,7 +483,9 @@ describe('Padrón · ficha del estudiante (criterio 5)', () => {
 
         const ficha = await screen.findByRole('dialog', { name: 'Pérez Pardo, Daniela' });
         expect(await within(ficha).findByText('Sin materias')).toBeInTheDocument();
-        expect(within(ficha).getByText('Origen').nextSibling).toHaveTextContent('Verificado');
+        expect(within(ficha).getByRole('group', { name: 'Origen' })).toHaveTextContent(
+            'Administración'
+        );
     });
 
     it('si la ficha no carga, lo dice dentro del diálogo', async () => {

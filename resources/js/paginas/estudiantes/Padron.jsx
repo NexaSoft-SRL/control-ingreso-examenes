@@ -272,7 +272,13 @@ export default function Padron() {
                 <Conflictos key={cargas} onCambio={refrescar} avisar={avisar} />
             )}
 
-            {ficha && <FichaEstudiante estudiante={ficha} onCerrar={() => setFicha(null)} />}
+            {ficha && (
+                <FichaEstudiante
+                    estudiante={ficha}
+                    onCerrar={() => setFicha(null)}
+                    onFotoCambiada={refrescar}
+                />
+            )}
 
             {cargando && (
                 <CargaInscripciones
