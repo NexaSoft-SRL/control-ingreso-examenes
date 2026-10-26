@@ -201,7 +201,7 @@ class LoginSecurityTest extends TestCase
         $this->postJson('/api/auth/login', [
             'usuario' => 'inactive-security',
             'password' => 'CorrectPassword123!',
-        ])->assertUnauthorized();
+        ])->assertStatus(423);
 
         $this->assertSame(
             0,

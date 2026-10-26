@@ -23,7 +23,7 @@ final class ListarIncidenciasManualesPuertaController
         $usuarioId = Auth::id();
 
         if (! is_int($usuarioId)) {
-            return response()->json(['message' => 'Sin sesión activa.'], 401);
+            return response()->json(['message' => 'No hay una sesión activa.'], 401);
         }
 
         $request->validate([
@@ -32,7 +32,7 @@ final class ListarIncidenciasManualesPuertaController
         ]);
 
         if ($aula <= 0) {
-            return response()->json(['message' => 'Aula inválida.'], 422);
+            return response()->json(['message' => 'Aula no válida.'], 422);
         }
 
         $examenId = $request->integer('examen_id');
@@ -44,7 +44,7 @@ final class ListarIncidenciasManualesPuertaController
         }
 
         if (! $alcance->puedeOperar($usuarioId, $examenId, $aula)) {
-            return response()->json(['message' => 'No atiendes este examen.'], 403);
+            return response()->json(['message' => 'Sin asignación en esta aula.'], 403);
         }
 
         return response()->json([

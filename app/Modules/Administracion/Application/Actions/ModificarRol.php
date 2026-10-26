@@ -66,7 +66,7 @@ final readonly class ModificarRol
                 && ! in_array(self::PERMISO_DE_ESTA_PANTALLA, $permisos, true)
             ) {
                 throw new PermisoPropioException(
-                    'No puedes quitar «Usuarios y roles» a tu propio rol.'
+                    'No puede quitar «Usuarios y roles» a su propio rol.'
                 );
             }
 

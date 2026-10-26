@@ -25,6 +25,7 @@ final class EloquentIngresosRecientesGateway implements IngresosRecientesGateway
             ->join('estudiantes as e', 'e.id', '=', 'i.estudiante_id')
             ->leftJoin('expulsiones as ex', 'ex.ingreso_id', '=', 'i.id')
             ->leftJoin('usuarios as u', 'u.id', '=', 'i.registrado_por')
+            ->leftJoin('accesos_codigo_aula as acceso', 'acceso.id', '=', 'i.acceso_codigo_aula_id')
             ->where('i.examen_id', $examenId)
             ->where('i.aula_id', $aulaId)
             ->orderByDesc('i.registrado_en')
@@ -40,6 +41,7 @@ final class EloquentIngresosRecientesGateway implements IngresosRecientesGateway
                 'i.aula_id',
                 'i.registrado_en',
                 'u.nombre as operador',
+                'acceso.nombre_colaborador as colaborador',
             ]);
 
         $resultado = [];
@@ -55,7 +57,8 @@ final class EloquentIngresosRecientesGateway implements IngresosRecientesGateway
              *   apellidos: string,
              *   aula_id: int|null,
              *   registrado_en: string,
-             *   operador: string|null
+             *   operador: string|null,
+             *   colaborador: string|null
              * } $fila
              */
             $resultado[] = [
@@ -67,7 +70,9 @@ final class EloquentIngresosRecientesGateway implements IngresosRecientesGateway
                 'apellidos' => $fila->apellidos,
                 'aula_id' => $fila->aula_id,
                 'registrado_en' => $fila->registrado_en,
-                'operador' => $fila->operador,
+                // Sin cuenta, quien registró es el colaborador del código de aula.
+                'operador' => $fila->operador
+                    ?? ($fila->colaborador === null ? null : $fila->colaborador.' (código de aula)'),
             ];
         }
 

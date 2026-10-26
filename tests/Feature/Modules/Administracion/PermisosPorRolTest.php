@@ -49,7 +49,7 @@ final class PermisosPorRolTest extends TestCase
             ->assertJsonPath('permiso_requerido', 'bitacora')
             ->assertJsonPath('rol', 'Docente')
             ->assertJsonFragment([
-                'message' => 'Tu rol (Docente) no tiene acceso a esta sección. Pide al administrador que le habilite el permiso.',
+                'message' => 'Su rol (Docente) no tiene acceso a esta sección. Solicite el permiso al administrador.',
             ]);
     }
 
@@ -74,7 +74,7 @@ final class PermisosPorRolTest extends TestCase
             ->assertForbidden()
             ->assertJsonPath('rol', null)
             ->assertJsonFragment([
-                'message' => 'Tu rol (sin rol asignado) no tiene acceso a esta sección. Pide al administrador que le habilite el permiso.',
+                'message' => 'Su rol (sin rol asignado) no tiene acceso a esta sección. Solicite el permiso al administrador.',
             ]);
     }
 

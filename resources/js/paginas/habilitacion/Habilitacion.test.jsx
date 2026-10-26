@@ -551,19 +551,19 @@ describe('Habilitacion', () => {
     });
 
     it('muestra la negativa del servidor si el examen no es del docente', async () => {
-        const ajeno = errorHttp(403, { message: 'Este examen no es tuyo.', alcance: true });
+        const ajeno = errorHttp(403, { message: 'Examen no autorizado.', alcance: true });
         rutas['GET /examenes/1/habilitaciones'] = ajeno;
         simularApi(api, rutas);
         montar();
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('Este examen no es tuyo');
+        expect(await screen.findByRole('alert')).toHaveTextContent('Examen no autorizado');
         expect(screen.queryByRole('table')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Repartir' })).not.toBeInTheDocument();
     });
 
     it('avisa la negativa si el servidor rechaza un lote por alcance', async () => {
         rutas['POST /examenes/*/habilitaciones'] = errorHttp(403, {
-            message: 'Este examen no es tuyo.',
+            message: 'Examen no autorizado.',
             alcance: true,
         });
         simularApi(api, rutas);
@@ -573,7 +573,7 @@ describe('Habilitacion', () => {
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Habilitar' })[0]);
 
-        expect(await screen.findByRole('status')).toHaveTextContent('Este examen no es tuyo');
+        expect(await screen.findByRole('status')).toHaveTextContent('Examen no autorizado');
     });
 
     it('en móvil la lista es de tarjetas y el panel del motivo queda fijo al pie', async () => {

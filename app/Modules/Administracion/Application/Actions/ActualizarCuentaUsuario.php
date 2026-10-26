@@ -48,7 +48,7 @@ final readonly class ActualizarCuentaUsuario
         // Se comprueba antes de escribir nada: una edicion que ademas
         // intenta el bloqueo propio no deja los datos a medio guardar.
         if ($cambiaEstado && $datos->activo === false && $datos->usuarioId === $administradorId) {
-            throw new BloqueoPropioException('No puedes bloquear tu propia cuenta.');
+            throw new BloqueoPropioException('No puede bloquear su propia cuenta.');
         }
 
         $cambianDatos = $antes->nombre !== $datos->nombre

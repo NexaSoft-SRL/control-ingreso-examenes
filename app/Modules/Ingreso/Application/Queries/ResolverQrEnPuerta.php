@@ -9,6 +9,7 @@ use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
 use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
+use App\Modules\Ingreso\Domain\Exceptions\CodigoQrNoValido;
 use InvalidArgumentException;
 
 final readonly class ResolverQrEnPuerta
@@ -34,10 +35,13 @@ final readonly class ResolverQrEnPuerta
             $usuarioId <= 0
             || $aulaId <= 0
             || strlen($contenido) > 2048
-            || ! str_starts_with($contenido, 'SCIQR1:')
         ) {
             throw new InvalidArgumentException('Código QR inválido.');
         }
+
+        // El alcance y la ventana se comprueban antes que el contenido: un
+        // QR ajeno solo es un intento en la puerta de quien la atiende.
+        $conFormato = str_starts_with($contenido, 'SCIQR1:');
 
         $tieneAlcance = false;
         $tieneVentana = false;
@@ -72,6 +76,10 @@ final readonly class ResolverQrEnPuerta
 
             $tieneVentana = true;
 
+            if (! $conFormato) {
+                continue;
+            }
+
             try {
                 $codigo = $this->qr->resolver(
                     $contenido,
@@ -88,7 +96,7 @@ final readonly class ResolverQrEnPuerta
 
         if (! $tieneAlcance) {
             throw new AccesoPuntoDenegado(
-                'No atiendes esta aula.'
+                'Sin asignación en esta aula.'
             );
         }
 
@@ -99,8 +107,8 @@ final readonly class ResolverQrEnPuerta
         }
 
         if (count($coincidencias) !== 1) {
-            throw new InvalidArgumentException(
-                'Código QR inválido o no correspondiente a esta puerta.'
+            throw new CodigoQrNoValido(
+                'Código QR no válido.'
             );
         }
 

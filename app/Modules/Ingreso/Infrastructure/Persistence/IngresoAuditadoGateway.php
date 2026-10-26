@@ -58,9 +58,10 @@ final readonly class IngresoAuditadoGateway implements IngresoGateway
                 );
             }
 
-            $detalle = $accesoCodigoAulaId !== null
-                ? sprintf('Examen %d; estudiante %d; aula %d; acceso código aula %d.', $examenId, $estudianteId, $aulaId, $accesoCodigoAulaId)
-                : sprintf('Examen %d; estudiante %d; aula %d.', $examenId, $estudianteId, $aulaId);
+            // El acceso con codigo de aula se obtiene del ingreso
+            // (`ingresos.acceso_codigo_aula_id`, registro de esta fila).
+            $detalle = DescripcionPuerta::de($examenId, $aulaId, $estudianteId)
+                .($accesoCodigoAulaId !== null ? ' · Con código de aula' : '');
 
             $this->bitacora->registrar(
                 $usuarioId,

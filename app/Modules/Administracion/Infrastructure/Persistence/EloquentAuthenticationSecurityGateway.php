@@ -6,6 +6,7 @@ use App\Modules\Administracion\Application\Contracts\AuthenticationSecurityGatew
 use App\Modules\Administracion\Application\Contracts\RolGateway;
 use App\Modules\Administracion\Application\DTOs\SesionData;
 use App\Modules\Administracion\Domain\Exceptions\ContrasenaTemporalVencidaException;
+use App\Modules\Administracion\Domain\Exceptions\CuentaDesactivadaException;
 use App\Modules\Administracion\Domain\Models\Role;
 use App\Modules\Administracion\Domain\Models\User;
 use DateTimeInterface;
@@ -39,6 +40,7 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
 
         $dummyPasswordHash = $this->dummyPasswordHash();
         $contrasenaTemporalVencida = false;
+        $cuentaDesactivada = false;
 
         /** @var User|null $authenticatedUser */
         $authenticatedUser = DB::transaction(
@@ -51,6 +53,7 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                 $lockoutMinutes,
                 $dummyPasswordHash,
                 &$contrasenaTemporalVencida,
+                &$cuentaDesactivada,
             ): ?User {
                 $identificador = mb_strtolower(trim($identifier));
                 $user = User::query()
@@ -93,6 +96,9 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                 $now = now();
 
                 if (isset($user->is_active) && ! $user->is_active) {
+                    // Solo quien conoce la contrasena se entera de que la
+                    // cuenta esta desactivada.
+                    $cuentaDesactivada = $passwordIsValid;
                     $this->recordAttempt(
                         $userId,
                         $identifier,
@@ -218,6 +224,10 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
 
         if ($contrasenaTemporalVencida) {
             throw new ContrasenaTemporalVencidaException;
+        }
+
+        if ($cuentaDesactivada) {
+            throw new CuentaDesactivadaException;
         }
 
         return $authenticatedUser;

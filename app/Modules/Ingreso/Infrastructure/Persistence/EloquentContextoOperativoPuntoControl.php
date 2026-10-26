@@ -4,55 +4,33 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Infrastructure\Persistence;
 
+use App\Modules\Examenes\Application\Contracts\EtiquetaTipoExamen;
+use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\ContextoOperativoPuntoControl;
+use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Los examenes de hoy y las aulas cuya puerta la persona puede operar, con
+ * la misma regla que la puerta (`AlcancePuntoControl`). Cada examen dice si
+ * su puerta esta abierta ahora; cada aula, su edificio y piso.
+ */
 class EloquentContextoOperativoPuntoControl extends ContextoOperativoSinAsignaciones implements ContextoOperativoPuntoControl
 {
+    public function __construct(
+        private readonly AlcancePuntoControl $alcance,
+        private readonly VentanaPuntoControl $ventana,
+        private readonly EtiquetaTipoExamen $etiquetaTipo,
+    ) {}
+
     public function examenesAutorizados(int $usuarioId): array
     {
         $hoy = now()->toDateString();
 
-        // 1. Aulas autorizadas por atencion (HU-18)
-        $atencionFilas = DB::table('examen_aula_personal as p')
-            ->join('examenes as e', 'e.id', '=', 'p.examen_id')
-            ->join('aulas as a', 'a.id', '=', 'p.aula_id')
+        // Examenes de hoy en los que la persona es docente o personal de aula.
+        $candidatos = DB::table('examenes as e')
             ->join('asignaturas as asig', 'asig.id', '=', 'e.asignatura_id')
-            ->where('p.usuario_id', $usuarioId)
-            ->whereDate('e.fecha', $hoy)
-            ->select([
-                'e.id as examen_id',
-                'e.fecha',
-                'e.tipo',
-                'asig.nombre as asignatura_nombre',
-                'a.id as aula_id',
-                'a.nombre as aula_nombre',
-            ])
-            ->get();
-
-        // 2. Aulas autorizadas por seguimiento (HU-21)
-        $seguimientoFilas = DB::table('asignaciones_seguimiento_aula as s')
-            ->join('examenes as e', 'e.id', '=', 's.examen_id')
-            ->join('aulas as a', 'a.id', '=', 's.aula_id')
-            ->join('asignaturas as asig', 'asig.id', '=', 'e.asignatura_id')
-            ->where('s.usuario_id', $usuarioId)
-            ->whereDate('e.fecha', $hoy)
-            ->select([
-                'e.id as examen_id',
-                'e.fecha',
-                'e.tipo',
-                'asig.nombre as asignatura_nombre',
-                'a.id as aula_id',
-                'a.nombre as aula_nombre',
-            ])
-            ->get();
-
-        // 3. Si es docente creador o de grupo del examen
-        $docenteFilas = DB::table('examenes as e')
-            ->join('asignaturas as asig', 'asig.id', '=', 'e.asignatura_id')
-            ->join('examen_aula as ea', 'ea.examen_id', '=', 'e.id')
-            ->join('aulas as a', 'a.id', '=', 'ea.aula_id')
             ->whereDate('e.fecha', $hoy)
             ->where(function (Builder $query) use ($usuarioId): void {
                 $query->where('e.creado_por', $usuarioId)
@@ -63,69 +41,82 @@ class EloquentContextoOperativoPuntoControl extends ContextoOperativoSinAsignaci
                             ->join('docentes as d', 'd.id', '=', 'g.docente_id')
                             ->whereColumn('eg.examen_id', 'e.id')
                             ->where('d.user_id', $usuarioId);
+                    })
+                    ->orWhereExists(function (Builder $sub) use ($usuarioId): void {
+                        $sub->selectRaw('1')
+                            ->from('examen_aula_personal as p')
+                            ->whereColumn('p.examen_id', 'e.id')
+                            ->where('p.usuario_id', $usuarioId);
                     });
             })
-            ->select([
-                'e.id as examen_id',
+            ->orderBy('e.hora_inicio')
+            ->orderBy('e.id')
+            ->get([
+                'e.id',
                 'e.fecha',
                 'e.tipo',
+                'e.hora_inicio',
                 'asig.nombre as asignatura_nombre',
-                'a.id as aula_id',
-                'a.nombre as aula_nombre',
-            ])
-            ->get();
-
-        $todas = $atencionFilas->concat($seguimientoFilas)->concat($docenteFilas);
-
-        if ($todas->isEmpty()) {
-            return [];
-        }
+            ]);
 
         $examenes = [];
-        foreach ($todas as $fila) {
-            $exId = property_exists($fila, 'examen_id') && is_numeric($fila->examen_id) ? (int) $fila->examen_id : 0;
-            if ($exId === 0) {
+
+        foreach ($candidatos as $fila) {
+            $examenId = is_numeric($fila->id) ? (int) $fila->id : 0;
+
+            if ($examenId === 0) {
                 continue;
             }
 
-            if (! isset($examenes[$exId])) {
-                $fechaStr = property_exists($fila, 'fecha') && is_string($fila->fecha) ? $fila->fecha : '';
-                $tipoStr = property_exists($fila, 'tipo') && is_string($fila->tipo) ? $fila->tipo : '';
-                $asigStr = property_exists($fila, 'asignatura_nombre') && is_string($fila->asignatura_nombre) ? $fila->asignatura_nombre : '';
+            $aulaIds = $this->alcance->aulasOperables($usuarioId, $examenId);
 
-                $examenes[$exId] = [
-                    'id' => $exId,
-                    'fecha' => substr($fechaStr, 0, 10),
-                    'tipo' => $tipoStr,
-                    'asignatura' => [
-                        'nombre' => $asigStr,
-                    ],
-                    'aulas' => [],
-                ];
-            }
-
-            $aulaId = property_exists($fila, 'aula_id') && is_numeric($fila->aula_id) ? (int) $fila->aula_id : 0;
-            if ($aulaId === 0) {
+            if ($aulaIds === []) {
                 continue;
             }
 
-            $yaEsta = false;
-            foreach ($examenes[$exId]['aulas'] as $au) {
-                if ($au['id'] === $aulaId) {
-                    $yaEsta = true;
-                    break;
-                }
-            }
+            $tipo = is_string($fila->tipo) ? $fila->tipo : '';
+            $hora = is_string($fila->hora_inicio) ? substr($fila->hora_inicio, 0, 5) : '';
 
-            if (! $yaEsta) {
-                $aulaNombreStr = property_exists($fila, 'aula_nombre') && is_string($fila->aula_nombre) ? $fila->aula_nombre : '';
-                $examenes[$exId]['aulas'][] = [
-                    'id' => $aulaId,
-                    'nombre' => $aulaNombreStr,
-                ];
-            }
+            $examenes[] = [
+                'id' => $examenId,
+                'fecha' => substr(is_string($fila->fecha) ? $fila->fecha : '', 0, 10),
+                'tipo' => $tipo,
+                'tipo_etiqueta' => $this->etiquetaTipo->de($tipo),
+                'hora' => $hora,
+                'abierto' => $this->ventana->estaAbierta($examenId),
+                'asignatura' => [
+                    'nombre' => is_string($fila->asignatura_nombre) ? $fila->asignatura_nombre : '',
+                ],
+                'aulas' => $this->aulas($aulaIds),
+            ];
         }
 
-        return array_values($examenes);
+        return $examenes;
+    }
+
+    /**
+     * @param  list<int>  $ids
+     * @return list<array{id: int, nombre: string, edificio: string|null, piso: string|null}>
+     */
+    private function aulas(array $ids): array
+    {
+        $filas = DB::table('aulas as a')
+            ->leftJoin('edificios as ed', 'ed.id', '=', 'a.edificio_id')
+            ->whereIn('a.id', $ids)
+            ->orderBy('a.nombre')
+            ->get(['a.id', 'a.nombre', 'a.piso', 'ed.nombre as edificio']);
+
+        $aulas = [];
+
+        foreach ($filas as $fila) {
+            $aulas[] = [
+                'id' => is_numeric($fila->id) ? (int) $fila->id : 0,
+                'nombre' => is_string($fila->nombre) ? $fila->nombre : '',
+                'edificio' => is_string($fila->edificio) ? $fila->edificio : null,
+                'piso' => is_string($fila->piso) ? $fila->piso : null,
+            ];
+        }
+
+        return $aulas;
     }
 }

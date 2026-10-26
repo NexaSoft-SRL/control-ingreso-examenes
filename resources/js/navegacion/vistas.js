@@ -112,7 +112,7 @@ export const VISTAS = [
     },
     {
         ruta: '/seguimiento',
-        titulo: 'Seguimiento en vivo',
+        titulo: 'Mi aula',
         Icono: Activity,
         grupo: 'Exámenes',
         movil: true,

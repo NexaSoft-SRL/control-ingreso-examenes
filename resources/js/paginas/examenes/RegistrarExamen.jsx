@@ -185,6 +185,8 @@ function Resumen({ examen, recien = false }) {
     const aulas = examen.aulas_detalle ?? [];
     const marcadas = examen.normas_marcadas ?? [];
     const libres = (examen.normas ?? '').trim();
+    // Sin personal guardado, el aula queda a cargo de quien registró el examen.
+    const encargadoDe = (aula) => aula.a_cargo?.nombre ?? examen.registrado_por ?? '—';
 
     const [aulaParaCodigo, setAulaParaCodigo] = useState(null);
     const [codigos, setCodigos] = useState(() =>
@@ -326,7 +328,7 @@ function Resumen({ examen, recien = false }) {
                                             </div>
                                             <p>
                                                 <span className="text-slate-500">A cargo:</span>{' '}
-                                                {a.a_cargo?.nombre ?? 'Docente titular'}
+                                                {encargadoDe(a)}
                                             </p>
                                             <p>
                                                 <span className="text-slate-500">Apoyo:</span>{' '}
@@ -382,7 +384,7 @@ function Resumen({ examen, recien = false }) {
                                         <span className="font-semibold text-slate-700">
                                             A cargo:
                                         </span>{' '}
-                                        {aula.a_cargo?.nombre ?? 'Sin asignar'}
+                                        {encargadoDe(aula)}
                                     </p>
                                     <p>
                                         <span className="font-semibold text-slate-700">

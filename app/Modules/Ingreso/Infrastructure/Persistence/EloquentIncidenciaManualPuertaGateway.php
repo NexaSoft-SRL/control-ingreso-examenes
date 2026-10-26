@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Infrastructure\Persistence;
 
+use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaManualPuertaGateway;
+use App\Modules\Ingreso\Domain\Enums\TipoIncidenciaPuerta;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentIncidenciaManualPuertaGateway implements IncidenciaManualPuertaGateway
 {
+    public function __construct(
+        private readonly BitacoraGateway $bitacora,
+    ) {}
+
     public function recientes(int $examenId, int $aulaId, int $limite): array
     {
         $filas = DB::table('incidencias_aula as i')
@@ -65,10 +71,12 @@ final class EloquentIncidenciaManualPuertaGateway implements IncidenciaManualPue
                 'nombres' => $fila->nombres,
                 'apellidos' => $fila->apellidos,
                 'tipo' => $fila->tipo,
+                'tipo_etiqueta' => TipoIncidenciaPuerta::tryFrom($fila->tipo)?->etiqueta() ?? $fila->tipo,
                 'detalle' => $fila->detalle,
                 'reportada_por' => (int) $fila->reportada_por,
                 'operador' => $fila->operador,
                 'reportada_en' => (string) $fila->reportada_en,
+                'hora' => substr((string) $fila->reportada_en, 11, 5),
                 'atendida_por' => $fila->atendida_por === null ? null : (int) $fila->atendida_por,
                 'atendida_en' => $fila->atendida_en,
             ];
@@ -110,14 +118,37 @@ final class EloquentIncidenciaManualPuertaGateway implements IncidenciaManualPue
         string $tipo,
         string $detalle,
     ): int {
-        return DB::table('incidencias_aula')->insertGetId([
-            'examen_id' => $examenId,
-            'aula_id' => $aulaId,
-            'estudiante_id' => $estudianteId,
-            'reportada_por' => $usuarioId,
-            'tipo' => trim($tipo),
-            'detalle' => trim($detalle),
-            'reportada_en' => DB::raw('CURRENT_TIMESTAMP'),
-        ]);
+        return DB::transaction(function () use (
+            $examenId,
+            $aulaId,
+            $estudianteId,
+            $usuarioId,
+            $tipo,
+            $detalle,
+        ): int {
+            $id = DB::table('incidencias_aula')->insertGetId([
+                'examen_id' => $examenId,
+                'aula_id' => $aulaId,
+                'estudiante_id' => $estudianteId,
+                'reportada_por' => $usuarioId,
+                'tipo' => trim($tipo),
+                'detalle' => trim($detalle),
+                'reportada_en' => DB::raw('CURRENT_TIMESTAMP'),
+            ]);
+
+            // N2: la incidencia queda en la bitacora con su autor.
+            $this->bitacora->registrar(
+                $usuarioId,
+                'incidencia.registrar',
+                'incidencias_aula',
+                $id,
+                implode(' · ', array_filter([
+                    TipoIncidenciaPuerta::tryFrom(trim($tipo))?->etiqueta() ?? trim($tipo),
+                    DescripcionPuerta::de($examenId, $aulaId, $estudianteId),
+                ])),
+            );
+
+            return $id;
+        });
     }
 }

@@ -34,6 +34,22 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
                     ->where('bitacora.operacion', '=', 'INCIDENCIA_AULA_ATENDIDA');
             })
             ->leftJoin('aulas as aula', 'aula.id', '=', 'incidencia.aula_id')
+            // Quien operó con código de aula no tiene cuenta: se nombra con
+            // el nombre que dio al entrar.
+            ->leftJoin('accesos_codigo_aula as acceso_directo', static function (JoinClause $join): void {
+                $join->on('acceso_directo.id', '=', 'bitacora.registro_id')
+                    ->where('bitacora.tabla_afectada', '=', 'accesos_codigo_aula');
+            })
+            ->leftJoin('ingresos as ingreso', static function (JoinClause $join): void {
+                $join->on('ingreso.id', '=', 'bitacora.registro_id')
+                    ->where('bitacora.tabla_afectada', '=', 'ingresos');
+            })
+            ->leftJoin('accesos_codigo_aula as acceso_ingreso', 'acceso_ingreso.id', '=', 'ingreso.acceso_codigo_aula_id')
+            // La cuenta afectada se muestra por su usuario, no por su id.
+            ->leftJoin('usuarios as afectado', static function (JoinClause $join): void {
+                $join->on('afectado.id', '=', 'bitacora.registro_id')
+                    ->where('bitacora.tabla_afectada', '=', 'usuarios');
+            })
             ->select([
                 'bitacora.id',
                 'bitacora.usuario_id',
@@ -46,7 +62,9 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
                 'bitacora.fecha_operacion',
                 'incidencia.examen_id as incidencia_examen_id',
                 'aula.nombre as incidencia_aula',
-            ]);
+                'afectado.usuario as registro_usuario',
+            ])
+            ->selectRaw('coalesce(acceso_directo.nombre_colaborador, acceso_ingreso.nombre_colaborador) as colaborador');
 
         if ($filtros->usuarioId !== null) {
             $query->where(
@@ -56,9 +74,9 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
         }
 
         if ($filtros->operacion !== null) {
+            // La solicitud del enlace tiene su propia opcion en el filtro.
             if ($filtros->operacion === 'contrasena.restablecimiento') {
                 $query->whereIn('bitacora.operacion', [
-                    'contrasena.solicitar_restablecimiento',
                     'contrasena.restablecer_por_enlace',
                     'usuario.restablecer_temporal',
                 ]);
@@ -164,6 +182,14 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
                 fechaOperacion: $this->string(
                     $row->fecha_operacion,
                     'fecha_operacion',
+                ),
+                colaborador: $this->nullableString(
+                    $row->colaborador,
+                    'colaborador',
+                ),
+                registroEtiqueta: $this->nullableString(
+                    $row->registro_usuario,
+                    'registro_usuario',
                 ),
             );
         }

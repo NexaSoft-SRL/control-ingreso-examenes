@@ -27,6 +27,15 @@ final class ExigirCambioContrasenaTemporal
                 'api/auth/sesion',
                 'api/auth/cambiar-contrasena',
                 'api/auth/logout',
+                // Rutas publicas: no usan la cuenta de la sesion. En la misma
+                // computadora otra persona puede entrar con su usuario o con
+                // un codigo de aula, o pedir un enlace de recuperacion.
+                'api/auth/login',
+                'api/auth/recuperar-contrasena',
+                'api/auth/restablecer-contrasena',
+                'api/auth/codigo-aula',
+                'api/auth/codigo-aula/salir',
+                'api/auth/codigo-aula/sesion',
             ], true)
         ) {
             return $next($request);
@@ -34,7 +43,7 @@ final class ExigirCambioContrasenaTemporal
 
         return response()->json([
             'code' => 'PASSWORD_CHANGE_REQUIRED',
-            'message' => 'Debes cambiar tu contraseña temporal antes de continuar.',
+            'message' => 'Cambie su contraseña temporal para continuar.',
         ], Response::HTTP_LOCKED);
     }
 }

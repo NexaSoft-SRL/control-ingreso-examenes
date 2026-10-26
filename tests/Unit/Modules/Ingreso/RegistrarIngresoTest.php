@@ -45,7 +45,7 @@ final class RegistrarIngresoTest extends TestCase
                 15,
                 2,
                 VeredictoIngreso::NoHabilitado,
-                'Estudiante inhabilitado sin motivo disponible.',
+                'No habilitado, sin motivo registrado.',
             );
 
         self::assertSame(

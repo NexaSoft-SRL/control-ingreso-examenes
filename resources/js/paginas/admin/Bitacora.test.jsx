@@ -45,6 +45,29 @@ describe('Bitacora', () => {
         expect(screen.getByText('Usuario eliminado')).toBeInTheDocument();
     });
 
+    it('nombra al colaborador que operó con código de aula', async () => {
+        simularApi(api, {
+            'GET /bitacora': {
+                data: [
+                    {
+                        id: 4,
+                        usuario: null,
+                        actor: 'Marta Colaboradora (código de aula)',
+                        operacion: 'INGRESO_ADMITIDO',
+                        tabla_afectada: 'ingresos',
+                        registro_id: 9,
+                        descripcion: 'Ingreso registrado.',
+                        fecha_operacion: '2026-10-26 08:39:00',
+                    },
+                ],
+            },
+        });
+        montar();
+
+        expect(await screen.findByText('Marta Colaboradora (código de aula)')).toBeInTheDocument();
+        expect(screen.queryByText('Usuario eliminado')).not.toBeInTheDocument();
+    });
+
     it('traduce la atención de incidencia y muestra su aula y examen', async () => {
         simularApi(api, {
             'GET /bitacora': {
@@ -72,6 +95,47 @@ describe('Bitacora', () => {
         );
     });
 
+    it('BUG-15 y N2: nombra las operaciones de la puerta', async () => {
+        simularApi(api, {
+            'GET /bitacora': {
+                data: [
+                    {
+                        id: 4,
+                        usuario: { id: 7, name: 'Blanco Coca Leticia' },
+                        operacion: 'INGRESO_ADMITIDO',
+                        tabla_afectada: 'ingresos',
+                        registro_id: 30,
+                        descripcion:
+                            '202210098 Vega Escóbar Silvia · Aula 691A · Introducción a la Programación',
+                        fecha_operacion: '2026-10-26 08:39:00',
+                    },
+                    {
+                        id: 5,
+                        usuario: { id: 7, name: 'Blanco Coca Leticia' },
+                        operacion: 'puerta.expulsion',
+                        tabla_afectada: 'ingresos',
+                        registro_id: 30,
+                        descripcion: null,
+                        fecha_operacion: '2026-10-26 09:10:00',
+                    },
+                ],
+            },
+        });
+
+        montar();
+
+        expect(await screen.findByText('2 eventos')).toBeInTheDocument();
+        expect(screen.getAllByText('Ingreso al examen').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Expulsión de estudiante').length).toBeGreaterThan(0);
+        expect(
+            screen.getByText(
+                '202210098 Vega Escóbar Silvia · Aula 691A · Introducción a la Programación'
+            )
+        ).toBeInTheDocument();
+        expect(screen.getByText('Ingreso #30')).toBeInTheDocument();
+        expect(screen.queryByText('INGRESO_ADMITIDO')).not.toBeInTheDocument();
+    });
+
     it('envía los filtros al backend', async () => {
         montar();
         await screen.findByText('2 eventos');
@@ -96,7 +160,7 @@ describe('Bitacora', () => {
         );
     });
 
-    it('agrupa las solicitudes y restablecimientos en un solo filtro de contraseña', async () => {
+    it('separa en el filtro la solicitud del enlace y el restablecimiento de contraseña', async () => {
         simularApi(api, {
             'GET /bitacora': {
                 data: [
@@ -139,6 +203,15 @@ describe('Bitacora', () => {
             .getByLabelText('Operación')
             .querySelectorAll('option[value="contrasena.restablecimiento"]');
         expect(opcionesRestablecimiento).toHaveLength(1);
+        const opcionesSolicitud = screen
+            .getByLabelText('Operación')
+            .querySelectorAll('option[value="contrasena.solicitar_restablecimiento"]');
+        expect(opcionesSolicitud).toHaveLength(1);
+        expect(
+            screen
+                .getByLabelText('Operación')
+                .querySelectorAll('option[value="contrasena.restablecer_por_enlace"]')
+        ).toHaveLength(0);
 
         fireEvent.change(screen.getByLabelText('Operación'), {
             target: { value: 'contrasena.restablecimiento' },
@@ -151,8 +224,37 @@ describe('Bitacora', () => {
             })
         );
         expect(screen.getAllByText('Leticia Blanco')).not.toHaveLength(0);
-        expect(screen.getByText('Solicitud de enlace de recuperación')).toBeInTheDocument();
+        // Opción del filtro y fila.
+        expect(screen.getAllByText('Solicitud de enlace de recuperación')).toHaveLength(2);
         expect(screen.getAllByText('Restablecimiento de contraseña')).toHaveLength(3);
+    });
+
+    it('nombra el cambio de contraseña y muestra la cuenta por su usuario', async () => {
+        simularApi(api, {
+            'GET /bitacora': {
+                data: [
+                    {
+                        id: 9,
+                        usuario: { id: 221, name: 'Corina Flores' },
+                        operacion: 'contrasena.cambiar',
+                        tabla_afectada: 'usuarios',
+                        registro_id: 221,
+                        registro_etiqueta: 'corina.flores',
+                        descripcion: null,
+                        fecha_operacion: '2026-10-19 10:54:00',
+                    },
+                ],
+            },
+        });
+
+        montar();
+
+        expect(await screen.findByText('1 evento')).toBeInTheDocument();
+        // Opción del filtro y fila.
+        expect(screen.getAllByText('Cambio de contraseña')).toHaveLength(2);
+        expect(screen.queryByText('contrasena.cambiar')).not.toBeInTheDocument();
+        expect(screen.getByText('Usuario corina.flores')).toBeInTheDocument();
+        expect(screen.queryByText('Usuario #221')).not.toBeInTheDocument();
     });
 
     it('muestra el estado vacío', async () => {

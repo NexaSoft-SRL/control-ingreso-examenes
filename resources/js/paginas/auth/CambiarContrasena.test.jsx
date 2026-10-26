@@ -21,39 +21,48 @@ function montar(actualizar = vi.fn().mockResolvedValue(usuarioDePrueba('Docente'
     );
 }
 
-function completar() {
-    fireEvent.change(screen.getByLabelText('Contraseña temporal'), {
-        target: { value: 'Temporary123!' },
+const boton = () => screen.getByRole('button', { name: 'Guardar y entrar' });
+
+function escribir(clave, repetida = clave) {
+    fireEvent.change(screen.getByLabelText(/^Contraseña/), { target: { value: clave } });
+    fireEvent.change(screen.getByLabelText(/^Repetir contraseña/), {
+        target: { value: repetida },
     });
-    fireEvent.change(screen.getByLabelText('Nueva contraseña'), {
-        target: { value: 'NewStrongPassword123!' },
-    });
-    fireEvent.change(screen.getByLabelText('Confirmar nueva contraseña'), {
-        target: { value: 'NewStrongPassword123!' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Cambiar contraseña' }));
 }
 
 describe('CambiarContrasena', () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it('requiere una contraseña que cumpla la política antes de enviar', () => {
-        montar();
-        fireEvent.change(screen.getByLabelText('Contraseña temporal'), {
-            target: { value: 'Temporary123!' },
-        });
-        fireEvent.change(screen.getByLabelText('Nueva contraseña'), {
-            target: { value: 'short' },
-        });
-        fireEvent.change(screen.getByLabelText('Confirmar nueva contraseña'), {
-            target: { value: 'short' },
-        });
-        fireEvent.click(screen.getByRole('button', { name: 'Cambiar contraseña' }));
+    it('pide solo la contraseña nueva y su repetición, sin la temporal ni párrafos', () => {
+        const { container } = montar();
 
-        expect(screen.getByRole('alert')).toHaveTextContent(
-            'Use al menos 12 caracteres, mayúscula, minúscula, número y símbolo.'
+        expect(screen.getByRole('heading', { name: 'Contraseña nueva' })).toBeInTheDocument();
+        expect(screen.queryByLabelText(/temporal/i)).not.toBeInTheDocument();
+        expect(container.querySelectorAll('input[type="password"]')).toHaveLength(2);
+        expect(container.textContent).not.toMatch(/Hola|Actualice su contraseña|\btu\b/);
+    });
+
+    it('marca las reglas mientras se escribe y habilita el botón solo con todo cumplido', () => {
+        montar();
+        expect(boton()).toBeDisabled();
+
+        escribir('abc');
+        expect(boton()).toBeDisabled();
+        expect(screen.getByText('10 caracteres o más').closest('li')).toHaveAttribute(
+            'data-cumplida',
+            'false'
         );
-        expect(api.post).not.toHaveBeenCalled();
+
+        escribir('Corina2026x', 'Corina2026');
+        expect(screen.getByText('10 caracteres o más').closest('li')).toHaveAttribute(
+            'data-cumplida',
+            'true'
+        );
+        expect(screen.getByText('No coincide')).toBeInTheDocument();
+        expect(boton()).toBeDisabled();
+
+        escribir('Corina2026x');
+        expect(boton()).toBeEnabled();
     });
 
     it('cambia la contraseña temporal y habilita la entrada a la aplicación', async () => {
@@ -62,31 +71,36 @@ describe('CambiarContrasena', () => {
             data: { message: 'La contraseña se actualizó correctamente.' },
         });
         montar(actualizar);
-        completar();
+        escribir('Corina2026x');
+        fireEvent.click(boton());
 
         await waitFor(() =>
             expect(api.post).toHaveBeenCalledWith('/auth/cambiar-contrasena', {
-                contrasena_actual: 'Temporary123!',
-                password: 'NewStrongPassword123!',
-                password_confirmation: 'NewStrongPassword123!',
+                password: 'Corina2026x',
+                password_confirmation: 'Corina2026x',
             })
         );
         expect(await screen.findByText('Acceso habilitado')).toBeInTheDocument();
         expect(actualizar).toHaveBeenCalledOnce();
     });
 
-    it('muestra si la contraseña temporal actual no es correcta', async () => {
+    it('muestra bajo el campo el rechazo del servidor', async () => {
         api.post.mockRejectedValue({
             response: {
                 status: 422,
-                data: { errors: { contrasena_actual: ['La contraseña actual no es correcta.'] } },
+                data: {
+                    errors: {
+                        password: ['La contraseña nueva debe ser distinta de la temporal.'],
+                    },
+                },
             },
         });
         montar();
-        completar();
+        escribir('Corina2026x');
+        fireEvent.click(boton());
 
-        expect(await screen.findByRole('alert')).toHaveTextContent(
-            'La contraseña actual no es correcta.'
-        );
+        expect(
+            await screen.findByText('La contraseña nueva debe ser distinta de la temporal.')
+        ).toBeInTheDocument();
     });
 });

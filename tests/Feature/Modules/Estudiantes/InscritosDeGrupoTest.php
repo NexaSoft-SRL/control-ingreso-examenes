@@ -114,7 +114,7 @@ final class InscritosDeGrupoTest extends TestCase
         $this->actingAs($this->cuentaDe($docente))
             ->getJson("/api/docente/grupos/{$ajeno->id}/inscritos")
             ->assertForbidden()
-            ->assertExactJson(['message' => 'Este grupo no es tuyo.', 'alcance' => true]);
+            ->assertExactJson(['message' => 'Grupo no autorizado.', 'alcance' => true]);
 
         $this->actingAs($this->cuentaDe($docente))
             ->getJson("/api/docente/grupos/{$porDesignar->id}/inscritos")

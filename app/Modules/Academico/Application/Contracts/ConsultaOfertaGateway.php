@@ -65,7 +65,8 @@ interface ConsultaOfertaGateway
 
     /**
      * Asignaturas de la oferta con sus grupos e inscritos, filtradas por
-     * periodo, facultad, carrera, nivel y búsqueda.
+     * periodo, facultad, carrera, nivel y búsqueda: una fila por asignatura y
+     * facultad. Sin periodo, los vigentes (ninguno si no hay vigente).
      *
      * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null}  $filtros
      * @return array{filas: list<array<string, mixed>>, total: int, total_grupos: int}
@@ -74,7 +75,8 @@ interface ConsultaOfertaGateway
 
     /**
      * Los grupos de una asignatura con su docente, horarios, aula e inscritos.
-     * Cuando hay `$buscar`, los grupos cuyo docente coincide van primero.
+     * Con `$buscar`, los mismos que cuenta la fila de la asignatura (si solo
+     * coincide un docente, solo los suyos), con los del docente primero.
      *
      * @param  list<int>  $periodoIds
      * @return array{filas: list<array<string, mixed>>, total: int}

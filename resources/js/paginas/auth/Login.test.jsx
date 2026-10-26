@@ -32,7 +32,7 @@ describe('Login', () => {
 
         expect(screen.getByRole('img', { name: 'Control de ingreso' })).toBeInTheDocument();
         expect(
-            screen.getByRole('heading', { level: 1, name: 'Ingreso al sistema' })
+            screen.getByRole('heading', { level: 1, name: 'Control de ingreso a exámenes' })
         ).toBeInTheDocument();
         expect(screen.getByText('Sistema Institucional de Verificación')).toBeInTheDocument();
         expect(screen.getByLabelText(/Usuario/)).toHaveAttribute('type', 'text');
@@ -46,13 +46,15 @@ describe('Login', () => {
         });
         fireEvent.click(screen.getByRole('link', { name: '¿Olvidó su contraseña?' }));
 
-        expect(screen.getByLabelText('Usuario')).toHaveValue('leticia.blanco');
+        expect(screen.getByLabelText(/^Usuario/)).toHaveValue('leticia.blanco');
     });
 
     it('no trae textos explicativos ni voseo', () => {
         const { container } = montar();
         expect(container.textContent).not.toMatch(/ingresá|tenés|podés|\bvos\b/i);
-        expect(container.querySelectorAll('p')).toHaveLength(2);
+        expect(container.textContent).not.toMatch(/credenciales para continuar|deberá cambiarla/);
+        expect(screen.getByText('Cuenta institucional')).toBeInTheDocument();
+        expect(container.querySelectorAll('p')).toHaveLength(1);
     });
 
     it('entra con el usuario y lleva a la entrada de la cuenta', async () => {
@@ -97,6 +99,31 @@ describe('Login', () => {
         completar('rodrigo', 'clave');
 
         expect(await screen.findByRole('alert')).toHaveTextContent('Cuenta bloqueada · 15 minutos');
+    });
+
+    it('avisa que la cuenta desactivada está bloqueada, sin minutos', async () => {
+        const entrar = vi
+            .fn()
+            .mockRejectedValue(
+                errorHttp(423, { code: 'ACCOUNT_DISABLED', message: 'Cuenta bloqueada.' })
+            );
+        montar({ entrar });
+        completar('victor.montano', 'Ge8-Crx2-Et7');
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(/^Cuenta bloqueada$/);
+    });
+
+    it('la temporal vencida se informa sin tuteo ni instrucciones', async () => {
+        const entrar = vi.fn().mockRejectedValue(
+            errorHttp(403, {
+                code: 'TEMPORARY_PASSWORD_EXPIRED',
+                message: 'Contraseña temporal vencida.',
+            })
+        );
+        montar({ entrar });
+        completar('corina.flores', 'Fa7-Kmq4-Ru9');
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(/^Contraseña temporal vencida$/);
     });
 
     it('marca el campo que rechaza la validación del servidor', async () => {

@@ -69,11 +69,11 @@ describe('BUG-09: incidencias manuales', () => {
             });
         });
 
-        fireEvent.change(screen.getByRole('textbox', { name: 'Detalle de incidencia manual' }), {
+        fireEvent.change(screen.getByRole('textbox', { name: 'Detalle de la incidencia' }), {
             target: { value: 'Corte temporal de energía.' },
         });
 
-        fireEvent.click(screen.getByRole('button', { name: 'Registrar incidencia manual' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Registrar incidencia' }));
 
         await waitFor(() => {
             expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/incidencias-manuales', {
@@ -88,16 +88,34 @@ describe('BUG-09: incidencias manuales', () => {
         expect(await screen.findByText('Docente de prueba', { exact: false })).toBeInTheDocument();
 
         expect(api.get.mock.calls.length).toBeGreaterThanOrEqual(2);
+        expect(screen.getByText('Incidencia registrada')).toBeInTheDocument();
+        // N5: etiqueta legible, no el código interno.
+        expect(screen.getAllByText('Incidente general').length).toBeGreaterThan(0);
+        expect(screen.queryByText('INCIDENTE_GENERAL')).not.toBeInTheDocument();
+    });
+
+    it('N5: solo ofrece el catálogo de incidencias comunes y limita el detalle a 500', () => {
+        render(<IncidenciasManuales aulaId="7" examenes={[examenA]} />);
+
+        const tipos = within(screen.getByRole('combobox', { name: 'Tipo de incidencia' }))
+            .getAllByRole('option')
+            .map((opcion) => opcion.textContent);
+
+        expect(tipos).toEqual(['Incidente general', 'Documento observado', 'Conducta', 'Otro']);
+        expect(screen.getByRole('textbox', { name: 'Detalle de la incidencia' })).toHaveAttribute(
+            'maxLength',
+            '500'
+        );
     });
 
     it('no envía detalles demasiado cortos', async () => {
         render(<IncidenciasManuales aulaId="7" examenes={[examenA]} />);
 
-        fireEvent.change(screen.getByRole('textbox', { name: 'Detalle de incidencia manual' }), {
+        fireEvent.change(screen.getByRole('textbox', { name: 'Detalle de la incidencia' }), {
             target: { value: 'abc' },
         });
 
-        expect(screen.getByRole('button', { name: 'Registrar incidencia manual' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Registrar incidencia' })).toBeDisabled();
 
         expect(api.post).not.toHaveBeenCalled();
     });
@@ -106,17 +124,17 @@ describe('BUG-09: incidencias manuales', () => {
         render(<IncidenciasManuales aulaId="7" examenes={[examenA, examenB]} />);
 
         const selector = screen.getByRole('combobox', {
-            name: 'Examen de incidencia manual',
+            name: 'Examen de la incidencia',
         });
 
         expect(selector).toHaveValue('');
         expect(within(selector).getAllByRole('option')).toHaveLength(3);
 
-        fireEvent.change(screen.getByRole('textbox', { name: 'Detalle de incidencia manual' }), {
+        fireEvent.change(screen.getByRole('textbox', { name: 'Detalle de la incidencia' }), {
             target: { value: 'Incidencia observada durante el examen.' },
         });
 
-        expect(screen.getByRole('button', { name: 'Registrar incidencia manual' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Registrar incidencia' })).toBeDisabled();
 
         fireEvent.change(selector, { target: { value: '11' } });
 
@@ -127,7 +145,7 @@ describe('BUG-09: incidencias manuales', () => {
             });
         });
 
-        fireEvent.click(screen.getByRole('button', { name: 'Registrar incidencia manual' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Registrar incidencia' }));
 
         await waitFor(() => {
             expect(api.post).toHaveBeenCalledWith(
@@ -150,14 +168,14 @@ describe('BUG-09: incidencias manuales', () => {
         render(<IncidenciasManuales aulaId="7" examenes={[examenA, examenB]} />);
 
         const selector = screen.getByRole('combobox', {
-            name: 'Examen de incidencia manual',
+            name: 'Examen de la incidencia',
         });
 
         fireEvent.change(selector, { target: { value: '10' } });
 
         fireEvent.change(
             screen.getByRole('textbox', {
-                name: 'Detalle de incidencia manual',
+                name: 'Detalle de la incidencia',
             }),
             {
                 target: {
@@ -168,7 +186,7 @@ describe('BUG-09: incidencias manuales', () => {
 
         fireEvent.click(
             screen.getByRole('button', {
-                name: 'Registrar incidencia manual',
+                name: 'Registrar incidencia',
             })
         );
 
@@ -194,12 +212,12 @@ describe('BUG-09: incidencias manuales', () => {
         await waitFor(() => {
             expect(
                 screen.getByRole('button', {
-                    name: 'Registrar incidencia manual',
+                    name: 'Registrar incidencia',
                 })
             ).toBeEnabled();
         });
 
-        expect(screen.queryByText('Incidencia manual registrada.')).not.toBeInTheDocument();
+        expect(screen.queryByText('Incidencia registrada')).not.toBeInTheDocument();
 
         expect(api.get).toHaveBeenCalledTimes(lecturasPrevias);
     });
@@ -229,7 +247,7 @@ describe('BUG-09: incidencias manuales', () => {
         render(<IncidenciasManuales aulaId="7" examenes={[examenA, examenB]} />);
 
         const selector = screen.getByRole('combobox', {
-            name: 'Examen de incidencia manual',
+            name: 'Examen de la incidencia',
         });
 
         fireEvent.change(selector, { target: { value: '10' } });

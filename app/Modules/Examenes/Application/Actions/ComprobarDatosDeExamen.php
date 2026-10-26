@@ -130,7 +130,7 @@ final readonly class ComprobarDatosDeExamen
         if (! $tieneGrupoPropio && ! $mismaAsignatura) {
             throw new DatoInvalidoException(
                 'asignatura_id',
-                'No tienes grupos de esta asignatura en un período vigente.',
+                'Sin grupos de esta asignatura en un período vigente.',
             );
         }
 
@@ -150,7 +150,7 @@ final readonly class ComprobarDatosDeExamen
         $primero = $elegidos[0] ?? null;
 
         if (! $primero instanceof GrupoDeExamenData) {
-            throw new DatoInvalidoException('grupos', 'Elige al menos un grupo.');
+            throw new DatoInvalidoException('grupos', 'Elija al menos un grupo.');
         }
 
         foreach ($elegidos as $grupo) {
@@ -219,6 +219,7 @@ final readonly class ComprobarDatosDeExamen
         }
 
         $auxiliaresValidos = array_flip($this->consulta->usuariosConRolAuxiliar(array_values(array_unique($candidatos))));
+        $inactivos = array_flip($this->consulta->cuentasInactivas(array_values(array_unique($candidatos))));
 
         $resultado = [];
         foreach ($aulaIds as $aulaId) {
@@ -234,6 +235,14 @@ final readonly class ComprobarDatosDeExamen
 
             $item = $porAula[$aulaId];
             $aCargo = $item->aCargo > 0 ? $item->aCargo : $creadorId;
+
+            // Una cuenta bloqueada no puede quedar a cargo de un aula.
+            if (isset($inactivos[$aCargo])) {
+                throw new DatoInvalidoException(
+                    "personal.{$aulaId}.a_cargo",
+                    'La cuenta de quien está a cargo está inactiva.',
+                );
+            }
             $esDocenteDeGrupo = isset($docentesMap[$aCargo]);
             $esAuxiliar = isset($auxiliaresValidos[$aCargo]);
             $esDocenteDeOtro = isset($todosDocentes[$aCargo]);

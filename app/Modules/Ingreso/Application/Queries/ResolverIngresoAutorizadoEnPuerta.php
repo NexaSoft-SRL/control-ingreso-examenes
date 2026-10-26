@@ -69,7 +69,7 @@ final readonly class ResolverIngresoAutorizadoEnPuerta
 
         if (! $tieneAlcance) {
             throw new AccesoPuntoDenegado(
-                'No atiendes esta aula.'
+                'Sin asignación en esta aula.'
             );
         }
 

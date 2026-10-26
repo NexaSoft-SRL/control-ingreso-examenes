@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Http\Controllers;
 
+use App\Modules\Ingreso\Application\Actions\RegistrarIntentoEnPuerta;
+use App\Modules\Ingreso\Application\Contracts\ExamenesDePuerta;
+use App\Modules\Ingreso\Application\Queries\DetallarVeredictoPuerta;
 use App\Modules\Ingreso\Application\Queries\IdentificarEnPuerta;
 use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
 use DateTimeImmutable;
@@ -16,10 +19,26 @@ use InvalidArgumentException;
 
 final class IdentificarEnPuertaController
 {
+    /**
+     * Mensajes de la identificacion en la puerta (BUG-16).
+     *
+     * @var array<string, string>
+     */
+    public const MENSAJES = [
+        'tipo.required' => 'Obligatorio',
+        'tipo.in' => 'Tipo de identificación no válido',
+        'identificador.required' => 'Obligatorio',
+        'identificador.string' => 'Identificación no válida',
+        'identificador.max' => 'Código QR no válido',
+    ];
+
     public function __invoke(
         Request $request,
         int $aula,
         IdentificarEnPuerta $identificar,
+        RegistrarIntentoEnPuerta $intentos,
+        DetallarVeredictoPuerta $detallar,
+        ExamenesDePuerta $examenesDePuerta,
     ): JsonResponse {
         $usuarioId = Auth::id();
 
@@ -37,7 +56,7 @@ final class IdentificarEnPuertaController
                 'string',
                 'max:2048',
             ],
-        ]);
+        ], self::MENSAJES);
 
         if ($datos['tipo'] !== 'qr') {
             $request->validate([
@@ -51,16 +70,29 @@ final class IdentificarEnPuertaController
             ]);
         }
 
+        $ahora = new DateTimeImmutable(
+            'now',
+            new DateTimeZone('America/La_Paz'),
+        );
+        $fecha = $ahora->format('Y-m-d');
+
         try {
             $resultado = $identificar->ejecutar(
                 $usuarioId,
                 $aula,
                 $datos['tipo'],
                 $datos['identificador'],
-                new DateTimeImmutable(
-                    'now',
-                    new DateTimeZone('America/La_Paz'),
-                ),
+                $ahora,
+            );
+
+            // BUG-04: quien no puede entrar deja su intento registrado,
+            // tambien cuando solo se lo identifica.
+            $intentos->ejecutar(
+                $usuarioId,
+                $aula,
+                $datos['tipo'],
+                $datos['identificador'],
+                $resultado,
             );
         } catch (AccesoPuntoDenegado $error) {
             return response()->json([
@@ -72,14 +104,25 @@ final class IdentificarEnPuertaController
             ], 422);
         }
 
+        $detalle = $detallar->detallar(
+            $resultado,
+            $resultado->veredicto,
+            $aula,
+            $fecha,
+            $datos['tipo'],
+            $datos['identificador'],
+            $resultado->causa === null ? [] : $examenesDePuerta->examenesDelAula($aula, $fecha),
+        );
+
         return response()->json([
             'data' => [
+                ...$detalle,
                 'examen_id' => $resultado->examenId,
                 'veredicto' => $resultado->veredicto?->value,
                 'ambiguo' => $resultado->ambiguo,
                 'admisible' => $resultado->puedeAdmitir(),
-                'codigo' => $resultado->candidato?->estudiante->codigoUniversitario,
-                'nombre' => $resultado->candidato?->estudiante->nombreCompleto(),
+                'codigo' => $detalle['codigo'],
+                'nombre' => $detalle['nombre'],
                 'inscrito' => $resultado->candidato?->inscrito,
                 'habilitado' => $resultado->candidato?->habilitacion?->habilitado,
                 'motivo_inhabilitacion' => $resultado->candidato?->habilitacion?->habilitado === false

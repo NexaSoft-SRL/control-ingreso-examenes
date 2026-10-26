@@ -16,5 +16,9 @@ final readonly class BitacoraOperacionData
         public ?int $registroId,
         public ?string $descripcion,
         public string $fechaOperacion,
+        // Quien operó sin cuenta, con código de aula.
+        public ?string $colaborador = null,
+        // El usuario de la cuenta afectada, cuando la tabla es `usuarios`.
+        public ?string $registroEtiqueta = null,
     ) {}
 }

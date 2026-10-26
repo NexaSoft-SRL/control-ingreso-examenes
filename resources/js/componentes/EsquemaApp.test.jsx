@@ -85,13 +85,13 @@ describe('EsquemaApp', () => {
             'Mis grupos',
             'En curso',
             'Punto de control',
-            'Seguimiento en vivo',
+            'Mi aula',
         ]);
         expect(enlaces(menus()[inferior])).toEqual([
             'Exámenes',
             'En curso',
             'Punto de control',
-            'Seguimiento en vivo',
+            'Mi aula',
             'Mis grupos',
         ]);
         expect(screen.queryByRole('button', { name: 'Más' })).not.toBeInTheDocument();

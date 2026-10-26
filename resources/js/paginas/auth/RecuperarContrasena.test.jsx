@@ -6,87 +6,106 @@ import RecuperarContrasena from './RecuperarContrasena';
 
 vi.mock('../../api/cliente', () => ({ api: { post: vi.fn() } }));
 
+const ENLACE = '/restablecer-contrasena?correo=ana%40example.invalid&token=abc123';
+
+function escribir(clave, repetida = clave) {
+    fireEvent.change(screen.getByLabelText(/^Contraseña/), { target: { value: clave } });
+    fireEvent.change(screen.getByLabelText(/^Repetir contraseña/), {
+        target: { value: repetida },
+    });
+}
+
 describe('RecuperarContrasena', () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it('solicita instrucciones usando el nombre de usuario', async () => {
+    it('solicita el enlace usando el nombre de usuario, sin textos explicativos', async () => {
         api.post.mockResolvedValue({
             data: {
                 message:
-                    'Si la cuenta tiene ese correo de contacto, enviaremos instrucciones para recuperar el acceso.',
+                    'Si la cuenta tiene correo registrado, recibirá el enlace de recuperación.',
             },
         });
-        renderConSesion(<RecuperarContrasena />, { ruta: '/recuperar-contrasena' });
+        const { container } = renderConSesion(<RecuperarContrasena />, {
+            ruta: '/recuperar-contrasena',
+        });
+        expect(container.textContent).not.toMatch(/Enviaremos|instrucciones/);
 
-        fireEvent.change(screen.getByLabelText('Usuario'), {
+        fireEvent.change(screen.getByLabelText(/^Usuario/), {
             target: { value: 'ana.rojas' },
         });
-        fireEvent.click(screen.getByRole('button', { name: 'Enviar instrucciones' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Enviar enlace' }));
 
         await waitFor(() =>
             expect(api.post).toHaveBeenCalledWith('/auth/recuperar-contrasena', {
                 usuario: 'ana.rojas',
             })
         );
-        expect(await screen.findByRole('status')).toHaveTextContent('enviaremos instrucciones');
+        expect(await screen.findByRole('status')).toHaveTextContent(
+            'recibirá el enlace de recuperación'
+        );
     });
 
-    it('exige el usuario antes de solicitar instrucciones', async () => {
+    it('exige el usuario antes de solicitar el enlace', () => {
         renderConSesion(<RecuperarContrasena />, { ruta: '/recuperar-contrasena' });
-        fireEvent.click(screen.getByRole('button', { name: 'Enviar instrucciones' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Enviar enlace' }));
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('Ingrese su nombre de usuario.');
+        expect(screen.getByText('Obligatorio')).toBeInTheDocument();
         expect(api.post).not.toHaveBeenCalled();
     });
 
-    it('restablece con token de un solo uso y nueva contraseña confirmada', async () => {
-        api.post.mockResolvedValue({
-            data: { message: 'La contraseña se restableció. Ya puedes iniciar sesión.' },
+    it('un correo en «Usuario» no se envía', () => {
+        renderConSesion(<RecuperarContrasena />, { ruta: '/recuperar-contrasena' });
+        fireEvent.change(screen.getByLabelText(/^Usuario/), {
+            target: { value: 'ana.rojas@umss.edu.bo' },
         });
-        renderConSesion(<RecuperarContrasena />, {
-            ruta: '/restablecer-contrasena?correo=ana%40example.invalid&token=abc123',
-        });
+        fireEvent.click(screen.getByRole('button', { name: 'Enviar enlace' }));
 
-        fireEvent.change(screen.getByLabelText('Nueva contraseña'), {
-            target: { value: 'RecoveredPassword123!' },
-        });
-        fireEvent.change(screen.getByLabelText('Confirmar nueva contraseña'), {
-            target: { value: 'RecoveredPassword123!' },
-        });
-        fireEvent.click(screen.getByRole('button', { name: 'Restablecer contraseña' }));
+        expect(screen.getByText('Usuario no válido')).toBeInTheDocument();
+        expect(api.post).not.toHaveBeenCalled();
+    });
+
+    it('restablece con las reglas cumplidas y la repetición', async () => {
+        api.post.mockResolvedValue({ data: { message: 'Contraseña actualizada.' } });
+        renderConSesion(<RecuperarContrasena />, { ruta: ENLACE });
+        const boton = () => screen.getByRole('button', { name: 'Restablecer contraseña' });
+
+        escribir('abc');
+        expect(boton()).toBeDisabled();
+
+        escribir('Recovered2026');
+        expect(boton()).toBeEnabled();
+        fireEvent.click(boton());
 
         await waitFor(() =>
             expect(api.post).toHaveBeenCalledWith('/auth/restablecer-contrasena', {
                 correo: 'ana@example.invalid',
                 token: 'abc123',
-                password: 'RecoveredPassword123!',
-                password_confirmation: 'RecoveredPassword123!',
+                password: 'Recovered2026',
+                password_confirmation: 'Recovered2026',
             })
         );
-        expect(await screen.findByRole('status')).toHaveTextContent('Ya puedes iniciar sesión');
+        expect(await screen.findByRole('status')).toHaveTextContent('Contraseña actualizada.');
+        expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toBeInTheDocument();
     });
 
-    it('explica cuando el enlace de recuperación venció', async () => {
+    it('un enlace vencido o recortado muestra «Enlace no válido o vencido»', async () => {
         api.post.mockRejectedValue({
             response: {
                 status: 422,
-                data: { errors: { token: ['El enlace de recuperación no es válido o venció.'] } },
+                data: { errors: { token: ['Enlace no válido o vencido.'] } },
             },
         });
-        renderConSesion(<RecuperarContrasena />, {
-            ruta: '/restablecer-contrasena?correo=ana%40example.invalid&token=vencido',
-        });
+        renderConSesion(<RecuperarContrasena />, { ruta: ENLACE });
 
-        fireEvent.change(screen.getByLabelText('Nueva contraseña'), {
-            target: { value: 'RecoveredPassword123!' },
-        });
-        fireEvent.change(screen.getByLabelText('Confirmar nueva contraseña'), {
-            target: { value: 'RecoveredPassword123!' },
-        });
+        escribir('Recovered2026');
         fireEvent.click(screen.getByRole('button', { name: 'Restablecer contraseña' }));
 
-        expect(await screen.findByRole('alert')).toHaveTextContent(
-            'El enlace de recuperación no es válido o venció.'
-        );
+        expect(await screen.findByRole('alert')).toHaveTextContent('Enlace no válido o vencido');
+    });
+
+    it('sin token en la dirección el enlace no es válido', () => {
+        renderConSesion(<RecuperarContrasena />, { ruta: '/restablecer-contrasena' });
+
+        expect(screen.getByRole('alert')).toHaveTextContent('Enlace no válido o vencido');
     });
 });

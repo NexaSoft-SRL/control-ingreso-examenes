@@ -46,9 +46,13 @@ final class BitacoraController
         return [
             'id' => $operacion->id,
             'usuario' => $usuario,
+            'actor' => $usuario === null && $operacion->colaborador !== null
+                ? $operacion->colaborador.' (código de aula)'
+                : null,
             'operacion' => $operacion->operacion,
             'tabla_afectada' => $operacion->tablaAfectada,
             'registro_id' => $operacion->registroId,
+            'registro_etiqueta' => $operacion->registroEtiqueta,
             'descripcion' => $operacion->descripcion,
             'fecha_operacion' => $operacion->fechaOperacion,
         ];

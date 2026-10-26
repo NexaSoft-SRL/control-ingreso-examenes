@@ -11,11 +11,23 @@ interface SeguimientoAulaGateway
      */
     public function aulasDelUsuario(int $usuarioId): array;
 
+    /**
+     * Las aulas de los exámenes de hoy que la cuenta puede seguir («Mi aula»).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function aulasDeHoy(int $usuarioId): array;
+
     public function aulaPerteneceAExamen(int $examenId, int $aulaId): bool;
 
     public function fechaDeExamen(int $examenId): ?string;
 
     public function tieneAsignacion(int $usuarioId, int $examenId, int $aulaId): bool;
+
+    /**
+     * Docente del examen o personal asignado al aula, sin mirar la fecha.
+     */
+    public function tieneAlcance(int $usuarioId, int $examenId, int $aulaId): bool;
 
     public function puedeVerAula(int $usuarioId, int $examenId, int $aulaId): bool;
 

@@ -89,9 +89,6 @@ export default function AccesoAula() {
                     <h1 className="mt-3 text-lg font-semibold text-slate-900">
                         Acceso a Puerta de Aula
                     </h1>
-                    <p className="mt-1 text-xs text-slate-600">
-                        Código de 6 dígitos brindado por el docente para operar el punto de control.
-                    </p>
                 </div>
 
                 <form onSubmit={acceder} className="mt-6 space-y-4" noValidate>

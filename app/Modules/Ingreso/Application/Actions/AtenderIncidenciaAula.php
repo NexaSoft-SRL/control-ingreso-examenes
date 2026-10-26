@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Actions;
 
-use App\Modules\Examenes\Application\Contracts\AlcanceExamenGateway;
 use App\Modules\Ingreso\Application\Contracts\SeguimientoAulaGateway;
 use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
 use InvalidArgumentException;
@@ -13,7 +12,6 @@ final readonly class AtenderIncidenciaAula
 {
     public function __construct(
         private SeguimientoAulaGateway $seguimiento,
-        private AlcanceExamenGateway $alcanceExamen,
     ) {}
 
     public function ejecutar(int $usuarioId, int $incidenciaId): bool
@@ -28,8 +26,9 @@ final readonly class AtenderIncidenciaAula
             throw new InvalidArgumentException('Incidencia no encontrada.');
         }
 
-        if (! $this->alcanceExamen->esDocenteDelExamen($usuarioId, $ubicacion['examen_id'])) {
-            throw new AccesoPuntoDenegado('Solo el docente del examen puede atender esta incidencia.');
+        // Como en «En curso»: el docente del examen o el personal de esa aula.
+        if (! $this->seguimiento->tieneAlcance($usuarioId, $ubicacion['examen_id'], $ubicacion['aula_id'])) {
+            throw new AccesoPuntoDenegado('Solo atiende las incidencias de sus aulas.');
         }
 
         return $this->seguimiento->marcarIncidenciaAtendida($incidenciaId, $usuarioId);

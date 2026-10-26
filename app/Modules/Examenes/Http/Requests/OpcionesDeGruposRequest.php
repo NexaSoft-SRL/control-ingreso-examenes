@@ -29,7 +29,7 @@ final class OpcionesDeGruposRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'asignatura_id.required' => 'Elige la asignatura.',
+            'asignatura_id.required' => 'Elija la asignatura.',
             'asignatura_id.integer' => 'La asignatura no es válida.',
             'asignatura_id.exists' => 'La asignatura no existe.',
         ];

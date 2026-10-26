@@ -13,7 +13,7 @@ Estas son las credenciales para el sistema de control de ingreso a exámenes:
 Ingresar al sistema
 @endcomponent
 
-La contraseña temporal caduca en {{ $horasVigencia }} horas. No compartas estos datos con nadie.
+La contraseña temporal caduca en {{ $horasVigencia }} horas. No comparta estos datos con nadie.
 
 Gracias,
 {{ config('app.name') }}

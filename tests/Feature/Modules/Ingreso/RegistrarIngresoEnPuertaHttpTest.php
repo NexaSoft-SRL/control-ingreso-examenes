@@ -668,21 +668,21 @@ final class RegistrarIngresoEnPuertaHttpTest extends TestCase
         [$usuario, $examen, $aula, $estudiante] =
             $this->escenarioDePuerta(false);
 
-        $ruta = "/api/aulas/{$aula->id}/punto-control/incidencias-manuales";
+        $ruta = "/api/aulas/{$aula->id}/punto-control/excepciones";
 
         foreach ([
             'EXCEPCION_IDENTIFICACION',
-            'EXCEPCION_CAMBIO_AULA',
             'EXCEPCION_NO_HABILITADO',
         ] as $tipo) {
             $this->actingAs($usuario)->postJson($ruta, [
                 'examen_id' => $examen->id,
-                'codigo_universitario' => $estudiante->codigo_universitario,
+                'estudiante_id' => $estudiante->id,
                 'tipo' => $tipo,
-                'detalle' => 'Situación excepcional documentada y verificada.',
+                'motivo' => 'Situación excepcional documentada y verificada.',
             ])
                 ->assertCreated()
-                ->assertJsonPath('data.tipo', $tipo);
+                ->assertJsonPath('data.tipo', $tipo)
+                ->assertJsonPath('data.admitido', false);
 
             $this->assertDatabaseHas('incidencias_aula', [
                 'examen_id' => $examen->id,
@@ -694,10 +694,26 @@ final class RegistrarIngresoEnPuertaHttpTest extends TestCase
             ]);
         }
 
-        $this->assertDatabaseCount('incidencias_aula', 3);
+        // A un no habilitado el cambio de aula no lo deja entrar.
+        $this->actingAs($usuario)->postJson($ruta, [
+            'examen_id' => $examen->id,
+            'estudiante_id' => $estudiante->id,
+            'tipo' => 'EXCEPCION_CAMBIO_AULA',
+            'motivo' => 'Situación excepcional documentada y verificada.',
+        ])->assertConflict();
 
-        // Reportar una excepción no autoriza ni registra el ingreso.
+        $this->assertDatabaseCount('incidencias_aula', 2);
         $this->assertDatabaseCount('ingresos', 0);
+
+        // Las excepciones no entran como incidencia comun (N5).
+        $this->actingAs($usuario)->postJson(
+            "/api/aulas/{$aula->id}/punto-control/incidencias-manuales",
+            [
+                'examen_id' => $examen->id,
+                'tipo' => 'EXCEPCION_CAMBIO_AULA',
+                'detalle' => 'Situación excepcional documentada y verificada.',
+            ],
+        )->assertUnprocessable()->assertJsonValidationErrors('tipo');
     }
 
     /**
@@ -798,7 +814,16 @@ final class RegistrarIngresoEnPuertaHttpTest extends TestCase
                 "/api/aulas/{$aula->id}/punto-control/ingresos",
                 ['tipo' => 'qr', 'identificador' => $qr],
             )
-            ->assertUnprocessable();
+            ->assertConflict()
+            ->assertJsonPath('data.causa', 'QR_NO_VALIDO')
+            ->assertJsonPath('data.dato', 'Código QR no válido');
+
+        $this->assertDatabaseHas('incidencias_ingreso', [
+            'examen_id' => null,
+            'aula_id' => $aula->id,
+            'tipo_rechazo' => 'QR_NO_VALIDO',
+            'registrado_por' => $usuario->id,
+        ]);
 
         $this->assertDatabaseCount('ingresos', 0);
     }
@@ -821,7 +846,16 @@ final class RegistrarIngresoEnPuertaHttpTest extends TestCase
                     'identificador' => $qr.'alterado',
                 ],
             )
-            ->assertUnprocessable();
+            ->assertConflict()
+            ->assertJsonPath('data.causa', 'QR_NO_VALIDO')
+            ->assertJsonPath('data.dato', 'Código QR no válido');
+
+        $this->assertDatabaseHas('incidencias_ingreso', [
+            'examen_id' => null,
+            'aula_id' => $aula->id,
+            'tipo_rechazo' => 'QR_NO_VALIDO',
+            'registrado_por' => $usuario->id,
+        ]);
 
         $this->assertDatabaseCount('ingresos', 0);
     }
@@ -924,7 +958,8 @@ final class RegistrarIngresoEnPuertaHttpTest extends TestCase
                 "/api/aulas/{$aula->id}/punto-control/ingresos",
                 ['tipo' => 'qr', 'identificador' => $qr],
             )
-            ->assertUnprocessable();
+            ->assertConflict()
+            ->assertJsonPath('data.causa', 'QR_NO_VALIDO');
 
         $this->assertDatabaseCount('ingresos', 0);
     }
@@ -1117,7 +1152,7 @@ final class RegistrarIngresoEnPuertaHttpTest extends TestCase
         ]);
     }
 
-    public function test_identificacion_sin_registro_no_genera_incidencia(): void
+    public function test_identificacion_no_habilitada_registra_el_intento(): void
     {
         [$usuario, $examen, $aula, $estudiante] =
             $this->escenarioDePuerta(false);
@@ -1134,7 +1169,22 @@ final class RegistrarIngresoEnPuertaHttpTest extends TestCase
             ->assertJsonPath('data.veredicto', 'NO_HABILITADO');
 
         $this->assertDatabaseCount('ingresos', 0);
-        $this->assertDatabaseCount('incidencias_ingreso', 0);
+        // BUG-04: identificar a quien no puede entrar deja el intento.
+        $this->assertDatabaseHas('incidencias_ingreso', [
+            'examen_id' => $examen->id,
+            'estudiante_id' => $estudiante->id,
+            'tipo_rechazo' => 'NO_HABILITADO',
+            'detalle' => 'No cumple el requisito.',
+        ]);
+
+        // Confirmar enseguida no duplica el mismo intento.
+        $this->actingAs($usuario)->postJson(
+            "/api/aulas/{$aula->id}/punto-control/ingresos",
+            ['tipo' => 'codigo', 'identificador' => $estudiante->codigo_universitario],
+        )->assertConflict()
+            ->assertJsonPath('data.dato', 'No cumple el requisito.');
+
+        $this->assertDatabaseCount('incidencias_ingreso', 1);
     }
 
     public function test_intento_sin_examen_tiene_auditoria_independiente(): void
@@ -1144,13 +1194,17 @@ final class RegistrarIngresoEnPuertaHttpTest extends TestCase
         $this->actingAs($usuario)->postJson(
             "/api/aulas/{$aula->id}/punto-control/ingresos",
             ['tipo' => 'codigo', 'identificador' => '9999999999'],
-        )->assertConflict();
+        )->assertConflict()
+            ->assertJsonPath('data.causa', 'NO_REGISTRADO')
+            ->assertJsonPath('data.dato', '9999999999 · sin registro en el padrón');
 
-        $this->assertDatabaseHas('intentos_punto_control', [
+        // BUG-04: sin examen propio, pero en las incidencias del aula.
+        $this->assertDatabaseHas('incidencias_ingreso', [
+            'examen_id' => null,
             'aula_id' => $aula->id,
             'registrado_por' => $usuario->id,
-            'tipo_identificador' => 'codigo',
-            'causa' => 'SIN_EXAMEN',
+            'tipo_rechazo' => 'NO_REGISTRADO',
+            'detalle' => 'Código 9999999999 sin registro en el padrón.',
         ]);
         $this->assertDatabaseCount('ingresos', 0);
     }

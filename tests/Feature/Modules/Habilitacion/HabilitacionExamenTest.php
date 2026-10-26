@@ -414,7 +414,7 @@ final class HabilitacionExamenTest extends TestCase
         $this->actingAs($otra)
             ->getJson("/api/examenes/{$examen->id}/habilitaciones")
             ->assertForbidden()
-            ->assertExactJson(['message' => 'Este examen no es tuyo.', 'alcance' => true]);
+            ->assertExactJson(['message' => 'Examen no autorizado.', 'alcance' => true]);
     }
 
     public function test_the_teacher_of_an_included_group_works_on_an_exam_registered_by_another(): void
@@ -682,7 +682,7 @@ final class HabilitacionExamenTest extends TestCase
             ->postJson($ruta, [])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['habilitado', 'estudiantes'])
-            ->assertJsonPath('errors.estudiantes.0', 'Selecciona al menos un estudiante.');
+            ->assertJsonPath('errors.estudiantes.0', 'Seleccione al menos un estudiante.');
 
         $this->actingAs($this->cuenta)
             ->postJson($ruta, ['habilitado' => true, 'estudiantes' => []])
@@ -874,7 +874,7 @@ final class HabilitacionExamenTest extends TestCase
         $this->actingAs($otra)
             ->postJson("/api/examenes/{$examen->id}/habilitaciones", ['habilitado' => true, 'todos' => true])
             ->assertForbidden()
-            ->assertExactJson(['message' => 'Este examen no es tuyo.', 'alcance' => true]);
+            ->assertExactJson(['message' => 'Examen no autorizado.', 'alcance' => true]);
 
         $this->assertDatabaseCount('habilitaciones', 0);
     }

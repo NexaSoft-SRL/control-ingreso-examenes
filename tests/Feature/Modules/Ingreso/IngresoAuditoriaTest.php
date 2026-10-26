@@ -8,6 +8,7 @@ use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\IngresoAuditadoGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Tests\Support\DatosAcademicos;
 use Tests\Support\DatosDeExamen;
@@ -38,13 +39,18 @@ final class IngresoAuditoriaTest extends TestCase
                     is_int($id) && $id > 0
                 )),
                 self::callback(
+                    // BUG-15: legible, con codigo y nombre del estudiante,
+                    // aula y asignatura; sin ids internos.
                     static fn (mixed $descripcion): bool => is_string($descripcion)
-                        && str_contains($descripcion, "Examen {$examenId}")
                         && str_contains(
                             $descripcion,
-                            "estudiante {$estudianteId}",
+                            self::cadena(DB::table('estudiantes')->where('id', $estudianteId)->value('codigo_universitario')),
                         )
-                        && str_contains($descripcion, "aula {$aulaId}"),
+                        && str_contains(
+                            $descripcion,
+                            'Aula '.self::cadena(DB::table('aulas')->where('id', $aulaId)->value('nombre')),
+                        )
+                        && ! str_contains($descripcion, "estudiante {$estudianteId}"),
                 ),
             );
 
@@ -155,5 +161,12 @@ final class IngresoAuditoriaTest extends TestCase
             $aula->id,
             $cuenta->id,
         ];
+    }
+
+    private static function cadena(mixed $valor): string
+    {
+        self::assertTrue(is_string($valor) || is_int($valor), 'Se esperaba un texto.');
+
+        return (string) $valor;
     }
 }

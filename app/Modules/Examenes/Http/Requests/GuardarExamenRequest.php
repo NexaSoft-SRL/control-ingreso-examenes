@@ -58,10 +58,10 @@ final class GuardarExamenRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'asignatura_id.required' => 'Elige la asignatura.',
+            'asignatura_id.required' => 'Elija la asignatura.',
             'asignatura_id.integer' => 'La asignatura no es válida.',
             'asignatura_id.exists' => 'La asignatura no existe.',
-            'tipo.required' => 'Elige el tipo de examen.',
+            'tipo.required' => 'Elija el tipo de examen.',
             'tipo.string' => 'El tipo de examen no es válido.',
             'tipo.in' => 'El tipo de examen no es válido.',
             'fecha.required' => 'Indica la fecha.',
@@ -73,9 +73,9 @@ final class GuardarExamenRequest extends FormRequest
             'duracion_minutos.between' => 'Entre 15 y 480',
             'normas.string' => 'Las normas deben ser un texto.',
             'normas.max' => 'Las normas admiten hasta 2.000 caracteres.',
-            'grupos.required' => 'Elige al menos un grupo.',
-            'grupos.array' => 'Elige al menos un grupo.',
-            'grupos.min' => 'Elige al menos un grupo.',
+            'grupos.required' => 'Elija al menos un grupo.',
+            'grupos.array' => 'Elija al menos un grupo.',
+            'grupos.min' => 'Elija al menos un grupo.',
             'grupos.*.integer' => 'El grupo no es válido.',
             'grupos.*.distinct' => 'Hay un grupo repetido.',
             'grupos.*.exists' => 'El grupo no existe.',

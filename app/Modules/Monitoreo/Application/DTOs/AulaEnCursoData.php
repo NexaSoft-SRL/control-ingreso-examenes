@@ -7,7 +7,8 @@ namespace App\Modules\Monitoreo\Application\DTOs;
 /**
  * Un aula del examen en curso: quien la atiende (HU-18), su avance y sus
  * senales. `compartida` lista los otros examenes que la usan a la misma
- * hora («Asignatura · Tipo»).
+ * hora («Asignatura · Tipo»). `puedeOperar` dice si la cuenta opera su
+ * puerta, con la misma regla que la puerta (HU-19).
  */
 final readonly class AulaEnCursoData
 {
@@ -28,5 +29,6 @@ final readonly class AulaEnCursoData
         public array $compartida,
         public bool $codigoAcceso,
         public bool $aMiCargo,
+        public bool $puedeOperar,
     ) {}
 }

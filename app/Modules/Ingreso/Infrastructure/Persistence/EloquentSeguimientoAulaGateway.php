@@ -24,6 +24,19 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
 
     public function aulasDelUsuario(int $usuarioId): array
     {
+        return $this->aulas($usuarioId, false);
+    }
+
+    public function aulasDeHoy(int $usuarioId): array
+    {
+        return $this->aulas($usuarioId, true);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function aulas(int $usuarioId, bool $soloHoy): array
+    {
         $hoy = now()->toDateString();
         $esDocente = DB::table('docentes')
             ->where('user_id', $usuarioId)
@@ -33,7 +46,7 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
             ->join('examenes as e', 'e.id', '=', 'ea.examen_id')
             ->join('aulas as a', 'a.id', '=', 'ea.aula_id')
             ->join('asignaturas as s', 's.id', '=', 'e.asignatura_id')
-            ->whereDate('e.fecha', '>=', $hoy);
+            ->whereDate('e.fecha', $soloHoy ? '=' : '>=', $hoy);
 
         if ($esDocente) {
             $consulta->where(function (Builder $consulta) use ($usuarioId): void {
@@ -149,23 +162,17 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
             ->exists();
     }
 
+    public function tieneAlcance(int $usuarioId, int $examenId, int $aulaId): bool
+    {
+        return $this->alcanceExamen->esDocenteDelExamen($usuarioId, $examenId)
+            || $this->tieneAsignacion($usuarioId, $examenId, $aulaId);
+    }
+
+    // Docente del examen o personal del aula, y solo el día del examen.
     public function puedeVerAula(int $usuarioId, int $examenId, int $aulaId): bool
     {
-        if ($this->alcanceExamen->esDocenteDelExamen($usuarioId, $examenId)) {
-            return true;
-        }
-
-        return DB::table('examen_aula_personal')
-            ->where('usuario_id', $usuarioId)
-            ->where('examen_id', $examenId)
-            ->where('aula_id', $aulaId)
-            ->whereExists(function (Builder $consulta) use ($examenId): void {
-                $consulta->selectRaw('1')
-                    ->from('examenes')
-                    ->where('id', $examenId)
-                    ->whereDate('fecha', now()->toDateString());
-            })
-            ->exists();
+        return $this->fechaDeExamen($examenId) === now()->toDateString()
+            && $this->tieneAlcance($usuarioId, $examenId, $aulaId);
     }
 
     public function detalle(
@@ -515,9 +522,11 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
             });
     }
 
+    // Sin mayúsculas ni tildes; la coma de «Apellidos, Nombres» separa términos.
     private function normalizar(string $texto): string
     {
         return strtr(mb_strtolower(trim($texto)), [
+            ',' => ' ',
             'á' => 'a',
             'é' => 'e',
             'í' => 'i',

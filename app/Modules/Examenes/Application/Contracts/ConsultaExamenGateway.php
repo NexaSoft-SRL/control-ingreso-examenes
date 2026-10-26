@@ -79,7 +79,7 @@ interface ConsultaExamenGateway
     public function horaServidor(): string;
 
     /**
-     * Devuelve los IDs de usuarios autorizados como docentes de los grupos (con user_id no nulo).
+     * Devuelve los IDs de las cuentas activas de los docentes de los grupos.
      *
      * @param  list<int>  $grupoIds
      * @return list<int>
@@ -87,12 +87,20 @@ interface ConsultaExamenGateway
     public function docentesDeGrupos(array $grupoIds): array;
 
     /**
-     * Comprueba que usuarios de la lista dada tienen rol Auxiliar.
+     * Comprueba que usuarios de la lista dada tienen rol Auxiliar y cuenta activa.
      *
      * @param  list<int>  $usuarioIds
      * @return list<int>
      */
     public function usuariosConRolAuxiliar(array $usuarioIds): array;
+
+    /**
+     * De los usuarios dados, los que tienen la cuenta bloqueada.
+     *
+     * @param  list<int>  $usuarioIds
+     * @return list<int>
+     */
+    public function cuentasInactivas(array $usuarioIds): array;
 
     /**
      * Devuelve los IDs de todos los docentes con cuenta de usuario.

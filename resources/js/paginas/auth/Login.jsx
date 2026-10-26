@@ -19,10 +19,9 @@ function leerRechazo(error) {
     const datos = error?.response?.data ?? {};
 
     if (datos.code === 'TEMPORARY_PASSWORD_EXPIRED') {
-        return {
-            fallo: 'La contraseña temporal venció. Solicita al administrador que restablezca tu acceso.',
-        };
+        return { fallo: 'Contraseña temporal vencida' };
     }
+    // También la cuenta desactivada (sin minutos), solo con la contraseña correcta.
     if (estado === 423) {
         return {
             bloqueo: datos.minutos
@@ -122,10 +121,10 @@ export default function Login() {
             <main className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-5xl items-start justify-center px-4 py-10 sm:items-center sm:px-8">
                 <div className="w-full max-w-md">
                     <div className="mb-6 text-center sm:text-left">
-                        <h1 className="text-2xl font-bold text-slate-900">Ingreso al sistema</h1>
-                        <p className="mt-1 text-sm text-slate-600">
-                            Ingrese sus credenciales para continuar
-                        </p>
+                        <h1 className="text-2xl font-bold text-slate-900">
+                            Control de ingreso a exámenes
+                        </h1>
+                        <p className="mt-1 text-sm text-slate-600">Cuenta institucional</p>
                     </div>
 
                     <form
@@ -234,9 +233,6 @@ export default function Login() {
                             </div>
                         </div>
                     </form>
-                    <p className="mt-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-                        Si utiliza una contraseña temporal, deberá cambiarla al ingresar.
-                    </p>
                 </div>
             </main>
         </div>

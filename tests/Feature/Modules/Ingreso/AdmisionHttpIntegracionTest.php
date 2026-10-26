@@ -179,7 +179,7 @@ final class AdmisionHttpIntegracionTest extends TestCase
             'estudiante_id' => $estudiante->id,
             'registrado_por' => $usuario->id,
             'tipo_rechazo' => 'OTRA_AULA',
-            'detalle' => 'El estudiante está asignado a otra aula.',
+            'detalle' => sprintf('Asignado al aula %s.', $otraAula->nombre),
         ]);
 
         $this->assertDatabaseCount('incidencias_ingreso', 1);
@@ -252,7 +252,7 @@ final class AdmisionHttpIntegracionTest extends TestCase
             'examen_id' => $examen->id,
             'estudiante_id' => $estudiante->id,
             'tipo_rechazo' => 'NO_HABILITADO',
-            'detalle' => 'El estudiante no tiene condición de habilitación registrada para este examen.',
+            'detalle' => 'Sin revisar: sin condición de habilitación registrada.',
         ]);
 
         $this->assertDatabaseCount('ingresos', 0);
