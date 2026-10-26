@@ -80,7 +80,7 @@ function montar(ruta = '/control') {
 }
 
 async function verificarCodigo(codigo = '202210098') {
-    const campo = await screen.findByRole('textbox', { name: 'Identificador' });
+    const campo = await screen.findByRole('textbox', { name: 'Código SIS o C.I.' });
     fireEvent.change(campo, { target: { value: codigo } });
     fireEvent.click(screen.getByRole('button', { name: 'Verificar' }));
 }
@@ -184,7 +184,6 @@ describe('PuntoControl HU-19', () => {
 
         await waitFor(() => {
             expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/ingresos', {
-                tipo: 'codigo',
                 identificador: '202210098',
             });
         });
@@ -200,7 +199,9 @@ describe('PuntoControl HU-19', () => {
         expect(within(tarjeta).queryByText('Situación excepcional')).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /Siguiente/ }));
-        expect(await screen.findByRole('textbox', { name: 'Identificador' })).toBeInTheDocument();
+        expect(
+            await screen.findByRole('textbox', { name: 'Código SIS o C.I.' })
+        ).toBeInTheDocument();
     });
 
     it('BUG-11: «Ya ingresó» con hora y aula, sin situación excepcional (N4)', async () => {
@@ -208,7 +209,8 @@ describe('PuntoControl HU-19', () => {
             rechazo({
                 veredicto: 'YA_INGRESO',
                 estudiante: { id: 5, codigo: '202210098', nombre: 'Vega Escóbar, Silvia' },
-                dato: 'Ya ingresó a las 08:39 por el aula 691A',
+                dato: 'Ingresó a las 08:39 en el aula 691A',
+                pie: 'Incidencia registrada',
             })
         );
 
@@ -216,7 +218,8 @@ describe('PuntoControl HU-19', () => {
         await verificarCodigo();
 
         expect(await screen.findByText('Ya ingresó')).toBeInTheDocument();
-        expect(screen.getByText('Ya ingresó a las 08:39 por el aula 691A')).toBeInTheDocument();
+        expect(screen.getByText('Ingresó a las 08:39 en el aula 691A')).toBeInTheDocument();
+        expect(screen.getByText('Incidencia registrada')).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Situación excepcional' })
         ).not.toBeInTheDocument();
@@ -264,84 +267,34 @@ describe('PuntoControl HU-19', () => {
         ).toBeInTheDocument();
     });
 
-    it('BUG-08: «Otra aula» muestra aula, edificio y piso', async () => {
-        api.post.mockImplementation(() =>
-            rechazo({
-                veredicto: 'OTRA_AULA',
-                estudiante: { id: 5, codigo: '202110007', nombre: 'Paz, Luis' },
-                examen: {
-                    id: 10,
-                    asignatura: 'Introducción a la Programación',
-                    tipo: 'Primer parcial',
+    it('el aula asignada es una sugerencia y la llegada tarde se marca', async () => {
+        api.post.mockResolvedValue({
+            data: {
+                data: {
+                    veredicto: 'ADMITIDO',
+                    admitido: true,
+                    estudiante: { id: 5, codigo: '202110007', nombre: 'Paz Luis' },
+                    dato: 'Registrado a las 08:39 · su aula sugerida era la 691B',
+                    tarde: 39,
+                    pie: 'Tarde · 39 min después del inicio',
                 },
-                aula_correcta: {
-                    id: 8,
-                    nombre: '691B',
-                    edificio: 'Edificio Académico 2',
-                    piso: '2.º piso',
-                    edificio_id: 3,
-                },
-            })
-        );
-
-        montar();
-        await verificarCodigo('202110007');
-
-        expect(await screen.findByText('Otra aula')).toBeInTheDocument();
-        expect(screen.getByText('Aula 691B')).toBeInTheDocument();
-        expect(screen.getAllByText('Edificio Académico 2 · 2.º piso').length).toBeGreaterThan(0);
-        expect(screen.getByRole('button', { name: 'Admitir como excepción' })).toBeInTheDocument();
-    });
-
-    it('N1 y N6: el cambio de aula admite como excepción, con el motivo enfocado', async () => {
-        const desplazar = vi.fn();
-        Element.prototype.scrollIntoView = desplazar;
-
-        api.post.mockImplementation((ruta) => {
-            if (ruta.endsWith('/excepciones')) {
-                return Promise.resolve({
-                    data: {
-                        message: 'Admitido como excepción',
-                        data: { admitido: true, ingreso: { id: 40, hora: '08:41' } },
-                    },
-                });
-            }
-            return rechazo({
-                veredicto: 'OTRA_AULA',
-                estudiante: { id: 5, codigo: '202110007', nombre: 'Paz, Luis' },
-                examen: {
-                    id: 10,
-                    asignatura: 'Introducción a la Programación',
-                    tipo: 'Primer parcial',
-                },
-                aula_correcta: { id: 8, nombre: '691B' },
-            });
+            },
         });
+        respuestas.ingresos = { data: [fila(1, { tarde: 39 })], meta: { total: 1 } };
 
         montar();
-        await verificarCodigo('202110007');
-
-        fireEvent.click(await screen.findByRole('button', { name: 'Admitir como excepción' }));
-
-        const motivo = screen.getByRole('textbox', { name: /Motivo/ });
-        await waitFor(() => expect(motivo).toHaveFocus());
-        expect(desplazar).toHaveBeenCalled();
-        expect(screen.getByRole('combobox', { name: 'Tipo' })).toHaveValue('EXCEPCION_CAMBIO_AULA');
-
-        fireEvent.change(motivo, { target: { value: 'El aula 691B está cerrada.' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Registrar' }));
+        await verificarCodigo('5003748-1a');
 
         await waitFor(() => {
-            expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/excepciones', {
-                tipo: 'EXCEPCION_CAMBIO_AULA',
-                motivo: 'El aula 691B está cerrada.',
-                estudiante_id: 5,
-                examen_id: 10,
+            expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/ingresos', {
+                identificador: '5003748-1A',
             });
         });
-
-        expect(await screen.findByText('Admitido como excepción')).toBeInTheDocument();
-        expect(screen.getByText(/Ingresó a las 08:41/)).toBeInTheDocument();
+        expect(
+            await screen.findByText('Registrado a las 08:39 · su aula sugerida era la 691B')
+        ).toBeInTheDocument();
+        expect(screen.getByText('Tarde · 39 min después del inicio')).toBeInTheDocument();
+        expect(screen.getByText('Tarde · 39 min')).toBeInTheDocument();
     });
 
     it('N4: con el no habilitado no ofrece cambio de aula', async () => {
@@ -427,7 +380,7 @@ describe('PuntoControl HU-19', () => {
         expect(
             await screen.findByText('Cámara no disponible: requiere conexión segura (HTTPS)')
         ).toBeInTheDocument();
-        expect(screen.getByRole('textbox', { name: 'Identificador' })).toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: 'Código SIS o C.I.' })).toBeInTheDocument();
         vi.unstubAllGlobals();
     });
 
@@ -550,14 +503,16 @@ describe('PuntoControl HU-19', () => {
         await verificarCodigo();
 
         expect(await screen.findByRole('alert')).toHaveTextContent('Sin asignación en esta aula');
-        expect(screen.queryByRole('textbox', { name: 'Identificador' })).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('textbox', { name: 'Código SIS o C.I.' })
+        ).not.toBeInTheDocument();
     });
 
     it('valida el identificador antes de enviar', async () => {
         montar();
         await verificarCodigo('12');
 
-        expect(await screen.findByText('Código SIS no válido')).toBeInTheDocument();
+        expect(await screen.findByText('Código SIS o C.I. no válido')).toBeInTheDocument();
         expect(api.post).not.toHaveBeenCalled();
     });
 
@@ -593,7 +548,6 @@ describe('PuntoControl HU-19', () => {
 
         await waitFor(() => {
             expect(api.post).toHaveBeenCalledWith('/examenes/10/aulas/7/punto-control/ingresos', {
-                tipo: 'codigo',
                 identificador: '202210098',
             });
         });

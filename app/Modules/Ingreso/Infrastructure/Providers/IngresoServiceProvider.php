@@ -7,12 +7,13 @@ namespace App\Modules\Ingreso\Infrastructure\Providers;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\ContextoOperativoPuntoControl;
-use App\Modules\Ingreso\Application\Contracts\DetallePuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\CorreoQrGateway;
+use App\Modules\Ingreso\Application\Contracts\DetallePuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
 use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
 use App\Modules\Ingreso\Application\Contracts\ExamenesDePuerta;
 use App\Modules\Ingreso\Application\Contracts\GeneradorImagenQr;
+use App\Modules\Ingreso\Application\Contracts\IdentificacionEstudianteGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaIngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaManualPuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciasIngresoGateway;
@@ -24,11 +25,12 @@ use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
 use App\Modules\Ingreso\Application\Contracts\VerificacionPuntoControlGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentAlcancePuntoControl;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentContextoOperativoPuntoControl;
-use App\Modules\Ingreso\Infrastructure\Persistence\EloquentDetallePuertaGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentCorreoQrGateway;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentDetallePuertaGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEmisionQrGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEstadoExpulsionGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentExamenesDePuerta;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIdentificacionEstudianteGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIncidenciaIngresoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIncidenciaManualPuertaGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIncidenciasIngresoGateway;
@@ -59,6 +61,11 @@ final class IngresoServiceProvider extends ServiceProvider
         $this->app->bind(
             OperacionesPuertaGateway::class,
             EloquentOperacionesPuertaGateway::class,
+        );
+
+        $this->app->bind(
+            IdentificacionEstudianteGateway::class,
+            EloquentIdentificacionEstudianteGateway::class,
         );
 
         $this->app->bind(

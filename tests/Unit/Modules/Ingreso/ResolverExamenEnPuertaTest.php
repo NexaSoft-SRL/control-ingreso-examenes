@@ -86,12 +86,20 @@ final class ResolverExamenEnPuertaTest extends TestCase
                 ],
                 5,
             ],
-            'no elige entre dos rechazos' => [
+            // El aula del reparto es una sugerencia: el habilitado de otra
+            // aula entra por esta.
+            'prefiere al habilitado de otra aula sobre el no habilitado' => [
                 [
                     5 => self::estado(true, false, null),
                     6 => self::estado(true, true, 40),
                 ],
-                null,
+                6,
+            ],
+            'admite al habilitado sin aula asignada' => [
+                [
+                    5 => self::estado(true, true, null),
+                ],
+                5,
             ],
         ];
     }

@@ -89,28 +89,101 @@ final class PuertaVeredictosHttpTest extends TestCase
         $this->ingresar_por_codigo($this->estudiantes[0])->assertCreated();
         $hora = substr(self::cadena(DB::table('ingresos')->value('registrado_en')), 11, 5);
 
+        // Releerlo enseguida en la misma puerta no deja incidencia.
         $this->ingresar_por_codigo($this->estudiantes[0])
             ->assertConflict()
             ->assertJsonPath('data.veredicto', 'YA_INGRESO')
-            ->assertJsonPath('data.dato', "Ya ingresó a las {$hora} por esta aula")
+            ->assertJsonPath('data.dato', "Ingresó a las {$hora} en esta aula")
+            ->assertJsonPath('data.pie', null)
             ->assertJsonPath('data.registrado_en', DB::table('ingresos')->value('registrado_en'));
+        $this->assertDatabaseCount('incidencias_ingreso', 0);
 
-        // Desde otra puerta del examen se nombra el aula del ingreso.
-        $this->actingAs($this->usuario)->postJson(
-            "/api/aulas/{$this->otraAula->id}/punto-control/ingresos",
-            ['tipo' => 'codigo', 'identificador' => $this->estudiantes[0]->codigo_universitario],
-        )->assertConflict()
-            ->assertJsonPath('data.dato', "Ya ingresó a las {$hora} por el aula 691A");
+        // Desde otra puerta del examen se nombra el aula del ingreso y queda
+        // la incidencia, una sola aunque lo vuelvan a leer.
+        foreach ([1, 2] as $vez) {
+            $this->actingAs($this->usuario)->postJson(
+                "/api/aulas/{$this->otraAula->id}/punto-control/ingresos",
+                ['tipo' => 'codigo', 'identificador' => $this->estudiantes[0]->codigo_universitario],
+            )->assertConflict()
+                ->assertJsonPath('data.dato', "Ingresó a las {$hora} en el aula 691A")
+                ->assertJsonPath('data.pie', $vez === 1 ? 'Incidencia registrada' : null);
+        }
+
+        $this->assertDatabaseCount('incidencias_ingreso', 1);
+        $this->assertDatabaseHas('incidencias_ingreso', [
+            'aula_id' => $this->otraAula->id,
+            'estudiante_id' => $this->estudiantes[0]->id,
+            'detalle' => "Código o C.I. ya usado. Ingresó a las {$hora} en el aula 691A.",
+        ]);
     }
 
-    public function test_bug08_otra_aula_indica_edificio_y_piso(): void
+    public function test_bug08_el_aula_asignada_es_una_sugerencia(): void
     {
-        $this->ingresar_por_codigo($this->estudiantes[1])
-            ->assertConflict()
-            ->assertJsonPath('data.veredicto', 'OTRA_AULA')
-            ->assertJsonPath('data.aula_correcta.nombre', '691B')
-            ->assertJsonPath('data.aula_correcta.edificio', 'Edificio Académico 2')
-            ->assertJsonPath('data.aula_correcta.piso', '2.º piso');
+        $respuesta = $this->ingresar_por_codigo($this->estudiantes[1])
+            ->assertCreated()
+            ->assertJsonPath('data.veredicto', 'ADMITIDO')
+            ->assertJsonPath('data.aula_sugerida.nombre', '691B')
+            ->assertJsonPath('data.aula_sugerida.edificio', 'Edificio Académico 2')
+            ->assertJsonPath('data.aula_sugerida.piso', '2.º piso');
+
+        $hora = substr(self::cadena(DB::table('ingresos')->value('registrado_en')), 11, 5);
+        $respuesta->assertJsonPath('data.dato', "Registrado a las {$hora} · su aula sugerida era la 691B");
+
+        $this->assertDatabaseHas('ingresos', [
+            'estudiante_id' => $this->estudiantes[1]->id,
+            'aula_id' => $this->aula->id,
+        ]);
+    }
+
+    public function test_un_solo_campo_acepta_el_ci_con_complemento(): void
+    {
+        DB::table('estudiantes')
+            ->where('id', $this->estudiantes[0]->id)
+            ->update(['documento_identidad' => '5003748-1A']);
+
+        $this->actingAs($this->usuario)->postJson(
+            "/api/aulas/{$this->aula->id}/punto-control/ingresos",
+            ['identificador' => '5003748 1a'],
+        )->assertCreated()
+            ->assertJsonPath('data.veredicto', 'ADMITIDO')
+            ->assertJsonPath('data.estudiante.codigo', $this->estudiantes[0]->codigo_universitario);
+
+        $this->actingAs($this->usuario)->postJson(
+            "/api/aulas/{$this->aula->id}/punto-control/ingresos",
+            ['identificador' => $this->estudiantes[3]->codigo_universitario],
+        )->assertCreated();
+
+        $this->actingAs($this->usuario)->postJson(
+            "/api/aulas/{$this->aula->id}/punto-control/ingresos",
+            ['identificador' => 'abc'],
+        )->assertUnprocessable()
+            ->assertJsonPath('errors.identificador.0', 'Código SIS o C.I. no válido');
+
+        $this->actingAs($this->usuario)->postJson(
+            "/api/aulas/{$this->aula->id}/punto-control/ingresos",
+            ['identificador' => '7777777-2B'],
+        )->assertConflict()
+            ->assertJsonPath('data.causa', 'NO_REGISTRADO')
+            ->assertJsonPath('data.dato', 'Sin registro en el padrón');
+    }
+
+    public function test_llegada_tarde_pasados_quince_minutos(): void
+    {
+        $inicio = now()->subMinutes(40)->format('H:i:s');
+        DB::table('examenes')->where('id', $this->examen->id)->update([
+            'fecha' => now()->toDateString(),
+            'hora_inicio' => $inicio,
+        ]);
+
+        $this->ingresar_por_codigo($this->estudiantes[0])
+            ->assertCreated()
+            ->assertJsonPath('data.tarde', 40)
+            ->assertJsonPath('data.pie', 'Tarde · 40 min después del inicio');
+
+        $this->actingAs($this->usuario)
+            ->getJson("/api/aulas/{$this->aula->id}/punto-control/ingresos")
+            ->assertOk()
+            ->assertJsonPath('data.0.tarde', 40);
     }
 
     public function test_bug10_no_habilitado_trae_motivo_y_quien_lo_registro(): void

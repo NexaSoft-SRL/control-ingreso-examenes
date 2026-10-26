@@ -1,7 +1,6 @@
 import PropTypes from 'prop-types';
 import { useEffect, useRef, useState } from 'react';
 import {
-    AlertTriangle,
     ArrowRight,
     CheckCircle2,
     History,
@@ -15,6 +14,7 @@ import { erroresDe, mensajeDe } from '../../api/errores';
 import usarEdificios from '../../api/usarEdificios';
 import Boton from '../../componentes/Boton';
 import Campo from '../../componentes/Campo';
+import Insignia from '../../componentes/Insignia';
 import MapaCampus from '../../componentes/MapaCampus';
 import Seleccion from '../../componentes/Seleccion';
 
@@ -25,14 +25,12 @@ export const VEREDICTOS = {
     ADMITIDO: { tono: 'exito', Icono: CheckCircle2, titulo: 'Ingreso admitido' },
     ADMITIDO_EXCEPCION: { tono: 'exito', Icono: CheckCircle2, titulo: 'Admitido como excepción' },
     NO_HABILITADO: { tono: 'peligro', Icono: XCircle, titulo: 'No habilitado' },
-    OTRA_AULA: { tono: 'advertencia', Icono: AlertTriangle, titulo: 'Otra aula' },
     YA_INGRESO: { tono: 'peligro', Icono: History, titulo: 'Ya ingresó' },
     EXPULSADO: { tono: 'peligro', Icono: UserX, titulo: 'Expulsado' },
     NO_CORRESPONDE: { tono: 'peligro', Icono: ScanSearch, titulo: 'No es de esta aula' },
     NO_INSCRITO: { tono: 'peligro', Icono: ScanSearch, titulo: 'No inscrito' },
     NO_REGISTRADO: { tono: 'peligro', Icono: SearchX, titulo: 'No registrado' },
     QR_NO_VALIDO: { tono: 'peligro', Icono: ScanSearch, titulo: 'Código QR no válido' },
-    AMBIGUO: { tono: 'advertencia', Icono: AlertTriangle, titulo: 'Identificación ambigua' },
 };
 
 const CABECERA = {
@@ -53,11 +51,8 @@ export const TIPOS_EXCEPCION = {
     EXCEPCION_CAMBIO_AULA: 'Cambio de aula',
     EXCEPCION_NO_HABILITADO: 'Estudiante no habilitado',
 };
-const SUGERIDO = {
-    OTRA_AULA: 'EXCEPCION_CAMBIO_AULA',
-    NO_HABILITADO: 'EXCEPCION_NO_HABILITADO',
-};
-const CON_EXCEPCION = ['NO_HABILITADO', 'OTRA_AULA', 'NO_CORRESPONDE'];
+const SUGERIDO = { NO_HABILITADO: 'EXCEPCION_NO_HABILITADO' };
+const CON_EXCEPCION = ['NO_HABILITADO', 'NO_CORRESPONDE'];
 const MOTIVO_MINIMO = 5;
 
 const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
@@ -95,7 +90,6 @@ MapaDeDestino.propTypes = {
 
 function claveDe(veredicto) {
     if (veredicto.causa) return veredicto.causa;
-    if (!veredicto.veredicto && veredicto.ambiguo) return 'AMBIGUO';
     return veredicto.veredicto ?? 'NO_CORRESPONDE';
 }
 
@@ -240,7 +234,15 @@ export default function VeredictoPuerta({
                         {otro.aula && ` · Aula ${otro.aula}`}
                     </p>
                 )}
-                {veredicto.pie && <p className="text-sm text-slate-600">{veredicto.pie}</p>}
+                {veredicto.tarde ? (
+                    <p className="mt-2">
+                        <Insignia tono="advertencia" punto>
+                            Tarde · {veredicto.tarde} min después del inicio
+                        </Insignia>
+                    </p>
+                ) : (
+                    veredicto.pie && <p className="text-sm text-slate-600">{veredicto.pie}</p>
+                )}
 
                 {admitida && (
                     <p className="mt-3 text-2xl font-bold text-slate-900">
@@ -264,7 +266,7 @@ export default function VeredictoPuerta({
                         className="mt-4 min-h-12 w-full"
                         onClick={() => setAbierta(true)}
                     >
-                        {clave === 'OTRA_AULA' ? 'Admitir como excepción' : 'Situación excepcional'}
+                        Situación excepcional
                     </Boton>
                 )}
 
@@ -355,7 +357,6 @@ VeredictoPuerta.propTypes = {
     veredicto: PropTypes.shape({
         veredicto: PropTypes.string,
         causa: PropTypes.string,
-        ambiguo: PropTypes.bool,
         estudiante: PropTypes.shape({
             id: PropTypes.number,
             codigo: PropTypes.string,
@@ -369,6 +370,7 @@ VeredictoPuerta.propTypes = {
         }),
         dato: PropTypes.string,
         pie: PropTypes.string,
+        tarde: PropTypes.number,
         aula_correcta: PropTypes.shape({
             id: PropTypes.number,
             nombre: PropTypes.string,

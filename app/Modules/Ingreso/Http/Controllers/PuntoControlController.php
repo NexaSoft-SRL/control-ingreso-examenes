@@ -79,8 +79,6 @@ final class PuntoControlController
             $veredicto = VeredictoIngreso::NoCorresponde->value;
         } elseif ($candidato->habilitacion === null || ! $candidato->habilitacion->habilitado) {
             $veredicto = VeredictoIngreso::NoHabilitado->value;
-        } elseif ($candidato->habilitacion->aulaId !== $aula) {
-            $veredicto = VeredictoIngreso::OtraAula->value;
         } else {
             $yaIngreso = $ingresoGateway->yaIngreso($examen, $candidato->estudiante->id);
 

@@ -15,11 +15,12 @@ import Buscador from '../../componentes/Buscador';
 import Campo from '../../componentes/Campo';
 import Dialogo from '../../componentes/Dialogo';
 import Insignia from '../../componentes/Insignia';
-import Seleccion from '../../componentes/Seleccion';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { fechaLarga } from '../../utiles/texto';
 
 const SONDEO_MS = 10000;
+// Código universitario, o C.I. con su complemento («5003748-1A»).
+const IDENTIFICADOR = /^\d{5,10}([\s-][0-9A-Za-z]{1,3}|[A-Za-z][0-9A-Za-z]{0,2})?$/;
 const ESPERA_BUSQUEDA_MS = 300;
 const FOCO = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600';
 
@@ -306,7 +307,6 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
     const [sinCamara, setSinCamara] = useState(null);
     const [verificando, setVerificando] = useState(false);
     const [veredicto, setVeredicto] = useState(null);
-    const [tipo, setTipo] = useState('codigo');
     const [identificador, setIdentificador] = useState('');
     const [errorManual, setErrorManual] = useState(null);
     const [bloqueado, setBloqueado] = useState(false);
@@ -384,10 +384,8 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
         evento.preventDefault();
         const valor = identificador.trim();
         if (!valor) return setErrorManual('Obligatorio');
-        if (!/^\d{5,10}$/.test(valor)) {
-            return setErrorManual(tipo === 'codigo' ? 'Código SIS no válido' : 'C.I. no válido');
-        }
-        return verificar({ tipo, identificador: valor }, 'manual');
+        if (!IDENTIFICADOR.test(valor)) return setErrorManual('Código SIS o C.I. no válido');
+        return verificar({ identificador: valor.toUpperCase() }, 'manual');
     };
 
     // «Siguiente» deja la puerta lista para el próximo por la misma vía.
@@ -598,28 +596,16 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
                         ref={campoManual}
                         noValidate
                         onSubmit={verificarManual}
-                        className="grid grid-cols-1 items-start gap-2 sm:grid-cols-[9rem_1fr_auto]"
+                        className="flex w-full items-start gap-2"
                     >
-                        <Seleccion
-                            etiqueta="Identificación"
-                            aria-label="Tipo de identificación"
-                            value={tipo}
-                            onChange={(e) => {
-                                setTipo(e.target.value);
-                                setErrorManual(null);
-                            }}
-                        >
-                            <option value="codigo">Código SIS</option>
-                            <option value="documento">C.I.</option>
-                        </Seleccion>
                         <Campo
-                            etiqueta={tipo === 'codigo' ? 'Código SIS' : 'C.I.'}
-                            aria-label="Identificador"
-                            placeholder={tipo === 'codigo' ? 'Código SIS' : 'C.I.'}
-                            inputMode="numeric"
+                            etiqueta="Código SIS o C.I."
+                            placeholder="Código SIS o C.I."
+                            className="min-w-0 flex-1"
+                            autoCapitalize="characters"
                             autoComplete="off"
                             enterKeyHint="search"
-                            maxLength={10}
+                            maxLength={14}
                             value={identificador}
                             error={errorManual}
                             onChange={(e) => {
@@ -627,7 +613,7 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
                                 setErrorManual(null);
                             }}
                         />
-                        <Boton type="submit" className="sm:mt-[1.625rem]">
+                        <Boton type="submit" className="mt-[1.625rem] min-h-11">
                             Verificar
                         </Boton>
                     </form>
@@ -696,6 +682,11 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
                                     {registro.es_excepcion && (
                                         <Insignia tono="advertencia">Excepción</Insignia>
                                     )}
+                                    {registro.tarde ? (
+                                        <Insignia tono="advertencia">
+                                            Tarde · {registro.tarde} min
+                                        </Insignia>
+                                    ) : null}
                                     {registro.expulsado && (
                                         <Insignia tono="peligro">
                                             {registro.expulsado_a

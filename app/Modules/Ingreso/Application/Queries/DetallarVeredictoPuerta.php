@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Queries;
 
+use App\Modules\Ingreso\Application\Actions\RegistrarIngreso;
 use App\Modules\Ingreso\Application\Contracts\DetallePuertaGateway;
 use App\Modules\Ingreso\Application\DTOs\ResultadoResolucionPuertaData;
 use App\Modules\Ingreso\Domain\Enums\CausaIntento;
 use App\Modules\Ingreso\Domain\Enums\VeredictoIngreso;
+use App\Modules\Ingreso\Domain\Rules\EvaluarIngreso;
 
 /**
  * Lo que la puerta muestra con cada veredicto, como en el Proyecto Guia:
  * el estudiante (nombre y codigo), el examen (asignatura y tipo) y el dato
- * propio del caso («Registrado a las 08:39», «Ya ingresó a las 08:39 por
- * el aula 691A», el motivo de la inhabilitacion, el aula que le toca...).
+ * propio del caso («Registrado a las 08:39 · su aula sugerida era la
+ * 691A», «Ingresó a las 08:39 en el aula 691A», el motivo de la
+ * inhabilitacion...).
  */
 final readonly class DetallarVeredictoPuerta
 {
@@ -24,6 +27,7 @@ final readonly class DetallarVeredictoPuerta
 
     public function __construct(
         private DetallePuertaGateway $detalle,
+        private EvaluarIngreso $reglas,
     ) {}
 
     /**
@@ -38,6 +42,7 @@ final readonly class DetallarVeredictoPuerta
         string $tipo,
         string $identificador,
         array $examenesDelAula = [],
+        bool $incidenciaRegistrada = false,
     ): array {
         $estudiante = $resultado->candidato !== null ? $resultado->candidato->estudiante : $resultado->estudiante;
         $examenId = $resultado->examenId;
@@ -68,6 +73,8 @@ final readonly class DetallarVeredictoPuerta
             'dato' => null,
             'pie' => null,
             'aula_correcta' => null,
+            'aula_sugerida' => null,
+            'tarde' => null,
             'examen_correspondiente' => null,
         ];
 
@@ -94,21 +101,31 @@ final readonly class DetallarVeredictoPuerta
 
         switch ($veredicto) {
             case VeredictoIngreso::Admitido:
+                // El aula del reparto es una sugerencia: entro por esta.
+                $sugerida = $habilitacion?->aulaId !== null && $habilitacion->aulaId !== $aulaId
+                    ? $this->detalle->aula($habilitacion->aulaId)
+                    : null;
+                $tarde = $ingreso === null || $examen === null
+                    ? null
+                    : $this->reglas->minutosTarde(self::minutos($ingreso['hora']) - self::minutos($examen['hora']));
+
                 $datos['hora'] = $ingreso['hora'] ?? null;
-                $datos['dato'] = $ingreso === null ? null : 'Registrado a las '.$ingreso['hora'];
+                $datos['dato'] = $ingreso === null ? null : 'Registrado a las '.$ingreso['hora']
+                    .($sugerida === null ? '' : ' · su aula sugerida era la '.$sugerida['nombre']);
+                $datos['aula_sugerida'] = $sugerida;
+                $datos['tarde'] = $tarde;
+                $datos['pie'] = $tarde === null ? null : sprintf('Tarde · %d min después del inicio', $tarde);
                 break;
 
             case VeredictoIngreso::YaIngreso:
                 if ($ingreso !== null) {
                     $datos['hora'] = $ingreso['hora'];
-                    $datos['dato'] = sprintf(
-                        'Ya ingresó a las %s %s',
+                    $datos['dato'] = RegistrarIngreso::yaIngresoTexto(
                         $ingreso['hora'],
-                        $ingreso['aula_id'] === $aulaId || $ingreso['aula'] === null
-                            ? 'por esta aula'
-                            : 'por el aula '.$ingreso['aula'],
+                        $ingreso['aula_id'] === $aulaId || $ingreso['aula'] === null ? null : $ingreso['aula'],
                     );
                 }
+                $datos['pie'] = $incidenciaRegistrada ? 'Incidencia registrada' : null;
                 break;
 
             case VeredictoIngreso::Expulsado:
@@ -130,16 +147,8 @@ final readonly class DetallarVeredictoPuerta
                 );
                 break;
 
-            case VeredictoIngreso::OtraAula:
-                $aula = $habilitacion?->aulaId === null
-                    ? null
-                    : $this->detalle->aula($habilitacion->aulaId);
-                $datos['aula_correcta'] = $aula;
-                $datos['dato'] = $aula === null ? 'Asignado a otra aula' : 'Su aula es la '.$aula['nombre'];
-                break;
-
             case VeredictoIngreso::NoCorresponde:
-                $datos['dato'] = 'Sin aula asignada en este examen';
+                $datos['dato'] = 'No inscrito en este examen';
                 break;
         }
 
@@ -209,5 +218,13 @@ final readonly class DetallarVeredictoPuerta
         }
 
         return $pie;
+    }
+
+    // '08:39' → 519.
+    private static function minutos(string $hora): int
+    {
+        [$h, $m] = array_map(intval(...), array_pad(explode(':', $hora), 2, '0'));
+
+        return $h * 60 + $m;
     }
 }

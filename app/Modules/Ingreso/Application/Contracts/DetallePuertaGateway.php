@@ -25,7 +25,7 @@ interface DetallePuertaGateway
      * El ingreso del estudiante en el examen, con su hora y aula, y la
      * hora de la expulsion si la hubo.
      *
-     * @return array{id: int, hora: string, aula_id: int|null, aula: string|null, expulsado_a: string|null, es_excepcion: bool}|null
+     * @return array{id: int, hora: string, registrado_en: string, aula_id: int|null, aula: string|null, expulsado_a: string|null, es_excepcion: bool}|null
      */
     public function ingresoDe(int $examenId, int $estudianteId): ?array;
 
@@ -80,7 +80,8 @@ interface DetallePuertaGateway
      *     expulsado: bool,
      *     expulsado_a: string|null,
      *     es_excepcion: bool,
-     *     operador: string|null
+     *     operador: string|null,
+     *     tarde: int|null
      * }>
      */
     public function ingresosDelAula(

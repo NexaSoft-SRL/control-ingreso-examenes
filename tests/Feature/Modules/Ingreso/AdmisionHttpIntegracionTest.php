@@ -75,16 +75,8 @@ final class AdmisionHttpIntegracionTest extends TestCase
 
         self::assertSame(1, DB::table('ingresos')->count());
 
-        $this->assertDatabaseHas('incidencias_ingreso', [
-            'examen_id' => $examen->id,
-            'aula_id' => $aula->id,
-            'estudiante_id' => $estudiante->id,
-            'registrado_por' => $usuario->id,
-            'tipo_rechazo' => 'YA_INGRESO',
-            'detalle' => 'El estudiante ya tiene un ingreso registrado.',
-        ]);
-
-        $this->assertDatabaseCount('incidencias_ingreso', 1);
+        // Releerlo enseguida en la misma puerta no es un intento.
+        $this->assertDatabaseCount('incidencias_ingreso', 0);
     }
 
     public function test_consulta_candidato_muestra_motivo_real_de_inhabilitacion(): void
@@ -146,7 +138,7 @@ final class AdmisionHttpIntegracionTest extends TestCase
         $this->assertDatabaseCount('incidencias_ingreso', 1);
     }
 
-    public function test_estudiante_de_otra_aula_no_ingresa(): void
+    public function test_estudiante_de_otra_aula_ingresa_por_esta(): void
     {
         [$usuario, $examen, $aula, $estudiante] = $this->escenario();
 
@@ -167,22 +159,17 @@ final class AdmisionHttpIntegracionTest extends TestCase
                 'tipo' => 'codigo',
                 'identificador' => $estudiante->codigo_universitario,
             ])
-            ->assertOk()
-            ->assertJsonPath('data.veredicto', 'OTRA_AULA')
-            ->assertJsonPath('data.admitido', false);
+            ->assertCreated()
+            ->assertJsonPath('data.veredicto', 'ADMITIDO')
+            ->assertJsonPath('data.admitido', true);
 
-        $this->assertDatabaseCount('ingresos', 0);
-
-        $this->assertDatabaseHas('incidencias_ingreso', [
+        // El ingreso guarda la puerta por la que entro.
+        $this->assertDatabaseHas('ingresos', [
             'examen_id' => $examen->id,
-            'aula_id' => $aula->id,
             'estudiante_id' => $estudiante->id,
-            'registrado_por' => $usuario->id,
-            'tipo_rechazo' => 'OTRA_AULA',
-            'detalle' => sprintf('Asignado al aula %s.', $otraAula->nombre),
+            'aula_id' => $aula->id,
         ]);
-
-        $this->assertDatabaseCount('incidencias_ingreso', 1);
+        $this->assertDatabaseCount('incidencias_ingreso', 0);
     }
 
     public function test_aula_ajena_al_examen_es_rechazada(): void
