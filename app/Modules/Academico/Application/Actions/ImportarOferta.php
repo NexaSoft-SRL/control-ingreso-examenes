@@ -19,8 +19,9 @@ use Throwable;
 /**
  * Importa la oferta de una facultad: carreras, asignaturas, plan, docentes,
  * aulas, grupos y horarios, todo en una transaccion y por clave natural
- * (reimportar no duplica). Si algo falla no queda nada a medias y la
- * importacion queda registrada como fallida, con el motivo.
+ * (reimportar no duplica). Si la fuente es la misma de la ultima
+ * importacion correcta, no hace nada. Si algo falla no queda nada a medias
+ * y la importacion queda registrada como fallida, con el motivo.
  */
 final readonly class ImportarOferta
 {
@@ -47,12 +48,29 @@ final readonly class ImportarOferta
             throw new FuenteNoDisponibleException("La facultad «{$facultad}» no está en el catálogo.");
         }
 
+        $huella = $this->fuente->huella($facultad);
+
+        if ($huella !== null && $huella === $this->importaciones->ultimaHuella($datos['id'])) {
+            return new ResumenImportacionData(
+                facultad: $facultad,
+                sigla: $datos['sigla'],
+                importada: true,
+                sinCambios: true,
+            );
+        }
+
         $importacionId = $this->importaciones->iniciar($datos['id'], $usuarioId);
 
         try {
-            return $this->importaciones->enTransaccion(
+            $resumen = $this->importaciones->enTransaccion(
                 fn (): ResumenImportacionData => $this->importar($datos, $importacionId, $usuarioId),
             );
+
+            if ($huella !== null) {
+                $this->importaciones->guardarHuella($importacionId, $huella);
+            }
+
+            return $resumen;
         } catch (Throwable $error) {
             $mensaje = $error instanceof FuenteNoDisponibleException
                 ? $error->getMessage()

@@ -75,12 +75,12 @@ final class EloquentImportacionGateway implements ImportacionGateway
             'importaciones_oferta',
             $importacionId,
             sprintf(
-                'Oferta de %s importada: %d carreras, %d asignaturas, %d grupos, %d docentes.',
+                'Oferta de %s importada: %s carreras, %s asignaturas, %s grupos, %s docentes.',
                 $resumen->sigla,
-                $resumen->carreras,
-                $resumen->asignaturas,
-                $resumen->grupos,
-                $resumen->docentes,
+                ...array_map(
+                    static fn (int $cifra): string => number_format($cifra, 0, ',', '.'),
+                    [$resumen->carreras, $resumen->asignaturas, $resumen->grupos, $resumen->docentes],
+                ),
             ),
         );
     }
@@ -92,5 +92,21 @@ final class EloquentImportacionGateway implements ImportacionGateway
             'error' => mb_substr($error, 0, 2000),
             'terminada_en' => now(),
         ]);
+    }
+
+    public function ultimaHuella(int $facultadId): ?string
+    {
+        $huella = DB::table('importaciones_oferta')
+            ->where('facultad_id', $facultadId)
+            ->where('estado', EstadoImportacion::Importada->value)
+            ->orderByDesc('id')
+            ->value('huella');
+
+        return is_string($huella) ? $huella : null;
+    }
+
+    public function guardarHuella(int $importacionId, string $huella): void
+    {
+        DB::table('importaciones_oferta')->where('id', $importacionId)->update(['huella' => $huella]);
     }
 }
