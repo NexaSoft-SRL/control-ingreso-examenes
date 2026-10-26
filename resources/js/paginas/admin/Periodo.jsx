@@ -1,6 +1,18 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
-import { ChevronRight, DownloadCloud, LoaderCircle, RefreshCw, RotateCw } from 'lucide-react';
+import {
+    Building2,
+    CalendarDays,
+    CalendarRange,
+    ChevronRight,
+    ClipboardList,
+    DownloadCloud,
+    ListX,
+    LoaderCircle,
+    RefreshCw,
+    RotateCw,
+    UserX,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
@@ -42,20 +54,29 @@ const ESTADOS = {
     fallo: { tono: 'peligro', texto: () => 'Falló' },
 };
 
+// El ícono de cada período toma el color de su estado.
+const FONDO_PERIODO = {
+    Vigente: 'bg-success-50 text-success-700',
+    Próximo: 'bg-info-50 text-info-700',
+    'Sin fechas': 'bg-warning-50 text-warning-700',
+};
+const ICONO_PENDIENTE = { docentes_sin_cuenta: UserX, grupos_sin_lista: ListX };
+
+// Cada pendiente abre la vista ya filtrada.
 const PENDIENTES = [
     {
         clave: 'docentes_sin_cuenta',
         titulo: 'Docentes sin cuenta',
-        ruta: '/docentes',
+        ruta: '/docentes?sin_cuenta=1',
         accion: 'Activar cuentas',
         permiso: 'aulas_docentes',
     },
     {
         clave: 'grupos_sin_lista',
         titulo: 'Grupos sin lista de inscritos',
-        ruta: '/estudiantes',
-        accion: 'Ir al padrón',
-        permiso: 'padron_estudiantes',
+        ruta: '/oferta?sin_lista=1',
+        accion: 'Ver grupos',
+        permiso: 'periodo_oferta',
     },
 ];
 
@@ -172,8 +193,12 @@ AjustarFechas.propTypes = {
 };
 
 function FilaPendiente({ pendiente, cifras, enlazada }) {
+    const Icono = ICONO_PENDIENTE[pendiente.clave] ?? ClipboardList;
     const contenido = (
         <>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-warning-50 text-warning-700">
+                <Icono className="h-4 w-4" aria-hidden="true" />
+            </span>
             <span className="w-16 shrink-0 text-xl font-semibold tabular-nums text-warning-700">
                 {miles(cifras.valor)}
             </span>
@@ -210,6 +235,7 @@ function FilaPendiente({ pendiente, cifras, enlazada }) {
 
 FilaPendiente.propTypes = {
     pendiente: PropTypes.shape({
+        clave: PropTypes.string,
         titulo: PropTypes.string.isRequired,
         ruta: PropTypes.string.isRequired,
         accion: PropTypes.string.isRequired,
@@ -308,6 +334,7 @@ export default function Periodo() {
             <Tarjeta
                 sinRelleno
                 titulo="Períodos detectados"
+                icono={CalendarRange}
                 acciones={
                     <Boton
                         type="button"
@@ -338,6 +365,15 @@ export default function Periodo() {
                                 key={p.id}
                                 className="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3"
                             >
+                                <span
+                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${FONDO_PERIODO[p.estado] ?? 'bg-slate-100 text-slate-500'}`}
+                                >
+                                    {p.tipo === 'Anual' ? (
+                                        <CalendarRange className="h-4 w-4" aria-hidden="true" />
+                                    ) : (
+                                        <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                                    )}
+                                </span>
                                 <span className="w-14 shrink-0 text-base font-semibold tabular-nums text-slate-900">
                                     {p.codigo}
                                 </span>
@@ -379,6 +415,7 @@ export default function Periodo() {
             <Tarjeta
                 sinRelleno
                 titulo="Pendientes"
+                icono={ClipboardList}
                 acciones={
                     pendientes.length > 0 && (
                         <Insignia tono="advertencia">{pendientes.length}</Insignia>
@@ -409,6 +446,7 @@ export default function Periodo() {
             <Tarjeta
                 sinRelleno
                 titulo="Oferta académica por facultad"
+                icono={Building2}
                 acciones={
                     facultades.length > 0 && (
                         <Insignia tono={importadas === facultades.length ? 'exito' : 'advertencia'}>
@@ -445,11 +483,16 @@ export default function Periodo() {
                                     key={f.sigla}
                                     className={`grid min-h-14 items-center gap-x-4 gap-y-2 px-4 py-3 hover:bg-slate-50 ${COLUMNAS}`}
                                 >
-                                    <div className="min-w-0">
-                                        <PuntoFacultad sigla={f.sigla} />
-                                        <p className="truncate text-sm font-medium text-slate-800">
-                                            {f.nombre}
-                                        </p>
+                                    <div className="flex min-w-0 items-center gap-3">
+                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                                            <Building2 className="h-4 w-4" aria-hidden="true" />
+                                        </span>
+                                        <span className="min-w-0">
+                                            <PuntoFacultad sigla={f.sigla} />
+                                            <p className="truncate text-sm font-medium text-slate-800">
+                                                {f.nombre}
+                                            </p>
+                                        </span>
                                     </div>
                                     <p className="min-w-0 text-sm text-slate-600">
                                         {miles(f.carreras)} carreras · {miles(f.grupos)} grupos ·{' '}

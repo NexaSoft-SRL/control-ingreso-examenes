@@ -1,6 +1,15 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
-import { Download, Upload } from 'lucide-react';
+import {
+    CircleX,
+    Download,
+    Repeat,
+    Rows3,
+    TriangleAlert,
+    Upload,
+    UserCheck,
+    UserPlus,
+} from 'lucide-react';
 import { api } from '../../api/cliente';
 import descargar from '../../api/descargar';
 import { codigoDe, erroresDe, estadoDe, mensajeDe } from '../../api/errores';
@@ -17,12 +26,12 @@ const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
 const miles = (n) => (typeof n === 'number' ? n.toLocaleString('es-BO') : '—');
 
 const CIFRAS = [
-    ['filas', 'Filas'],
-    ['nuevos', 'Nuevos'],
-    ['reutilizados', 'Reutilizados'],
-    ['ya_inscritos', 'Ya inscritos'],
-    ['rechazados', 'Rechazados'],
-    ['conflictos', 'En conflicto'],
+    ['filas', 'Filas', Rows3],
+    ['nuevos', 'Nuevos', UserPlus],
+    ['reutilizados', 'Reutilizados', Repeat],
+    ['ya_inscritos', 'Ya inscritos', UserCheck],
+    ['rechazados', 'Rechazados', CircleX],
+    ['conflictos', 'En conflicto', TriangleAlert],
 ];
 
 // Lo que devuelve una carga: las seis cifras y, fila por fila, lo que se
@@ -38,10 +47,11 @@ function Resultado({ resultado }) {
                 <p className="break-all text-sm font-medium text-slate-800">{resultado.archivo}</p>
             )}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {CIFRAS.map(([clave, etiqueta]) => (
+                {CIFRAS.map(([clave, etiqueta, icono]) => (
                     <Dato
                         key={clave}
                         etiqueta={etiqueta}
+                        icono={icono}
                         valor={miles(resumen[clave])}
                         tono={
                             resumen[clave] > 0 && clave === 'rechazados'

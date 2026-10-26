@@ -143,7 +143,7 @@ describe('Habilitacion', () => {
                 .getAllByRole('columnheader')
                 .map((th) => th.textContent)
                 .filter(Boolean)
-        ).toEqual(['Código', 'Estudiante', 'Grupo', 'Condición', 'Aula', 'Motivo']);
+        ).toEqual(['Código SIS', 'Estudiante', 'Grupo', 'Condición', 'Aula', 'Motivo']);
         expect(within(tabla).getAllByRole('row')).toHaveLength(26);
 
         const fila = within(tabla).getByText('Apellido01 Nombre').closest('tr');
@@ -493,9 +493,7 @@ describe('Habilitacion', () => {
         expect(screen.getByLabelText(/Motivo de la inhabilitación/)).toHaveValue(
             'Sin prácticas aprobadas'
         );
-        const fila = within(screen.getByRole('table'))
-            .getByText('Apellido02 Nombre')
-            .closest('tr');
+        const fila = within(screen.getByRole('table')).getByText('Apellido02 Nombre').closest('tr');
         expect(within(fila).getByText('Habilitado')).toBeInTheDocument();
     });
 

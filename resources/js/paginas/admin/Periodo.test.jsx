@@ -396,22 +396,22 @@ describe('Periodo', () => {
         expect(within(fce).queryByText('Falló')).not.toBeInTheDocument();
     });
 
-    it('indica los pendientes sobre el total y enlaza a Docentes y al Padrón (criterio 13)', async () => {
+    it('indica los pendientes sobre el total y enlaza a Docentes y a la Oferta ya filtrados (criterio 13)', async () => {
         montar();
         await cargada();
 
         const docentes = screen.getByRole('link', { name: /Docentes sin cuenta/ });
-        expect(docentes).toHaveAttribute('href', '/docentes');
+        expect(docentes).toHaveAttribute('href', '/docentes?sin_cuenta=1');
         expect(within(docentes).getByText('632')).toBeInTheDocument();
         expect(within(docentes).getByText('de 847')).toBeInTheDocument();
         const grupos = screen.getByRole('link', { name: /Grupos sin lista de inscritos/ });
-        expect(grupos).toHaveAttribute('href', '/estudiantes');
+        expect(grupos).toHaveAttribute('href', '/oferta?sin_lista=1');
         expect(within(grupos).getByText('3.137')).toBeInTheDocument();
         expect(within(grupos).getByText('de 3.169')).toBeInTheDocument();
     });
 
     it('no enlaza un pendiente a una vista para la que la cuenta no tiene permiso', async () => {
-        montar(usuarioDePrueba('Auxiliar', { permisos: ['periodo_oferta', 'aulas_docentes'] }));
+        montar(usuarioDePrueba('Auxiliar', { permisos: ['aulas_docentes'] }));
         await cargada();
 
         expect(screen.getByRole('link', { name: /Docentes sin cuenta/ })).toBeInTheDocument();

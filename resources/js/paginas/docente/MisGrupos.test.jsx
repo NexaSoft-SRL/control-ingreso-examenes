@@ -258,7 +258,7 @@ describe('Mis grupos · lista de inscritos', () => {
             within(tabla)
                 .getAllByRole('columnheader')
                 .map((c) => c.textContent)
-        ).toEqual(['Código', 'Estudiante', 'Documento', 'Origen']);
+        ).toEqual(['Código SIS', 'Estudiante', 'C.I.', 'Origen']);
         expect(within(tabla).getAllByRole('row')).toHaveLength(26);
 
         const primera = within(tabla).getAllByRole('row')[1];
@@ -490,10 +490,8 @@ describe('Mis grupos · grupo sin lista', () => {
 
         const alerta = await screen.findByRole('alert');
         expect(alerta).toHaveTextContent('Faltan columnas');
-        expect(alerta).toHaveTextContent('Faltan: Documento de identidad');
-        expect(alerta).toHaveTextContent(
-            'Orden esperado: Código universitario · Documento de identidad · Nombres · Apellidos'
-        );
+        expect(alerta).toHaveTextContent('Faltan: C.I.');
+        expect(alerta).toHaveTextContent('Orden esperado: Código SIS · C.I. · Nombres · Apellidos');
         expect(screen.getByText('Sin lista cargada')).toBeInTheDocument();
         expect(screen.queryByText('Lista cargada')).not.toBeInTheDocument();
     });
@@ -513,9 +511,7 @@ describe('Mis grupos · grupo sin lista', () => {
 
         const alerta = await screen.findByRole('alert');
         expect(alerta).toHaveTextContent('Columnas en otro orden');
-        expect(alerta).toHaveTextContent(
-            'Orden esperado: Código universitario · Documento de identidad · Nombres · Apellidos'
-        );
+        expect(alerta).toHaveTextContent('Orden esperado: Código SIS · C.I. · Nombres · Apellidos');
         expect(alerta).not.toHaveTextContent('Faltan:');
     });
 
@@ -537,7 +533,7 @@ describe('Mis grupos · grupo sin lista', () => {
 
         const alerta = await screen.findByRole('alert');
         expect(alerta).toHaveTextContent(texto);
-        expect(alerta).toHaveTextContent('Orden esperado: Código universitario');
+        expect(alerta).toHaveTextContent('Orden esperado: Código SIS');
         expect(screen.queryByText('9 nuevos')).not.toBeInTheDocument();
     });
 

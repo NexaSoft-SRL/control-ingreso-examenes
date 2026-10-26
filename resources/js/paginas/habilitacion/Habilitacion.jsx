@@ -1,6 +1,14 @@
 import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Shuffle, XCircle } from 'lucide-react';
+import {
+    CheckCircle2,
+    CircleCheck,
+    CircleX,
+    Hourglass,
+    Shuffle,
+    UsersRound,
+    XCircle,
+} from 'lucide-react';
 import { api } from '../../api/cliente';
 import { codigoDe, erroresDe, estadoDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
@@ -34,7 +42,7 @@ const CONDICION = {
     pendiente: ['neutro', 'Sin revisar'],
 };
 const SIN_FILTROS = { grupo: null, aula: null, condicion: null };
-const COLUMNAS = ['Código', 'Estudiante', 'Grupo', 'Condición', 'Aula', 'Motivo'];
+const COLUMNAS = ['Código SIS', 'Estudiante', 'Grupo', 'Condición', 'Aula', 'Motivo'];
 
 // «3 habilitados.» → «3 habilitados».
 const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
@@ -233,15 +241,22 @@ function ListaDelExamen({ examenId }) {
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <Dato
                     etiqueta={`Inscritos · ${plural(grupos.length, 'grupo')}`}
+                    icono={UsersRound}
                     valor={cifras.inscritos ?? 0}
                 />
-                <Dato etiqueta="Habilitados" valor={cifras.habilitados ?? 0} tono="exito" />
+                <Dato
+                    etiqueta="Habilitados"
+                    icono={CircleCheck}
+                    valor={cifras.habilitados ?? 0}
+                    tono="exito"
+                />
                 <Dato
                     etiqueta="No habilitados"
+                    icono={CircleX}
                     valor={cifras.no_habilitados ?? 0}
                     tono={cifras.no_habilitados ? 'advertencia' : 'neutro'}
                 />
-                <Dato etiqueta="Sin revisar" valor={cifras.sin_revisar ?? 0} />
+                <Dato etiqueta="Sin revisar" icono={Hourglass} valor={cifras.sin_revisar ?? 0} />
             </div>
 
             <Tarjeta

@@ -2,12 +2,15 @@ import PropTypes from 'prop-types';
 import { useState } from 'react';
 import {
     ArrowRight,
+    CalendarDays,
     Check,
     ChevronDown,
     DoorOpen,
     ListChecks,
     Plus,
     QrCode,
+    Timer,
+    UserRound,
     Users,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -20,6 +23,7 @@ import Chips from '../../componentes/Chips';
 import Dialogo from '../../componentes/Dialogo';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
+import IconoAsignatura from '../../componentes/IconoAsignatura';
 import Insignia from '../../componentes/Insignia';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { colorDeAsignatura, diaMes, fechaLarga, mesDe, plural } from '../../utiles/texto';
@@ -144,9 +148,12 @@ function TarjetaExamen({ e, destacado = false, plegado = false, onEliminar }) {
             <div className="min-w-0 flex-1 px-4 py-3 sm:px-5">
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                     <div className="min-w-0 flex-1 basis-64">
-                        <h3 className="break-words text-base font-semibold text-slate-900 sm:truncate">
-                            {titulo}
-                        </h3>
+                        <div className="flex min-w-0 items-center gap-2">
+                            <IconoAsignatura nombre={nombre} color={colorDeAsignatura(nombre)} />
+                            <h3 className="min-w-0 break-words text-base font-semibold text-slate-900 sm:truncate">
+                                {titulo}
+                            </h3>
+                        </div>
                         <p className="truncate text-sm text-slate-600">
                             {plural(e.grupos.length, 'grupo')} · {plural(e.inscritos, 'inscrito')} ·{' '}
                             {aulas}
@@ -212,9 +219,27 @@ function TarjetaExamen({ e, destacado = false, plegado = false, onEliminar }) {
                             })}
                         </ol>
                         <div className="mt-2 flex flex-wrap items-center justify-end gap-x-4">
-                            <span className="mr-auto min-w-0 truncate text-sm text-slate-600">
-                                {fechaLarga(e.fecha)} · {e.duracion} min
-                                {e.registrado_por ? ` · ${e.registrado_por}` : ''}
+                            <span className="mr-auto flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
+                                <span className="inline-flex items-center gap-1.5">
+                                    <CalendarDays
+                                        className="h-4 w-4 text-slate-400"
+                                        aria-hidden="true"
+                                    />
+                                    {fechaLarga(e.fecha)}
+                                </span>
+                                <span className="inline-flex items-center gap-1.5">
+                                    <Timer className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                                    {e.duracion} min
+                                </span>
+                                {e.registrado_por && (
+                                    <span className="inline-flex min-w-0 items-center gap-1.5">
+                                        <UserRound
+                                            className="h-4 w-4 shrink-0 text-slate-400"
+                                            aria-hidden="true"
+                                        />
+                                        <span className="truncate">{e.registrado_por}</span>
+                                    </span>
+                                )}
                             </span>
                             {verHabilitacion && (
                                 <Link
@@ -300,7 +325,7 @@ export default function Examenes() {
         { valor: PENDIENTES, etiqueta: 'Pendientes', conteo: pendientes },
         {
             valor: null,
-            etiqueta: asignaturas.length > 5 ? 'Todas las asignaturas' : 'Todos',
+            etiqueta: 'Todas',
             conteo: examenes.length,
         },
         ...asignaturas.map((a) => ({

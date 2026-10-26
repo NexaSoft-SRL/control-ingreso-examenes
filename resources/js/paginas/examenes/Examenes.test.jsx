@@ -158,14 +158,14 @@ describe('Examenes · lista', () => {
         await tarjeta('Primer parcial · Introducción a la Programación');
 
         const filtro = screen.getByRole('group', { name: 'Filtro' });
-        // Pendientes va primero y es lo que se ve al entrar; después «Todos» y las asignaturas.
+        // Pendientes va primero y es lo que se ve al entrar; después «Todas» y las asignaturas.
         expect(
             within(filtro)
                 .getAllByRole('button')
                 .map((b) => b.textContent)
         ).toEqual([
             'Pendientes4',
-            'Todos4',
+            'Todas4',
             'Introducción a la Programación2',
             'Taller de Ingeniería de Software2',
         ]);
@@ -203,17 +203,17 @@ describe('Examenes · lista', () => {
         expect(pendientes).toHaveAttribute('aria-pressed', 'true');
         expect(screen.getAllByRole('article')).toHaveLength(1);
 
-        fireEvent.click(screen.getByRole('button', { name: /Todos/ }));
+        fireEvent.click(screen.getByRole('button', { name: /Todas/ }));
 
         expect(pendientes).toHaveAttribute('aria-pressed', 'false');
         expect(screen.getAllByRole('article')).toHaveLength(2);
     });
 
-    it('sin pendientes arranca en «Todos»; «Pendientes» muestra «Sin exámenes»', async () => {
+    it('sin pendientes arranca en «Todas»; «Pendientes» muestra «Sin exámenes»', async () => {
         examenes = [{ ...POR_HABILITAR, estado: 'Listo', accion: null }];
         montar();
         await tarjeta('Segundo parcial · Taller de Ingeniería de Software');
-        expect(screen.getByRole('button', { name: /Todos/ })).toHaveAttribute(
+        expect(screen.getByRole('button', { name: /Todas/ })).toHaveAttribute(
             'aria-pressed',
             'true'
         );
@@ -260,7 +260,8 @@ describe('Examenes · pasos y acción siguiente', () => {
             'Códigos QRPendiente',
         ]);
         expect(screen.queryByText('Quién atiende')).not.toBeInTheDocument();
-        expect(within(fila).getByText(/viernes 9 de octubre · 90 min/)).toBeInTheDocument();
+        expect(within(fila).getByText('viernes 9 de octubre')).toBeInTheDocument();
+        expect(within(fila).getByText('90 min')).toBeInTheDocument();
         // `emitir_qr` lleva a los códigos del examen.
         expect(within(fila).getByRole('link', { name: 'Emitir códigos' })).toHaveAttribute(
             'href',
