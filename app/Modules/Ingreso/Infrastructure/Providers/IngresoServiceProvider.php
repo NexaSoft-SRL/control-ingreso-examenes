@@ -7,6 +7,7 @@ namespace App\Modules\Ingreso\Infrastructure\Providers;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\ContextoOperativoPuntoControl;
+use App\Modules\Ingreso\Application\Contracts\CorreoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
 use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
 use App\Modules\Ingreso\Application\Contracts\ExamenesDePuerta;
@@ -22,6 +23,7 @@ use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
 use App\Modules\Ingreso\Application\Contracts\VerificacionPuntoControlGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentAlcancePuntoControl;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentContextoOperativoPuntoControl;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentCorreoQrGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEmisionQrGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEstadoExpulsionGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentExamenesDePuerta;
@@ -115,6 +117,11 @@ final class IngresoServiceProvider extends ServiceProvider
         $this->app->bind(
             EmisionQrGateway::class,
             EloquentEmisionQrGateway::class,
+        );
+
+        $this->app->bind(
+            CorreoQrGateway::class,
+            EloquentCorreoQrGateway::class,
         );
 
         $this->app->bind(

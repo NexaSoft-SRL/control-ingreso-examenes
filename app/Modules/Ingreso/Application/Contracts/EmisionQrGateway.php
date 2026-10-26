@@ -80,4 +80,15 @@ interface EmisionQrGateway
         bool $soloSinEnviar = false,
         ?string $desde = null,
     ): array;
+
+    /**
+     * Cuantas credenciales emitidas del filtro siguen sin recibirse.
+     */
+    public function sinEnviar(int $examenId, FiltroCodigosData $filtro): int;
+
+    /**
+     * Cuantas credenciales emitidas del filtro no tienen un envio
+     * registrado desde `$desde`.
+     */
+    public function porReenviar(int $examenId, FiltroCodigosData $filtro, string $desde): int;
 }
