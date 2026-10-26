@@ -247,7 +247,7 @@ describe('Examenes · lista', () => {
 });
 
 describe('Examenes · pasos y acción siguiente', () => {
-    it('despliega los cuatro pasos; no hay «Quién atiende» y los códigos QR quedan pendientes', async () => {
+    it('despliega los cuatro pasos; no hay «Quién atiende» y lleva a emitir los códigos QR', async () => {
         montar();
         const fila = await tarjeta('Primer parcial · Introducción a la Programación');
 
@@ -261,12 +261,43 @@ describe('Examenes · pasos y acción siguiente', () => {
         ]);
         expect(screen.queryByText('Quién atiende')).not.toBeInTheDocument();
         expect(within(fila).getByText(/viernes 9 de octubre · 90 min/)).toBeInTheDocument();
-        // `emitir_qr` no tiene destino.
-        expect(within(fila).queryByRole('link', { name: /QR|código/i })).not.toBeInTheDocument();
+        // `emitir_qr` lleva a los códigos del examen.
+        expect(within(fila).getByRole('link', { name: 'Emitir códigos' })).toHaveAttribute(
+            'href',
+            '/codigos-qr?examen=1'
+        );
         expect(within(fila).getByRole('link', { name: 'Habilitación' })).toHaveAttribute(
             'href',
             '/habilitacion?examen=1'
         );
+    });
+
+    it('un examen listo muestra sus códigos emitidos y enlaza a ellos', async () => {
+        examenes = [
+            {
+                ...CON_QR,
+                qr_emitidos: 251,
+                avance: { grupos: 'ok', aulas: 'ok', habilitacion: 'ok', qr: 'ok' },
+                estado: 'Listo',
+                accion: { clave: 'ver_qr', paso: null },
+            },
+        ];
+        montar();
+        const fila = await tarjeta('Primer parcial · Introducción a la Programación');
+
+        expect(within(fila).getByText('251 de 251')).toBeInTheDocument();
+        expect(within(fila).queryByRole('link', { name: 'Emitir códigos' })).toBeNull();
+        expect(within(fila).getByRole('link', { name: 'Códigos QR' })).toHaveAttribute(
+            'href',
+            '/codigos-qr?examen=1'
+        );
+    });
+
+    it('sin el permiso de códigos QR no ofrece emitirlos', async () => {
+        montar(usuarioDePrueba('Docente', { permisos: ['examenes', 'habilitacion'] }));
+        const fila = await tarjeta('Primer parcial · Introducción a la Programación');
+
+        expect(within(fila).queryByRole('link', { name: /Emitir códigos|Códigos QR/ })).toBeNull();
     });
 
     it('pliega y despliega la fila', async () => {
