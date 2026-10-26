@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
@@ -190,6 +191,14 @@ function Tablero({ examen, examenes, elegir }) {
                             {diaMes(examen.fecha)}, {examen.hora}
                         </Insignia>
                     ))}
+                {abierto && puede('punto_control') && (
+                    <Link
+                        to="/punto-control"
+                        className="inline-flex min-h-11 items-center justify-center rounded-lg border border-primary-600 px-4 text-sm font-semibold text-primary-700 hover:bg-primary-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+                    >
+                        Reportar incidencia
+                    </Link>
+                )}
             </Encabezado>
 
             <SelectorExamen valor={examen.id} onCambiar={elegir} examenes={examenes} />

@@ -8,10 +8,10 @@ use App\Modules\Administracion\Domain\Models\User;
 use App\Modules\Administracion\Infrastructure\Mail\EnlaceRestablecimientoMail;
 use Database\Factories\UserFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 final class AccesoConUsuarioTest extends TestCase
@@ -314,13 +314,20 @@ final class AccesoConUsuarioTest extends TestCase
 
         $correos = Mail::sent(EnlaceRestablecimientoMail::class);
         self::assertCount(1, $correos);
-        parse_str((string) parse_url($correos->first()->enlace, PHP_URL_QUERY), $primerQuery);
+        $primerCorreo = $correos->first();
+        self::assertInstanceOf(EnlaceRestablecimientoMail::class, $primerCorreo);
+        parse_str((string) parse_url($primerCorreo->enlace, PHP_URL_QUERY), $primerQuery);
         $tokenAnterior = $primerQuery['token'] ?? null;
         self::assertIsString($tokenAnterior);
 
+        $throttle = config('auth.passwords.users.throttle');
+        self::assertIsInt($throttle);
+
         DB::table('password_reset_tokens')
             ->where('email', $user->correo)
-            ->update(['created_at' => now()->subMinutes(12)]);
+            ->update([
+                'created_at' => now()->subMinutes($throttle + 1),
+            ]);
 
         $this->postJson('/api/auth/recuperar-contrasena', [
             'usuario' => $user->usuario,
@@ -328,7 +335,9 @@ final class AccesoConUsuarioTest extends TestCase
 
         $correos = Mail::sent(EnlaceRestablecimientoMail::class);
         self::assertCount(2, $correos);
-        parse_str((string) parse_url($correos->last()->enlace, PHP_URL_QUERY), $segundoQuery);
+        $ultimoCorreo = $correos->last();
+        self::assertInstanceOf(EnlaceRestablecimientoMail::class, $ultimoCorreo);
+        parse_str((string) parse_url($ultimoCorreo->enlace, PHP_URL_QUERY), $segundoQuery);
         $tokenNuevo = $segundoQuery['token'] ?? null;
         self::assertIsString($tokenNuevo);
         self::assertNotSame($tokenAnterior, $tokenNuevo);

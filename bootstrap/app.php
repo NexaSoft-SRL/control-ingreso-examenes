@@ -1,7 +1,7 @@
 <?php
 
-use App\Modules\Administracion\Http\Middleware\ExigirPermiso;
 use App\Modules\Administracion\Http\Middleware\ExigirCambioContrasenaTemporal;
+use App\Modules\Administracion\Http\Middleware\ExigirPermiso;
 use App\Modules\Administracion\Http\Middleware\GestionarSesionUsuario;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
