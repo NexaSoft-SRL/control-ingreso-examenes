@@ -410,6 +410,16 @@ describe('EnCurso (HU-22)', () => {
         expect(within(atendida).queryByRole('button')).toBeNull();
     });
 
+    it('ofrece reportar una incidencia desde el examen abierto', async () => {
+        montar();
+        await cargado();
+
+        expect(screen.getByRole('link', { name: 'Reportar incidencia' })).toHaveAttribute(
+            'href',
+            '/punto-control'
+        );
+    });
+
     it('muestra el mensaje del servidor si la incidencia ya estaba atendida', async () => {
         rutas['PATCH /en-curso/1/incidencias/*/atendida'] = errorHttp(409, {
             message: 'La incidencia ya estaba atendida.',
@@ -481,6 +491,9 @@ describe('EnCurso (HU-22)', () => {
     });
 
     it('lleva a la lista y a la puerta de cada aula', async () => {
+        rutas['GET /en-curso/1'] = () =>
+            tablero(AULAS.map((a) => (a.aula_id === 31 ? { ...a, a_mi_cargo: true } : a)));
+        simularApi(api, rutas);
         montar();
         await cargado();
 
@@ -492,6 +505,18 @@ describe('EnCurso (HU-22)', () => {
             'href',
             '/punto-control?aula=31'
         );
+    });
+
+    it('solo ofrece controlar las aulas asignadas a la cuenta', async () => {
+        montar();
+        await cargado();
+
+        expect(screen.getByRole('link', { name: 'Controlar el aula 691B' })).toHaveAttribute(
+            'href',
+            '/punto-control?aula=32'
+        );
+        expect(screen.queryByRole('link', { name: 'Controlar el aula 691A' })).toBeNull();
+        expect(screen.queryByRole('link', { name: 'Controlar el aula 691E' })).toBeNull();
     });
 
     it('sin los permisos de la lista o de la puerta no ofrece sus enlaces', async () => {

@@ -100,7 +100,7 @@ Enlaces.propTypes = {
 // seguimiento del aula (HU-21) y «Controlar», su puerta (HU-19).
 export default function EnCursoAulas({ aulas, examenId, denso, abierto, conLista, conControl }) {
     const lista = (a) => (conLista ? `/seguimiento?examen=${examenId}&aula=${a.aula_id}` : null);
-    const control = (a) => (conControl ? `/punto-control?aula=${a.aula_id}` : null);
+    const control = (a) => (conControl && a.a_mi_cargo ? `/punto-control?aula=${a.aula_id}` : null);
 
     if (denso) {
         return (

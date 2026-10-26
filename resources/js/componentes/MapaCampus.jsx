@@ -111,6 +111,65 @@ export default function MapaCampus({
         Object.entries(rotulos).find(([aula]) => (e.aulas ?? []).includes(aula))?.[1] ??
         e.nombre;
     const escala = vista.ancho / 1000;
+    const posicionesRotulo = new Map();
+    const cajasRotulo = [];
+    const candidatos = [
+        [0, -1.5],
+        [0, 1.5],
+        [0.5, 0],
+        [-0.5, 0],
+        [0.5, -1.5],
+        [-0.5, -1.5],
+        [0.5, 1.5],
+        [-0.5, 1.5],
+    ];
+
+    visibles
+        .filter((e) => idsResaltados.has(e.id) || seleccionado === e.id || idsContorno.has(e.id))
+        .forEach((e) => {
+            const texto = rotuloDe(e);
+            const fontSize = tamanoRotulo * escala;
+            const ancho = Math.max(fontSize * 3, texto.length * fontSize * 0.58);
+            const alto = fontSize * 1.5;
+            const punto = e.medio;
+            let elegido = null;
+
+            for (const [horizontal, vertical] of candidatos) {
+                const x = punto[0] + horizontal * (ancho + fontSize);
+                const y = punto[1] + vertical * (alto + fontSize);
+                const caja = {
+                    izquierda: x - ancho / 2,
+                    derecha: x + ancho / 2,
+                    arriba: y - alto / 2,
+                    abajo: y + alto / 2,
+                };
+                const dentro =
+                    caja.izquierda >= vista.x &&
+                    caja.derecha <= vista.x + vista.ancho &&
+                    caja.arriba >= vista.y &&
+                    caja.abajo <= vista.y + vista.alto;
+                const libre = cajasRotulo.every(
+                    (otra) =>
+                        caja.derecha + fontSize * 0.25 <= otra.izquierda ||
+                        caja.izquierda - fontSize * 0.25 >= otra.derecha ||
+                        caja.abajo + fontSize * 0.25 <= otra.arriba ||
+                        caja.arriba - fontSize * 0.25 >= otra.abajo
+                );
+
+                if (dentro && libre) {
+                    elegido = { x, y, caja };
+                    break;
+                }
+            }
+
+            elegido ??= {
+                x: punto[0],
+                y: punto[1] - (tamanoRotulo + 4) * escala,
+                caja: null,
+            };
+            posicionesRotulo.set(e.id, elegido);
+            if (elegido.caja) cajasRotulo.push(elegido.caja);
+        });
 
     const dibujo = (
         <div
@@ -171,11 +230,11 @@ export default function MapaCampus({
                             />
                             {(activo || elegido || soloContorno) && (
                                 <text
-                                    x={Math.min(
-                                        Math.max(e.medio[0], vista.x + 170 * escala),
-                                        vista.x + vista.ancho - 170 * escala
-                                    )}
-                                    y={e.medio[1] - (tamanoRotulo + 4) * escala}
+                                    x={posicionesRotulo.get(e.id)?.x ?? e.medio[0]}
+                                    y={
+                                        (posicionesRotulo.get(e.id)?.y ?? e.medio[1]) +
+                                        tamanoRotulo * escala * 0.35
+                                    }
                                     textAnchor="middle"
                                     stroke="white"
                                     strokeWidth={(tamanoRotulo / 4) * escala}

@@ -107,6 +107,49 @@ describe('Seguimiento HU-21', () => {
         );
     });
 
+    it('conserva el aula asignada de un examen ajeno en el enlace de «En curso»', async () => {
+        const examenAsignado = {
+            ...aula,
+            examen_id: 12,
+            aula_id: 19,
+            aula: '692A',
+        };
+        api.get.mockImplementation((ruta) => {
+            if (ruta === '/seguimiento/aulas') {
+                return Promise.resolve({ data: { data: [aula, examenAsignado] } });
+            }
+
+            if (ruta === '/seguimiento/examenes/12/aulas/19') {
+                return Promise.resolve({
+                    data: {
+                        data: {
+                            ...detalle,
+                            examen: { ...detalle.examen, id: 12 },
+                            aula: { id: 19, nombre: '692A' },
+                        },
+                    },
+                });
+            }
+
+            return Promise.reject(new Error(`Ruta inesperada: ${ruta}`));
+        });
+
+        renderConSesion(<Seguimiento />, {
+            usuario: usuarioDePrueba('Docente'),
+            ruta: '/seguimiento?examen=12&aula=19',
+        });
+
+        expect(await screen.findByRole('heading', { name: 'Aula 692A' })).toBeInTheDocument();
+        expect(api.get).toHaveBeenCalledWith(
+            '/seguimiento/examenes/12/aulas/19',
+            expect.objectContaining({ params: { estado: 'faltan', buscar: '', pagina: 1 } })
+        );
+        expect(api.get).not.toHaveBeenCalledWith(
+            '/seguimiento/examenes/10/aulas/7',
+            expect.anything()
+        );
+    });
+
     it('distingue un error del servidor de una pérdida de conexión', async () => {
         api.get.mockImplementation((ruta) => {
             if (ruta === '/seguimiento/aulas') {
