@@ -278,7 +278,7 @@ final class SeguimientoAulaTest extends TestCase
         $this->freezeTime();
         $this->seed(DemoSeeder::class);
 
-        $auxiliar = User::query()->where('usuario', 'diego.mamani')->firstOrFail();
+        $auxiliar = User::query()->where('usuario', 'diegomamani')->firstOrFail();
         $asignacion = DB::table('examen_aula_personal')
             ->where('usuario_id', $auxiliar->id);
         $examenId = (clone $asignacion)->value('examen_id');

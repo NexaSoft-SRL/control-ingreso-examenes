@@ -8,8 +8,8 @@ use App\Modules\Administracion\Application\Contracts\CuentaUsuarioGateway;
 use App\Modules\Administracion\Application\Contracts\ProponedorUsuario;
 
 /**
- * Propone el usuario de una cuenta nueva: primer nombre de pila, punto,
- * apellido paterno; en minusculas y sin tildes. Es una propuesta: quien
+ * Propone el usuario de una cuenta nueva: primer nombre de pila y apellido
+ * paterno juntos, sin punto; en minusculas y sin tildes. Es una propuesta: quien
  * crea la cuenta puede cambiarla.
  */
 final readonly class ProponerUsuario implements ProponedorUsuario
@@ -78,7 +78,7 @@ final readonly class ProponerUsuario implements ProponedorUsuario
         $paterno = $palabras[0];
         $pila = $cantidad > 2 ? $palabras[2] : $palabras[$cantidad - 1];
 
-        return substr($pila.'.'.$paterno, 0, self::LARGO_MAXIMO);
+        return substr($pila.$paterno, 0, self::LARGO_MAXIMO);
     }
 
     private function limpiar(string $palabra): string

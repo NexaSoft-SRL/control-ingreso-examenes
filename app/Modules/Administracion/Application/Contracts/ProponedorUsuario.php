@@ -12,7 +12,7 @@ interface ProponedorUsuario
 {
     /**
      * Usuario libre propuesto para un nombre escrito como en la oferta
-     * («Paterno Materno Nombres»): `nombre.apellido`, con sufijo numerico
+     * («Paterno Materno Nombres»): `nombreapellido`, con sufijo numerico
      * si ya esta tomado.
      */
     public function proponer(string $nombreCompleto): string;

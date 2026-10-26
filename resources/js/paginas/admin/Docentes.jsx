@@ -70,7 +70,7 @@ function FormularioActivar({ docente, onActivada, onRechazo }) {
             <Campo
                 etiqueta="Usuario"
                 requerido
-                placeholder="nombre.apellido"
+                placeholder="nombreapellido"
                 value={usuario}
                 error={errores.usuario}
                 ayuda={usuario === docente.usuario_sugerido ? 'Sugerido' : undefined}

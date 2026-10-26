@@ -55,14 +55,14 @@ final class DatosDemoTest extends TestCase
 
         $this->seed(DemoSeeder::class);
 
-        // Cuentas documentadas: se entra con el correo.
+        // Cuentas documentadas: se entra con el usuario.
         $cuentas = [
-            'admin@umss.edu.bo' => ['administracion.academica', 'Administrador', DemoSeeder::CLAVE_ADMINISTRADOR],
-            'leticia.blanco@umss.edu.bo' => ['leticia.blanco', 'Docente', DemoSeeder::CLAVE_DOCENTE],
-            'carga.alta@umss.edu.bo' => ['carga.alta', 'Docente', DemoSeeder::CLAVE_DOCENTE],
-            'auxiliar@umss.edu.bo' => ['diego.mamani', 'Auxiliar', DemoSeeder::CLAVE_AUXILIAR],
+            'admin@umss.edu.bo' => ['admin', 'Administrador', DemoSeeder::CLAVE_ADMINISTRADOR],
+            'leticiablanco@umss.edu.bo' => ['leticiablanco', 'Docente', DemoSeeder::CLAVE_DOCENTE],
+            'cargaalta@umss.edu.bo' => ['cargaalta', 'Docente', DemoSeeder::CLAVE_DOCENTE],
+            'auxiliar@umss.edu.bo' => ['diegomamani', 'Auxiliar', DemoSeeder::CLAVE_AUXILIAR],
             'coordinacion@umss.edu.bo' => ['coordinacion', DemoSeeder::ROL_CREADO, DemoSeeder::CLAVE_COORDINADOR],
-            'corina.flores@umss.edu.bo' => ['corina.flores', 'Docente', DemoSeeder::TEMPORAL],
+            'corinaflores@umss.edu.bo' => ['corinaflores', 'Docente', DemoSeeder::TEMPORAL],
         ];
 
         foreach ($cuentas as $correo => [$usuario, $rol, $clave]) {
@@ -77,7 +77,7 @@ final class DatosDemoTest extends TestCase
             $this->assertSame($rol, $cuenta->name);
             $this->assertTrue(Hash::check($clave, $this->texto($cuenta->password)), $correo);
 
-            if ($usuario === 'corina.flores') {
+            if ($usuario === 'corinaflores') {
                 $this->assertNull($cuenta->password_changed_at);
                 $this->assertGreaterThan(now(), Carbon::parse($this->texto($cuenta->password_temporal_expira_en)));
             } else {
@@ -85,11 +85,11 @@ final class DatosDemoTest extends TestCase
             }
         }
 
-        $this->assertDatabaseHas('usuarios', ['usuario' => 'victor.montano', 'is_active' => false]);
+        $this->assertDatabaseHas('usuarios', ['usuario' => 'victormontano', 'is_active' => false]);
 
         // La cuenta de demostracion entra por HTTP y recibe su sesion.
         $this->postJson('/api/auth/login', [
-            'usuario' => 'leticia.blanco',
+            'usuario' => 'leticiablanco',
             'password' => DemoSeeder::CLAVE_DOCENTE,
         ])
             ->assertOk()
@@ -126,7 +126,7 @@ final class DatosDemoTest extends TestCase
             DB::table('examenes')
                 ->join('usuarios', 'usuarios.id', '=', 'examenes.creado_por')
                 ->join('asignaturas', 'asignaturas.id', '=', 'examenes.asignatura_id')
-                ->where('usuarios.usuario', 'leticia.blanco')
+                ->where('usuarios.usuario', 'leticiablanco')
                 ->where('asignaturas.codigo', '2010010')
                 ->where('examenes.tipo', 'PRIMER_PARCIAL')
                 ->first(['examenes.id', 'examenes.fecha', 'examenes.hora_inicio', 'examenes.duracion_minutos'])
@@ -153,7 +153,7 @@ final class DatosDemoTest extends TestCase
             count(DemoSeeder::PLANTILLAS_DE_LETICIA),
             DB::table('plantillas_norma')
                 ->join('usuarios', 'usuarios.id', '=', 'plantillas_norma.usuario_id')
-                ->where('usuarios.usuario', 'leticia.blanco')
+                ->where('usuarios.usuario', 'leticiablanco')
                 ->count()
         );
 
@@ -185,14 +185,14 @@ final class DatosDemoTest extends TestCase
         // habilitar; y la carga alta con sus 18 examenes.
         $this->assertSame(
             18,
-            DB::table('examenes')->join('usuarios', 'usuarios.id', '=', 'examenes.creado_por')->where('usuarios.usuario', 'carga.alta')->count()
+            DB::table('examenes')->join('usuarios', 'usuarios.id', '=', 'examenes.creado_por')->where('usuarios.usuario', 'cargaalta')->count()
         );
 
         // A medio habilitar: con estudiantes revisados y otros sin revisar.
         $conjunto = (int) $this->texto(
             DB::table('examenes')
                 ->join('usuarios', 'usuarios.id', '=', 'examenes.creado_por')
-                ->where('usuarios.usuario', 'erika.rodriguez')
+                ->where('usuarios.usuario', 'erikarodriguez')
                 ->value('examenes.id')
         );
         $revisados = DB::table('habilitaciones')->where('examen_id', $conjunto)->count();
