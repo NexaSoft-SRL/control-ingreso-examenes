@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Http\Controllers;
 
 use App\Modules\Ingreso\Application\Actions\EmitirCodigosQr;
+use App\Modules\Ingreso\Application\Actions\EnviarAvisos;
 use App\Modules\Ingreso\Application\Actions\EnviarCodigosQr;
 use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
 use App\Modules\Ingreso\Application\Queries\ArmarHojaDeCredenciales;
@@ -12,6 +13,7 @@ use App\Modules\Ingreso\Application\Queries\ConsultarCredencial;
 use App\Modules\Ingreso\Application\Queries\ListarCodigosQr;
 use App\Modules\Ingreso\Domain\Exceptions\ExamenAjenoException;
 use App\Modules\Ingreso\Domain\Exceptions\SinCodigosException;
+use App\Modules\Ingreso\Http\Requests\EnviarAvisoRequest;
 use App\Modules\Ingreso\Http\Requests\FiltroCodigosRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
@@ -137,6 +139,49 @@ final class CodigoQrController
             'message' => $resultado['encolados'] === 1
                 ? '1 código enviado.'
                 : $resultado['encolados'].' códigos enviados.',
+            'encolados' => $resultado['encolados'],
+            'pendientes' => $resultado['pendientes'],
+            'tanda' => $resultado['tanda'],
+        ], Response::HTTP_ACCEPTED);
+    }
+
+    /**
+     * El aviso del examen: fecha, aula, normas y recomendaciones.
+     */
+    public function avisar(
+        int $examen,
+        EnviarAvisoRequest $request,
+        EnviarAvisos $avisar,
+        EmisionQrGateway $codigos,
+    ): JsonResponse {
+        $usuarioId = Auth::id();
+
+        if (! is_int($usuarioId)) {
+            return $this->sinSesion();
+        }
+
+        if ($codigos->examen($examen) === null) {
+            return $this->noEncontrado('Examen no encontrado.');
+        }
+
+        try {
+            $resultado = $avisar->execute(
+                $examen,
+                $request->toData(),
+                $request->recomendaciones(),
+                $usuarioId,
+                $request->tanda(),
+            );
+        } catch (ExamenAjenoException $excepcion) {
+            return $this->ajeno($excepcion);
+        } catch (SinCodigosException $excepcion) {
+            return $this->conflicto($excepcion);
+        }
+
+        return response()->json([
+            'message' => $resultado['encolados'] === 1
+                ? '1 aviso enviado.'
+                : $resultado['encolados'].' avisos enviados.',
             'encolados' => $resultado['encolados'],
             'pendientes' => $resultado['pendientes'],
             'tanda' => $resultado['tanda'],

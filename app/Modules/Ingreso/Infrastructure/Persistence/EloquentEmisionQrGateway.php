@@ -352,6 +352,33 @@ final class EloquentEmisionQrGateway implements EmisionQrGateway
     /**
      * @return list<CredencialData>
      */
+    public function paraAvisar(
+        int $examenId,
+        FiltroCodigosData $filtro,
+        ?int $limite = null,
+        ?string $desde = null,
+    ): array {
+        $consulta = $this->conDatos($this->filtrados($examenId, $filtro));
+
+        if ($desde !== null) {
+            $this->sinEnvioDesde($consulta, 'AVISO', $desde);
+        }
+
+        if ($limite !== null) {
+            $consulta->limit($limite);
+        }
+
+        return $this->credenciales($examenId, $consulta);
+    }
+
+    public function porAvisar(int $examenId, FiltroCodigosData $filtro, string $desde): int
+    {
+        return $this->sinEnvioDesde($this->filtrados($examenId, $filtro), 'AVISO', $desde)->count();
+    }
+
+    /**
+     * @return list<CredencialData>
+     */
     private function credenciales(int $examenId, Builder $consulta): array
     {
         $examen = $this->examen($examenId);

@@ -8,7 +8,9 @@ use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Application\Contracts\RegistroCorreoGateway;
 use App\Modules\Administracion\Application\DTOs\RegistroCorreoData;
 use App\Modules\Ingreso\Application\Contracts\CorreoQrGateway;
+use App\Modules\Ingreso\Application\DTOs\AvisoData;
 use App\Modules\Ingreso\Application\DTOs\CredencialData;
+use App\Modules\Ingreso\Infrastructure\Mail\AvisoExamenMail;
 use App\Modules\Ingreso\Infrastructure\Mail\CodigoQrMail;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\DB;
@@ -52,6 +54,19 @@ final class EloquentCorreoQrGateway implements CorreoQrGateway
             'qr.enviar',
             '%d código(s) QR enviado(s) por correo para el examen %d.',
             static fn (CredencialData $credencial, int $envioId): Mailable => new CodigoQrMail($credencial, $envioId),
+        );
+    }
+
+    public function avisar(int $examenId, array $destinatarios, AvisoData $aviso, int $usuarioId): int
+    {
+        return $this->despachar(
+            $examenId,
+            $destinatarios,
+            $usuarioId,
+            RegistroCorreoData::TIPO_AVISO,
+            'aviso.enviar',
+            '%d aviso(s) del examen %d enviado(s) por correo.',
+            static fn (CredencialData $credencial, int $envioId): Mailable => new AvisoExamenMail($credencial, $aviso, $envioId),
         );
     }
 
