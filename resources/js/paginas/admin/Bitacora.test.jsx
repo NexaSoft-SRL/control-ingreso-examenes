@@ -45,6 +45,33 @@ describe('Bitacora', () => {
         expect(screen.getByText('Usuario eliminado')).toBeInTheDocument();
     });
 
+    it('traduce la atención de incidencia y muestra su aula y examen', async () => {
+        simularApi(api, {
+            'GET /bitacora': {
+                data: [
+                    {
+                        id: 3,
+                        usuario: { id: 7, name: 'Blanco Coca Leticia' },
+                        operacion: 'INCIDENCIA_AULA_ATENDIDA',
+                        tabla_afectada: 'incidencias_aula',
+                        registro_id: 15,
+                        descripcion: 'Incidencia de 691A, examen 1.',
+                        fecha_operacion: '2026-10-19 10:59:00',
+                    },
+                ],
+            },
+        });
+
+        montar();
+
+        expect(await screen.findByText('1 evento')).toBeInTheDocument();
+        expect(screen.getAllByText('Atención de incidencia')).toHaveLength(2);
+        expect(screen.getByText('Incidencia de 691A, examen 1.')).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'Atención de incidencia' })).toHaveValue(
+            'INCIDENCIA_AULA_ATENDIDA'
+        );
+    });
+
     it('envía los filtros al backend', async () => {
         montar();
         await screen.findByText('2 eventos');
@@ -67,6 +94,65 @@ describe('Bitacora', () => {
                 },
             })
         );
+    });
+
+    it('agrupa las solicitudes y restablecimientos en un solo filtro de contraseña', async () => {
+        simularApi(api, {
+            'GET /bitacora': {
+                data: [
+                    {
+                        id: 3,
+                        usuario: { id: 11, name: 'Leticia Blanco' },
+                        operacion: 'contrasena.solicitar_restablecimiento',
+                        tabla_afectada: 'usuarios',
+                        registro_id: 11,
+                        descripcion: 'Se solicitó un enlace de recuperación de contraseña.',
+                        fecha_operacion: '2026-09-28 10:00:00',
+                    },
+                    {
+                        id: 2,
+                        usuario: { id: 11, name: 'Leticia Blanco' },
+                        operacion: 'contrasena.restablecer_por_enlace',
+                        tabla_afectada: 'usuarios',
+                        registro_id: 11,
+                        descripcion: 'Contraseña restablecida mediante enlace de recuperación.',
+                        fecha_operacion: '2026-09-28 10:05:00',
+                    },
+                    {
+                        id: 1,
+                        usuario: { id: 11, name: 'Leticia Blanco' },
+                        operacion: 'usuario.restablecer_temporal',
+                        tabla_afectada: 'usuarios',
+                        registro_id: 11,
+                        descripcion: 'Contraseña temporal nueva para la cuenta.',
+                        fecha_operacion: '2026-09-28 10:10:00',
+                    },
+                ],
+            },
+        });
+
+        montar();
+        expect(await screen.findByText('3 eventos')).toBeInTheDocument();
+        expect(screen.getByLabelText('Usuario')).toHaveDisplayValue('Todos los usuarios');
+
+        const opcionesRestablecimiento = screen
+            .getByLabelText('Operación')
+            .querySelectorAll('option[value="contrasena.restablecimiento"]');
+        expect(opcionesRestablecimiento).toHaveLength(1);
+
+        fireEvent.change(screen.getByLabelText('Operación'), {
+            target: { value: 'contrasena.restablecimiento' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Filtrar' }));
+
+        await waitFor(() =>
+            expect(api.get).toHaveBeenLastCalledWith('/bitacora', {
+                params: { operacion: 'contrasena.restablecimiento' },
+            })
+        );
+        expect(screen.getAllByText('Leticia Blanco')).not.toHaveLength(0);
+        expect(screen.getByText('Solicitud de enlace de recuperación')).toBeInTheDocument();
+        expect(screen.getAllByText('Restablecimiento de contraseña')).toHaveLength(3);
     });
 
     it('muestra el estado vacío', async () => {

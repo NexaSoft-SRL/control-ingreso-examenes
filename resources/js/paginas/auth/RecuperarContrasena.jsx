@@ -19,7 +19,7 @@ export default function RecuperarContrasena() {
     const token = parametros.get('token');
     const correoInicial = parametros.get('correo') ?? '';
     const esRestablecimiento = Boolean(token && correoInicial);
-    const [correo, setCorreo] = useState(correoInicial);
+    const [usuario, setUsuario] = useState(ubicacion.state?.usuario ?? '');
     const [nueva, setNueva] = useState('');
     const [confirmacion, setConfirmacion] = useState('');
     const [mensaje, setMensaje] = useState('');
@@ -30,8 +30,8 @@ export default function RecuperarContrasena() {
         evento.preventDefault();
         setMensaje('');
         setError('');
-        if (!correo.trim()) {
-            setError('Ingrese su correo electrónico de contacto.');
+        if (!esRestablecimiento && !usuario.trim()) {
+            setError('Ingrese su nombre de usuario.');
             return;
         }
 
@@ -49,7 +49,7 @@ export default function RecuperarContrasena() {
                     return;
                 }
                 const respuesta = await api.post('/auth/restablecer-contrasena', {
-                    correo,
+                    correo: correoInicial,
                     token,
                     password: nueva,
                     password_confirmation: confirmacion,
@@ -58,7 +58,9 @@ export default function RecuperarContrasena() {
                 return;
             }
 
-            const respuesta = await api.post('/auth/recuperar-contrasena', { correo });
+            const respuesta = await api.post('/auth/recuperar-contrasena', {
+                usuario: usuario.trim(),
+            });
             setMensaje(
                 respuesta.data?.message ??
                     'Si la cuenta tiene ese correo, enviaremos instrucciones.'
@@ -105,13 +107,13 @@ export default function RecuperarContrasena() {
                     >
                         {!esRestablecimiento && (
                             <label className="block text-sm font-medium text-slate-700">
-                                Correo electrónico
+                                Usuario
                                 <input
                                     className="mt-1.5 min-h-11 w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm"
-                                    type="email"
-                                    autoComplete="email"
-                                    value={correo}
-                                    onChange={(evento) => setCorreo(evento.target.value)}
+                                    type="text"
+                                    autoComplete="username"
+                                    value={usuario}
+                                    onChange={(evento) => setUsuario(evento.target.value)}
                                     required
                                 />
                             </label>

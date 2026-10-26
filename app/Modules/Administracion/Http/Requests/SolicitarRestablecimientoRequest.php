@@ -19,7 +19,7 @@ final class SolicitarRestablecimientoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'correo' => ['required', 'string', 'email', 'max:255'],
+            'usuario' => ['required', 'string', 'max:60', 'regex:/^[a-zA-Z0-9._-]+$/'],
         ];
     }
 }

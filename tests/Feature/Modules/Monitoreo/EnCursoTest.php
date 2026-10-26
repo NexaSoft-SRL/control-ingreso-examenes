@@ -167,6 +167,48 @@ final class EnCursoTest extends TestCase
         $this->assertTrue($b['a_mi_cargo']);
     }
 
+    public function test_el_docente_asignado_a_un_aula_de_otro_examen_solo_ve_esa_aula(): void
+    {
+        $propietario = $this->docenteConCuenta();
+        $grupo = $this->grupo($propietario);
+        $aulaAjena = $this->aula('691A');
+        $aulaAsignada = $this->aula('692A');
+        $examen = $this->examen($propietario, [$grupo], [$aulaAjena, $aulaAsignada]);
+        $estudiantes = $this->estudiantesInscritos($grupo, 3);
+        $this->habilitar($examen, array_slice($estudiantes, 0, 2), $aulaAjena);
+        $this->habilitar($examen, [$estudiantes[2]], $aulaAsignada);
+        $this->ingresar($examen, $estudiantes[0], $aulaAjena);
+        $this->ingresar($examen, $estudiantes[2], $aulaAsignada);
+        $this->personal($examen, $aulaAsignada, $this->cuenta, 'a_cargo');
+
+        $this->actingAs($this->cuenta)
+            ->getJson('/api/en-curso')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $examen->id);
+
+        $this->getJson("/api/en-curso/{$examen->id}")
+            ->assertOk()
+            ->assertJsonPath('data.cifras.ingresaron', 1)
+            ->assertJsonPath('data.cifras.faltan', 0)
+            ->assertJsonPath('data.cifras.aulas', 1)
+            ->assertJsonCount(1, 'data.aulas')
+            ->assertJsonPath('data.aulas.0.aula_id', $aulaAsignada->id)
+            ->assertJsonPath('data.aulas.0.a_mi_cargo', true);
+
+        $this->getJson('/api/seguimiento/aulas')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.examen_id', $examen->id)
+            ->assertJsonPath('data.0.aula_id', $aulaAsignada->id);
+
+        $this->getJson("/api/seguimiento/examenes/{$examen->id}/aulas/{$aulaAsignada->id}")
+            ->assertOk()
+            ->assertJsonPath('data.aula.id', $aulaAsignada->id);
+
+        $this->getJson("/api/seguimiento/examenes/{$examen->id}/aulas/{$aulaAjena->id}")
+            ->assertForbidden();
+    }
+
     public function test_los_faltantes_del_aula_nunca_son_negativos(): void
     {
         $grupo = $this->grupo($this->docente);
@@ -321,7 +363,22 @@ final class EnCursoTest extends TestCase
             'operacion' => 'INCIDENCIA_AULA_ATENDIDA',
             'tabla_afectada' => 'incidencias_aula',
             'registro_id' => $id,
+            'descripcion' => 'Incidencia de 691A, examen '.$examen->id.'.',
         ]);
+
+        DB::table('bitacora_operaciones')
+            ->where('operacion', 'INCIDENCIA_AULA_ATENDIDA')
+            ->where('registro_id', $id)
+            ->update(['descripcion' => 'Incidencia de aula marcada como atendida.']);
+
+        $administrador = $this->usuarioConRol('Administrador');
+        $this->actingAs($administrador)
+            ->getJson('/api/bitacora?operacion=INCIDENCIA_AULA_ATENDIDA')
+            ->assertOk()
+            ->assertJsonPath(
+                'data.0.descripcion',
+                'Incidencia de 691A, examen '.$examen->id.'.',
+            );
 
         // Un segundo intento, aun de otro docente del examen, no la cambia.
         $colega = $this->usuarioConRol('Docente');
@@ -409,8 +466,6 @@ final class EnCursoTest extends TestCase
         $aula = $this->aula();
         $otro = $this->docenteConCuenta();
         $ajeno = $this->examen($otro, [$this->grupo($otro)], [$aula]);
-        // A cargo de un aula de ese examen, pero el examen no es suyo.
-        $this->personal($ajeno, $aula, $this->cuenta, 'a_cargo');
         $id = $this->incidencia($ajeno, $aula, $this->cuenta, 'Otra', now());
 
         $this->actingAs($this->cuenta)

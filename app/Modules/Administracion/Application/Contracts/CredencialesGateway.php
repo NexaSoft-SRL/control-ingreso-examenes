@@ -8,7 +8,7 @@ interface CredencialesGateway
 {
     public function cambiar(int $usuarioId, string $contrasenaActual, string $nuevaContrasena): bool;
 
-    public function solicitarRestablecimiento(string $correo): void;
+    public function solicitarRestablecimiento(string $usuario): void;
 
     public function restablecer(string $correo, string $token, string $contrasena): bool;
 }

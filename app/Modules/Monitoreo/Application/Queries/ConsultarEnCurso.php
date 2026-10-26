@@ -11,6 +11,7 @@ use App\Modules\Examenes\Application\DTOs\AulaDetalleData;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
 use App\Modules\Monitoreo\Application\Contracts\EnCursoGateway;
 use App\Modules\Monitoreo\Application\DTOs\AulaEnCursoData;
+use App\Modules\Monitoreo\Application\DTOs\AvanceEnCursoData;
 use App\Modules\Monitoreo\Application\DTOs\ExamenEnCursoData;
 use App\Modules\Monitoreo\Application\DTOs\IncidenciaEnCursoData;
 use App\Modules\Monitoreo\Application\DTOs\TableroEnCursoData;
@@ -40,7 +41,10 @@ final readonly class ConsultarEnCurso
             throw new ExamenNoEncontradoException('Examen no encontrado.');
         }
 
-        if (! $this->alcance->esDocenteDelExamen($usuarioId, $examenId)) {
+        $esDocente = $this->alcance->esDocenteDelExamen($usuarioId, $examenId);
+        $mias = $this->alcance->aulasQueAtiende($usuarioId, $examenId);
+
+        if (! $esDocente && $mias === []) {
             throw new ExamenAjenoException('Este examen no es suyo.');
         }
 
@@ -59,8 +63,28 @@ final readonly class ConsultarEnCurso
             $resumen->duracion,
             $examenId,
         );
-        $mias = $this->alcance->aulasQueAtiende($usuarioId, $examenId);
+        $aulasDetalle = array_values(array_filter(
+            $detalle->aulas,
+            static fn (AulaDetalleData $aula): bool => $esDocente || in_array($aula->aulaId, $mias, true),
+        ));
+
+        if (! $esDocente && $aulasDetalle === []) {
+            throw new ExamenAjenoException('No atiende aulas de este examen.');
+        }
+
+        $idsVisibles = array_map(
+            static fn (AulaDetalleData $aula): int => $aula->aulaId,
+            $aulasDetalle,
+        );
+        $incidencias = array_values(array_filter(
+            $incidencias,
+            static fn (IncidenciaEnCursoData $incidencia): bool => $esDocente
+                || in_array($incidencia->aulaId, $idsVisibles, true),
+        ));
         $porAtender = $this->sinAtenderPorAula($incidencias);
+        $avanceVisible = $esDocente
+            ? $avance
+            : $this->avanceDeAulasVisibles($avance, $idsVisibles);
 
         return new TableroEnCursoData(
             examen: new ExamenEnCursoData(
@@ -74,7 +98,7 @@ final readonly class ConsultarEnCurso
                 abierto: $this->ventana->estaAbierta($examenId),
             ),
             horaServidor: $this->consulta->horaServidor(),
-            avance: $avance,
+            avance: $avanceVisible,
             aulas: array_map(
                 static fn (AulaDetalleData $aula): AulaEnCursoData => new AulaEnCursoData(
                     aulaId: $aula->aulaId,
@@ -89,7 +113,7 @@ final readonly class ConsultarEnCurso
                     codigoAcceso: $aula->codigo !== null,
                     aMiCargo: in_array($aula->aulaId, $mias, true),
                 ),
-                $detalle->aulas,
+                $aulasDetalle,
             ),
             incidencias: $incidencias,
         );
@@ -110,5 +134,36 @@ final readonly class ConsultarEnCurso
         }
 
         return $conteo;
+    }
+
+    /**
+     * @param  list<int>  $aulaIds
+     */
+    private function avanceDeAulasVisibles(AvanceEnCursoData $avance, array $aulaIds): AvanceEnCursoData
+    {
+        $aulas = [];
+        $ingresaron = 0;
+        $faltan = 0;
+        $ultimosRegistros = [];
+
+        foreach ($aulaIds as $aulaId) {
+            $avanceAula = $avance->deAula($aulaId);
+            $aulas[$aulaId] = $avanceAula;
+            $ingresaron += $avanceAula->ingresados;
+            $faltan += $avanceAula->faltan;
+
+            if ($avanceAula->ultimoRegistro !== null) {
+                $ultimosRegistros[] = $avanceAula->ultimoRegistro;
+            }
+        }
+
+        rsort($ultimosRegistros, SORT_STRING);
+
+        return new AvanceEnCursoData(
+            ingresaron: $ingresaron,
+            faltan: $faltan,
+            ultimoRegistro: $ultimosRegistros[0] ?? null,
+            aulas: $aulas,
+        );
     }
 }

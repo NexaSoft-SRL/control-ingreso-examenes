@@ -87,7 +87,7 @@ final class SeguimientoAulaController
         }
 
         if (! $actualizada) {
-            return $this->error('La incidencia ya fue atendida.', 409);
+            return $this->error('La incidencia ya estaba atendida.', 409);
         }
 
         return response()->json(['message' => 'Incidencia atendida.']);
