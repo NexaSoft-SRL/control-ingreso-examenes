@@ -12,7 +12,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
- * Decision D-02: `nombre.apellido`, a partir de un nombre escrito como en
+ * Decision D-02, revisada: `nombreapellido` sin punto, a partir de un nombre escrito como en
  * la oferta («Paterno Materno Nombres»).
  */
 final class ProponerUsuarioTest extends TestCase
@@ -20,7 +20,7 @@ final class ProponerUsuarioTest extends TestCase
     use RefreshDatabase;
 
     #[DataProvider('nombres')]
-    public function test_it_proposes_first_name_dot_paternal_surname(
+    public function test_it_proposes_first_name_and_paternal_surname_without_a_dot(
         string $nombre,
         string $esperado,
     ): void {
@@ -36,12 +36,12 @@ final class ProponerUsuarioTest extends TestCase
     public static function nombres(): array
     {
         return [
-            'paterno materno nombre' => ['Blanco Coca Leticia', 'leticia.blanco'],
-            'dos nombres de pila' => ['Flores Villarroel Corina Justina', 'corina.flores'],
-            'solo paterno y nombre' => ['Mamani Diego', 'diego.mamani'],
-            'tildes y enie' => ['Montaño Peñaranda Víctor Hugo', 'victor.montano'],
-            'mayusculas y espacios de mas' => ['  MOLINA   ZURITA  JUAN  ', 'juan.molina'],
-            'signos' => ["O'Connor Pérez María-José", 'mariajose.oconnor'],
+            'paterno materno nombre' => ['Blanco Coca Leticia', 'leticiablanco'],
+            'dos nombres de pila' => ['Flores Villarroel Corina Justina', 'corinaflores'],
+            'solo paterno y nombre' => ['Mamani Diego', 'diegomamani'],
+            'tildes y enie' => ['Montaño Peñaranda Víctor Hugo', 'victormontano'],
+            'mayusculas y espacios de mas' => ['  MOLINA   ZURITA  JUAN  ', 'juanmolina'],
+            'signos' => ["O'Connor Pérez María-José", 'mariajoseoconnor'],
             'una sola palabra' => ['Administración', 'administracion'],
             'vacio' => ['   ', 'usuario'],
         ];
@@ -49,15 +49,15 @@ final class ProponerUsuarioTest extends TestCase
 
     public function test_a_taken_user_name_gets_a_numeric_suffix(): void
     {
-        UserFactory::new()->createOne(['usuario' => 'leticia.blanco']);
+        UserFactory::new()->createOne(['usuario' => 'leticiablanco']);
 
         $accion = $this->app->make(ProponerUsuario::class);
 
-        $this->assertSame('leticia.blanco2', $accion->execute('Blanco Coca Leticia'));
+        $this->assertSame('leticiablanco2', $accion->execute('Blanco Coca Leticia'));
 
-        UserFactory::new()->createOne(['usuario' => 'leticia.blanco2']);
+        UserFactory::new()->createOne(['usuario' => 'leticiablanco2']);
 
-        $this->assertSame('leticia.blanco3', $accion->execute('Blanco Coca Leticia'));
+        $this->assertSame('leticiablanco3', $accion->execute('Blanco Coca Leticia'));
     }
 
     public function test_the_proposal_always_fits_the_column_and_the_format(): void
@@ -65,7 +65,7 @@ final class ProponerUsuarioTest extends TestCase
         $largo = str_repeat('Largo', 20);
 
         UserFactory::new()->createOne([
-            'usuario' => substr(mb_strtolower($largo.'.'.$largo), 0, 60),
+            'usuario' => substr(mb_strtolower($largo.$largo), 0, 60),
         ]);
 
         $propuesta = $this->app->make(ProponerUsuario::class)
@@ -79,7 +79,7 @@ final class ProponerUsuarioTest extends TestCase
     public function test_other_modules_reach_the_proposal_through_its_contract(): void
     {
         $this->assertSame(
-            'diego.mamani',
+            'diegomamani',
             $this->app->make(ProponedorUsuario::class)->proponer('Mamani Torrez Diego')
         );
     }

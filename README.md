@@ -63,13 +63,13 @@ composer datos:demo   # rehace la base desde cero y la siembra
 
 El comando **borra la base** y la deja idéntica a la del resto del equipo.
 
-| Rol           | Correo                       | Contraseña         |
-| ------------- | ---------------------------- | ------------------ |
-| Administrador | `admin@umss.edu.bo`          | `Admin12345`       |
-| Docente       | `leticia.blanco@umss.edu.bo` | `Docente12345`     |
-| Docente       | `carga.alta@umss.edu.bo`     | `Docente12345`     |
-| Auxiliar      | `auxiliar@umss.edu.bo`       | `Auxiliar12345`    |
-| Coordinador   | `coordinacion@umss.edu.bo`   | `Coordinador12345` |
+| Rol           | Usuario         | Contraseña         |
+| ------------- | --------------- | ------------------ |
+| Administrador | `admin`         | `Admin12345`       |
+| Docente       | `leticiablanco` | `Docente12345`     |
+| Docente       | `cargaalta`     | `Docente12345`     |
+| Auxiliar      | `diegomamani`   | `Auxiliar12345`    |
+| Coordinador   | `coordinacion`  | `Coordinador12345` |
 
 Cada cuenta ve únicamente las pantallas que su rol tiene habilitadas. «Coordinador» es un
 rol creado, para mostrar que los roles no son fijos. Los demás docentes de la oferta

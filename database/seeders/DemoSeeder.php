@@ -31,29 +31,29 @@ use stdClass;
  * del sprint. **Todo va fechado respecto del momento en que se ejecuta**
  * (zona `umss.zona_horaria`).
  *
- * Cuentas (el acceso es por correo):
+ * Cuentas (usuario / contrasena):
  *
- *   admin@umss.edu.bo            / Admin12345        Administrador (preparación y sistema).
- *   leticia.blanco@umss.edu.bo   / Docente12345      Docente, carga normal: Blanco Coca Leticia.
+ *   admin                        / Admin12345        Administrador (preparación y sistema).
+ *   leticiablanco                / Docente12345      Docente, carga normal: Blanco Coca Leticia.
  *                                                    Sus datos de ejemplo estan en 2 asignaturas
  *                                                    (Introduccion a la Programacion y Taller de
  *                                                    Ingenieria de Software); sus otros grupos
  *                                                    reales quedan sin lista.
- *   carga.alta@umss.edu.bo       / Docente12345      Docente, carga alta: el docente real de FCyT
+ *   cargaalta                    / Docente12345      Docente, carga alta: el docente real de FCyT
  *                                                    con mas asignaturas; 18 examenes en 6 de ellas.
- *   carla.salazar@umss.edu.bo    / Docente12345      Docente de los grupos 1 y 6 de Introduccion.
- *   erika.rodriguez@umss.edu.bo  / Docente12345      Docente que registro el parcial conjunto de Taller.
- *   americo.fiorilo@umss.edu.bo  / Docente12345      Docente del parcial de Calculo I que comparte
+ *   carlasalazar                 / Docente12345      Docente de los grupos 1 y 6 de Introduccion.
+ *   erikarodriguez               / Docente12345      Docente que registro el parcial conjunto de Taller.
+ *   americofiorilo               / Docente12345      Docente del parcial de Calculo I que comparte
  *                                                    el aula 691A con el examen de hoy.
- *   corina.flores@umss.edu.bo    / Fa7-Kmq4-Ru9      Docente con contrasena temporal («Temporal»
+ *   corinaflores                 / Fa7-Kmq4-Ru9      Docente con contrasena temporal («Temporal»
  *                                                    en Docentes; entra igual, el cambio obligatorio
  *                                                    llega con HU-16).
- *   auxiliar@umss.edu.bo         / Auxiliar12345     Auxiliar: entra y no tiene pantallas todavia.
- *   coordinacion@umss.edu.bo     / Coordinador12345  Rol creado «Coordinador» (Periodo, Aulas y
+ *   diegomamani                  / Auxiliar12345     Auxiliar: entra y no tiene pantallas todavia.
+ *   coordinacion                 / Coordinador12345  Rol creado «Coordinador» (Periodo, Aulas y
  *                                                    Docentes).
- *   victor.montano@umss.edu.bo   (sin acceso)        Cuenta bloqueada.
+ *   victormontano                (sin acceso)        Cuenta bloqueada.
  *
- * Examenes de leticia.blanco: (a) primer parcial de Introduccion, hoy, 4
+ * Examenes de leticiablanco: (a) primer parcial de Introduccion, hoy, 4
  * grupos y 5 aulas (la 691A compartida con Calculo I), habilitado con 9 no
  * habilitados y repartido; (b) parcial conjunto de Taller en dos dias,
  * registrado por otra docente, a medio habilitar; (c) segundo parcial de
@@ -259,13 +259,13 @@ class DemoSeeder extends Seeder
 
     private function cuentas(): void
     {
-        $this->cuenta('administracion.academica', 'admin', 'Administración Académica', 'Administrador', self::CLAVE_ADMINISTRADOR);
+        $this->cuenta('admin', 'admin', 'Administración Académica', 'Administrador', self::CLAVE_ADMINISTRADOR);
 
         $docentes = [
-            'leticia.blanco' => 'BLANCO COCA LETICIA',
-            'carla.salazar' => 'SALAZAR SERRUDO CARLA',
-            'erika.rodriguez' => 'RODRIGUEZ BILBAO ERIKA PATRICIA',
-            'americo.fiorilo' => 'FIORILO LOZADA AMERICO',
+            'leticiablanco' => 'BLANCO COCA LETICIA',
+            'carlasalazar' => 'SALAZAR SERRUDO CARLA',
+            'erikarodriguez' => 'RODRIGUEZ BILBAO ERIKA PATRICIA',
+            'americofiorilo' => 'FIORILO LOZADA AMERICO',
         ];
 
         foreach ($docentes as $usuario => $normalizado) {
@@ -287,11 +287,11 @@ class DemoSeeder extends Seeder
             throw new RuntimeException('No hay docentes de FCyT en la oferta importada.');
         }
 
-        $this->cuentaDeDocente('carga.alta', $cargaAlta, self::CLAVE_DOCENTE);
+        $this->cuentaDeDocente('cargaalta', $cargaAlta, self::CLAVE_DOCENTE);
 
         // Contrasena temporal vigente: la pantalla Docentes la muestra
         // como «Temporal».
-        $corina = $this->cuentaDeDocente('corina.flores', 'FLORES VILLARROEL CORINA', self::TEMPORAL);
+        $corina = $this->cuentaDeDocente('corinaflores', 'FLORES VILLARROEL CORINA', self::TEMPORAL);
 
         User::whereKey($corina)->firstOrFail()->forceFill([
             'password_changed_at' => null,
@@ -299,13 +299,13 @@ class DemoSeeder extends Seeder
         ])->save();
 
         // Bloqueada: la interfaz la muestra como «Bloqueado».
-        $victor = $this->cuentaDeDocente('victor.montano', 'MONTANO QUIROGA VICTOR HUGO', Str::random(24));
+        $victor = $this->cuentaDeDocente('victormontano', 'MONTANO QUIROGA VICTOR HUGO', Str::random(24));
 
         User::whereKey($victor)->firstOrFail()->forceFill(['is_active' => false])->save();
 
         // Entra y ve «Sin pantallas asignadas»: sus dos permisos todavia no
         // tienen vista.
-        $this->cuenta('diego.mamani', 'auxiliar', 'Diego Mamani Quispe', 'Auxiliar', self::CLAVE_AUXILIAR);
+        $this->cuenta('diegomamani', 'auxiliar', 'Diego Mamani Quispe', 'Auxiliar', self::CLAVE_AUXILIAR);
 
         // Un rol creado desde la pantalla, para verlo en la matriz.
         $this->rolCreado(self::ROL_CREADO, ['periodo_oferta', 'aulas_docentes']);
@@ -315,7 +315,7 @@ class DemoSeeder extends Seeder
     /**
      * Cuenta con contrasena propia ya definida. No pasa por el contrato de
      * cuentas, que siempre emite una temporal al azar. `$buzon` es la parte
-     * local del correo, que es con lo que se entra.
+     * local del correo; se entra con el usuario.
      */
     protected function cuenta(string $usuario, string $buzon, string $nombre, string $rol, string $clave): int
     {
@@ -532,7 +532,7 @@ class DemoSeeder extends Seeder
      */
     private function inscripcionesDeOtrasFacultades(): void
     {
-        $administrador = $this->cuentas['administracion.academica'];
+        $administrador = $this->cuentas['admin'];
 
         foreach (['fce', 'fhce', 'fach'] as $clave) {
             $grupos = $this->enteros(
@@ -561,7 +561,7 @@ class DemoSeeder extends Seeder
             return;
         }
 
-        $leticia = $this->cuentas['leticia.blanco'];
+        $leticia = $this->cuentas['leticiablanco'];
         $grupoId = $this->grupo(self::ARQUITECTURA, '2');
 
         $cargaId = DB::table('cargas_inscritos')->insertGetId([
@@ -621,7 +621,7 @@ class DemoSeeder extends Seeder
     {
         foreach (self::PLANTILLAS_DE_LETICIA as $texto) {
             DB::table('plantillas_norma')->updateOrInsert(
-                ['usuario_id' => $this->cuentas['leticia.blanco'], 'texto' => $texto],
+                ['usuario_id' => $this->cuentas['leticiablanco'], 'texto' => $texto],
                 ['created_at' => now()->subDays(8), 'updated_at' => now()->subDays(8)],
             );
         }
@@ -662,10 +662,10 @@ class DemoSeeder extends Seeder
 
     private function examenesDeLeticia(): void
     {
-        $leticia = $this->cuentas['leticia.blanco'];
-        $carla = $this->cuentas['carla.salazar'];
-        $erika = $this->cuentas['erika.rodriguez'];
-        $americo = $this->cuentas['americo.fiorilo'];
+        $leticia = $this->cuentas['leticiablanco'];
+        $carla = $this->cuentas['carlasalazar'];
+        $erika = $this->cuentas['erikarodriguez'];
+        $americo = $this->cuentas['americofiorilo'];
 
         $introduccion = $this->id('asignaturas', ['codigo' => self::INTRODUCCION]);
         $taller = $this->id('asignaturas', ['codigo' => self::TALLER]);
@@ -718,7 +718,7 @@ class DemoSeeder extends Seeder
             $personal = [
                 [$a691B, $leticia, 'a_cargo'],
                 [$a691A, $carla, 'a_cargo'],
-                [$a691E, $this->cuentas['diego.mamani'], 'a_cargo'],
+                [$a691E, $this->cuentas['diegomamani'], 'a_cargo'],
                 [$a691E, $leticia, 'apoyo'],
                 [$a617, $leticia, 'a_cargo'],
                 [$a624, $carla, 'a_cargo'],
@@ -844,7 +844,7 @@ class DemoSeeder extends Seeder
      */
     private function examenesDeCargaAlta(): void
     {
-        $docente = $this->cuentas['carga.alta'];
+        $docente = $this->cuentas['cargaalta'];
 
         $grupos = DB::table('grupos')
             ->join('docentes', 'docentes.id', '=', 'grupos.docente_id')
@@ -1037,13 +1037,13 @@ class DemoSeeder extends Seeder
             return;
         }
 
-        $administrador = $this->cuentas['administracion.academica'];
-        $leticia = $this->cuentas['leticia.blanco'];
+        $administrador = $this->cuentas['admin'];
+        $leticia = $this->cuentas['leticiablanco'];
 
         $asientos = [
             [$administrador, 'sesion.iniciar', 'usuarios', $administrador, null, 9 * 1440],
-            [$administrador, 'usuario.registrar', 'usuarios', $leticia, 'Cuenta leticia.blanco creada con el rol Docente.', 9 * 1440 - 20],
-            [$administrador, 'docente.activar_cuenta', 'docentes', null, 'Cuenta «leticia.blanco» activada para Blanco Coca Leticia', 9 * 1440 - 20],
+            [$administrador, 'usuario.registrar', 'usuarios', $leticia, 'Cuenta leticiablanco creada con el rol Docente.', 9 * 1440 - 20],
+            [$administrador, 'docente.activar_cuenta', 'docentes', null, 'Cuenta «leticiablanco» activada para Blanco Coca Leticia', 9 * 1440 - 20],
             [$administrador, 'rol.crear', 'roles', null, 'Rol Coordinador creado con 2 permisos.', 8 * 1440],
             [$leticia, 'sesion.iniciar', 'usuarios', $leticia, null, 6 * 1440 + 30],
             [$leticia, 'inscritos.cargar', 'cargas_inscritos', null, 'Lista de Introducción a la Programación, grupo 2: 65 filas.', 6 * 1440 + 20],
