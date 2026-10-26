@@ -7,6 +7,7 @@ namespace App\Modules\Ingreso\Http\Controllers;
 use App\Modules\Ingreso\Application\Actions\EmitirCodigosQr;
 use App\Modules\Ingreso\Application\Actions\EnviarAvisos;
 use App\Modules\Ingreso\Application\Actions\EnviarCodigosQr;
+use App\Modules\Ingreso\Application\Actions\ReenviarCodigoQr;
 use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
 use App\Modules\Ingreso\Application\Queries\ArmarHojaDeCredenciales;
 use App\Modules\Ingreso\Application\Queries\ConsultarCredencial;
@@ -142,6 +143,45 @@ final class CodigoQrController
             'encolados' => $resultado['encolados'],
             'pendientes' => $resultado['pendientes'],
             'tanda' => $resultado['tanda'],
+        ], Response::HTTP_ACCEPTED);
+    }
+
+    /**
+     * El codigo de un solo estudiante, lo haya recibido antes o no.
+     */
+    public function reenviar(
+        int $examen,
+        int $estudiante,
+        ReenviarCodigoQr $reenviar,
+        EmisionQrGateway $codigos,
+    ): JsonResponse {
+        $usuarioId = Auth::id();
+
+        if (! is_int($usuarioId)) {
+            return $this->sinSesion();
+        }
+
+        if ($codigos->examen($examen) === null) {
+            return $this->noEncontrado('Examen no encontrado.');
+        }
+
+        try {
+            $correo = $reenviar->execute($examen, $estudiante, $usuarioId);
+        } catch (ExamenAjenoException $excepcion) {
+            return $this->ajeno($excepcion);
+        } catch (SinCodigosException $excepcion) {
+            return $this->conflicto($excepcion);
+        }
+
+        if ($correo === null) {
+            return $this->noEncontrado('El estudiante no está habilitado en este examen.');
+        }
+
+        return response()->json([
+            'message' => '1 código enviado.',
+            'encolados' => 1,
+            'pendientes' => 0,
+            'correo' => $correo,
         ], Response::HTTP_ACCEPTED);
     }
 
