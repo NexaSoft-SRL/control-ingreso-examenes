@@ -27,6 +27,7 @@ final class FiltroOfertaRequest extends FormRequest
             'carrera' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'nivel' => ['sometimes', 'nullable', 'string', 'max:50'],
             'buscar' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'sin_lista' => ['sometimes', 'nullable', 'boolean'],
         ];
     }
 
@@ -36,7 +37,7 @@ final class FiltroOfertaRequest extends FormRequest
     }
 
     /**
-     * @return array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null}
+     * @return array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null, sin_lista: bool}
      */
     public function filtros(): array
     {
@@ -48,6 +49,7 @@ final class FiltroOfertaRequest extends FormRequest
             'carrera_id' => $this->enteroOpcional('carrera'),
             'nivel' => $this->textoOpcional('nivel'),
             'buscar' => $this->buscar(),
+            'sin_lista' => $this->boolean('sin_lista'),
         ];
     }
 

@@ -8,12 +8,14 @@ use App\Modules\Academico\Domain\Enums\RegimenCarrera;
 use App\Modules\Academico\Domain\Enums\TipoPeriodo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\DatosAcademicos;
+use Tests\Support\DatosDeExamen;
 use Tests\Support\UsuarioConPermisos;
 use Tests\TestCase;
 
 final class OfertaConsultaTest extends TestCase
 {
     use DatosAcademicos;
+    use DatosDeExamen;
     use OfertaDePrueba;
     use RefreshDatabase;
     use UsuarioConPermisos;
@@ -103,6 +105,25 @@ final class OfertaConsultaTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.nombre', 'Introducción a la Programación');
+    }
+
+    public function test_subjects_with_a_group_without_list_are_filtered(): void
+    {
+        $this->facultad();
+        $algebra = $this->asignatura('Álgebra I', '2008019');
+        $calculo = $this->asignatura('Cálculo I', '2008054');
+        $this->estudiantesInscritos($this->grupo(null, $algebra, '1'), 2);
+        $this->grupo(null, $algebra, '2');
+        $this->estudiantesInscritos($this->grupo(null, $calculo, '1'), 2);
+
+        // La fila cuenta todos los grupos de la asignatura, no solo los sin lista.
+        $this->actingAs($this->usuarioConPermisos(['periodo_oferta']))
+            ->getJson('/api/oferta/asignaturas?facultad=fcyt&sin_lista=1')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.nombre', 'Álgebra I')
+            ->assertJsonPath('data.0.grupos', 2)
+            ->assertJsonPath('meta.total_grupos', 2);
     }
 
     public function test_offer_subjects_can_be_filtered_by_period_faculty_career_and_level(): void
