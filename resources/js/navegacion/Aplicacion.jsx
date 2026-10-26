@@ -12,6 +12,8 @@ import RecuperarContrasena from '../paginas/auth/RecuperarContrasena';
 
 const Login = lazy(() => import('../paginas/auth/Login'));
 const AccesoAula = lazy(() => import('../paginas/auth/AccesoAula'));
+const AccesoEstudiante = lazy(() => import('../paginas/estudiante/AccesoEstudiante'));
+const PortalEstudiante = lazy(() => import('../paginas/estudiante/PortalEstudiante'));
 
 // Un componente por ruta. Quién ve cada una sale de navegacion/vistas.js.
 export const PAGINAS = {
@@ -108,6 +110,11 @@ export function Rutas() {
                 <Route path="/restablecer-contrasena" element={<RecuperarContrasena />} />
                 <Route path="/cambiar-contrasena" element={<CambioContrasenaForzado />} />
                 <Route path="/sin-acceso" element={<SinAcceso />} />
+                {/* El estudiante entra sin cuenta, con un código por correo. */}
+                <Route path="/estudiante/ingreso" element={<AccesoEstudiante />} />
+                <Route path="/estudiante" element={<PortalEstudiante />} />
+                <Route path="/estudiante/foto" element={<PortalEstudiante />} />
+                <Route path="/estudiante/*" element={<Navigate to="/estudiante" replace />} />
                 <Route element={<ConMenu />}>
                     {VISTAS.map((v) => {
                         const Pagina = PAGINAS[v.ruta];
