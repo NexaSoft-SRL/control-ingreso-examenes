@@ -43,7 +43,7 @@ final class CodigosQrTest extends TestCase
             ->assertJsonCount(2, 'data')
             ->assertJsonPath('data.0.estudiante_id', $primero->id)
             ->assertJsonPath('data.0.codigo', $primero->codigo_universitario)
-            ->assertJsonPath('data.0.nombre', $primero->apellidos.', '.$primero->nombres)
+            ->assertJsonPath('data.0.nombre', $primero->apellidos.' '.$primero->nombres)
             ->assertJsonPath('data.0.grupo', '2')
             ->assertJsonPath('data.0.aula', '691A')
             ->assertJsonPath('data.0.emitido', true)
@@ -113,7 +113,7 @@ final class CodigosQrTest extends TestCase
             ->getJson($this->ruta('?buscar=COSSIO'))
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
-            ->assertJsonPath('data.0.nombre', 'Aguilar Cossío, Mariana');
+            ->assertJsonPath('data.0.nombre', 'Aguilar Cossío Mariana');
 
         $this->actingAs($this->cuentaDocente)
             ->getJson($this->ruta('?buscar=mariana aguilar'))
@@ -262,7 +262,7 @@ final class CodigosQrTest extends TestCase
             ->assertJsonPath('data.fecha', '2026-10-30')
             ->assertJsonPath('data.hora', '08:15')
             ->assertJsonPath('data.duracion', 90)
-            ->assertJsonPath('data.estudiante', $estudiante->apellidos.', '.$estudiante->nombres)
+            ->assertJsonPath('data.estudiante', $estudiante->apellidos.' '.$estudiante->nombres)
             ->assertJsonPath('data.codigo', $estudiante->codigo_universitario)
             ->assertJsonPath('data.correo', $estudiante->codigo_universitario.'@est.umss.edu')
             ->assertJsonPath('data.aula.nombre', '691A')
@@ -313,7 +313,7 @@ final class CodigosQrTest extends TestCase
             ->get($this->ruta('/hoja'))
             ->assertOk()
             ->assertHeader('Content-Type', 'text/html; charset=utf-8')
-            ->assertSee('Aguilar Cossío, Mariana')
+            ->assertSee('Aguilar Cossío Mariana')
             ->assertSee($conCodigo->codigo_universitario)
             ->assertSee('Primer parcial · Introducción a la Programación')
             ->assertSee('30 oct 2026 · 08:15 · 90 min')

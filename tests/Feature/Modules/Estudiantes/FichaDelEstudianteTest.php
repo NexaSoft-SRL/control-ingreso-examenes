@@ -73,7 +73,7 @@ final class FichaDelEstudianteTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.id', $estudiante->id)
             ->assertJsonPath('data.codigo', '202104821')
-            ->assertJsonPath('data.nombre', 'Aguilar Cossío, Mariana')
+            ->assertJsonPath('data.nombre', 'Aguilar Cossío Mariana')
             ->assertJsonPath('data.nombres', 'Mariana')
             ->assertJsonPath('data.apellidos', 'Aguilar Cossío')
             ->assertJsonPath('data.documento', '7928194')

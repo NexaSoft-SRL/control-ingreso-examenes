@@ -16,7 +16,7 @@ export function plural(cantidad, singular, pluralTexto = `${singular}s`) {
 }
 
 export function nombreCompleto(e) {
-    return `${e.apellidos}, ${e.nombres}`;
+    return [e.apellidos, e.nombres].filter(Boolean).join(' ');
 }
 
 // 'Blanco Coca Leticia' → 'BC'.

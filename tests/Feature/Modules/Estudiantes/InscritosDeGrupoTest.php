@@ -42,13 +42,13 @@ final class InscritosDeGrupoTest extends TestCase
             ->assertOk()
             ->assertJsonCount(2, 'data')
             ->assertJsonPath('data.0.codigo', '201901349')
-            ->assertJsonPath('data.0.nombre', 'Aguilar Cossío, Mariana')
+            ->assertJsonPath('data.0.nombre', 'Aguilar Cossío Mariana')
             ->assertJsonPath('data.0.documento', '6492819')
             ->assertJsonPath('data.0.origen', 'Docente')
             ->assertJsonPath('data.1', [
                 'id' => $deAdministracion->id,
                 'codigo' => $deAdministracion->codigo_universitario,
-                'nombre' => 'Apellido 1, Nombre 1',
+                'nombre' => 'Apellido 1 Nombre 1',
                 'documento' => $deAdministracion->documento_identidad,
                 'origen' => 'Administración',
             ])
@@ -71,7 +71,7 @@ final class InscritosDeGrupoTest extends TestCase
         $this->actingAs($cuenta)
             ->getJson("/api/docente/grupos/{$grupo->id}/inscritos?buscar=".urlencode('APELLIDO 17'))
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.nombre', 'Apellido 17, Nombre 17');
+            ->assertJsonPath('data.0.nombre', 'Apellido 17 Nombre 17');
 
         $this->actingAs($cuenta)
             ->getJson("/api/docente/grupos/{$grupo->id}/inscritos?buscar=202100017")
@@ -277,7 +277,7 @@ final class InscritosDeGrupoTest extends TestCase
             array_map(static fn (EstudianteData $estudiante): int => $estudiante->id, $estudiantes),
         );
         $this->assertSame($deUno[0]->codigo_universitario, $estudiantes[0]->codigoUniversitario);
-        $this->assertSame('Apellido 1, Nombre 1', $estudiantes[0]->nombreCompleto());
+        $this->assertSame('Apellido 1 Nombre 1', $estudiantes[0]->nombreCompleto());
         $this->assertSame([], $inscritos->estudiantesDe([]));
     }
 

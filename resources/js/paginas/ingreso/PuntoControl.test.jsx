@@ -168,7 +168,7 @@ describe('PuntoControl HU-19', () => {
                 data: {
                     veredicto: 'ADMITIDO',
                     admitido: true,
-                    estudiante: { id: 5, codigo: '202210098', nombre: 'Vega Escóbar, Silvia' },
+                    estudiante: { id: 5, codigo: '202210098', nombre: 'Vega Escóbar Silvia' },
                     examen: {
                         id: 10,
                         asignatura: 'Introducción a la Programación',
@@ -191,7 +191,7 @@ describe('PuntoControl HU-19', () => {
 
         const veredicto = await screen.findByText('Ingreso admitido');
         const tarjeta = veredicto.closest('[role="status"]');
-        expect(within(tarjeta).getByText('Vega Escóbar, Silvia')).toBeInTheDocument();
+        expect(within(tarjeta).getByText('Vega Escóbar Silvia')).toBeInTheDocument();
         expect(within(tarjeta).getByText('Código SIS 202210098')).toBeInTheDocument();
         expect(
             within(tarjeta).getByText('Introducción a la Programación · Primer parcial')
@@ -207,7 +207,7 @@ describe('PuntoControl HU-19', () => {
         api.post.mockImplementation(() =>
             rechazo({
                 veredicto: 'YA_INGRESO',
-                estudiante: { id: 5, codigo: '202210098', nombre: 'Vega Escóbar, Silvia' },
+                estudiante: { id: 5, codigo: '202210098', nombre: 'Vega Escóbar Silvia' },
                 dato: 'Ya ingresó a las 08:39 por el aula 691A',
             })
         );
@@ -237,7 +237,7 @@ describe('PuntoControl HU-19', () => {
                 rechazo({
                     veredicto: 'NO_CORRESPONDE',
                     causa: 'NO_INSCRITO',
-                    estudiante: { id: 9, codigo: '202310308', nombre: 'Rojas, Ana' },
+                    estudiante: { id: 9, codigo: '202310308', nombre: 'Rojas Ana' },
                     dato: 'No inscrito en los exámenes del aula 691A',
                     examen_correspondiente: {
                         texto: 'Su examen: Cálculo I · Primer parcial · 10:00',
@@ -268,7 +268,7 @@ describe('PuntoControl HU-19', () => {
         api.post.mockImplementation(() =>
             rechazo({
                 veredicto: 'OTRA_AULA',
-                estudiante: { id: 5, codigo: '202110007', nombre: 'Paz, Luis' },
+                estudiante: { id: 5, codigo: '202110007', nombre: 'Paz Luis' },
                 examen: {
                     id: 10,
                     asignatura: 'Introducción a la Programación',
@@ -308,7 +308,7 @@ describe('PuntoControl HU-19', () => {
             }
             return rechazo({
                 veredicto: 'OTRA_AULA',
-                estudiante: { id: 5, codigo: '202110007', nombre: 'Paz, Luis' },
+                estudiante: { id: 5, codigo: '202110007', nombre: 'Paz Luis' },
                 examen: {
                     id: 10,
                     asignatura: 'Introducción a la Programación',
@@ -348,7 +348,7 @@ describe('PuntoControl HU-19', () => {
         api.post.mockImplementation(() =>
             rechazo({
                 veredicto: 'NO_HABILITADO',
-                estudiante: { id: 6, codigo: '202610014', nombre: 'Lima, Eva' },
+                estudiante: { id: 6, codigo: '202610014', nombre: 'Lima Eva' },
                 examen: {
                     id: 10,
                     asignatura: 'Introducción a la Programación',
@@ -434,7 +434,7 @@ describe('PuntoControl HU-19', () => {
     it('BUG-12 y BUG-13: recientes con hora corta y botón de actualizar', async () => {
         montar();
 
-        expect(await screen.findByText('Apellido1, Nombre1')).toBeInTheDocument();
+        expect(await screen.findByText('Apellido1 Nombre1')).toBeInTheDocument();
         expect(screen.getByText('· 08:39')).toBeInTheDocument();
         expect(screen.queryByText(/2026-10-26 08:39:20/)).not.toBeInTheDocument();
 

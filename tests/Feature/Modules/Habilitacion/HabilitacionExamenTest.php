@@ -118,7 +118,7 @@ final class HabilitacionExamenTest extends TestCase
             ->assertJsonPath('data.0', [
                 'estudiante_id' => $uno->id,
                 'codigo' => $uno->codigo_universitario,
-                'nombre' => 'Aguilar Cossío, Mariana',
+                'nombre' => 'Aguilar Cossío Mariana',
                 'documento' => $uno->documento_identidad,
                 'grupo' => '7',
                 'estado' => 'habilitado',
@@ -283,7 +283,7 @@ final class HabilitacionExamenTest extends TestCase
         $casos = [
             'cossio' => $uno->id,
             'MARIANA aguilar' => $uno->id,
-            'Aguilar Cossío, Mariana' => $uno->id,
+            'Aguilar Cossío Mariana' => $uno->id,
             'pena' => $dos->id,
             'oscar' => $dos->id,
             '2021058' => $uno->id,

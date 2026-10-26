@@ -127,11 +127,11 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
             $inscritos[] = new InscritoData(
                 estudianteId: $this->entero($columnas['id'] ?? null),
                 codigo: $this->texto($columnas['codigo_universitario'] ?? null) ?? '',
-                nombre: sprintf(
-                    '%s, %s',
+                nombre: trim(sprintf(
+                    '%s %s',
                     $this->texto($columnas['apellidos'] ?? null) ?? '',
                     $this->texto($columnas['nombres'] ?? null) ?? '',
-                ),
+                )),
                 documento: $this->texto($columnas['documento_identidad'] ?? null),
                 grupo: $this->texto($columnas['grupo'] ?? null) ?? '',
                 estado: match (true) {

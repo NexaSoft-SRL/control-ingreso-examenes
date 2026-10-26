@@ -24,7 +24,7 @@ import { tipoIncidenciaLegible } from './tiposIncidencia';
 const ESPERA_BUSQUEDA = 300;
 
 function nombreEstudiante(estudiante) {
-    return `${estudiante.apellidos}, ${estudiante.nombres}`;
+    return `${estudiante.apellidos} ${estudiante.nombres}`;
 }
 
 function fechaYHora(fecha, hora) {

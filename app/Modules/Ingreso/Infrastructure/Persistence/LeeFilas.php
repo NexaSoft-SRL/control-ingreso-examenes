@@ -102,11 +102,11 @@ trait LeeFilas
     }
 
     /**
-     * «Apellidos, Nombres», como en la habilitacion.
+     * «Apellidos Nombres», sin coma, como en la habilitacion.
      */
     private function nombreDe(mixed $apellidos, mixed $nombres): string
     {
-        return trim(($this->texto($apellidos) ?? '').', '.($this->texto($nombres) ?? ''), ', ');
+        return trim(($this->texto($apellidos) ?? '').' '.($this->texto($nombres) ?? ''));
     }
 
     /**

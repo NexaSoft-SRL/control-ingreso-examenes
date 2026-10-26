@@ -182,7 +182,7 @@ final class EloquentEnCursoGateway implements EnCursoGateway
             detalle: $this->texto($columnas['detalle'] ?? null) ?? '',
             estudiante: $nombres === null && $apellidos === null
                 ? null
-                : trim(($apellidos ?? '').', '.($nombres ?? ''), ', '),
+                : trim(($apellidos ?? '').' '.($nombres ?? '')),
             reportante: $this->texto($columnas['reportante'] ?? null) ?? '',
             rolReportante: $this->texto($columnas['rol_reportante'] ?? null) ?? '',
             reportadaEn: $this->instante($columnas['reportada_en'] ?? null) ?? '',

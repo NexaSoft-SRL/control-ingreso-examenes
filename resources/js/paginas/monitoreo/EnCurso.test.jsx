@@ -106,7 +106,7 @@ const incidencias = () => [
         aula: '691B',
         tipo: 'EXPULSION',
         detalle: 'Consultaba el teléfono.',
-        estudiante: 'Aguilar Bustamante, Adriana',
+        estudiante: 'Aguilar Bustamante Adriana',
         reportante: 'Blanco Coca Leticia',
         rol_reportante: 'Docente',
         reportada_en: '2026-10-09T16:02:00-04:00',

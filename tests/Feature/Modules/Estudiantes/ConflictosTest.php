@@ -49,12 +49,12 @@ final class ConflictosTest extends TestCase
                 'tipo' => 'Documento distinto',
                 'estado' => 'pendiente',
                 'guardado' => [
-                    'nombre' => 'Rojas Lima, Carla',
+                    'nombre' => 'Rojas Lima Carla',
                     'documento' => '7928194',
                     'por' => 'Administración · 5 ago 2026',
                 ],
                 'nuevo' => [
-                    'nombre' => 'Rojas Lima, Carla',
+                    'nombre' => 'Rojas Lima Carla',
                     'documento' => '7928149',
                     'por' => 'Blanco Coca Leticia · Introducción a la Programación, grupo 2',
                 ],
@@ -85,7 +85,7 @@ final class ConflictosTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.tipo', 'Nombre distinto')
             ->assertJsonPath('data.0.guardado.por', 'Salazar Serrudo Carla · Álgebra I, grupo 8')
-            ->assertJsonPath('data.0.nuevo.nombre', 'Mamani Flores, José Luis');
+            ->assertJsonPath('data.0.nuevo.nombre', 'Mamani Flores José Luis');
     }
 
     public function test_the_list_filters_by_state_and_is_paginated(): void

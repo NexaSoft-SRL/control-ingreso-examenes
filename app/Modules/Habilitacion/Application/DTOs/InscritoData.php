@@ -12,7 +12,7 @@ final readonly class InscritoData
     public function __construct(
         public int $estudianteId,
         public string $codigo,
-        /** «Apellidos, Nombres». */
+        /** «Apellidos Nombres». */
         public string $nombre,
         public ?string $documento,
         /** Codigo del grupo por el que figura en el examen. */

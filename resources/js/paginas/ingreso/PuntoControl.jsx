@@ -38,7 +38,7 @@ const RECHAZOS = {
 const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
 // '2026-10-26 08:39:20' → '08:39'.
 const horaDe = (instante) => String(instante ?? '').slice(11, 16);
-const nombreDe = (fila) => [fila.apellidos, fila.nombres].filter(Boolean).join(', ');
+const nombreDe = (fila) => [fila.apellidos, fila.nombres].filter(Boolean).join(' ');
 
 function interpretarFallo(error, alternativa) {
     const estado = estadoDe(error);

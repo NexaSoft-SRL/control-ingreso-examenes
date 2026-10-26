@@ -21,6 +21,6 @@ final readonly class EstudianteData
 
     public function nombreCompleto(): string
     {
-        return trim("{$this->apellidos}, {$this->nombres}", ', ');
+        return trim("{$this->apellidos} {$this->nombres}");
     }
 }

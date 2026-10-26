@@ -46,7 +46,7 @@ const ESTUDIANTES = [
     {
         id: 1,
         codigo: '202110007',
-        nombre: 'Aguilar Bustamante, Adriana',
+        nombre: 'Aguilar Bustamante Adriana',
         documento: '5000000',
         facultad: 'FCyT',
         carrera_id: 11,
@@ -73,7 +73,7 @@ const ESTUDIANTES = [
     {
         id: 53,
         codigo: '202510063',
-        nombre: 'Pérez Pardo, Daniela',
+        nombre: 'Pérez Pardo Daniela',
         documento: '5048724',
         facultad: 'FCyT',
         carrera_id: 12,
@@ -83,7 +83,7 @@ const ESTUDIANTES = [
     {
         id: 3921,
         codigo: '202314578',
-        nombre: 'Zurita Vargas, Marco',
+        nombre: 'Zurita Vargas Marco',
         documento: '8673040',
         facultad: 'FACH',
         carrera_id: 39,
@@ -99,12 +99,12 @@ const CONFLICTOS = [
         tipo: 'Documento distinto',
         estado: 'pendiente',
         guardado: {
-            nombre: 'Rodríguez García, Adriana',
+            nombre: 'Rodríguez García Adriana',
             documento: '6592900',
             por: 'Administración · 9 oct 2026',
         },
         nuevo: {
-            nombre: 'Rodríguez García, Adriana',
+            nombre: 'Rodríguez García Adriana',
             documento: '6592910',
             por: 'Blanco Coca Leticia · Arquitectura de Computadoras I, grupo 2',
         },
@@ -115,9 +115,9 @@ const CONFLICTOS = [
         codigo: '202312058',
         tipo: 'Nombre distinto',
         estado: 'pendiente',
-        guardado: { nombre: 'Torrico Condori, Adriana', documento: '6649120', por: 'Docente' },
+        guardado: { nombre: 'Torrico Condori Adriana', documento: '6649120', por: 'Docente' },
         nuevo: {
-            nombre: 'Torrico Condori, Adriana A.',
+            nombre: 'Torrico Condori Adriana A.',
             documento: '6649120',
             por: 'Blanco Coca Leticia · Arquitectura de Computadoras I, grupo 2',
         },
@@ -183,7 +183,8 @@ function servidor({ estudiantes = ESTUDIANTES, conflictos = CONFLICTOS, rutas = 
     const fichaDe = ({ url }) => {
         const e = estudiantes.find((uno) => uno.id === Number(url.split('/')[2]));
         if (!e) return errorHttp(404, { message: 'Estudiante no encontrado.' });
-        const [apellidos, nombres] = e.nombre.split(', ');
+        const corte = e.nombre.lastIndexOf(' ');
+        const [apellidos, nombres] = [e.nombre.slice(0, corte), e.nombre.slice(corte + 1)];
         return {
             data: {
                 id: e.id,
@@ -309,7 +310,7 @@ describe('Padrón · cifras y lista (criterio 1)', () => {
 
         const [primera] = filasDeTabla();
         expect(primera).toHaveTextContent('202110007');
-        expect(primera).toHaveTextContent('Aguilar Bustamante, Adriana');
+        expect(primera).toHaveTextContent('Aguilar Bustamante Adriana');
         expect(primera).toHaveTextContent('5000000');
         expect(primera).toHaveTextContent('FCyT');
         expect(primera).toHaveTextContent('Licenciatura en Fisica');
@@ -327,7 +328,7 @@ describe('Padrón · cifras y lista (criterio 1)', () => {
             ...ESTUDIANTES[1],
             id: 100 + i,
             codigo: `2025${String(i).padStart(5, '0')}`,
-            nombre: `Apellido ${String(i).padStart(2, '0')}, Nombre`,
+            nombre: `Apellido ${String(i).padStart(2, '0')} Nombre`,
         }));
         servidor({ estudiantes: muchos });
         montar({ usuario: usuarioDePrueba('Administrador') });
@@ -352,7 +353,7 @@ describe('Padrón · cifras y lista (criterio 1)', () => {
         expect(tarjetas).toHaveClass('sm:hidden');
         expect(tabla()).toHaveClass('hidden', 'sm:table');
         const primera = within(tarjetas).getAllByRole('listitem')[0];
-        expect(primera).toHaveTextContent('Aguilar Bustamante, Adriana');
+        expect(primera).toHaveTextContent('Aguilar Bustamante Adriana');
         expect(primera).toHaveTextContent('202110007 · CI 5000000');
         expect(primera).toHaveTextContent('Licenciatura en Fisica · 2 grupos');
     });
@@ -376,7 +377,7 @@ describe('Padrón · búsqueda y filtros (criterios 2 a 4)', () => {
             target: { value: 'PEREZ' },
         });
         await waitFor(() => expect(filasDeTabla()).toHaveLength(1));
-        expect(filasDeTabla()[0]).toHaveTextContent('Pérez Pardo, Daniela');
+        expect(filasDeTabla()[0]).toHaveTextContent('Pérez Pardo Daniela');
         expect(api.get).toHaveBeenCalledWith('/estudiantes', {
             params: { buscar: 'PEREZ', pagina: 1, por_pagina: 25 },
         });
@@ -401,7 +402,7 @@ describe('Padrón · búsqueda y filtros (criterios 2 a 4)', () => {
 
         fireEvent.click(within(filtro).getByRole('button', { name: /FACH/ }));
         await waitFor(() => expect(filasDeTabla()).toHaveLength(1));
-        expect(filasDeTabla()[0]).toHaveTextContent('Zurita Vargas, Marco');
+        expect(filasDeTabla()[0]).toHaveTextContent('Zurita Vargas Marco');
         expect(api.get).toHaveBeenCalledWith('/estudiantes', {
             params: { facultad: 'fach', pagina: 1, por_pagina: 25 },
         });
@@ -428,13 +429,13 @@ describe('Padrón · búsqueda y filtros (criterios 2 a 4)', () => {
 
         fireEvent.change(selector, { target: { value: '12' } });
         await waitFor(() => expect(filasDeTabla()).toHaveLength(1));
-        expect(filasDeTabla()[0]).toHaveTextContent('Pérez Pardo, Daniela');
+        expect(filasDeTabla()[0]).toHaveTextContent('Pérez Pardo Daniela');
         expect(api.get).toHaveBeenCalledWith('/estudiantes', {
             params: { facultad: 'fcyt', carrera: 12, pagina: 1, por_pagina: 25 },
         });
 
         fireEvent.click(within(filtro).getByRole('button', { name: /FACH/ }));
-        await waitFor(() => expect(filasDeTabla()[0]).toHaveTextContent('Zurita Vargas, Marco'));
+        await waitFor(() => expect(filasDeTabla()[0]).toHaveTextContent('Zurita Vargas Marco'));
         expect(selector).toHaveValue('');
         expect(api.get).toHaveBeenCalledWith('/estudiantes', {
             params: { facultad: 'fach', pagina: 1, por_pagina: 25 },
@@ -449,9 +450,9 @@ describe('Padrón · ficha del estudiante (criterio 5)', () => {
         await listaCargada();
 
         fireEvent.click(
-            within(tabla()).getByRole('button', { name: 'Aguilar Bustamante, Adriana' })
+            within(tabla()).getByRole('button', { name: 'Aguilar Bustamante Adriana' })
         );
-        const ficha = await screen.findByRole('dialog', { name: 'Aguilar Bustamante, Adriana' });
+        const ficha = await screen.findByRole('dialog', { name: 'Aguilar Bustamante Adriana' });
         const materias = await within(ficha).findByRole('region', { name: 'Materias' });
 
         expect(api.get).toHaveBeenCalledWith('/estudiantes/1', { params: {} });
@@ -479,9 +480,9 @@ describe('Padrón · ficha del estudiante (criterio 5)', () => {
         await listaCargada();
 
         const tarjetas = screen.getByRole('list', { name: 'Estudiantes' });
-        fireEvent.click(within(tarjetas).getByRole('button', { name: /Pérez Pardo, Daniela/ }));
+        fireEvent.click(within(tarjetas).getByRole('button', { name: /Pérez Pardo Daniela/ }));
 
-        const ficha = await screen.findByRole('dialog', { name: 'Pérez Pardo, Daniela' });
+        const ficha = await screen.findByRole('dialog', { name: 'Pérez Pardo Daniela' });
         expect(await within(ficha).findByText('Sin materias')).toBeInTheDocument();
         expect(within(ficha).getByText('Origen').nextSibling).toHaveTextContent('Verificado');
     });
@@ -491,8 +492,8 @@ describe('Padrón · ficha del estudiante (criterio 5)', () => {
         montar({ usuario: usuarioDePrueba('Administrador') });
         await listaCargada();
 
-        fireEvent.click(within(tabla()).getByRole('button', { name: 'Zurita Vargas, Marco' }));
-        const ficha = await screen.findByRole('dialog', { name: 'Zurita Vargas, Marco' });
+        fireEvent.click(within(tabla()).getByRole('button', { name: 'Zurita Vargas Marco' }));
+        const ficha = await screen.findByRole('dialog', { name: 'Zurita Vargas Marco' });
         expect(await within(ficha).findByText('No se pudo cargar')).toBeInTheDocument();
     });
 });

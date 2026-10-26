@@ -417,7 +417,7 @@ final class EnCursoTest extends TestCase
             ->assertJsonPath('data.incidencias.0.id', $reciente)
             ->assertJsonPath('data.incidencias.0.aula', '691A')
             ->assertJsonPath('data.incidencias.0.tipo', 'Suplantacion')
-            ->assertJsonPath('data.incidencias.0.estudiante', $estudiante->apellidos.', '.$estudiante->nombres)
+            ->assertJsonPath('data.incidencias.0.estudiante', $estudiante->apellidos.' '.$estudiante->nombres)
             ->assertJsonPath('data.incidencias.0.reportante', 'Mamani Quispe Diego')
             ->assertJsonPath('data.incidencias.0.rol_reportante', 'Auxiliar')
             ->assertJsonPath('data.incidencias.0.atendida', false)

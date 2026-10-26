@@ -82,6 +82,6 @@ final class Estudiante extends Model
 
     public function nombreCompleto(): string
     {
-        return trim("{$this->apellidos}, {$this->nombres}", ', ');
+        return trim("{$this->apellidos} {$this->nombres}");
     }
 }
