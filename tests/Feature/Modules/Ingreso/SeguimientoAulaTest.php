@@ -160,7 +160,8 @@ final class SeguimientoAulaTest extends TestCase
             ->assertOk();
 
         $this->patchJson("/api/seguimiento/incidencias/{$incidenciaId}/atendida")
-            ->assertStatus(409);
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'La incidencia ya estaba atendida.');
 
         $this->assertDatabaseHas('incidencias_aula', [
             'id' => $incidenciaId,

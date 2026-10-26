@@ -45,6 +45,33 @@ describe('Bitacora', () => {
         expect(screen.getByText('Usuario eliminado')).toBeInTheDocument();
     });
 
+    it('traduce la atención de incidencia y muestra su aula y examen', async () => {
+        simularApi(api, {
+            'GET /bitacora': {
+                data: [
+                    {
+                        id: 3,
+                        usuario: { id: 7, name: 'Blanco Coca Leticia' },
+                        operacion: 'INCIDENCIA_AULA_ATENDIDA',
+                        tabla_afectada: 'incidencias_aula',
+                        registro_id: 15,
+                        descripcion: 'Incidencia de 691A, examen 1.',
+                        fecha_operacion: '2026-10-19 10:59:00',
+                    },
+                ],
+            },
+        });
+
+        montar();
+
+        expect(await screen.findByText('1 evento')).toBeInTheDocument();
+        expect(screen.getAllByText('Atención de incidencia')).toHaveLength(2);
+        expect(screen.getByText('Incidencia de 691A, examen 1.')).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'Atención de incidencia' })).toHaveValue(
+            'INCIDENCIA_AULA_ATENDIDA'
+        );
+    });
+
     it('envía los filtros al backend', async () => {
         montar();
         await screen.findByText('2 eventos');

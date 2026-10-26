@@ -6,8 +6,10 @@ namespace App\Modules\Monitoreo\Application\Queries;
 
 use App\Modules\Examenes\Application\Contracts\ConsultaExamenGateway;
 use App\Modules\Examenes\Application\DTOs\ExamenResumenData;
+use App\Modules\Ingreso\Application\Contracts\SeguimientoAulaGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
 use App\Modules\Monitoreo\Application\DTOs\ExamenEnCursoData;
+use LogicException;
 
 /**
  * El selector de «En curso»: los examenes del docente (los que registro y
@@ -18,6 +20,7 @@ final readonly class ListarEnCurso
     public function __construct(
         private ConsultaExamenGateway $consulta,
         private VentanaPuntoControl $ventana,
+        private SeguimientoAulaGateway $seguimiento,
     ) {}
 
     /**
@@ -28,8 +31,40 @@ final readonly class ListarEnCurso
         $hoy = $this->consulta->hoy();
         $proximo = null;
         $lista = [];
+        $porId = [];
 
         foreach ($this->consulta->listar($usuarioId, null) as $examen) {
+            $porId[$examen->id] = $examen;
+        }
+
+        foreach ($this->seguimiento->aulasDelUsuario($usuarioId) as $aula) {
+            $examenId = $aula['examen_id'] ?? null;
+
+            if (! is_int($examenId)) {
+                throw new LogicException('La lista de aulas no contiene un identificador de examen válido.');
+            }
+
+            if (isset($porId[$examenId])) {
+                continue;
+            }
+
+            $detalle = $this->consulta->detalle($examenId, $usuarioId);
+
+            if ($detalle === null) {
+                throw new LogicException('El examen asignado no se pudo leer.');
+            }
+
+            $porId[$examenId] = $detalle->resumen;
+        }
+
+        $examenes = array_values($porId);
+        usort(
+            $examenes,
+            static fn (ExamenResumenData $a, ExamenResumenData $b): int => [$a->fecha, $a->hora, $a->id]
+                <=> [$b->fecha, $b->hora, $b->id],
+        );
+
+        foreach ($examenes as $examen) {
             if ($examen->fecha < $hoy) {
                 continue;
             }

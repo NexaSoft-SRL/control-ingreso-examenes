@@ -9,6 +9,7 @@ use App\Modules\Administracion\Application\DTOs\BitacoraOperacionData;
 use App\Modules\Administracion\Application\DTOs\ConsultarBitacoraData;
 use DateTimeImmutable;
 use DateTimeZone;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
@@ -27,6 +28,12 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
                 '=',
                 'bitacora.usuario_id',
             )
+            ->leftJoin('incidencias_aula as incidencia', static function (JoinClause $join): void {
+                $join->on('incidencia.id', '=', 'bitacora.registro_id')
+                    ->where('bitacora.tabla_afectada', '=', 'incidencias_aula')
+                    ->where('bitacora.operacion', '=', 'INCIDENCIA_AULA_ATENDIDA');
+            })
+            ->leftJoin('aulas as aula', 'aula.id', '=', 'incidencia.aula_id')
             ->select([
                 'bitacora.id',
                 'bitacora.usuario_id',
@@ -37,6 +44,8 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
                 'bitacora.registro_id',
                 'bitacora.descripcion',
                 'bitacora.fecha_operacion',
+                'incidencia.examen_id as incidencia_examen_id',
+                'aula.nombre as incidencia_aula',
             ]);
 
         if ($filtros->usuarioId !== null) {
@@ -99,6 +108,35 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
         $resultado = [];
 
         foreach ($rows as $row) {
+            $operacion = $this->string(
+                $row->operacion,
+                'operacion',
+            );
+            $descripcion = $this->nullableString(
+                $row->descripcion,
+                'descripcion',
+            );
+            $incidenciaAula = $this->nullableString(
+                $row->incidencia_aula,
+                'incidencia_aula',
+            );
+            $incidenciaExamenId = $this->nullableInteger(
+                $row->incidencia_examen_id,
+                'incidencia_examen_id',
+            );
+
+            if (
+                $operacion === 'INCIDENCIA_AULA_ATENDIDA'
+                && $incidenciaAula !== null
+                && $incidenciaExamenId !== null
+            ) {
+                $descripcion = sprintf(
+                    'Incidencia de %s, examen %d.',
+                    $incidenciaAula,
+                    $incidenciaExamenId,
+                );
+            }
+
             $resultado[] = new BitacoraOperacionData(
                 id: $this->integer($row->id, 'id'),
                 usuarioId: $this->nullableInteger(
@@ -113,10 +151,7 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
                     $row->usuario_email,
                     'usuario_email',
                 ),
-                operacion: $this->string(
-                    $row->operacion,
-                    'operacion',
-                ),
+                operacion: $operacion,
                 tablaAfectada: $this->nullableString(
                     $row->tabla_afectada,
                     'tabla_afectada',
@@ -125,10 +160,7 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
                     $row->registro_id,
                     'registro_id',
                 ),
-                descripcion: $this->nullableString(
-                    $row->descripcion,
-                    'descripcion',
-                ),
+                descripcion: $descripcion,
                 fechaOperacion: $this->string(
                     $row->fecha_operacion,
                     'fecha_operacion',
