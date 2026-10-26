@@ -424,3 +424,23 @@ consultar y marcar atendidas las incidencias que ya estén registradas allí.
 El listado de ausentes se deriva de habilitaciones activas, inscripciones en
 los grupos del examen e ingresos del examen. El tablero es de consulta: no
 crea ni modifica ingresos.
+
+## 11. Códigos QR y envíos de correo (HU-20)
+
+La migración `2026_10_26_000100_create_codigos_qr_and_envios_correo_tables.php`
+añade dos tablas:
+
+- `codigos_qr` guarda un código por estudiante habilitado y examen (único por
+  par). `contenido` es lo que lleva la imagen, en el formato que lee la puerta
+  (HU-19, `CodigoQrCifrado`): cifrado con la clave de la aplicación, no
+  predecible y sin datos legibles. Se conserva para mostrar, imprimir y
+  reenviar exactamente el mismo código; emitir de nuevo no cambia los ya
+  emitidos. `enviado_en` es la última vez que el estudiante lo recibió.
+- `envios_correo` registra cada correo del sistema (`CODIGO_QR` o `AVISO`): el
+  destinatario institucional, el estudiante, quién lo pidió y su estado
+  (`PENDIENTE`, `ENVIADO` o `FALLIDO` con el error).
+
+El código no autoriza por sí mismo: la puerta verifica la habilitación y el
+aula de forma independiente (D-05). La regeneración y la revocación de códigos
+quedan fuera de esta versión.
+

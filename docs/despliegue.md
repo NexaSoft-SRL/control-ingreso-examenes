@@ -36,6 +36,10 @@ servidor.
 6. **Configuración del entorno.** Consignar en el archivo `.env` el nombre de la base de
    datos, el usuario y la contraseña asignados. Este archivo se transfiere al servidor y
    no se incorpora al repositorio.
+   Los códigos QR y avisos (HU-20) salen por SMTP con `MAIL_MAILER`, `MAIL_HOST`,
+   `MAIL_PORT`, `MAIL_SCHEME`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` y
+   `MAIL_FROM_NAME`. En QA, `MAIL_TO_ADDRESS` desvía todo correo a esa dirección; en
+   producción queda vacía.
 
 7. **Transferencia.** Subir el proyecto comprimido y descomprimirlo en el servidor: la
    aplicación en el directorio raíz de la cuenta y el contenido de su directorio público
