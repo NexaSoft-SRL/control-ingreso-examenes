@@ -78,7 +78,7 @@ final class EloquentPadronGateway implements PadronGateway
                 'facultad' => $this->texto($fila->facultad),
                 'carrera' => $this->texto($fila->carrera),
                 'grupos' => $this->entero($fila->grupos),
-                'origen' => (bool) $fila->verificado ? 'Verificado' : 'Docente',
+                'origen' => (bool) $fila->verificado ? 'Administración' : 'Docente',
             ];
         }
 
@@ -98,6 +98,8 @@ final class EloquentPadronGateway implements PadronGateway
                 'e.nombres',
                 'e.apellidos',
                 'e.verificado',
+                'e.foto',
+                'e.foto_subida_en',
                 'f.sigla as facultad',
                 'c.nombre as carrera',
             ]);
@@ -160,7 +162,9 @@ final class EloquentPadronGateway implements PadronGateway
             'correo' => $codigo.'@'.$dominioCorreo,
             'facultad' => $this->texto($datos['facultad'] ?? null),
             'carrera' => $this->texto($datos['carrera'] ?? null),
-            'origen' => (bool) ($datos['verificado'] ?? false) ? 'Verificado' : 'Docente',
+            'origen' => (bool) ($datos['verificado'] ?? false) ? 'Administración' : 'Docente',
+            'con_foto' => $this->texto($datos['foto'] ?? null) !== null,
+            'foto_subida_en' => $this->texto($datos['foto_subida_en'] ?? null),
             'materias' => $materias,
         ];
     }

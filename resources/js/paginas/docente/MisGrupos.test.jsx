@@ -258,7 +258,7 @@ describe('Mis grupos · lista de inscritos', () => {
             within(tabla)
                 .getAllByRole('columnheader')
                 .map((c) => c.textContent)
-        ).toEqual(['Código SIS', 'Estudiante', 'C.I.', 'Origen']);
+        ).toEqual(['Código SIS', 'Estudiante', 'C.I.', 'Origen', 'Foto']);
         expect(within(tabla).getAllByRole('row')).toHaveLength(26);
 
         const primera = within(tabla).getAllByRole('row')[1];
@@ -603,5 +603,36 @@ describe('Mis grupos · grupo con lista', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /Introducción a la Programación/ }));
         expect(await screen.findByText('9 nuevos')).toBeInTheDocument();
+    });
+});
+
+describe('Mis grupos · foto del inscrito', () => {
+    it('habilita a un inscrito sin foto para que la suba durante 7 días', async () => {
+        const lista = estudiantes(2).map((e, i) => ({
+            ...e,
+            foto: i === 0 ? { subida_en: null, habilitada_hasta: null } : undefined,
+        }));
+        servidor(POCOS(), {
+            inscritos: { 37: lista },
+            rutas: {
+                'POST /docente/grupos/*/inscritos/*/foto': {
+                    hasta: '2026-11-02',
+                    message: 'Foto habilitada.',
+                },
+            },
+        });
+        renderConSesion(<MisGrupos />);
+
+        const tabla = await screen.findByRole('table');
+        fireEvent.click(within(tabla).getByRole('button', { name: 'Foto de Apellido001, Nombre' }));
+
+        const dialogo = await screen.findByRole('dialog');
+        expect(within(dialogo).getByText('Sin foto')).toBeInTheDocument();
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Habilitar 7 días' }));
+
+        await waitFor(() =>
+            expect(api.post).toHaveBeenCalledWith('/docente/grupos/37/inscritos/1/foto')
+        );
+        expect(await screen.findByText('Foto habilitada hasta el 2 nov 2026')).toBeInTheDocument();
     });
 });

@@ -286,6 +286,9 @@ final class EloquentInscripcionGateway implements InscripcionGateway
                 'e.documento_identidad',
                 'e.nombres',
                 'e.apellidos',
+                'e.foto',
+                'e.foto_subida_en',
+                'e.foto_habilitada_hasta',
                 'i.via',
             ]);
 
@@ -300,6 +303,15 @@ final class EloquentInscripcionGateway implements InscripcionGateway
                 'nombre' => $this->nombreCompleto($fila->apellidos, $fila->nombres),
                 'documento' => $this->texto($fila->documento_identidad),
                 'origen' => ($via ?? OrigenEstudiante::Administracion)->etiqueta(),
+                // Lo que el docente necesita para habilitar un cambio de foto.
+                'foto' => [
+                    'subida_en' => $this->texto($fila->foto) === null
+                        ? null
+                        : substr((string) $this->texto($fila->foto_subida_en), 0, 10),
+                    'habilitada_hasta' => $this->texto($fila->foto_habilitada_hasta) === null
+                        ? null
+                        : substr((string) $this->texto($fila->foto_habilitada_hasta), 0, 10),
+                ],
             ];
         }
 

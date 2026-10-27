@@ -95,6 +95,7 @@ final class ImportacionPorHttpTest extends TestCase
         $this->actingAs($administrador)
             ->postJson('/api/oferta/importaciones', ['facultad' => 'FCYT'])
             ->assertCreated()
+            ->assertJsonPath('message', 'Oferta de FCyT importada.')
             ->assertJsonPath('data.estado', 'importada')
             ->assertJsonPath('data.fecha', '2026-08-03')
             ->assertJsonPath('data.resumen.carreras', 1)
@@ -119,6 +120,22 @@ final class ImportacionPorHttpTest extends TestCase
         $this->getJson('/api/periodos/resumen')
             ->assertOk()
             ->assertJsonPath('facultades.0.importacion', ['estado' => 'importada', 'fecha' => '2026-08-03', 'error' => null]);
+    }
+
+    public function test_importing_the_same_source_again_says_it_is_up_to_date(): void
+    {
+        $this->facultad();
+        $this->escribirFuentes();
+        $administrador = $this->usuarioConPermisos(['periodo_oferta']);
+
+        $this->actingAs($administrador)->postJson('/api/oferta/importaciones', ['facultad' => 'FCYT'])->assertCreated();
+
+        $this->postJson('/api/oferta/importaciones', ['facultad' => 'FCYT'])
+            ->assertOk()
+            ->assertJsonPath('message', 'La oferta de FCyT ya está al día.')
+            ->assertJsonPath('data.sin_cambios', true);
+
+        $this->assertDatabaseCount('importaciones_oferta', 1);
     }
 
     public function test_importing_is_recorded_in_the_log(): void

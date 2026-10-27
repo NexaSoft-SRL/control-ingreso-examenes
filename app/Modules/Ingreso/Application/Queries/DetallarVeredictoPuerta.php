@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Queries;
 
+use App\Modules\Estudiantes\Application\Contracts\FotosDeEstudiantes;
 use App\Modules\Ingreso\Application\Contracts\DetallePuertaGateway;
 use App\Modules\Ingreso\Application\DTOs\ResultadoResolucionPuertaData;
 use App\Modules\Ingreso\Domain\Enums\CausaIntento;
@@ -24,6 +25,7 @@ final readonly class DetallarVeredictoPuerta
 
     public function __construct(
         private DetallePuertaGateway $detalle,
+        private FotosDeEstudiantes $fotos,
     ) {}
 
     /**
@@ -54,6 +56,9 @@ final readonly class DetallarVeredictoPuerta
                 'id' => $estudiante->id,
                 'codigo' => $estudiante->codigoUniversitario,
                 'nombre' => $estudiante->nombreCompleto(),
+                // La foto va dentro del veredicto: quien controla compara la
+                // cara sin otra peticion.
+                'foto' => $this->foto($estudiante->id),
             ],
             'examen' => $examen === null ? null : [
                 'id' => $examen['id'],
@@ -193,6 +198,13 @@ final readonly class DetallarVeredictoPuerta
         }
 
         return $datos;
+    }
+
+    private function foto(int $estudianteId): ?string
+    {
+        $jpeg = $this->fotos->foto($estudianteId);
+
+        return $jpeg === null ? null : 'data:image/jpeg;base64,'.base64_encode($jpeg);
     }
 
     // «Registrado por Omonte Ojalvo Jose Roberto · 6 oct».

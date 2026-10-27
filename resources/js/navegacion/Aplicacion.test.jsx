@@ -38,7 +38,7 @@ const titulo = (nombre) =>
 // El título de cada pantalla, por ruta.
 const TITULOS = {
     '/periodo': 'Período',
-    '/oferta': 'Oferta académica',
+    '/oferta': 'Oferta',
     '/aulas': 'Aulas y mapa',
     '/docentes': 'Docentes',
     '/estudiantes': 'Padrón',

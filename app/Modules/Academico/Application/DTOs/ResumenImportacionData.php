@@ -30,6 +30,8 @@ final readonly class ResumenImportacionData
         public int $carrerasSinCodigo = 0,
         public int $gruposEliminados = 0,
         public ?int $importacionId = null,
+        // La fuente era la misma de la ultima importacion: no se hizo nada.
+        public bool $sinCambios = false,
     ) {}
 
     /**
