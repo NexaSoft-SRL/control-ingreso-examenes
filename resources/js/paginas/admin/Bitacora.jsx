@@ -61,6 +61,8 @@ const etiquetaOperacion = {
     'acceso_aula.rechazar': 'Acceso con código rechazado',
     'acceso_aula.cortar': 'Acceso con código cortado',
     'acceso_aula.trasladar': 'Acceso con código movido de aula',
+    'examen.mover_personal': 'Cambio de aula del personal',
+    'habilitacion.mover_aula': 'Cambio de aula de estudiantes',
     INCIDENCIA_AULA_ATENDIDA: 'Atención de incidencia',
     INGRESO_ADMITIDO: 'Ingreso al examen',
     'puerta.expulsion': 'Expulsión de estudiante',

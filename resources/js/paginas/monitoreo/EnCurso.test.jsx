@@ -299,8 +299,59 @@ describe('EnCurso (HU-22)', () => {
         const auxiliar = within(tarjetaDe('691E'));
         expect(auxiliar.getByText('Mamani Quispe Diego')).toBeVisible();
         expect(auxiliar.getByText('· Auxiliar a cargo')).toBeVisible();
-        expect(auxiliar.getByText('Sin ingresos')).toBeVisible();
-        expect(auxiliar.getByText('1 incidencia')).toBeVisible();
+        expect(auxiliar.queryByText('Sin ingresos')).toBeNull();
+        expect(auxiliar.getByText('1 incidencia sin atender')).toBeVisible();
+    });
+
+    it('dice quiénes entraron por otra aula', async () => {
+        rutas['GET /en-curso/1'] = () =>
+            tablero([aula({ aula_id: 31, nombre: '691A', ingresados: 3, de_otra: 2, en_otra: 1 })]);
+        simularApi(api, rutas);
+        montar();
+        await cargado();
+
+        expect(
+            within(tarjetaDe('691A')).getByText(
+                '3 de 50 · Faltan 47 · +2 de otra aula · 1 entró en otra'
+            )
+        ).toBeVisible();
+    });
+
+    it('muestra el ritmo de llegada y el panel de quién controla al docente', async () => {
+        rutas['GET /en-curso/1'] = () =>
+            tablero(AULAS, {
+                llegadas: [
+                    { hora: '15:55', ingresos: 3 },
+                    { hora: '16:00', ingresos: 5 },
+                ],
+            });
+        rutas['GET /examenes/1/control'] = {
+            data: [
+                {
+                    aula_id: 31,
+                    nombre: '691A',
+                    usa_codigo: true,
+                    personal: [],
+                    accesos: [
+                        {
+                            id: 4,
+                            nombre: 'Rocha Ana',
+                            estado: 'pendiente',
+                            aula_id: 31,
+                            aula: '691A',
+                            pedido_en: '2026-10-09T16:01:00-04:00',
+                        },
+                    ],
+                },
+            ],
+            meta: { pendientes: 1, minutos_en_linea: 2 },
+        };
+        simularApi(api, rutas);
+        montar();
+        await cargado();
+
+        expect(await screen.findByText('Llegadas · 8')).toBeVisible();
+        expect(await screen.findByText('Piden controlar con código · 1')).toBeVisible();
     });
 
     it('un aula sin responsable lo dice', async () => {
@@ -651,7 +702,7 @@ describe('EnCurso (HU-22)', () => {
         montar();
         await screen.findByRole('heading', { name: 'Aula 620' });
 
-        expect(within(tarjetaDe('620')).getByText('0/50')).toBeVisible();
+        expect(within(tarjetaDe('620')).getByText('0 de 50')).toBeVisible();
         expect(within(tarjetaDe('620')).getByText(/2 incidencias/)).toBeVisible();
         expect(
             within(tarjetaDe('627')).getByText(/Faltan 15 · Docente · Compartida/)

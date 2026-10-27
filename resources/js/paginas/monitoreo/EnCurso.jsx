@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
+import { DoorOpen, Hourglass, LogIn, TriangleAlert } from 'lucide-react';
 import { api } from '../../api/cliente';
 import usarConsulta from '../../api/usarConsulta';
 import usarEdificios from '../../api/usarEdificios';
@@ -17,7 +18,9 @@ import { usarSesion } from '../../sesion/SesionContexto';
 import { diaMes } from '../../utiles/texto';
 import EnCursoAulas, { avanceDe, horaDe } from './EnCursoAulas';
 import { BotonIncidencia } from '../../componentes/Incidencias';
+import ControlDelExamen from './ControlDelExamen';
 import IncidenciasDelExamen from './IncidenciasDelExamen';
+import Llegadas from './Llegadas';
 
 export const INTERVALO = 10000;
 // Con más aulas que estas, las tarjetas pasan a una rejilla compacta.
@@ -97,6 +100,7 @@ function Tablero({ examen, examenes, elegir }) {
                     ) : (
                         <Insignia tono="neutro">
                             {diaMes(examen.fecha)}, {examen.hora}
+                            {tablero.ultimo_registro && ` · ${ultimoRegistro}`}
                         </Insignia>
                     ))}
                 {esHoy && aulasIncidencia.length > 0 && (
@@ -124,17 +128,32 @@ function Tablero({ examen, examenes, elegir }) {
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <Dato
                         etiqueta="Ingresaron"
+                        icono={LogIn}
                         valor={cifras?.ingresaron}
                         tono={abierto ? 'primario' : 'neutro'}
                     />
-                    <Dato etiqueta="Faltan" valor={cifras?.faltan} />
-                    <Dato etiqueta="Aulas" valor={cifras?.aulas} />
+                    <Dato etiqueta="Faltan" icono={Hourglass} valor={cifras?.faltan} />
+                    <Dato etiqueta="Aulas" icono={DoorOpen} valor={cifras?.aulas} />
                     <Dato
                         etiqueta="Incidencias sin atender"
+                        icono={TriangleAlert}
                         valor={cifras?.incidencias_sin_atender}
                         tono={cifras?.incidencias_sin_atender ? 'peligro' : 'neutro'}
                     />
                 </div>
+
+                {tablero?.es_docente && (
+                    <ControlDelExamen
+                        examenId={examen.id}
+                        abierto={abierto}
+                        onCambio={vivo.recargar}
+                    />
+                )}
+
+                <Llegadas
+                    llegadas={tablero?.llegadas ?? []}
+                    inicio={String(examen.hora ?? '').slice(0, 5)}
+                />
 
                 {tablero && (
                     <IncidenciasDelExamen
