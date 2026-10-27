@@ -256,7 +256,7 @@ describe('AtencionAulas (HU-18)', () => {
 
         // Con nombre < 3 o código inválido
         fireEvent.change(screen.getByLabelText(/^Nombre completo/), { target: { value: 'Jo' } });
-        fireEvent.change(screen.getByLabelText(/^Código universitario/), {
+        fireEvent.change(screen.getByLabelText(/^Código SIS/), {
             target: { value: '123' },
         });
         fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
@@ -268,7 +268,7 @@ describe('AtencionAulas (HU-18)', () => {
         fireEvent.change(screen.getByLabelText(/^Nombre completo/), {
             target: { value: 'Carlos Rojas' },
         });
-        fireEvent.change(screen.getByLabelText(/^Código universitario/), {
+        fireEvent.change(screen.getByLabelText(/^Código SIS/), {
             target: { value: '20230005' },
         });
         fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
