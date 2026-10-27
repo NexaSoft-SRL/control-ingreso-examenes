@@ -344,6 +344,24 @@ describe('Examenes · pasos y acción siguiente', () => {
         expect(within(fila).queryByRole('link', { name: 'Habilitación' })).not.toBeInTheDocument();
     });
 
+    it('«Quién atiende» lleva a la edición en el paso de quién atiende', async () => {
+        examenes = [
+            {
+                ...POR_HABILITAR,
+                propio: true,
+                estado: 'Falta quién atiende',
+                accion: { clave: 'quien_atiende', paso: 3 },
+            },
+        ];
+        montar();
+        const fila = await tarjeta('Segundo parcial · Taller de Ingeniería de Software');
+
+        expect(within(fila).getByRole('link', { name: /Quién atiende/ })).toHaveAttribute(
+            'href',
+            '/examenes/nuevo?examen=5&paso=3'
+        );
+    });
+
     it('«Habilitar» lleva a Habilitación con el examen', async () => {
         montar();
 
