@@ -44,7 +44,8 @@ final class DatosDemoTest extends TestCase
         $this->seed(DemoSeeder::class);
 
         $this->assertSame($antes, $this->conteos());
-        $this->assertSame(8, DB::table('importaciones_oferta')->where('estado', 'IMPORTADA')->count());
+        // La fuente no cambió: la segunda pasada no vuelve a importar.
+        $this->assertSame(4, DB::table('importaciones_oferta')->where('estado', 'IMPORTADA')->count());
     }
 
     public function test_the_demo_seeder_leaves_accounts_and_exams_in_every_state(): void
