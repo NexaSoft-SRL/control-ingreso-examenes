@@ -169,10 +169,10 @@ final class PuertaVeredictosHttpTest extends TestCase
 
     public function test_llegada_tarde_pasados_quince_minutos(): void
     {
-        $inicio = now()->subMinutes(40)->format('H:i:s');
+        $inicio = now()->subMinutes(40);
         DB::table('examenes')->where('id', $this->examen->id)->update([
-            'fecha' => now()->toDateString(),
-            'hora_inicio' => $inicio,
+            'fecha' => $inicio->toDateString(),
+            'hora_inicio' => $inicio->format('H:i:s'),
         ]);
 
         $this->ingresar_por_codigo($this->estudiantes[0])
