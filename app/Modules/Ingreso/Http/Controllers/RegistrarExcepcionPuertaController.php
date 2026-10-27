@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Http\Controllers;
 
 use App\Modules\Ingreso\Application\Actions\RegistrarExcepcionEnPuerta;
-use App\Modules\Ingreso\Domain\Enums\TipoIncidenciaPuerta;
+use App\Modules\Ingreso\Domain\Enums\TipoExcepcion;
 use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -32,7 +32,7 @@ final class RegistrarExcepcionPuertaController
         }
 
         $request->validate([
-            'tipo' => ['required', 'string', Rule::in(TipoIncidenciaPuerta::excepciones())],
+            'tipo' => ['required', 'string', Rule::in(TipoExcepcion::valores())],
             'motivo' => ['required', 'string', 'min:5', 'max:500'],
             'estudiante_id' => ['nullable', 'integer', 'min:1', 'exists:estudiantes,id'],
             'examen_id' => ['nullable', 'integer', 'min:1'],
@@ -45,7 +45,7 @@ final class RegistrarExcepcionPuertaController
             'estudiante_id.exists' => 'Estudiante no encontrado',
         ]);
 
-        $tipo = TipoIncidenciaPuerta::from($request->string('tipo')->toString());
+        $tipo = TipoExcepcion::from($request->string('tipo')->toString());
         $motivo = trim($request->string('motivo')->toString());
 
         if (mb_strlen($motivo) < 5) {

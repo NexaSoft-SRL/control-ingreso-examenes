@@ -89,7 +89,6 @@ final class IdentificarEnPuertaController
                 ...$detalle,
                 'examen_id' => $resultado->examenId,
                 'veredicto' => $resultado->veredicto?->value,
-                'ambiguo' => $resultado->ambiguo,
                 'admisible' => $resultado->puedeAdmitir(),
                 'codigo' => $detalle['codigo'],
                 'nombre' => $detalle['nombre'],

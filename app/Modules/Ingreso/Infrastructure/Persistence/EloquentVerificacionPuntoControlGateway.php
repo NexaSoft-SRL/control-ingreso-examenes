@@ -56,14 +56,61 @@ final class EloquentVerificacionPuntoControlGateway implements VerificacionPunto
         ];
     }
 
-    public function tienePermisoPuntoControl(int $usuarioId): bool
+    public function accesoDeToken(string $token): ?array
+    {
+        $fila = DB::table('accesos_codigo_aula as acceso')
+            ->join('examenes as examen', 'examen.id', '=', 'acceso.examen_id')
+            ->join('aulas as aula', 'aula.id', '=', 'acceso.aula_id')
+            ->where('acceso.token', $token)
+            ->first([
+                'acceso.id',
+                'acceso.examen_id',
+                'acceso.aula_id',
+                'acceso.nombre_colaborador',
+                'acceso.revocado_en',
+                'aula.nombre as aula',
+                'examen.fecha',
+                'examen.hora_inicio',
+                'examen.duracion_minutos',
+            ]);
+
+        if ($fila === null) {
+            return null;
+        }
+
+        $columnas = get_object_vars($fila);
+        $texto = static fn (string $clave): string => is_scalar($columnas[$clave] ?? null) ? (string) $columnas[$clave] : '';
+        $entero = static fn (string $clave): int => is_numeric($columnas[$clave] ?? null) ? (int) $columnas[$clave] : 0;
+        $fin = VentanaDeAcceso::fin($texto('fecha'), $texto('hora_inicio'), $entero('duracion_minutos'));
+
+        return [
+            'id' => $entero('id'),
+            'examen_id' => $entero('examen_id'),
+            'aula_id' => $entero('aula_id'),
+            'aula' => $texto('aula'),
+            'nombre' => $texto('nombre_colaborador'),
+            'hasta' => $fin->format('Y-m-d\TH:i:sP'),
+            'estado' => match (true) {
+                now()->greaterThan($fin) => 'finalizado',
+                $columnas['revocado_en'] !== null => 'cortado',
+                default => 'autorizado',
+            },
+        ];
+    }
+
+    public function tieneAlgunPermiso(int $usuarioId, array $permisos): bool
     {
         return DB::table('usuarios')
             ->join('permission_role', 'usuarios.role_id', '=', 'permission_role.role_id')
             ->join('permissions', 'permission_role.permission_id', '=', 'permissions.id')
             ->where('usuarios.id', $usuarioId)
-            ->where('permissions.name', 'punto_control')
+            ->whereIn('permissions.name', $permisos)
             ->exists();
+    }
+
+    public function tienePermisoPuntoControl(int $usuarioId): bool
+    {
+        return $this->tieneAlgunPermiso($usuarioId, ['punto_control']);
     }
 
     public function rolDelUsuario(int $usuarioId): string

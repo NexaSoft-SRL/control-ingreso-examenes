@@ -215,17 +215,17 @@ final class EnCursoTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.aulas.0.puede_operar', true);
 
-        $this->postJson("/api/aulas/{$aula->id}/punto-control/incidencias-manuales", [
-            'examen_id' => $examen->id,
-            'tipo' => 'CONDUCTA',
-            'detalle' => 'Conversa durante el examen.',
+        $this->postJson("/api/examenes/{$examen->id}/incidencias", [
+            'aula_id' => $aula->id,
+            'tipo' => 'DISPOSITIVO_NO_PERMITIDO',
+            'detalle' => 'Celular encendido durante el examen.',
         ])->assertCreated();
 
         $this->getJson("/api/en-curso/{$examen->id}")
             ->assertOk()
             ->assertJsonPath('data.cifras.incidencias_sin_atender', 1)
             ->assertJsonPath('data.incidencias.0.aula', '691A')
-            ->assertJsonPath('data.incidencias.0.tipo', 'CONDUCTA')
+            ->assertJsonPath('data.incidencias.0.tipo', 'DISPOSITIVO_NO_PERMITIDO')
             ->assertJsonPath('data.aulas.0.incidencias_sin_atender', 1);
     }
 
@@ -272,7 +272,7 @@ final class EnCursoTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_el_docente_asignado_atiende_solo_las_incidencias_de_su_aula(): void
+    public function test_el_docente_asignado_ve_solo_las_incidencias_de_su_aula_y_no_las_atiende(): void
     {
         $propietario = $this->docenteConCuenta();
         $aulaAjena = $this->aula('691A');
@@ -289,15 +289,12 @@ final class EnCursoTest extends TestCase
             ->assertJsonCount(1, 'data.incidencias')
             ->assertJsonPath('data.incidencias.0.id', $propia);
 
-        $this->patchJson("/api/en-curso/{$examen->id}/incidencias/{$propia}/atendida")
-            ->assertOk()
-            ->assertJsonPath('data.atendida', true);
-        $this->assertSame($this->cuenta->id, $this->atendidaPor($propia));
-
-        $this->patchJson("/api/en-curso/{$examen->id}/incidencias/{$ajena}/atendida")
+        // Atiende el docente del examen, no quien esta de apoyo en un aula.
+        $this->postJson("/api/incidencias/{$propia}/atencion")
             ->assertForbidden()
-            ->assertJsonPath('message', 'Solo atiende las incidencias de sus aulas.');
-        $this->assertNull(DB::table('incidencias_aula')->where('id', $ajena)->value('atendida_en'));
+            ->assertJsonPath('message', 'Solo el docente del examen.');
+        $this->assertNull(DB::table('incidencias')->where('id', $propia)->value('atendida_en'));
+        $this->assertNull(DB::table('incidencias')->where('id', $ajena)->value('atendida_en'));
     }
 
     public function test_los_faltantes_del_aula_nunca_son_negativos(): void
@@ -387,22 +384,24 @@ final class EnCursoTest extends TestCase
         [$estudiante] = $this->estudiantesInscritos($grupo, 1);
         $auxiliar = $this->usuarioConRol('Auxiliar', ['nombre' => 'Mamani Quispe Diego']);
 
-        $antigua = $this->incidencia($examen, $aulaA, $auxiliar, 'Falta material', now()->subMinutes(20));
-        $reciente = $this->incidencia($examen, $aulaA, $auxiliar, 'Suplantacion', now()->subMinutes(2), $estudiante);
-        $atendida = $this->incidencia($examen, $aulaB, $auxiliar, 'Ruido', now()->subMinutes(10));
-        DB::table('incidencias_aula')->where('id', $atendida)->update([
+        $antigua = $this->incidencia($examen, $aulaA, $auxiliar, 'MATERIAL_NO_PERMITIDO', now()->subMinutes(20));
+        $reciente = $this->incidencia($examen, $aulaA, $auxiliar, 'SUPLANTACION', now()->subMinutes(2), $estudiante);
+        $atendida = $this->incidencia($examen, $aulaB, $auxiliar, 'OTRA', now()->subMinutes(10));
+        DB::table('incidencias')->where('id', $atendida)->update([
             'atendida_por' => $this->cuenta->id,
             'atendida_en' => now()->subMinutes(5),
         ]);
 
         // Los rechazos de la puerta no son incidencias reportadas.
-        DB::table('incidencias_ingreso')->insert([
+        DB::table('incidencias')->insert([
             'examen_id' => $examen->id,
             'aula_id' => $aulaB->id,
-            'registrado_por' => $auxiliar->id,
-            'tipo_rechazo' => 'NO_HABILITADO',
+            'reportada_por' => $auxiliar->id,
+            'tipo' => 'INTENTO_NO_AUTORIZADO',
+            'origen' => 'SISTEMA',
+            'causa' => 'NO_HABILITADO',
             'detalle' => 'No esta habilitado.',
-            'registrado_en' => now(),
+            'ocurrida_en' => now(),
         ]);
 
         // Una incidencia de otro examen no se mezcla.
@@ -416,8 +415,8 @@ final class EnCursoTest extends TestCase
             ->assertJsonCount(3, 'data.incidencias')
             ->assertJsonPath('data.incidencias.0.id', $reciente)
             ->assertJsonPath('data.incidencias.0.aula', '691A')
-            ->assertJsonPath('data.incidencias.0.tipo', 'Suplantacion')
-            ->assertJsonPath('data.incidencias.0.estudiante', $estudiante->apellidos.', '.$estudiante->nombres)
+            ->assertJsonPath('data.incidencias.0.tipo', 'SUPLANTACION')
+            ->assertJsonPath('data.incidencias.0.estudiante', $estudiante->apellidos.' '.$estudiante->nombres)
             ->assertJsonPath('data.incidencias.0.reportante', 'Mamani Quispe Diego')
             ->assertJsonPath('data.incidencias.0.rol_reportante', 'Auxiliar')
             ->assertJsonPath('data.incidencias.0.atendida', false)
@@ -437,10 +436,10 @@ final class EnCursoTest extends TestCase
         $aula = $this->aula('691A');
         $examen = $this->examen($this->docente, [$this->grupo($this->docente)], [$aula]);
         $auxiliar = $this->usuarioConRol('Auxiliar');
-        $id = $this->incidencia($examen, $aula, $auxiliar, 'Otra', now()->subMinutes(3));
+        $id = $this->incidencia($examen, $aula, $auxiliar, 'OTRA', now()->subMinutes(3));
 
         $this->actingAs($this->cuenta)
-            ->patchJson("/api/en-curso/{$examen->id}/incidencias/{$id}/atendida")
+            ->postJson("/api/incidencias/{$id}/atencion")
             ->assertOk()
             ->assertJsonPath('message', 'Incidencia atendida.')
             ->assertJsonPath('data.id', $id)
@@ -448,28 +447,13 @@ final class EnCursoTest extends TestCase
             ->assertJsonPath('data.atendida_por', 'Blanco Coca Leticia');
 
         $this->assertSame($this->cuenta->id, $this->atendidaPor($id));
-        $this->assertNotNull(DB::table('incidencias_aula')->where('id', $id)->value('atendida_en'));
+        $this->assertNotNull(DB::table('incidencias')->where('id', $id)->value('atendida_en'));
 
         $this->assertDatabaseHas('bitacora_operaciones', [
-            'operacion' => 'INCIDENCIA_AULA_ATENDIDA',
-            'tabla_afectada' => 'incidencias_aula',
+            'operacion' => 'incidencia.atender',
+            'tabla_afectada' => 'incidencias',
             'registro_id' => $id,
-            'descripcion' => 'Incidencia de 691A, examen '.$examen->id.'.',
         ]);
-
-        DB::table('bitacora_operaciones')
-            ->where('operacion', 'INCIDENCIA_AULA_ATENDIDA')
-            ->where('registro_id', $id)
-            ->update(['descripcion' => 'Incidencia de aula marcada como atendida.']);
-
-        $administrador = $this->usuarioConRol('Administrador');
-        $this->actingAs($administrador)
-            ->getJson('/api/bitacora?operacion=INCIDENCIA_AULA_ATENDIDA')
-            ->assertOk()
-            ->assertJsonPath(
-                'data.0.descripcion',
-                'Incidencia de 691A, examen '.$examen->id.'.',
-            );
 
         // Un segundo intento, aun de otro docente del examen, no la cambia.
         $colega = $this->usuarioConRol('Docente');
@@ -480,17 +464,16 @@ final class EnCursoTest extends TestCase
         ]);
 
         $this->actingAs($colega)
-            ->patchJson("/api/en-curso/{$examen->id}/incidencias/{$id}/atendida")
+            ->postJson("/api/incidencias/{$id}/atencion")
             ->assertStatus(409)
             ->assertJsonPath('message', 'La incidencia ya estaba atendida.');
 
         $this->assertSame($this->cuenta->id, $this->atendidaPor($id));
         $this->assertSame(1, DB::table('bitacora_operaciones')->where('registro_id', $id)
-            ->where('operacion', 'INCIDENCIA_AULA_ATENDIDA')->count());
+            ->where('operacion', 'incidencia.atender')->count());
 
         // No hay forma de deshacerla.
-        $this->deleteJson("/api/en-curso/{$examen->id}/incidencias/{$id}/atendida")
-            ->assertStatus(405);
+        $this->deleteJson("/api/incidencias/{$id}/atencion")->assertStatus(405);
     }
 
     public function test_el_docente_de_un_grupo_incluido_tambien_atiende(): void
@@ -501,13 +484,13 @@ final class EnCursoTest extends TestCase
         $id = $this->incidencia($examen, $aula, $this->usuarioConRol('Auxiliar'), 'Otra', now());
 
         $this->actingAs($this->cuenta)
-            ->patchJson("/api/en-curso/{$examen->id}/incidencias/{$id}/atendida")
+            ->postJson("/api/incidencias/{$id}/atencion")
             ->assertOk();
 
         $this->assertSame($this->cuenta->id, $this->atendidaPor($id));
     }
 
-    public function test_no_atiende_una_incidencia_de_otro_examen_ni_una_inexistente(): void
+    public function test_atiende_por_el_examen_de_la_incidencia_y_no_una_inexistente(): void
     {
         $aula = $this->aula();
         $examen = $this->examen($this->docente, [$this->grupo($this->docente)], [$aula]);
@@ -515,14 +498,14 @@ final class EnCursoTest extends TestCase
         $id = $this->incidencia($otroExamen, $aula, $this->usuarioConRol('Auxiliar'), 'Otra', now());
 
         $this->actingAs($this->cuenta)
-            ->patchJson("/api/en-curso/{$examen->id}/incidencias/{$id}/atendida")
+            ->postJson("/api/incidencias/{$id}/atencion")
+            ->assertOk();
+
+        $this->postJson('/api/incidencias/999999/atencion')
             ->assertNotFound()
             ->assertJsonPath('message', 'Incidencia no encontrada.');
 
-        $this->patchJson("/api/en-curso/{$examen->id}/incidencias/999999/atendida")
-            ->assertNotFound();
-
-        $this->assertNull(DB::table('incidencias_aula')->where('id', $id)->value('atendida_en'));
+        $this->assertNotNull(DB::table('incidencias')->where('id', $id)->value('atendida_en'));
     }
 
     public function test_sin_sesion_responde_401(): void
@@ -531,7 +514,7 @@ final class EnCursoTest extends TestCase
 
         $this->getJson('/api/en-curso')->assertUnauthorized();
         $this->getJson("/api/en-curso/{$examen->id}")->assertUnauthorized();
-        $this->patchJson("/api/en-curso/{$examen->id}/incidencias/1/atendida")->assertUnauthorized();
+        $this->postJson('/api/incidencias/1/atencion')->assertUnauthorized();
     }
 
     public function test_administrador_y_auxiliar_no_tienen_la_vista(): void
@@ -545,11 +528,11 @@ final class EnCursoTest extends TestCase
         foreach ([$this->usuarioConRol('Administrador'), $auxiliar] as $cuenta) {
             $this->actingAs($cuenta)->getJson('/api/en-curso')->assertForbidden();
             $this->getJson("/api/en-curso/{$examen->id}")->assertForbidden();
-            $this->patchJson("/api/en-curso/{$examen->id}/incidencias/{$id}/atendida")
+            $this->postJson("/api/incidencias/{$id}/atencion")
                 ->assertForbidden();
         }
 
-        $this->assertNull(DB::table('incidencias_aula')->where('id', $id)->value('atendida_en'));
+        $this->assertNull(DB::table('incidencias')->where('id', $id)->value('atendida_en'));
     }
 
     public function test_el_examen_de_otro_docente_se_rechaza_y_el_inexistente_no_se_encuentra(): void
@@ -564,10 +547,10 @@ final class EnCursoTest extends TestCase
             ->assertForbidden()
             ->assertJsonPath('message', 'Este examen no es suyo.');
 
-        $this->patchJson("/api/en-curso/{$ajeno->id}/incidencias/{$id}/atendida")
+        $this->postJson("/api/incidencias/{$id}/atencion")
             ->assertForbidden();
 
-        $this->assertNull(DB::table('incidencias_aula')->where('id', $id)->value('atendida_en'));
+        $this->assertNull(DB::table('incidencias')->where('id', $id)->value('atendida_en'));
 
         $this->getJson('/api/en-curso')->assertOk()->assertExactJson(['data' => []]);
 
@@ -587,7 +570,7 @@ final class EnCursoTest extends TestCase
         $this->getJson("/api/en-curso/{$examen->id}")->assertOk();
 
         $this->assertSame($antes, DB::table('bitacora_operaciones')->count());
-        $this->assertSame(0, DB::table('incidencias_aula')->whereNotNull('atendida_en')->count());
+        $this->assertSame(0, DB::table('incidencias')->whereNotNull('atendida_en')->count());
 
         foreach (['postJson', 'putJson', 'deleteJson'] as $metodo) {
             $this->{$metodo}("/api/en-curso/{$examen->id}")->assertStatus(405);
@@ -623,20 +606,21 @@ final class EnCursoTest extends TestCase
         DateTimeInterface $cuando,
         ?Estudiante $estudiante = null,
     ): int {
-        return DB::table('incidencias_aula')->insertGetId([
+        return DB::table('incidencias')->insertGetId([
             'examen_id' => $examen->id,
             'aula_id' => $aula->id,
             'estudiante_id' => $estudiante?->id,
             'reportada_por' => $reporta->id,
             'tipo' => $tipo,
+            'origen' => 'PERSONA',
             'detalle' => 'Detalle de '.$tipo,
-            'reportada_en' => $cuando,
+            'ocurrida_en' => $cuando,
         ]);
     }
 
     private function atendidaPor(int $incidenciaId): int
     {
-        $valor = DB::table('incidencias_aula')->where('id', $incidenciaId)->value('atendida_por');
+        $valor = DB::table('incidencias')->where('id', $incidenciaId)->value('atendida_por');
         $this->assertIsNumeric($valor);
 
         return (int) $valor;

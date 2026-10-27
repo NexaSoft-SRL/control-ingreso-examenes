@@ -6,7 +6,6 @@ namespace App\Modules\Ingreso\Application\Actions;
 
 use App\Modules\Ingreso\Application\Contracts\DetallePuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaIngresoGateway;
-use App\Modules\Ingreso\Application\Contracts\OperacionesPuertaGateway;
 use App\Modules\Ingreso\Application\DTOs\ResultadoResolucionPuertaData;
 use App\Modules\Ingreso\Domain\Enums\CausaIntento;
 
@@ -20,7 +19,6 @@ final readonly class RegistrarIntentoEnPuerta
 {
     public function __construct(
         private IncidenciaIngresoGateway $incidencias,
-        private OperacionesPuertaGateway $operaciones,
         private DetallePuertaGateway $detalle,
     ) {}
 
@@ -32,20 +30,6 @@ final readonly class RegistrarIntentoEnPuerta
         ResultadoResolucionPuertaData $resultado,
     ): void {
         if ($resultado->puedeAdmitir()) {
-            return;
-        }
-
-        if ($resultado->ambiguo) {
-            // Nunca adjudicarlo a uno de los examenes del aula: queda una
-            // huella del identificador, no el QR ni el C.I.
-            $this->operaciones->auditarIntentoNoResuelto(
-                $aulaId,
-                $usuarioId,
-                $tipo,
-                $identificador,
-                true,
-            );
-
             return;
         }
 
@@ -114,6 +98,7 @@ final readonly class RegistrarIntentoEnPuerta
                 default => 'Código SIS o C.I. sin registro en el padrón.',
             },
             CausaIntento::QrNoValido => 'Código QR no válido.',
+            default => $causa->etiqueta().'.',
         };
 
         $estudianteId = $resultado->estudiante?->id;

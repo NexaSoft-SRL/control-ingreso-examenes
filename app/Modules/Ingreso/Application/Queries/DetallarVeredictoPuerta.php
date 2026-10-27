@@ -51,9 +51,8 @@ final readonly class DetallarVeredictoPuerta
 
         $datos = [
             'examen_id' => $examenId,
-            'veredicto' => ($veredicto ?? ($resultado->ambiguo ? null : VeredictoIngreso::NoCorresponde))?->value,
+            'veredicto' => ($veredicto ?? VeredictoIngreso::NoCorresponde)->value,
             'causa' => $resultado->causa?->value,
-            'ambiguo' => $resultado->ambiguo,
             'admitido' => $veredicto?->permiteIngreso() ?? false,
             'estudiante' => $estudiante === null ? null : [
                 'id' => $estudiante->id,
@@ -77,13 +76,6 @@ final readonly class DetallarVeredictoPuerta
             'tarde' => null,
             'examen_correspondiente' => null,
         ];
-
-        if ($resultado->ambiguo) {
-            $datos['dato'] = 'Inscrito en más de un examen del aula';
-            $datos['pie'] = 'Intento registrado';
-
-            return $datos;
-        }
 
         if ($resultado->causa !== null) {
             return $this->sinExamen($datos, $resultado, $aulaId, $fecha, $tipo, $identificador, $examenesDelAula);

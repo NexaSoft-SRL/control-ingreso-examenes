@@ -3,6 +3,7 @@
 use App\Modules\Administracion\Http\Middleware\ExigirCambioContrasenaTemporal;
 use App\Modules\Administracion\Http\Middleware\ExigirPermiso;
 use App\Modules\Administracion\Http\Middleware\GestionarSesionUsuario;
+use App\Modules\Ingreso\Http\Middleware\ExigirPuesto;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // exigen al rol de quien las llama.
         $middleware->alias([
             'permiso' => ExigirPermiso::class,
+            'puesto' => ExigirPuesto::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

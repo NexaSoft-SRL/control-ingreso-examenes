@@ -96,7 +96,7 @@ final class PuertaVeredictosHttpTest extends TestCase
             ->assertJsonPath('data.dato', "Ingresó a las {$hora} en esta aula")
             ->assertJsonPath('data.pie', null)
             ->assertJsonPath('data.registrado_en', DB::table('ingresos')->value('registrado_en'));
-        $this->assertDatabaseCount('incidencias_ingreso', 0);
+        $this->assertDatabaseCount('incidencias', 0);
 
         // Desde otra puerta del examen se nombra el aula del ingreso y queda
         // la incidencia, una sola aunque lo vuelvan a leer.
@@ -109,8 +109,8 @@ final class PuertaVeredictosHttpTest extends TestCase
                 ->assertJsonPath('data.pie', $vez === 1 ? 'Incidencia registrada' : null);
         }
 
-        $this->assertDatabaseCount('incidencias_ingreso', 1);
-        $this->assertDatabaseHas('incidencias_ingreso', [
+        $this->assertDatabaseCount('incidencias', 1);
+        $this->assertDatabaseHas('incidencias', [
             'aula_id' => $this->otraAula->id,
             'estudiante_id' => $this->estudiantes[0]->id,
             'detalle' => "Código o C.I. ya usado. Ingresó a las {$hora} en el aula 691A.",
@@ -220,16 +220,17 @@ final class PuertaVeredictosHttpTest extends TestCase
 
         $this->ingresar_por_codigo($this->estudiantes[2])->assertConflict();
 
-        $filas = $this->actingAs($this->usuario)
-            ->getJson("/api/aulas/{$this->aula->id}/punto-control/incidencias")
-            ->assertOk()
-            ->json('data');
-        self::assertIsArray($filas);
-        $tipos = array_column($filas, 'tipo_rechazo');
+        // Quedan como intentos rechazados del sistema, cada uno con su causa.
+        $causas = DB::table('incidencias')
+            ->where('origen', 'SISTEMA')
+            ->where('tipo', 'INTENTO_NO_AUTORIZADO')
+            ->where('aula_id', $this->aula->id)
+            ->pluck('causa')
+            ->all();
 
         self::assertEqualsCanonicalizing(
             ['NO_INSCRITO', 'NO_REGISTRADO', 'QR_NO_VALIDO', 'NO_HABILITADO'],
-            $tipos,
+            $causas,
         );
     }
 
@@ -244,12 +245,12 @@ final class PuertaVeredictosHttpTest extends TestCase
 
         $this->ingresar_por_codigo($ajeno)->assertConflict();
 
-        $this->assertDatabaseHas('incidencias_ingreso', [
+        $this->assertDatabaseHas('incidencias', [
             'examen_id' => null,
             'estudiante_id' => $ajeno->id,
-            'tipo_rechazo' => 'NO_INSCRITO',
+            'causa' => 'NO_INSCRITO',
         ]);
-        $this->assertDatabaseCount('incidencias_ingreso', 1);
+        $this->assertDatabaseCount('incidencias', 1);
     }
 
     public function test_bug16_validacion_en_espanol(): void
@@ -338,7 +339,7 @@ final class PuertaVeredictosHttpTest extends TestCase
             'es_excepcion' => true,
             'motivo_excepcion' => 'El aula 691B está cerrada.',
         ]);
-        $this->assertDatabaseHas('incidencias_aula', ['tipo' => 'EXCEPCION_CAMBIO_AULA']);
+        $this->assertDatabaseHas('incidencias', ['tipo' => 'CAMBIO_AULA', 'origen' => 'PERSONA']);
         $this->assertDatabaseHas('bitacora_operaciones', [
             'usuario_id' => $this->usuario->id,
             'operacion' => 'puerta.excepcion',
@@ -390,27 +391,28 @@ final class PuertaVeredictosHttpTest extends TestCase
 
     public function test_n2_incidencia_en_bitacora_y_n5_catalogo_y_maximo(): void
     {
-        $ruta = "/api/aulas/{$this->aula->id}/punto-control/incidencias-manuales";
+        $ruta = "/api/examenes/{$this->examen->id}/incidencias";
 
         $this->actingAs($this->usuario)->postJson($ruta, [
-            'examen_id' => $this->examen->id,
+            'aula_id' => $this->aula->id,
             'tipo' => 'CUALQUIER_TEXTO',
-            'detalle' => str_repeat('x', 501),
+            'detalle' => str_repeat('x', 2001),
         ])->assertUnprocessable()
-            ->assertJsonPath('errors.tipo.0', 'Tipo no válido')
-            ->assertJsonPath('errors.detalle.0', 'Máximo 500 caracteres');
+            ->assertJsonPath('errors.tipo.0', 'Elija el tipo de incidencia.')
+            ->assertJsonPath('errors.detalle.0', 'Máximo 2000 caracteres');
 
         $this->actingAs($this->usuario)->postJson($ruta, [
-            'examen_id' => $this->examen->id,
-            'tipo' => 'CONDUCTA',
-            'detalle' => 'Conversa durante el examen.',
+            'aula_id' => $this->aula->id,
+            'tipo' => 'MATERIAL_NO_PERMITIDO',
+            'detalle' => 'Apuntes sobre la mesa.',
         ])->assertCreated()
-            ->assertJsonPath('data.tipo_etiqueta', 'Conducta');
+            ->assertJsonPath('data.tipo_texto', 'Material no permitido')
+            ->assertJsonPath('data.gravedad', 'MEDIA');
 
         $this->assertDatabaseHas('bitacora_operaciones', [
             'usuario_id' => $this->usuario->id,
             'operacion' => 'incidencia.registrar',
-            'tabla_afectada' => 'incidencias_aula',
+            'tabla_afectada' => 'incidencias',
         ]);
     }
 
@@ -423,21 +425,21 @@ final class PuertaVeredictosHttpTest extends TestCase
         $this->examen->update(['fecha' => now()->addDays(40)->toDateString()]);
 
         $this->actingAs($this->usuario)->postJson(
-            "/api/aulas/{$this->aula->id}/punto-control/incidencias-manuales",
+            "/api/examenes/{$this->examen->id}/incidencias",
             [
-                'examen_id' => $this->examen->id,
-                'tipo' => 'CONDUCTA',
+                'aula_id' => $this->aula->id,
+                'tipo' => 'OTRA',
                 'detalle' => 'Fuera de la ventana.',
             ],
-        )->assertConflict()->assertJsonPath('message', 'Fuera del horario del examen.');
+        )->assertConflict()->assertJsonPath('message', 'Solo el día del examen.');
 
         $this->actingAs($this->usuario)->postJson(
             "/api/aulas/{$this->aula->id}/punto-control/ingresos/{$ingreso}/expulsion",
             ['motivo' => 'Fuera de la ventana.'],
         )->assertConflict()->assertJsonPath('message', 'Fuera del horario del examen.');
 
-        $this->assertDatabaseCount('incidencias_aula', 0);
-        $this->assertDatabaseCount('expulsiones', 0);
+        $this->assertDatabaseCount('incidencias', 0);
+        $this->assertSame(0, DB::table('incidencias')->where('tipo', 'EXPULSION')->count());
     }
 
     public function test_bug15_ingreso_en_bitacora_legible(): void

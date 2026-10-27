@@ -34,20 +34,20 @@ final class IncidenciaIngresoGatewayTest extends TestCase
             'Documentación pendiente',
         );
 
-        $this->assertDatabaseHas('incidencias_ingreso', [
+        $this->assertDatabaseHas('incidencias', [
             'examen_id' => $examen,
             'aula_id' => $aula,
             'estudiante_id' => $estudiante,
-            'registrado_por' => $usuario,
-            'tipo_rechazo' => 'NO_HABILITADO',
+            'reportada_por' => $usuario,
+            'causa' => 'NO_HABILITADO',
             'detalle' => 'Documentación pendiente',
         ]);
 
-        $this->assertDatabaseCount('incidencias_ingreso', 1);
+        $this->assertDatabaseCount('incidencias', 1);
         $this->assertDatabaseCount('ingresos', 0);
 
         $this->assertNotNull(
-            DB::table('incidencias_ingreso')->value('registrado_en')
+            DB::table('incidencias')->value('ocurrida_en')
         );
     }
 
@@ -68,12 +68,12 @@ final class IncidenciaIngresoGatewayTest extends TestCase
             );
         }
 
-        $this->assertDatabaseCount('incidencias_ingreso', 2);
+        $this->assertDatabaseCount('incidencias', 2);
         $this->assertDatabaseCount('ingresos', 0);
 
         $this->assertSame(
             2,
-            DB::table('incidencias_ingreso')
+            DB::table('incidencias')
                 ->whereNull('estudiante_id')
                 ->count()
         );

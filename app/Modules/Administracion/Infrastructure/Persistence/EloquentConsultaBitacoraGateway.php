@@ -28,11 +28,19 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
                 '=',
                 'bitacora.usuario_id',
             )
-            ->leftJoin('incidencias_aula as incidencia', static function (JoinClause $join): void {
-                $join->on('incidencia.id', '=', 'bitacora.registro_id')
+            // Las incidencias de aula viejas viven en `incidencias` con su id
+            // anterior (`legado_id`).
+            ->leftJoin('incidencias as incidencia', static function (JoinClause $join): void {
+                $join->on('incidencia.legado_id', '=', 'bitacora.registro_id')
+                    ->where('incidencia.legado_tabla', '=', 'incidencias_aula')
                     ->where('bitacora.tabla_afectada', '=', 'incidencias_aula')
                     ->where('bitacora.operacion', '=', 'INCIDENCIA_AULA_ATENDIDA');
             })
+            ->leftJoin('incidencias as incidencia_nueva', static function (JoinClause $join): void {
+                $join->on('incidencia_nueva.id', '=', 'bitacora.registro_id')
+                    ->where('bitacora.tabla_afectada', '=', 'incidencias');
+            })
+            ->leftJoin('accesos_codigo_aula as acceso_incidencia', 'acceso_incidencia.id', '=', 'incidencia_nueva.acceso_codigo_aula_id')
             ->leftJoin('aulas as aula', 'aula.id', '=', 'incidencia.aula_id')
             // Quien operó con código de aula no tiene cuenta: se nombra con
             // el nombre que dio al entrar.
@@ -64,7 +72,7 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
                 'aula.nombre as incidencia_aula',
                 'afectado.usuario as registro_usuario',
             ])
-            ->selectRaw('coalesce(acceso_directo.nombre_colaborador, acceso_ingreso.nombre_colaborador) as colaborador');
+            ->selectRaw('coalesce(acceso_directo.nombre_colaborador, acceso_ingreso.nombre_colaborador, acceso_incidencia.nombre_colaborador) as colaborador');
 
         if ($filtros->usuarioId !== null) {
             $query->where(

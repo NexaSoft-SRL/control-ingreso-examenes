@@ -76,7 +76,7 @@ final class AdmisionHttpIntegracionTest extends TestCase
         self::assertSame(1, DB::table('ingresos')->count());
 
         // Releerlo enseguida en la misma puerta no es un intento.
-        $this->assertDatabaseCount('incidencias_ingreso', 0);
+        $this->assertDatabaseCount('incidencias', 0);
     }
 
     public function test_consulta_candidato_muestra_motivo_real_de_inhabilitacion(): void
@@ -105,7 +105,7 @@ final class AdmisionHttpIntegracionTest extends TestCase
             );
 
         $this->assertDatabaseCount('ingresos', 0);
-        $this->assertDatabaseCount('incidencias_ingreso', 0);
+        $this->assertDatabaseCount('incidencias', 0);
     }
 
     public function test_no_habilitado_no_genera_ingreso(): void
@@ -126,16 +126,16 @@ final class AdmisionHttpIntegracionTest extends TestCase
 
         $this->assertDatabaseCount('ingresos', 0);
 
-        $this->assertDatabaseHas('incidencias_ingreso', [
+        $this->assertDatabaseHas('incidencias', [
             'examen_id' => $examen->id,
             'aula_id' => $aula->id,
             'estudiante_id' => $estudiante->id,
-            'registrado_por' => $usuario->id,
-            'tipo_rechazo' => 'NO_HABILITADO',
+            'reportada_por' => $usuario->id,
+            'causa' => 'NO_HABILITADO',
             'detalle' => 'No cumple el requisito.',
         ]);
 
-        $this->assertDatabaseCount('incidencias_ingreso', 1);
+        $this->assertDatabaseCount('incidencias', 1);
     }
 
     public function test_estudiante_de_otra_aula_ingresa_por_esta(): void
@@ -169,7 +169,7 @@ final class AdmisionHttpIntegracionTest extends TestCase
             'estudiante_id' => $estudiante->id,
             'aula_id' => $aula->id,
         ]);
-        $this->assertDatabaseCount('incidencias_ingreso', 0);
+        $this->assertDatabaseCount('incidencias', 0);
     }
 
     public function test_aula_ajena_al_examen_es_rechazada(): void
@@ -235,15 +235,15 @@ final class AdmisionHttpIntegracionTest extends TestCase
             ->assertJsonPath('data.veredicto', 'NO_HABILITADO')
             ->assertJsonPath('data.admitido', false);
 
-        $this->assertDatabaseHas('incidencias_ingreso', [
+        $this->assertDatabaseHas('incidencias', [
             'examen_id' => $examen->id,
             'estudiante_id' => $estudiante->id,
-            'tipo_rechazo' => 'NO_HABILITADO',
+            'causa' => 'NO_HABILITADO',
             'detalle' => 'Sin revisar: sin condición de habilitación registrada.',
         ]);
 
         $this->assertDatabaseCount('ingresos', 0);
-        $this->assertDatabaseCount('incidencias_ingreso', 1);
+        $this->assertDatabaseCount('incidencias', 1);
     }
 
     public function test_estudiante_inexistente_crea_incidencia_sin_estudiante(): void
@@ -261,17 +261,17 @@ final class AdmisionHttpIntegracionTest extends TestCase
             ->assertJsonPath('data.veredicto', 'NO_CORRESPONDE')
             ->assertJsonPath('data.admitido', false);
 
-        $this->assertDatabaseHas('incidencias_ingreso', [
+        $this->assertDatabaseHas('incidencias', [
             'examen_id' => $examen->id,
             'aula_id' => $aula->id,
             'estudiante_id' => null,
-            'registrado_por' => $usuario->id,
-            'tipo_rechazo' => 'NO_CORRESPONDE',
+            'reportada_por' => $usuario->id,
+            'causa' => 'NO_CORRESPONDE',
             'detalle' => 'Estudiante no encontrado.',
         ]);
 
         $this->assertDatabaseCount('ingresos', 0);
-        $this->assertDatabaseCount('incidencias_ingreso', 1);
+        $this->assertDatabaseCount('incidencias', 1);
     }
 
     public function test_operador_no_autorizado_no_crea_incidencia(): void
@@ -287,7 +287,7 @@ final class AdmisionHttpIntegracionTest extends TestCase
             ->assertForbidden();
 
         $this->assertDatabaseCount('ingresos', 0);
-        $this->assertDatabaseCount('incidencias_ingreso', 0);
+        $this->assertDatabaseCount('incidencias', 0);
     }
 
     private function autorizarPunto(

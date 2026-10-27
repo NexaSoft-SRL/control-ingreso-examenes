@@ -110,16 +110,15 @@ final readonly class RegistrarIngreso
             $identificador,
         );
 
-        $usuarioIncidencia = $usuarioId ?? $examen->creadoPor ?? 1;
-
         if ($candidato === null) {
             $this->registrarRechazo(
                 $examenId,
                 $aulaId,
                 null,
-                $usuarioIncidencia,
+                $usuarioId,
                 VeredictoIngreso::NoCorresponde,
                 'Estudiante no encontrado.',
+                $accesoCodigoAulaId,
             );
 
             return new ResultadoIngresoData(VeredictoIngreso::NoCorresponde);
@@ -152,9 +151,10 @@ final readonly class RegistrarIngreso
                 $examenId,
                 $aulaId,
                 $estudianteId,
-                $usuarioIncidencia,
+                $usuarioId,
                 $veredicto,
                 self::detalleDeRechazo($veredicto, $candidato->habilitacion),
+                $accesoCodigoAulaId,
             );
 
             return new ResultadoIngresoData($veredicto);
@@ -258,9 +258,10 @@ final readonly class RegistrarIngreso
         int $examenId,
         int $aulaId,
         ?int $estudianteId,
-        int $usuarioId,
+        ?int $usuarioId,
         VeredictoIngreso $veredicto,
         string $detalle,
+        ?int $accesoCodigoAulaId,
     ): void {
         if ($this->incidencias->repetidoReciente(
             $aulaId,
@@ -279,6 +280,7 @@ final readonly class RegistrarIngreso
             $usuarioId,
             $veredicto,
             $detalle,
+            $accesoCodigoAulaId,
         );
     }
 }

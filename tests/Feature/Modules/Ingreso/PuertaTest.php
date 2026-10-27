@@ -83,12 +83,6 @@ final class PuertaTest extends TestCase
             ->assertOk()
             ->assertJsonPath('meta.cantidad', 1)
             ->assertJsonPath('data.0.estudiante_id', $estudiante->id);
-
-        // 4. Consultar incidencias
-        $this->withHeaders($headers)
-            ->getJson("/api/examenes/{$examen->id}/aulas/{$aula->id}/punto-control/incidencias")
-            ->assertOk()
-            ->assertJsonPath('meta.cantidad', 0);
     }
 
     public function test_colaborador_no_puede_operar_otra_aula_responde_403(): void
