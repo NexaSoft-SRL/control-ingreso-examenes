@@ -11,12 +11,14 @@ import {
     XCircle,
 } from 'lucide-react';
 import { erroresDe, mensajeDe } from '../../api/errores';
-import usarEdificios from '../../api/usarEdificios';
+import usarConsulta from '../../api/usarConsulta';
 import Boton from '../../componentes/Boton';
 import Campo from '../../componentes/Campo';
+import IconoAsignatura from '../../componentes/IconoAsignatura';
 import Insignia from '../../componentes/Insignia';
 import MapaCampus from '../../componentes/MapaCampus';
 import Seleccion from '../../componentes/Seleccion';
+import { colorDeAsignatura } from '../../utiles/texto';
 
 // Los veredictos de la puerta (como en el Proyecto Guía). Los intentos sin
 // examen llegan con su `causa` (no inscrito, sin registro, QR no válido).
@@ -60,9 +62,13 @@ const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
 export const ubicacionDe = (aula) => [aula?.edificio, aula?.piso].filter(Boolean).join(' · ');
 
 // Dónde queda el aula que le corresponde, con el edificio de esta puerta
-// como punto de partida.
-function MapaDeDestino({ destino, origen }) {
-    const { edificios, caja } = usarEdificios();
+// como punto de partida. Los edificios salen de la ruta propia de la puerta,
+// que también alcanza quien entró con código de aula (GET /api/edificios
+// exige cuenta).
+function MapaDeDestino({ destino, origen, aulaId }) {
+    const { datos, meta } = usarConsulta(`/aulas/${aulaId}/punto-control/edificios`);
+    const edificios = Array.isArray(datos) ? datos : [];
+    const caja = meta?.caja ?? null;
     if (edificios.length === 0) return null;
 
     return (
@@ -86,6 +92,7 @@ MapaDeDestino.propTypes = {
         edificio_id: PropTypes.number,
     }).isRequired,
     origen: PropTypes.number,
+    aulaId: PropTypes.number.isRequired,
 };
 
 function claveDe(veredicto) {
@@ -221,7 +228,12 @@ export default function VeredictoPuerta({
                     </div>
                 )}
                 {examen && (
-                    <p className="mt-2 text-sm font-medium text-slate-800">
+                    <p className="mt-2 flex items-center gap-2 text-sm font-medium text-slate-800">
+                        <IconoAsignatura
+                            nombre={examen.asignatura}
+                            color={colorDeAsignatura(examen.asignatura)}
+                            tamano="xs"
+                        />
                         {examen.asignatura} · {examen.tipo}
                     </p>
                 )}
@@ -345,7 +357,11 @@ export default function VeredictoPuerta({
                 {/* El mapa va después de las acciones: no las empuja fuera de la pantalla. */}
                 {destino?.edificio_id && !admitida && (
                     <div className="mt-4">
-                        <MapaDeDestino destino={destino} origen={aula.edificio_id ?? null} />
+                        <MapaDeDestino
+                            destino={destino}
+                            origen={aula.edificio_id ?? null}
+                            aulaId={aula.id}
+                        />
                     </div>
                 )}
             </div>

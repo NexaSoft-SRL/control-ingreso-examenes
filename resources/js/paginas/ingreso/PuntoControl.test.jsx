@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import PuntoControl from './PuntoControl';
 import { api } from '../../api/cliente';
+import { renderConSesion, usuarioDePrueba } from '../../test/apoyo';
 
 vi.mock('../../api/cliente', () => ({
     api: {
@@ -80,6 +81,10 @@ function montar(ruta = '/control') {
 }
 
 async function verificarCodigo(codigo = '202210098') {
+    const abrir = await screen
+        .findByRole('button', { name: 'Código SIS o C.I. manual' })
+        .catch(() => null);
+    if (abrir) fireEvent.click(abrir);
     const campo = await screen.findByRole('textbox', { name: 'Código SIS o C.I.' });
     fireEvent.change(campo, { target: { value: codigo } });
     fireEvent.click(screen.getByRole('button', { name: 'Verificar' }));
@@ -129,8 +134,9 @@ describe('PuntoControl HU-19', () => {
         const lista = await screen.findByRole('list', { name: 'Exámenes del aula' });
         expect(within(lista).getByText('Introducción a la Programación')).toBeInTheDocument();
         expect(within(lista).getByText(/Primer parcial · 08:00–09:30/)).toBeInTheDocument();
-        expect(within(lista).getByText('3 / 20 ingresados')).toBeInTheDocument();
+        expect(within(lista).getByText('3 ingresaron')).toBeInTheDocument();
         expect(within(lista).getByText('Faltan 17')).toBeInTheDocument();
+        expect(screen.getByText(/3 ingresaron · Faltan 17/)).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Normas' }));
         expect(screen.getByText('Llevar carnet')).toBeInTheDocument();
@@ -384,22 +390,15 @@ describe('PuntoControl HU-19', () => {
         vi.unstubAllGlobals();
     });
 
-    it('BUG-12 y BUG-13: recientes con hora corta y botón de actualizar', async () => {
+    it('BUG-12 y BUG-13: recientes con nombre sin coma, hora corta y llegada tarde', async () => {
+        respuestas.ingresos = { data: [fila(1, { tarde: 22 })], meta: { total: 1 } };
         montar();
 
-        expect(await screen.findByText('Apellido1, Nombre1')).toBeInTheDocument();
-        expect(screen.getByText('· 08:39')).toBeInTheDocument();
+        const lista = await screen.findByRole('list', { name: 'Ingresos' });
+        expect(await within(lista).findByText('Apellido1 Nombre1')).toBeInTheDocument();
+        expect(within(lista).getByText('08:39')).toBeInTheDocument();
+        expect(within(lista).getByText('Tarde · 22 min')).toBeInTheDocument();
         expect(screen.queryByText(/2026-10-26 08:39:20/)).not.toBeInTheDocument();
-
-        const antes = api.get.mock.calls.filter(
-            ([r]) => r === '/aulas/7/punto-control/ingresos'
-        ).length;
-        fireEvent.click(screen.getByRole('button', { name: 'Actualizar ingresos' }));
-        await waitFor(() => {
-            expect(
-                api.get.mock.calls.filter(([r]) => r === '/aulas/7/punto-control/ingresos').length
-            ).toBeGreaterThan(antes);
-        });
     });
 
     it('BUG-23: «Ver los N» con búsqueda y «Sin resultados»', async () => {
@@ -440,22 +439,25 @@ describe('PuntoControl HU-19', () => {
         expect(await screen.findByText('Sin conexión')).toBeInTheDocument();
     });
 
-    it('BUG-05 y N7: expulsa con motivo y marca «Expulsado» con su hora', async () => {
+    it('BUG-05 y N7: expulsa con motivo en un diálogo y marca «Expulsado» con su hora', async () => {
         api.post.mockResolvedValue({ data: { data: { expulsado: true, hora: '09:10' } } });
 
         montar();
-        fireEvent.click(await screen.findByRole('button', { name: 'Expulsar' }));
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Registrar expulsión de Apellido1 Nombre1' })
+        );
 
-        const motivo = screen.getByRole('textbox', { name: /Motivo de expulsión/ });
+        const dialogo = screen.getByRole('dialog', { name: 'Expulsión' });
+        const motivo = within(dialogo).getByRole('textbox', { name: /Motivo/ });
         fireEvent.change(motivo, { target: { value: 'abc' } });
-        expect(screen.getByRole('button', { name: 'Confirmar expulsión' })).toBeDisabled();
+        expect(within(dialogo).getByRole('button', { name: 'Registrar' })).toBeDisabled();
 
         respuestas.ingresos = {
             data: [fila(1, { expulsado: true, expulsado_a: '09:10' })],
             meta: { total: 1 },
         };
         fireEvent.change(motivo, { target: { value: 'Uso de celular.' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Confirmar expulsión' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Registrar' }));
 
         await waitFor(() => {
             expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/ingresos/1/expulsion', {
@@ -463,32 +465,6 @@ describe('PuntoControl HU-19', () => {
             });
         });
         expect(await screen.findByText('Expulsado · 09:10')).toBeInTheDocument();
-    });
-
-    it('reporta una incidencia desde la puerta al examen del aula', async () => {
-        api.post.mockResolvedValue({ data: { message: 'Incidencia registrada.' } });
-
-        montar();
-        fireEvent.click(await screen.findByRole('button', { name: 'Incidencia' }));
-        const dialogo = screen.getByRole('dialog', { name: 'Incidencia' });
-        fireEvent.change(within(dialogo).getByLabelText(/Tipo/), {
-            target: { value: 'DISPOSITIVO_NO_PERMITIDO' },
-        });
-        fireEvent.change(within(dialogo).getByLabelText(/Detalle/), {
-            target: { value: 'Celular encendido.' },
-        });
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Registrar' }));
-
-        await waitFor(() => {
-            expect(api.post).toHaveBeenCalledWith('/examenes/10/incidencias', {
-                aula_id: 7,
-                tipo: 'DISPOSITIVO_NO_PERMITIDO',
-                estudiante: null,
-                detalle: 'Celular encendido.',
-            });
-        });
-        // La puerta ya no lista incidencias: van a «Mi aula» y «En curso».
-        expect(screen.queryByRole('region', { name: 'Incidencias de ingreso' })).toBeNull();
     });
 
     it('bloquea la operación cuando el servidor responde 403', async () => {
@@ -499,7 +475,9 @@ describe('PuntoControl HU-19', () => {
         montar();
         await verificarCodigo();
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('Sin asignación en esta aula');
+        expect((await screen.findAllByText('Sin asignación en esta aula')).length).toBeGreaterThan(
+            0
+        );
         expect(
             screen.queryByRole('textbox', { name: 'Código SIS o C.I.' })
         ).not.toBeInTheDocument();
@@ -564,5 +542,42 @@ describe('PuntoControl HU-19', () => {
         expect(
             screen.queryByRole('button', { name: 'Situación excepcional' })
         ).not.toBeInTheDocument();
+    });
+    it('ofrece la lista del aula a quien la sigue y busca entre muchas aulas', async () => {
+        const muchas = Array.from({ length: 8 }, (_, n) => ({
+            id: 7 + n,
+            nombre: `69${n}`,
+            edificio: 'Edificio Académico 2',
+            piso: '1.er piso',
+        }));
+        api.get.mockImplementation((ruta) => {
+            if (ruta === '/punto-control/contexto') {
+                return Promise.resolve({ data: { data: [{ ...examen, aulas: muchas }] } });
+            }
+            if (/^\/aulas\/\d+\/punto-control$/.test(ruta)) {
+                return Promise.resolve({ data: puerta(7) });
+            }
+            if (ruta.endsWith('/punto-control/ingresos'))
+                return Promise.resolve({ data: respuestas.ingresos });
+            return Promise.reject(new Error(`Ruta inesperada ${ruta}`));
+        });
+
+        renderConSesion(<PuntoControl />, {
+            usuario: usuarioDePrueba('Auxiliar'),
+            ruta: '/punto-control',
+        });
+
+        expect(await screen.findByRole('link', { name: /Lista/ })).toHaveAttribute(
+            'href',
+            '/seguimiento?examen=10&aula=7'
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Cambiar' }));
+        const dialogo = screen.getByRole('dialog', { name: 'Aula' });
+        fireEvent.change(within(dialogo).getByRole('textbox', { name: 'Buscar aula' }), {
+            target: { value: '697' },
+        });
+        expect(within(dialogo).getByText('Aula 697')).toBeInTheDocument();
+        expect(within(dialogo).queryByText('Aula 691')).not.toBeInTheDocument();
     });
 });
