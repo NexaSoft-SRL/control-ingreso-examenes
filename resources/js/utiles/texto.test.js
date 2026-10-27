@@ -10,6 +10,7 @@ import {
     nombreCompleto,
     normalizar,
     plural,
+    ubicacionSin,
 } from './texto';
 
 describe('utiles de texto', () => {
@@ -51,5 +52,16 @@ describe('utiles de texto', () => {
         expect(COLORES_ASIGNATURA).toContain(color);
         expect(colorDeAsignatura('introduccion a la programacion')).toBe(color);
         expect(colorDeAsignatura('')).toBe('#475569');
+    });
+});
+
+describe('ubicacionSin', () => {
+    it('quita el nombre del aula cuando el edificio se llama igual', () => {
+        expect(ubicacionSin('624', 'Aula 624', 'Planta baja')).toBe('Planta baja');
+        expect(ubicacionSin('624', 'Aula 624 · Planta baja')).toBe('Planta baja');
+        expect(ubicacionSin('617', 'Aula 617-617C', 'Planta baja')).toBe(
+            'Aula 617-617C · Planta baja'
+        );
+        expect(ubicacionSin('691A', 'Edificio Académico 2', null)).toBe('Edificio Académico 2');
     });
 });

@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
-import { Megaphone, Printer, QrCode, Send } from 'lucide-react';
+import { CircleCheck, CircleX, MailX, Megaphone, Printer, QrCode, Send } from 'lucide-react';
 import { api } from '../../api/cliente';
 import { codigoDe, erroresDe, estadoDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
@@ -255,8 +255,13 @@ function CodigosDelExamen({ examen, selector }) {
     const acciones = (
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             {emitidos < habilitados && (
-                <Boton type="button" disabled={ocupado !== null || sinAula > 0} onClick={emitir}>
-                    <QrCode className="h-4 w-4" /> Emitir códigos
+                <Boton
+                    type="button"
+                    disabled={ocupado !== null || sinAula > 0}
+                    cargando={ocupado === 'emitir'}
+                    onClick={emitir}
+                >
+                    <QrCode className="h-4 w-4" /> Emitir códigos QR
                 </Boton>
             )}
             <Boton
@@ -316,20 +321,23 @@ function CodigosDelExamen({ examen, selector }) {
             ) : (
                 <>
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                        <Dato etiqueta="Habilitados" valor={habilitados} />
+                        <Dato etiqueta="Habilitados" icono={CircleCheck} valor={habilitados} />
                         <Dato
                             etiqueta="Emitidos"
+                            icono={QrCode}
                             valor={emitidos}
                             tono={emitidos < habilitados ? 'advertencia' : 'neutro'}
                         />
-                        <Dato etiqueta="Enviados" valor={enviados} />
+                        <Dato etiqueta="Enviados" icono={Send} valor={enviados} />
                         <Dato
                             etiqueta="Sin enviar"
+                            icono={MailX}
                             valor={sinEnviar}
                             tono={sinEnviar > 0 ? 'advertencia' : 'neutro'}
                         />
                         <Dato
                             etiqueta="Fallidos"
+                            icono={CircleX}
                             valor={fallidos}
                             tono={fallidos > 0 ? 'peligro' : 'neutro'}
                         />

@@ -102,3 +102,18 @@ export function colorDeAsignatura(nombre) {
     for (const letra of texto) suma = (suma * 31 + letra.codePointAt(0)) % 9973;
     return COLORES_ASIGNATURA[suma % COLORES_ASIGNATURA.length];
 }
+
+// La ubicación de un aula sin repetir su nombre: en la fuente algunos
+// edificios se llaman como el aula («Aula 624»). `partes` son textos o
+// «edificio · piso» ya unidos.
+export function ubicacionSin(aula, ...partes) {
+    const propio = normalizar(`Aula ${aula}`);
+    return partes
+        .filter(Boolean)
+        .flatMap((p) => String(p).split(' · '))
+        .filter(
+            (p) =>
+                normalizar(p.trim()) !== propio && normalizar(p.trim()) !== normalizar(String(aula))
+        )
+        .join(' · ');
+}

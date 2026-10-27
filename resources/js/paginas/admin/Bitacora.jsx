@@ -42,7 +42,7 @@ const etiquetaOperacion = {
     'habilitacion.habilitar': 'Habilitación de estudiantes',
     'habilitacion.inhabilitar': 'Inhabilitación de estudiantes',
     'habilitacion.repartir': 'Reparto por aula',
-    'qr.emitir': 'Emisión de códigos QR',
+    'qr.emitir': 'Emitió los códigos QR',
     'qr.enviar': 'Envío de códigos QR por correo',
     'aviso.enviar': 'Aviso de examen por correo',
     'estudiante.registrar': 'Registro de estudiante',

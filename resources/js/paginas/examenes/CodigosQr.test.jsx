@@ -298,7 +298,12 @@ describe('Códigos QR', () => {
         expect(screen.queryByRole('button', { name: /Imprimir credenciales/ })).toBeNull();
         expect(screen.getAllByText('Sin emitir').length).toBeGreaterThan(1);
 
-        fireEvent.click(screen.getByRole('button', { name: /Emitir códigos/ }));
+        fireEvent.click(screen.getByRole('button', { name: 'Emitir códigos QR' }));
+        // Mientras emite, el botón gira y no se pulsa dos veces.
+        expect(screen.getByRole('button', { name: 'Emitir códigos QR' })).toHaveAttribute(
+            'aria-busy',
+            'true'
+        );
 
         expect(await screen.findByText('45 códigos emitidos')).toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith(RUTA);

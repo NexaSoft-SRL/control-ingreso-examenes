@@ -144,12 +144,13 @@ final class EnvioDeCodigosQrTest extends TestCase
         $html = (string) $correo->getHtmlBody();
 
         $this->assertSame($estudiante->codigo_universitario.'@est.umss.edu', $correo->getTo()[0]->getAddress());
-        $this->assertSame('Código QR · Primer parcial · Introducción a la Programación', $correo->getSubject());
+        $this->assertSame('Su código QR · Primer parcial · Introducción a la Programación', $correo->getSubject());
         $this->assertStringContainsString($estudiante->apellidos.' '.$estudiante->nombres, $html);
         $this->assertStringContainsString('30 oct 2026 · 08:15 · 90 min', $html);
         $this->assertStringContainsString('Aula 691A', $html);
         $this->assertStringContainsString('Edificio Académico 2 · 1° Piso', $html);
         $this->assertStringContainsString('cid:', $html);
+        $this->assertStringContainsString('sirve solo para este examen', $html);
 
         $adjuntos = $correo->getAttachments();
         $this->assertGreaterThanOrEqual(1, count($adjuntos));
