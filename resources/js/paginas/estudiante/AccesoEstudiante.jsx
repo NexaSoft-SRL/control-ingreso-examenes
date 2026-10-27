@@ -16,6 +16,9 @@ const ESPERA_REENVIO = 30;
 // pegado con espacios o guiones («2024 100 07») no pierde dígitos.
 const soloDigitos = (texto, largo) => texto.replace(/\D/g, '').slice(0, largo);
 
+// Cuánto vale el código: «24 h» o, si no son horas justas, «N min».
+const venceEn = (minutos = 1440) => (minutos % 60 === 0 ? `${minutos / 60} h` : `${minutos} min`);
+
 function errorDeSis(valor) {
     if (valor === '') return 'Obligatorio';
     return /^\d{5,10}$/.test(valor) ? null : 'Entre 5 y 10 dígitos';
@@ -185,7 +188,7 @@ export default function AccesoEstudiante() {
                         <Campo
                             ref={campoCodigo}
                             etiqueta="Código"
-                            ayuda={`Vence en ${envio.minutos ?? 10} min`}
+                            ayuda={`Vence en ${venceEn(envio.minutos)}`}
                             inputMode="numeric"
                             autoComplete="one-time-code"
                             placeholder="000000"

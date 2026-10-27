@@ -13,7 +13,7 @@ function Donde() {
 
 function montar(rutas = {}) {
     simularApi(api, {
-        'POST /auth/estudiante/codigo': { correo: '2021•••17@est.umss.edu', minutos: 10 },
+        'POST /auth/estudiante/codigo': { correo: '2021•••17@est.umss.edu', minutos: 1440 },
         'POST /auth/estudiante': { estudiante: { id: 7 } },
         ...rutas,
     });
@@ -45,6 +45,7 @@ describe('AccesoEstudiante', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
 
         expect(await screen.findByText('2021•••17@est.umss.edu')).toBeInTheDocument();
+        expect(screen.getByText('Vence en 24 h')).toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith('/auth/estudiante/codigo', {
             codigo_universitario: '202100417',
         });
