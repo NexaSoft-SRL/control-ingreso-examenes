@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Application\Queries;
 
 use App\Modules\Examenes\Application\Contracts\ExamenGateway;
-use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
+use App\Modules\Ingreso\Application\Authorization\AlcancePuerta;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
+use App\Modules\Ingreso\Application\DTOs\OperadorPuertaData;
 use App\Modules\Ingreso\Application\DTOs\ResultadoResolucionPuertaData;
 use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
 use InvalidArgumentException;
@@ -15,7 +16,7 @@ final readonly class ResolverIngresoAutorizadoEnPuerta
 {
     public function __construct(
         private ExamenGateway $examenes,
-        private AlcancePuntoControl $alcance,
+        private AlcancePuerta $alcance,
         private VentanaPuntoControl $ventana,
         private ResolverExamenEnPuerta $resolver,
     ) {}
@@ -24,13 +25,13 @@ final readonly class ResolverIngresoAutorizadoEnPuerta
      * @param  list<int>  $examenesCandidatosIds
      */
     public function ejecutar(
-        int $usuarioId,
+        OperadorPuertaData $operador,
         int $aulaId,
         array $examenesCandidatosIds,
         string $tipoIdentificador,
         string $identificador,
     ): ResultadoResolucionPuertaData {
-        if ($usuarioId <= 0 || $aulaId <= 0) {
+        if ($aulaId <= 0) {
             throw new InvalidArgumentException(
                 'Operador o aula inválidos.'
             );
@@ -51,11 +52,7 @@ final readonly class ResolverIngresoAutorizadoEnPuerta
             if (
                 $examen === null
                 || ! in_array($aulaId, $examen->aulas, true)
-                || ! $this->alcance->puedeOperar(
-                    $usuarioId,
-                    $examenId,
-                    $aulaId,
-                )
+                || ! $this->alcance->puedeOperar($operador, $examenId, $aulaId)
             ) {
                 continue;
             }

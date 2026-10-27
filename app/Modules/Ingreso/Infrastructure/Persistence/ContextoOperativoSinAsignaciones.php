@@ -12,4 +12,9 @@ class ContextoOperativoSinAsignaciones implements ContextoOperativoPuntoControl
     {
         return [];
     }
+
+    public function examenesDelAula(int $aulaId): array
+    {
+        return [];
+    }
 }

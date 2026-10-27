@@ -9,53 +9,6 @@ use Illuminate\Support\Facades\DB;
 
 final class EloquentVerificacionPuntoControlGateway implements VerificacionPuntoControlGateway
 {
-    public function verificarAccesoPorToken(string $token, int $routeExamen, int $routeAula): array
-    {
-        /** @var object{id: int, examen_id: int, aula_id: int, codigo: string, nombre_colaborador: string, token: string, revocado_en: string|null}|null $acceso */
-        $acceso = DB::table('accesos_codigo_aula')
-            ->where('token', $token)
-            ->whereNull('revocado_en')
-            ->first();
-
-        if ($acceso === null) {
-            return ['estado' => 'no_valido'];
-        }
-
-        /** @var object{id: int, fecha: string, hora_inicio: string, duracion_minutos: int}|null $examen */
-        $examen = DB::table('examenes')->where('id', $acceso->examen_id)->first();
-        if ($examen === null) {
-            return ['estado' => 'no_valido'];
-        }
-
-        $fecha = substr((string) $examen->fecha, 0, 10);
-        $horaInicio = substr((string) $examen->hora_inicio, 0, 5);
-        $duracion = (int) $examen->duracion_minutos;
-
-        $inicioTs = strtotime("{$fecha} {$horaInicio}:00");
-        $ventanaFin = ($inicioTs ?: 0) + ($duracion * 60);
-
-        if (now()->timestamp > $ventanaFin) {
-            DB::table('accesos_codigo_aula')
-                ->where('id', $acceso->id)
-                ->update(['revocado_en' => now()]);
-
-            return ['estado' => 'finalizado'];
-        }
-
-        if ((int) $acceso->examen_id !== $routeExamen || (int) $acceso->aula_id !== $routeAula) {
-            return ['estado' => 'aula_denegada'];
-        }
-
-        DB::table('accesos_codigo_aula')
-            ->where('id', $acceso->id)
-            ->update(['ultimo_acceso_en' => now()]);
-
-        return [
-            'estado' => 'ok',
-            'acceso' => $acceso,
-        ];
-    }
-
     public function accesoDeToken(string $token): ?array
     {
         $fila = DB::table('accesos_codigo_aula as acceso')
@@ -67,7 +20,7 @@ final class EloquentVerificacionPuntoControlGateway implements VerificacionPunto
                 'acceso.examen_id',
                 'acceso.aula_id',
                 'acceso.nombre_colaborador',
-                'acceso.revocado_en',
+                'acceso.estado',
                 'aula.nombre as aula',
                 'examen.fecha',
                 'examen.hora_inicio',
@@ -90,11 +43,8 @@ final class EloquentVerificacionPuntoControlGateway implements VerificacionPunto
             'aula' => $texto('aula'),
             'nombre' => $texto('nombre_colaborador'),
             'hasta' => $fin->format('Y-m-d\TH:i:sP'),
-            'estado' => match (true) {
-                now()->greaterThan($fin) => 'finalizado',
-                $columnas['revocado_en'] !== null => 'cortado',
-                default => 'autorizado',
-            },
+            // Solo el autorizado opera la puerta; con el examen cerrado, nadie.
+            'estado' => now()->greaterThan($fin) ? 'finalizado' : mb_strtolower($texto('estado')),
         ];
     }
 

@@ -7,65 +7,53 @@ namespace App\Modules\Examenes\Infrastructure\Persistence;
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Examenes\Application\Contracts\AccesoCodigoAulaGateway;
 use App\Modules\Examenes\Domain\Models\AccesoCodigoAula;
+use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Un acceso con codigo de aula nace PENDIENTE y solo abre la puerta cuando
+ * el docente lo AUTORIZA en persona; puede RECHAZARLO o CORTARLO, y
+ * moverlo a otra aula del examen. Las filas no se borran: los ingresos y
+ * las incidencias las nombran.
+ */
 final readonly class EloquentAccesoCodigoAulaGateway implements AccesoCodigoAulaGateway
 {
+    // La puerta abre una hora antes del inicio.
+    private const MINUTOS_ANTES = 60;
+
     public function __construct(
         private BitacoraGateway $bitacora,
     ) {}
 
     public function ingresar(string $codigo, string $nombreColaborador): ?array
     {
-        // El mismo código puede servir otro día en otra aula: vale el del
-        // examen cuya ventana está abierta ahora.
-        $candidatos = DB::table('examen_aula_codigos as c')
-            ->join('examenes as e', 'e.id', '=', 'c.examen_id')
-            ->where('c.codigo', $codigo)
-            ->get(['c.examen_id', 'c.aula_id', 'e.fecha', 'e.hora_inicio', 'e.duracion_minutos']);
+        $ahora = now();
+        $elegido = null;
 
-        $ahora = now()->timestamp;
-        $codigoRegistro = null;
-        $ventanaFin = 0;
-
-        foreach ($candidatos as $candidato) {
-            /** @var object{examen_id: int, aula_id: int, fecha: string, hora_inicio: string, duracion_minutos: int} $candidato */
-            $fecha = substr((string) $candidato->fecha, 0, 10);
-            $horaInicio = substr((string) $candidato->hora_inicio, 0, 5);
-            $inicioTs = strtotime("{$fecha} {$horaInicio}:00");
-
-            if ($inicioTs === false) {
-                continue;
-            }
-
-            $ventanaInicio = $inicioTs - (60 * 60); // 60 minutos previos al inicio
-            $fin = $inicioTs + ((int) $candidato->duracion_minutos * 60); // fin del examen
-
-            if ($ahora >= $ventanaInicio && $ahora <= $fin) {
-                $codigoRegistro = $candidato;
-                $ventanaFin = $fin;
-
+        // El mismo codigo puede servir otro dia en otra aula: vale el del
+        // examen cuya ventana esta abierta ahora.
+        foreach ($this->candidatos($codigo) as $candidato) {
+            if ($ahora >= $candidato['abre'] && $ahora <= $candidato['cierra']) {
+                $elegido = $candidato;
                 break;
             }
         }
 
-        if ($codigoRegistro === null) {
+        if ($elegido === null) {
             return null;
         }
 
-        /** @var object{id: int, nombre: string}|null $aula */
-        $aula = DB::table('aulas')->where('id', $codigoRegistro->aula_id)->first();
-        $aulaNombre = $aula !== null ? (string) $aula->nombre : '';
-
+        $aulaNombre = $this->nombreDeAula($elegido['aula_id']);
         $token = bin2hex(random_bytes(32));
 
         $acceso = AccesoCodigoAula::create([
-            'examen_id' => $codigoRegistro->examen_id,
-            'aula_id' => $codigoRegistro->aula_id,
+            'examen_id' => $elegido['examen_id'],
+            'aula_id' => $elegido['aula_id'],
             'codigo' => $codigo,
             'nombre_colaborador' => $nombreColaborador,
             'token' => $token,
-            'ultimo_acceso_en' => now(),
+            'ultimo_acceso_en' => $ahora,
+            'estado' => 'PENDIENTE',
         ]);
 
         $this->bitacora->registrar(
@@ -73,62 +61,87 @@ final readonly class EloquentAccesoCodigoAulaGateway implements AccesoCodigoAula
             'acceso_codigo_aula.ingreso',
             'accesos_codigo_aula',
             $acceso->id,
-            "Ingreso con código de aula: {$nombreColaborador} en aula {$aulaNombre}",
+            sprintf(
+                '%s pidió controlar el aula %s con su código; espera la autorización del docente.',
+                $nombreColaborador,
+                $aulaNombre,
+            ),
         );
 
         return [
             'token' => $token,
-            'examen_id' => $codigoRegistro->examen_id,
-            'aula_id' => $codigoRegistro->aula_id,
+            'examen_id' => $elegido['examen_id'],
+            'aula_id' => $elegido['aula_id'],
             'aula_nombre' => $aulaNombre,
             'nombre_colaborador' => $nombreColaborador,
-            'expira_en' => date('Y-m-d H:i:s', $ventanaFin),
+            'expira_en' => $elegido['cierra']->format('Y-m-d H:i:s'),
+            'estado' => 'pendiente',
+        ];
+    }
+
+    public function ventanaDelCodigo(string $codigo): ?array
+    {
+        $candidatos = $this->candidatos($codigo);
+
+        if ($candidatos === []) {
+            return null;
+        }
+
+        $ahora = now();
+        $porVenir = array_values(array_filter($candidatos, static fn (array $c): bool => $c['cierra'] >= $ahora));
+
+        // Primero lo que viene, del mas cercano; despues lo ya cerrado, del
+        // mas reciente.
+        if ($porVenir !== []) {
+            usort($porVenir, static fn (array $a, array $b): int => $a['abre'] <=> $b['abre']);
+            $ventana = $porVenir[0];
+        } else {
+            usort($candidatos, static fn (array $a, array $b): int => $b['cierra'] <=> $a['cierra']);
+            $ventana = $candidatos[0];
+        }
+
+        return [
+            'abre' => $ventana['abre']->format('Y-m-d H:i'),
+            'cierra' => $ventana['cierra']->format('Y-m-d H:i'),
+            'cerrada' => $ventana['cierra'] < $ahora,
         ];
     }
 
     public function salir(string $token): void
     {
+        // Quien sale (o cancela la espera) deja de estar en la puerta.
         AccesoCodigoAula::where('token', $token)
-            ->whereNull('revocado_en')
-            ->update(['revocado_en' => now()]);
+            ->whereIn('estado', ['PENDIENTE', 'AUTORIZADO'])
+            ->update(['estado' => 'CORTADO', 'revocado_en' => now()]);
     }
 
     public function sesion(string $token): array
     {
         /** @var AccesoCodigoAula|null $acceso */
-        $acceso = AccesoCodigoAula::where('token', $token)
-            ->whereNull('revocado_en')
-            ->first();
+        $acceso = AccesoCodigoAula::where('token', $token)->first();
 
         if ($acceso === null) {
             return ['estado' => 'no_valido'];
         }
 
-        /** @var object{id: int, fecha: string, hora_inicio: string, duracion_minutos: int}|null $examen */
-        $examen = DB::table('examenes')->where('id', $acceso->examen_id)->first();
-        if ($examen === null) {
+        $cierra = $this->cierreDe($acceso->examen_id);
+
+        if ($cierra === null) {
             return ['estado' => 'no_valido'];
         }
 
-        $fecha = substr((string) $examen->fecha, 0, 10);
-        $horaInicio = substr((string) $examen->hora_inicio, 0, 5);
-        $duracion = (int) $examen->duracion_minutos;
-
-        $inicioTs = strtotime("{$fecha} {$horaInicio}:00");
-        $ventanaFin = ($inicioTs ?: 0) + ($duracion * 60);
-
-        if (now()->timestamp > $ventanaFin) {
-            $acceso->revocado_en = now();
-            $acceso->save();
-
+        if (now() > $cierra) {
             return ['estado' => 'finalizado'];
+        }
+
+        $estado = $acceso->estado;
+
+        if ($estado === 'RECHAZADO' || $estado === 'CORTADO') {
+            return ['estado' => mb_strtolower($estado)];
         }
 
         $acceso->ultimo_acceso_en = now();
         $acceso->save();
-
-        /** @var object{id: int, nombre: string}|null $aula */
-        $aula = DB::table('aulas')->where('id', $acceso->aula_id)->first();
 
         return [
             'estado' => 'ok',
@@ -136,10 +149,189 @@ final readonly class EloquentAccesoCodigoAulaGateway implements AccesoCodigoAula
                 'token' => $acceso->token,
                 'examen_id' => $acceso->examen_id,
                 'aula_id' => $acceso->aula_id,
-                'aula_nombre' => $aula !== null ? (string) $aula->nombre : '',
+                'aula_nombre' => $this->nombreDeAula($acceso->aula_id),
                 'nombre_colaborador' => $acceso->nombre_colaborador,
-                'expira_en' => date('Y-m-d H:i:s', $ventanaFin),
+                'expira_en' => $cierra->format('Y-m-d H:i:s'),
+                'estado' => mb_strtolower($estado),
             ],
         ];
+    }
+
+    public function delExamen(int $examenId): array
+    {
+        $filas = DB::table('accesos_codigo_aula as acceso')
+            ->join('aulas as aula', 'aula.id', '=', 'acceso.aula_id')
+            ->where('acceso.examen_id', $examenId)
+            ->whereIn('acceso.estado', ['PENDIENTE', 'AUTORIZADO'])
+            ->orderBy('acceso.created_at')
+            ->orderBy('acceso.id')
+            ->get([
+                'acceso.id',
+                'acceso.nombre_colaborador',
+                'acceso.estado',
+                'acceso.aula_id',
+                'acceso.created_at',
+                'acceso.ultimo_acceso_en',
+                'aula.nombre as aula',
+            ]);
+
+        $accesos = [];
+
+        foreach ($filas as $fila) {
+            $columnas = get_object_vars($fila);
+            $accesos[] = [
+                'id' => self::entero($columnas['id'] ?? null),
+                'nombre' => self::texto($columnas['nombre_colaborador'] ?? null),
+                'estado' => mb_strtolower(self::texto($columnas['estado'] ?? null)),
+                'aula_id' => self::entero($columnas['aula_id'] ?? null),
+                'aula' => self::texto($columnas['aula'] ?? null),
+                'pedido_en' => self::iso($columnas['created_at'] ?? null),
+                'visto_en' => self::iso($columnas['ultimo_acceso_en'] ?? null),
+            ];
+        }
+
+        return $accesos;
+    }
+
+    public function resolver(int $accesoId, int $examenId, string $estado, int $usuarioId, ?int $aulaId = null): ?string
+    {
+        return DB::transaction(function () use ($accesoId, $examenId, $estado, $usuarioId, $aulaId): ?string {
+            $fila = DB::table('accesos_codigo_aula as acceso')
+                ->join('aulas as aula', 'aula.id', '=', 'acceso.aula_id')
+                ->where('acceso.id', $accesoId)
+                ->where('acceso.examen_id', $examenId)
+                ->lockForUpdate()
+                ->first(['acceso.nombre_colaborador', 'acceso.estado', 'acceso.aula_id', 'aula.nombre as aula']);
+
+            if ($fila === null) {
+                return null;
+            }
+
+            $columnas = get_object_vars($fila);
+            $anterior = self::texto($columnas['estado'] ?? null);
+            $nombre = self::texto($columnas['nombre_colaborador'] ?? null);
+            $aula = self::texto($columnas['aula'] ?? null);
+            $destino = self::entero($columnas['aula_id'] ?? null);
+
+            // Solo lo vigente cambia: lo rechazado o cortado queda asi.
+            if (! in_array($anterior, ['PENDIENTE', 'AUTORIZADO'], true)) {
+                return $anterior;
+            }
+
+            if ($aulaId !== null) {
+                $otra = DB::table('examen_aula as asignada')
+                    ->join('aulas as aula', 'aula.id', '=', 'asignada.aula_id')
+                    ->where('asignada.examen_id', $examenId)
+                    ->where('asignada.aula_id', $aulaId)
+                    ->value('aula.nombre');
+
+                if (! is_string($otra)) {
+                    return 'AULA_AJENA';
+                }
+
+                $destino = $aulaId;
+                $aula = $otra;
+            }
+
+            DB::table('accesos_codigo_aula')->where('id', $accesoId)->update([
+                'estado' => $estado,
+                'aula_id' => $destino,
+                'resuelto_por' => $usuarioId,
+                'resuelto_en' => now(),
+                'revocado_en' => in_array($estado, ['RECHAZADO', 'CORTADO'], true) ? now() : null,
+                'updated_at' => now(),
+            ]);
+
+            [$operacion, $texto] = match (true) {
+                $estado === 'RECHAZADO' => ['acceso_aula.rechazar', '%s no fue autorizado a controlar el aula %s.'],
+                $estado === 'CORTADO' => ['acceso_aula.cortar', 'Se cortó el acceso de %s al aula %s.'],
+                $anterior === 'AUTORIZADO' => ['acceso_aula.trasladar', '%s pasó a controlar el aula %s.'],
+                default => ['acceso_aula.autorizar', '%s fue autorizado a controlar el aula %s.'],
+            };
+
+            $this->bitacora->registrar(
+                $usuarioId,
+                $operacion,
+                'accesos_codigo_aula',
+                $accesoId,
+                sprintf($texto, $nombre, $aula),
+            );
+
+            return $estado;
+        }, 3);
+    }
+
+    /**
+     * Las ventanas del codigo, de todos los examenes que lo usan.
+     *
+     * @return list<array{examen_id: int, aula_id: int, abre: DateTimeImmutable, cierra: DateTimeImmutable}>
+     */
+    private function candidatos(string $codigo): array
+    {
+        $filas = DB::table('examen_aula_codigos as c')
+            ->join('examenes as e', 'e.id', '=', 'c.examen_id')
+            ->where('c.codigo', $codigo)
+            ->get(['c.examen_id', 'c.aula_id', 'e.fecha', 'e.hora_inicio', 'e.duracion_minutos']);
+
+        $candidatos = [];
+
+        foreach ($filas as $fila) {
+            $columnas = get_object_vars($fila);
+            $inicio = self::inicio(self::texto($columnas['fecha'] ?? null), self::texto($columnas['hora_inicio'] ?? null));
+
+            $candidatos[] = [
+                'examen_id' => self::entero($columnas['examen_id'] ?? null),
+                'aula_id' => self::entero($columnas['aula_id'] ?? null),
+                'abre' => $inicio->modify(sprintf('-%d minutes', self::MINUTOS_ANTES)),
+                'cierra' => $inicio->modify(sprintf('+%d minutes', self::entero($columnas['duracion_minutos'] ?? null))),
+            ];
+        }
+
+        return $candidatos;
+    }
+
+    private function cierreDe(int $examenId): ?DateTimeImmutable
+    {
+        $examen = DB::table('examenes')->where('id', $examenId)->first(['fecha', 'hora_inicio', 'duracion_minutos']);
+
+        if ($examen === null) {
+            return null;
+        }
+
+        $columnas = get_object_vars($examen);
+
+        return self::inicio(self::texto($columnas['fecha'] ?? null), self::texto($columnas['hora_inicio'] ?? null))
+            ->modify(sprintf('+%d minutes', self::entero($columnas['duracion_minutos'] ?? null)));
+    }
+
+    private static function inicio(string $fecha, string $hora): DateTimeImmutable
+    {
+        return new DateTimeImmutable(substr($fecha, 0, 10).' '.substr($hora, 0, 5).':00', now()->getTimezone());
+    }
+
+    private function nombreDeAula(int $aulaId): string
+    {
+        $nombre = DB::table('aulas')->where('id', $aulaId)->value('nombre');
+
+        return is_string($nombre) ? $nombre : '';
+    }
+
+    private static function iso(mixed $instante): ?string
+    {
+        if (! is_string($instante) || $instante === '') {
+            return null;
+        }
+
+        return (new DateTimeImmutable(substr($instante, 0, 19), now()->getTimezone()))->format(DATE_ATOM);
+    }
+
+    private static function texto(mixed $valor): string
+    {
+        return is_scalar($valor) ? (string) $valor : '';
+    }
+
+    private static function entero(mixed $valor): int
+    {
+        return is_numeric($valor) ? (int) $valor : 0;
     }
 }

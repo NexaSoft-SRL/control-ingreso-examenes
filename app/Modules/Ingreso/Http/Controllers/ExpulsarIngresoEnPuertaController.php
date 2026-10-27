@@ -7,9 +7,9 @@ namespace App\Modules\Ingreso\Http\Controllers;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\OperacionesPuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
+use App\Modules\Ingreso\Http\Middleware\ExigirPuesto;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 final class ExpulsarIngresoEnPuertaController
 {
@@ -21,13 +21,18 @@ final class ExpulsarIngresoEnPuertaController
         OperacionesPuertaGateway $operaciones,
         VentanaPuntoControl $ventana,
     ): JsonResponse {
-        $usuarioId = Auth::id();
+        $operador = ExigirPuesto::operador($request);
 
-        if (! is_int($usuarioId)) {
+        // Con codigo de aula solo se verifica y se reportan incidencias: lo
+        // que cambia la situacion de un estudiante lo hace una cuenta.
+        if ($operador->usuarioId === null) {
             return response()->json([
-                'message' => 'No hay una sesión activa.',
-            ], 401);
+                'message' => 'Con código de aula solo se verifica y se reportan incidencias.',
+                'alcance' => true,
+            ], 403);
         }
+
+        $usuarioId = $operador->usuarioId;
 
         $datos = $request->validate([
             'motivo' => ['required', 'string', 'min:5', 'max:500'],

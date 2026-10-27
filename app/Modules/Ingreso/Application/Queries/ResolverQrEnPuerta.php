@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Application\Queries;
 
 use App\Modules\Examenes\Application\Contracts\ExamenGateway;
-use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
+use App\Modules\Ingreso\Application\Authorization\AlcancePuerta;
 use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
+use App\Modules\Ingreso\Application\DTOs\OperadorPuertaData;
 use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
 use App\Modules\Ingreso\Domain\Exceptions\CodigoQrNoValido;
 use InvalidArgumentException;
@@ -16,7 +17,7 @@ final readonly class ResolverQrEnPuerta
 {
     public function __construct(
         private ExamenGateway $examenes,
-        private AlcancePuntoControl $alcance,
+        private AlcancePuerta $alcance,
         private VentanaPuntoControl $ventana,
         private CodigoQrGateway $qr,
     ) {}
@@ -26,14 +27,13 @@ final readonly class ResolverQrEnPuerta
      * @return array{int, string}
      */
     public function ejecutar(
-        int $usuarioId,
+        OperadorPuertaData $operador,
         int $aulaId,
         array $candidatos,
         string $contenido,
     ): array {
         if (
-            $usuarioId <= 0
-            || $aulaId <= 0
+            $aulaId <= 0
             || strlen($contenido) > 2048
         ) {
             throw new InvalidArgumentException('Código QR inválido.');
@@ -59,11 +59,7 @@ final readonly class ResolverQrEnPuerta
             if (
                 $examen === null
                 || ! in_array($aulaId, $examen->aulas, true)
-                || ! $this->alcance->puedeOperar(
-                    $usuarioId,
-                    $examenId,
-                    $aulaId,
-                )
+                || ! $this->alcance->puedeOperar($operador, $examenId, $aulaId)
             ) {
                 continue;
             }

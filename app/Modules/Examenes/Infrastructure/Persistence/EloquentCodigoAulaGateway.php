@@ -72,10 +72,13 @@ final readonly class EloquentCodigoAulaGateway implements CodigoAulaGateway
             ->first();
 
         if ($existente instanceof ExamenAulaCodigo) {
+            // El codigo viejo deja de abrir la puerta: se cortan los accesos
+            // que esperaban o que estaban autorizados en esa aula.
             DB::table('accesos_codigo_aula')
                 ->where('examen_id', $examenId)
                 ->where('aula_id', $aulaId)
-                ->update(['revocado_en' => now()]);
+                ->whereIn('estado', ['PENDIENTE', 'AUTORIZADO'])
+                ->update(['estado' => 'CORTADO', 'revocado_en' => now()]);
 
             $existente->codigo = $codigo;
             $existente->generado_en = now();

@@ -240,6 +240,7 @@ final class EloquentDetallePuertaGateway implements DetallePuertaGateway
                 $join->on('x.ingreso_id', '=', 'i.id')->where('x.tipo', '=', 'EXPULSION');
             })
             ->leftJoin('usuarios as u', 'u.id', '=', 'i.registrado_por')
+            ->leftJoin('accesos_codigo_aula as acceso', 'acceso.id', '=', 'i.acceso_codigo_aula_id')
             ->whereIn('i.examen_id', $examenIds)
             ->where('i.aula_id', $aulaId);
 
@@ -270,6 +271,7 @@ final class EloquentDetallePuertaGateway implements DetallePuertaGateway
                 'i.es_excepcion',
                 'x.ocurrida_en as expulsado_en',
                 'u.nombre as operador',
+                'acceso.nombre_colaborador as colaborador',
                 'ex.hora_inicio',
             ]);
 
@@ -292,7 +294,11 @@ final class EloquentDetallePuertaGateway implements DetallePuertaGateway
                 'expulsado' => self::campo($fila, 'expulsado_en') !== null,
                 'expulsado_a' => self::campo($fila, 'expulsado_en') === null ? null : self::hora(self::campo($fila, 'expulsado_en')),
                 'es_excepcion' => (bool) self::campo($fila, 'es_excepcion'),
-                'operador' => self::textoONulo(self::campo($fila, 'operador')),
+                // Sin cuenta, registro quien entro con el codigo de aula.
+                'operador' => self::textoONulo(self::campo($fila, 'operador'))
+                    ?? (self::campo($fila, 'colaborador') === null
+                        ? null
+                        : self::texto(self::campo($fila, 'colaborador')).' (código de aula)'),
                 'tarde' => $this->reglas->minutosTarde($retraso),
             ];
         }

@@ -308,7 +308,13 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
                 noHabilitados: $noHabilitados,
                 sinRevisar: $sinRevisar,
                 qrEmitidos: $codigosQr[$id] ?? 0,
-                avance: $this->avance(count($aulasDelExamen), $habilitados, $sinRevisar, $codigosQr[$id] ?? 0),
+                avance: $this->avance(
+                    count($aulasDelExamen),
+                    $habilitados,
+                    $sinRevisar,
+                    $codigosQr[$id] ?? 0,
+                    self::aulasPorPersona($aulasDelExamen),
+                ),
                 propio: $this->entero($columnas['creado_por'] ?? null) === $usuarioId,
                 registradoPor: $this->texto($columnas['creador_docente'] ?? null)
                     ?? $this->cadena($columnas['creador_nombre'] ?? null),
@@ -329,9 +335,27 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         return $examenes;
     }
 
-    private function avance(int $aulas, int $habilitados, int $sinRevisar, int $conCodigoQr): AvanceData
+    /**
+     * Cuantas aulas del examen tiene a cargo quien mas tiene.
+     *
+     * @param  list<AulaDetalleData>  $aulas
+     */
+    private static function aulasPorPersona(array $aulas): int
     {
-        $avance = AvanceDeExamen::calcular($aulas, $habilitados, $sinRevisar, $conCodigoQr);
+        $cuenta = [];
+
+        foreach ($aulas as $aula) {
+            if ($aula->aCargo !== null) {
+                $cuenta[$aula->aCargo['id']] = ($cuenta[$aula->aCargo['id']] ?? 0) + 1;
+            }
+        }
+
+        return $cuenta === [] ? 1 : max($cuenta);
+    }
+
+    private function avance(int $aulas, int $habilitados, int $sinRevisar, int $conCodigoQr, int $aulasPorPersona = 1): AvanceData
+    {
+        $avance = AvanceDeExamen::calcular($aulas, $habilitados, $sinRevisar, $conCodigoQr, $aulasPorPersona);
 
         return new AvanceData(
             grupos: $avance['grupos'],

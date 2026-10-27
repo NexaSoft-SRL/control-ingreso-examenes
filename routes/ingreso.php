@@ -4,24 +4,28 @@ declare(strict_types=1);
 
 use App\Modules\Ingreso\Http\Controllers\CodigoQrController;
 use App\Modules\Ingreso\Http\Controllers\ContextoPuntoControlController;
+use App\Modules\Ingreso\Http\Controllers\ControlDelExamenController;
+use App\Modules\Ingreso\Http\Controllers\EdificiosDePuertaController;
 use App\Modules\Ingreso\Http\Controllers\ExpulsarIngresoEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\IdentificarEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\IncidenciaController;
 use App\Modules\Ingreso\Http\Controllers\IngresosRecientesEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\PuertaAulaController;
-use App\Modules\Ingreso\Http\Controllers\PuntoControlController;
 use App\Modules\Ingreso\Http\Controllers\RegistrarExcepcionPuertaController;
 use App\Modules\Ingreso\Http\Controllers\RegistrarIngresoEnPuertaController;
 use App\Modules\Ingreso\Http\Controllers\SeguimientoAulaController;
-use App\Modules\Ingreso\Http\Middleware\VerificarAccesoPuntoControl;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'permiso:punto_control'])
+// La puerta (HU-19) admite a una cuenta con `punto_control` o a quien entro
+// con un codigo de aula autorizado por el docente, solo en su aula: por eso
+// lleva `puesto` y no `auth`.
+
+Route::middleware('puesto')
     ->get('api/aulas/{aula}/punto-control', PuertaAulaController::class)
     ->whereNumber('aula')
     ->name('ingreso.puerta.aula');
 
-Route::middleware(['auth', 'permiso:punto_control'])
+Route::middleware('puesto')
     ->post(
         'api/aulas/{aula}/punto-control/excepciones',
         RegistrarExcepcionPuertaController::class,
@@ -29,7 +33,7 @@ Route::middleware(['auth', 'permiso:punto_control'])
     ->whereNumber('aula')
     ->name('ingreso.puerta.excepcion');
 
-Route::middleware(['auth', 'permiso:punto_control'])
+Route::middleware('puesto')
     ->get(
         'api/aulas/{aula}/punto-control/ingresos',
         IngresosRecientesEnPuertaController::class,
@@ -37,7 +41,7 @@ Route::middleware(['auth', 'permiso:punto_control'])
     ->whereNumber('aula')
     ->name('ingreso.puerta.recientes');
 
-Route::middleware(['auth', 'permiso:punto_control'])
+Route::middleware('puesto')
     ->post(
         'api/aulas/{aula}/punto-control/identificar',
         IdentificarEnPuertaController::class,
@@ -45,7 +49,7 @@ Route::middleware(['auth', 'permiso:punto_control'])
     ->whereNumber('aula')
     ->name('ingreso.puerta.identificar');
 
-Route::middleware(['auth', 'permiso:punto_control'])
+Route::middleware('puesto')
     ->post(
         'api/aulas/{aula}/punto-control/ingresos',
         RegistrarIngresoEnPuertaController::class,
@@ -53,36 +57,20 @@ Route::middleware(['auth', 'permiso:punto_control'])
     ->whereNumber('aula')
     ->name('ingreso.puerta.registrar');
 
-Route::middleware(['auth', 'permiso:punto_control'])
+Route::middleware('puesto')
     ->post('api/aulas/{aula}/punto-control/ingresos/{ingreso}/expulsion', ExpulsarIngresoEnPuertaController::class)
     ->whereNumber('aula')
     ->whereNumber('ingreso')
     ->name('ingreso.puerta.expulsar');
 
-Route::middleware(['auth', 'permiso:punto_control'])
+Route::middleware('puesto')
     ->get('api/punto-control/contexto', ContextoPuntoControlController::class)
     ->name('ingreso.contexto');
 
-Route::middleware([VerificarAccesoPuntoControl::class])
-    ->prefix('api/examenes/{examen}/aulas/{aula}/punto-control')
-    ->whereNumber('examen')
+Route::middleware('puesto')
+    ->get('api/aulas/{aula}/punto-control/edificios', EdificiosDePuertaController::class)
     ->whereNumber('aula')
-    ->group(function (): void {
-        Route::get('candidato', [
-            PuntoControlController::class,
-            'candidato',
-        ])->name('ingreso.candidato');
-
-        Route::post('ingresos', [
-            PuntoControlController::class,
-            'registrar',
-        ])->name('ingreso.registrar');
-
-        Route::get('ingresos', [
-            PuntoControlController::class,
-            'recientes',
-        ])->name('ingreso.recientes');
-    });
+    ->name('ingreso.puerta.edificios');
 
 Route::middleware(['auth', 'permiso:seguimiento_vivo'])
     ->prefix('api/seguimiento')
@@ -118,6 +106,18 @@ Route::middleware(['auth', 'permiso:seguimiento_vivo|examenes'])
         Route::post('/atencion', [IncidenciaController::class, 'atender'])->name('atender');
         Route::post('/correccion', [IncidenciaController::class, 'corregir'])->name('corregir');
         Route::get('/evidencia', [IncidenciaController::class, 'evidencia'])->name('evidencia');
+    });
+
+// El panel en vivo del docente (HU-22): la autorizacion de los accesos con
+// codigo de aula (HU-18).
+Route::middleware(['auth', 'permiso:examenes'])
+    ->prefix('api/examenes/{examen}')
+    ->whereNumber(['examen', 'acceso'])
+    ->name('control.')
+    ->group(function (): void {
+        Route::post('/accesos/{acceso}/{accion}', [ControlDelExamenController::class, 'resolver'])
+            ->whereIn('accion', ['autorizar', 'rechazar', 'cortar', 'trasladar'])
+            ->name('acceso');
     });
 
 // HU-20: codigos QR y avisos por correo de un examen. Ademas del permiso,
