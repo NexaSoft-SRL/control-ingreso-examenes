@@ -624,7 +624,7 @@ describe('Mis grupos · foto del inscrito', () => {
         renderConSesion(<MisGrupos />);
 
         const tabla = await screen.findByRole('table');
-        fireEvent.click(within(tabla).getByRole('button', { name: 'Foto de Apellido001, Nombre' }));
+        fireEvent.click(within(tabla).getByRole('button', { name: 'Foto de Apellido001 Nombre' }));
 
         const dialogo = await screen.findByRole('dialog');
         expect(within(dialogo).getByText('Sin foto')).toBeInTheDocument();
