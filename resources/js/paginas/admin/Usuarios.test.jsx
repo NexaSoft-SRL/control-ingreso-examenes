@@ -75,7 +75,8 @@ const CUENTAS = [
         usuario: 'diego.mamani',
         correo: null,
         rol: 'Auxiliar',
-        estado: 'activo',
+        // Todavía con la contraseña temporal.
+        estado: 'temporal',
     },
     {
         id: 30,
@@ -276,6 +277,11 @@ function servidor({ roles: rolesIniciales = ROLES, propio = 'Administrador' } = 
         'PUT /usuarios/*': editar,
         'POST /usuarios/*/contrasena-temporal': temporal,
         'GET /roles': () => ({ data: roles.map(rolFuera), meta: { permisos: CATALOGO } }),
+        'GET /estudiantes/resumen': { estudiantes: 4218, inscripciones: 9000 },
+        'POST /roles/restablecer': {
+            cambiados: ['Auxiliar'],
+            message: 'Roles base restablecidos: Auxiliar.',
+        },
         'POST /roles': crearRol,
         'PUT /roles/*': editarRol,
         'DELETE /roles/*': eliminarRol,
@@ -397,7 +403,7 @@ describe('Usuarios y roles · cuentas', () => {
         expect(ultimaConsulta().params).not.toHaveProperty('rol');
     });
 
-    it('«Bloqueadas» se combina con el rol y con la búsqueda (criterio 4)', async () => {
+    it('un filtro a la vez: «Bloqueadas» quita el rol y el rol quita «Bloqueadas»; la búsqueda sigue', async () => {
         await montar();
 
         const bloqueadas = screen.getByRole('button', { name: 'Bloqueadas 1' });
@@ -406,21 +412,60 @@ describe('Usuarios y roles · cuentas', () => {
         expect(ultimaConsulta().params).toEqual({ bloqueadas: 1, pagina: 1, por_pagina: 20 });
         expect(bloqueadas).toHaveAttribute('aria-pressed', 'true');
 
-        fireEvent.click(opcion('Docente', 20));
         fireEvent.change(screen.getByLabelText('Buscar cuenta'), { target: { value: 'montano' } });
+        fireEvent.click(opcion('Docente', 20));
         await waitFor(() =>
             expect(ultimaConsulta().params).toEqual({
                 rol: 'Docente',
+                buscar: 'montano',
+                pagina: 1,
+                por_pagina: 20,
+            })
+        );
+        expect(bloqueadas).toHaveAttribute('aria-pressed', 'false');
+
+        fireEvent.click(bloqueadas);
+        await waitFor(() =>
+            expect(ultimaConsulta().params).toEqual({
                 bloqueadas: 1,
                 buscar: 'montano',
                 pagina: 1,
                 por_pagina: 20,
             })
         );
-        expect(filas()[0]).toHaveTextContent('Montano Quiroga Victor Hugo');
+    });
 
-        fireEvent.click(opcion('Auxiliar', 1));
-        expect(await screen.findByText('Sin resultados')).toBeInTheDocument();
+    it('los estados de cuenta son los de Docentes: Activo, Temporal y Bloqueado', async () => {
+        await montar();
+        expect(within(fila('Mamani Torrez Diego')).getByText('Temporal')).toBeInTheDocument();
+        expect(within(fila('Blanco Coca Leticia')).getByText('Activo')).toBeInTheDocument();
+        expect(
+            within(fila('Montano Quiroga Victor Hugo')).getByText('Bloqueado')
+        ).toBeInTheDocument();
+    });
+
+    it('el estudiante figura aparte: sin cuenta, con su cifra y enlace al padrón', async () => {
+        await montar();
+        const tarjeta = await screen.findByRole('link', { name: /Estudiante/ });
+        expect(tarjeta).toHaveAttribute('href', '/estudiantes');
+        expect(tarjeta).toHaveTextContent(/4\.?218/);
+        expect(tarjeta).toHaveTextContent('Estudiante · sin cuenta');
+        // No es un rol de la matriz: no tiene permisos que repartir.
+        expect(within(matriz()).queryByText('Estudiante')).not.toBeInTheDocument();
+    });
+
+    it('«Restablecer roles base» confirma y vuelve los roles de inicio a fábrica', async () => {
+        await montar();
+        fireEvent.click(screen.getByRole('button', { name: 'Restablecer roles base' }));
+
+        const dialogo = within(screen.getByRole('dialog', { name: 'Restablecer roles base' }));
+        expect(dialogo.getByText('Los roles creados no cambian')).toBeInTheDocument();
+        expect(api.post).not.toHaveBeenCalledWith('/roles/restablecer');
+        fireEvent.click(dialogo.getByRole('button', { name: 'Restablecer' }));
+
+        expect(await screen.findByText('Roles base restablecidos: Auxiliar')).toBeInTheDocument();
+        expect(api.post).toHaveBeenCalledWith('/roles/restablecer');
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
     it('«Nuevo usuario» crea la cuenta, la deja primera y entrega la temporal una sola vez (criterio 5)', async () => {
@@ -496,7 +541,7 @@ describe('Usuarios y roles · cuentas', () => {
         fireEvent.click(crear);
         expect(within(dialogo).getByText('Mínimo 3 caracteres')).toBeInTheDocument();
         expect(
-            within(dialogo).getByText('Solo letras, números, puntos y guiones')
+            within(dialogo).getByText('Letras o números, separados por punto o guion')
         ).toBeInTheDocument();
         expect(within(dialogo).getByText('Correo no válido')).toBeInTheDocument();
         expect(api.post).not.toHaveBeenCalled();

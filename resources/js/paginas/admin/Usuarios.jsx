@@ -1,6 +1,15 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
-import { Copy, Plus } from 'lucide-react';
+import {
+    BookOpenCheck,
+    Copy,
+    GraduationCap,
+    Plus,
+    ScanLine,
+    ShieldCheck,
+    UsersRound,
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { erroresDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
@@ -18,6 +27,7 @@ import Insignia from '../../componentes/Insignia';
 import Paginacion from '../../componentes/Paginacion';
 import Seleccion from '../../componentes/Seleccion';
 import Tarjeta from '../../componentes/Tarjeta';
+import { usarSesion } from '../../sesion/SesionContexto';
 import PermisosPorRol from './PermisosPorRol';
 
 const POR_PAGINA = 20;
@@ -25,7 +35,7 @@ const TH = 'px-4 py-3 font-medium';
 const CABECERA = 'bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-600';
 const FICHA =
     'inline-flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
-const USUARIO = /^[a-z0-9._-]+$/i;
+const USUARIO = /^[a-z0-9]+([._-][a-z0-9]+)*$/i;
 const CORREO = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 const miles = (n) => Number(n ?? 0).toLocaleString('es-BO');
 
@@ -38,12 +48,18 @@ const FORMA_CUENTA = PropTypes.shape({
     estado: PropTypes.string,
 });
 
+// Los mismos estados que en Docentes.
+const ESTADOS = {
+    activo: { tono: 'exito', texto: 'Activo' },
+    temporal: { tono: 'primario', texto: 'Temporal' },
+    bloqueado: { tono: 'peligro', texto: 'Bloqueado' },
+};
+
+const ICONO_ROL = { Administrador: ShieldCheck, Docente: BookOpenCheck, Auxiliar: ScanLine };
+
 function Estado({ estado }) {
-    return (
-        <Insignia tono={estado === 'activo' ? 'exito' : 'peligro'}>
-            {estado === 'activo' ? 'Activo' : 'Bloqueado'}
-        </Insignia>
-    );
+    const forma = ESTADOS[estado] ?? ESTADOS.bloqueado;
+    return <Insignia tono={forma.tono}>{forma.texto}</Insignia>;
 }
 
 Estado.propTypes = { estado: PropTypes.string };
@@ -107,6 +123,8 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
     const [correo, setCorreo] = useState(cuenta.correo ?? '');
     const [rol, setRol] = useState(cuenta.rol ?? '');
     const [estado, setEstado] = useState(cuenta.estado ?? 'activo');
+    // Al desbloquear vuelve a su estado (temporal si no cambió la contraseña).
+    const desbloqueada = cuenta.estado && cuenta.estado !== 'bloqueado' ? cuenta.estado : 'activo';
     const [enviado, setEnviado] = useState(false);
     const [enviando, setEnviando] = useState(false);
     const [errores, setErrores] = useState({});
@@ -124,7 +142,7 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
     const errorUsuario = !usuario.trim()
         ? 'Obligatorio'
         : !USUARIO.test(usuario.trim())
-          ? 'Solo letras, números, puntos y guiones'
+          ? 'Letras o números, separados por punto o guion'
           : null;
     const errorCorreo = correo.trim() && !CORREO.test(correo.trim()) ? 'Correo no válido' : null;
     const errorRol = !rol ? 'Obligatorio' : null;
@@ -147,7 +165,7 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
             correo: escrito === '' ? null : escrito,
             rol,
         };
-        if (!nueva && estado !== cuenta.estado) cuerpo.activo = estado === 'activo';
+        if (!nueva && estado !== cuenta.estado) cuerpo.activo = estado !== 'bloqueado';
 
         const mensaje =
             estado === cuenta.estado
@@ -296,7 +314,7 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
                                         <Boton
                                             type="button"
                                             variante={
-                                                estado === 'activo'
+                                                estado !== 'bloqueado'
                                                     ? 'peligroContorno'
                                                     : 'secundario'
                                             }
@@ -304,11 +322,13 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
                                             className="min-h-10"
                                             onClick={() =>
                                                 setEstado(
-                                                    estado === 'activo' ? 'bloqueado' : 'activo'
+                                                    estado !== 'bloqueado'
+                                                        ? 'bloqueado'
+                                                        : desbloqueada
                                                 )
                                             }
                                         >
-                                            {estado === 'activo' ? 'Bloquear' : 'Desbloquear'}
+                                            {estado !== 'bloqueado' ? 'Bloquear' : 'Desbloquear'}
                                         </Boton>
                                     </>
                                 )}
@@ -356,6 +376,12 @@ export default function Usuarios() {
         parametros: lista.parametros,
     });
     const roles = usarConsulta('/roles');
+    const { puede } = usarSesion();
+    // El estudiante no tiene cuenta: entra con su código SIS, y su portal
+    // no tiene permisos que repartir.
+    const estudiantes = usarConsulta('/estudiantes/resumen', {
+        activa: puede('padron_estudiantes'),
+    });
     const [editando, setEditando] = useState(null);
     // La contraseña temporal de la cuenta recién creada, hasta cerrar.
     const [creada, setCreada] = useState(null);
@@ -413,9 +439,13 @@ export default function Usuarios() {
                             <div key={nombre} className="min-w-0">
                                 <Dato
                                     etiqueta={nombre}
+                                    icono={ICONO_ROL[nombre] ?? UsersRound}
                                     tono={rol === nombre ? 'primario' : 'neutro'}
                                     onClick={() =>
-                                        lista.ponerFiltro('rol', rol === nombre ? null : nombre)
+                                        lista.ponerFiltros({
+                                            rol: rol === nombre ? null : nombre,
+                                            bloqueadas: null,
+                                        })
                                     }
                                     valor={
                                         <>
@@ -428,12 +458,39 @@ export default function Usuarios() {
                                 />
                             </div>
                         ))}
+                        {puede('padron_estudiantes') && (
+                            <Link
+                                to="/estudiantes"
+                                className="block h-full min-w-0 rounded-xl border border-dashed border-slate-300 bg-white p-4 hover:border-primary-300 hover:bg-primary-50/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600"
+                            >
+                                <span className="flex items-start justify-between gap-2">
+                                    <span className="min-w-0">
+                                        <span className="block text-xs font-medium text-slate-600">
+                                            Estudiante · sin cuenta
+                                        </span>
+                                        <span className="block text-2xl font-semibold leading-tight text-slate-900">
+                                            {miles(estudiantes.datos?.estudiantes)}{' '}
+                                            <span className="hidden text-sm font-normal text-slate-600 sm:inline">
+                                                estudiantes
+                                            </span>
+                                        </span>
+                                    </span>
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                                        <GraduationCap
+                                            className="h-[1.125rem] w-[1.125rem]"
+                                            aria-hidden="true"
+                                        />
+                                    </span>
+                                </span>
+                            </Link>
+                        )}
                     </div>
 
+                    {/* Un filtro a la vez: elegir uno quita el otro. */}
                     <Chips
                         etiqueta="Filtrar por rol"
-                        valor={rol}
-                        onCambiar={(valor) => lista.ponerFiltro('rol', valor)}
+                        valor={soloBloqueadas ? '__bloqueadas' : rol}
+                        onCambiar={(valor) => lista.ponerFiltros({ rol: valor, bloqueadas: null })}
                         opciones={[
                             { valor: null, etiqueta: 'Todos', conteo: miles(meta.cuentas) },
                             ...nombresDeRol.map((nombre) => ({
@@ -447,7 +504,10 @@ export default function Usuarios() {
                                 type="button"
                                 aria-pressed={Boolean(soloBloqueadas)}
                                 onClick={() =>
-                                    lista.ponerFiltro('bloqueadas', soloBloqueadas ? null : 1)
+                                    lista.ponerFiltros({
+                                        rol: null,
+                                        bloqueadas: soloBloqueadas ? null : 1,
+                                    })
                                 }
                                 className={`${FICHA} ${
                                     soloBloqueadas

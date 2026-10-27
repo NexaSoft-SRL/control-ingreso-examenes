@@ -60,7 +60,8 @@ final class GuardarUsuarioRequest extends FormRequest
                 'required',
                 'string',
                 'max:60',
-                'regex:/^[a-z0-9._-]+$/',
+                // Empieza y termina con letra o numero, sin separadores seguidos.
+                'regex:/^[a-z0-9]+([._-][a-z0-9]+)*$/',
                 function (string $atributo, mixed $valor, Closure $fallar) use ($cuentas, $propia): void {
                     if (is_string($valor) && $cuentas->usuarioRegistrado($valor, $propia)) {
                         $fallar('Ya existe');
@@ -97,7 +98,7 @@ final class GuardarUsuarioRequest extends FormRequest
             'usuario.required' => 'Obligatorio',
             'usuario.string' => 'Obligatorio',
             'usuario.max' => 'Máximo 60 caracteres',
-            'usuario.regex' => 'Solo letras, números, puntos y guiones',
+            'usuario.regex' => 'Letras o números, separados por punto o guion',
             'correo.string' => 'Correo no válido',
             'correo.email' => 'Correo no válido',
             'correo.max' => 'Máximo 255 caracteres',

@@ -21,7 +21,8 @@ final class ActivarCuentaDocenteRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'usuario' => ['required', 'string', 'max:60', 'regex:/^[a-z0-9._-]+$/'],
+            // Empieza y termina con letra o numero, sin separadores seguidos.
+            'usuario' => ['required', 'string', 'max:60', 'regex:/^[a-z0-9]+([._-][a-z0-9]+)*$/'],
             'correo' => ['sometimes', 'nullable', 'string', 'email', 'max:255'],
         ];
     }

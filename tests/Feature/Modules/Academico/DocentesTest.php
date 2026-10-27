@@ -62,7 +62,7 @@ final class DocentesTest extends TestCase
                     ['sigla' => 'FCyT', 'grupos' => 2],
                     ['sigla' => 'FCE', 'grupos' => 1],
                 ],
-                'cuenta' => 'activa',
+                'cuenta' => 'activo',
             ])
             ->assertJsonPath('data.2.cuenta', 'temporal')
             ->assertJsonPath('meta', [
@@ -209,7 +209,7 @@ final class DocentesTest extends TestCase
                     ],
                     ['sigla' => 'FCE', 'grupos' => 1, 'materias' => ['Estadística']],
                 ],
-                'cuenta' => ['estado' => 'activa', 'usuario' => 'leticiablanco', 'correo' => null],
+                'cuenta' => ['estado' => 'activo', 'usuario' => 'leticiablanco', 'correo' => null],
                 'usuario_sugerido' => 'leticiablanco',
             ]]);
     }
@@ -251,6 +251,17 @@ final class DocentesTest extends TestCase
                 'usuario' => 'corinaflores',
                 'correo' => 'corina@umss.edu.bo',
             ]);
+    }
+
+    public function test_a_blocked_account_shows_as_blocked_like_in_users(): void
+    {
+        $cuenta = UserFactory::new()->createOne(['usuario' => 'victormontano', 'is_active' => false]);
+        $docente = $this->docenteConCuenta($cuenta, 'Montaño Quiroga Victor Hugo');
+
+        $this->actingAs($this->usuarioConPermisos(['aulas_docentes']))
+            ->getJson("/api/docentes/{$docente->id}")
+            ->assertOk()
+            ->assertJsonPath('data.cuenta.estado', 'bloqueado');
     }
 
     public function test_teacher_detail_handles_unknown_teacher_session_and_permission(): void
@@ -396,7 +407,7 @@ final class DocentesTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonPath(
                 'errors.usuario.0',
-                'El usuario solo admite letras minúsculas, números, punto, guion y guion bajo.',
+                'Letras o números, separados por punto o guion',
             )
             ->assertJsonPath('errors.correo.0', 'El correo no tiene un formato válido.');
 
