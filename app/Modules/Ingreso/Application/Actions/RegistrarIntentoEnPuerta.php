@@ -6,6 +6,7 @@ namespace App\Modules\Ingreso\Application\Actions;
 
 use App\Modules\Ingreso\Application\Contracts\DetallePuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaIngresoGateway;
+use App\Modules\Ingreso\Application\DTOs\OperadorPuertaData;
 use App\Modules\Ingreso\Application\DTOs\ResultadoResolucionPuertaData;
 use App\Modules\Ingreso\Domain\Enums\CausaIntento;
 
@@ -23,7 +24,7 @@ final readonly class RegistrarIntentoEnPuerta
     ) {}
 
     public function ejecutar(
-        int $usuarioId,
+        OperadorPuertaData $operador,
         int $aulaId,
         string $tipo,
         string $identificador,
@@ -34,7 +35,7 @@ final readonly class RegistrarIntentoEnPuerta
         }
 
         if ($resultado->causa !== null) {
-            $this->registrarIntento($usuarioId, $aulaId, $tipo, $identificador, $resultado);
+            $this->registrarIntento($operador, $aulaId, $tipo, $identificador, $resultado);
 
             return;
         }
@@ -65,14 +66,15 @@ final readonly class RegistrarIntentoEnPuerta
             $resultado->examenId,
             $aulaId,
             $estudianteId,
-            $usuarioId,
+            $operador->usuarioId,
             $veredicto,
             $texto,
+            $operador->accesoId,
         );
     }
 
     private function registrarIntento(
-        int $usuarioId,
+        OperadorPuertaData $operador,
         int $aulaId,
         string $tipo,
         string $identificador,
@@ -117,9 +119,10 @@ final readonly class RegistrarIntentoEnPuerta
         $this->incidencias->registrarIntento(
             $aulaId,
             $estudianteId,
-            $usuarioId,
+            $operador->usuarioId,
             $causa,
             $texto,
+            $operador->accesoId,
         );
     }
 }

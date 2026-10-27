@@ -9,6 +9,7 @@ use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\OperacionesPuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
+use App\Modules\Ingreso\Application\DTOs\OperadorPuertaData;
 use App\Modules\Ingreso\Application\Queries\ExamenesOperablesEnAula;
 use App\Modules\Ingreso\Domain\Enums\TipoExcepcion;
 use DomainException;
@@ -44,7 +45,7 @@ final readonly class RegistrarExcepcionEnPuerta
         ?int $examenId,
     ): array {
         $abiertos = array_values(array_filter(
-            $this->operables->ejecutar($usuarioId, $aulaId, $fecha),
+            $this->operables->ejecutar(OperadorPuertaData::cuenta($usuarioId), $aulaId, $fecha),
             fn (int $id): bool => $this->ventana->estaAbierta($id),
         ));
 

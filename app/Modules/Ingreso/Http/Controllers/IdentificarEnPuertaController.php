@@ -10,11 +10,11 @@ use App\Modules\Ingreso\Application\Queries\DetallarVeredictoPuerta;
 use App\Modules\Ingreso\Application\Queries\IdentificarEnPuerta;
 use App\Modules\Ingreso\Application\Queries\ResolverIdentificador;
 use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
+use App\Modules\Ingreso\Http\Middleware\ExigirPuesto;
 use App\Modules\Ingreso\Http\Requests\IdentificarEnPuertaRequest;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
 use InvalidArgumentException;
 
 final class IdentificarEnPuertaController
@@ -28,13 +28,7 @@ final class IdentificarEnPuertaController
         DetallarVeredictoPuerta $detallar,
         ExamenesDePuerta $examenesDePuerta,
     ): JsonResponse {
-        $usuarioId = Auth::id();
-
-        if (! is_int($usuarioId)) {
-            return response()->json([
-                'message' => 'No hay una sesión activa.',
-            ], 401);
-        }
+        $operador = ExigirPuesto::operador($request);
 
         $resuelto = $identificadores->ejecutar($request->tipo(), $request->identificador());
         $datos = ['tipo' => $resuelto['tipo'], 'identificador' => $resuelto['valor']];
@@ -48,7 +42,7 @@ final class IdentificarEnPuertaController
 
         try {
             $resultado = $identificar->ejecutar(
-                $usuarioId,
+                $operador,
                 $aula,
                 $datos['tipo'],
                 $datos['identificador'],
@@ -58,7 +52,7 @@ final class IdentificarEnPuertaController
             // BUG-04: quien no puede entrar deja su intento registrado,
             // tambien cuando solo se lo identifica.
             $intentos->ejecutar(
-                $usuarioId,
+                $operador,
                 $aula,
                 $medio,
                 $datos['identificador'],

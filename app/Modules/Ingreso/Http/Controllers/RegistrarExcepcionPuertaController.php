@@ -7,12 +7,12 @@ namespace App\Modules\Ingreso\Http\Controllers;
 use App\Modules\Ingreso\Application\Actions\RegistrarExcepcionEnPuerta;
 use App\Modules\Ingreso\Domain\Enums\TipoExcepcion;
 use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
+use App\Modules\Ingreso\Http\Middleware\ExigirPuesto;
 use DateTimeImmutable;
 use DateTimeZone;
 use DomainException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
 
@@ -23,13 +23,18 @@ final class RegistrarExcepcionPuertaController
         int $aula,
         RegistrarExcepcionEnPuerta $registrar,
     ): JsonResponse {
-        $usuarioId = Auth::id();
+        $operador = ExigirPuesto::operador($request);
 
-        if (! is_int($usuarioId)) {
+        // Con codigo de aula solo se verifica y se reportan incidencias: lo
+        // que cambia la situacion de un estudiante lo hace una cuenta.
+        if ($operador->usuarioId === null) {
             return response()->json([
-                'message' => 'No hay una sesión activa.',
-            ], 401);
+                'message' => 'Con código de aula solo se verifica y se reportan incidencias.',
+                'alcance' => true,
+            ], 403);
         }
+
+        $usuarioId = $operador->usuarioId;
 
         $request->validate([
             'tipo' => ['required', 'string', Rule::in(TipoExcepcion::valores())],

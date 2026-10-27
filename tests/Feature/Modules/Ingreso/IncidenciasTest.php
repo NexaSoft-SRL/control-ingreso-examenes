@@ -149,6 +149,7 @@ final class IncidenciasTest extends TestCase
             'nombre_colaborador' => 'Rocha Ana',
             'token' => $token,
             'ultimo_acceso_en' => now(),
+            'estado' => 'AUTORIZADO',
             'created_at' => now(),
             'updated_at' => now(),
         ]);

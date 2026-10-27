@@ -18,7 +18,6 @@ use App\Modules\Ingreso\Application\Contracts\IdentificacionEstudianteGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaIngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
-use App\Modules\Ingreso\Application\Contracts\IngresosRecientesGateway;
 use App\Modules\Ingreso\Application\Contracts\OperacionesPuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\SeguimientoAulaGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
@@ -34,7 +33,6 @@ use App\Modules\Ingreso\Infrastructure\Persistence\EloquentExamenesDePuerta;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIdentificacionEstudianteGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIncidenciaGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIncidenciaIngresoGateway;
-use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIngresosRecientesGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentOperacionesPuertaGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentSeguimientoAulaGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentVerificacionPuntoControlGateway;
@@ -99,11 +97,6 @@ final class IngresoServiceProvider extends ServiceProvider
         $this->app->bind(
             ContextoOperativoPuntoControl::class,
             EloquentContextoOperativoPuntoControl::class,
-        );
-
-        $this->app->bind(
-            IngresosRecientesGateway::class,
-            EloquentIngresosRecientesGateway::class,
         );
 
         $this->app->bind(

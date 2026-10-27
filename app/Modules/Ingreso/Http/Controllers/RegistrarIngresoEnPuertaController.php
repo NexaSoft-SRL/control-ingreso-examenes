@@ -13,13 +13,13 @@ use App\Modules\Ingreso\Application\Queries\IdentificarEnPuerta;
 use App\Modules\Ingreso\Application\Queries\ResolverIdentificador;
 use App\Modules\Ingreso\Domain\Enums\VeredictoIngreso;
 use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
+use App\Modules\Ingreso\Http\Middleware\ExigirPuesto;
 use App\Modules\Ingreso\Http\Requests\IdentificarEnPuertaRequest;
 use DateTimeImmutable;
 use DateTimeZone;
 use DomainException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Auth;
 use InvalidArgumentException;
 
 final class RegistrarIngresoEnPuertaController
@@ -35,13 +35,7 @@ final class RegistrarIngresoEnPuertaController
         DetallarVeredictoPuerta $detallar,
         ExamenesDePuerta $examenesDePuerta,
     ): JsonResponse {
-        $usuarioId = Auth::id();
-
-        if (! is_int($usuarioId)) {
-            return response()->json([
-                'message' => 'No hay una sesión activa.',
-            ], 401);
-        }
+        $operador = ExigirPuesto::operador($request);
 
         $resuelto = $identificadores->ejecutar($request->tipo(), $request->identificador());
         $tipo = $resuelto['tipo'];
@@ -57,7 +51,7 @@ final class RegistrarIngresoEnPuertaController
         try {
             // El examen se obtiene del servidor, nunca del cliente.
             $resultado = $identificar->ejecutar(
-                $usuarioId,
+                $operador,
                 $aula,
                 $tipo,
                 $identificador,
@@ -72,7 +66,7 @@ final class RegistrarIngresoEnPuertaController
                 // inscrito, sin registro, QR no valido) sin
                 // adjudicarlo a uno de los examenes del aula.
                 $intentos->ejecutar(
-                    $usuarioId,
+                    $operador,
                     $aula,
                     $medio,
                     $identificador,
@@ -115,11 +109,12 @@ final class RegistrarIngresoEnPuertaController
 
             // Esta acción vuelve a validar las reglas antes de persistir.
             $registro = $registrar->ejecutarDetallado(
-                $usuarioId,
+                $operador->usuarioId,
                 $examenId,
                 $aula,
                 $tipoRegistro,
                 $identificadorRegistro,
+                $operador->accesoId,
                 porQr: $tipo === 'qr',
             );
             $veredicto = $registro->veredicto;

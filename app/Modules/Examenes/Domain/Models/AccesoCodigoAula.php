@@ -19,6 +19,9 @@ use Illuminate\Support\Carbon;
  * @property string $token
  * @property Carbon $ultimo_acceso_en
  * @property Carbon|null $revocado_en
+ * @property string $estado PENDIENTE, AUTORIZADO, RECHAZADO o CORTADO
+ * @property int|null $resuelto_por
+ * @property Carbon|null $resuelto_en
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -37,6 +40,9 @@ final class AccesoCodigoAula extends Model
         'token',
         'ultimo_acceso_en',
         'revocado_en',
+        'estado',
+        'resuelto_por',
+        'resuelto_en',
     ];
 
     /**
@@ -52,6 +58,9 @@ final class AccesoCodigoAula extends Model
             'token' => 'string',
             'ultimo_acceso_en' => 'datetime',
             'revocado_en' => 'datetime',
+            'estado' => 'string',
+            'resuelto_por' => 'integer',
+            'resuelto_en' => 'datetime',
         ];
     }
 
@@ -63,8 +72,9 @@ final class AccesoCodigoAula extends Model
         return $this->belongsTo(Examen::class, 'examen_id');
     }
 
+    // Abre la puerta solo con la autorizacion del docente.
     public function esValido(): bool
     {
-        return $this->revocado_en === null;
+        return $this->estado === 'AUTORIZADO';
     }
 }

@@ -8,10 +8,11 @@ use App\Modules\Ingreso\Application\Contracts\DetallePuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
 use App\Modules\Ingreso\Application\Queries\ExamenesOperablesEnAula;
 use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
+use App\Modules\Ingreso\Http\Middleware\ExigirPuesto;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 
 /**
  * La puerta de un aula (BUG-07, BUG-08): el aula con su edificio y piso y
@@ -21,18 +22,13 @@ use Illuminate\Support\Facades\Auth;
 final readonly class PuertaAulaController
 {
     public function __invoke(
+        Request $request,
         int $aula,
         ExamenesOperablesEnAula $operables,
         DetallePuertaGateway $detalle,
         VentanaPuntoControl $ventana,
     ): JsonResponse {
-        $usuarioId = Auth::id();
-
-        if (! is_int($usuarioId)) {
-            return response()->json([
-                'message' => 'No hay una sesión activa.',
-            ], 401);
-        }
+        $operador = ExigirPuesto::operador($request);
 
         $ahora = new DateTimeImmutable(
             'now',
@@ -41,7 +37,7 @@ final readonly class PuertaAulaController
         $fecha = $ahora->format('Y-m-d');
 
         try {
-            $autorizados = $operables->ejecutar($usuarioId, $aula, $fecha);
+            $autorizados = $operables->ejecutar($operador, $aula, $fecha);
         } catch (AccesoPuntoDenegado $error) {
             return response()->json([
                 'message' => $error->getMessage(),

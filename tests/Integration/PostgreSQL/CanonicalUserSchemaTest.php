@@ -72,6 +72,7 @@ final class CanonicalUserSchemaTest extends TestCase
 
         $this->assertSame(
             [
+                'accesos_codigo_aula.resuelto_por',
                 'asignaciones_seguimiento_aula.asignado_por',
                 'asignaciones_seguimiento_aula.usuario_id',
                 'bitacora_operaciones.usuario_id',

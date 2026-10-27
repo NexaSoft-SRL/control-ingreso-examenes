@@ -6,8 +6,8 @@ namespace Tests\Feature\Modules\Examenes;
 
 use App\Modules\Examenes\Domain\Models\AccesoCodigoAula;
 use App\Modules\Examenes\Domain\Models\ExamenAulaCodigo;
+use App\Modules\Ingreso\Application\Contracts\DetallePuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
-use App\Modules\Ingreso\Application\Contracts\IngresosRecientesGateway;
 use Database\Factories\UserFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\RateLimiter;
@@ -50,7 +50,8 @@ final class AccesoConCodigoDeAulaTest extends TestCase
             'nombre_colaborador' => 'Marta Colaboradora',
         ])
             ->assertOk()
-            ->assertJsonPath('message', 'Acceso concedido')
+            ->assertJsonPath('message', 'Esperando autorización')
+            ->assertJsonPath('data.estado', 'pendiente')
             ->assertJsonPath('data.examen_id', $examen->id)
             ->assertJsonPath('data.aula_id', $aula->id)
             ->assertJsonPath('data.aula_nombre', '691A')
@@ -65,6 +66,7 @@ final class AccesoConCodigoDeAulaTest extends TestCase
             'codigo' => '654321',
             'nombre_colaborador' => 'Marta Colaboradora',
             'token' => $token,
+            'estado' => 'PENDIENTE',
         ]);
 
         $this->assertDatabaseHas('bitacora_operaciones', [
@@ -99,7 +101,17 @@ final class AccesoConCodigoDeAulaTest extends TestCase
             'nombre_colaborador' => 'Pedro Aux',
         ])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Código no válido');
+            ->assertJsonPath('errors.codigo.0', sprintf(
+                'La puerta abre el %d %s a las %s.',
+                (int) $inicio->format('j'),
+                ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'][(int) $inicio->format('n') - 1],
+                $inicio->copy()->subMinutes(60)->format('H:i'),
+            ));
+
+        // Un codigo que ya cerro dice cuando cerro; uno que no existe, nada mas.
+        $this->postJson('/api/auth/codigo-aula', ['codigo' => '999999', 'nombre_colaborador' => 'Pedro Aux'])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Código no válido.');
     }
 
     public function test_mensajes_de_validacion_en_espanol_sin_resumen_laravel(): void
@@ -113,7 +125,7 @@ final class AccesoConCodigoDeAulaTest extends TestCase
             ->assertJsonPath('message', 'Seis dígitos')
             ->assertJsonValidationErrors([
                 'codigo' => 'Seis dígitos',
-                'nombre_colaborador' => 'Mínimo 3 caracteres',
+                'nombre_colaborador' => 'Mínimo 3 letras, sin signos seguidos',
             ]);
 
         // Nombre de más de 120 caracteres
@@ -128,23 +140,28 @@ final class AccesoConCodigoDeAulaTest extends TestCase
             ]);
     }
 
-    public function test_rate_limiting_responde_429_al_cuarto_intento_fallido_en_5_minutos(): void
+    public function test_bloquea_tras_cinco_codigos_errados_en_cinco_minutos(): void
     {
-        // 3 intentos fallidos con código inexistente
-        for ($i = 1; $i <= 3; $i++) {
+        // Un nombre mal escrito no cuenta: solo los codigos errados.
+        $this->postJson('/api/auth/codigo-aula', ['codigo' => '000000', 'nombre_colaborador' => 'A1'])
+            ->assertUnprocessable();
+
+        for ($i = 1; $i <= 5; $i++) {
             $this->postJson('/api/auth/codigo-aula', [
                 'codigo' => '000000',
-                'nombre_colaborador' => 'Intento '.$i,
+                'nombre_colaborador' => 'Pedro Intento',
             ])->assertUnprocessable();
         }
 
-        // El cuarto intento debe responder 429 Demasiados intentos
-        $this->postJson('/api/auth/codigo-aula', [
+        $respuesta = $this->postJson('/api/auth/codigo-aula', [
             'codigo' => '000000',
-            'nombre_colaborador' => 'Intento 4',
+            'nombre_colaborador' => 'Pedro Intento',
         ])
             ->assertStatus(429)
-            ->assertJsonPath('message', 'Demasiados intentos');
+            ->assertJsonPath('message', 'Demasiados intentos.')
+            ->assertHeader('Retry-After');
+
+        self::assertGreaterThan(0, $respuesta->json('reintentar_en'));
     }
 
     public function test_consulta_de_sesion_activa_y_cierre_de_sesion(): void
@@ -167,7 +184,7 @@ final class AccesoConCodigoDeAulaTest extends TestCase
             'nombre_colaborador' => 'Laura Gomez',
             'token' => 'token-test-sesion-998877',
             'ultimo_acceso_en' => now(),
-            'revocado_en' => null,
+            'estado' => 'PENDIENTE',
         ]);
 
         // Consulta de sesión activa
@@ -175,7 +192,8 @@ final class AccesoConCodigoDeAulaTest extends TestCase
             ->getJson('/api/auth/codigo-aula/sesion')
             ->assertOk()
             ->assertJsonPath('data.nombre_colaborador', 'Laura Gomez')
-            ->assertJsonPath('data.aula_nombre', '691A');
+            ->assertJsonPath('data.aula_nombre', '691A')
+            ->assertJsonPath('data.estado', 'pendiente');
 
         // Salir / cerrar sesión
         $this->withHeader('X-Codigo-Aula-Token', 'token-test-sesion-998877')
@@ -258,7 +276,7 @@ final class AccesoConCodigoDeAulaTest extends TestCase
         $acceso = AccesoCodigoAula::query()->sole();
         app(IngresoGateway::class)->registrar($examen->id, $estudiante->id, $aula->id, null, $acceso->id);
 
-        $recientes = app(IngresosRecientesGateway::class)->recientes($examen->id, $aula->id, 10);
+        $recientes = app(DetallePuertaGateway::class)->ingresosDelAula($aula->id, [$examen->id], null, 10);
         self::assertSame('Marta Colaboradora (código de aula)', $recientes[0]['operador']);
 
         $bitacora = $this->actingAs(UserFactory::new()->createOne())

@@ -7,11 +7,11 @@ namespace App\Modules\Ingreso\Http\Controllers;
 use App\Modules\Ingreso\Application\Contracts\DetallePuertaGateway;
 use App\Modules\Ingreso\Application\Queries\ExamenesOperablesEnAula;
 use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
+use App\Modules\Ingreso\Http\Middleware\ExigirPuesto;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 /**
  * Ingresos del aula (BUG-12, BUG-23): los cinco ultimos o, con
@@ -29,13 +29,7 @@ final readonly class IngresosRecientesEnPuertaController
         ExamenesOperablesEnAula $operables,
         DetallePuertaGateway $detalle,
     ): JsonResponse {
-        $usuarioId = Auth::id();
-
-        if (! is_int($usuarioId)) {
-            return response()->json([
-                'message' => 'No hay una sesión activa.',
-            ], 401);
-        }
+        $operador = ExigirPuesto::operador($request);
 
         if ($aula <= 0) {
             return response()->json([
@@ -54,7 +48,7 @@ final readonly class IngresosRecientesEnPuertaController
         ))->format('Y-m-d');
 
         try {
-            $autorizados = $operables->ejecutar($usuarioId, $aula, $fecha);
+            $autorizados = $operables->ejecutar($operador, $aula, $fecha);
         } catch (AccesoPuntoDenegado $error) {
             return response()->json([
                 'message' => $error->getMessage(),

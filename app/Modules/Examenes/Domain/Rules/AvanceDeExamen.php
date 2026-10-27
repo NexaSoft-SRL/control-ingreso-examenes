@@ -13,6 +13,9 @@ use App\Modules\Examenes\Domain\Enums\TipoExamen;
  */
 final class AvanceDeExamen
 {
+    // Una misma persona no atiende mas de dos aulas a la vez.
+    public const AULAS_POR_PERSONA = 2;
+
     public const OK = 'ok';
 
     public const AHORA = 'ahora';
@@ -35,13 +38,18 @@ final class AvanceDeExamen
         int $habilitados,
         int $sinRevisar,
         int $conCodigoQr = 0,
+        int $aulasPorPersona = 1,
     ): array {
         $hayAulas = $aulas > 0;
+        $atendido = $aulasPorPersona <= self::AULAS_POR_PERSONA;
         $habilitado = $sinRevisar === 0 && $habilitados > 0;
         $conCodigos = $habilitado && $conCodigoQr >= $habilitados;
 
         [$estado, $accion, $paso] = match (true) {
             ! $hayAulas => ['Faltan aulas', 'elegir_aulas', 2],
+            // Con alguien a cargo de mas de dos aulas, el paso de quien
+            // atiende queda pendiente aunque cada aula tenga encargado.
+            ! $atendido => ['Falta quién atiende', 'quien_atiende', 3],
             ! $habilitado => ['Falta habilitar', 'habilitar', null],
             ! $conCodigos => ['Faltan códigos QR', 'emitir_qr', null],
             default => ['Listo', 'ver_qr', null],
