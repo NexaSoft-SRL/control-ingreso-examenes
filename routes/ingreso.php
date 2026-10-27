@@ -115,6 +115,8 @@ Route::middleware(['auth', 'permiso:examenes'])
     ->whereNumber(['examen', 'acceso'])
     ->name('control.')
     ->group(function (): void {
+        Route::get('/control', [ControlDelExamenController::class, 'show'])->name('show');
+        Route::post('/movimientos', [ControlDelExamenController::class, 'mover'])->name('mover');
         Route::post('/accesos/{acceso}/{accion}', [ControlDelExamenController::class, 'resolver'])
             ->whereIn('accion', ['autorizar', 'rechazar', 'cortar', 'trasladar'])
             ->name('acceso');

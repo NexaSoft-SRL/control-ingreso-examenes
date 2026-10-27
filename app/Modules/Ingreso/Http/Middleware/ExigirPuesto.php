@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Http\Middleware;
 
+use App\Modules\Ingreso\Application\Contracts\ControlPuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\VerificacionPuntoControlGateway;
 use App\Modules\Ingreso\Application\DTOs\OperadorPuertaData;
 use Closure;
@@ -27,6 +28,7 @@ final class ExigirPuesto
 
     public function __construct(
         private readonly VerificacionPuntoControlGateway $gateway,
+        private readonly ControlPuertaGateway $control,
     ) {}
 
     /**
@@ -51,6 +53,13 @@ final class ExigirPuesto
             }
 
             $request->attributes->set(self::ATRIBUTO, OperadorPuertaData::cuenta($usuarioId));
+
+            // Quien esta en cada puerta: lo ve el docente en «En curso».
+            $aula = $request->route('aula');
+
+            if (is_numeric($aula)) {
+                $this->control->marcarPresencia((int) $aula, $usuarioId);
+            }
 
             return $next($request);
         }

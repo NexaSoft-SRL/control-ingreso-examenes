@@ -8,6 +8,7 @@ use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\AlmacenEvidencias;
 use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\ContextoOperativoPuntoControl;
+use App\Modules\Ingreso\Application\Contracts\ControlPuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\CorreoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\DetallePuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
@@ -25,6 +26,7 @@ use App\Modules\Ingreso\Application\Contracts\VerificacionPuntoControlGateway;
 use App\Modules\Ingreso\Infrastructure\Files\AlmacenEvidenciasEnDisco;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentAlcancePuntoControl;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentContextoOperativoPuntoControl;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentControlPuertaGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentCorreoQrGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentDetallePuertaGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEmisionQrGateway;
@@ -49,6 +51,7 @@ final class IngresoServiceProvider extends ServiceProvider
         // Las incidencias en un solo modelo y sus evidencias con foto.
         $this->app->bind(IncidenciaGateway::class, EloquentIncidenciaGateway::class);
         $this->app->bind(AlmacenEvidencias::class, AlmacenEvidenciasEnDisco::class);
+        $this->app->bind(ControlPuertaGateway::class, EloquentControlPuertaGateway::class);
 
         $this->app->bind(
             DetallePuertaGateway::class,

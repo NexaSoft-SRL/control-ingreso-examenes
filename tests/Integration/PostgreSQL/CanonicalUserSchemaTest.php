@@ -97,6 +97,7 @@ final class CanonicalUserSchemaTest extends TestCase
                 'login_attempts.user_id',
                 'periodos.ajustado_por',
                 'plantillas_norma.usuario_id',
+                'presencias_puerta.usuario_id',
             ],
             $actual
         );
