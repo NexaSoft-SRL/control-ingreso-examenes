@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Camera, ChevronRight, DoorOpen, Loader2, LogOut, RefreshCw } from 'lucide-react';
+import { Camera, ChevronRight, Loader2, RefreshCw } from 'lucide-react';
 import LectorQr from './LectorQr';
 import VeredictoPuerta, { ubicacionDe } from './VeredictoPuerta';
 import { api } from '../../api/cliente';
@@ -125,74 +125,17 @@ NormasDelExamen.propTypes = {
 // examen a la vez y, al identificar al estudiante, el servidor resuelve a cuál
 // pertenece. Verificar y registrar son una sola operación, como en la guía.
 // `?aula=` llega desde «En curso» (HU-22) con el aula ya elegida.
-export default function PuntoControl() {
+export default function PuntoControl({ acceso = null }) {
     const sesion = usarSesion();
     const [parametros, setParametros] = useSearchParams();
     const [aviso, avisar] = useAviso();
-    const [sesionColaborador, setSesionColaborador] = useState(() => {
-        try {
-            const guardada = localStorage.getItem('codigo_aula_sesion');
-            return guardada ? JSON.parse(guardada) : null;
-        } catch {
-            return null;
-        }
-    });
-
-    const cerrarSesionColaborador = async () => {
-        try {
-            await api.post('/auth/codigo-aula/salir');
-        } catch {
-            // Ignorar
-        }
-        try {
-            localStorage.removeItem('codigo_aula_token');
-            localStorage.removeItem('codigo_aula_sesion');
-        } catch {
-            // Ignorar
-        }
-        setSesionColaborador(null);
-        window.location.href = '/acceso-aula';
-    };
-
-    useEffect(() => {
-        if (!sesionColaborador) return undefined;
-
-        const verificarVigencia = async () => {
-            try {
-                await api.get('/auth/codigo-aula/sesion', { silencioso: true });
-            } catch (error) {
-                const estado = estadoDe(error);
-                if (estado === 401 || estado === 419) {
-                    try {
-                        localStorage.removeItem('codigo_aula_token');
-                        localStorage.removeItem('codigo_aula_sesion');
-                    } catch {
-                        // Ignorar
-                    }
-                    setSesionColaborador(null);
-                    window.location.href = '/acceso-aula';
-                }
-            }
-        };
-
-        const intervalo = setInterval(verificarVigencia, 15000);
-        return () => clearInterval(intervalo);
-    }, [sesionColaborador]);
+    // Con código de aula (HU-18) la puerta es la del acceso: la misma
+    // pantalla, sin excepción ni expulsión.
+    const sesionColaborador = acceso;
 
     // Exámenes y aulas que la persona atiende hoy.
-    const contexto = usarConsulta('/punto-control/contexto', { activa: !sesionColaborador });
-    const examenes = sesionColaborador
-        ? [
-              {
-                  id: sesionColaborador.examen_id,
-                  asignatura: { nombre: '' },
-                  abierto: true,
-                  aulas: [{ id: sesionColaborador.aula_id, nombre: sesionColaborador.aula_nombre }],
-              },
-          ]
-        : Array.isArray(contexto.datos)
-          ? contexto.datos
-          : [];
+    const contexto = usarConsulta('/punto-control/contexto');
+    const examenes = Array.isArray(contexto.datos) ? contexto.datos : [];
 
     const aulas = Array.from(
         examenes
@@ -207,7 +150,7 @@ export default function PuntoControl() {
             .values()
     );
 
-    const pedida = Number(parametros.get('aula')) || null;
+    const pedida = acceso?.aula_id ?? (Number(parametros.get('aula')) || null);
     const actual =
         aulas.find((a) => a.id === pedida) ?? aulas.find((a) => a.abierta) ?? aulas[0] ?? null;
 
@@ -219,38 +162,12 @@ export default function PuntoControl() {
         });
 
     const usuario = sesion.usuario;
-    const operador = sesionColaborador
-        ? (sesionColaborador.nombre_colaborador ?? 'Código de aula')
+    const operador = acceso
+        ? (acceso.nombre_colaborador ?? 'Código de aula')
         : (usuario?.nombre ?? '');
 
     return (
         <div className="mx-auto max-w-2xl space-y-4 p-4 md:p-6">
-            {sesionColaborador && (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-900 shadow-sm">
-                    <div className="flex items-center gap-2">
-                        <DoorOpen className="h-5 w-5 shrink-0 text-primary-600" />
-                        <span>
-                            Colaborador de aula:{' '}
-                            <strong>{sesionColaborador.nombre_colaborador}</strong> · Aula{' '}
-                            <strong>{sesionColaborador.aula_nombre}</strong>
-                            {sesionColaborador.expira_en && (
-                                <span className="ml-1 text-primary-700">
-                                    · Hasta las{' '}
-                                    <strong>{sesionColaborador.expira_en.slice(11, 16)}</strong>
-                                </span>
-                            )}
-                        </span>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={cerrarSesionColaborador}
-                        className="inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-danger-700 hover:text-danger-800 hover:underline"
-                    >
-                        <LogOut className="h-3.5 w-3.5" /> Salir de aula
-                    </button>
-                </div>
-            )}
-
             <h1 className="text-2xl font-bold text-slate-900">Punto de control</h1>
 
             {!actual ? (
@@ -284,9 +201,7 @@ export default function PuntoControl() {
 }
 
 function Puesto({ aula, aulas, sesionColaborador, operador, elegirAula, avisar }) {
-    const puerta = sesionColaborador
-        ? `/examenes/${sesionColaborador.examen_id}/aulas/${sesionColaborador.aula_id}/punto-control`
-        : `/aulas/${aula.id}/punto-control`;
+    const puerta = `/aulas/${aula.id}/punto-control`;
 
     const [cambiando, setCambiando] = useState(false);
     const [normasAbiertas, setNormasAbiertas] = useState(false);
@@ -315,16 +230,16 @@ function Puesto({ aula, aulas, sesionColaborador, operador, elegirAula, avisar }
     }, [buscar, buscado]);
 
     // La puerta del aula: ubicación, exámenes con sus cifras y normas.
-    const resumen = usarSondeo(sesionColaborador ? null : puerta, { intervalo: SONDEO_MS });
+    const resumen = usarSondeo(puerta, { intervalo: SONDEO_MS });
     const recientes = usarSondeo(`${puerta}/ingresos`, {
-        parametros: sesionColaborador ? { limite: 5 } : todos ? { todos: 1, buscar: buscado } : {},
+        parametros: todos ? { todos: 1, buscar: buscado } : {},
         intervalo: SONDEO_MS,
     });
 
     const datosPuerta = resumen.datos;
     const aulaInfo = { ...aula, ...(datosPuerta?.aula ?? {}) };
     const examenesAula = datosPuerta?.examenes ?? [];
-    const abierta = sesionColaborador ? true : (datosPuerta?.abierta ?? true);
+    const abierta = datosPuerta?.abierta ?? true;
     const sinConexion = resumen.sinConexion || recientes.sinConexion;
     const sinAlcance =
         bloqueado || estadoDe(resumen.error) === 403 || estadoDe(recientes.error) === 403;
@@ -431,9 +346,7 @@ function Puesto({ aula, aulas, sesionColaborador, operador, elegirAula, avisar }
     // La incidencia va al examen del aula en el que la persona actúa: con
     // código de aula, el suyo; con cuenta, el primero que no la rechace.
     const reportar = async (datos) => {
-        const candidatos = sesionColaborador
-            ? [sesionColaborador.examen_id]
-            : examenesAula.map((x) => x.id);
+        const candidatos = examenesAula.map((x) => x.id);
         let ultimo = new Error('Sin examen');
         for (const id of candidatos) {
             try {
@@ -445,7 +358,7 @@ function Puesto({ aula, aulas, sesionColaborador, operador, elegirAula, avisar }
         }
         throw ultimo;
     };
-    const puedeReportar = sesionColaborador ? true : examenesAula.length > 0;
+    const puedeReportar = examenesAula.length > 0;
 
     return (
         <>
@@ -483,7 +396,7 @@ function Puesto({ aula, aulas, sesionColaborador, operador, elegirAula, avisar }
                     </p>
                 )}
 
-                {!sesionColaborador && datosPuerta && (
+                {datosPuerta && (
                     <>
                         <ul
                             aria-label="Exámenes del aula"
@@ -778,7 +691,7 @@ function Puesto({ aula, aulas, sesionColaborador, operador, elegirAula, avisar }
                     </ul>
                 )}
 
-                {!sesionColaborador && (todos || total > filas.length) && (
+                {(todos || total > filas.length) && (
                     <button
                         type="button"
                         onClick={() => {
@@ -814,4 +727,13 @@ Puesto.propTypes = {
     operador: PropTypes.string,
     elegirAula: PropTypes.func.isRequired,
     avisar: PropTypes.func.isRequired,
+};
+
+PuntoControl.propTypes = {
+    acceso: PropTypes.shape({
+        aula_id: PropTypes.number,
+        aula_nombre: PropTypes.string,
+        examen_id: PropTypes.number,
+        nombre_colaborador: PropTypes.string,
+    }),
 };
