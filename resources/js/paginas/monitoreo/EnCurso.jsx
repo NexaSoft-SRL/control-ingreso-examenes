@@ -1,13 +1,9 @@
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
-import { CheckCircle2 } from 'lucide-react';
 import { api } from '../../api/cliente';
-import { mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
 import usarEdificios from '../../api/usarEdificios';
 import usarSondeo from '../../api/usarSondeo';
-import { useAviso } from '../../componentes/Aviso';
-import Boton from '../../componentes/Boton';
 import Chips from '../../componentes/Chips';
 import Dato from '../../componentes/Dato';
 import Encabezado from '../../componentes/Encabezado';
@@ -20,7 +16,8 @@ import usarExamen from '../../componentes/usarExamen';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { diaMes } from '../../utiles/texto';
 import EnCursoAulas, { avanceDe, horaDe } from './EnCursoAulas';
-import IncidenciaEnCurso from './IncidenciaEnCurso';
+import { BotonIncidencia } from '../../componentes/Incidencias';
+import IncidenciasDelExamen from './IncidenciasDelExamen';
 
 export const INTERVALO = 10000;
 // Con más aulas que estas, las tarjetas pasan a una rejilla compacta.
@@ -39,91 +36,13 @@ const FILTROS = {
     propias: (a) => a.a_mi_cargo,
 };
 
-// 'OTRA_NOVEDAD' → 'Otra novedad'.
-function tipoDe(tipo) {
-    const texto = String(tipo ?? '')
-        .replaceAll('_', ' ')
-        .toLocaleLowerCase('es');
-    return texto.charAt(0).toLocaleUpperCase('es') + texto.slice(1);
-}
-
-function Incidencias({ items, atender, atendiendo }) {
-    return (
-        <ul className="divide-y divide-slate-200">
-            {items.map((i) => (
-                <li key={i.id} className="flex flex-wrap items-start justify-between gap-3 p-4">
-                    <div className="min-w-0 flex-1 space-y-1">
-                        <p className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
-                            <Insignia tono={i.atendida ? 'neutro' : 'peligro'}>
-                                {tipoDe(i.tipo)}
-                            </Insignia>
-                            <span className="tabular-nums">
-                                Aula {i.aula} · {horaDe(i.reportada_en)}
-                            </span>
-                        </p>
-                        {i.estudiante && (
-                            <p className="text-sm font-semibold text-slate-900">{i.estudiante}</p>
-                        )}
-                        <p className="break-words text-sm text-slate-800">{i.detalle}</p>
-                        <p className="text-xs text-slate-600">
-                            {i.reportante}
-                            {i.rol_reportante && ` · ${i.rol_reportante}`}
-                        </p>
-                    </div>
-                    {i.atendida ? (
-                        <p className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-success-700">
-                            <CheckCircle2 className="h-4 w-4" />
-                            <span>
-                                Atendida · {i.atendida_por} · {horaDe(i.atendida_en)}
-                            </span>
-                        </p>
-                    ) : (
-                        <Boton
-                            type="button"
-                            variante="secundario"
-                            tamano="chico"
-                            disabled={atendiendo === i.id}
-                            onClick={() => atender(i.id)}
-                            aria-label={`Atender la incidencia del aula ${i.aula}`}
-                        >
-                            Atender
-                        </Boton>
-                    )}
-                </li>
-            ))}
-        </ul>
-    );
-}
-
-Incidencias.propTypes = {
-    items: PropTypes.arrayOf(
-        PropTypes.shape({
-            id: PropTypes.number.isRequired,
-            tipo: PropTypes.string,
-            aula: PropTypes.string,
-            detalle: PropTypes.string,
-            estudiante: PropTypes.string,
-            reportante: PropTypes.string,
-            rol_reportante: PropTypes.string,
-            reportada_en: PropTypes.string,
-            atendida: PropTypes.bool,
-            atendida_por: PropTypes.string,
-            atendida_en: PropTypes.string,
-        })
-    ).isRequired,
-    atender: PropTypes.func.isRequired,
-    atendiendo: PropTypes.number,
-};
-
 // El examen mientras se toma: cifras, incidencias, aulas y mapa. Se monta de
 // nuevo con cada examen (`key`), así el cambio limpia filtros y orden.
 function Tablero({ examen, examenes, elegir }) {
     const { usuario, puede } = usarSesion();
-    const [aviso, avisar] = useAviso();
     const [filtro, setFiltro] = useState(null);
     const [orden, setOrden] = useState('avance');
-    const [soloSinAtender, setSoloSinAtender] = useState(true);
-    const [atendiendo, setAtendiendo] = useState(null);
+    const [reportadas, setReportadas] = useState(0);
     const { edificios, caja } = usarEdificios();
 
     const vivo = usarSondeo(`/en-curso/${examen.id}`, { intervalo: INTERVALO });
@@ -131,18 +50,14 @@ function Tablero({ examen, examenes, elegir }) {
 
     const abierto = tablero?.examen.abierto ?? examen.abierto ?? false;
     const aulas = useMemo(() => tablero?.aulas ?? [], [tablero]);
-    const incidencias = tablero?.incidencias ?? [];
-    const sinAtender = incidencias.filter((i) => !i.atendida);
     const cifras = tablero?.cifras;
     const denso = aulas.length > MAXIMO_TARJETAS;
     const visibles = aulas.filter(filtro ? FILTROS[filtro] : () => true).sort(ORDENES[orden][1]);
     const cuenta = (clave) => aulas.filter(FILTROS[clave]).length;
-    // Las incidencias se reportan el día del examen, en las aulas cuya puerta
-    // opera la cuenta (la misma regla que la puerta).
+    // Las incidencias se reportan el día del examen, en cualquiera de las
+    // aulas del tablero.
     const esHoy = Boolean(tablero) && String(tablero.hora_servidor).slice(0, 10) === examen.fecha;
-    const operables = aulas
-        .filter((a) => a.puede_operar)
-        .map((a) => ({ id: a.aula_id, nombre: a.nombre }));
+    const aulasIncidencia = aulas.map((a) => ({ id: a.aula_id, nombre: a.nombre }));
     const ultimoRegistro = tablero?.ultimo_registro
         ? `Último registro ${horaDe(tablero.ultimo_registro)}`
         : 'Sin registros';
@@ -167,19 +82,6 @@ function Tablero({ examen, examenes, elegir }) {
         };
     }, [aulas, edificios]);
 
-    const atender = async (id) => {
-        setAtendiendo(id);
-        try {
-            await api.patch(`/en-curso/${examen.id}/incidencias/${id}/atendida`);
-            avisar('Incidencia atendida');
-        } catch (error) {
-            avisar(mensajeDe(error, 'No se pudo atender'), 'error');
-        } finally {
-            setAtendiendo(null);
-            vivo.recargar();
-        }
-    };
-
     return (
         <>
             <Encabezado
@@ -197,13 +99,16 @@ function Tablero({ examen, examenes, elegir }) {
                             {diaMes(examen.fecha)}, {examen.hora}
                         </Insignia>
                     ))}
-                {esHoy && puede('punto_control') && operables.length > 0 && (
-                    <IncidenciaEnCurso
-                        examenId={examen.id}
-                        aulas={operables}
+                {esHoy && aulasIncidencia.length > 0 && (
+                    <BotonIncidencia
+                        aulas={aulasIncidencia}
                         por={usuario?.nombre}
                         hora={horaDe(tablero.hora_servidor)}
-                        alRegistrar={vivo.recargar}
+                        registrar={(datos) => api.post(`/examenes/${examen.id}/incidencias`, datos)}
+                        alRegistrar={() => {
+                            setReportadas((n) => n + 1);
+                            vivo.recargar();
+                        }}
                     />
                 )}
             </Encabezado>
@@ -231,42 +136,13 @@ function Tablero({ examen, examenes, elegir }) {
                     />
                 </div>
 
-                {incidencias.length > 0 && (
-                    <Tarjeta
-                        titulo={`Incidencias · ${incidencias.length}`}
-                        sinRelleno
-                        acciones={
-                            <Chips
-                                etiqueta="Incidencias"
-                                valor={soloSinAtender}
-                                onCambiar={setSoloSinAtender}
-                                opciones={[
-                                    {
-                                        valor: true,
-                                        etiqueta: 'Sin atender',
-                                        conteo: sinAtender.length,
-                                    },
-                                    {
-                                        valor: false,
-                                        etiqueta: 'Todas',
-                                        conteo: incidencias.length,
-                                    },
-                                ]}
-                            />
-                        }
-                    >
-                        {soloSinAtender && sinAtender.length === 0 ? (
-                            <p className="px-4 py-8 text-center text-sm text-slate-600">
-                                Sin incidencias por atender
-                            </p>
-                        ) : (
-                            <Incidencias
-                                items={soloSinAtender ? sinAtender : incidencias}
-                                atender={atender}
-                                atendiendo={atendiendo}
-                            />
-                        )}
-                    </Tarjeta>
+                {tablero && (
+                    <IncidenciasDelExamen
+                        key={reportadas}
+                        examenId={examen.id}
+                        puedeAtender={Boolean(tablero.es_docente)}
+                        conAula
+                    />
                 )}
 
                 {aulas.length > 1 && (
@@ -348,7 +224,6 @@ function Tablero({ examen, examenes, elegir }) {
                     )}
                 </div>
             </EstadoCarga>
-            {aviso}
         </>
     );
 }

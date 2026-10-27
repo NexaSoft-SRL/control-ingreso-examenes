@@ -3,13 +3,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Camera, ChevronRight, DoorOpen, Loader2, LogOut, RefreshCw } from 'lucide-react';
 import LectorQr from './LectorQr';
-import IncidenciasManuales from './IncidenciasManuales';
 import VeredictoPuerta, { ubicacionDe } from './VeredictoPuerta';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
 import usarSondeo from '../../api/usarSondeo';
 import { useAviso } from '../../componentes/Aviso';
+import { BotonIncidencia } from '../../componentes/Incidencias';
 import Boton from '../../componentes/Boton';
 import Buscador from '../../componentes/Buscador';
 import Campo from '../../componentes/Campo';
@@ -23,18 +23,6 @@ const SONDEO_MS = 10000;
 const IDENTIFICADOR = /^\d{5,10}([\s-][0-9A-Za-z]{1,3}|[A-Za-z][0-9A-Za-z]{0,2})?$/;
 const ESPERA_BUSQUEDA_MS = 300;
 const FOCO = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600';
-
-// Etiquetas de los rechazos e intentos de «Incidencias de ingreso».
-const RECHAZOS = {
-    NO_HABILITADO: 'No habilitado',
-    OTRA_AULA: 'Otra aula',
-    YA_INGRESO: 'Ya ingresó',
-    NO_CORRESPONDE: 'No corresponde',
-    EXPULSADO: 'Expulsado',
-    NO_INSCRITO: 'No inscrito',
-    NO_REGISTRADO: 'Sin registro',
-    QR_NO_VALIDO: 'Código QR no válido',
-};
 
 const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
 // '2026-10-26 08:39:20' → '08:39'.
@@ -283,7 +271,6 @@ export default function PuntoControl() {
                     key={actual.id}
                     aula={actual}
                     aulas={aulas}
-                    examenes={examenes}
                     sesionColaborador={sesionColaborador}
                     operador={operador}
                     elegirAula={elegirAula}
@@ -296,7 +283,7 @@ export default function PuntoControl() {
     );
 }
 
-function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula, avisar }) {
+function Puesto({ aula, aulas, sesionColaborador, operador, elegirAula, avisar }) {
     const puerta = sesionColaborador
         ? `/examenes/${sesionColaborador.examen_id}/aulas/${sesionColaborador.aula_id}/punto-control`
         : `/aulas/${aula.id}/punto-control`;
@@ -333,7 +320,6 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
         parametros: sesionColaborador ? { limite: 5 } : todos ? { todos: 1, buscar: buscado } : {},
         intervalo: SONDEO_MS,
     });
-    const incidencias = usarConsulta(`${puerta}/incidencias`, { parametros: { limite: 20 } });
 
     const datosPuerta = resumen.datos;
     const aulaInfo = { ...aula, ...(datosPuerta?.aula ?? {}) };
@@ -345,7 +331,6 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
     const hora = datosPuerta?.hora_servidor ?? '';
     const filas = Array.isArray(recientes.datos) ? recientes.datos : [];
     const total = recientes.meta?.total ?? filas.length;
-    const filasIncidencias = Array.isArray(incidencias.datos) ? incidencias.datos : [];
 
     const verificar = async (cuerpo, medio) => {
         if (pendiente.current || sinAlcance) return;
@@ -375,7 +360,6 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
             pendiente.current = false;
             setVerificando(false);
             recientes.recargar();
-            incidencias.recargar();
             resumen.recargar();
         }
     };
@@ -443,6 +427,25 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
     };
 
     const fecha = fechaLarga(datosPuerta?.fecha);
+
+    // La incidencia va al examen del aula en el que la persona actúa: con
+    // código de aula, el suyo; con cuenta, el primero que no la rechace.
+    const reportar = async (datos) => {
+        const candidatos = sesionColaborador
+            ? [sesionColaborador.examen_id]
+            : examenesAula.map((x) => x.id);
+        let ultimo = new Error('Sin examen');
+        for (const id of candidatos) {
+            try {
+                return await api.post(`/examenes/${id}/incidencias`, datos);
+            } catch (fallo) {
+                ultimo = fallo;
+                if (estadoDe(fallo) !== 403) break;
+            }
+        }
+        throw ultimo;
+    };
+    const puedeReportar = sesionColaborador ? true : examenesAula.length > 0;
 
     return (
         <>
@@ -525,6 +528,18 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
                             Normas
                         </button>
                     </>
+                )}
+                {puedeReportar && (
+                    <div className="-mx-2 mt-1 flex justify-end">
+                        <BotonIncidencia
+                            aula={{ id: aulaInfo.id, nombre: aulaInfo.nombre }}
+                            por={operador}
+                            hora={hora}
+                            registrar={reportar}
+                            variante="enlace"
+                            className="px-2"
+                        />
+                    </div>
                 )}
             </section>
 
@@ -778,50 +793,6 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
                 )}
             </section>
 
-            {!sesionColaborador && <IncidenciasManuales aulaId={aula.id} examenes={examenes} />}
-
-            <section
-                aria-label="Incidencias de ingreso"
-                className="space-y-3 rounded-xl border border-slate-200 bg-white p-5"
-            >
-                <h2 className="text-lg font-semibold text-slate-900">Incidencias de ingreso</h2>
-
-                {filasIncidencias.length === 0 ? (
-                    <p className="text-sm text-slate-600">Sin incidencias</p>
-                ) : (
-                    <ul className="divide-y divide-slate-100">
-                        {filasIncidencias.map((incidencia) => (
-                            <li
-                                key={incidencia.incidencia_id}
-                                className="space-y-1 py-3 text-sm text-slate-700"
-                            >
-                                <p className="flex flex-wrap items-center gap-2">
-                                    <span className="break-words font-semibold text-slate-900">
-                                        {nombreDe(incidencia) || 'Sin estudiante'}
-                                    </span>
-                                    {incidencia.codigo && <span>· {incidencia.codigo}</span>}
-                                    <Insignia tono="peligro">
-                                        {RECHAZOS[incidencia.tipo_rechazo] ??
-                                            incidencia.tipo_rechazo}
-                                    </Insignia>
-                                </p>
-                                <p className="whitespace-pre-wrap break-words">
-                                    {incidencia.detalle}
-                                </p>
-                                <p className="text-slate-600">
-                                    {[
-                                        incidencia.operador,
-                                        incidencia.hora ?? horaDe(incidencia.registrado_en),
-                                    ]
-                                        .filter(Boolean)
-                                        .join(' · ')}
-                                </p>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </section>
-
             <DialogoAulas
                 abierto={cambiando}
                 aulas={aulas}
@@ -839,7 +810,6 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
 Puesto.propTypes = {
     aula: formaAula.isRequired,
     aulas: PropTypes.arrayOf(formaAula).isRequired,
-    examenes: PropTypes.arrayOf(PropTypes.object).isRequired,
     sesionColaborador: PropTypes.object,
     operador: PropTypes.string,
     elegirAula: PropTypes.func.isRequired,

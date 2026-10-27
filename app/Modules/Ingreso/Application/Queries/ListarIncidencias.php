@@ -7,11 +7,10 @@ namespace App\Modules\Ingreso\Application\Queries;
 use App\Modules\Ingreso\Application\Authorization\AlcancePuerta;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaGateway;
 use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
-use App\Modules\Ingreso\Domain\Exceptions\DatoNoValidoException;
 
 /**
  * Las incidencias de un examen. El docente del examen las ve todas; quien
- * atiende un aula, solo las de su aula.
+ * atiende aulas, solo las de sus aulas.
  */
 final readonly class ListarIncidencias
 {
@@ -29,17 +28,19 @@ final readonly class ListarIncidencias
         ?int $aulaId,
         bool $soloSinAtender,
     ): array {
-        if (! $this->alcance->esDocente($usuarioId, $examenId)) {
-            if ($aulaId === null) {
-                throw new DatoNoValidoException('aula', 'Indique el aula.');
-            }
+        // El docente ve todas; quien atiende aulas, solo las suyas.
+        $aulas = $aulaId === null ? null : [$aulaId];
 
-            if (! $this->alcance->atiendeAula($usuarioId, $examenId, $aulaId)) {
+        if (! $this->alcance->esDocente($usuarioId, $examenId)) {
+            $suyas = $this->alcance->aulasQueAtiende($usuarioId, $examenId);
+            $aulas = $aulaId === null ? $suyas : array_values(array_intersect([$aulaId], $suyas));
+
+            if ($aulas === []) {
                 throw new AccesoPuntoDenegado('Sin asignación en esta aula.');
             }
         }
 
-        $lista = $this->incidencias->listar($examenId, $aulaId, $soloSinAtender);
+        $lista = $this->incidencias->listar($examenId, $aulas, $soloSinAtender);
 
         return [
             'data' => $lista['data'],

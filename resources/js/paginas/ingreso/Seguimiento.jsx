@@ -3,7 +3,6 @@ import {
     Activity,
     AlertTriangle,
     ArrowLeft,
-    Check,
     ChevronLeft,
     ChevronRight,
     LoaderCircle,
@@ -15,16 +14,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { estadoDe, mensajeDe } from '../../api/errores';
-import { useAviso } from '../../componentes/Aviso';
 import { usarSesion } from '../../sesion/SesionContexto';
-import IncidenciaAula from './IncidenciaAula';
-import { tipoIncidenciaLegible } from './tiposIncidencia';
+import { BotonIncidencia } from '../../componentes/Incidencias';
+import IncidenciasDelExamen from '../monitoreo/IncidenciasDelExamen';
 
 // La búsqueda viaja al servidor 300 ms después de la última tecla.
 const ESPERA_BUSQUEDA = 300;
 
 function nombreEstudiante(estudiante) {
-    return `${estudiante.apellidos}, ${estudiante.nombres}`;
+    return `${estudiante.apellidos} ${estudiante.nombres}`;
 }
 
 function fechaYHora(fecha, hora) {
@@ -86,7 +84,6 @@ Cifras.propTypes = {
 export default function Seguimiento() {
     const { usuario, puede } = usarSesion();
     const esDocente = usuario?.rol === 'Docente';
-    const [aviso, avisar] = useAviso();
     const [aulas, setAulas] = useState([]);
     // `?examen=&aula=` llega desde «En curso» (HU-22) con el aula ya elegida.
     const [parametros] = useSearchParams();
@@ -105,7 +102,7 @@ export default function Seguimiento() {
     const [actualizando, setActualizando] = useState(false);
     const [error, setError] = useState('');
     const [desconectado, setDesconectado] = useState(false);
-    const [accion, setAccion] = useState('');
+    const [reportadas, setReportadas] = useState(0);
     const errores = useRef(0);
     const controlador = useRef(null);
     const seleccionRef = useRef(seleccion);
@@ -244,20 +241,6 @@ export default function Seguimiento() {
         setSeleccion({ examen_id: aula.examen_id, aula_id: aula.aula_id });
     };
 
-    const atender = async (id) => {
-        setAccion(String(id));
-        setError('');
-        try {
-            await api.patch(`/seguimiento/incidencias/${id}/atendida`);
-            avisar('Incidencia atendida');
-            await actualizar();
-        } catch (fallo) {
-            avisar(mensajeDe(fallo, 'No se pudo atender'), 'error');
-        } finally {
-            setAccion('');
-        }
-    };
-
     if (cargando) {
         return (
             <div className="flex min-h-48 items-center justify-center gap-2 text-slate-600">
@@ -381,17 +364,22 @@ export default function Seguimiento() {
                                         </p>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
-                                        {esHoy && operaPuerta && (
-                                            <IncidenciaAula
-                                                examenId={seleccionada.examen_id}
+                                        {esHoy && (
+                                            <BotonIncidencia
                                                 aula={{
                                                     id: detalle.aula.id,
                                                     nombre: detalle.aula.nombre,
                                                 }}
                                                 por={usuario?.nombre}
                                                 hora={horaDe(detalle.examen.hora_servidor)}
+                                                registrar={(datos) =>
+                                                    api.post(
+                                                        `/examenes/${seleccionada.examen_id}/incidencias`,
+                                                        datos
+                                                    )
+                                                }
                                                 alRegistrar={() => {
-                                                    avisar('Incidencia registrada');
+                                                    setReportadas((n) => n + 1);
                                                     void actualizar({ silencioso: true });
                                                 }}
                                             />
@@ -552,95 +540,16 @@ export default function Seguimiento() {
                                 )}
                             </section>
 
-                            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                                <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                                    <h3 className="font-semibold text-slate-900">
-                                        Incidencias · {detalle.cifras.incidencias}
-                                    </h3>
-                                </header>
-                                {detalle.incidencias.length === 0 ? (
-                                    <p className="p-5 text-sm text-slate-600">Sin incidencias</p>
-                                ) : (
-                                    <>
-                                        {detalle.cifras.incidencias >
-                                            detalle.incidencias.length && (
-                                            <p className="px-4 pt-3 text-xs text-slate-500">
-                                                Últimas 50
-                                            </p>
-                                        )}
-                                        <ul className="divide-y divide-slate-100">
-                                            {detalle.incidencias.map((incidencia) => (
-                                                <li key={incidencia.id} className="space-y-2 p-4">
-                                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                                        <div className="flex flex-wrap items-center gap-2">
-                                                            <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-800">
-                                                                {tipoIncidenciaLegible(
-                                                                    incidencia.tipo
-                                                                )}
-                                                            </span>
-                                                        </div>
-                                                        {incidencia.atendida_en ? (
-                                                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
-                                                                <Check
-                                                                    size={14}
-                                                                    aria-hidden="true"
-                                                                />
-                                                                {[
-                                                                    `Atendida por ${incidencia.atendida_por ?? '—'}`,
-                                                                    horaDe(incidencia.atendida_en),
-                                                                ]
-                                                                    .filter(Boolean)
-                                                                    .join(' · ')}
-                                                            </span>
-                                                        ) : detalle.puede_atender ? (
-                                                            <button
-                                                                type="button"
-                                                                disabled={
-                                                                    accion === String(incidencia.id)
-                                                                }
-                                                                onClick={() =>
-                                                                    void atender(incidencia.id)
-                                                                }
-                                                                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
-                                                            >
-                                                                {accion === String(incidencia.id)
-                                                                    ? 'Guardando…'
-                                                                    : 'Atender'}
-                                                            </button>
-                                                        ) : (
-                                                            <span className="text-xs font-semibold text-amber-700">
-                                                                Sin atender
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    {incidencia.estudiante && (
-                                                        <p className="text-sm font-semibold text-slate-900">
-                                                            {incidencia.estudiante}
-                                                        </p>
-                                                    )}
-                                                    <p className="text-sm text-slate-700">
-                                                        {incidencia.detalle}
-                                                    </p>
-                                                    <p className="text-xs text-slate-500">
-                                                        {[
-                                                            `Reportó ${incidencia.reportante}`,
-                                                            incidencia.rol_reportante,
-                                                            horaDe(incidencia.reportada_en),
-                                                        ]
-                                                            .filter(Boolean)
-                                                            .join(' · ')}
-                                                    </p>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </>
-                                )}
-                            </section>
+                            <IncidenciasDelExamen
+                                key={`${seleccionada.examen_id}-${detalle.aula.id}-${reportadas}`}
+                                examenId={seleccionada.examen_id}
+                                aulaId={detalle.aula.id}
+                                puedeAtender={Boolean(detalle.puede_atender)}
+                            />
                         </>
                     )}
                 </>
             )}
-            {aviso}
         </main>
     );
 }

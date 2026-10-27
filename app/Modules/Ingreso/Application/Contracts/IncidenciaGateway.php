@@ -22,14 +22,15 @@ interface IncidenciaGateway
     public function registrar(NuevaIncidenciaData $datos, ?string $operacion = null): ?int;
 
     /**
-     * Las incidencias del examen (o de un aula), de la mas reciente a la
+     * Las incidencias del examen (o de unas aulas), de la mas reciente a la
      * mas antigua, con los conteos: las reportadas por personas y los
      * ingresos repetidos que asienta la puerta. Los demas intentos que
      * rechaza la puerta no se listan ni se atienden.
      *
+     * @param  list<int>|null  $aulas  nulo: todas las aulas del examen
      * @return array{data: list<array<string, mixed>>, sin_atender: int, todas: int}
      */
-    public function listar(int $examenId, ?int $aulaId, bool $soloSinAtender): array;
+    public function listar(int $examenId, ?array $aulas, bool $soloSinAtender): array;
 
     /**
      * Una incidencia con la forma del listado mas `examen_id`; nulo si no
