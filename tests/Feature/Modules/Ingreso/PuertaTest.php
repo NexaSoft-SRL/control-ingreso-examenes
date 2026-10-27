@@ -79,7 +79,8 @@ final class PuertaTest extends TestCase
             ->assertJsonStructure(['data', 'meta' => ['caja']]);
 
         // Con codigo de aula no hay excepcion ni expulsion.
-        $ingreso = (int) DB::table('ingresos')->value('id');
+        $ingreso = DB::table('ingresos')->value('id');
+        self::assertIsInt($ingreso);
         $this->withHeaders($headers)
             ->postJson("/api/aulas/{$aula->id}/punto-control/ingresos/{$ingreso}/expulsion", ['motivo' => 'Uso de celular.'])
             ->assertForbidden()
