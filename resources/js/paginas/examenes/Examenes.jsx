@@ -74,6 +74,12 @@ function accionDe(e, puedeHabilitar, puedeEmitir) {
             a: `/examenes/nuevo?examen=${e.id}&paso=${e.accion.paso ?? 2}`,
         };
     }
+    if (clave === 'quien_atiende' && e.propio) {
+        return {
+            texto: 'Quién atiende',
+            a: `/examenes/nuevo?examen=${e.id}&paso=${e.accion.paso ?? 3}`,
+        };
+    }
     if (clave === 'habilitar' && puedeHabilitar) {
         const empezada = (e.habilitados ?? 0) + (e.no_habilitados ?? 0) > 0;
         return {
