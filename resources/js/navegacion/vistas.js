@@ -122,8 +122,18 @@ export const VISTAS = [
         movil: true,
         permiso: 'punto_control',
     },
+    // HU-21: la lista del aula que sigue el docente desde «En curso».
     {
-        ruta: '/seguimiento',
+        ruta: '/en-curso/aula',
+        titulo: 'Lista del aula',
+        Icono: Activity,
+        grupo: 'Exámenes',
+        oculta: true,
+        padre: '/en-curso',
+        permiso: 'examenes',
+    },
+    {
+        ruta: '/mi-aula',
         titulo: 'Mi aula',
         Icono: Activity,
         grupo: 'Exámenes',

@@ -378,6 +378,17 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
                     ->count(),
                 'asignados' => $totalAsignados,
                 'incidencias' => $totalIncidencias,
+                // Quienes entraron por la puerta de un aula que no era la
+                // suya, desde esta aula: los que llegaron de otra y los de
+                // esta que entraron por otra.
+                'de_otra_aula' => $this->cruzados($examenId)
+                    ->where('i.aula_id', $aulaId)
+                    ->where('h.aula_id', '<>', $aulaId)
+                    ->count(),
+                'en_otra_aula' => $this->cruzados($examenId)
+                    ->where('h.aula_id', $aulaId)
+                    ->where('i.aula_id', '<>', $aulaId)
+                    ->count(),
             ],
             'estudiantes' => $estudiantes,
             'pagina' => [
@@ -387,6 +398,18 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
                 'total' => $total,
             ],
         ];
+    }
+
+    private function cruzados(int $examenId): Builder
+    {
+        return DB::table('ingresos as i')
+            ->join('habilitaciones as h', static function (JoinClause $union): void {
+                $union->on('h.examen_id', '=', 'i.examen_id')
+                    ->on('h.estudiante_id', '=', 'i.estudiante_id');
+            })
+            ->where('i.examen_id', $examenId)
+            ->whereNotNull('h.aula_id')
+            ->whereNotNull('i.aula_id');
     }
 
     private function consultaHabilitados(int $examenId, int $aulaId): Builder

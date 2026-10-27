@@ -631,7 +631,7 @@ describe('EnCurso (HU-22)', () => {
 
         expect(screen.getByRole('link', { name: 'Lista del aula 691A' })).toHaveAttribute(
             'href',
-            '/seguimiento?examen=1&aula=31'
+            '/en-curso/aula?examen=1&aula=31'
         );
         expect(screen.getByRole('link', { name: 'Controlar el aula 691A' })).toHaveAttribute(
             'href',

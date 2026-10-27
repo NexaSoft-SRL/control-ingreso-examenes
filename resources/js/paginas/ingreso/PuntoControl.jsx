@@ -278,7 +278,7 @@ function Puesto({ aula, aulas, acceso, elegirAula }) {
     // La lista del aula («Mi aula», HU-21) es de las cuentas que la siguen.
     const destinoLista =
         usuario && puede('seguimiento_vivo') && examenesAula[0]
-            ? `/seguimiento?examen=${examenesAula[0].id}&aula=${aula.id}`
+            ? `${puede('examenes') ? '/en-curso/aula' : '/mi-aula'}?examen=${examenesAula[0].id}&aula=${aula.id}`
             : null;
 
     const recargar = () => {

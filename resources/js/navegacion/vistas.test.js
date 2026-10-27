@@ -18,7 +18,8 @@ describe('vistas por permiso', () => {
             ['/codigos-qr', 'codigos_qr'],
             ['/en-curso', 'examenes'],
             ['/punto-control', 'punto_control'],
-            ['/seguimiento', 'seguimiento_vivo'],
+            ['/en-curso/aula', 'examenes'],
+            ['/mi-aula', 'seguimiento_vivo'],
             ['/mis-grupos', 'mis_grupos'],
             ['/admin', 'usuarios_roles'],
             ['/bitacora', 'bitacora'],
@@ -55,10 +56,11 @@ describe('vistas por permiso', () => {
             '/codigos-qr',
             '/en-curso',
             '/punto-control',
-            '/seguimiento',
+            '/en-curso/aula',
+            '/mi-aula',
             '/mis-grupos',
         ]);
-        expect(rutas(usuarioDePrueba('Auxiliar'))).toEqual(['/punto-control', '/seguimiento']);
+        expect(rutas(usuarioDePrueba('Auxiliar'))).toEqual(['/punto-control', '/mi-aula']);
         expect(rutas(null)).toEqual([]);
     });
 
@@ -73,6 +75,7 @@ describe('vistas por permiso', () => {
             '/examenes',
             '/examenes/nuevo',
             '/en-curso',
+            '/en-curso/aula',
         ]);
         expect(entradaDe(cuenta)).toBe('/periodo');
     });

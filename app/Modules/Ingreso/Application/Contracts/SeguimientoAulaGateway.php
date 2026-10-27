@@ -35,7 +35,7 @@ interface SeguimientoAulaGateway
      * @return array{
      *     examen: array<string, mixed>,
      *     aula: array<string, mixed>,
-     *     cifras: array{ingresaron: int, faltan: int, asignados: int, incidencias: int},
+     *     cifras: array{ingresaron: int, faltan: int, asignados: int, incidencias: int, de_otra_aula: int, en_otra_aula: int},
      *     estudiantes: list<array<string, mixed>>,
      *     pagina: array{actual: int, ultima: int, por_pagina: int, total: int}
      * }
