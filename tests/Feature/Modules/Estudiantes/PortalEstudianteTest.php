@@ -118,7 +118,7 @@ final class PortalEstudianteTest extends TestCase
         $this->postJson('/api/auth/estudiante/codigo', ['codigo_universitario' => $codigo])
             ->assertOk()
             ->assertJsonPath('correo', substr($codigo, 0, 4).str_repeat('•', strlen($codigo) - 6).substr($codigo, -2).'@est.umss.edu')
-            ->assertJsonPath('minutos', 10)
+            ->assertJsonPath('minutos', 1440)
             ->assertJsonMissingPath('codigo_prueba');
 
         Mail::assertSent(CodigoAccesoMail::class, fn (CodigoAccesoMail $correo): bool => $correo->hasTo($this->estudiante->correo())
@@ -182,10 +182,10 @@ final class PortalEstudianteTest extends TestCase
         $this->postJson('/api/auth/estudiante', [...$cuerpo, 'codigo' => $codigo])->assertStatus(422);
     }
 
-    public function test_the_code_expires_after_ten_minutes(): void
+    public function test_the_code_expires_after_twenty_four_hours(): void
     {
         $codigo = $this->codigoEnviado();
-        $this->travel(11)->minutes();
+        $this->travel(24 * 60 + 1)->minutes();
 
         $this->postJson('/api/auth/estudiante', [
             'codigo_universitario' => $this->estudiante->codigo_universitario,
