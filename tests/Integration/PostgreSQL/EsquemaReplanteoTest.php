@@ -91,6 +91,7 @@ final class EsquemaReplanteoTest extends TestCase
         'incidencias',
         'ingresos',
         'intentos_punto_control',
+        'presencias_puerta',
     ];
 
     public function test_schema_has_exactly_the_expected_tables(): void

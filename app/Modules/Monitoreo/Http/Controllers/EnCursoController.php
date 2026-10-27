@@ -48,6 +48,7 @@ final class EnCursoController
                 // El docente del examen atiende y corrige las incidencias.
                 'es_docente' => $tablero->esDocente,
                 'ultimo_registro' => $tablero->avance->ultimoRegistro,
+                'llegadas' => $tablero->avance->llegadas,
                 'cifras' => [
                     'ingresaron' => $tablero->avance->ingresaron,
                     'faltan' => $tablero->avance->faltan,
@@ -102,6 +103,8 @@ final class EnCursoController
             'ingresados' => $aula->avance->ingresados,
             'faltan' => $aula->avance->faltan,
             'ultimo_registro' => $aula->avance->ultimoRegistro,
+            'de_otra' => $aula->avance->deOtra,
+            'en_otra' => $aula->avance->enOtra,
             'incidencias_sin_atender' => $aula->incidenciasSinAtender,
             'compartida' => $aula->compartida,
             'codigo_acceso' => $aula->codigoAcceso,
