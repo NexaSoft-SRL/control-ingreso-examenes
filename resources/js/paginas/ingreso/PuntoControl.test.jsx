@@ -526,30 +526,43 @@ describe('PuntoControl HU-19', () => {
         expect(screen.queryByRole('button', { name: 'Verificar' })).not.toBeInTheDocument();
     });
 
-    it('con código de aula usa las rutas del examen y no ofrece expulsar', async () => {
-        localStorage.setItem(
-            'codigo_aula_sesion',
-            JSON.stringify({
-                examen_id: 10,
-                aula_id: 7,
-                aula_nombre: '691A',
-                nombre_colaborador: 'Ana Rocha',
+    it('con código de aula ve la misma puerta, sin expulsar ni excepción', async () => {
+        api.post.mockImplementation(() =>
+            rechazo({
+                veredicto: 'NO_HABILITADO',
+                estudiante: { id: 6, codigo: '202610014', nombre: 'Lima Eva' },
+                dato: 'Sin revisar',
             })
         );
-        api.post.mockResolvedValue({ data: { data: { veredicto: 'ADMITIDO', admitido: true } } });
 
-        montar('/aula');
+        render(
+            <MemoryRouter initialEntries={['/acceso-aula?aula=7']}>
+                <PuntoControl
+                    acceso={{
+                        examen_id: 10,
+                        aula_id: 7,
+                        aula_nombre: '691A',
+                        nombre_colaborador: 'Rocha Ana',
+                    }}
+                />
+            </MemoryRouter>
+        );
 
-        expect(await screen.findByText('Ana Rocha')).toBeInTheDocument();
+        // Los exámenes, sus cifras y las normas, como con cuenta.
+        const lista = await screen.findByRole('list', { name: 'Exámenes del aula' });
+        expect(within(lista).getByText('Introducción a la Programación')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Incidencia' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Expulsar' })).not.toBeInTheDocument();
+
         await verificarCodigo();
-
         await waitFor(() => {
-            expect(api.post).toHaveBeenCalledWith('/examenes/10/aulas/7/punto-control/ingresos', {
+            expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/ingresos', {
                 identificador: '202210098',
             });
         });
-        expect(await screen.findByText('Ingreso admitido')).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Expulsar' })).not.toBeInTheDocument();
-        expect(api.get).not.toHaveBeenCalledWith('/punto-control/contexto', expect.anything());
+        expect(await screen.findByText('Sin revisar')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Situación excepcional' })
+        ).not.toBeInTheDocument();
     });
 });
