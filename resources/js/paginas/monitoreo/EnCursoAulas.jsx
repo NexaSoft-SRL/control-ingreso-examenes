@@ -114,7 +114,7 @@ Enlaces.propTypes = {
 // seguimiento del aula (HU-21) y «Controlar», su puerta (HU-19), solo en
 // las aulas cuya puerta la cuenta opera (`puede_operar`, del servidor).
 export default function EnCursoAulas({ aulas, examenId, denso, abierto, conLista, conControl }) {
-    const lista = (a) => (conLista ? `/seguimiento?examen=${examenId}&aula=${a.aula_id}` : null);
+    const lista = (a) => (conLista ? `/en-curso/aula?examen=${examenId}&aula=${a.aula_id}` : null);
     const control = (a) =>
         conControl && a.puede_operar ? `/punto-control?aula=${a.aula_id}` : null;
 

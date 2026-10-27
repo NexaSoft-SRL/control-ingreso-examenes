@@ -162,10 +162,17 @@ final class ControlDelExamenTest extends TestCase
             ->getJson("/api/en-curso/{$this->examen->id}")
             ->assertOk();
 
-        $aulas = collect((array) $respuesta->json('data.aulas'))->keyBy('nombre');
-        self::assertSame(1, $aulas['691A']['en_otra']);
-        self::assertSame(0, $aulas['691A']['de_otra']);
-        self::assertSame(1, $aulas['691B']['de_otra']);
+        $respuesta->assertJsonPath('data.aulas.0.nombre', '691A')
+            ->assertJsonPath('data.aulas.0.en_otra', 1)
+            ->assertJsonPath('data.aulas.0.de_otra', 0)
+            ->assertJsonPath('data.aulas.1.nombre', '691B')
+            ->assertJsonPath('data.aulas.1.de_otra', 1);
+
+        // La lista del aula dice lo mismo.
+        $this->getJson("/api/seguimiento/examenes/{$this->examen->id}/aulas/{$this->aula->id}")
+            ->assertOk()
+            ->assertJsonPath('data.cifras.en_otra_aula', 1)
+            ->assertJsonPath('data.cifras.de_otra_aula', 0);
 
         $llegadas = (array) $respuesta->json('data.llegadas');
         self::assertSame(2, array_sum(array_column($llegadas, 'ingresos')));

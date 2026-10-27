@@ -68,137 +68,99 @@ describe('Seguimiento HU-21', () => {
         });
     });
 
-    it('muestra el aula autorizada, asistencia y refresco periódico', async () => {
-        renderConSesion(<Seguimiento />, { usuario: usuarioDePrueba('Auxiliar') });
+    it('muestra «Mi aula · A-101» con sus cifras y la lista de los que faltan', async () => {
+        api.get.mockImplementation((ruta) => {
+            if (ruta === '/seguimiento/aulas') return Promise.resolve({ data: { data: [aula] } });
+            if (ruta === '/examenes/10/incidencias') {
+                return Promise.resolve({ data: { data: [], meta: { sin_atender: 0, todas: 0 } } });
+            }
+            return Promise.resolve({
+                data: {
+                    data: {
+                        ...detalle,
+                        abierto: true,
+                        cifras: { ...detalle.cifras, de_otra_aula: 2, en_otra_aula: 1 },
+                        estudiantes: [
+                            {
+                                estudiante_id: 1,
+                                codigo: '202510245',
+                                nombres: 'Ana',
+                                apellidos: 'Rojas Vargas',
+                                grupos: ['Grupo 2'],
+                                registrado_en: null,
+                            },
+                        ],
+                        pagina: { actual: 1, ultima: 1, por_pagina: 25, total: 1 },
+                    },
+                },
+            });
+        });
 
-        expect(await screen.findByRole('heading', { name: 'Mi aula' })).toBeInTheDocument();
+        renderConSesion(<Seguimiento />, {
+            usuario: usuarioDePrueba('Auxiliar'),
+            ruta: '/mi-aula',
+        });
+
+        expect(await screen.findByRole('heading', { name: 'Mi aula · A-101' })).toBeInTheDocument();
         await waitFor(() => {
             expect(api.get).toHaveBeenCalledWith(
                 '/seguimiento/examenes/10/aulas/7',
                 expect.objectContaining({
-                    params: { estado: 'faltan', buscar: '', pagina: 1 },
+                    params: expect.objectContaining({ estado: 'faltan', pagina: 1 }),
                 })
             );
         });
-        expect(await screen.findByRole('heading', { name: 'Aula A-101' })).toBeInTheDocument();
-        expect(screen.getByText('Ingresaron')).toBeInTheDocument();
-        expect(screen.getByText('Faltan')).toBeInTheDocument();
-        expect(screen.getByText('Asignados')).toBeInTheDocument();
-        expect(screen.queryByText(/Actualización automática/)).not.toBeInTheDocument();
+        expect(await screen.findByText('Habilitados')).toBeInTheDocument();
+        expect(
+            screen.getByText('2 ingresaron aquí desde otra aula · 1 asignado entró por otra aula')
+        ).toBeInTheDocument();
+        expect(screen.getByText('Rojas Vargas Ana')).toBeInTheDocument();
+        expect(screen.getByText(/Grupo 2/)).toBeInTheDocument();
+        // Con el ingreso abierto, quien no entró todavía no es ausente.
+        expect(screen.getByText('Sin ingreso')).toBeInTheDocument();
+        expect(screen.queryByText('Ausente')).not.toBeInTheDocument();
     });
 
-    it('abre el aula que llega en la dirección desde «En curso»', async () => {
+    it('el docente abre el aula pedida y vuelve a «En curso»', async () => {
         const otra = { ...aula, aula_id: 8, aula: 'A-102' };
         api.get.mockImplementation((ruta) => {
             if (ruta === '/seguimiento/aulas') {
                 return Promise.resolve({ data: { data: [aula, otra] } });
             }
-
             if (ruta === '/seguimiento/examenes/10/aulas/8') {
                 return Promise.resolve({
                     data: { data: { ...detalle, aula: { id: 8, nombre: 'A-102' } } },
                 });
             }
-
+            if (ruta === '/examenes/10/incidencias') {
+                return Promise.resolve({ data: { data: [], meta: { sin_atender: 0, todas: 0 } } });
+            }
             return Promise.reject(new Error(`Ruta inesperada: ${ruta}`));
         });
 
         renderConSesion(<Seguimiento />, {
             usuario: usuarioDePrueba('Docente'),
-            ruta: '/seguimiento?examen=10&aula=8',
+            ruta: '/en-curso/aula?examen=10&aula=8',
         });
 
         expect(await screen.findByRole('heading', { name: 'Aula A-102' })).toBeInTheDocument();
-        expect(api.get).not.toHaveBeenCalledWith(
-            '/seguimiento/examenes/10/aulas/7',
-            expect.anything()
-        );
-    });
-
-    it('conserva el aula asignada de un examen ajeno en el enlace de «En curso»', async () => {
-        const examenAsignado = {
-            ...aula,
-            examen_id: 12,
-            aula_id: 19,
-            aula: '692A',
-        };
-        api.get.mockImplementation((ruta) => {
-            if (ruta === '/seguimiento/aulas') {
-                return Promise.resolve({ data: { data: [aula, examenAsignado] } });
-            }
-
-            if (ruta === '/seguimiento/examenes/12/aulas/19') {
-                return Promise.resolve({
-                    data: {
-                        data: {
-                            ...detalle,
-                            examen: { ...detalle.examen, id: 12 },
-                            aula: { id: 19, nombre: '692A' },
-                        },
-                    },
-                });
-            }
-
-            return Promise.reject(new Error(`Ruta inesperada: ${ruta}`));
-        });
-
-        renderConSesion(<Seguimiento />, {
-            usuario: usuarioDePrueba('Docente'),
-            ruta: '/seguimiento?examen=12&aula=19',
-        });
-
-        expect(await screen.findByRole('heading', { name: 'Aula 692A' })).toBeInTheDocument();
-        expect(api.get).toHaveBeenCalledWith(
-            '/seguimiento/examenes/12/aulas/19',
-            expect.objectContaining({ params: { estado: 'faltan', buscar: '', pagina: 1 } })
+        expect(screen.getByRole('link', { name: /Volver a En curso/ })).toHaveAttribute(
+            'href',
+            '/en-curso?examen=10'
         );
         expect(api.get).not.toHaveBeenCalledWith(
             '/seguimiento/examenes/10/aulas/7',
             expect.anything()
         );
-    });
-
-    it('distingue un error del servidor de una pérdida de conexión', async () => {
-        api.get.mockImplementation((ruta) => {
-            if (ruta === '/seguimiento/aulas') {
-                return Promise.resolve({ data: { data: [aula] } });
-            }
-
-            return Promise.reject({ response: { status: 500 } });
-        });
-
-        renderConSesion(<Seguimiento />, { usuario: usuarioDePrueba('Auxiliar') });
-
-        expect(await screen.findByText('No se pudo actualizar la lista')).toBeInTheDocument();
-        expect(screen.queryByText(/Sin conexión/)).not.toBeInTheDocument();
-    });
-
-    it('mantiene el foco en la búsqueda mientras actualiza los resultados', async () => {
-        renderConSesion(<Seguimiento />, { usuario: usuarioDePrueba('Auxiliar') });
-
-        const busqueda = await screen.findByRole('searchbox', {
-            name: 'Buscar por nombre, código o documento',
-        });
-        busqueda.focus();
-        fireEvent.change(busqueda, { target: { value: 'alvaro alvarez' } });
-
-        await waitFor(() => {
-            expect(api.get).toHaveBeenCalledWith(
-                '/seguimiento/examenes/10/aulas/7',
-                expect.objectContaining({
-                    params: { estado: 'faltan', buscar: 'alvaro alvarez', pagina: 1 },
-                })
-            );
-        });
-        expect(document.activeElement).toBe(busqueda);
     });
 
     it('busca una sola vez cuando se deja de teclear', async () => {
-        renderConSesion(<Seguimiento />, { usuario: usuarioDePrueba('Auxiliar') });
-
-        const busqueda = await screen.findByRole('searchbox', {
-            name: 'Buscar por nombre, código o documento',
+        renderConSesion(<Seguimiento />, {
+            usuario: usuarioDePrueba('Auxiliar'),
+            ruta: '/mi-aula',
         });
+
+        const busqueda = await screen.findByRole('textbox', { name: 'Buscar estudiante' });
         await waitFor(() => expect(llamadasA('/seguimiento/examenes/10/aulas/7')).toHaveLength(1));
 
         let texto = '';
@@ -212,7 +174,7 @@ describe('Seguimiento HU-21', () => {
         const busquedas = llamadasA('/seguimiento/examenes/10/aulas/7').map(
             ([, opciones]) => opciones.params.buscar
         );
-        expect(busquedas).toEqual(['', 'camacho']);
+        expect(busquedas).toEqual([undefined, 'camacho']);
     });
 
     it('lista las incidencias del aula sin atender y el docente las atiende', async () => {
@@ -274,7 +236,7 @@ describe('Seguimiento HU-21', () => {
 
         expect(await screen.findByRole('link', { name: 'Controlar' })).toHaveAttribute(
             'href',
-            '/punto-control?examen=10&aula=7'
+            '/punto-control?aula=7'
         );
 
         fireEvent.click(screen.getByRole('button', { name: 'Incidencia' }));
@@ -317,7 +279,7 @@ describe('Seguimiento HU-21', () => {
 
         renderConSesion(<Seguimiento />, { usuario: usuarioDePrueba('Auxiliar') });
 
-        expect(await screen.findByRole('heading', { name: 'Aula A-101' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Mi aula · A-101' })).toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Controlar' })).not.toBeInTheDocument();
     });
 

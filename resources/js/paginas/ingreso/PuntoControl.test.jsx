@@ -569,7 +569,7 @@ describe('PuntoControl HU-19', () => {
 
         expect(await screen.findByRole('link', { name: /Lista/ })).toHaveAttribute(
             'href',
-            '/seguimiento?examen=10&aula=7'
+            '/mi-aula?examen=10&aula=7'
         );
 
         fireEvent.click(screen.getByRole('button', { name: 'Cambiar' }));
