@@ -165,18 +165,37 @@ function CodigosDelExamen({ examen, selector }) {
         return avisar(sinPunto(mensajeDe(fallo, porDefecto)), 'error');
     };
 
+    // Emitir también envía: cada estudiante recibe su código por correo en
+    // cuanto se emite. «Enviar por correo» queda para reenviar.
     const emitir = async () => {
         if (ocupado) return;
         setOcupado('emitir');
+        let nuevos = 0;
         try {
             const { data } = await api.post(ruta);
-            avisar(sinPunto(data?.message) || 'Códigos emitidos');
-            await refrescar();
+            nuevos = data?.emitidos ?? 0;
+            if (nuevos === 0) avisar(sinPunto(data?.message) || 'Códigos emitidos');
         } catch (fallo) {
             rechazo(fallo, 'No se pudo emitir');
-        } finally {
-            setOcupado(null);
         }
+        if (nuevos > 0) {
+            const emitidosTexto = plural(nuevos, 'código emitido', 'códigos emitidos');
+            try {
+                const { quedan: sinSalir } = await enTandas(
+                    `${ruta}/envios`,
+                    { envio: 'sin_enviar' },
+                    setQuedan
+                );
+                if (sinSalir > 0)
+                    avisar(`${emitidosTexto} · ${plural(sinSalir, 'código')} sin enviar`, 'error');
+                else avisar(`${emitidosTexto} y enviados por correo`);
+            } catch (fallo) {
+                rechazo(fallo, `${emitidosTexto} · no se pudo enviar`);
+            }
+        }
+        setOcupado(null);
+        setQuedan(null);
+        await refrescar();
     };
 
     const enviar = async () => {

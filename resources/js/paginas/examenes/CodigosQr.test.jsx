@@ -305,8 +305,13 @@ describe('Códigos QR', () => {
             'true'
         );
 
-        expect(await screen.findByText('45 códigos emitidos')).toBeInTheDocument();
+        // Emitir también envía cada código por correo, solo a los que faltan.
+        expect(
+            await screen.findByText('45 códigos emitidos y enviados por correo')
+        ).toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith(RUTA);
+        expect(envios()).toEqual([{ envio: 'sin_enviar' }]);
+        await waitFor(() => expect(dato('Enviados')).toHaveTextContent('45'));
         await waitFor(() => expect(dato('Emitidos')).toHaveTextContent('45'));
         expect(screen.queryByRole('button', { name: /Emitir códigos/ })).toBeNull();
         expect(screen.getByRole('button', { name: /Imprimir credenciales/ })).toBeEnabled();
