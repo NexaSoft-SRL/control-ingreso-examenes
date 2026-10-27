@@ -103,7 +103,8 @@ final class AdministracionCuentasTest extends TestCase
             ->assertJsonPath('data.usuario', 'leticia.blanco')
             ->assertJsonPath('data.correo', 'leticia.blanco@umss.edu.bo')
             ->assertJsonPath('data.rol', 'Docente')
-            ->assertJsonPath('data.estado', 'activo')
+            // Recién creada: todavía con la contraseña temporal.
+            ->assertJsonPath('data.estado', 'temporal')
             ->assertJsonPath('enviada_a', 'leticia.blanco@umss.edu.bo')
             ->assertJsonPath('caduca_en', '2026-10-15T08:21:00-04:00')
             ->assertJsonPath('message', 'Usuario creado.');
@@ -181,7 +182,7 @@ final class AdministracionCuentasTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonPath('errors.nombre.0', 'Mínimo 3 caracteres')
-            ->assertJsonPath('errors.usuario.0', 'Solo letras, números, puntos y guiones')
+            ->assertJsonPath('errors.usuario.0', 'Letras o números, separados por punto o guion')
             ->assertJsonPath('errors.correo.0', 'Correo no válido')
             ->assertJsonPath('errors.rol.0', 'El rol no existe');
 
@@ -376,6 +377,20 @@ final class AdministracionCuentasTest extends TestCase
         ]);
 
         $this->assertSame(1, $this->asientos('usuario.desbloquear'));
+    }
+
+    public function test_an_unblocked_account_without_its_own_password_goes_back_to_temporal(): void
+    {
+        $this->cuenta->forceFill(['is_active' => false, 'password_changed_at' => null])->save();
+
+        $this->actingAs($this->administrador)
+            ->getJson('/api/usuarios?bloqueadas=1')
+            ->assertOk()
+            ->assertJsonPath('data.0.estado', 'bloqueado');
+
+        $this->putJson($this->ruta(), $this->cuerpo(['activo' => true]))
+            ->assertOk()
+            ->assertJsonPath('data.estado', 'temporal');
     }
 
     public function test_the_state_is_left_alone_when_it_does_not_travel(): void

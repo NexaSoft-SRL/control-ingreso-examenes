@@ -52,7 +52,7 @@ final class EloquentConsultaDocentesGateway implements ConsultaDocentesGateway
             ->orderByRaw($this->sinTildes('d.nombre_completo'))
             ->orderBy('d.id')
             ->forPage($pagina->pagina, $pagina->porPagina)
-            ->get(['d.id', 'd.nombre_completo', 'd.user_id', 'u.password_changed_at']);
+            ->get(['d.id', 'd.nombre_completo', 'd.user_id', 'u.password_changed_at', 'u.is_active']);
 
         $ids = [];
 
@@ -76,7 +76,7 @@ final class EloquentConsultaDocentesGateway implements ConsultaDocentesGateway
                     ],
                     $facultades[$id] ?? [],
                 ),
-                'cuenta' => $this->estadoDeCuenta($fila->user_id, $fila->password_changed_at),
+                'cuenta' => $this->estadoDeCuenta($fila->user_id, $fila->password_changed_at, $fila->is_active),
             ];
         }
 
@@ -117,7 +117,7 @@ final class EloquentConsultaDocentesGateway implements ConsultaDocentesGateway
             DB::table('docentes as d')
                 ->leftJoin('usuarios as u', 'u.id', '=', 'd.user_id')
                 ->where('d.id', $docenteId),
-            ['d.id', 'd.nombre_completo', 'd.user_id', 'u.usuario', 'u.correo', 'u.password_changed_at'],
+            ['d.id', 'd.nombre_completo', 'd.user_id', 'u.usuario', 'u.correo', 'u.password_changed_at', 'u.is_active'],
         );
 
         if ($fila === null) {
@@ -158,7 +158,7 @@ final class EloquentConsultaDocentesGateway implements ConsultaDocentesGateway
 
         if ($fila->user_id !== null) {
             $cuenta = [
-                'estado' => $this->estadoDeCuenta($fila->user_id, $fila->password_changed_at),
+                'estado' => $this->estadoDeCuenta($fila->user_id, $fila->password_changed_at, $fila->is_active),
                 'usuario' => $this->cadena($fila->usuario),
                 'correo' => $this->texto($fila->correo),
             ];
@@ -173,13 +173,15 @@ final class EloquentConsultaDocentesGateway implements ConsultaDocentesGateway
         ];
     }
 
-    private function estadoDeCuenta(mixed $usuarioId, mixed $contrasenaCambiada): string
+    // Los mismos estados que la pantalla de usuarios.
+    private function estadoDeCuenta(mixed $usuarioId, mixed $contrasenaCambiada, mixed $activa): string
     {
-        if ($usuarioId === null) {
-            return 'sin_cuenta';
-        }
-
-        return $contrasenaCambiada === null ? 'temporal' : 'activa';
+        return match (true) {
+            $usuarioId === null => 'sin_cuenta',
+            ! (bool) $activa => 'bloqueado',
+            $contrasenaCambiada === null => 'temporal',
+            default => 'activo',
+        };
     }
 
     /**

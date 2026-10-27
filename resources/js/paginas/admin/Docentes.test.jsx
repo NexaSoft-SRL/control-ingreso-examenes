@@ -110,7 +110,7 @@ const DOCENTES = [
         nombre: 'Agreda Corrales Luis Roberto',
         sugerido: 'luis.agreda',
         facultades: [fcyt(11, ['Arquitectura de Computadoras I', 'Fisica Basica I'])],
-        cuenta: { estado: 'activa', usuario: 'luis.agreda', correo: 'luis.agreda@umss.edu.bo' },
+        cuenta: { estado: 'activo', usuario: 'luis.agreda', correo: 'luis.agreda@umss.edu.bo' },
     },
     {
         id: 21,
@@ -146,7 +146,7 @@ const MUCHOS = Array.from({ length: 45 }, (_, i) => {
         nombre: `Docente ${String(n).padStart(2, '0')}`,
         sugerido: `docente.${n}`,
         facultades: [fcyt(1)],
-        ...(sin ? {} : { cuenta: { estado: 'activa', usuario: `docente.${n}`, correo: null } }),
+        ...(sin ? {} : { cuenta: { estado: 'activo', usuario: `docente.${n}`, correo: null } }),
     };
 });
 
@@ -184,7 +184,7 @@ describe('Docentes', () => {
         expect(cespedes).toHaveTextContent('FCyT · 3 grupos');
         expect(cespedes).toHaveTextContent('FHCE · 5 grupos');
         expect(cespedes).toHaveTextContent('Sin cuenta');
-        expect(fila('Agreda Corrales')).toHaveTextContent('Cuenta activa');
+        expect(fila('Agreda Corrales')).toHaveTextContent('Activo');
         expect(fila('Acha Perez')).toHaveTextContent('FCyT · 1 grupo');
         expect(fila('Acha Perez')).toHaveTextContent('Temporal');
         expect(screen.getByText('4 docentes · 1 en más de una facultad')).toBeInTheDocument();
@@ -245,6 +245,43 @@ describe('Docentes', () => {
         expect(peticiones().at(-1)).toEqual({ facultad: 'fce', pagina: 1, por_pagina: 20 });
     });
 
+    it('un filtro a la vez: una facultad quita «Sin cuenta» y al revés', async () => {
+        montar();
+        await waitFor(() => expect(peticiones()).toHaveLength(1));
+
+        fireEvent.click(screen.getByRole('button', { name: /^FCyT/ }));
+        await waitFor(() => expect(peticiones().at(-1)).toMatchObject({ facultad: 'fcyt' }));
+
+        fireEvent.click(screen.getByRole('button', { name: /^Sin cuenta/ }));
+        await waitFor(() => expect(peticiones().at(-1)).toMatchObject({ sin_cuenta: 1 }));
+        expect(peticiones().at(-1)).not.toHaveProperty('facultad');
+        expect(screen.getByRole('button', { name: /^FCyT/ })).toHaveAttribute(
+            'aria-pressed',
+            'false'
+        );
+    });
+
+    it('desde el período llega con «Sin cuenta» ya elegido', async () => {
+        renderConSesion(<Docentes />, {
+            usuario: usuarioDePrueba('Administrador'),
+            ruta: '/docentes?sin_cuenta=1',
+        });
+        await waitFor(() => expect(peticiones()[0]).toMatchObject({ sin_cuenta: 1 }));
+        expect(
+            screen.getByRole('button', { name: /^Sin cuenta/, pressed: true })
+        ).toBeInTheDocument();
+    });
+
+    it('el detalle lleva el ícono del área en cada materia', async () => {
+        montar();
+        await elegir('Cespedes Guizada');
+        const titulo = await screen.findByRole('heading', {
+            name: 'Cespedes Guizada Maria Benita',
+        });
+        const materia = within(titulo.closest('section')).getByTitle('Ingles I');
+        expect(within(materia).getByRole('img')).toBeInTheDocument();
+    });
+
     it('«Sin cuenta» filtra con sin_cuenta=1 y su conteo baja al activar (criterio 4)', async () => {
         montar();
         await screen.findByRole('button', { name: /Agreda Corrales/ });
@@ -293,7 +330,7 @@ describe('Docentes', () => {
             name: 'Cespedes Guizada Maria Benita',
         });
         const detalle = titulo.closest('section');
-        expect(within(detalle).getByText('8 grupos · 1 cuenta')).toBeInTheDocument();
+        expect(within(detalle).getByText('8 grupos · Sin cuenta')).toBeInTheDocument();
 
         const [primera, segunda] = within(detalle)
             .getAllByRole('listitem')
@@ -312,14 +349,13 @@ describe('Docentes', () => {
 
         // Al cargar se abre el primero de la lista.
         expect(await screen.findByText('luis.agreda')).toBeInTheDocument();
-        expect(
-            screen.getByText(/luis\.agreda@umss\.edu\.bo · contraseña propia/)
-        ).toBeInTheDocument();
+        expect(screen.getByText('luis.agreda@umss.edu.bo')).toBeInTheDocument();
+        expect(screen.getByText('Contraseña propia')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Activar cuenta/ })).not.toBeInTheDocument();
 
         await elegir('Acha Perez');
         expect(await screen.findByText('samuel.acha')).toBeInTheDocument();
-        expect(screen.getByText(/contraseña temporal/)).toBeInTheDocument();
+        expect(screen.getByText('Contraseña temporal')).toBeInTheDocument();
         expect(screen.queryByText(TEMPORAL)).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Activar cuenta/ })).not.toBeInTheDocument();
     });
@@ -371,7 +407,9 @@ describe('Docentes', () => {
         const boton = screen.getByRole('button', { name: /Activar cuenta/ });
 
         fireEvent.change(usuario, { target: { value: 'maría cespedes' } });
-        expect(screen.getByText('Solo letras, números, puntos y guiones')).toBeInTheDocument();
+        expect(
+            screen.getByText('Letras o números, separados por punto o guion')
+        ).toBeInTheDocument();
         expect(boton).toBeDisabled();
 
         fireEvent.change(usuario, { target: { value: '' } });
@@ -450,7 +488,7 @@ describe('Docentes', () => {
         await screen.findByText('luis.agreda');
         fireEvent.click(fila('Cespedes Guizada'));
         expect(await screen.findByText('maria.cespedes')).toBeInTheDocument();
-        expect(screen.getByText(/contraseña temporal$/)).toBeInTheDocument();
+        expect(screen.getByText('Contraseña temporal')).toBeInTheDocument();
         expect(screen.queryByText(TEMPORAL)).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Copiar/ })).not.toBeInTheDocument();
     });

@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useRef, useState } from 'react';
-import { ArrowRight, Copy, KeyRound, ShieldCheck } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { ArrowRight, Copy, KeyRound, Mail, ShieldCheck, UserRound } from 'lucide-react';
 import { api } from '../../api/cliente';
 import { codigoDe, erroresDe, estadoDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
@@ -15,6 +16,7 @@ import FiltroFacultad, {
     PuntoFacultad,
     usarColorDeFacultad,
 } from '../../componentes/FiltroFacultad';
+import IconoAsignatura from '../../componentes/IconoAsignatura';
 import Insignia from '../../componentes/Insignia';
 import Paginacion from '../../componentes/Paginacion';
 import Tarjeta from '../../componentes/Tarjeta';
@@ -24,14 +26,19 @@ const FICHA =
     'inline-flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
 const fichaClases = (activo) =>
     `${FICHA} ${activo ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`;
-const USUARIO = /^[a-z0-9._-]+$/i;
+const USUARIO = /^[a-z0-9]+([._-][a-z0-9]+)*$/i;
 const CORREO = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 const miles = (n) => (typeof n === 'number' ? n.toLocaleString('es-BO') : undefined);
 
+// Con «Sin cuenta» o «Más de una facultad» no queda marcada ninguna facultad.
+const OTRO_FILTRO = '__otro';
+
+// Los mismos estados que en Usuarios, más «Sin cuenta».
 const CUENTA = {
-    activa: { tono: 'exito', texto: 'Cuenta activa' },
+    activo: { tono: 'exito', texto: 'Activo' },
     temporal: { tono: 'primario', texto: 'Temporal' },
+    bloqueado: { tono: 'peligro', texto: 'Bloqueado' },
     sin_cuenta: { tono: 'neutro', texto: 'Sin cuenta' },
 };
 
@@ -82,7 +89,9 @@ function FormularioActivar({ docente, onActivada, onRechazo }) {
                     setErrores((previos) => ({ ...previos, usuario: undefined }));
                 }}
                 validar={(v) =>
-                    usuarioValido(String(v)) ? null : 'Solo letras, números, puntos y guiones'
+                    usuarioValido(String(v))
+                        ? null
+                        : 'Letras o números, separados por punto o guion'
                 }
             />
             <Campo
@@ -118,9 +127,15 @@ FormularioActivar.propTypes = {
 // cuenta, aunque dicte en más de una facultad. La activación funciona como
 // una cola: se filtra «Sin cuenta», se activa y se pasa al siguiente.
 export default function Docentes() {
+    // «Docentes sin cuenta» del período llega con `?sin_cuenta=1`.
+    const [parametrosUrl] = useSearchParams();
     const lista = usarPaginaServidor({
         porPagina: POR_PAGINA,
-        filtros: { facultad: null, sin_cuenta: null, varias_facultades: null },
+        filtros: {
+            facultad: null,
+            sin_cuenta: parametrosUrl.get('sin_cuenta') === '1' ? 1 : null,
+            varias_facultades: null,
+        },
     });
     const { datos, meta, cargando, error, actualizando, recargar } = usarConsulta('/docentes', {
         parametros: lista.parametros,
@@ -245,8 +260,14 @@ export default function Docentes() {
 
             <FiltroFacultad
                 campo="clave"
-                valor={facultad}
-                onCambiar={(clave) => lista.ponerFiltro('facultad', clave)}
+                valor={soloSinCuenta || soloVarias ? OTRO_FILTRO : facultad}
+                onCambiar={(clave) =>
+                    lista.ponerFiltros({
+                        facultad: clave,
+                        sin_cuenta: null,
+                        varias_facultades: null,
+                    })
+                }
                 conteo={(sigla) => miles(sigla ? conteos[sigla] : conteos.todas)}
                 extra={
                     <>
@@ -254,7 +275,11 @@ export default function Docentes() {
                             type="button"
                             aria-pressed={Boolean(soloSinCuenta)}
                             onClick={() =>
-                                lista.ponerFiltro('sin_cuenta', soloSinCuenta ? null : 1)
+                                lista.ponerFiltros({
+                                    facultad: null,
+                                    sin_cuenta: soloSinCuenta ? null : 1,
+                                    varias_facultades: null,
+                                })
                             }
                             className={fichaClases(Boolean(soloSinCuenta))}
                         >
@@ -267,7 +292,11 @@ export default function Docentes() {
                             type="button"
                             aria-pressed={Boolean(soloVarias)}
                             onClick={() =>
-                                lista.ponerFiltro('varias_facultades', soloVarias ? null : 1)
+                                lista.ponerFiltros({
+                                    facultad: null,
+                                    sin_cuenta: null,
+                                    varias_facultades: soloVarias ? null : 1,
+                                })
                             }
                             className={fichaClases(Boolean(soloVarias))}
                         >
@@ -369,7 +398,8 @@ export default function Docentes() {
                             titulo={docente.nombre}
                             acciones={
                                 <span className="text-xs text-slate-600">
-                                    {plural(docente.grupos, 'grupo', 'grupos')} · 1 cuenta
+                                    {plural(docente.grupos, 'grupo', 'grupos')} ·{' '}
+                                    {(CUENTA[docente.cuenta?.estado] ?? CUENTA.sin_cuenta).texto}
                                 </span>
                             }
                         >
@@ -389,10 +419,15 @@ export default function Docentes() {
                                                 {plural(f.grupos, 'grupo', 'grupos')}
                                             </span>
                                         </div>
-                                        <ul className="mt-1.5 space-y-0.5 text-sm text-slate-700">
+                                        <ul className="mt-2 space-y-1.5 text-sm text-slate-700">
                                             {f.materias.map((m) => (
-                                                <li key={m} className="truncate" title={m}>
-                                                    {m}
+                                                <li
+                                                    key={m}
+                                                    className="flex min-w-0 items-center gap-2"
+                                                    title={m}
+                                                >
+                                                    <IconoAsignatura nombre={m} tamano="xs" />
+                                                    <span className="truncate">{m}</span>
                                                 </li>
                                             ))}
                                         </ul>
@@ -446,13 +481,33 @@ export default function Docentes() {
                                         className="h-5 w-5 shrink-0 text-success-600"
                                         aria-hidden="true"
                                     />
-                                    <p className="min-w-0 break-words">
-                                        <strong>{docente.cuenta.usuario}</strong>
-                                        {docente.cuenta.correo ? ` · ${docente.cuenta.correo}` : ''}
-                                        {docente.cuenta.estado === 'temporal'
-                                            ? ' · contraseña temporal'
-                                            : ' · contraseña propia'}
-                                    </p>
+                                    <div className="min-w-0 space-y-1">
+                                        <p className="flex items-center gap-1.5 break-all">
+                                            <UserRound
+                                                className="h-4 w-4 shrink-0"
+                                                aria-hidden="true"
+                                            />
+                                            <strong>{docente.cuenta.usuario}</strong>
+                                        </p>
+                                        {docente.cuenta.correo && (
+                                            <p className="flex items-center gap-1.5 break-all">
+                                                <Mail
+                                                    className="h-4 w-4 shrink-0"
+                                                    aria-hidden="true"
+                                                />
+                                                {docente.cuenta.correo}
+                                            </p>
+                                        )}
+                                        <p className="flex items-center gap-1.5">
+                                            <KeyRound
+                                                className="h-4 w-4 shrink-0"
+                                                aria-hidden="true"
+                                            />
+                                            {docente.cuenta.estado === 'temporal'
+                                                ? 'Contraseña temporal'
+                                                : 'Contraseña propia'}
+                                        </p>
+                                    </div>
                                 </div>
                             ) : (
                                 <FormularioActivar

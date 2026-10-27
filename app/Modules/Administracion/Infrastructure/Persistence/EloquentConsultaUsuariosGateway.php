@@ -91,6 +91,7 @@ final class EloquentConsultaUsuariosGateway implements ConsultaUsuariosGateway
                 'usuario.usuario',
                 'usuario.correo',
                 'usuario.is_active',
+                'usuario.password_changed_at',
                 'rol.name as rol',
             ]);
     }
@@ -140,6 +141,7 @@ final class EloquentConsultaUsuariosGateway implements ConsultaUsuariosGateway
             correo: $this->texto($fila['correo'] ?? null),
             activo: (bool) ($fila['is_active'] ?? false),
             rol: $this->texto($fila['rol'] ?? null),
+            temporal: ($fila['password_changed_at'] ?? null) === null,
         );
     }
 
