@@ -170,6 +170,14 @@ final class PuertaVeredictosHttpTest extends TestCase
     public function test_llegada_tarde_pasados_quince_minutos(): void
     {
         $inicio = now()->subMinutes(40);
+
+        // La hora del ingreso la pone el servidor de la base: pasada la
+        // medianoche el inicio caería el día anterior y la puerta ya estaría
+        // cerrada para ese examen.
+        if (! $inicio->isSameDay(now())) {
+            $this->markTestSkipped('Requiere que el examen haya empezado hoy.');
+        }
+
         DB::table('examenes')->where('id', $this->examen->id)->update([
             'fecha' => $inicio->toDateString(),
             'hora_inicio' => $inicio->format('H:i:s'),
