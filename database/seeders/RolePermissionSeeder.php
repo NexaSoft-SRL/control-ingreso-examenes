@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 use App\Modules\Administracion\Domain\Models\Permission;
 use App\Modules\Administracion\Domain\Models\Role;
+use App\Modules\Administracion\Domain\Rules\PermisosDeInicio;
 use Illuminate\Database\Seeder;
 
 /**
@@ -38,35 +39,12 @@ class RolePermissionSeeder extends Seeder
     ];
 
     /**
+     * El reparto de fabrica vive en el dominio: «Restablecer roles base»
+     * usa el mismo.
+     *
      * @var array<string, list<string>>
      */
-    public const POR_ROL = [
-        // Prepara los datos y administra el sistema. Las pantallas de
-        // docencia no le sirven: muestran solo lo propio de quien entra.
-        // Desde la matriz se le pueden marcar.
-        'Administrador' => [
-            'periodo_oferta',
-            'aulas_docentes',
-            'padron_estudiantes',
-            'reportes_universidad',
-            'usuarios_roles',
-            'bitacora',
-            'respaldo_restauracion',
-        ],
-        'Docente' => [
-            'mis_grupos',
-            'examenes',
-            'habilitacion',
-            'codigos_qr',
-            'punto_control',
-            'seguimiento_vivo',
-            'reportes_examenes',
-        ],
-        'Auxiliar' => [
-            'punto_control',
-            'seguimiento_vivo',
-        ],
-    ];
+    public const POR_ROL = PermisosDeInicio::POR_ROL;
 
     public function run(): void
     {

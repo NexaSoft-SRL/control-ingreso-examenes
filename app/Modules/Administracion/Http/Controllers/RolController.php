@@ -7,6 +7,7 @@ namespace App\Modules\Administracion\Http\Controllers;
 use App\Modules\Administracion\Application\Actions\CrearRol;
 use App\Modules\Administracion\Application\Actions\EliminarRol;
 use App\Modules\Administracion\Application\Actions\ModificarRol;
+use App\Modules\Administracion\Application\Actions\RestablecerRolesDeInicio;
 use App\Modules\Administracion\Application\DTOs\RolData;
 use App\Modules\Administracion\Application\Queries\ListarRoles;
 use App\Modules\Administracion\Domain\Exceptions\PermisoPropioException;
@@ -78,6 +79,21 @@ final class RolController
         return response()->json([
             'data' => $this->serializar($modificado),
             'message' => 'Cambios guardados.',
+        ]);
+    }
+
+    /**
+     * Devuelve a Administrador, Docente y Auxiliar su reparto de fabrica.
+     */
+    public function restablecer(RestablecerRolesDeInicio $restablecer): JsonResponse
+    {
+        $cambiados = $restablecer->execute($this->usuarioId());
+
+        return response()->json([
+            'cambiados' => $cambiados,
+            'message' => $cambiados === []
+                ? 'Los roles base ya tenían sus permisos de fábrica.'
+                : 'Roles base restablecidos: '.implode(', ', $cambiados).'.',
         ]);
     }
 
