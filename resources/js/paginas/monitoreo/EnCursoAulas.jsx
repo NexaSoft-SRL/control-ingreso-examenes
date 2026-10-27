@@ -15,7 +15,18 @@ export const avanceDe = (aula) =>
 // '2026-10-09T16:05:12-04:00' → '16:05'.
 export const horaDe = (instante) => String(instante ?? '').slice(11, 16);
 
-const textoIncidencias = (n) => plural(n, 'incidencia');
+// Solo cuenta las que faltan atender: lo dice el rótulo.
+const textoIncidencias = (n) => `${plural(n, 'incidencia')} sin atender`;
+
+// Por qué los ingresados no cuadran con los asignados: quienes entraron
+// por esta puerta siendo de otra aula y los de esta que entraron por otra.
+const crucesDe = (aula) =>
+    [
+        aula.de_otra > 0 && `+${aula.de_otra} de otra aula`,
+        aula.en_otra > 0 && `${aula.en_otra} ${aula.en_otra === 1 ? 'entró' : 'entraron'} en otra`,
+    ]
+        .filter(Boolean)
+        .join(' · ');
 
 function encargadoDe(aula) {
     if (!aula.a_cargo) return { nombre: 'Sin responsable', rol: null };
@@ -58,6 +69,8 @@ const formaAula = PropTypes.shape({
     asignados: PropTypes.number,
     faltan: PropTypes.number,
     ultimo_registro: PropTypes.string,
+    de_otra: PropTypes.number,
+    en_otra: PropTypes.number,
     incidencias_sin_atender: PropTypes.number,
     compartida: PropTypes.arrayOf(PropTypes.string),
     codigo_acceso: PropTypes.bool,
@@ -128,7 +141,7 @@ export default function EnCursoAulas({ aulas, examenId, denso, abierto, conLista
                                     Aula {a.nombre}
                                 </h3>
                                 <span className="shrink-0 text-sm font-medium tabular-nums text-slate-700">
-                                    {a.ingresados}/{a.asignados}
+                                    {a.ingresados} de {a.asignados}
                                 </span>
                             </div>
                             <Barra aula={a} className="mt-2 h-1.5" />
@@ -143,10 +156,10 @@ export default function EnCursoAulas({ aulas, examenId, denso, abierto, conLista
                                 )}
                                 {[
                                     `Faltan ${a.faltan}`,
+                                    crucesDe(a),
                                     a.ultimo_registro && `Último ${horaDe(a.ultimo_registro)}`,
                                     encargado.rol,
                                     apoyo.length > 0 && `+${apoyo.length} apoyo`,
-                                    abierto && a.ingresados === 0 && 'Sin ingresos',
                                     a.compartida?.length > 0 && 'Compartida',
                                     a.codigo_acceso && 'Código',
                                 ]
@@ -212,9 +225,6 @@ export default function EnCursoAulas({ aulas, examenId, denso, abierto, conLista
                                         {textoIncidencias(porAtender)}
                                     </Insignia>
                                 )}
-                                {abierto && a.ingresados === 0 && (
-                                    <Insignia tono="advertencia">Sin ingresos</Insignia>
-                                )}
                                 {compartida && (
                                     <span
                                         className="min-w-0 max-w-full truncate rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700"
@@ -233,7 +243,13 @@ export default function EnCursoAulas({ aulas, examenId, denso, abierto, conLista
                         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
                             <Barra aula={a} className="h-2 min-w-24 flex-1" />
                             <span className="shrink-0 text-sm font-medium tabular-nums text-slate-700">
-                                {a.ingresados} de {a.asignados} · Faltan {a.faltan}
+                                {[
+                                    `${a.ingresados} de ${a.asignados}`,
+                                    `Faltan ${a.faltan}`,
+                                    crucesDe(a),
+                                ]
+                                    .filter(Boolean)
+                                    .join(' · ')}
                             </span>
                             <Enlaces aula={a} lista={lista(a)} control={control(a)} />
                         </div>
