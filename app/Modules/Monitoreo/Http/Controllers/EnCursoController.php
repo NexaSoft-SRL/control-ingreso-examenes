@@ -45,6 +45,8 @@ final class EnCursoController
             'data' => [
                 'examen' => $this->examen($tablero->examen),
                 'hora_servidor' => $tablero->horaServidor,
+                // El docente del examen atiende y corrige las incidencias.
+                'es_docente' => $tablero->esDocente,
                 'ultimo_registro' => $tablero->avance->ultimoRegistro,
                 'cifras' => [
                     'ingresaron' => $tablero->avance->ingresaron,

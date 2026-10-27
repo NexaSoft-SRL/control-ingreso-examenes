@@ -62,6 +62,8 @@ const etiquetaOperacion = {
     'puerta.expulsion': 'Expulsión de estudiante',
     'puerta.excepcion': 'Situación excepcional',
     'incidencia.registrar': 'Registro de incidencia',
+    'incidencia.atender': 'Incidencia atendida',
+    'incidencia.corregir': 'Corrección de incidencia',
 };
 
 const etiquetaTabla = {
@@ -83,6 +85,7 @@ const etiquetaTabla = {
     docente_auxiliares: 'Auxiliar',
     accesos_codigo_aula: 'Acceso con código',
     examen_aula_codigos: 'Código de aula',
+    incidencias: 'Incidencia',
     incidencias_aula: 'Incidencia de aula',
     ingresos: 'Ingreso',
 };

@@ -85,12 +85,12 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
         }
     }
 
-    public function listar(int $examenId, ?int $aulaId, bool $soloSinAtender): array
+    public function listar(int $examenId, ?array $aulas, bool $soloSinAtender): array
     {
         $base = $this->consulta()->where('incidencia.examen_id', $examenId);
 
-        if ($aulaId !== null) {
-            $base->where('incidencia.aula_id', $aulaId);
+        if ($aulas !== null) {
+            $base->whereIn('incidencia.aula_id', $aulas === [] ? [0] : $aulas);
         }
 
         $todas = (clone $base)->count();

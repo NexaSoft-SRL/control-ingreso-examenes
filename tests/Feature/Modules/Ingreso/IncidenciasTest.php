@@ -280,10 +280,15 @@ final class IncidenciasTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('meta.todas', 1);
 
-        // Quien atiende un aula indica cual.
+        // Quien atiende un aula ve las de sus aulas.
         $this->actingAs($this->auxiliar)
             ->getJson("/api/examenes/{$this->examen->id}/incidencias")
-            ->assertUnprocessable();
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+
+        $this->actingAs($this->usuarioConRol('Auxiliar'))
+            ->getJson("/api/examenes/{$this->examen->id}/incidencias")
+            ->assertForbidden();
     }
 
     private function reportada(string $tipo, string $detalle): int

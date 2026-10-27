@@ -465,33 +465,30 @@ describe('PuntoControl HU-19', () => {
         expect(await screen.findByText('Expulsado · 09:10')).toBeInTheDocument();
     });
 
-    it('BUG-04: lista los intentos con su tipo legible', async () => {
-        respuestas.incidencias = {
-            data: [
-                {
-                    incidencia_id: 1,
-                    tipo_rechazo: 'NO_REGISTRADO',
-                    detalle: 'Código 99999999 sin registro en el padrón.',
-                    registrado_en: '2026-10-26 08:40:00',
-                    hora: '08:40',
-                    operador: 'Blanco Coca Leticia',
-                },
-                {
-                    incidencia_id: 2,
-                    tipo_rechazo: 'QR_NO_VALIDO',
-                    detalle: 'Código QR no válido.',
-                    registrado_en: '2026-10-26 08:41:00',
-                    hora: '08:41',
-                },
-            ],
-        };
+    it('reporta una incidencia desde la puerta al examen del aula', async () => {
+        api.post.mockResolvedValue({ data: { message: 'Incidencia registrada.' } });
 
         montar();
+        fireEvent.click(await screen.findByRole('button', { name: 'Incidencia' }));
+        const dialogo = screen.getByRole('dialog', { name: 'Incidencia' });
+        fireEvent.change(within(dialogo).getByLabelText(/Tipo/), {
+            target: { value: 'DISPOSITIVO_NO_PERMITIDO' },
+        });
+        fireEvent.change(within(dialogo).getByLabelText(/Detalle/), {
+            target: { value: 'Celular encendido.' },
+        });
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Registrar' }));
 
-        const seccion = await screen.findByRole('region', { name: 'Incidencias de ingreso' });
-        expect(await within(seccion).findByText('Sin registro')).toBeInTheDocument();
-        expect(within(seccion).getByText('Código QR no válido')).toBeInTheDocument();
-        expect(within(seccion).getByText('Blanco Coca Leticia · 08:40')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/examenes/10/incidencias', {
+                aula_id: 7,
+                tipo: 'DISPOSITIVO_NO_PERMITIDO',
+                estudiante: null,
+                detalle: 'Celular encendido.',
+            });
+        });
+        // La puerta ya no lista incidencias: van a «Mi aula» y «En curso».
+        expect(screen.queryByRole('region', { name: 'Incidencias de ingreso' })).toBeNull();
     });
 
     it('bloquea la operación cuando el servidor responde 403', async () => {

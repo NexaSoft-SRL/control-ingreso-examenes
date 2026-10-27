@@ -60,6 +60,10 @@ describe('Seguimiento HU-21', () => {
                 return Promise.resolve({ data: { data: detalle } });
             }
 
+            if (ruta === '/examenes/10/incidencias') {
+                return Promise.resolve({ data: { data: [], meta: { sin_atender: 0, todas: 0 } } });
+            }
+
             return Promise.reject(new Error(`Ruta inesperada: ${ruta}`));
         });
     });
@@ -211,118 +215,55 @@ describe('Seguimiento HU-21', () => {
         expect(busquedas).toEqual(['', 'camacho']);
     });
 
-    it('muestra las incidencias con su tipo legible, quién reportó y quién atendió', async () => {
-        api.get.mockImplementation((ruta) => {
-            if (ruta === '/seguimiento/aulas') {
-                return Promise.resolve({ data: { data: [aula] } });
-            }
-
-            return Promise.resolve({
-                data: {
-                    data: {
-                        ...detalle,
-                        cifras: { ...detalle.cifras, incidencias: 3 },
-                        incidencias: [
-                            {
-                                id: 1,
-                                tipo: 'EXCEPCION_CAMBIO_AULA',
-                                detalle: 'Entró por la 691A',
-                                reportada_en: '2026-10-16 08:41:10',
-                                estudiante: null,
-                                reportante: 'Blanco Coca Leticia',
-                                rol_reportante: 'Docente',
-                                atendida_en: '2026-10-16 08:45:02',
-                                atendida_por: 'Salazar Serrudo Carla',
-                            },
-                            {
-                                id: 2,
-                                tipo: 'INCIDENTE_GENERAL',
-                                detalle: 'Corte de luz',
-                                reportada_en: '2026-10-16 08:50:00',
-                                estudiante: null,
-                                reportante: 'Mamani Torrez Diego',
-                                rol_reportante: 'Auxiliar',
-                                atendida_en: null,
-                                atendida_por: null,
-                            },
-                            {
-                                id: 3,
-                                tipo: 'IDENTIFICACION_DUDOSA',
-                                detalle: 'Foto distinta',
-                                reportada_en: '2026-10-16 08:52:00',
-                                estudiante: null,
-                                reportante: 'Mamani Torrez Diego',
-                                rol_reportante: 'Auxiliar',
-                                atendida_en: null,
-                                atendida_por: null,
-                            },
-                        ],
-                    },
-                },
-            });
-        });
-
-        renderConSesion(<Seguimiento />, { usuario: usuarioDePrueba('Auxiliar') });
-
-        expect(await screen.findByText('Excepción: cambio de aula')).toBeInTheDocument();
-        expect(screen.getByText('Incidente general')).toBeInTheDocument();
-        expect(screen.getByText('Identificación dudosa')).toBeInTheDocument();
-        expect(
-            screen.getByText('Reportó Blanco Coca Leticia · Docente · 08:41')
-        ).toBeInTheDocument();
-        expect(screen.getByText('Atendida por Salazar Serrudo Carla · 08:45')).toBeInTheDocument();
-        expect(screen.getAllByText('Sin atender')).toHaveLength(2);
-        expect(screen.queryByRole('button', { name: 'Atender' })).not.toBeInTheDocument();
-    });
-
-    it('avisa «Incidencia atendida» y el aviso se cierra solo', async () => {
+    it('lista las incidencias del aula sin atender y el docente las atiende', async () => {
         const incidencia = {
             id: 5,
-            tipo: 'CONDUCTA',
-            detalle: 'Habla en voz alta',
-            reportada_en: '2026-10-16 08:41:10',
-            estudiante: null,
-            reportante: 'Mamani Torrez Diego',
-            rol_reportante: 'Auxiliar',
-            atendida_en: null,
-            atendida_por: null,
+            tipo: 'SUPLANTACION',
+            tipo_texto: 'Suplantación de identidad',
+            gravedad: 'GRAVE',
+            aula: 'A-101',
+            estudiante: 'Rojas Vargas Ana · 202510245',
+            detalle: 'La foto no coincide',
+            hora: '08:10',
+            por: 'Mamani Torrez Diego',
+            rol: 'Auxiliar',
+            atendida: false,
         };
         api.get.mockImplementation((ruta) => {
-            if (ruta === '/seguimiento/aulas') {
-                return Promise.resolve({ data: { data: [aula] } });
-            }
-
-            return Promise.resolve({
-                data: {
+            if (ruta === '/seguimiento/aulas') return Promise.resolve({ data: { data: [aula] } });
+            if (ruta === '/examenes/10/incidencias') {
+                return Promise.resolve({
                     data: {
-                        ...detalle,
-                        puede_atender: true,
-                        cifras: { ...detalle.cifras, incidencias: 1 },
-                        incidencias: [incidencia],
+                        data: [incidencia, { ...incidencia, id: 6, atendida: true }],
+                        meta: { sin_atender: 1, todas: 2 },
                     },
-                },
-            });
+                });
+            }
+            return Promise.resolve({ data: { data: { ...detalle, puede_atender: true } } });
         });
-        api.patch.mockResolvedValue({ data: { message: 'Incidencia atendida.' } });
+        api.post.mockResolvedValue({ data: { message: 'Incidencia atendida.' } });
 
-        renderConSesion(<Seguimiento />, { usuario: usuarioDePrueba('Auxiliar') });
+        renderConSesion(<Seguimiento />, { usuario: usuarioDePrueba('Docente') });
 
-        fireEvent.click(await screen.findByRole('button', { name: 'Atender' }));
+        expect(await screen.findByText('Incidencias · 2')).toBeInTheDocument();
+        expect(api.get).toHaveBeenCalledWith('/examenes/10/incidencias', {
+            params: { aula: 7 },
+        });
+        expect(screen.getAllByText('La foto no coincide')).toHaveLength(1);
+        expect(screen.getByText('Mamani Torrez Diego · Auxiliar')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Atender' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+        await waitFor(() => expect(api.post).toHaveBeenCalledWith('/incidencias/5/atencion'));
         expect(await screen.findByText('Incidencia atendida')).toBeInTheDocument();
-        expect(api.patch).toHaveBeenCalledWith('/seguimiento/incidencias/5/atendida');
-
-        await waitFor(
-            () => expect(screen.queryByText('Incidencia atendida')).not.toBeInTheDocument(),
-            { timeout: 4000 }
-        );
     });
 
-    it('ofrece «Incidencia» y «Controlar» a quien opera la puerta del aula', async () => {
+    it('reporta una incidencia en su aula y ofrece «Controlar» a quien opera la puerta', async () => {
         api.get.mockImplementation((ruta) => {
-            if (ruta === '/seguimiento/aulas') {
-                return Promise.resolve({ data: { data: [aula] } });
+            if (ruta === '/seguimiento/aulas') return Promise.resolve({ data: { data: [aula] } });
+            if (ruta === '/examenes/10/incidencias') {
+                return Promise.resolve({ data: { data: [], meta: { sin_atender: 0, todas: 0 } } });
             }
-
             return Promise.resolve({
                 data: { data: { ...detalle, puede_operar: true, abierto: true } },
             });
@@ -342,34 +283,33 @@ describe('Seguimiento HU-21', () => {
             within(dialogo).getByText('Aula A-101 · 08:15 · Mamani Torrez Diego')
         ).toBeInTheDocument();
         fireEvent.change(within(dialogo).getByLabelText(/Tipo/), {
-            target: { value: 'DOCUMENTO_OBSERVADO' },
+            target: { value: 'MATERIAL_NO_PERMITIDO' },
         });
-        fireEvent.change(within(dialogo).getByLabelText('Código universitario'), {
+        fireEvent.change(within(dialogo).getByLabelText('Estudiante'), {
             target: { value: '202510245' },
         });
         fireEvent.change(within(dialogo).getByLabelText(/Detalle/), {
-            target: { value: 'Carnet vencido' },
+            target: { value: 'Apuntes en la mesa' },
         });
         fireEvent.click(within(dialogo).getByRole('button', { name: 'Registrar' }));
 
         await waitFor(() =>
-            expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/incidencias-manuales', {
-                examen_id: 10,
-                tipo: 'DOCUMENTO_OBSERVADO',
-                detalle: 'Carnet vencido',
-                codigo_universitario: '202510245',
+            expect(api.post).toHaveBeenCalledWith('/examenes/10/incidencias', {
+                aula_id: 7,
+                tipo: 'MATERIAL_NO_PERMITIDO',
+                estudiante: '202510245',
+                detalle: 'Apuntes en la mesa',
             })
         );
         expect(await screen.findByText('Incidencia registrada')).toBeInTheDocument();
-        expect(screen.queryByRole('dialog', { name: 'Incidencia' })).not.toBeInTheDocument();
     });
 
-    it('sin la puerta del aula no ofrece «Incidencia» ni «Controlar»', async () => {
+    it('sin la puerta del aula no ofrece «Controlar»', async () => {
         api.get.mockImplementation((ruta) => {
-            if (ruta === '/seguimiento/aulas') {
-                return Promise.resolve({ data: { data: [aula] } });
+            if (ruta === '/seguimiento/aulas') return Promise.resolve({ data: { data: [aula] } });
+            if (ruta === '/examenes/10/incidencias') {
+                return Promise.resolve({ data: { data: [], meta: { sin_atender: 0, todas: 0 } } });
             }
-
             return Promise.resolve({
                 data: { data: { ...detalle, puede_operar: false, abierto: true } },
             });
@@ -379,7 +319,6 @@ describe('Seguimiento HU-21', () => {
 
         expect(await screen.findByRole('heading', { name: 'Aula A-101' })).toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Controlar' })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Incidencia' })).not.toBeInTheDocument();
     });
 
     it('sin aulas de hoy muestra «Sin aula asignada»', async () => {

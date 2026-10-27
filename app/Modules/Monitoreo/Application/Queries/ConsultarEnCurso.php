@@ -120,6 +120,7 @@ final readonly class ConsultarEnCurso
                 $aulasDetalle,
             ),
             incidencias: $incidencias,
+            esDocente: $esDocente,
         );
     }
 

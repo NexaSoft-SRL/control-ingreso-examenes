@@ -47,6 +47,16 @@ final readonly class AlcancePuerta
     }
 
     /**
+     * Las aulas del examen que la cuenta atiende (a cargo o apoyo).
+     *
+     * @return list<int>
+     */
+    public function aulasQueAtiende(int $usuarioId, int $examenId): array
+    {
+        return $this->examenes->aulasQueAtiende($usuarioId, $examenId);
+    }
+
+    /**
      * La regla unica de la puerta («puede operar»); con codigo de aula,
      * solo el aula del acceso.
      */
