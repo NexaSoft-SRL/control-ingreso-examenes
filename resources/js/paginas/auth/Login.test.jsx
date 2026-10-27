@@ -3,7 +3,10 @@ import { Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import Login from './Login';
 import RecuperarContrasena from './RecuperarContrasena';
-import { errorHttp, renderConSesion, usuarioDePrueba } from '../../test/apoyo';
+import { api } from '../../api/cliente';
+import { errorHttp, renderConSesion, simularApi, usuarioDePrueba } from '../../test/apoyo';
+
+vi.mock('../../api/cliente');
 
 function Donde() {
     return <p>Estoy en {useLocation().pathname}</p>;
@@ -34,19 +37,50 @@ describe('Login', () => {
         expect(
             screen.getByRole('heading', { level: 1, name: 'Control de ingreso a exámenes' })
         ).toBeInTheDocument();
-        expect(screen.getByText('Sistema Institucional de Verificación')).toBeInTheDocument();
+        expect(screen.getByText('Cuenta institucional')).toBeInTheDocument();
         expect(screen.getByLabelText(/Usuario/)).toHaveAttribute('type', 'text');
+        expect(screen.getByLabelText(/Usuario/)).toHaveAttribute('placeholder', 'nombreapellido');
+        expect(document.title).toBe('Iniciar sesión · Control de ingreso a exámenes');
         expect(screen.getByLabelText(/^Contraseña/)).toHaveAttribute('type', 'password');
     });
 
-    it('prefills the recovery form with the username entered on the login page', () => {
+    it('ofrece entrar como estudiante o con código de aula', () => {
         montar();
-        fireEvent.change(screen.getByLabelText(/Usuario/), {
-            target: { value: 'leticia.blanco' },
-        });
-        fireEvent.click(screen.getByRole('link', { name: '¿Olvidó su contraseña?' }));
 
-        expect(screen.getByLabelText(/^Usuario/)).toHaveValue('leticia.blanco');
+        expect(screen.getByRole('link', { name: 'Soy estudiante' })).toHaveAttribute(
+            'href',
+            '/estudiante/ingreso'
+        );
+        expect(screen.getByRole('link', { name: 'Código de aula' })).toHaveAttribute(
+            'href',
+            '/acceso-aula'
+        );
+    });
+
+    it('recupera la contraseña en un diálogo con el usuario escrito', async () => {
+        simularApi(api, {
+            'POST /auth/recuperar-contrasena': {
+                message: 'Si la cuenta tiene correo registrado, recibirá el enlace.',
+            },
+        });
+        montar();
+        fireEvent.change(screen.getByLabelText(/Usuario/), { target: { value: 'rodrigo' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Recuperar contraseña' }));
+
+        const dialogo = screen.getByRole('dialog', { name: 'Recuperar contraseña' });
+        const campo = dialogo.querySelector('input');
+        expect(campo).toHaveValue('rodrigo');
+        fireEvent.click(screen.getByRole('button', { name: 'Enviar enlace' }));
+
+        await waitFor(() =>
+            expect(api.post).toHaveBeenCalledWith('/auth/recuperar-contrasena', {
+                usuario: 'rodrigo',
+            })
+        );
+        expect(
+            await screen.findByText('Si la cuenta tiene correo registrado, recibirá el enlace')
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
     it('no trae textos explicativos ni voseo', () => {
@@ -54,23 +88,25 @@ describe('Login', () => {
         expect(container.textContent).not.toMatch(/ingresá|tenés|podés|\bvos\b/i);
         expect(container.textContent).not.toMatch(/credenciales para continuar|deberá cambiarla/);
         expect(screen.getByText('Cuenta institucional')).toBeInTheDocument();
-        expect(container.querySelectorAll('p')).toHaveLength(1);
+        // El párrafo de la cuenta y el pie del fondo de acceso.
+        expect(container.querySelectorAll('p')).toHaveLength(2);
+        expect(container.textContent).not.toMatch(/Sistema Institucional de Verificación/);
     });
 
     it('entra con el usuario y lleva a la entrada de la cuenta', async () => {
         const docente = usuarioDePrueba('Docente');
         const entrar = vi.fn().mockResolvedValue(docente);
         montar({ entrar });
-        completar(' leticia.blanco ', 'clave-correcta');
+        completar(' rodrigo ', 'clave-correcta');
 
         expect(await screen.findByText('Estoy en /examenes')).toBeInTheDocument();
-        expect(entrar).toHaveBeenCalledWith('leticia.blanco', 'clave-correcta');
+        expect(entrar).toHaveBeenCalledWith('rodrigo', 'clave-correcta');
     });
 
     it('una cuenta sin pantallas va a /sin-acceso', async () => {
         const entrar = vi.fn().mockResolvedValue(usuarioDePrueba('Auxiliar', { permisos: [] }));
         montar({ entrar });
-        completar('auxiliar@umss.edu.bo', 'clave-correcta');
+        completar('auxiliar', 'clave-correcta');
 
         expect(await screen.findByText('Estoy en /sin-acceso')).toBeInTheDocument();
     });
@@ -108,7 +144,7 @@ describe('Login', () => {
                 errorHttp(423, { code: 'ACCOUNT_DISABLED', message: 'Cuenta bloqueada.' })
             );
         montar({ entrar });
-        completar('victor.montano', 'Ge8-Crx2-Et7');
+        completar('rodrigo', 'Ge8-Crx2-Et7');
 
         expect(await screen.findByRole('alert')).toHaveTextContent(/^Cuenta bloqueada$/);
     });
@@ -121,7 +157,7 @@ describe('Login', () => {
             })
         );
         montar({ entrar });
-        completar('corina.flores', 'Fa7-Kmq4-Ru9');
+        completar('rodrigo', 'Fa7-Kmq4-Ru9');
 
         expect(await screen.findByRole('alert')).toHaveTextContent(/^Contraseña temporal vencida$/);
     });
