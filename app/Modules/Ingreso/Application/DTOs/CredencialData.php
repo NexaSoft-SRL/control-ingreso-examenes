@@ -7,10 +7,14 @@ namespace App\Modules\Ingreso\Application\DTOs;
 /**
  * La credencial de un estudiante habilitado para un examen. `contenido` es
  * lo que lleva el QR y es nulo mientras el codigo no se haya emitido.
- * `correo` es el institucional, deducido del codigo universitario.
+ * `correo` es el institucional, deducido del codigo universitario. Las
+ * normas son las del examen, que el correo del codigo tambien lleva.
  */
 final readonly class CredencialData
 {
+    /**
+     * @param  list<string>  $normasMarcadas
+     */
     public function __construct(
         public int $examenId,
         public int $estudianteId,
@@ -26,5 +30,7 @@ final readonly class CredencialData
         public ?AulaData $aula,
         public ?string $contenido,
         public ?string $enviadoEn = null,
+        public array $normasMarcadas = [],
+        public ?string $normas = null,
     ) {}
 }

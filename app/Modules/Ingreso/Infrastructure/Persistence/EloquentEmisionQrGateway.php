@@ -443,6 +443,8 @@ final class EloquentEmisionQrGateway implements EmisionQrGateway
             ),
             contenido: $this->texto($columnas['contenido'] ?? null),
             enviadoEn: $this->iso($this->texto($columnas['enviado_en'] ?? null)),
+            normasMarcadas: $examen->normasMarcadas,
+            normas: $examen->normas,
         );
     }
 
