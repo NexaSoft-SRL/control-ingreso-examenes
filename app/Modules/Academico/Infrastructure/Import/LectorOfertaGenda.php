@@ -38,6 +38,25 @@ final class LectorOfertaGenda implements FuenteOfertaGateway
         return $facultades;
     }
 
+    public function huella(string $facultad): ?string
+    {
+        if (preg_match('/^[a-z]+$/', $facultad) !== 1) {
+            return null;
+        }
+
+        $contexto = hash_init('sha256');
+
+        foreach ([$facultad.'.json', 'pensum.json', 'locations.json'] as $archivo) {
+            $ruta = LectorJson::rutaGenda($archivo);
+
+            if (! is_file($ruta) || hash_update_file($contexto, $ruta) === false) {
+                return null;
+            }
+        }
+
+        return hash_final($contexto);
+    }
+
     public function leer(string $facultad): OfertaFacultadData
     {
         if (preg_match('/^[a-z]+$/', $facultad) !== 1) {

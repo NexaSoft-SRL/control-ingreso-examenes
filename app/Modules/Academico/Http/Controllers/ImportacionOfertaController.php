@@ -49,7 +49,15 @@ final class ImportacionOfertaController
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        if ($resultado->sinCambios) {
+            return response()->json([
+                'message' => "La oferta de {$resultado->sigla} ya está al día.",
+                'data' => ['estado' => 'importada', 'sin_cambios' => true],
+            ]);
+        }
+
         return response()->json([
+            'message' => "Oferta de {$resultado->sigla} importada.",
             'data' => [
                 'estado' => 'importada',
                 'fecha' => $resultado->fechaFuente ?? $oferta->hoy(),

@@ -12,13 +12,15 @@ import Insignia from '../../componentes/Insignia';
 import Paginacion from '../../componentes/Paginacion';
 import Tarjeta from '../../componentes/Tarjeta';
 import CargaDeLista from './CargaDeLista';
+import FotoDelInscrito, { BotonFoto } from './FotoDelInscrito';
 import ResumenDeCarga from './ResumenDeCarga';
 import { FORMA_GRUPO, horariosDe } from './SelectorDeGrupos';
 
 const tonoDe = (origen) => (origen === 'Docente' ? 'neutro' : 'exito');
 
 // La lista de inscritos del grupo elegido: carga desde archivo, resumen de
-// la última carga, búsqueda, páginas de 25 y descarga.
+// la última carga, búsqueda, páginas de 25 y descarga. También habilita a un
+// inscrito para que suba o cambie su foto.
 export default function InscritosDelGrupo({
     grupo,
     resumen = null,
@@ -28,6 +30,7 @@ export default function InscritosDelGrupo({
 }) {
     const [eligiendo, setEligiendo] = useState(false);
     const [descargando, setDescargando] = useState(false);
+    const [conFoto, setConFoto] = useState(null);
     const lista = usarPaginaServidor({ porPagina: 25 });
     const hayLista = Boolean(grupo.con_lista);
 
@@ -148,7 +151,10 @@ export default function InscritosDelGrupo({
                                             {e.documento}
                                         </p>
                                     </div>
-                                    <Insignia tono={tonoDe(e.origen)}>{e.origen}</Insignia>
+                                    <div className="flex shrink-0 items-center gap-1">
+                                        <Insignia tono={tonoDe(e.origen)}>{e.origen}</Insignia>
+                                        <BotonFoto estudiante={e} onAbrir={setConFoto} />
+                                    </div>
                                 </li>
                             ))}
                         </ul>
@@ -164,6 +170,9 @@ export default function InscritosDelGrupo({
                                             {t}
                                         </th>
                                     ))}
+                                    <th scope="col" className="w-12 py-3 pr-3">
+                                        <span className="sr-only">Foto</span>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
@@ -179,6 +188,11 @@ export default function InscritosDelGrupo({
                                         <td className="px-4 py-3">
                                             <Insignia tono={tonoDe(e.origen)}>{e.origen}</Insignia>
                                         </td>
+                                        <td className="py-1 pr-3">
+                                            <span className="flex justify-end">
+                                                <BotonFoto estudiante={e} onAbrir={setConFoto} />
+                                            </span>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -192,6 +206,18 @@ export default function InscritosDelGrupo({
                         />
                     )}
                 </>
+            )}
+            {conFoto && (
+                <FotoDelInscrito
+                    grupoId={grupo.id}
+                    estudiante={conFoto}
+                    onHabilitada={(texto) => {
+                        setConFoto(null);
+                        onAvisar(texto);
+                        recargar();
+                    }}
+                    onCerrar={() => setConFoto(null)}
+                />
             )}
         </Tarjeta>
     );

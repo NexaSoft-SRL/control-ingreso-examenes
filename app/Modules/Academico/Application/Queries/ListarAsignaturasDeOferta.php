@@ -19,7 +19,7 @@ final readonly class ListarAsignaturasDeOferta
     ) {}
 
     /**
-     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null}  $filtros
+     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null, sin_lista?: bool}  $filtros
      * @return array{data: list<array<string, mixed>>, meta: array{total: int, pagina: int, por_pagina: int}}
      */
     public function execute(array $filtros, PaginaData $pagina): array
@@ -36,7 +36,7 @@ final readonly class ListarAsignaturasDeOferta
     }
 
     /**
-     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null}  $filtros
+     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null, sin_lista?: bool}  $filtros
      * @return array{data: list<array<string, mixed>>, meta: array{total: int, pagina: int, por_pagina: int}}
      */
     public function grupos(
@@ -62,7 +62,7 @@ final readonly class ListarAsignaturasDeOferta
     /**
      * Los niveles que hay en lo filtrado, en el orden del plan.
      *
-     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null}  $filtros
+     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null, sin_lista?: bool}  $filtros
      * @return list<string>
      */
     public function niveles(array $filtros): array

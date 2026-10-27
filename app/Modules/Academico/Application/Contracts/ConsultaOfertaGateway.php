@@ -68,7 +68,7 @@ interface ConsultaOfertaGateway
      * periodo, facultad, carrera, nivel y búsqueda: una fila por asignatura y
      * facultad. Sin periodo, los vigentes (ninguno si no hay vigente).
      *
-     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null}  $filtros
+     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null, sin_lista?: bool}  $filtros
      * @return array{filas: list<array<string, mixed>>, total: int, total_grupos: int}
      */
     public function asignaturasDeOferta(array $filtros, PaginaData $pagina): array;
@@ -106,7 +106,7 @@ interface ConsultaOfertaGateway
      * Los niveles (semestre o año) presentes en la oferta filtrada, en el
      * orden del plan de estudios, no alfabetico.
      *
-     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null}  $filtros
+     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null, sin_lista?: bool}  $filtros
      * @return list<string>
      */
     public function nivelesDeOferta(array $filtros): array;

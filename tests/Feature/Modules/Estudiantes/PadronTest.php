@@ -57,7 +57,7 @@ final class PadronTest extends TestCase
                 'facultad' => 'FCyT',
                 'carrera' => 'Ing. Informática',
                 'grupos' => 2,
-                'origen' => 'Verificado',
+                'origen' => 'Administración',
             ])
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('meta.pagina', 1)
