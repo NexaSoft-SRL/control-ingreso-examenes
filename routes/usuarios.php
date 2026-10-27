@@ -37,6 +37,9 @@ Route::prefix('api')
         Route::post('/roles', [RolController::class, 'store'])
             ->name('roles.store');
 
+        Route::post('/roles/restablecer', [RolController::class, 'restablecer'])
+            ->name('roles.restablecer');
+
         Route::put('/roles/{rol}', [RolController::class, 'update'])
             ->whereNumber('rol')
             ->name('roles.update');

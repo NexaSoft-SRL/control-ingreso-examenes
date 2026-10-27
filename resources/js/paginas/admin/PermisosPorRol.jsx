@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { api } from '../../api/cliente';
 import { erroresDe, mensajeDe } from '../../api/errores';
 import Boton from '../../componentes/Boton';
@@ -236,6 +236,8 @@ export default function PermisosPorRol({
     const [formulario, setFormulario] = useState(null);
     const [eliminando, setEliminando] = useState(null);
     const [enMovil, setEnMovil] = useState(null);
+    // null → 'confirmar' → 'enviando'.
+    const [restableciendo, setRestableciendo] = useState(null);
 
     const lista = roles ?? [];
     const orden = permisos.map((p) => p.clave);
@@ -315,6 +317,23 @@ export default function PermisosPorRol({
         onCambio({ anterior });
     }
 
+    // Solo los tres roles de inicio vuelven a su reparto de fábrica.
+    async function restablecer() {
+        setRestableciendo('enviando');
+        try {
+            const { data } = await api.post('/roles/restablecer');
+            setBorrador({});
+            setFallos([]);
+            await onCambio();
+            if (['Administrador', 'Docente', 'Auxiliar'].includes(usuario?.rol)) actualizar();
+            avisar(String(data?.message ?? 'Roles base restablecidos').replace(/\.$/, ''));
+        } catch (rechazo) {
+            avisar(mensajeDe(rechazo, 'No se pudo restablecer'), 'error');
+        } finally {
+            setRestableciendo(null);
+        }
+    }
+
     const casilla = (rol, p) => (
         <input
             type="checkbox"
@@ -331,16 +350,28 @@ export default function PermisosPorRol({
             sinRelleno
             titulo="Permisos por rol"
             acciones={
-                <Boton
-                    variante="secundario"
-                    tamano="chico"
-                    className="min-h-10"
-                    disabled={permisos.length === 0}
-                    onClick={() => setFormulario({ rol: null })}
-                >
-                    <Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
-                    Nuevo rol
-                </Boton>
+                <>
+                    <Boton
+                        variante="secundario"
+                        tamano="chico"
+                        className="min-h-10"
+                        disabled={lista.length === 0 || guardando || restableciendo !== null}
+                        onClick={() => setRestableciendo('confirmar')}
+                    >
+                        <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                        Restablecer roles base
+                    </Boton>
+                    <Boton
+                        variante="secundario"
+                        tamano="chico"
+                        className="min-h-10"
+                        disabled={permisos.length === 0}
+                        onClick={() => setFormulario({ rol: null })}
+                    >
+                        <Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
+                        Nuevo rol
+                    </Boton>
+                </>
             }
         >
             <EstadoCarga
@@ -513,6 +544,35 @@ export default function PermisosPorRol({
                     onEliminado={alEliminar}
                     onCerrar={() => setEliminando(null)}
                 />
+            )}
+            {restableciendo && (
+                <Dialogo
+                    titulo="Restablecer roles base"
+                    onCerrar={() => setRestableciendo(null)}
+                    acciones={
+                        <>
+                            <Boton
+                                type="button"
+                                variante="secundario"
+                                onClick={() => setRestableciendo(null)}
+                            >
+                                Cancelar
+                            </Boton>
+                            <Boton
+                                type="button"
+                                cargando={restableciendo === 'enviando'}
+                                onClick={restablecer}
+                            >
+                                Restablecer
+                            </Boton>
+                        </>
+                    }
+                >
+                    <ul className="space-y-1 text-sm text-slate-700">
+                        <li>Administrador, Docente y Auxiliar: permisos de fábrica</li>
+                        <li>Los roles creados no cambian</li>
+                    </ul>
+                </Dialogo>
             )}
         </Tarjeta>
     );

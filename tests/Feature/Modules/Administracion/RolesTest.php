@@ -6,6 +6,7 @@ namespace Tests\Feature\Modules\Administracion;
 
 use App\Modules\Administracion\Domain\Models\Role;
 use App\Modules\Administracion\Domain\Models\User;
+use App\Modules\Administracion\Domain\Rules\PermisosDeInicio;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -37,6 +38,19 @@ final class RolesTest extends TestCase
         self::assertIsInt($id);
 
         return $id;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function permisosDe(int $rolId): array
+    {
+        $nombres = [];
+        foreach (Role::findOrFail($rolId)->permissions as $permiso) {
+            $nombres[] = (string) $permiso->name;
+        }
+
+        return $nombres;
     }
 
     /**
@@ -526,5 +540,47 @@ final class RolesTest extends TestCase
 
         $this->assertDatabaseCount('roles', 3);
         $this->assertSame(2, DB::table('permission_role')->where('role_id', $auxiliar)->count());
+    }
+
+    public function test_the_starting_roles_go_back_to_their_factory_permissions_and_created_roles_stay(): void
+    {
+        $auxiliar = $this->rolId('Auxiliar');
+        $docente = $this->rolId('Docente');
+        $propio = $this->crear('Portería', ['punto_control']);
+
+        $this->actingAs($this->administrador)
+            ->putJson("/api/roles/{$auxiliar}", ['nombre' => 'Auxiliar', 'permisos' => ['bitacora']])
+            ->assertOk();
+
+        $this->postJson('/api/roles/restablecer')
+            ->assertOk()
+            ->assertJsonPath('cambiados', ['Auxiliar'])
+            ->assertJsonPath('message', 'Roles base restablecidos: Auxiliar.');
+
+        $this->assertEqualsCanonicalizing(PermisosDeInicio::POR_ROL['Auxiliar'], $this->permisosDe($auxiliar));
+        $this->assertEqualsCanonicalizing(PermisosDeInicio::POR_ROL['Docente'], $this->permisosDe($docente));
+        $this->assertSame(['punto_control'], $this->permisosDe($propio));
+        $this->assertDatabaseHas('bitacora_operaciones', [
+            'operacion' => 'rol.restablecer',
+            'descripcion' => 'Roles de inicio restablecidos: Auxiliar.',
+        ]);
+
+        // Sin cambios, lo dice.
+        $this->postJson('/api/roles/restablecer')
+            ->assertOk()
+            ->assertJsonPath('cambiados', [])
+            ->assertJsonPath('message', 'Los roles base ya tenían sus permisos de fábrica.');
+    }
+
+    public function test_the_seeder_reads_the_factory_permissions_from_the_domain(): void
+    {
+        $this->assertSame(PermisosDeInicio::POR_ROL, RolePermissionSeeder::POR_ROL);
+    }
+
+    public function test_only_who_manages_users_restores_the_roles(): void
+    {
+        $this->actingAs($this->usuarioConRol('Docente'))
+            ->postJson('/api/roles/restablecer')
+            ->assertForbidden();
     }
 }

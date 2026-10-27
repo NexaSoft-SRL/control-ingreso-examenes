@@ -27,6 +27,7 @@ const etiquetaOperacion = {
     'rol.crear': 'Creación de rol',
     'rol.modificar': 'Edición de rol',
     'rol.eliminar': 'Eliminación de rol',
+    'rol.restablecer': 'Restablecimiento de roles base',
     'norma.plantilla_crear': 'Creación de plantilla de norma',
     'norma.plantilla_editar': 'Edición de plantilla de norma',
     'norma.plantilla_quitar': 'Retiro de plantilla de norma',
