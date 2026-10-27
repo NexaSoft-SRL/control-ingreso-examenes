@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import { Loader2 } from 'lucide-react';
 
 const VARIANTES = {
     primario: 'bg-primary-600 text-white hover:bg-primary-700 focus-visible:outline-primary-600',
@@ -17,10 +18,15 @@ const TAMANOS = {
     grande: 'px-6 py-4 text-base',
 };
 
+// Con `cargando` el botón queda deshabilitado, gira un indicador y avisa a
+// los lectores de pantalla (`aria-busy`) mientras dura la acción.
 export default function Boton({
     variante = 'primario',
     tamano = 'normal',
+    cargando = false,
     className = '',
+    disabled,
+    children,
     ...props
 }) {
     return (
@@ -29,13 +35,21 @@ export default function Boton({
                 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2
                 disabled:opacity-50 disabled:pointer-events-none
                 ${VARIANTES[variante]} ${TAMANOS[tamano]} ${className}`}
+            disabled={disabled || cargando}
+            aria-busy={cargando || undefined}
             {...props}
-        />
+        >
+            {cargando && <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />}
+            {children}
+        </button>
     );
 }
 
 Boton.propTypes = {
     variante: PropTypes.oneOf(Object.keys(VARIANTES)),
     tamano: PropTypes.oneOf(Object.keys(TAMANOS)),
+    cargando: PropTypes.bool,
     className: PropTypes.string,
+    disabled: PropTypes.bool,
+    children: PropTypes.node,
 };
