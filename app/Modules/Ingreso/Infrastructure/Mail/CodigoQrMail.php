@@ -37,7 +37,7 @@ final class CodigoQrMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Código QR · '.$this->credencial->examen,
+            subject: 'Su código QR · '.$this->credencial->examen,
         );
     }
 

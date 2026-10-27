@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <title>Código QR · {{ $credencial->examen }}</title>
+    <title>Su código QR · {{ $credencial->examen }}</title>
 </head>
 <body style="font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; color: #1e293b; margin: 0; padding: 24px; background: #f1f5f9;">
     <div style="max-width: 420px; margin: 0 auto; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px;">
@@ -30,7 +30,7 @@
         </div>
 
         <p style="margin: 16px 0 0; font-size: 12px; color: #475569;">
-            Presente este código en la puerta del aula. Es personal y vale solo para este examen.
+            Presente este código en la puerta del aula. Es personal y sirve solo para este examen.
         </p>
     </div>
 </body>

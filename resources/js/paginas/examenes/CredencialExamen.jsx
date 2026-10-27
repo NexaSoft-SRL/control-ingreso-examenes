@@ -5,17 +5,7 @@ import EstadoCarga from '../../componentes/EstadoCarga';
 import Insignia from '../../componentes/Insignia';
 import MapaCampus from '../../componentes/MapaCampus';
 import Tarjeta from '../../componentes/Tarjeta';
-import { fechaCorta, fechaLarga, normalizar } from '../../utiles/texto';
-
-// «Edificio · piso» sin repetir el nombre del aula: en la oferta algunos
-// edificios se llaman como el aula («Aula 624»).
-function ubicacionDe(aula) {
-    const propio = [normalizar(`Aula ${aula.nombre}`), normalizar(String(aula.nombre))];
-    return [aula.edificio, aula.piso]
-        .filter(Boolean)
-        .filter((parte) => !propio.includes(normalizar(String(parte).trim())))
-        .join(' · ');
-}
+import { fechaCorta, fechaLarga, ubicacionSin } from '../../utiles/texto';
 
 // Estado del código de un estudiante: «Sin emitir», «Sin enviar», «Fallido»
 // o «Enviado». `fallido`: el último correo no salió y aún no lo recibió.
@@ -67,7 +57,8 @@ export default function CredencialExamen({
     }
 
     const { aula } = credencial;
-    const lugar = aula ? ubicacionDe(aula) : '';
+    // «Edificio · piso» sin repetir el nombre del aula.
+    const lugar = aula ? ubicacionSin(aula.nombre, aula.edificio, aula.piso) : '';
 
     return (
         <>
@@ -137,7 +128,7 @@ export default function CredencialExamen({
                             type="button"
                             variante="secundario"
                             tamano="chico"
-                            disabled={enviando}
+                            cargando={enviando}
                             onClick={onEnviar}
                         >
                             <Send className="h-4 w-4" />
