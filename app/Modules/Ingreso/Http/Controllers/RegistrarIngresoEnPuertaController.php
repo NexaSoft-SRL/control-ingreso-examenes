@@ -10,23 +10,24 @@ use App\Modules\Ingreso\Application\Contracts\ExamenesDePuerta;
 use App\Modules\Ingreso\Application\Contracts\OperacionesPuertaGateway;
 use App\Modules\Ingreso\Application\Queries\DetallarVeredictoPuerta;
 use App\Modules\Ingreso\Application\Queries\IdentificarEnPuerta;
+use App\Modules\Ingreso\Application\Queries\ResolverIdentificador;
 use App\Modules\Ingreso\Domain\Enums\VeredictoIngreso;
 use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
+use App\Modules\Ingreso\Http\Middleware\ExigirPuesto;
+use App\Modules\Ingreso\Http\Requests\IdentificarEnPuertaRequest;
 use DateTimeImmutable;
 use DateTimeZone;
 use DomainException;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\Rule;
 use InvalidArgumentException;
 
 final class RegistrarIngresoEnPuertaController
 {
     public function __invoke(
-        Request $request,
+        IdentificarEnPuertaRequest $request,
         int $aula,
+        ResolverIdentificador $identificadores,
         IdentificarEnPuerta $identificar,
         RegistrarIngreso $registrar,
         OperacionesPuertaGateway $operaciones,
@@ -34,41 +35,12 @@ final class RegistrarIngresoEnPuertaController
         DetallarVeredictoPuerta $detallar,
         ExamenesDePuerta $examenesDePuerta,
     ): JsonResponse {
-        $usuarioId = Auth::id();
+        $operador = ExigirPuesto::operador($request);
 
-        if (! is_int($usuarioId)) {
-            return response()->json([
-                'message' => 'No hay una sesión activa.',
-            ], 401);
-        }
-
-        $request->validate([
-            'tipo' => [
-                'required',
-                'string',
-                Rule::in(['codigo', 'documento', 'qr']),
-            ],
-            'identificador' => [
-                'required',
-                'string',
-                'max:2048',
-            ],
-        ], IdentificarEnPuertaController::MENSAJES);
-
-        $tipo = $request->string('tipo')->toString();
-        $identificador = $request->string('identificador')->toString();
-
-        if ($tipo !== 'qr') {
-            $request->validate([
-                'identificador' => [
-                    'required',
-                    'string',
-                    'regex:/\A[0-9]{5,10}\z/D',
-                ],
-            ], [
-                'identificador.regex' => 'Debe contener entre 5 y 10 dígitos.',
-            ]);
-        }
+        $resuelto = $identificadores->ejecutar($request->tipo(), $request->identificador());
+        $tipo = $resuelto['tipo'];
+        $identificador = $resuelto['valor'];
+        $medio = $resuelto['medio'];
 
         $ahora = new DateTimeImmutable(
             'now',
@@ -79,7 +51,7 @@ final class RegistrarIngresoEnPuertaController
         try {
             // El examen se obtiene del servidor, nunca del cliente.
             $resultado = $identificar->ejecutar(
-                $usuarioId,
+                $operador,
                 $aula,
                 $tipo,
                 $identificador,
@@ -88,29 +60,27 @@ final class RegistrarIngresoEnPuertaController
 
             if (
                 ! $resultado->puedeAdmitir()
-                && ($resultado->ambiguo || $resultado->examenId === null)
+                && $resultado->examenId === null
             ) {
                 // BUG-04: el intento queda registrado y distinguido (no
-                // inscrito, sin registro, QR no valido, ambiguo) sin
+                // inscrito, sin registro, QR no valido) sin
                 // adjudicarlo a uno de los examenes del aula.
                 $intentos->ejecutar(
-                    $usuarioId,
+                    $operador,
                     $aula,
-                    $tipo,
+                    $medio,
                     $identificador,
                     $resultado,
                 );
 
                 return response()->json([
-                    'message' => $resultado->ambiguo
-                        ? 'Identificación ambigua entre exámenes.'
-                        : 'Ingreso no autorizado para este estudiante.',
+                    'message' => 'Ingreso no autorizado para este estudiante.',
                     'data' => $detallar->detallar(
                         $resultado,
                         null,
                         $aula,
                         $fecha,
-                        $tipo,
+                        $medio,
                         $identificador,
                         $examenesDePuerta->examenesDelAula($aula, $fecha),
                     ),
@@ -138,13 +108,16 @@ final class RegistrarIngresoEnPuertaController
             }
 
             // Esta acción vuelve a validar las reglas antes de persistir.
-            $veredicto = $registrar->ejecutar(
-                $usuarioId,
+            $registro = $registrar->ejecutarDetallado(
+                $operador->usuarioId,
                 $examenId,
                 $aula,
                 $tipoRegistro,
                 $identificadorRegistro,
+                $operador->accesoId,
+                porQr: $tipo === 'qr',
             );
+            $veredicto = $registro->veredicto;
         } catch (AccesoPuntoDenegado $error) {
             return response()->json([
                 'message' => $error->getMessage(),
@@ -179,8 +152,9 @@ final class RegistrarIngresoEnPuertaController
                     $veredicto,
                     $aula,
                     $fecha,
-                    $tipo,
+                    $medio,
                     $identificador,
+                    incidenciaRegistrada: $registro->incidenciaRegistrada,
                 ),
                 'examen_id' => $examenId,
                 'veredicto' => $veredicto->value,

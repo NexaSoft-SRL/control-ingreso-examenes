@@ -88,14 +88,12 @@ final class EsquemaReplanteoTest extends TestCase
         'habilitaciones',
         // Ingreso y seguimiento (HU-19, HU-21).
         'asignaciones_seguimiento_aula',
-        'expulsiones',
-        'incidencias_aula',
-        'incidencias_ingreso',
-        'ingresos',
-        'intentos_punto_control',
-        // Codigos QR y correos (HU-20).
         'codigos_qr',
         'envios_correo',
+        'incidencias',
+        'ingresos',
+        'intentos_punto_control',
+        'presencias_puerta',
     ];
 
     public function test_schema_has_exactly_the_expected_tables(): void

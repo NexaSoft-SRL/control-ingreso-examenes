@@ -13,6 +13,7 @@ use App\Modules\Habilitacion\Application\Contracts\HabilitacionGateway;
 use App\Modules\Habilitacion\Application\DTOs\HabilitacionData;
 use App\Modules\Ingreso\Application\Actions\RegistrarIngreso;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
+use App\Modules\Ingreso\Application\Contracts\DetallePuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaIngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
@@ -96,6 +97,49 @@ final class RegistrarIngresoTest extends TestCase
         );
     }
 
+    public function test_ingreso_previo_por_otra_aula_deja_incidencia_de_ingreso_repetido(): void
+    {
+        [$accion, $ingresos, $incidencias] = $this->escenario(ingresoPrevio: [
+            'id' => 90,
+            'hora' => '08:05',
+            'registrado_en' => date('Y-m-d H:i:s', time() - 30),
+            'aula_id' => 31,
+            'aula' => '691B',
+            'expulsado_a' => null,
+            'es_excepcion' => false,
+        ]);
+
+        $ingresos->method('yaIngreso')->willReturn(true);
+        $incidencias->method('ingresoRepetidoReciente')->willReturn(false);
+        $incidencias->expects(self::once())
+            ->method('registrarIngresoRepetido')
+            ->with(7, 30, 15, 90, 2, null, 'Código QR ya usado. Ingresó a las 08:05 en el aula 691B.');
+
+        $resultado = $accion->ejecutarDetallado(2, 7, 30, 'codigo', '20260015', porQr: true);
+
+        self::assertSame(VeredictoIngreso::YaIngreso, $resultado->veredicto);
+        self::assertTrue($resultado->incidenciaRegistrada);
+    }
+
+    public function test_relectura_en_la_misma_puerta_no_deja_incidencia(): void
+    {
+        [$accion, $ingresos, $incidencias] = $this->escenario(ingresoPrevio: [
+            'id' => 90,
+            'hora' => '08:05',
+            'registrado_en' => date('Y-m-d H:i:s', time() - 30),
+            'aula_id' => 30,
+            'aula' => '691A',
+            'expulsado_a' => null,
+            'es_excepcion' => false,
+        ]);
+
+        $ingresos->method('yaIngreso')->willReturn(true);
+        $incidencias->expects(self::never())->method('registrarIngresoRepetido');
+        $incidencias->expects(self::never())->method('registrar');
+
+        self::assertFalse($accion->ejecutarDetallado(2, 7, 30, 'codigo', '20260015')->incidenciaRegistrada);
+    }
+
     public function test_expulsado_no_puede_ingresar(): void
     {
         [$accion, $ingresos] = $this->escenario(expulsado: true);
@@ -140,6 +184,7 @@ final class RegistrarIngresoTest extends TestCase
     }
 
     /**
+     * @param  array{id: int, hora: string, registrado_en: string, aula_id: int|null, aula: string|null, expulsado_a: string|null, es_excepcion: bool}|null  $ingresoPrevio
      * @return array{RegistrarIngreso, IngresoGateway&MockObject, IncidenciaIngresoGateway&MockObject}
      */
     private function escenario(
@@ -148,18 +193,23 @@ final class RegistrarIngresoTest extends TestCase
         bool $expulsado = false,
         bool $habilitado = true,
         ?string $motivo = null,
+        ?array $ingresoPrevio = null,
     ): array {
+        $detalle = $this->createMock(DetallePuertaGateway::class);
+        $detalle->method('ingresoDe')->willReturn($ingresoPrevio);
+
         $estudiante = new EstudianteData(
             15, '20260015', '12345', 'Ana', 'Rojas', true,
         );
 
         $examen = new ExamenActualData(
             7, 1, 3, 'PRIMER_PARCIAL',
-            '2026-10-20', '08:00:00', 120, [12], [30],
+            '2026-10-20', '08:00:00', 120, [12], [30, 31],
         );
 
+        // Asignado a otra aula: la puerta lo admite igual.
         $habilitacion = new HabilitacionData(
-            7, 15, $habilitado, 30, 'Aula 30',
+            7, 15, $habilitado, 31, 'Aula 31',
             $motivo, null, null, null,
         );
 
@@ -203,6 +253,7 @@ final class RegistrarIngresoTest extends TestCase
             $expulsiones,
             new EvaluarIngreso,
             $incidencias,
+            $detalle,
         );
 
         return [$accion, $ingresos, $incidencias];

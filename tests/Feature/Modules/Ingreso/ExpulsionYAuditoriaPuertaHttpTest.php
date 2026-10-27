@@ -28,7 +28,7 @@ final class ExpulsionYAuditoriaPuertaHttpTest extends TestCase
             '/api/aulas/1/punto-control/ingresos/999/expulsion',
             ['motivo' => 'Incumplimiento de normas'],
         )->assertNotFound();
-        self::assertSame(0, DB::table('expulsiones')->count());
+        self::assertSame(0, DB::table('incidencias')->where('tipo', 'EXPULSION')->count());
     }
 
     public function test_motivo_corto_no_es_aceptado(): void

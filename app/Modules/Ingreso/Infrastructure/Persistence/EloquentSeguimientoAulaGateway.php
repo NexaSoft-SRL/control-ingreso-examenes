@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Infrastructure\Persistence;
 
-use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Examenes\Application\Contracts\AlcanceExamenGateway;
 use App\Modules\Ingreso\Application\Contracts\SeguimientoAulaGateway;
 use Illuminate\Database\Query\Builder;
@@ -19,7 +18,6 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
 
     public function __construct(
         private AlcanceExamenGateway $alcanceExamen,
-        private BitacoraGateway $bitacora,
     ) {}
 
     public function aulasDelUsuario(int $usuarioId): array
@@ -238,7 +236,9 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
         } else {
             $registros = DB::table('ingresos as i')
                 ->join('estudiantes as e', 'e.id', '=', 'i.estudiante_id')
-                ->leftJoin('expulsiones as x', 'x.ingreso_id', '=', 'i.id')
+                ->leftJoin('incidencias as x', static function (JoinClause $join): void {
+                    $join->on('x.ingreso_id', '=', 'i.id')->where('x.tipo', '=', 'EXPULSION');
+                })
                 ->where('i.examen_id', $examenId)
                 ->where('i.aula_id', $aulaId);
         }
@@ -276,7 +276,7 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
         } else {
             $columnas[] = 'i.aula_id';
             $columnas[] = 'i.registrado_en';
-            $columnas[] = 'x.registrada_en as expulsado_en';
+            $columnas[] = 'x.ocurrida_en as expulsado_en';
         }
 
         if ($estado === 'ingresaron') {
@@ -342,68 +342,14 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
             ];
         }
 
-        $incidencias = DB::table('incidencias_aula as i')
-            ->join('usuarios as u', 'u.id', '=', 'i.reportada_por')
-            ->join('roles as r', 'r.id', '=', 'u.role_id')
-            ->leftJoin('estudiantes as e', 'e.id', '=', 'i.estudiante_id')
-            ->leftJoin('usuarios as atendio', 'atendio.id', '=', 'i.atendida_por')
-            ->where('i.examen_id', $examenId)
-            ->where('i.aula_id', $aulaId)
-            ->orderByDesc('i.reportada_en')
-            ->orderByDesc('i.id')
-            ->limit(50)
-            ->get([
-                'i.id',
-                'i.tipo',
-                'i.detalle',
-                'i.reportada_en',
-                'i.atendida_en',
-                'i.estudiante_id',
-                'e.nombres',
-                'e.apellidos',
-                'u.nombre as reportante',
-                'r.name as rol_reportante',
-                'atendio.nombre as atendida_por',
-            ])
-            ->map(static function (object $fila): array {
-                /**
-                 * @var object{
-                 *   id: int,
-                 *   tipo: string,
-                 *   detalle: string,
-                 *   reportada_en: string,
-                 *   atendida_en: string|null,
-                 *   estudiante_id: int|null,
-                 *   nombres: string|null,
-                 *   apellidos: string|null,
-                 *   reportante: string,
-                 *   rol_reportante: string,
-                 *   atendida_por: string|null
-                 * } $fila
-                 */
-
-                return [
-                    'id' => (int) $fila->id,
-                    'tipo' => (string) $fila->tipo,
-                    'detalle' => (string) $fila->detalle,
-                    'reportada_en' => (string) $fila->reportada_en,
-                    'estudiante' => $fila->estudiante_id === null
-                        ? null
-                        : trim((string) $fila->nombres.' '.(string) $fila->apellidos),
-                    'reportante' => (string) $fila->reportante,
-                    'rol_reportante' => (string) $fila->rol_reportante,
-                    'atendida_en' => $fila->atendida_en === null
-                        ? null
-                        : (string) $fila->atendida_en,
-                    'atendida_por' => $fila->atendida_por,
-                ];
-            })
-            ->values()
-            ->all();
-        $incidencias = array_values($incidencias);
-        $totalIncidencias = (int) DB::table('incidencias_aula')
+        // Las que reporto una persona y los ingresos repetidos: las
+        // mismas que lista «Incidencias» (`/api/examenes/{e}/incidencias`).
+        $totalIncidencias = DB::table('incidencias')
             ->where('examen_id', $examenId)
             ->where('aula_id', $aulaId)
+            ->where(static function (Builder $donde): void {
+                $donde->where('origen', 'PERSONA')->orWhere('tipo', 'INGRESO_REPETIDO');
+            })
             ->count();
 
         return [
@@ -432,9 +378,19 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
                     ->count(),
                 'asignados' => $totalAsignados,
                 'incidencias' => $totalIncidencias,
+                // Quienes entraron por la puerta de un aula que no era la
+                // suya, desde esta aula: los que llegaron de otra y los de
+                // esta que entraron por otra.
+                'de_otra_aula' => $this->cruzados($examenId)
+                    ->where('i.aula_id', $aulaId)
+                    ->where('h.aula_id', '<>', $aulaId)
+                    ->count(),
+                'en_otra_aula' => $this->cruzados($examenId)
+                    ->where('h.aula_id', $aulaId)
+                    ->where('i.aula_id', '<>', $aulaId)
+                    ->count(),
             ],
             'estudiantes' => $estudiantes,
-            'incidencias' => $incidencias,
             'pagina' => [
                 'actual' => $pagina,
                 'ultima' => $ultima,
@@ -444,65 +400,16 @@ final readonly class EloquentSeguimientoAulaGateway implements SeguimientoAulaGa
         ];
     }
 
-    public function ubicacionIncidencia(int $incidenciaId): ?array
+    private function cruzados(int $examenId): Builder
     {
-        $fila = DB::table('incidencias_aula')
-            ->where('id', $incidenciaId)
-            ->first(['examen_id', 'aula_id']);
-
-        /** @var object{examen_id: int, aula_id: int}|null $fila */
-        return $fila === null
-            ? null
-            : ['examen_id' => (int) $fila->examen_id, 'aula_id' => (int) $fila->aula_id];
-    }
-
-    public function marcarIncidenciaAtendida(
-        int $incidenciaId,
-        int $usuarioId,
-    ): bool {
-        return DB::transaction(function () use ($incidenciaId, $usuarioId): bool {
-            $ubicacion = DB::table('incidencias_aula as incidencia')
-                ->join('aulas as aula', 'aula.id', '=', 'incidencia.aula_id')
-                ->where('incidencia.id', $incidenciaId)
-                ->first(['incidencia.examen_id', 'aula.nombre as aula']);
-
-            if ($ubicacion === null) {
-                return false;
-            }
-
-            $actualizada = DB::table('incidencias_aula')
-                ->where('id', $incidenciaId)
-                ->whereNull('atendida_en')
-                ->update([
-                    'atendida_por' => $usuarioId,
-                    'atendida_en' => now(),
-                ]) === 1;
-
-            if (! $actualizada) {
-                return false;
-            }
-
-            $columnasUbicacion = get_object_vars($ubicacion);
-            $aula = $columnasUbicacion['aula'] ?? null;
-            $examenId = filter_var(
-                $columnasUbicacion['examen_id'] ?? null,
-                FILTER_VALIDATE_INT,
-            );
-
-            if (! is_string($aula) || ! is_int($examenId) || $examenId <= 0) {
-                throw new LogicException('La ubicacion de la incidencia no es valida.');
-            }
-
-            $this->bitacora->registrar(
-                $usuarioId,
-                'INCIDENCIA_AULA_ATENDIDA',
-                'incidencias_aula',
-                $incidenciaId,
-                sprintf('Incidencia de %s, examen %d.', $aula, $examenId),
-            );
-
-            return true;
-        });
+        return DB::table('ingresos as i')
+            ->join('habilitaciones as h', static function (JoinClause $union): void {
+                $union->on('h.examen_id', '=', 'i.examen_id')
+                    ->on('h.estudiante_id', '=', 'i.estudiante_id');
+            })
+            ->where('i.examen_id', $examenId)
+            ->whereNotNull('h.aula_id')
+            ->whereNotNull('i.aula_id');
     }
 
     private function consultaHabilitados(int $examenId, int $aulaId): Builder

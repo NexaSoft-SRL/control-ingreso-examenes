@@ -10,6 +10,7 @@ use App\Modules\Monitoreo\Application\DTOs\AvanceEnCursoData;
 use App\Modules\Monitoreo\Application\DTOs\IncidenciaEnCursoData;
 use DateTimeImmutable;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
@@ -23,6 +24,8 @@ use LogicException;
  */
 final class EloquentEnCursoGateway implements EnCursoGateway
 {
+    private const TRAMO_MINUTOS = 5;
+
     public function avance(int $examenId): AvanceEnCursoData
     {
         $asignados = $this->conteoPorAula(
@@ -42,6 +45,20 @@ final class EloquentEnCursoGateway implements EnCursoGateway
             ->selectRaw('count(*) as cantidad, max(registrado_en) as ultimo')
             ->get();
 
+        // Quienes entraron por la puerta de un aula que no era la suya, desde
+        // cada lado: los que llegaron de otra y los que se fueron a otra.
+        $cruzados = static fn (): Builder => DB::table('ingresos as ingreso')
+            ->join('habilitaciones as h', static function (JoinClause $union): void {
+                $union->on('h.examen_id', '=', 'ingreso.examen_id')
+                    ->on('h.estudiante_id', '=', 'ingreso.estudiante_id');
+            })
+            ->where('ingreso.examen_id', $examenId)
+            ->whereNotNull('h.aula_id')
+            ->whereNotNull('ingreso.aula_id')
+            ->whereColumn('h.aula_id', '<>', 'ingreso.aula_id');
+        $deOtra = $this->conteoPorAula($cruzados(), 'ingreso.aula_id');
+        $enOtra = $this->conteoPorAula($cruzados(), 'h.aula_id');
+
         $ingresados = [];
         $ultimos = [];
 
@@ -60,6 +77,8 @@ final class EloquentEnCursoGateway implements EnCursoGateway
                 ingresados: $ingresados[$aulaId] ?? 0,
                 faltan: $faltan[$aulaId] ?? 0,
                 ultimoRegistro: $ultimos[$aulaId] ?? null,
+                deOtra: $deOtra[$aulaId] ?? 0,
+                enOtra: $enOtra[$aulaId] ?? 0,
             );
         }
 
@@ -70,7 +89,46 @@ final class EloquentEnCursoGateway implements EnCursoGateway
                 DB::table('ingresos')->where('examen_id', $examenId)->max('registrado_en'),
             ),
             aulas: $aulas,
+            llegadas: $this->llegadas($examenId),
         );
+    }
+
+    /**
+     * Cuantos entraron en cada tramo de cinco minutos, sin saltar los
+     * tramos vacios: con eso el docente ve el ritmo de llegada.
+     *
+     * @return list<array{hora: string, ingresos: int}>
+     */
+    private function llegadas(int $examenId): array
+    {
+        $porTramo = [];
+
+        foreach (DB::table('ingresos')->where('examen_id', $examenId)->pluck('registrado_en') as $instante) {
+            $texto = $this->texto($instante);
+
+            if ($texto === null || strlen($texto) < 16) {
+                continue;
+            }
+
+            $minutos = (int) substr($texto, 11, 2) * 60 + (int) substr($texto, 14, 2);
+            $tramo = intdiv($minutos, self::TRAMO_MINUTOS) * self::TRAMO_MINUTOS;
+            $porTramo[$tramo] = ($porTramo[$tramo] ?? 0) + 1;
+        }
+
+        if ($porTramo === []) {
+            return [];
+        }
+
+        $llegadas = [];
+
+        for ($tramo = min(array_keys($porTramo)); $tramo <= max(array_keys($porTramo)); $tramo += self::TRAMO_MINUTOS) {
+            $llegadas[] = [
+                'hora' => sprintf('%02d:%02d', intdiv($tramo, 60), $tramo % 60),
+                'ingresos' => $porTramo[$tramo] ?? 0,
+            ];
+        }
+
+        return $llegadas;
     }
 
     public function incidencias(int $examenId): array
@@ -82,13 +140,6 @@ final class EloquentEnCursoGateway implements EnCursoGateway
         }
 
         return $incidencias;
-    }
-
-    public function incidencia(int $incidenciaId): ?IncidenciaEnCursoData
-    {
-        $fila = $this->consultaIncidencias()->where('i.id', $incidenciaId)->first();
-
-        return $fila === null ? null : $this->comoIncidencia($fila);
     }
 
     /**
@@ -140,15 +191,23 @@ final class EloquentEnCursoGateway implements EnCursoGateway
         return $conteo;
     }
 
+    /**
+     * Las incidencias que se atienden: las que reporto una persona y los
+     * ingresos repetidos que asienta la puerta (`incidencias`, HU-19).
+     */
     private function consultaIncidencias(): Builder
     {
-        return DB::table('incidencias_aula as i')
+        return DB::table('incidencias as i')
             ->join('aulas as a', 'a.id', '=', 'i.aula_id')
-            ->join('usuarios as reporta', 'reporta.id', '=', 'i.reportada_por')
+            ->leftJoin('usuarios as reporta', 'reporta.id', '=', 'i.reportada_por')
             ->leftJoin('roles as r', 'r.id', '=', 'reporta.role_id')
+            ->leftJoin('accesos_codigo_aula as acceso', 'acceso.id', '=', 'i.acceso_codigo_aula_id')
             ->leftJoin('estudiantes as e', 'e.id', '=', 'i.estudiante_id')
             ->leftJoin('usuarios as atiende', 'atiende.id', '=', 'i.atendida_por')
-            ->orderByDesc('i.reportada_en')
+            ->where(static function (Builder $donde): void {
+                $donde->where('i.origen', 'PERSONA')->orWhere('i.tipo', 'INGRESO_REPETIDO');
+            })
+            ->orderByDesc('i.ocurrida_en')
             ->orderByDesc('i.id')
             ->select([
                 'i.id',
@@ -157,11 +216,13 @@ final class EloquentEnCursoGateway implements EnCursoGateway
                 'a.nombre as aula',
                 'i.tipo',
                 'i.detalle',
+                'i.estudiante_texto',
                 'e.nombres',
                 'e.apellidos',
                 'reporta.nombre as reportante',
                 'r.name as rol_reportante',
-                'i.reportada_en',
+                'acceso.nombre_colaborador as colaborador',
+                'i.ocurrida_en as reportada_en',
                 'atiende.nombre as atendida_por',
                 'i.atendida_en',
             ]);
@@ -181,10 +242,12 @@ final class EloquentEnCursoGateway implements EnCursoGateway
             tipo: $this->texto($columnas['tipo'] ?? null) ?? '',
             detalle: $this->texto($columnas['detalle'] ?? null) ?? '',
             estudiante: $nombres === null && $apellidos === null
-                ? null
+                ? $this->texto($columnas['estudiante_texto'] ?? null)
                 : trim(($apellidos ?? '').' '.($nombres ?? '')),
-            reportante: $this->texto($columnas['reportante'] ?? null) ?? '',
-            rolReportante: $this->texto($columnas['rol_reportante'] ?? null) ?? '',
+            reportante: $this->texto($columnas['reportante'] ?? null)
+                ?? $this->texto($columnas['colaborador'] ?? null) ?? '',
+            rolReportante: $this->texto($columnas['rol_reportante'] ?? null)
+                ?? ($this->texto($columnas['colaborador'] ?? null) === null ? '' : 'Código de aula'),
             reportadaEn: $this->instante($columnas['reportada_en'] ?? null) ?? '',
             atendidaPor: $this->texto($columnas['atendida_por'] ?? null),
             atendidaEn: $this->instante($columnas['atendida_en'] ?? null),

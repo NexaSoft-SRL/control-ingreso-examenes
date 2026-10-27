@@ -51,6 +51,8 @@ export default function AtencionAulas({
     const [aulaParaCodigo, setAulaParaCodigo] = useState(null);
     const [generandoCodigo, setGenerandoCodigo] = useState(false);
     const [copiado, setCopiado] = useState(false);
+    // Regenerar deja fuera a quien entró con el código actual: se confirma.
+    const [confirmandoRegenerar, setConfirmandoRegenerar] = useState(false);
 
     // Diálogo para añadir auxiliares a un aula específica
     const [aulaSeleccionadaParaAuxiliar, setAulaSeleccionadaParaAuxiliar] = useState(null);
@@ -372,6 +374,20 @@ export default function AtencionAulas({
     const cantidadAulas = aulas.length;
     const puedeRepartir = cantidadAulas > 2 && misAuxiliares.length > 0;
 
+    // Nadie atiende más de dos aulas a la vez: el paso queda pendiente
+    // (AvanceDeExamen::AULAS_POR_PERSONA) y aquí se dice quién se pasa.
+    const personas = [cuenta, ...docentesDisponibles, ...misAuxiliares].filter(Boolean);
+    const cargaPorPersona = aulas.reduce((cuentaAulas, aulaId) => {
+        const id = atencion[aulaId]?.a_cargo ?? cuenta?.id;
+        return id ? { ...cuentaAulas, [id]: (cuentaAulas[id] ?? 0) + 1 } : cuentaAulas;
+    }, {});
+    const sobrecargados = Object.entries(cargaPorPersona)
+        .filter(([, n]) => n > 2)
+        .map(
+            ([id, n]) =>
+                `${personas.find((p) => p.id === Number(id))?.nombre ?? 'Sin nombre'} · ${plural(n, 'aula')} a la vez`
+        );
+
     return (
         <div className="mt-6 space-y-6">
             {/* Encabezado del paso (CA-1, CA-4) */}
@@ -399,6 +415,17 @@ export default function AtencionAulas({
                         </Boton>
                     )}
                 </div>
+
+                {sobrecargados.length > 0 && (
+                    <ul
+                        role="alert"
+                        className="space-y-1 rounded-lg bg-warning-50 px-3 py-2 text-sm font-medium text-warning-800"
+                    >
+                        {sobrecargados.map((texto) => (
+                            <li key={texto}>{texto}</li>
+                        ))}
+                    </ul>
+                )}
 
                 {/* Listado de aulas asignadas (CA-1, CA-2, CA-3, CA-11) */}
                 <div className="grid gap-4 md:grid-cols-2">
@@ -719,7 +746,7 @@ export default function AtencionAulas({
                             placeholder="Ej. Juan Pérez López"
                         />
                         <Campo
-                            etiqueta="Código universitario"
+                            etiqueta="Código SIS"
                             requerido
                             value={nuevoCodigo}
                             onChange={(e) => {
@@ -848,12 +875,12 @@ export default function AtencionAulas({
                     onCerrar={() => {
                         setAulaParaCodigo(null);
                         setCopiado(false);
+                        setConfirmandoRegenerar(false);
                     }}
-                    titulo="Código de acceso"
+                    titulo={`Código de acceso · Aula ${nombreAula(aulaParaCodigo)}`}
                 >
                     {(() => {
                         const aulaId = aulaParaCodigo;
-                        const nombre = nombreAula(aulaId);
                         const info = atencion[aulaId] ?? {};
                         const codigo = info.codigo;
                         const aCargoId = info.a_cargo ?? cuenta?.id;
@@ -864,24 +891,12 @@ export default function AtencionAulas({
 
                         return (
                             <div className="space-y-4">
-                                <div className="rounded-lg bg-slate-50 p-3 text-xs space-y-1.5 border border-slate-200">
-                                    <p>
-                                        <span className="font-semibold text-slate-700">Aula:</span>{' '}
-                                        {nombre}
-                                    </p>
-                                    <p>
-                                        <span className="font-semibold text-slate-700">
-                                            A cargo:
-                                        </span>{' '}
-                                        {aCargoNombre}
-                                    </p>
-                                    <p>
-                                        <span className="font-semibold text-slate-700">
-                                            Fecha del examen:
-                                        </span>{' '}
-                                        {fechaExamen ? fechaLarga(fechaExamen) : 'Sin fecha fijada'}
-                                    </p>
-                                </div>
+                                <p className="break-words text-sm text-slate-600">
+                                    {[
+                                        aCargoNombre,
+                                        fechaExamen ? fechaLarga(fechaExamen) : 'Sin fecha fijada',
+                                    ].join(' · ')}
+                                </p>
 
                                 {codigo ? (
                                     <div className="space-y-3">
@@ -907,8 +922,10 @@ export default function AtencionAulas({
                                                     type="button"
                                                     tamano="chico"
                                                     variante="secundario"
-                                                    disabled={generandoCodigo}
-                                                    onClick={() => generarCodigoAula(aulaId, true)}
+                                                    disabled={
+                                                        generandoCodigo || confirmandoRegenerar
+                                                    }
+                                                    onClick={() => setConfirmandoRegenerar(true)}
                                                 >
                                                     <RefreshCw className="h-3.5 w-3.5" />
                                                     Regenerar
@@ -916,8 +933,41 @@ export default function AtencionAulas({
                                             </div>
                                         </div>
                                         <p className="text-xs text-slate-500">
-                                            El código anterior dejará de ser válido.
+                                            Cada acceso se autoriza en «En curso»
                                         </p>
+                                        {confirmandoRegenerar && (
+                                            <div className="space-y-3">
+                                                <p
+                                                    role="alert"
+                                                    className="rounded-lg bg-warning-50 px-3 py-2 text-sm font-medium text-warning-800"
+                                                >
+                                                    El código actual deja de abrir la puerta y se
+                                                    cortan sus accesos
+                                                </p>
+                                                <div className="flex justify-end gap-2">
+                                                    <Boton
+                                                        type="button"
+                                                        variante="secundario"
+                                                        onClick={() =>
+                                                            setConfirmandoRegenerar(false)
+                                                        }
+                                                    >
+                                                        Cancelar
+                                                    </Boton>
+                                                    <Boton
+                                                        type="button"
+                                                        variante="peligro"
+                                                        cargando={generandoCodigo}
+                                                        onClick={async () => {
+                                                            await generarCodigoAula(aulaId, true);
+                                                            setConfirmandoRegenerar(false);
+                                                        }}
+                                                    >
+                                                        <RefreshCw className="h-4 w-4" /> Regenerar
+                                                    </Boton>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="space-y-3">

@@ -13,7 +13,6 @@ final readonly class ResultadoResolucionPuertaData
     public function __construct(
         public ?int $examenId,
         public ?VeredictoIngreso $veredicto,
-        public bool $ambiguo = false,
         public ?string $codigoQrResuelto = null,
         public ?CandidatoIngresoData $candidato = null,
         // Sin examen resuelto: por que (no inscrito, sin registro, QR).
@@ -25,7 +24,6 @@ final readonly class ResultadoResolucionPuertaData
     public function puedeAdmitir(): bool
     {
         return $this->examenId !== null
-            && $this->veredicto === VeredictoIngreso::Admitido
-            && ! $this->ambiguo;
+            && $this->veredicto === VeredictoIngreso::Admitido;
     }
 }

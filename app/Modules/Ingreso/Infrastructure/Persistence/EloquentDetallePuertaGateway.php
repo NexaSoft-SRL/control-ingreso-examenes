@@ -6,6 +6,7 @@ namespace App\Modules\Ingreso\Infrastructure\Persistence;
 
 use App\Modules\Examenes\Application\Contracts\EtiquetaTipoExamen;
 use App\Modules\Ingreso\Application\Contracts\DetallePuertaGateway;
+use App\Modules\Ingreso\Domain\Rules\EvaluarIngreso;
 use DateTimeImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
@@ -15,6 +16,7 @@ final class EloquentDetallePuertaGateway implements DetallePuertaGateway
 {
     public function __construct(
         private readonly EtiquetaTipoExamen $etiquetaTipo,
+        private readonly EvaluarIngreso $reglas,
     ) {}
 
     public function aula(int $aulaId): ?array
@@ -60,7 +62,9 @@ final class EloquentDetallePuertaGateway implements DetallePuertaGateway
     {
         $fila = DB::table('ingresos as i')
             ->leftJoin('aulas as a', 'a.id', '=', 'i.aula_id')
-            ->leftJoin('expulsiones as x', 'x.ingreso_id', '=', 'i.id')
+            ->leftJoin('incidencias as x', static function (JoinClause $join): void {
+                $join->on('x.ingreso_id', '=', 'i.id')->where('x.tipo', '=', 'EXPULSION');
+            })
             ->where('i.examen_id', $examenId)
             ->where('i.estudiante_id', $estudianteId)
             ->first([
@@ -69,7 +73,7 @@ final class EloquentDetallePuertaGateway implements DetallePuertaGateway
                 'i.aula_id',
                 'i.es_excepcion',
                 'a.nombre as aula',
-                'x.registrada_en as expulsado_en',
+                'x.ocurrida_en as expulsado_en',
             ]);
 
         if ($fila === null) {
@@ -79,6 +83,7 @@ final class EloquentDetallePuertaGateway implements DetallePuertaGateway
         return [
             'id' => self::entero(self::campo($fila, 'id')),
             'hora' => self::hora(self::campo($fila, 'registrado_en')),
+            'registrado_en' => self::texto(self::campo($fila, 'registrado_en')),
             'aula_id' => self::campo($fila, 'aula_id') === null ? null : self::entero(self::campo($fila, 'aula_id')),
             'aula' => self::textoONulo(self::campo($fila, 'aula')),
             'expulsado_a' => self::campo($fila, 'expulsado_en') === null ? null : self::hora(self::campo($fila, 'expulsado_en')),
@@ -230,8 +235,12 @@ final class EloquentDetallePuertaGateway implements DetallePuertaGateway
 
         $consulta = DB::table('ingresos as i')
             ->join('estudiantes as e', 'e.id', '=', 'i.estudiante_id')
-            ->leftJoin('expulsiones as x', 'x.ingreso_id', '=', 'i.id')
+            ->join('examenes as ex', 'ex.id', '=', 'i.examen_id')
+            ->leftJoin('incidencias as x', static function (JoinClause $join): void {
+                $join->on('x.ingreso_id', '=', 'i.id')->where('x.tipo', '=', 'EXPULSION');
+            })
             ->leftJoin('usuarios as u', 'u.id', '=', 'i.registrado_por')
+            ->leftJoin('accesos_codigo_aula as acceso', 'acceso.id', '=', 'i.acceso_codigo_aula_id')
             ->whereIn('i.examen_id', $examenIds)
             ->where('i.aula_id', $aulaId);
 
@@ -260,13 +269,18 @@ final class EloquentDetallePuertaGateway implements DetallePuertaGateway
                 'i.aula_id',
                 'i.registrado_en',
                 'i.es_excepcion',
-                'x.registrada_en as expulsado_en',
+                'x.ocurrida_en as expulsado_en',
                 'u.nombre as operador',
+                'acceso.nombre_colaborador as colaborador',
+                'ex.hora_inicio',
             ]);
 
         $resultado = [];
 
         foreach ($filas as $fila) {
+            $hora = self::hora(self::campo($fila, 'registrado_en'));
+            $retraso = self::minutosDe($hora) - self::minutosDe(self::hora(self::campo($fila, 'hora_inicio')));
+
             $resultado[] = [
                 'ingreso_id' => self::entero(self::campo($fila, 'ingreso_id')),
                 'examen_id' => self::entero(self::campo($fila, 'examen_id')),
@@ -280,7 +294,12 @@ final class EloquentDetallePuertaGateway implements DetallePuertaGateway
                 'expulsado' => self::campo($fila, 'expulsado_en') !== null,
                 'expulsado_a' => self::campo($fila, 'expulsado_en') === null ? null : self::hora(self::campo($fila, 'expulsado_en')),
                 'es_excepcion' => (bool) self::campo($fila, 'es_excepcion'),
-                'operador' => self::textoONulo(self::campo($fila, 'operador')),
+                // Sin cuenta, registro quien entro con el codigo de aula.
+                'operador' => self::textoONulo(self::campo($fila, 'operador'))
+                    ?? (self::campo($fila, 'colaborador') === null
+                        ? null
+                        : self::texto(self::campo($fila, 'colaborador')).' (código de aula)'),
+                'tarde' => $this->reglas->minutosTarde($retraso),
             ];
         }
 
@@ -299,62 +318,6 @@ final class EloquentDetallePuertaGateway implements DetallePuertaGateway
             ->count();
     }
 
-    public function incidenciasDelAula(
-        int $aulaId,
-        array $examenIds,
-        string $fecha,
-        int $limite,
-    ): array {
-        $filas = DB::table('incidencias_ingreso as i')
-            ->leftJoin('estudiantes as e', 'e.id', '=', 'i.estudiante_id')
-            ->leftJoin('usuarios as u', 'u.id', '=', 'i.registrado_por')
-            ->where('i.aula_id', $aulaId)
-            ->where(static function (Builder $filtro) use ($examenIds, $fecha): void {
-                $filtro->whereIn('i.examen_id', $examenIds === [] ? [0] : $examenIds)
-                    ->orWhere(static function (Builder $sinExamen) use ($fecha): void {
-                        $sinExamen->whereNull('i.examen_id')
-                            ->whereDate('i.registrado_en', $fecha);
-                    });
-            })
-            ->orderByDesc('i.registrado_en')
-            ->orderByDesc('i.id')
-            ->limit($limite)
-            ->get([
-                'i.id',
-                'i.examen_id',
-                'i.estudiante_id',
-                'e.codigo_universitario as codigo',
-                'e.nombres',
-                'e.apellidos',
-                'i.aula_id',
-                'i.tipo_rechazo',
-                'i.detalle',
-                'i.registrado_en',
-                'u.nombre as operador',
-            ]);
-
-        $resultado = [];
-
-        foreach ($filas as $fila) {
-            $resultado[] = [
-                'incidencia_id' => self::entero(self::campo($fila, 'id')),
-                'examen_id' => self::campo($fila, 'examen_id') === null ? null : self::entero(self::campo($fila, 'examen_id')),
-                'estudiante_id' => self::campo($fila, 'estudiante_id') === null ? null : self::entero(self::campo($fila, 'estudiante_id')),
-                'codigo' => self::textoONulo(self::campo($fila, 'codigo')),
-                'nombres' => self::textoONulo(self::campo($fila, 'nombres')),
-                'apellidos' => self::textoONulo(self::campo($fila, 'apellidos')),
-                'aula_id' => self::entero(self::campo($fila, 'aula_id')),
-                'tipo_rechazo' => self::texto(self::campo($fila, 'tipo_rechazo')),
-                'detalle' => self::texto(self::campo($fila, 'detalle')),
-                'registrado_en' => self::texto(self::campo($fila, 'registrado_en')),
-                'hora' => self::hora(self::campo($fila, 'registrado_en')),
-                'operador' => self::textoONulo(self::campo($fila, 'operador')),
-            ];
-        }
-
-        return $resultado;
-    }
-
     private function tipo(string $tipo): string
     {
         return $this->etiquetaTipo->de($tipo);
@@ -370,6 +333,14 @@ final class EloquentDetallePuertaGateway implements DetallePuertaGateway
         }
 
         return $texto;
+    }
+
+    // '08:39' → 519.
+    private static function minutosDe(string $hora): int
+    {
+        [$h, $m] = array_map(intval(...), array_pad(explode(':', $hora), 2, '0'));
+
+        return $h * 60 + $m;
     }
 
     private static function entero(mixed $valor): int

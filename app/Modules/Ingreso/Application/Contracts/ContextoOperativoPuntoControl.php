@@ -13,4 +13,12 @@ interface ContextoOperativoPuntoControl
      * @return list<array<string, mixed>>
      */
     public function examenesAutorizados(int $usuarioId): array;
+
+    /**
+     * Con codigo de aula: los examenes de hoy en el aula del acceso, con
+     * esa sola aula.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function examenesDelAula(int $aulaId): array;
 }

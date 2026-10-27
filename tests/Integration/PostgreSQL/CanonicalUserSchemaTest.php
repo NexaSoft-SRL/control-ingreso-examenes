@@ -72,6 +72,7 @@ final class CanonicalUserSchemaTest extends TestCase
 
         $this->assertSame(
             [
+                'accesos_codigo_aula.resuelto_por',
                 'asignaciones_seguimiento_aula.asignado_por',
                 'asignaciones_seguimiento_aula.usuario_id',
                 'bitacora_operaciones.usuario_id',
@@ -86,12 +87,11 @@ final class CanonicalUserSchemaTest extends TestCase
                 'estudiantes.foto_habilitada_por',
                 'examen_aula_personal.usuario_id',
                 'examenes.creado_por',
-                'expulsiones.registrada_por',
                 'habilitaciones.registrada_por',
                 'importaciones_oferta.ejecutada_por',
-                'incidencias_aula.atendida_por',
-                'incidencias_aula.reportada_por',
-                'incidencias_ingreso.registrado_por',
+                'incidencias.atendida_por',
+                'incidencias.corregida_por',
+                'incidencias.reportada_por',
                 'ingresos.registrado_por',
                 'inscripciones.cargada_por',
                 'intentos_punto_control.registrado_por',
@@ -99,6 +99,7 @@ final class CanonicalUserSchemaTest extends TestCase
                 'periodos.ajustado_por',
                 'plantillas_norma.usuario_id',
                 'plazos_foto.fijado_por',
+                'presencias_puerta.usuario_id',
             ],
             $actual
         );

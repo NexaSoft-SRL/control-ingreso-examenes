@@ -1,9 +1,9 @@
 import PropTypes from 'prop-types';
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Camera, ChevronRight, DoorOpen, Loader2, LogOut, RefreshCw } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Camera, ChevronRight, ListChecks, Loader2, X } from 'lucide-react';
 import LectorQr from './LectorQr';
-import IncidenciasManuales from './IncidenciasManuales';
+import IngresosDelAula from './IngresosDelAula';
 import VeredictoPuerta, { ubicacionDe } from './VeredictoPuerta';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
@@ -14,50 +14,69 @@ import Boton from '../../componentes/Boton';
 import Buscador from '../../componentes/Buscador';
 import Campo from '../../componentes/Campo';
 import Dialogo from '../../componentes/Dialogo';
+import EstadoCarga from '../../componentes/EstadoCarga';
+import IconoAsignatura from '../../componentes/IconoAsignatura';
+import { BotonIncidencia } from '../../componentes/Incidencias';
 import Insignia from '../../componentes/Insignia';
-import Seleccion from '../../componentes/Seleccion';
 import { usarSesion } from '../../sesion/SesionContexto';
-import { fechaLarga } from '../../utiles/texto';
+import { colorDeAsignatura, fechaLarga, normalizar } from '../../utiles/texto';
+import usarTituloPestana from '../../utiles/usarTituloPestana';
 
 const SONDEO_MS = 10000;
 const ESPERA_BUSQUEDA_MS = 300;
 const FOCO = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600';
-
-// Etiquetas de los rechazos e intentos de «Incidencias de ingreso».
-const RECHAZOS = {
-    NO_HABILITADO: 'No habilitado',
-    OTRA_AULA: 'Otra aula',
-    YA_INGRESO: 'Ya ingresó',
-    NO_CORRESPONDE: 'No corresponde',
-    EXPULSADO: 'Expulsado',
-    NO_INSCRITO: 'No inscrito',
-    NO_REGISTRADO: 'Sin registro',
-    QR_NO_VALIDO: 'Código QR no válido',
-};
+// Código universitario, o C.I. con su complemento («5003748-1A»).
+const IDENTIFICADOR = /^\d{5,10}([\s-][0-9A-Za-z]{1,3}|[A-Za-z][0-9A-Za-z]{0,2})?$/;
 
 const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
-// '2026-10-26 08:39:20' → '08:39'.
-const horaDe = (instante) => String(instante ?? '').slice(11, 16);
-const nombreDe = (fila) => [fila.apellidos, fila.nombres].filter(Boolean).join(' ');
 
 function interpretarFallo(error, alternativa) {
     const estado = estadoDe(error);
-    if (estado === 403) return 'Sin asignación en esta aula';
+    if (estado === 403) return sinPunto(mensajeDe(error, 'Sin asignación en esta aula'));
     if (estado === 401 || estado === 419) return 'La sesión terminó';
     if (!error?.response) return 'Sin conexión';
     return sinPunto(mensajeDe(error, alternativa));
 }
 
-// Las aulas que la persona atiende hoy, para pasar de una a otra.
+const formaAula = PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    nombre: PropTypes.string,
+    edificio: PropTypes.string,
+    piso: PropTypes.string,
+    abierta: PropTypes.bool,
+});
+
+// Las aulas que la persona atiende hoy, para pasar de una a otra. Con
+// muchas, se buscan por nombre.
 function DialogoAulas({ abierto, aulas, actual, onElegir, onCerrar }) {
+    const [buscada, setBuscada] = useState('');
+    const texto = normalizar(buscada.trim());
+    const visibles = aulas.filter((a) => normalizar(a.nombre).includes(texto));
+    const cerrar = () => {
+        setBuscada('');
+        onCerrar();
+    };
+
     return (
-        <Dialogo titulo="Aula" abierto={abierto} onCerrar={onCerrar}>
+        <Dialogo titulo="Aula" abierto={abierto} onCerrar={cerrar}>
+            {aulas.length > 6 && (
+                <Buscador
+                    valor={buscada}
+                    onCambiar={setBuscada}
+                    placeholder="Aula"
+                    etiqueta="Buscar aula"
+                    className="mb-2"
+                />
+            )}
             <ul className="divide-y divide-slate-100">
-                {aulas.map((a) => (
+                {visibles.map((a) => (
                     <li key={a.id}>
                         <button
                             type="button"
-                            onClick={() => onElegir(a.id)}
+                            onClick={() => {
+                                setBuscada('');
+                                onElegir(a.id);
+                            }}
                             aria-current={a.id === actual || undefined}
                             className={`-mx-2 flex min-h-14 w-[calc(100%+1rem)] items-center gap-3 rounded-lg px-2 text-left hover:bg-slate-50 ${FOCO}`}
                         >
@@ -77,18 +96,13 @@ function DialogoAulas({ abierto, aulas, actual, onElegir, onCerrar }) {
                         </button>
                     </li>
                 ))}
+                {visibles.length === 0 && (
+                    <li className="py-6 text-center text-sm text-slate-600">Sin resultados</li>
+                )}
             </ul>
         </Dialogo>
     );
 }
-
-const formaAula = PropTypes.shape({
-    id: PropTypes.number.isRequired,
-    nombre: PropTypes.string,
-    edificio: PropTypes.string,
-    piso: PropTypes.string,
-    abierta: PropTypes.bool,
-});
 
 DialogoAulas.propTypes = {
     abierto: PropTypes.bool.isRequired,
@@ -134,76 +148,15 @@ NormasDelExamen.propTypes = {
 
 // Punto de control (HU-19). Trabaja por aula: el aula puede tener más de un
 // examen a la vez y, al identificar al estudiante, el servidor resuelve a cuál
-// pertenece. Verificar y registrar son una sola operación, como en la guía.
-// `?aula=` llega desde «En curso» (HU-22) con el aula ya elegida.
-export default function PuntoControl() {
-    const sesion = usarSesion();
+// pertenece. Verificar y registrar son una sola operación. `?aula=` llega
+// desde «En curso» (HU-22) con el aula ya elegida; con código de aula
+// (`acceso`, HU-18) la puerta es la del acceso y se ve lo mismo que con
+// cuenta, salvo la excepción y la expulsión.
+export default function PuntoControl({ acceso = null }) {
+    usarTituloPestana('Punto de control');
     const [parametros, setParametros] = useSearchParams();
-    const [aviso, avisar] = useAviso();
-    const [sesionColaborador, setSesionColaborador] = useState(() => {
-        try {
-            const guardada = localStorage.getItem('codigo_aula_sesion');
-            return guardada ? JSON.parse(guardada) : null;
-        } catch {
-            return null;
-        }
-    });
-
-    const cerrarSesionColaborador = async () => {
-        try {
-            await api.post('/auth/codigo-aula/salir');
-        } catch {
-            // Ignorar
-        }
-        try {
-            localStorage.removeItem('codigo_aula_token');
-            localStorage.removeItem('codigo_aula_sesion');
-        } catch {
-            // Ignorar
-        }
-        setSesionColaborador(null);
-        window.location.href = '/acceso-aula';
-    };
-
-    useEffect(() => {
-        if (!sesionColaborador) return undefined;
-
-        const verificarVigencia = async () => {
-            try {
-                await api.get('/auth/codigo-aula/sesion', { silencioso: true });
-            } catch (error) {
-                const estado = estadoDe(error);
-                if (estado === 401 || estado === 419) {
-                    try {
-                        localStorage.removeItem('codigo_aula_token');
-                        localStorage.removeItem('codigo_aula_sesion');
-                    } catch {
-                        // Ignorar
-                    }
-                    setSesionColaborador(null);
-                    window.location.href = '/acceso-aula';
-                }
-            }
-        };
-
-        const intervalo = setInterval(verificarVigencia, 15000);
-        return () => clearInterval(intervalo);
-    }, [sesionColaborador]);
-
-    // Exámenes y aulas que la persona atiende hoy.
-    const contexto = usarConsulta('/punto-control/contexto', { activa: !sesionColaborador });
-    const examenes = sesionColaborador
-        ? [
-              {
-                  id: sesionColaborador.examen_id,
-                  asignatura: { nombre: '' },
-                  abierto: true,
-                  aulas: [{ id: sesionColaborador.aula_id, nombre: sesionColaborador.aula_nombre }],
-              },
-          ]
-        : Array.isArray(contexto.datos)
-          ? contexto.datos
-          : [];
+    const contexto = usarConsulta('/punto-control/contexto');
+    const examenes = Array.isArray(contexto.datos) ? contexto.datos : [];
 
     const aulas = Array.from(
         examenes
@@ -218,7 +171,7 @@ export default function PuntoControl() {
             .values()
     );
 
-    const pedida = Number(parametros.get('aula')) || null;
+    const pedida = acceso?.aula_id ?? (Number(parametros.get('aula')) || null);
     const actual =
         aulas.find((a) => a.id === pedida) ?? aulas.find((a) => a.abierta) ?? aulas[0] ?? null;
 
@@ -229,76 +182,57 @@ export default function PuntoControl() {
             return siguiente;
         });
 
-    const usuario = sesion.usuario;
-    const operador = sesionColaborador
-        ? (sesionColaborador.nombre_colaborador ?? 'Código de aula')
-        : (usuario?.nombre ?? '');
-
-    return (
-        <div className="mx-auto max-w-2xl space-y-4 p-4 md:p-6">
-            {sesionColaborador && (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-900 shadow-sm">
-                    <div className="flex items-center gap-2">
-                        <DoorOpen className="h-5 w-5 shrink-0 text-primary-600" />
-                        <span>
-                            Colaborador de aula:{' '}
-                            <strong>{sesionColaborador.nombre_colaborador}</strong> · Aula{' '}
-                            <strong>{sesionColaborador.aula_nombre}</strong>
-                            {sesionColaborador.expira_en && (
-                                <span className="ml-1 text-primary-700">
-                                    · Hasta las{' '}
-                                    <strong>{sesionColaborador.expira_en.slice(11, 16)}</strong>
-                                </span>
-                            )}
-                        </span>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={cerrarSesionColaborador}
-                        className="inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-danger-700 hover:text-danger-800 hover:underline"
-                    >
-                        <LogOut className="h-3.5 w-3.5" /> Salir de aula
-                    </button>
-                </div>
-            )}
-
-            <h1 className="text-2xl font-bold text-slate-900">Punto de control</h1>
-
-            {!actual ? (
-                <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-700">
-                    {contexto.cargando ? (
-                        <p role="status">Cargando aulas…</p>
-                    ) : contexto.error ? (
-                        <p role="alert">
+    if (!actual) {
+        return (
+            <div className="mx-auto max-w-md space-y-4 p-4 md:p-6">
+                <h1 className="sr-only">Punto de control</h1>
+                <div className="rounded-xl border border-slate-200 bg-white">
+                    {contexto.error ? (
+                        <p role="alert" className="px-4 py-8 text-center text-sm text-slate-600">
                             {interpretarFallo(contexto.error, 'No se pudieron cargar las aulas')}
                         </p>
                     ) : (
-                        <p>Sin aulas asignadas hoy</p>
+                        <EstadoCarga
+                            cargando={contexto.cargando}
+                            vacio
+                            textoVacio="Sin aulas asignadas hoy"
+                            onReintentar={contexto.recargar}
+                            filas={4}
+                        />
                     )}
                 </div>
-            ) : (
-                <Puesto
-                    // Al cambiar de aula, el puesto empieza de nuevo.
-                    key={actual.id}
-                    aula={actual}
-                    aulas={aulas}
-                    examenes={examenes}
-                    sesionColaborador={sesionColaborador}
-                    operador={operador}
-                    elegirAula={elegirAula}
-                    avisar={avisar}
-                />
-            )}
+            </div>
+        );
+    }
 
-            {aviso}
-        </div>
+    // Al cambiar de aula, el puesto empieza de nuevo.
+    return (
+        <Puesto
+            key={actual.id}
+            aula={actual}
+            aulas={aulas}
+            acceso={acceso}
+            elegirAula={elegirAula}
+        />
     );
 }
 
-function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula, avisar }) {
-    const puerta = sesionColaborador
-        ? `/examenes/${sesionColaborador.examen_id}/aulas/${sesionColaborador.aula_id}/punto-control`
-        : `/aulas/${aula.id}/punto-control`;
+PuntoControl.propTypes = {
+    acceso: PropTypes.shape({
+        aula_id: PropTypes.number,
+        aula_nombre: PropTypes.string,
+        examen_id: PropTypes.number,
+        nombre_colaborador: PropTypes.string,
+    }),
+};
+
+function Puesto({ aula, aulas, acceso, elegirAula }) {
+    const { usuario, puede } = usarSesion();
+    const [aviso, avisar] = useAviso();
+    const puerta = `/aulas/${aula.id}/punto-control`;
+    const operador = acceso
+        ? (acceso.nombre_colaborador ?? 'Código de aula')
+        : (usuario?.nombre ?? '');
 
     const [cambiando, setCambiando] = useState(false);
     const [normasAbiertas, setNormasAbiertas] = useState(false);
@@ -306,18 +240,13 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
     const [sinCamara, setSinCamara] = useState(null);
     const [verificando, setVerificando] = useState(false);
     const [veredicto, setVeredicto] = useState(null);
-    const [tipo, setTipo] = useState('codigo');
+    const [manualAbierto, setManualAbierto] = useState(false);
     const [identificador, setIdentificador] = useState('');
     const [errorManual, setErrorManual] = useState(null);
     const [bloqueado, setBloqueado] = useState(false);
     const [todos, setTodos] = useState(false);
     const [buscar, setBuscar] = useState('');
     const [buscado, setBuscado] = useState('');
-    const [ingresoAExpulsar, setIngresoAExpulsar] = useState(null);
-    const [motivoExpulsion, setMotivoExpulsion] = useState('');
-    const [errorExpulsion, setErrorExpulsion] = useState(null);
-    const [guardandoExpulsion, setGuardandoExpulsion] = useState(false);
-    const campoManual = useRef(null);
     const pendiente = useRef(false);
 
     useEffect(() => {
@@ -328,24 +257,34 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
     }, [buscar, buscado]);
 
     // La puerta del aula: ubicación, exámenes con sus cifras y normas.
-    const resumen = usarSondeo(sesionColaborador ? null : puerta, { intervalo: SONDEO_MS });
+    const resumen = usarSondeo(puerta, { intervalo: SONDEO_MS });
     const recientes = usarSondeo(`${puerta}/ingresos`, {
-        parametros: sesionColaborador ? { limite: 5 } : todos ? { todos: 1, buscar: buscado } : {},
+        parametros: todos ? { todos: 1, buscar: buscado } : {},
         intervalo: SONDEO_MS,
     });
-    const incidencias = usarConsulta(`${puerta}/incidencias`, { parametros: { limite: 20 } });
 
     const datosPuerta = resumen.datos;
     const aulaInfo = { ...aula, ...(datosPuerta?.aula ?? {}) };
     const examenesAula = datosPuerta?.examenes ?? [];
-    const abierta = sesionColaborador ? true : (datosPuerta?.abierta ?? true);
+    const abierta = datosPuerta?.abierta ?? true;
     const sinConexion = resumen.sinConexion || recientes.sinConexion;
-    const sinAlcance =
-        bloqueado || estadoDe(resumen.error) === 403 || estadoDe(recientes.error) === 403;
+    const sinAlcance = bloqueado || estadoDe(resumen.error) === 403;
     const hora = datosPuerta?.hora_servidor ?? '';
     const filas = Array.isArray(recientes.datos) ? recientes.datos : [];
     const total = recientes.meta?.total ?? filas.length;
-    const filasIncidencias = Array.isArray(incidencias.datos) ? incidencias.datos : [];
+    const totalIngresaron = examenesAula.reduce((s, x) => s + (x.ingresados ?? 0), 0);
+    const totalFaltan = examenesAula.reduce((s, x) => s + (x.faltan ?? 0), 0);
+    const fecha = fechaLarga(datosPuerta?.fecha);
+    // La lista del aula («Mi aula», HU-21) es de las cuentas que la siguen.
+    const destinoLista =
+        usuario && puede('seguimiento_vivo') && examenesAula[0]
+            ? `${puede('examenes') ? '/en-curso/aula' : '/mi-aula'}?examen=${examenesAula[0].id}&aula=${aula.id}`
+            : null;
+
+    const recargar = () => {
+        recientes.recargar();
+        resumen.recargar();
+    };
 
     const verificar = async (cuerpo, medio) => {
         if (pendiente.current || sinAlcance) return;
@@ -366,6 +305,7 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
                 setIdentificador('');
             } else if (estado === 422 && Object.keys(erroresDe(fallo)).length > 0) {
                 const campos = erroresDe(fallo);
+                setManualAbierto(true);
                 setErrorManual(campos.identificador ?? campos.tipo);
             } else {
                 if (estado === 403) setBloqueado(true);
@@ -374,9 +314,7 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
         } finally {
             pendiente.current = false;
             setVerificando(false);
-            recientes.recargar();
-            incidencias.recargar();
-            resumen.recargar();
+            recargar();
         }
     };
 
@@ -384,11 +322,51 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
         evento.preventDefault();
         const valor = identificador.trim();
         if (!valor) return setErrorManual('Obligatorio');
-        if (!/^\d{5,10}$/.test(valor)) {
-            return setErrorManual(tipo === 'codigo' ? 'Código SIS no válido' : 'C.I. no válido');
-        }
-        return verificar({ tipo, identificador: valor }, 'manual');
+        if (!IDENTIFICADOR.test(valor)) return setErrorManual('Código SIS o C.I. no válido');
+        return verificar({ identificador: valor.toUpperCase() }, 'manual');
     };
+
+    const cerrarManual = () => {
+        setManualAbierto(false);
+        setIdentificador('');
+        setErrorManual(null);
+    };
+
+    // El campo manual; bajo un veredicto leído a mano queda a la vista para
+    // el siguiente.
+    const formularioManual = (cerrable) => (
+        <form className="flex w-full items-start gap-2" noValidate onSubmit={verificarManual}>
+            <Campo
+                etiqueta="Código SIS o C.I."
+                placeholder="Código SIS o C.I."
+                className="min-w-0 flex-1"
+                autoCapitalize="characters"
+                autoComplete="off"
+                enterKeyHint="search"
+                maxLength={14}
+                autoFocus={cerrable}
+                value={identificador}
+                error={errorManual}
+                onChange={(e) => {
+                    setIdentificador(e.target.value);
+                    setErrorManual(null);
+                }}
+            />
+            <Boton type="submit" className="mt-[1.625rem] min-h-11">
+                Verificar
+            </Boton>
+            {cerrable && (
+                <button
+                    type="button"
+                    aria-label="Cerrar ingreso manual"
+                    onClick={cerrarManual}
+                    className={`mt-[1.625rem] flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 ${FOCO}`}
+                >
+                    <X className="h-5 w-5" />
+                </button>
+            )}
+        </form>
+    );
 
     // «Siguiente» deja la puerta lista para el próximo por la misma vía.
     const siguiente = () => {
@@ -396,8 +374,8 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
         setVeredicto(null);
         setIdentificador('');
         setErrorManual(null);
+        setManualAbierto(medio === 'manual');
         if (medio === 'qr') setCamara(true);
-        else setTimeout(() => campoManual.current?.querySelector('input')?.focus(), 0);
     };
 
     const registrarExcepcion = async ({ tipo: tipoExcepcion, motivo }) => {
@@ -408,46 +386,36 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
             estudiante_id: veredicto?.estudiante?.id ?? null,
             examen_id: examenesAula.some((x) => x.id === examenId) ? examenId : null,
         });
-        recientes.recargar();
-        resumen.recargar();
+        recargar();
         return data;
     };
 
-    const confirmarExpulsion = async () => {
-        const motivo = motivoExpulsion.trim();
-        if (guardandoExpulsion || ingresoAExpulsar === null) return;
-        if (motivo.length < 5) {
-            setErrorExpulsion('Mínimo 5 caracteres');
-            return;
-        }
-        setGuardandoExpulsion(true);
+    const expulsar = async (ingreso, motivo) => {
         try {
-            const { data } = await api.post(`${puerta}/ingresos/${ingresoAExpulsar}/expulsion`, {
-                motivo,
-            });
-            setIngresoAExpulsar(null);
-            setMotivoExpulsion('');
-            setErrorExpulsion(null);
-            avisar(
-                data?.data?.hora
-                    ? `Expulsión registrada · ${data.data.hora}`
-                    : 'Expulsión registrada'
-            );
-        } catch (fallo) {
-            const campo = erroresDe(fallo).motivo;
-            if (campo) setErrorExpulsion(campo);
-            else avisar(interpretarFallo(fallo, 'No se pudo registrar la expulsión'), 'error');
+            await api.post(`${puerta}/ingresos/${ingreso.ingreso_id}/expulsion`, { motivo });
         } finally {
-            setGuardandoExpulsion(false);
-            recientes.recargar();
-            resumen.recargar();
+            recargar();
         }
     };
 
-    const fecha = fechaLarga(datosPuerta?.fecha);
+    // La incidencia va al examen del aula en el que la persona actúa: el
+    // primero que no la rechace.
+    const reportar = async (datos) => {
+        let ultimo = new Error('Sin examen');
+        for (const { id } of examenesAula) {
+            try {
+                return await api.post(`/examenes/${id}/incidencias`, datos);
+            } catch (fallo) {
+                ultimo = fallo;
+                if (estadoDe(fallo) !== 403) break;
+            }
+        }
+        throw ultimo;
+    };
 
     return (
-        <>
+        <div className="mx-auto max-w-md space-y-4 p-4 md:p-6">
+            <h1 className="sr-only">Punto de control</h1>
             <section aria-label="Aula" className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
@@ -460,7 +428,7 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
                             </p>
                         )}
                     </div>
-                    {aulas.length > 1 && (
+                    {aulas.length > 1 && !acceso && (
                         <button
                             type="button"
                             onClick={() => setCambiando(true)}
@@ -471,25 +439,32 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
                     )}
                 </div>
 
-                {(fecha || sinConexion) && (
-                    <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-600">
-                        {fecha && <span>{fecha}</span>}
-                        {sinConexion && (
-                            <Insignia tono="peligro" punto>
-                                Sin conexión
-                            </Insignia>
-                        )}
-                    </p>
-                )}
-
-                {!sesionColaborador && datosPuerta && (
+                {datosPuerta && (
                     <>
+                        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-600">
+                            <span>
+                                {fecha}
+                                {examenesAula.length > 0 &&
+                                    ` · ${totalIngresaron} ingresaron · Faltan ${totalFaltan}`}
+                            </span>
+                            {sinConexion && (
+                                <Insignia tono="peligro" punto>
+                                    Sin conexión
+                                </Insignia>
+                            )}
+                        </p>
                         <ul
                             aria-label="Exámenes del aula"
                             className="mt-3 space-y-2 border-t border-slate-100 pt-3"
                         >
                             {examenesAula.map((x) => (
                                 <li key={x.id} className="flex items-start gap-2.5">
+                                    <IconoAsignatura
+                                        nombre={x.asignatura}
+                                        color={colorDeAsignatura(x.asignatura)}
+                                        tamano="xs"
+                                        className="mt-0.5"
+                                    />
                                     <span className="min-w-0 flex-1">
                                         <span className="block text-sm font-medium leading-snug text-slate-800">
                                             {x.asignatura}
@@ -502,7 +477,7 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
                                     </span>
                                     <span className="shrink-0 text-right tabular-nums">
                                         <span className="block text-sm font-medium text-slate-800">
-                                            {x.ingresados} / {x.asignados} ingresados
+                                            {x.ingresados} ingresaron
                                         </span>
                                         <span className="block text-xs text-slate-600">
                                             Faltan {x.faltan ?? 0}
@@ -514,18 +489,40 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
                                 <li className="text-sm text-slate-600">Sin exámenes hoy</li>
                             )}
                         </ul>
-                        <button
-                            type="button"
-                            onClick={() => setNormasAbiertas((v) => !v)}
-                            aria-expanded={normasAbiertas}
-                            className={`-mx-2 mt-1 flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-medium text-primary-700 hover:bg-primary-50 ${FOCO}`}
-                        >
-                            <ChevronRight
-                                className={`h-4 w-4 transition-transform ${normasAbiertas ? 'rotate-90' : ''}`}
-                                strokeWidth={2.5}
-                            />
-                            Normas
-                        </button>
+                        <div className="-mx-2 mt-1 flex items-center justify-between gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setNormasAbiertas((v) => !v)}
+                                aria-expanded={normasAbiertas}
+                                className={`flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-medium text-primary-700 hover:bg-primary-50 ${FOCO}`}
+                            >
+                                <ChevronRight
+                                    className={`h-4 w-4 transition-transform ${normasAbiertas ? 'rotate-90' : ''}`}
+                                    strokeWidth={2.5}
+                                />
+                                Normas
+                            </button>
+                            <span className="flex items-center gap-1">
+                                {examenesAula.length > 0 && (
+                                    <BotonIncidencia
+                                        aula={{ id: aulaInfo.id, nombre: aulaInfo.nombre }}
+                                        por={operador}
+                                        hora={hora}
+                                        registrar={reportar}
+                                        variante="enlace"
+                                        className="px-2"
+                                    />
+                                )}
+                                {destinoLista && (
+                                    <Link
+                                        to={destinoLista}
+                                        className={`flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-primary-700 hover:bg-primary-50 ${FOCO}`}
+                                    >
+                                        <ListChecks className="h-4 w-4" /> Lista
+                                    </Link>
+                                )}
+                            </span>
+                        </div>
                     </>
                 )}
             </section>
@@ -535,7 +532,9 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
                     role="alert"
                     className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-700"
                 >
-                    Sin asignación en esta aula
+                    {resumen.error
+                        ? interpretarFallo(resumen.error, 'Sin asignación en esta aula')
+                        : 'Sin asignación en esta aula'}
                 </p>
             )}
 
@@ -558,79 +557,53 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
             {!sinAlcance && !verificando && !veredicto && abierta && (
                 <section
                     aria-label="Identificación"
-                    className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5"
+                    className="flex flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-white p-5"
                 >
                     {camara ? (
-                        <LectorQr
-                            alCerrar={() => setCamara(false)}
-                            alDetectar={(contenido) =>
-                                verificar({ tipo: 'qr', identificador: contenido }, 'qr')
-                            }
-                            alFallar={(texto) => {
-                                setCamara(false);
-                                setSinCamara(texto);
-                                setTimeout(
-                                    () => campoManual.current?.querySelector('input')?.focus(),
-                                    0
-                                );
+                        <div className="w-full">
+                            <LectorQr
+                                alCerrar={() => setCamara(false)}
+                                alDetectar={(contenido) =>
+                                    verificar({ tipo: 'qr', identificador: contenido }, 'qr')
+                                }
+                                alFallar={(texto) => {
+                                    setCamara(false);
+                                    setSinCamara(texto);
+                                    setManualAbierto(true);
+                                }}
+                            />
+                        </div>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSinCamara(null);
+                                setCamara(true);
                             }}
-                        />
+                            aria-label="Leer código QR"
+                            className="flex h-40 w-40 items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 hover:border-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+                        >
+                            <Camera className="h-14 w-14 text-slate-400" strokeWidth={1.5} />
+                        </button>
+                    )}
+                    <p
+                        className="text-sm font-medium text-slate-700"
+                        role={sinCamara ? 'alert' : undefined}
+                    >
+                        {sinCamara ?? 'Código QR del estudiante'}
+                    </p>
+                    {manualAbierto ? (
+                        formularioManual(true)
                     ) : (
                         <Boton
                             type="button"
                             variante="secundario"
                             className="min-h-12 w-full"
-                            onClick={() => {
-                                setSinCamara(null);
-                                setCamara(true);
-                            }}
+                            onClick={() => setManualAbierto(true)}
                         >
-                            <Camera className="h-5 w-5" /> Leer código QR
+                            Código SIS o C.I. manual
                         </Boton>
                     )}
-                    {sinCamara && (
-                        <p role="alert" className="text-sm text-slate-700">
-                            {sinCamara}
-                        </p>
-                    )}
-
-                    <form
-                        ref={campoManual}
-                        noValidate
-                        onSubmit={verificarManual}
-                        className="grid grid-cols-1 items-start gap-2 sm:grid-cols-[9rem_1fr_auto]"
-                    >
-                        <Seleccion
-                            etiqueta="Identificación"
-                            aria-label="Tipo de identificación"
-                            value={tipo}
-                            onChange={(e) => {
-                                setTipo(e.target.value);
-                                setErrorManual(null);
-                            }}
-                        >
-                            <option value="codigo">Código SIS</option>
-                            <option value="documento">C.I.</option>
-                        </Seleccion>
-                        <Campo
-                            etiqueta={tipo === 'codigo' ? 'Código SIS' : 'C.I.'}
-                            aria-label="Identificador"
-                            placeholder={tipo === 'codigo' ? 'Código SIS' : 'C.I.'}
-                            inputMode="numeric"
-                            autoComplete="off"
-                            enterKeyHint="search"
-                            maxLength={10}
-                            value={identificador}
-                            error={errorManual}
-                            onChange={(e) => {
-                                setIdentificador(e.target.value);
-                                setErrorManual(null);
-                            }}
-                        />
-                        <Boton type="submit" className="sm:mt-[1.625rem]">
-                            Verificar
-                        </Boton>
-                    </form>
                 </section>
             )}
 
@@ -641,195 +614,35 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
                     operador={operador}
                     hora={hora}
                     registrarExcepcion={registrarExcepcion}
-                    // Con código de aula solo se verifica.
-                    conExcepciones={!sesionColaborador}
+                    // Con código de aula solo se verifica y se reportan incidencias.
+                    conExcepciones={!acceso}
                     onSiguiente={siguiente}
                 />
             )}
 
-            <section
-                aria-label="Ingresos del aula"
-                className="rounded-xl border border-slate-200 bg-white p-5"
-            >
-                <div className="mb-3 flex items-center justify-between gap-2">
-                    <h2 className="text-lg font-semibold text-slate-900">
-                        Ingresos{total > 0 ? ` · ${total}` : ''}
-                    </h2>
-                    <button
-                        type="button"
-                        aria-label="Actualizar ingresos"
-                        onClick={() => recientes.recargar()}
-                        className={`flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 ${FOCO}`}
-                    >
-                        <RefreshCw
-                            className={`h-5 w-5 ${recientes.actualizando ? 'animate-spin' : ''}`}
-                        />
-                    </button>
+            {!sinAlcance && !verificando && veredicto?.medio === 'manual' && abierta && (
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                    {formularioManual(false)}
                 </div>
+            )}
 
-                {todos && (
-                    <Buscador
-                        valor={buscar}
-                        onCambiar={setBuscar}
-                        placeholder="Nombre o código SIS"
-                        etiqueta="Buscar ingreso"
-                        className="mb-2"
-                    />
-                )}
-
-                {filas.length === 0 ? (
-                    <p className="text-sm text-slate-600">
-                        {todos && buscado ? 'Sin resultados' : 'Sin ingresos'}
-                    </p>
-                ) : (
-                    <ul className="divide-y divide-slate-100">
-                        {filas.map((registro) => (
-                            <li key={registro.ingreso_id} className="py-3 text-sm text-slate-700">
-                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                    <span className="font-semibold text-slate-900">
-                                        {nombreDe(registro)}
-                                    </span>
-                                    <span>· {registro.codigo}</span>
-                                    <span className="tabular-nums">
-                                        · {registro.hora ?? horaDe(registro.registrado_en)}
-                                    </span>
-                                    {registro.es_excepcion && (
-                                        <Insignia tono="advertencia">Excepción</Insignia>
-                                    )}
-                                    {registro.expulsado && (
-                                        <Insignia tono="peligro">
-                                            {registro.expulsado_a
-                                                ? `Expulsado · ${registro.expulsado_a}`
-                                                : 'Expulsado'}
-                                        </Insignia>
-                                    )}
-                                </div>
-
-                                {!sesionColaborador &&
-                                    !registro.expulsado &&
-                                    ingresoAExpulsar !== registro.ingreso_id && (
-                                        <button
-                                            type="button"
-                                            disabled={guardandoExpulsion}
-                                            onClick={() => {
-                                                setIngresoAExpulsar(registro.ingreso_id);
-                                                setMotivoExpulsion('');
-                                                setErrorExpulsion(null);
-                                            }}
-                                            className={`mt-1 min-h-11 rounded-lg px-2 text-sm font-medium text-danger-700 hover:bg-danger-50 disabled:opacity-50 ${FOCO}`}
-                                        >
-                                            Expulsar
-                                        </button>
-                                    )}
-
-                                {!sesionColaborador &&
-                                    !registro.expulsado &&
-                                    ingresoAExpulsar === registro.ingreso_id && (
-                                        <div className="mt-2 space-y-2 rounded-lg border border-danger-200 bg-danger-50/40 p-3">
-                                            <Campo
-                                                etiqueta="Motivo de expulsión"
-                                                requerido
-                                                maxLength={500}
-                                                value={motivoExpulsion}
-                                                error={errorExpulsion}
-                                                ayuda="Mínimo 5 caracteres"
-                                                onChange={(e) => {
-                                                    setMotivoExpulsion(e.target.value);
-                                                    setErrorExpulsion(null);
-                                                }}
-                                            />
-                                            <div className="flex flex-wrap gap-2">
-                                                <Boton
-                                                    type="button"
-                                                    variante="peligro"
-                                                    disabled={
-                                                        guardandoExpulsion ||
-                                                        motivoExpulsion.trim().length < 5
-                                                    }
-                                                    onClick={confirmarExpulsion}
-                                                >
-                                                    {guardandoExpulsion
-                                                        ? 'Registrando…'
-                                                        : 'Confirmar expulsión'}
-                                                </Boton>
-                                                <Boton
-                                                    type="button"
-                                                    variante="secundario"
-                                                    disabled={guardandoExpulsion}
-                                                    onClick={() => {
-                                                        setIngresoAExpulsar(null);
-                                                        setMotivoExpulsion('');
-                                                        setErrorExpulsion(null);
-                                                    }}
-                                                >
-                                                    Cancelar
-                                                </Boton>
-                                            </div>
-                                        </div>
-                                    )}
-                            </li>
-                        ))}
-                    </ul>
-                )}
-
-                {!sesionColaborador && (todos || total > filas.length) && (
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setTodos((v) => !v);
-                            setBuscar('');
-                            setBuscado('');
-                        }}
-                        className={`-mx-2 mt-2 min-h-11 rounded-lg px-2 text-sm font-medium text-primary-700 hover:bg-primary-50 ${FOCO}`}
-                    >
-                        {todos ? 'Ver recientes' : `Ver los ${total}`}
-                    </button>
-                )}
-            </section>
-
-            {!sesionColaborador && <IncidenciasManuales aulaId={aula.id} examenes={examenes} />}
-
-            <section
-                aria-label="Incidencias de ingreso"
-                className="space-y-3 rounded-xl border border-slate-200 bg-white p-5"
-            >
-                <h2 className="text-lg font-semibold text-slate-900">Incidencias de ingreso</h2>
-
-                {filasIncidencias.length === 0 ? (
-                    <p className="text-sm text-slate-600">Sin incidencias</p>
-                ) : (
-                    <ul className="divide-y divide-slate-100">
-                        {filasIncidencias.map((incidencia) => (
-                            <li
-                                key={incidencia.incidencia_id}
-                                className="space-y-1 py-3 text-sm text-slate-700"
-                            >
-                                <p className="flex flex-wrap items-center gap-2">
-                                    <span className="break-words font-semibold text-slate-900">
-                                        {nombreDe(incidencia) || 'Sin estudiante'}
-                                    </span>
-                                    {incidencia.codigo && <span>· {incidencia.codigo}</span>}
-                                    <Insignia tono="peligro">
-                                        {RECHAZOS[incidencia.tipo_rechazo] ??
-                                            incidencia.tipo_rechazo}
-                                    </Insignia>
-                                </p>
-                                <p className="whitespace-pre-wrap break-words">
-                                    {incidencia.detalle}
-                                </p>
-                                <p className="text-slate-600">
-                                    {[
-                                        incidencia.operador,
-                                        incidencia.hora ?? horaDe(incidencia.registrado_en),
-                                    ]
-                                        .filter(Boolean)
-                                        .join(' · ')}
-                                </p>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </section>
+            <IngresosDelAula
+                ingresos={filas}
+                total={total}
+                examenes={examenesAula}
+                todos={todos}
+                onAlternar={() => {
+                    setTodos((v) => !v);
+                    setBuscar('');
+                    setBuscado('');
+                }}
+                buscar={buscar}
+                onBuscar={setBuscar}
+                aula={aulaInfo.nombre}
+                operador={operador}
+                hora={hora}
+                expulsar={acceso ? null : expulsar}
+            />
 
             <DialogoAulas
                 abierto={cambiando}
@@ -841,16 +654,15 @@ function Puesto({ aula, aulas, examenes, sesionColaborador, operador, elegirAula
                     if (id !== aula.id) elegirAula(id);
                 }}
             />
-        </>
+
+            {aviso}
+        </div>
     );
 }
 
 Puesto.propTypes = {
     aula: formaAula.isRequired,
     aulas: PropTypes.arrayOf(formaAula).isRequired,
-    examenes: PropTypes.arrayOf(PropTypes.object).isRequired,
-    sesionColaborador: PropTypes.object,
-    operador: PropTypes.string,
+    acceso: PropTypes.object,
     elegirAula: PropTypes.func.isRequired,
-    avisar: PropTypes.func.isRequired,
 };

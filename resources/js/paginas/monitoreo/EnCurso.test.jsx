@@ -85,49 +85,59 @@ const AULAS = [
     }),
 ];
 
+// Con la forma de GET /api/examenes/{examen}/incidencias.
+const incidencia = (cambios) => ({
+    estudiante: null,
+    gravedad: 'LEVE',
+    evidencia: false,
+    corregida: false,
+    atendida: false,
+    atendida_por: null,
+    atendida_en: null,
+    ...cambios,
+});
+
 const incidencias = () => [
-    {
+    incidencia({
         id: 5,
         aula_id: 31,
         aula: '691A',
-        tipo: 'OTRA_NOVEDAD',
+        tipo: 'OTRA',
+        tipo_texto: 'Otra',
         detalle: 'Faltan pupitres en dos filas.',
-        estudiante: null,
-        reportante: 'Salazar Serrudo Carla',
-        rol_reportante: 'Docente',
-        reportada_en: '2026-10-09T16:03:10-04:00',
-        atendida: false,
-        atendida_por: null,
-        atendida_en: null,
-    },
-    {
+        hora: '16:03',
+        por: 'Salazar Serrudo Carla',
+        rol: 'Docente',
+    }),
+    incidencia({
         id: 2,
         aula_id: 32,
         aula: '691B',
         tipo: 'EXPULSION',
+        tipo_texto: 'Expulsión',
+        gravedad: 'GRAVE',
         detalle: 'Consultaba el teléfono.',
-        estudiante: 'Aguilar Bustamante Adriana',
-        reportante: 'Blanco Coca Leticia',
-        rol_reportante: 'Docente',
-        reportada_en: '2026-10-09T16:02:00-04:00',
+        estudiante: 'Aguilar Bustamante Adriana · 202100123',
+        hora: '16:02',
+        por: 'Blanco Coca Leticia',
+        rol: 'Docente',
         atendida: true,
         atendida_por: 'Blanco Coca Leticia',
         atendida_en: '2026-10-09T16:04:55-04:00',
-    },
-    {
+    }),
+    incidencia({
         id: 3,
         aula_id: 35,
         aula: '691E',
         tipo: 'SUPLANTACION',
+        tipo_texto: 'Suplantación de identidad',
+        gravedad: 'GRAVE',
         detalle: 'La foto del documento no coincide.',
         estudiante: 'Joven de chompa azul',
-        reportante: 'Mamani Quispe Diego',
-        rol_reportante: 'Auxiliar',
-        reportada_en: '2026-10-09T16:00:00-04:00',
-        atendida: false,
-        atendida_por: null,
-        atendida_en: null,
-    },
+        hora: '16:00',
+        por: 'Mamani Quispe Diego',
+        rol: 'Auxiliar',
+    }),
 ];
 
 let lista;
@@ -150,7 +160,7 @@ const tablero = (aulas = AULAS, cambios = {}) => ({
             incidencias_sin_atender: lista.filter((i) => !i.atendida).length,
         },
         aulas,
-        incidencias: lista,
+        es_docente: true,
         ...cambios,
     },
 });
@@ -208,11 +218,15 @@ beforeEach(() => {
                 ...tablero([aula({ aula_id: 58, nombre: 'INFLAB', asignados: 44 })]).data,
                 examen: EXAMENES[1],
                 ultimo_registro: null,
-                incidencias: [],
             },
         }),
-        'PATCH /en-curso/1/incidencias/*/atendida': ({ url }) => {
-            const id = Number(url.split('/')[4]);
+        'GET /examenes/1/incidencias': () => ({
+            data: lista,
+            meta: { sin_atender: lista.filter((i) => !i.atendida).length, todas: lista.length },
+        }),
+        'GET /examenes/3/incidencias': { data: [], meta: { sin_atender: 0, todas: 0 } },
+        'POST /incidencias/*/atencion': ({ url }) => {
+            const id = Number(url.split('/')[2]);
             lista = lista.map((i) =>
                 i.id === id
                     ? {
@@ -285,8 +299,59 @@ describe('EnCurso (HU-22)', () => {
         const auxiliar = within(tarjetaDe('691E'));
         expect(auxiliar.getByText('Mamani Quispe Diego')).toBeVisible();
         expect(auxiliar.getByText('· Auxiliar a cargo')).toBeVisible();
-        expect(auxiliar.getByText('Sin ingresos')).toBeVisible();
-        expect(auxiliar.getByText('1 incidencia')).toBeVisible();
+        expect(auxiliar.queryByText('Sin ingresos')).toBeNull();
+        expect(auxiliar.getByText('1 incidencia sin atender')).toBeVisible();
+    });
+
+    it('dice quiénes entraron por otra aula', async () => {
+        rutas['GET /en-curso/1'] = () =>
+            tablero([aula({ aula_id: 31, nombre: '691A', ingresados: 3, de_otra: 2, en_otra: 1 })]);
+        simularApi(api, rutas);
+        montar();
+        await cargado();
+
+        expect(
+            within(tarjetaDe('691A')).getByText(
+                '3 de 50 · Faltan 47 · +2 de otra aula · 1 entró en otra'
+            )
+        ).toBeVisible();
+    });
+
+    it('muestra el ritmo de llegada y el panel de quién controla al docente', async () => {
+        rutas['GET /en-curso/1'] = () =>
+            tablero(AULAS, {
+                llegadas: [
+                    { hora: '15:55', ingresos: 3 },
+                    { hora: '16:00', ingresos: 5 },
+                ],
+            });
+        rutas['GET /examenes/1/control'] = {
+            data: [
+                {
+                    aula_id: 31,
+                    nombre: '691A',
+                    usa_codigo: true,
+                    personal: [],
+                    accesos: [
+                        {
+                            id: 4,
+                            nombre: 'Rocha Ana',
+                            estado: 'pendiente',
+                            aula_id: 31,
+                            aula: '691A',
+                            pedido_en: '2026-10-09T16:01:00-04:00',
+                        },
+                    ],
+                },
+            ],
+            meta: { pendientes: 1, minutos_en_linea: 2 },
+        };
+        simularApi(api, rutas);
+        montar();
+        await cargado();
+
+        expect(await screen.findByText('Llegadas · 8')).toBeVisible();
+        expect(await screen.findByText('Piden controlar con código · 1')).toBeVisible();
     });
 
     it('un aula sin responsable lo dice', async () => {
@@ -379,7 +444,8 @@ describe('EnCurso (HU-22)', () => {
         expect(within(tarjeta).getByText('Faltan pupitres en dos filas.')).toBeVisible();
         expect(within(tarjeta).getByText('La foto del documento no coincide.')).toBeVisible();
         expect(within(tarjeta).getByText('Joven de chompa azul')).toBeVisible();
-        expect(within(tarjeta).getByText('Otra novedad')).toBeVisible();
+        expect(within(tarjeta).getByText('Suplantación de identidad')).toBeVisible();
+        expect(within(tarjeta).getAllByText('Grave').length).toBeGreaterThan(0);
         expect(within(tarjeta).getByText('Aula 691E · 16:00')).toBeVisible();
         expect(within(tarjeta).getByText('Mamani Quispe Diego · Auxiliar')).toBeVisible();
         expect(within(tarjeta).queryByText('Consultaba el teléfono.')).toBeNull();
@@ -387,85 +453,80 @@ describe('EnCurso (HU-22)', () => {
         fireEvent.click(within(tarjeta).getByRole('button', { name: /Todas/ }));
 
         const atendida = within(tarjeta).getByText('Consultaba el teléfono.').closest('li');
-        expect(within(atendida).getByText('Atendida · Blanco Coca Leticia · 16:04')).toBeVisible();
-        expect(within(atendida).queryByRole('button')).toBeNull();
+        expect(within(atendida).getByText(/Atendida/)).toBeVisible();
+        expect(within(atendida).queryByRole('button', { name: 'Atender' })).toBeNull();
     });
 
-    it('marca una incidencia como atendida y no ofrece deshacerlo', async () => {
+    it('el docente atiende una incidencia con confirmación y no se deshace', async () => {
         montar();
         await cargado();
         const tarjeta = await tarjetaIncidencias();
 
-        fireEvent.click(
-            within(tarjeta).getByRole('button', { name: 'Atender la incidencia del aula 691A' })
-        );
+        const fila = within(tarjeta).getByText('Faltan pupitres en dos filas.').closest('li');
+        fireEvent.click(within(fila).getByRole('button', { name: 'Atender' }));
+        fireEvent.click(within(fila).getByRole('button', { name: 'Confirmar' }));
 
         expect(await screen.findByText('Incidencia atendida')).toBeVisible();
-        expect(api.patch).toHaveBeenCalledWith('/en-curso/1/incidencias/5/atendida');
+        expect(api.post).toHaveBeenCalledWith('/incidencias/5/atencion');
         await waitFor(() =>
             expect(within(tarjeta).queryByText('Faltan pupitres en dos filas.')).toBeNull()
         );
-        expect(within(tarjeta).getAllByRole('button', { name: /^Atender/ })).toHaveLength(1);
-        expect(dato('Incidencias sin atender')).toHaveTextContent('1');
-
-        fireEvent.click(within(tarjeta).getByRole('button', { name: /Todas/ }));
-        const atendida = within(tarjeta).getByText('Faltan pupitres en dos filas.').closest('li');
-        expect(within(atendida).getByText('Atendida · Blanco Coca Leticia · 16:07')).toBeVisible();
-        expect(within(atendida).queryByRole('button')).toBeNull();
     });
 
-    it('reporta una incidencia con el examen elegido y el aula de la lista', async () => {
-        rutas['POST /aulas/*/punto-control/incidencias-manuales'] = {
-            message: 'Incidencia registrada.',
-        };
+    it('quien no es docente del examen ve las incidencias sin atenderlas', async () => {
+        rutas['GET /en-curso/1'] = () => tablero(AULAS, { es_docente: false });
+        simularApi(api, rutas);
+        montar();
+        await cargado();
+        const tarjeta = await tarjetaIncidencias();
+
+        expect(within(tarjeta).queryByRole('button', { name: 'Atender' })).toBeNull();
+        expect(within(tarjeta).getAllByText('Sin atender').length).toBeGreaterThan(0);
+    });
+
+    it('reporta una incidencia en cualquiera de las aulas del tablero', async () => {
+        rutas['POST /examenes/1/incidencias'] = { message: 'Incidencia registrada.' };
         simularApi(api, rutas);
         montar();
         await cargado();
 
-        expect(screen.queryByRole('link', { name: /Reportar/ })).toBeNull();
         fireEvent.click(screen.getByRole('button', { name: 'Incidencia' }));
         const dialogo = screen.getByRole('dialog', { name: 'Incidencia' });
         expect(within(dialogo).getByText('16:07 · Blanco Coca Leticia')).toBeVisible();
 
-        // Solo las aulas cuya puerta opera la cuenta.
         const opciones = within(within(dialogo).getByRole('combobox', { name: /Aula/ }))
             .getAllByRole('option')
             .map((o) => o.textContent);
-        expect(opciones).toEqual(['Elegir', '691B', '691A']);
+        expect(opciones).toEqual(['691B', '691A', '691E']);
 
         fireEvent.change(within(dialogo).getByRole('combobox', { name: /Aula/ }), {
             target: { value: '31' },
         });
         fireEvent.change(within(dialogo).getByRole('combobox', { name: /Tipo/ }), {
-            target: { value: 'CONDUCTA' },
+            target: { value: 'MATERIAL_NO_PERMITIDO' },
         });
-        fireEvent.change(within(dialogo).getByRole('textbox', { name: /Código SIS/ }), {
+        fireEvent.change(within(dialogo).getByRole('textbox', { name: 'Estudiante' }), {
             target: { value: '202100123' },
         });
         fireEvent.change(within(dialogo).getByRole('textbox', { name: /Detalle/ }), {
-            target: { value: 'Conversa durante el examen.' },
+            target: { value: 'Apuntes bajo la mesa.' },
         });
         fireEvent.click(within(dialogo).getByRole('button', { name: 'Registrar' }));
 
         expect(await screen.findByText('Incidencia registrada')).toBeVisible();
-        expect(api.post).toHaveBeenCalledWith('/aulas/31/punto-control/incidencias-manuales', {
-            examen_id: 1,
-            tipo: 'CONDUCTA',
-            detalle: 'Conversa durante el examen.',
-            codigo_universitario: '202100123',
+        expect(api.post).toHaveBeenCalledWith('/examenes/1/incidencias', {
+            aula_id: 31,
+            tipo: 'MATERIAL_NO_PERMITIDO',
+            estudiante: '202100123',
+            detalle: 'Apuntes bajo la mesa.',
         });
         expect(screen.queryByRole('dialog')).toBeNull();
-        expect(pedidosDel('/en-curso/1')).toBe(2);
     });
 
-    it('con una sola aula operable la deja fija y muestra el error del servidor', async () => {
-        rutas['GET /en-curso/1'] = () =>
-            tablero(AULAS.map((a) => ({ ...a, puede_operar: a.aula_id === 35 })));
-        rutas['POST /aulas/*/punto-control/incidencias-manuales'] = errorHttp(422, {
-            message: 'El código no corresponde a un estudiante del examen.',
-            errors: {
-                codigo_universitario: ['No se encontró un estudiante del examen con ese código.'],
-            },
+    it('muestra el error del servidor en el campo del estudiante', async () => {
+        rutas['POST /examenes/1/incidencias'] = errorHttp(422, {
+            message: 'No inscrito en el examen.',
+            errors: { estudiante: ['No inscrito en el examen.'] },
         });
         simularApi(api, rutas);
         montar();
@@ -473,13 +534,10 @@ describe('EnCurso (HU-22)', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Incidencia' }));
         const dialogo = screen.getByRole('dialog', { name: 'Incidencia' });
-        expect(within(dialogo).getByText('Aula 691E · 16:07 · Blanco Coca Leticia')).toBeVisible();
-        expect(within(dialogo).queryByRole('combobox', { name: /Aula/ })).toBeNull();
-
         fireEvent.change(within(dialogo).getByRole('combobox', { name: /Tipo/ }), {
-            target: { value: 'OTRO' },
+            target: { value: 'OTRA' },
         });
-        fireEvent.change(within(dialogo).getByRole('textbox', { name: /Código SIS/ }), {
+        fireEvent.change(within(dialogo).getByRole('textbox', { name: 'Estudiante' }), {
             target: { value: '99999' },
         });
         fireEvent.change(within(dialogo).getByRole('textbox', { name: /Detalle/ }), {
@@ -487,39 +545,17 @@ describe('EnCurso (HU-22)', () => {
         });
         fireEvent.click(within(dialogo).getByRole('button', { name: 'Registrar' }));
 
-        expect(
-            await within(dialogo).findByText(
-                'No se encontró un estudiante del examen con ese código.'
-            )
-        ).toBeVisible();
-        expect(api.post).toHaveBeenCalledWith(
-            '/aulas/35/punto-control/incidencias-manuales',
-            expect.objectContaining({ examen_id: 1, tipo: 'OTRO' })
-        );
+        expect(await within(dialogo).findByText('No inscrito en el examen.')).toBeVisible();
     });
 
-    it('no ofrece reportar incidencias sin aulas operables, sin permiso o fuera del día', async () => {
-        rutas['GET /en-curso/1'] = () => tablero(AULAS.map((a) => ({ ...a, puede_operar: false })));
-        simularApi(api, rutas);
-        const { unmount } = montar();
-        await cargado();
-        expect(screen.queryByRole('button', { name: 'Incidencia' })).toBeNull();
-        unmount();
-
-        rutas['GET /en-curso/1'] = () => tablero();
-        simularApi(api, rutas);
-        const otra = montar('/en-curso', usuarioDePrueba('Docente', { permisos: ['examenes'] }));
-        await cargado();
-        expect(screen.queryByRole('button', { name: 'Incidencia' })).toBeNull();
-        otra.unmount();
-
+    it('fuera del día del examen no ofrece reportar', async () => {
         montar('/en-curso?examen=3');
         await screen.findByRole('heading', { name: 'Aula INFLAB' });
         expect(screen.queryByRole('button', { name: 'Incidencia' })).toBeNull();
     });
 
     it('muestra el mensaje del servidor si la incidencia ya estaba atendida', async () => {
-        rutas['PATCH /en-curso/1/incidencias/*/atendida'] = errorHttp(409, {
+        rutas['POST /incidencias/*/atencion'] = errorHttp(409, {
             message: 'La incidencia ya estaba atendida.',
         });
         simularApi(api, rutas);
@@ -527,7 +563,8 @@ describe('EnCurso (HU-22)', () => {
         await cargado();
         const tarjeta = await tarjetaIncidencias();
 
-        fireEvent.click(within(tarjeta).getAllByRole('button', { name: /^Atender/ })[0]);
+        fireEvent.click(within(tarjeta).getAllByRole('button', { name: 'Atender' })[0]);
+        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Confirmar' }));
 
         expect(await screen.findByText('La incidencia ya estaba atendida.')).toBeVisible();
     });
@@ -594,7 +631,7 @@ describe('EnCurso (HU-22)', () => {
 
         expect(screen.getByRole('link', { name: 'Lista del aula 691A' })).toHaveAttribute(
             'href',
-            '/seguimiento?examen=1&aula=31'
+            '/en-curso/aula?examen=1&aula=31'
         );
         expect(screen.getByRole('link', { name: 'Controlar el aula 691A' })).toHaveAttribute(
             'href',
@@ -665,7 +702,7 @@ describe('EnCurso (HU-22)', () => {
         montar();
         await screen.findByRole('heading', { name: 'Aula 620' });
 
-        expect(within(tarjetaDe('620')).getByText('0/50')).toBeVisible();
+        expect(within(tarjetaDe('620')).getByText('0 de 50')).toBeVisible();
         expect(within(tarjetaDe('620')).getByText(/2 incidencias/)).toBeVisible();
         expect(
             within(tarjetaDe('627')).getByText(/Faltan 15 · Docente · Compartida/)
