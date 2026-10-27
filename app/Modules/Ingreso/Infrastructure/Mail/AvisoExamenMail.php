@@ -55,6 +55,14 @@ final class AvisoExamenMail extends Mailable implements ShouldQueue
     {
         $enviado = parent::send($mailer);
 
+        // Nulo: el envio se cancelo porque el destinatario no esta entre
+        // las direcciones permitidas (`mail.permitidos`).
+        if ($enviado === null) {
+            app(RegistroCorreoGateway::class)->marcarFallido($this->envioId, 'Dirección no permitida en esta instalación.');
+
+            return null;
+        }
+
         app(RegistroCorreoGateway::class)->marcarEnviado($this->envioId);
 
         return $enviado;
