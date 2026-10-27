@@ -95,18 +95,4 @@ interface DetallePuertaGateway
      * @param  list<int>  $examenIds
      */
     public function totalIngresos(int $aulaId, array $examenIds): int;
-
-    /**
-     * Las incidencias de ingreso del aula: las de esos examenes y los
-     * intentos sin examen de la fecha.
-     *
-     * @param  list<int>  $examenIds
-     * @return list<array<string, int|string|null>>
-     */
-    public function incidenciasDelAula(
-        int $aulaId,
-        array $examenIds,
-        string $fecha,
-        int $limite,
-    ): array;
 }

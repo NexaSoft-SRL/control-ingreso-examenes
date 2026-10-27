@@ -20,13 +20,11 @@ interface EnCursoGateway
     public function avance(int $examenId): AvanceEnCursoData;
 
     /**
-     * Las incidencias reportadas en las aulas del examen, de la mas reciente
-     * a la mas antigua. Los rechazos que la puerta registra sola
-     * (`incidencias_ingreso`) no entran.
+     * Las incidencias reportadas en las aulas del examen y los ingresos
+     * repetidos, de la mas reciente a la mas antigua. Los demas intentos
+     * que la puerta rechaza no entran.
      *
      * @return list<IncidenciaEnCursoData>
      */
     public function incidencias(int $examenId): array;
-
-    public function incidencia(int $incidenciaId): ?IncidenciaEnCursoData;
 }

@@ -62,7 +62,9 @@ final class EloquentDetallePuertaGateway implements DetallePuertaGateway
     {
         $fila = DB::table('ingresos as i')
             ->leftJoin('aulas as a', 'a.id', '=', 'i.aula_id')
-            ->leftJoin('expulsiones as x', 'x.ingreso_id', '=', 'i.id')
+            ->leftJoin('incidencias as x', static function (JoinClause $join): void {
+                $join->on('x.ingreso_id', '=', 'i.id')->where('x.tipo', '=', 'EXPULSION');
+            })
             ->where('i.examen_id', $examenId)
             ->where('i.estudiante_id', $estudianteId)
             ->first([
@@ -71,7 +73,7 @@ final class EloquentDetallePuertaGateway implements DetallePuertaGateway
                 'i.aula_id',
                 'i.es_excepcion',
                 'a.nombre as aula',
-                'x.registrada_en as expulsado_en',
+                'x.ocurrida_en as expulsado_en',
             ]);
 
         if ($fila === null) {
@@ -234,7 +236,9 @@ final class EloquentDetallePuertaGateway implements DetallePuertaGateway
         $consulta = DB::table('ingresos as i')
             ->join('estudiantes as e', 'e.id', '=', 'i.estudiante_id')
             ->join('examenes as ex', 'ex.id', '=', 'i.examen_id')
-            ->leftJoin('expulsiones as x', 'x.ingreso_id', '=', 'i.id')
+            ->leftJoin('incidencias as x', static function (JoinClause $join): void {
+                $join->on('x.ingreso_id', '=', 'i.id')->where('x.tipo', '=', 'EXPULSION');
+            })
             ->leftJoin('usuarios as u', 'u.id', '=', 'i.registrado_por')
             ->whereIn('i.examen_id', $examenIds)
             ->where('i.aula_id', $aulaId);
@@ -264,7 +268,7 @@ final class EloquentDetallePuertaGateway implements DetallePuertaGateway
                 'i.aula_id',
                 'i.registrado_en',
                 'i.es_excepcion',
-                'x.registrada_en as expulsado_en',
+                'x.ocurrida_en as expulsado_en',
                 'u.nombre as operador',
                 'ex.hora_inicio',
             ]);
@@ -306,62 +310,6 @@ final class EloquentDetallePuertaGateway implements DetallePuertaGateway
             ->whereIn('examen_id', $examenIds)
             ->where('aula_id', $aulaId)
             ->count();
-    }
-
-    public function incidenciasDelAula(
-        int $aulaId,
-        array $examenIds,
-        string $fecha,
-        int $limite,
-    ): array {
-        $filas = DB::table('incidencias_ingreso as i')
-            ->leftJoin('estudiantes as e', 'e.id', '=', 'i.estudiante_id')
-            ->leftJoin('usuarios as u', 'u.id', '=', 'i.registrado_por')
-            ->where('i.aula_id', $aulaId)
-            ->where(static function (Builder $filtro) use ($examenIds, $fecha): void {
-                $filtro->whereIn('i.examen_id', $examenIds === [] ? [0] : $examenIds)
-                    ->orWhere(static function (Builder $sinExamen) use ($fecha): void {
-                        $sinExamen->whereNull('i.examen_id')
-                            ->whereDate('i.registrado_en', $fecha);
-                    });
-            })
-            ->orderByDesc('i.registrado_en')
-            ->orderByDesc('i.id')
-            ->limit($limite)
-            ->get([
-                'i.id',
-                'i.examen_id',
-                'i.estudiante_id',
-                'e.codigo_universitario as codigo',
-                'e.nombres',
-                'e.apellidos',
-                'i.aula_id',
-                'i.tipo_rechazo',
-                'i.detalle',
-                'i.registrado_en',
-                'u.nombre as operador',
-            ]);
-
-        $resultado = [];
-
-        foreach ($filas as $fila) {
-            $resultado[] = [
-                'incidencia_id' => self::entero(self::campo($fila, 'id')),
-                'examen_id' => self::campo($fila, 'examen_id') === null ? null : self::entero(self::campo($fila, 'examen_id')),
-                'estudiante_id' => self::campo($fila, 'estudiante_id') === null ? null : self::entero(self::campo($fila, 'estudiante_id')),
-                'codigo' => self::textoONulo(self::campo($fila, 'codigo')),
-                'nombres' => self::textoONulo(self::campo($fila, 'nombres')),
-                'apellidos' => self::textoONulo(self::campo($fila, 'apellidos')),
-                'aula_id' => self::entero(self::campo($fila, 'aula_id')),
-                'tipo_rechazo' => self::texto(self::campo($fila, 'tipo_rechazo')),
-                'detalle' => self::texto(self::campo($fila, 'detalle')),
-                'registrado_en' => self::texto(self::campo($fila, 'registrado_en')),
-                'hora' => self::hora(self::campo($fila, 'registrado_en')),
-                'operador' => self::textoONulo(self::campo($fila, 'operador')),
-            ];
-        }
-
-        return $resultado;
     }
 
     private function tipo(string $tipo): string

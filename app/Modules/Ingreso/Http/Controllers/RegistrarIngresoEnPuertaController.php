@@ -66,10 +66,10 @@ final class RegistrarIngresoEnPuertaController
 
             if (
                 ! $resultado->puedeAdmitir()
-                && ($resultado->ambiguo || $resultado->examenId === null)
+                && $resultado->examenId === null
             ) {
                 // BUG-04: el intento queda registrado y distinguido (no
-                // inscrito, sin registro, QR no valido, ambiguo) sin
+                // inscrito, sin registro, QR no valido) sin
                 // adjudicarlo a uno de los examenes del aula.
                 $intentos->ejecutar(
                     $usuarioId,
@@ -80,9 +80,7 @@ final class RegistrarIngresoEnPuertaController
                 );
 
                 return response()->json([
-                    'message' => $resultado->ambiguo
-                        ? 'Identificación ambigua entre exámenes.'
-                        : 'Ingreso no autorizado para este estudiante.',
+                    'message' => 'Ingreso no autorizado para este estudiante.',
                     'data' => $detallar->detallar(
                         $resultado,
                         null,

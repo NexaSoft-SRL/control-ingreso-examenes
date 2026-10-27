@@ -69,9 +69,10 @@ final readonly class IdentificarEnPuerta
             return new ResultadoResolucionPuertaData(
                 $resultado->examenId,
                 $resultado->veredicto,
-                $resultado->ambiguo,
                 $codigo,
                 $resultado->candidato,
+                $resultado->causa,
+                $resultado->estudiante,
             );
         }
 

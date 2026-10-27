@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Monitoreo\Http\Controllers;
 
-use App\Modules\Monitoreo\Application\Actions\AtenderIncidencia;
 use App\Modules\Monitoreo\Application\DTOs\AulaEnCursoData;
 use App\Modules\Monitoreo\Application\DTOs\ExamenEnCursoData;
 use App\Modules\Monitoreo\Application\DTOs\IncidenciaEnCursoData;
@@ -12,15 +11,13 @@ use App\Modules\Monitoreo\Application\Queries\ConsultarEnCurso;
 use App\Modules\Monitoreo\Application\Queries\ListarEnCurso;
 use App\Modules\Monitoreo\Domain\Exceptions\ExamenAjenoException;
 use App\Modules\Monitoreo\Domain\Exceptions\ExamenNoEncontradoException;
-use App\Modules\Monitoreo\Domain\Exceptions\IncidenciaNoEncontradaException;
-use App\Modules\Monitoreo\Domain\Exceptions\IncidenciaYaAtendidaException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use InvalidArgumentException;
 
 /**
  * HU-22: el examen en curso, aula por aula. Las lecturas no escriben nada;
- * la unica escritura es marcar una incidencia como atendida.
+ * las incidencias se atienden en `/api/incidencias/{id}/atencion`.
  */
 final class EnCursoController
 {
@@ -64,24 +61,6 @@ final class EnCursoController
                     $tablero->incidencias,
                 ),
             ],
-        ]);
-    }
-
-    public function atender(int $examen, int $incidencia, AtenderIncidencia $atender): JsonResponse
-    {
-        try {
-            $atendida = $atender->ejecutar($this->usuarioId(), $examen, $incidencia);
-        } catch (ExamenAjenoException $error) {
-            return $this->error($error->getMessage(), 403);
-        } catch (IncidenciaNoEncontradaException $error) {
-            return $this->error($error->getMessage(), 404);
-        } catch (IncidenciaYaAtendidaException $error) {
-            return $this->error($error->getMessage(), 409);
-        }
-
-        return response()->json([
-            'data' => $this->incidencia($atendida),
-            'message' => 'Incidencia atendida.',
         ]);
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Infrastructure\Persistence;
 
 use App\Modules\Ingreso\Application\Contracts\IngresosRecientesGateway;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -23,7 +24,9 @@ final class EloquentIngresosRecientesGateway implements IngresosRecientesGateway
 
         $filas = DB::table('ingresos as i')
             ->join('estudiantes as e', 'e.id', '=', 'i.estudiante_id')
-            ->leftJoin('expulsiones as ex', 'ex.ingreso_id', '=', 'i.id')
+            ->leftJoin('incidencias as ex', static function (JoinClause $join): void {
+                $join->on('ex.ingreso_id', '=', 'i.id')->where('ex.tipo', '=', 'EXPULSION');
+            })
             ->leftJoin('usuarios as u', 'u.id', '=', 'i.registrado_por')
             ->leftJoin('accesos_codigo_aula as acceso', 'acceso.id', '=', 'i.acceso_codigo_aula_id')
             ->where('i.examen_id', $examenId)

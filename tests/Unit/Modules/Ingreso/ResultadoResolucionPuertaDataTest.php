@@ -30,15 +30,10 @@ final class ResultadoResolucionPuertaDataTest extends TestCase
         self::assertFalse($resultado->puedeAdmitir());
     }
 
-    public function test_ambiguedad_no_admite(): void
+    public function test_sin_examen_no_admite(): void
     {
-        $resultado = new ResultadoResolucionPuertaData(
-            null,
-            null,
-            true,
-        );
+        $resultado = new ResultadoResolucionPuertaData(null, null);
 
         self::assertFalse($resultado->puedeAdmitir());
-        self::assertTrue($resultado->ambiguo);
     }
 }

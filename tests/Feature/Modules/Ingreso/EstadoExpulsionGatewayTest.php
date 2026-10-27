@@ -37,10 +37,9 @@ final class EstadoExpulsionGatewayTest extends TestCase
         [$ingresoId, $examenId, $estudianteId, $usuarioId] =
             $this->ingreso();
 
-        DB::table('expulsiones')->insert([
-            'ingreso_id' => $ingresoId,
-            'registrada_por' => $usuarioId,
-            'motivo' => 'Incumplimiento de normas.',
+        DB::table('incidencias')->insert([
+            ...self::expulsion($ingresoId, $usuarioId),
+            'detalle' => 'Incumplimiento de normas.',
         ]);
 
         self::assertTrue(
@@ -48,10 +47,11 @@ final class EstadoExpulsionGatewayTest extends TestCase
                 ->estaExpulsado($examenId, $estudianteId)
         );
 
-        $this->assertDatabaseHas('expulsiones', [
+        $this->assertDatabaseHas('incidencias', [
             'ingreso_id' => $ingresoId,
-            'registrada_por' => $usuarioId,
-            'motivo' => 'Incumplimiento de normas.',
+            'reportada_por' => $usuarioId,
+            'detalle' => 'Incumplimiento de normas.',
+            'tipo' => 'EXPULSION',
         ]);
     }
 
@@ -60,23 +60,22 @@ final class EstadoExpulsionGatewayTest extends TestCase
         [$ingresoId, , , $usuarioId] = $this->ingreso();
 
         $fila = [
-            'ingreso_id' => $ingresoId,
-            'registrada_por' => $usuarioId,
-            'motivo' => 'Motivo documentado.',
+            ...self::expulsion($ingresoId, $usuarioId),
+            'detalle' => 'Motivo documentado.',
         ];
 
-        DB::table('expulsiones')->insert($fila);
+        DB::table('incidencias')->insert($fila);
 
         try {
             DB::transaction(static function () use ($fila): void {
-                DB::table('expulsiones')->insert($fila);
+                DB::table('incidencias')->insert($fila);
             });
             self::fail('Se esperaba una violación de unicidad.');
         } catch (QueryException $error) {
             self::assertSame('23505', $error->getCode());
         }
 
-        $this->assertDatabaseCount('expulsiones', 1);
+        $this->assertSame(1, DB::table('incidencias')->where('tipo', 'EXPULSION')->count());
     }
 
     public function test_no_acepta_motivo_vacio(): void
@@ -88,10 +87,9 @@ final class EstadoExpulsionGatewayTest extends TestCase
                 $ingresoId,
                 $usuarioId
             ): void {
-                DB::table('expulsiones')->insert([
-                    'ingreso_id' => $ingresoId,
-                    'registrada_por' => $usuarioId,
-                    'motivo' => '   ',
+                DB::table('incidencias')->insert([
+                    ...self::expulsion($ingresoId, $usuarioId),
+                    'detalle' => '   ',
                 ]);
             });
             self::fail('Se esperaba una violación del CHECK.');
@@ -99,7 +97,23 @@ final class EstadoExpulsionGatewayTest extends TestCase
             self::assertSame('23514', $error->getCode());
         }
 
-        $this->assertDatabaseCount('expulsiones', 0);
+        $this->assertSame(0, DB::table('incidencias')->where('tipo', 'EXPULSION')->count());
+    }
+
+    /**
+     * La expulsion es una incidencia del ingreso.
+     *
+     * @return array<string, mixed>
+     */
+    private static function expulsion(int $ingresoId, int $usuarioId): array
+    {
+        return [
+            'ingreso_id' => $ingresoId,
+            'reportada_por' => $usuarioId,
+            'tipo' => 'EXPULSION',
+            'origen' => 'PERSONA',
+            'ocurrida_en' => now(),
+        ];
     }
 
     /**

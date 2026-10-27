@@ -84,13 +84,6 @@ final class EloquentEnCursoGateway implements EnCursoGateway
         return $incidencias;
     }
 
-    public function incidencia(int $incidenciaId): ?IncidenciaEnCursoData
-    {
-        $fila = $this->consultaIncidencias()->where('i.id', $incidenciaId)->first();
-
-        return $fila === null ? null : $this->comoIncidencia($fila);
-    }
-
     /**
      * Los habilitados del examen que siguen inscritos en alguno de sus
      * grupos: los mismos que cuenta la lista del aula (HU-21).
@@ -140,15 +133,23 @@ final class EloquentEnCursoGateway implements EnCursoGateway
         return $conteo;
     }
 
+    /**
+     * Las incidencias que se atienden: las que reporto una persona y los
+     * ingresos repetidos que asienta la puerta (`incidencias`, HU-19).
+     */
     private function consultaIncidencias(): Builder
     {
-        return DB::table('incidencias_aula as i')
+        return DB::table('incidencias as i')
             ->join('aulas as a', 'a.id', '=', 'i.aula_id')
-            ->join('usuarios as reporta', 'reporta.id', '=', 'i.reportada_por')
+            ->leftJoin('usuarios as reporta', 'reporta.id', '=', 'i.reportada_por')
             ->leftJoin('roles as r', 'r.id', '=', 'reporta.role_id')
+            ->leftJoin('accesos_codigo_aula as acceso', 'acceso.id', '=', 'i.acceso_codigo_aula_id')
             ->leftJoin('estudiantes as e', 'e.id', '=', 'i.estudiante_id')
             ->leftJoin('usuarios as atiende', 'atiende.id', '=', 'i.atendida_por')
-            ->orderByDesc('i.reportada_en')
+            ->where(static function (Builder $donde): void {
+                $donde->where('i.origen', 'PERSONA')->orWhere('i.tipo', 'INGRESO_REPETIDO');
+            })
+            ->orderByDesc('i.ocurrida_en')
             ->orderByDesc('i.id')
             ->select([
                 'i.id',
@@ -157,11 +158,13 @@ final class EloquentEnCursoGateway implements EnCursoGateway
                 'a.nombre as aula',
                 'i.tipo',
                 'i.detalle',
+                'i.estudiante_texto',
                 'e.nombres',
                 'e.apellidos',
                 'reporta.nombre as reportante',
                 'r.name as rol_reportante',
-                'i.reportada_en',
+                'acceso.nombre_colaborador as colaborador',
+                'i.ocurrida_en as reportada_en',
                 'atiende.nombre as atendida_por',
                 'i.atendida_en',
             ]);
@@ -181,10 +184,12 @@ final class EloquentEnCursoGateway implements EnCursoGateway
             tipo: $this->texto($columnas['tipo'] ?? null) ?? '',
             detalle: $this->texto($columnas['detalle'] ?? null) ?? '',
             estudiante: $nombres === null && $apellidos === null
-                ? null
-                : trim(($apellidos ?? '').', '.($nombres ?? ''), ', '),
-            reportante: $this->texto($columnas['reportante'] ?? null) ?? '',
-            rolReportante: $this->texto($columnas['rol_reportante'] ?? null) ?? '',
+                ? $this->texto($columnas['estudiante_texto'] ?? null)
+                : trim(($apellidos ?? '').' '.($nombres ?? '')),
+            reportante: $this->texto($columnas['reportante'] ?? null)
+                ?? $this->texto($columnas['colaborador'] ?? null) ?? '',
+            rolReportante: $this->texto($columnas['rol_reportante'] ?? null)
+                ?? ($this->texto($columnas['colaborador'] ?? null) === null ? '' : 'Código de aula'),
             reportadaEn: $this->instante($columnas['reportada_en'] ?? null) ?? '',
             atendidaPor: $this->texto($columnas['atendida_por'] ?? null),
             atendidaEn: $this->instante($columnas['atendida_en'] ?? null),

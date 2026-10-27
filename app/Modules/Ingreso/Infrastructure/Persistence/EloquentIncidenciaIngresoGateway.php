@@ -6,9 +6,10 @@ namespace App\Modules\Ingreso\Infrastructure\Persistence;
 
 use App\Modules\Ingreso\Application\Contracts\IncidenciaIngresoGateway;
 use App\Modules\Ingreso\Domain\Enums\CausaIntento;
+use App\Modules\Ingreso\Domain\Enums\OrigenIncidencia;
+use App\Modules\Ingreso\Domain\Enums\TipoIncidencia;
 use App\Modules\Ingreso\Domain\Enums\VeredictoIngreso;
 use Illuminate\Database\Query\Builder;
-use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -18,9 +19,10 @@ final class EloquentIncidenciaIngresoGateway implements IncidenciaIngresoGateway
         int $examenId,
         int $aulaId,
         ?int $estudianteId,
-        int $usuarioId,
+        ?int $usuarioId,
         VeredictoIngreso $veredicto,
         string $detalle,
+        ?int $accesoCodigoAulaId = null,
     ): void {
         if ($veredicto->permiteIngreso()) {
             throw new InvalidArgumentException(
@@ -28,70 +30,54 @@ final class EloquentIncidenciaIngresoGateway implements IncidenciaIngresoGateway
             );
         }
 
-        $detalle = trim($detalle);
-
-        if ($detalle === '') {
-            throw new InvalidArgumentException(
-                'El detalle de la incidencia es obligatorio.'
-            );
-        }
-
-        DB::table('incidencias_ingreso')->insert([
+        $this->insertar([
             'examen_id' => $examenId,
             'aula_id' => $aulaId,
             'estudiante_id' => $estudianteId,
-            'registrado_por' => $usuarioId,
-            'tipo_rechazo' => $veredicto->value,
-            'detalle' => $detalle,
-            'registrado_en' => DB::raw('CURRENT_TIMESTAMP'),
-        ]);
+            'tipo' => TipoIncidencia::IntentoNoAutorizado->value,
+            'causa' => $veredicto->value,
+            'reportada_por' => $usuarioId,
+            'acceso_codigo_aula_id' => $accesoCodigoAulaId,
+        ], $detalle);
     }
 
     public function registrarIntento(
         int $aulaId,
         ?int $estudianteId,
-        int $usuarioId,
+        ?int $usuarioId,
         CausaIntento $causa,
         string $detalle,
+        ?int $accesoCodigoAulaId = null,
     ): void {
-        $detalle = trim($detalle);
-
-        if ($detalle === '') {
-            throw new InvalidArgumentException(
-                'El detalle de la incidencia es obligatorio.'
-            );
-        }
-
-        DB::table('incidencias_ingreso')->insert([
+        $this->insertar([
             'examen_id' => null,
             'aula_id' => $aulaId,
             'estudiante_id' => $estudianteId,
-            'registrado_por' => $usuarioId,
-            'tipo_rechazo' => $causa->value,
-            'detalle' => $detalle,
-            'registrado_en' => DB::raw('CURRENT_TIMESTAMP'),
-        ]);
+            'tipo' => TipoIncidencia::IntentoNoAutorizado->value,
+            'causa' => $causa->value,
+            'reportada_por' => $usuarioId,
+            'acceso_codigo_aula_id' => $accesoCodigoAulaId,
+        ], $detalle);
     }
 
     public function repetidoReciente(
         int $aulaId,
         ?int $estudianteId,
-        string $tipo,
+        string $causa,
         string $detalle,
         int $minutos,
     ): bool {
-        $desde = now()->subMinutes($minutos)->format('Y-m-d H:i:s');
-
-        return DB::table('incidencias_ingreso')
+        return DB::table('incidencias')
+            ->where('origen', OrigenIncidencia::Sistema->value)
             ->where('aula_id', $aulaId)
-            ->where('tipo_rechazo', $tipo)
+            ->where('causa', $causa)
             ->where('detalle', trim($detalle))
             ->where(static function (Builder $consulta) use ($estudianteId): void {
                 $estudianteId === null
                     ? $consulta->whereNull('estudiante_id')
                     : $consulta->where('estudiante_id', $estudianteId);
             })
-            ->where('registrado_en', '>=', $desde)
+            ->where('ocurrida_en', '>=', now()->subMinutes($minutos))
             ->exists();
     }
 
@@ -104,32 +90,50 @@ final class EloquentIncidenciaIngresoGateway implements IncidenciaIngresoGateway
         ?int $accesoCodigoAulaId,
         string $detalle,
     ): void {
-        $autor = $usuarioId ?? DB::table('examenes')->where('id', $examenId)->value('creado_por');
-
-        DB::table('incidencias_ingreso')->insert([
+        $this->insertar([
             'examen_id' => $examenId,
             'aula_id' => $aulaId,
             'estudiante_id' => $estudianteId,
-            'registrado_por' => is_numeric($autor) ? (int) $autor : null,
-            'tipo_rechazo' => VeredictoIngreso::YaIngreso->value,
-            'detalle' => trim($detalle),
-            'registrado_en' => DB::raw('CURRENT_TIMESTAMP'),
-        ]);
+            'ingreso_id' => $ingresoId,
+            'tipo' => TipoIncidencia::IngresoRepetido->value,
+            'causa' => null,
+            'reportada_por' => $usuarioId,
+            'acceso_codigo_aula_id' => $accesoCodigoAulaId,
+        ], $detalle);
     }
 
     public function ingresoRepetidoReciente(int $ingresoId, int $aulaId, int $minutos): bool
     {
-        $desde = now()->subMinutes($minutos)->format('Y-m-d H:i:s');
-
-        return DB::table('incidencias_ingreso as incidencia')
-            ->join('ingresos as ingreso', static function (JoinClause $join): void {
-                $join->on('ingreso.examen_id', '=', 'incidencia.examen_id')
-                    ->on('ingreso.estudiante_id', '=', 'incidencia.estudiante_id');
-            })
-            ->where('ingreso.id', $ingresoId)
-            ->where('incidencia.aula_id', $aulaId)
-            ->where('incidencia.tipo_rechazo', VeredictoIngreso::YaIngreso->value)
-            ->where('incidencia.registrado_en', '>=', $desde)
+        return DB::table('incidencias')
+            ->where('tipo', TipoIncidencia::IngresoRepetido->value)
+            ->where('ingreso_id', $ingresoId)
+            ->where('aula_id', $aulaId)
+            ->where('ocurrida_en', '>=', now()->subMinutes($minutos))
             ->exists();
+    }
+
+    /**
+     * @param  array<string, mixed>  $columnas
+     */
+    private function insertar(array $columnas, string $detalle): void
+    {
+        $detalle = trim($detalle);
+
+        if ($detalle === '') {
+            throw new InvalidArgumentException(
+                'El detalle de la incidencia es obligatorio.'
+            );
+        }
+
+        $ahora = now();
+
+        DB::table('incidencias')->insert([
+            ...$columnas,
+            'origen' => OrigenIncidencia::Sistema->value,
+            'detalle' => $detalle,
+            'ocurrida_en' => $ahora,
+            'created_at' => $ahora,
+            'updated_at' => $ahora,
+        ]);
     }
 }
