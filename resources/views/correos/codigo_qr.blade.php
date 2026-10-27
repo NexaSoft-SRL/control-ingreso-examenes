@@ -29,6 +29,20 @@
             <img src="{{ $message->embedData($png, 'codigo-qr.png', 'image/png') }}" width="220" height="220" alt="Código QR de ingreso">
         </div>
 
+        @if ($credencial->normasMarcadas !== [] || $credencial->normas)
+            <p style="margin: 16px 0 4px; font-size: 13px; font-weight: 700;">Normas</p>
+            @if ($credencial->normasMarcadas !== [])
+                <ul style="margin: 0 0 8px; padding-left: 18px; font-size: 14px;">
+                    @foreach ($credencial->normasMarcadas as $norma)
+                        <li>{{ $norma }}</li>
+                    @endforeach
+                </ul>
+            @endif
+            @if ($credencial->normas)
+                <p style="margin: 0; font-size: 14px; white-space: pre-line;">{{ $credencial->normas }}</p>
+            @endif
+        @endif
+
         <p style="margin: 16px 0 0; font-size: 12px; color: #475569;">
             Presente este código en la puerta del aula. Es personal y sirve solo para este examen.
         </p>

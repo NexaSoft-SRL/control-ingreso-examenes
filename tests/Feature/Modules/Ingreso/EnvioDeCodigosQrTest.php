@@ -158,6 +158,37 @@ final class EnvioDeCodigosQrTest extends TestCase
         $this->assertStringStartsWith("\x89PNG", $adjuntos[0]->getBody());
     }
 
+    public function test_the_mail_carries_the_exam_rules(): void
+    {
+        DB::table('examen_norma')->insert([
+            ['examen_id' => $this->examen->id, 'plantilla_id' => null, 'texto' => 'Presentar el carnet universitario.', 'orden' => 1],
+            ['examen_id' => $this->examen->id, 'plantilla_id' => null, 'texto' => 'Prohibido el uso de celulares.', 'orden' => 2],
+        ]);
+        $this->examen->update(['normas' => 'Traer la hoja de respuestas sellada.']);
+
+        [$estudiante] = $this->habilitados(1);
+        $this->emitirCodigo($estudiante);
+
+        $this->actingAs($this->cuentaDocente)->postJson($this->envios())->assertStatus(202);
+
+        $transporte = Mail::mailer()->getSymfonyTransport();
+        self::assertInstanceOf(ArrayTransport::class, $transporte);
+        $enviado = $transporte->messages()->first();
+        self::assertInstanceOf(SentMessage::class, $enviado);
+        $correo = $enviado->getOriginalMessage();
+        self::assertInstanceOf(Email::class, $correo);
+        $html = (string) $correo->getHtmlBody();
+
+        $this->assertStringContainsString('Normas', $html);
+        $this->assertStringContainsString('<li>Presentar el carnet universitario.</li>', $html);
+        $this->assertStringContainsString('<li>Prohibido el uso de celulares.</li>', $html);
+        $this->assertStringContainsString('Traer la hoja de respuestas sellada.', $html);
+        $this->assertLessThan(
+            strpos($html, 'Prohibido el uso de celulares.'),
+            strpos($html, 'Presentar el carnet universitario.'),
+        );
+    }
+
     public function test_a_failed_mail_is_recorded_and_does_not_break_the_request(): void
     {
         [$estudiante] = $this->habilitados(1);
