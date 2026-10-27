@@ -10,56 +10,79 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\RateLimiter;
 
+/**
+ * La puerta con codigo de aula, para quien controla sin cuenta (HU-18). El
+ * acceso espera la autorizacion del docente; mientras, la pantalla pregunta
+ * por su estado.
+ */
 final class AccesoCodigoAulaController
 {
+    // Cinco codigos equivocados cada cinco minutos por direccion. Solo
+    // cuentan los errados: varios auxiliares detras de la misma red entran
+    // sin bloquearse entre si.
+    private const FALLOS = 5;
+
+    private const VENTANA_SEGUNDOS = 300;
+
+    private const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+    // Un nombre de persona: es la firma de lo que registre.
+    private const NOMBRE = "/^(?=(?:.*\\p{L}){3})\\p{L}+(?:(?:\\.\\s*|\\s+|['-])\\p{L}+)*\\.?$/u";
+
     public function ingresar(Request $request, AccesoCodigoAulaGateway $gateway): JsonResponse
     {
-        $limiterKey = 'intento-codigo-aula:'.$request->ip();
+        $clave = 'intento-codigo-aula:'.$request->ip();
 
-        if (RateLimiter::tooManyAttempts($limiterKey, 3)) {
+        if (RateLimiter::tooManyAttempts($clave, self::FALLOS)) {
+            $segundos = RateLimiter::availableIn($clave);
+
             return response()->json([
-                'message' => 'Demasiados intentos',
+                'message' => 'Demasiados intentos.',
                 'codigo' => 'DEMASIADOS_INTENTOS',
-            ], Response::HTTP_TOO_MANY_REQUESTS);
+                'reintentar_en' => $segundos,
+            ], Response::HTTP_TOO_MANY_REQUESTS, ['Retry-After' => (string) $segundos]);
         }
 
         $codigo = trim($request->string('codigo')->toString());
-        $nombreColaborador = trim($request->string('nombre_colaborador')->toString());
+        $nombre = trim($request->string('nombre_colaborador')->toString());
 
         $errores = [];
-        if ($codigo === '' || ! preg_match('/^[0-9]{6}$/', $codigo)) {
+
+        if (preg_match('/^[0-9]{6}$/', $codigo) !== 1) {
             $errores['codigo'] = ['Seis dígitos'];
         }
 
-        if ($nombreColaborador === '' || mb_strlen($nombreColaborador) < 3) {
-            $errores['nombre_colaborador'] = ['Mínimo 3 caracteres'];
-        } elseif (mb_strlen($nombreColaborador) > 120) {
+        if ($nombre === '') {
+            $errores['nombre_colaborador'] = ['Obligatorio'];
+        } elseif (mb_strlen($nombre) > 120) {
             $errores['nombre_colaborador'] = ['Máximo 120 caracteres'];
+        } elseif (preg_match(self::NOMBRE, $nombre) !== 1) {
+            $errores['nombre_colaborador'] = ['Mínimo 3 letras, sin signos seguidos'];
         }
 
         if ($errores !== []) {
-            $primerError = reset($errores)[0];
-
             return response()->json([
-                'message' => $primerError,
+                'message' => reset($errores)[0],
                 'errors' => $errores,
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $resultado = $gateway->ingresar($codigo, $nombreColaborador);
+        $resultado = $gateway->ingresar($codigo, $nombre);
 
         if ($resultado === null) {
-            RateLimiter::hit($limiterKey, 300);
+            RateLimiter::hit($clave, self::VENTANA_SEGUNDOS);
+            $mensaje = $this->fueraDeHora($gateway->ventanaDelCodigo($codigo));
 
             return response()->json([
-                'message' => 'Código no válido',
+                'message' => $mensaje,
+                'errors' => ['codigo' => [$mensaje]],
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        RateLimiter::clear($limiterKey);
+        RateLimiter::clear($clave);
 
         return response()->json([
-            'message' => 'Acceso concedido',
+            'message' => 'Esperando autorización',
             'data' => $resultado,
         ], Response::HTTP_OK);
     }
@@ -75,27 +98,56 @@ final class AccesoCodigoAulaController
         return response()->json(['message' => 'Sesión cerrada']);
     }
 
+    /**
+     * Como va el acceso: pendiente o autorizado, con sus datos; rechazado,
+     * cortado o con el examen cerrado, 401 con el motivo.
+     */
     public function sesion(Request $request, AccesoCodigoAulaGateway $gateway): JsonResponse
     {
         $token = $this->extraerToken($request);
+        $resultado = $token === null || $token === '' ? ['estado' => 'no_valido'] : $gateway->sesion($token);
 
-        if ($token === null || $token === '') {
-            return response()->json(['message' => 'Código no válido'], Response::HTTP_UNAUTHORIZED);
+        if ($resultado['estado'] !== 'ok' || ! isset($resultado['data'])) {
+            return response()->json([
+                'message' => match ($resultado['estado']) {
+                    'rechazado' => 'El docente no autorizó el acceso.',
+                    'cortado' => 'El docente cortó el acceso.',
+                    'finalizado' => 'El examen ha finalizado.',
+                    default => 'Código no válido.',
+                },
+                'estado' => $resultado['estado'],
+            ], Response::HTTP_UNAUTHORIZED);
         }
 
-        $resultado = $gateway->sesion($token);
+        return response()->json(['data' => $resultado['data']]);
+    }
 
-        if ($resultado['estado'] === 'finalizado') {
-            return response()->json(['message' => 'El examen ha finalizado'], Response::HTTP_UNAUTHORIZED);
+    /**
+     * Un codigo de verdad fuera de hora dice cuando vale: «La puerta abre el
+     * 23 oct a las 09:12.» o «El examen ya terminó: cerró el 23 oct a las
+     * 11:00.».
+     *
+     * @param  array{abre: string, cierra: string, cerrada: bool}|null  $ventana
+     */
+    private function fueraDeHora(?array $ventana): string
+    {
+        if ($ventana === null) {
+            return 'Código no válido.';
         }
 
-        if ($resultado['estado'] === 'no_valido' || ! isset($resultado['data'])) {
-            return response()->json(['message' => 'Código no válido'], Response::HTTP_UNAUTHORIZED);
+        return $ventana['cerrada']
+            ? sprintf('El examen ya terminó: cerró el %s.', $this->cuando($ventana['cierra']))
+            : sprintf('La puerta abre el %s.', $this->cuando($ventana['abre']));
+    }
+
+    // '2026-10-23 09:12' → '23 oct a las 09:12'.
+    private function cuando(string $instante): string
+    {
+        if (preg_match('/^\d{4}-(\d{2})-(\d{2}) (\d{2}:\d{2})/', $instante, $partes) !== 1) {
+            return $instante;
         }
 
-        return response()->json([
-            'data' => $resultado['data'],
-        ]);
+        return sprintf('%d %s a las %s', (int) $partes[2], self::MESES[(int) $partes[1] - 1] ?? $partes[1], $partes[3]);
     }
 
     private function extraerToken(Request $request): ?string

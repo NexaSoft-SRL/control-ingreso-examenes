@@ -1,140 +1,191 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, screen } from '@testing-library/react';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import PropTypes from 'prop-types';
 import AccesoAula from './AccesoAula';
 import { api } from '../../api/cliente';
+import { errorHttp, renderConSesion, simularApi, usuarioDePrueba } from '../../test/apoyo';
 
-vi.mock('../../api/cliente', () => ({
-    api: {
-        post: vi.fn(),
-    },
-}));
+vi.mock('../../api/cliente');
 
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual('react-router-dom');
-    return {
-        ...actual,
-        useNavigate: () => mockNavigate,
-    };
+// La puerta la prueba su propio archivo: aquí basta ver qué recibe.
+vi.mock('../ingreso/PuntoControl', () => {
+    function PuertaSimulada({ acceso }) {
+        const { search } = useLocation();
+        return (
+            <p>
+                Puerta del aula {acceso.aula_nombre} · {search}
+            </p>
+        );
+    }
+    PuertaSimulada.propTypes = { acceso: PropTypes.object.isRequired };
+    return { default: PuertaSimulada };
 });
 
-describe('AccesoAula', () => {
+const ACCESO = {
+    token: 'abc',
+    aula_id: 31,
+    aula_nombre: '624',
+    examen_id: 1,
+    nombre_colaborador: 'Vargas Arce Sergio',
+    expira_en: '2026-10-12 09:45:00',
+};
+
+function Donde() {
+    return <p>Estoy en {useLocation().pathname}</p>;
+}
+
+function montar(rutas = {}, usuario = null) {
+    simularApi(api, rutas);
+    return renderConSesion(
+        <Routes>
+            <Route path="/acceso-aula" element={<AccesoAula />} />
+            <Route path="*" element={<Donde />} />
+        </Routes>,
+        { usuario, ruta: '/acceso-aula' }
+    );
+}
+
+const escribir = (campo, valor) => fireEvent.change(campo, { target: { value: valor } });
+const codigo = () => screen.findByLabelText(/Código/);
+
+async function entrar(valor = '482913', nombre = 'Vargas Arce Sergio') {
+    escribir(await codigo(), valor);
+    escribir(screen.getByLabelText(/Nombre/), nombre);
+    fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+}
+
+describe('AccesoAula (HU-18)', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         localStorage.clear();
     });
 
-    it('muestra los campos de código y nombre del colaborador', () => {
-        render(
-            <MemoryRouter>
-                <AccesoAula />
-            </MemoryRouter>
+    it('pide el código de seis dígitos y el nombre', async () => {
+        montar();
+
+        expect(await codigo()).toHaveAttribute('inputmode', 'numeric');
+        expect(screen.getByRole('heading', { name: 'Punto de control' })).toBeInTheDocument();
+        expect(screen.getByLabelText(/Nombre/)).toHaveAttribute(
+            'placeholder',
+            'Apellidos y nombres'
+        );
+        expect(screen.getByRole('link', { name: 'Cuenta institucional' })).toHaveAttribute(
+            'href',
+            '/login'
         );
 
+        escribir(await codigo(), '48a29-13777');
+        expect(await codigo()).toHaveValue('482913');
+    });
+
+    it('valida antes de llamar al servidor', async () => {
+        montar();
+        await entrar('4829', 'Va');
+
+        expect(screen.getByText('Seis dígitos')).toBeInTheDocument();
+        expect(screen.getByText('Mínimo 3 letras, sin signos seguidos')).toBeInTheDocument();
+        expect(api.post).not.toHaveBeenCalled();
+    });
+
+    it('espera la autorización del docente y entra apenas la da', async () => {
+        let estado = 'pendiente';
+        montar({
+            'POST /auth/codigo-aula': { data: { ...ACCESO, estado: 'pendiente' } },
+            'POST /auth/codigo-aula/salir': { message: 'Sesión cerrada' },
+        });
+        await entrar('482913', '  Vargas Arce Sergio ');
+
+        expect(await screen.findByText('Esperando autorización')).toBeInTheDocument();
+        expect(api.post).toHaveBeenCalledWith('/auth/codigo-aula', {
+            codigo: '482913',
+            nombre_colaborador: 'Vargas Arce Sergio',
+        });
+        expect(localStorage.getItem('codigo_aula_token')).toBe('abc');
+        expect(screen.getByText('Vargas Arce Sergio')).toBeInTheDocument();
+        expect(screen.queryByText(/Puerta del aula/)).not.toBeInTheDocument();
+
+        // El docente lo autoriza en otra aula del examen.
+        simularApi(api, {
+            'GET /auth/codigo-aula/sesion': () => ({
+                data: { ...ACCESO, aula_id: 32, aula_nombre: '617', estado },
+            }),
+            'POST /auth/codigo-aula/salir': { message: 'Sesión cerrada' },
+        });
+        estado = 'autorizado';
         expect(
-            screen.getByRole('heading', { name: 'Acceso a Puerta de Aula' })
+            await screen.findByText('Puerta del aula 617 · ?aula=32', {}, { timeout: 5000 })
         ).toBeInTheDocument();
-        expect(screen.getByLabelText('Código de aula')).toBeInTheDocument();
-        expect(screen.getByLabelText('Nombre')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Ingresar al aula/i })).toBeInTheDocument();
-    });
+        expect(screen.getByText('Aula 617')).toBeInTheDocument();
+        expect(screen.getByText('· Hasta 09:45')).toBeInTheDocument();
+        expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
 
-    it('valida que el código tenga 6 dígitos numéricos y el nombre sea obligatorio', async () => {
-        render(
-            <MemoryRouter>
-                <AccesoAula />
-            </MemoryRouter>
-        );
-
-        fireEvent.click(screen.getByRole('button', { name: /Ingresar al aula/i }));
-
-        expect((await screen.findAllByText('Obligatorio')).length).toBe(2);
-        expect(api.post).not.toHaveBeenCalled();
-
-        fireEvent.change(screen.getByLabelText(/Código de aula/), { target: { value: '123' } });
-        fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'A' } });
-        fireEvent.click(screen.getByRole('button', { name: /Ingresar al aula/i }));
-
-        expect(await screen.findByText('Seis dígitos')).toBeInTheDocument();
-        expect(screen.getByText('Mínimo 3 caracteres')).toBeInTheDocument();
-        expect(api.post).not.toHaveBeenCalled();
-    });
-
-    it('toma el código desde los parámetros de búsqueda si viene en la url', () => {
-        render(
-            <MemoryRouter initialEntries={['/acceso-aula?codigo=654321']}>
-                <AccesoAula />
-            </MemoryRouter>
-        );
-
-        expect(screen.getByLabelText('Código de aula')).toHaveValue('654321');
-    });
-
-    it('envía los datos al backend, almacena el token y redirige a punto de control', async () => {
-        api.post.mockResolvedValueOnce({
-            data: {
-                data: {
-                    token: 'tok-colaborador-123',
-                    examen_id: 10,
-                    aula_id: 20,
-                    aula_nombre: '691A',
-                    nombre_colaborador: 'Carlos Gómez',
-                    expira_en: '2026-10-20 12:00:00',
-                },
-            },
-        });
-
-        render(
-            <MemoryRouter>
-                <AccesoAula />
-            </MemoryRouter>
-        );
-
-        fireEvent.change(screen.getByLabelText('Código de aula'), { target: { value: '123456' } });
-        fireEvent.change(screen.getByLabelText('Nombre'), {
-            target: { value: 'Carlos Gómez' },
-        });
-        fireEvent.click(screen.getByRole('button', { name: /Ingresar al aula/i }));
-
-        await waitFor(() => {
-            expect(api.post).toHaveBeenCalledWith('/auth/codigo-aula', {
-                codigo: '123456',
-                nombre_colaborador: 'Carlos Gómez',
-            });
-        });
-
-        expect(localStorage.getItem('codigo_aula_token')).toBe('tok-colaborador-123');
-        expect(mockNavigate).toHaveBeenCalledWith('/punto-control?examen=10&aula=20', {
-            replace: true,
-        });
-    });
-
-    it('muestra el mensaje de error si el código es inválido o fue revocado', async () => {
-        api.post.mockRejectedValueOnce({
-            response: {
-                status: 401,
-                data: {
-                    message: 'Código de aula no válido o revocado.',
-                },
-            },
-        });
-
-        render(
-            <MemoryRouter>
-                <AccesoAula />
-            </MemoryRouter>
-        );
-
-        fireEvent.change(screen.getByLabelText('Código de aula'), { target: { value: '999999' } });
-        fireEvent.change(screen.getByLabelText('Nombre'), {
-            target: { value: 'Carlos Gómez' },
-        });
-        fireEvent.click(screen.getByRole('button', { name: /Ingresar al aula/i }));
-
-        expect(await screen.findByRole('alert')).toHaveTextContent(
-            'Código de aula no válido o revocado.'
-        );
+        fireEvent.click(screen.getByRole('button', { name: 'Salir' }));
+        expect(await codigo()).toHaveValue('');
         expect(localStorage.getItem('codigo_aula_token')).toBeNull();
+        expect(api.post).toHaveBeenCalledWith('/auth/codigo-aula/salir', {}, { silencioso: true });
+    });
+
+    it('si el docente no lo autoriza vuelve al formulario y lo dice', async () => {
+        montar({ 'POST /auth/codigo-aula': { data: { ...ACCESO, estado: 'pendiente' } } });
+        await entrar();
+        await screen.findByText('Esperando autorización');
+
+        simularApi(api, {
+            'GET /auth/codigo-aula/sesion': errorHttp(401, {
+                message: 'El docente no autorizó el acceso.',
+                estado: 'rechazado',
+            }),
+        });
+        expect(
+            await screen.findByText('El docente no autorizó el acceso', {}, { timeout: 5000 })
+        ).toBeInTheDocument();
+        expect(await codigo()).toBeInTheDocument();
+    });
+
+    it('cancelar la espera vuelve al formulario', async () => {
+        montar({
+            'POST /auth/codigo-aula': { data: { ...ACCESO, estado: 'pendiente' } },
+            'POST /auth/codigo-aula/salir': { message: 'Sesión cerrada' },
+        });
+        await entrar();
+        fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }));
+        expect(await codigo()).toBeInTheDocument();
+    });
+
+    it('al recargar recupera el acceso autorizado', async () => {
+        localStorage.setItem('codigo_aula_token', 'abc');
+        montar({ 'GET /auth/codigo-aula/sesion': { data: { ...ACCESO, estado: 'autorizado' } } });
+
+        expect(await screen.findByText('Puerta del aula 624 · ?aula=31')).toBeInTheDocument();
+        expect(api.get).toHaveBeenCalledWith('/auth/codigo-aula/sesion', { silencioso: true });
+    });
+
+    it('fuera de hora dice cuándo abre la puerta', async () => {
+        montar({
+            'POST /auth/codigo-aula': errorHttp(422, {
+                message: 'La puerta abre el 23 oct a las 09:12.',
+                errors: { codigo: ['La puerta abre el 23 oct a las 09:12.'] },
+            }),
+        });
+        await entrar();
+
+        expect(await screen.findByText('La puerta abre el 23 oct a las 09:12')).toBeInTheDocument();
+    });
+
+    it('tras demasiados intentos dice cuánto esperar', async () => {
+        montar({
+            'POST /auth/codigo-aula': errorHttp(429, {
+                message: 'Demasiados intentos.',
+                reintentar_en: 240,
+            }),
+        });
+        await entrar();
+
+        expect(await screen.findByText('Demasiados intentos · espere 4 min')).toBeInTheDocument();
+    });
+
+    it('con cuenta va a la pantalla del rol', () => {
+        montar({}, usuarioDePrueba('Auxiliar'));
+        expect(screen.getByText(/Estoy en \//)).toBeInTheDocument();
     });
 });

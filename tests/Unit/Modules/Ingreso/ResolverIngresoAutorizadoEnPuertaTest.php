@@ -6,13 +6,16 @@ namespace Tests\Unit\Modules\Ingreso;
 
 use App\Modules\Estudiantes\Application\Contracts\InscritosDeExamenGateway;
 use App\Modules\Estudiantes\Application\Contracts\PadronGateway;
+use App\Modules\Examenes\Application\Contracts\AlcanceExamenGateway;
 use App\Modules\Examenes\Application\Contracts\ExamenGateway;
 use App\Modules\Examenes\Application\DTOs\ExamenActualData;
 use App\Modules\Habilitacion\Application\Contracts\HabilitacionGateway;
+use App\Modules\Ingreso\Application\Authorization\AlcancePuerta;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
+use App\Modules\Ingreso\Application\DTOs\OperadorPuertaData;
 use App\Modules\Ingreso\Application\Queries\ConsultarCandidato;
 use App\Modules\Ingreso\Application\Queries\ResolverExamenEnPuerta;
 use App\Modules\Ingreso\Application\Queries\ResolverIngresoAutorizadoEnPuerta;
@@ -64,7 +67,7 @@ final class ResolverIngresoAutorizadoEnPuertaTest extends TestCase
 
         return new ResolverIngresoAutorizadoEnPuerta(
             $examenes,
-            $alcance,
+            new AlcancePuerta($this->createMock(AlcanceExamenGateway::class), $alcance),
             $ventana,
             $resolver,
         );
@@ -75,7 +78,7 @@ final class ResolverIngresoAutorizadoEnPuertaTest extends TestCase
         $this->expectException(AccesoPuntoDenegado::class);
 
         $this->servicio(autorizado: false)->ejecutar(
-            7, 30, [5], 'codigo', '20260017',
+            OperadorPuertaData::cuenta(7), 30, [5], 'codigo', '20260017',
         );
     }
 
@@ -84,7 +87,7 @@ final class ResolverIngresoAutorizadoEnPuertaTest extends TestCase
         $this->expectException(AccesoPuntoDenegado::class);
 
         $this->servicio(aulas: [40])->ejecutar(
-            7, 30, [5], 'codigo', '20260017',
+            OperadorPuertaData::cuenta(7), 30, [5], 'codigo', '20260017',
         );
     }
 
@@ -94,26 +97,26 @@ final class ResolverIngresoAutorizadoEnPuertaTest extends TestCase
         $this->expectExceptionMessage('Sin examen a esta hora.');
 
         $this->servicio(abierto: false)->ejecutar(
-            7, 30, [5], 'codigo', '20260017',
+            OperadorPuertaData::cuenta(7), 30, [5], 'codigo', '20260017',
         );
     }
 
     public function test_autorizado_sin_coincidencia_no_admite(): void
     {
         $resultado = $this->servicio()->ejecutar(
-            7, 30, [5], 'codigo', '20260017',
+            OperadorPuertaData::cuenta(7), 30, [5], 'codigo', '20260017',
         );
 
         self::assertNull($resultado->examenId);
         self::assertFalse($resultado->puedeAdmitir());
     }
 
-    public function test_rechaza_identificadores_invalidos(): void
+    public function test_con_codigo_de_aula_solo_alcanza_su_aula(): void
     {
-        $this->expectException(InvalidArgumentException::class);
+        $this->expectException(AccesoPuntoDenegado::class);
 
         $this->servicio()->ejecutar(
-            0, 30, [5], 'codigo', '20260017',
+            new OperadorPuertaData(null, accesoId: 3, aulaId: 31), 30, [5], 'codigo', '20260017',
         );
     }
 
@@ -163,13 +166,13 @@ final class ResolverIngresoAutorizadoEnPuertaTest extends TestCase
 
         $servicio = new ResolverIngresoAutorizadoEnPuerta(
             $examenes,
-            $alcance,
+            new AlcancePuerta($this->createMock(AlcanceExamenGateway::class), $alcance),
             $ventana,
             $resolver,
         );
 
         $resultado = $servicio->ejecutar(
-            7,
+            OperadorPuertaData::cuenta(7),
             30,
             [6, 5],
             'codigo',

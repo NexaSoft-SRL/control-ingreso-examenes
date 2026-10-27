@@ -509,7 +509,7 @@ final class AccesoConUsuarioTest extends TestCase
                 'nombre_colaborador' => 'Ana Rojas',
             ])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Código no válido');
+            ->assertJsonPath('message', 'Código no válido.');
 
         $this->actingAs($user)
             ->getJson('/api/aulas')

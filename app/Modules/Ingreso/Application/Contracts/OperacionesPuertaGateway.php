@@ -4,16 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Contracts;
 
+use App\Modules\Ingreso\Domain\Enums\TipoExcepcion;
+
 interface OperacionesPuertaGateway
 {
-    public function auditarIntentoNoResuelto(
-        int $aulaId,
-        int $usuarioId,
-        string $tipo,
-        string $identificador,
-        bool $ambiguo,
-    ): void;
-
     public function fechaIngreso(
         int $examenId,
         ?int $estudianteId,
@@ -24,6 +18,9 @@ interface OperacionesPuertaGateway
         int $aulaId,
     ): ?int;
 
+    /**
+     * La expulsion queda como incidencia del ingreso; falso si ya tenia.
+     */
     public function expulsar(
         int $ingresoId,
         int $aulaId,
@@ -31,14 +28,17 @@ interface OperacionesPuertaGateway
         string $motivo,
     ): bool;
 
+    public function estudiantePerteneceAlExamen(int $examenId, int $estudianteId): bool;
+
     /**
      * Hora («09:10») de la expulsion del ingreso, o nulo si no la tiene.
      */
     public function horaExpulsion(int $ingresoId): ?string;
 
     /**
-     * Situacion excepcional: siempre queda como incidencia del aula
-     * (`incidencias_aula`) y en la bitacora; con `$admitir`, ademas
+     * Situacion excepcional: siempre queda como incidencia del aula (del
+     * tipo que le corresponde en el catalogo) y en la bitacora; con
+     * `$admitir`, ademas
      * registra el ingreso marcado como excepcion, con el motivo. Devuelve
      * nulo si el estudiante ya tenia ingreso en el examen.
      *
@@ -49,8 +49,7 @@ interface OperacionesPuertaGateway
         int $aulaId,
         ?int $estudianteId,
         int $usuarioId,
-        string $tipo,
+        TipoExcepcion $tipo,
         string $motivo,
-        bool $admitir,
     ): ?array;
 }

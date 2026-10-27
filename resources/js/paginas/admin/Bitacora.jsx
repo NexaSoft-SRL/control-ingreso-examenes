@@ -58,11 +58,19 @@ const etiquetaOperacion = {
     'examen_aula_codigo.generar': 'Código de aula generado',
     'examen_aula_codigo.regenerar': 'Código de aula regenerado',
     'acceso_codigo_aula.ingreso': 'Entrada con código de aula',
+    'acceso_aula.autorizar': 'Acceso con código autorizado',
+    'acceso_aula.rechazar': 'Acceso con código rechazado',
+    'acceso_aula.cortar': 'Acceso con código cortado',
+    'acceso_aula.trasladar': 'Acceso con código movido de aula',
+    'examen.mover_personal': 'Cambio de aula del personal',
+    'habilitacion.mover_aula': 'Cambio de aula de estudiantes',
     INCIDENCIA_AULA_ATENDIDA: 'Atención de incidencia',
     INGRESO_ADMITIDO: 'Ingreso al examen',
     'puerta.expulsion': 'Expulsión de estudiante',
     'puerta.excepcion': 'Situación excepcional',
     'incidencia.registrar': 'Registro de incidencia',
+    'incidencia.atender': 'Incidencia atendida',
+    'incidencia.corregir': 'Corrección de incidencia',
 };
 
 const etiquetaTabla = {
@@ -84,6 +92,7 @@ const etiquetaTabla = {
     docente_auxiliares: 'Auxiliar',
     accesos_codigo_aula: 'Acceso con código',
     examen_aula_codigos: 'Código de aula',
+    incidencias: 'Incidencia',
     incidencias_aula: 'Incidencia de aula',
     ingresos: 'Ingreso',
 };

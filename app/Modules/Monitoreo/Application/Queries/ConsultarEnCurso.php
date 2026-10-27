@@ -120,6 +120,7 @@ final readonly class ConsultarEnCurso
                 $aulasDetalle,
             ),
             incidencias: $incidencias,
+            esDocente: $esDocente,
         );
     }
 
@@ -168,6 +169,7 @@ final readonly class ConsultarEnCurso
             faltan: $faltan,
             ultimoRegistro: $ultimosRegistros[0] ?? null,
             aulas: $aulas,
+            llegadas: $avance->llegadas,
         );
     }
 }

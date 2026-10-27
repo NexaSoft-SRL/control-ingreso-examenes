@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Application\Queries;
 
 use App\Modules\Ingreso\Application\Contracts\ExamenesDePuerta;
+use App\Modules\Ingreso\Application\DTOs\OperadorPuertaData;
 use App\Modules\Ingreso\Application\DTOs\ResultadoResolucionPuertaData;
 use App\Modules\Ingreso\Domain\Enums\CausaIntento;
 use App\Modules\Ingreso\Domain\Exceptions\CodigoQrNoValido;
@@ -21,13 +22,13 @@ final readonly class IdentificarEnPuerta
     ) {}
 
     public function ejecutar(
-        int $usuarioId,
+        OperadorPuertaData $operador,
         int $aulaId,
         string $tipo,
         string $identificador,
         DateTimeImmutable $ahora,
     ): ResultadoResolucionPuertaData {
-        if ($usuarioId <= 0 || $aulaId <= 0) {
+        if ($aulaId <= 0) {
             throw new InvalidArgumentException(
                 'Operador o aula inválidos.'
             );
@@ -45,7 +46,7 @@ final readonly class IdentificarEnPuerta
         if ($tipo === 'qr') {
             try {
                 [$examenId, $codigo] = $this->resolverQr->ejecutar(
-                    $usuarioId,
+                    $operador,
                     $aulaId,
                     $examenes,
                     $identificador,
@@ -59,7 +60,7 @@ final readonly class IdentificarEnPuerta
             }
 
             $resultado = $this->resolver->ejecutar(
-                $usuarioId,
+                $operador,
                 $aulaId,
                 [$examenId],
                 'codigo',
@@ -69,14 +70,15 @@ final readonly class IdentificarEnPuerta
             return new ResultadoResolucionPuertaData(
                 $resultado->examenId,
                 $resultado->veredicto,
-                $resultado->ambiguo,
                 $codigo,
                 $resultado->candidato,
+                $resultado->causa,
+                $resultado->estudiante,
             );
         }
 
         return $this->resolver->ejecutar(
-            $usuarioId,
+            $operador,
             $aulaId,
             $examenes,
             $tipo,

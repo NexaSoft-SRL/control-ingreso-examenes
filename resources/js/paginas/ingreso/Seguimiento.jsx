@@ -1,646 +1,365 @@
 import PropTypes from 'prop-types';
-import {
-    Activity,
-    AlertTriangle,
-    ArrowLeft,
-    Check,
-    ChevronLeft,
-    ChevronRight,
-    LoaderCircle,
-    RefreshCw,
-    ScanLine,
-    Search,
-} from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { CircleCheck, Hourglass, LogIn, ScanLine } from 'lucide-react';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { estadoDe, mensajeDe } from '../../api/errores';
-import { useAviso } from '../../componentes/Aviso';
+import usarConsulta from '../../api/usarConsulta';
+import usarSondeo from '../../api/usarSondeo';
+import Buscador from '../../componentes/Buscador';
+import Chips from '../../componentes/Chips';
+import Dato from '../../componentes/Dato';
+import Encabezado from '../../componentes/Encabezado';
+import EstadoCarga from '../../componentes/EstadoCarga';
+import { BotonIncidencia } from '../../componentes/Incidencias';
+import Insignia from '../../componentes/Insignia';
+import Paginacion from '../../componentes/Paginacion';
+import Tarjeta from '../../componentes/Tarjeta';
 import { usarSesion } from '../../sesion/SesionContexto';
-import IncidenciaAula from './IncidenciaAula';
-import { tipoIncidenciaLegible } from './tiposIncidencia';
+import { diaMes, plural } from '../../utiles/texto';
+import usarTituloPestana from '../../utiles/usarTituloPestana';
+import IncidenciasDelExamen from '../monitoreo/IncidenciasDelExamen';
 
+const INTERVALO = 15000;
 // La búsqueda viaja al servidor 300 ms después de la última tecla.
 const ESPERA_BUSQUEDA = 300;
+const CONTROLAR =
+    'inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
 
-function nombreEstudiante(estudiante) {
-    return `${estudiante.apellidos} ${estudiante.nombres}`;
-}
-
-function fechaYHora(fecha, hora) {
-    if (!fecha) return '';
-    const [anio, mes, dia] = fecha.split('-');
-    return `${dia}/${mes}/${anio}${hora ? ` · ${hora}` : ''}`;
-}
-
-// '2026-10-26 08:41:20' o '2026-10-26T08:41:20-04:00' → '08:41'.
-const horaDe = (instante) => String(instante ?? '').slice(11, 16);
-
-function tipoExamenLegible(tipo) {
-    const etiquetas = {
-        PRIMER_PARCIAL: 'Primer parcial',
-        SEGUNDO_PARCIAL: 'Segundo parcial',
-        FINAL: 'Examen final',
-        SEGUNDA_INSTANCIA: 'Segunda instancia',
-        MESA: 'Examen de mesa',
-    };
-    return etiquetas[tipo] ?? tipo;
-}
-
-function Cifras({ cifras }) {
-    return (
-        <dl className="grid grid-cols-3 gap-2">
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                <dt className="text-xs font-medium text-emerald-800">Ingresaron</dt>
-                <dd className="mt-1 text-2xl font-bold tabular-nums text-emerald-950">
-                    {cifras.ingresaron}
-                </dd>
-            </div>
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                <dt className="text-xs font-medium text-amber-800">Faltan</dt>
-                <dd className="mt-1 text-2xl font-bold tabular-nums text-amber-950">
-                    {cifras.faltan}
-                </dd>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <dt className="text-xs font-medium text-slate-600">Asignados</dt>
-                <dd className="mt-1 text-2xl font-bold tabular-nums text-slate-950">
-                    {cifras.asignados}
-                </dd>
-            </div>
-        </dl>
-    );
-}
-
-Cifras.propTypes = {
-    cifras: PropTypes.shape({
-        ingresaron: PropTypes.number.isRequired,
-        faltan: PropTypes.number.isRequired,
-        asignados: PropTypes.number.isRequired,
-    }).isRequired,
+const TIPOS = {
+    PRIMER_PARCIAL: 'Primer parcial',
+    SEGUNDO_PARCIAL: 'Segundo parcial',
+    FINAL: 'Examen final',
+    SEGUNDA_INSTANCIA: 'Segunda instancia',
+    MESA: 'Examen de mesa',
 };
 
-// «Mi aula» (HU-21): presentes, ausentes e incidencias de un aula del examen
-// de hoy. El auxiliar ve las aulas que atiende; el docente llega desde «En
-// curso» a cualquiera de su examen. Es de consulta: no registra ingresos.
-export default function Seguimiento() {
+// '2026-10-09T16:07:16-04:00' o '2026-10-09 16:07:16' → '16:07'.
+const horaDe = (instante) => String(instante ?? '').slice(11, 16);
+
+// Mientras el ingreso sigue abierto, quien no entró todavía no es ausente.
+function condicionDe(fila, abierto) {
+    if (!fila.registrado_en) return ['neutro', abierto ? 'Sin ingreso' : 'Ausente'];
+    return fila.expulsado_en ? ['peligro', 'Expulsado'] : ['exito', 'Presente'];
+}
+
+// La lista de un aula: cifras, incidencias y estudiantes. Se monta de nuevo
+// con cada aula (`key`), así el cambio limpia la búsqueda y la página.
+function ListaDelAula({ puesto, esDocente, selector }) {
     const { usuario, puede } = usarSesion();
-    const esDocente = usuario?.rol === 'Docente';
-    const [aviso, avisar] = useAviso();
-    const [aulas, setAulas] = useState([]);
-    // `?examen=&aula=` llega desde «En curso» (HU-22) con el aula ya elegida.
-    const [parametros] = useSearchParams();
-    const [pedida, setPedida] = useState(() => {
-        const examenId = Number(parametros.get('examen'));
-        const aulaId = Number(parametros.get('aula'));
-        return examenId && aulaId ? { examen_id: examenId, aula_id: aulaId } : null;
-    });
-    const [seleccion, setSeleccion] = useState(pedida);
-    const [detalle, setDetalle] = useState(null);
-    const [estado, setEstado] = useState('faltan');
-    const [busqueda, setBusqueda] = useState('');
+    const [lista, setLista] = useState('faltan');
+    const [buscar, setBuscar] = useState('');
     const [buscado, setBuscado] = useState('');
     const [pagina, setPagina] = useState(1);
-    const [cargando, setCargando] = useState(true);
-    const [actualizando, setActualizando] = useState(false);
-    const [error, setError] = useState('');
-    const [desconectado, setDesconectado] = useState(false);
-    const [accion, setAccion] = useState('');
-    const errores = useRef(0);
-    const controlador = useRef(null);
-    const seleccionRef = useRef(seleccion);
-    seleccionRef.current = seleccion;
-    const seleccionada = useMemo(
-        () =>
-            aulas.find(
-                (aula) =>
-                    aula.examen_id === seleccion?.examen_id && aula.aula_id === seleccion?.aula_id
-            ) ?? null,
-        [aulas, seleccion]
-    );
-
-    const cargarAulas = useCallback(async (senal) => {
-        try {
-            const { data } = await api.get('/seguimiento/aulas', { signal: senal });
-            const lista = Array.isArray(data?.data) ? data.data : [];
-            setAulas(lista);
-            const actual = seleccionRef.current;
-            if (
-                !actual ||
-                !lista.some(
-                    (aula) => aula.examen_id === actual.examen_id && aula.aula_id === actual.aula_id
-                )
-            ) {
-                const primera = lista[0];
-                setSeleccion(
-                    primera ? { examen_id: primera.examen_id, aula_id: primera.aula_id } : null
-                );
-            }
-        } catch (fallo) {
-            if (estadoDe(fallo) !== 0) {
-                setError(mensajeDe(fallo, 'No se pudieron cargar las aulas.'));
-            }
-        } finally {
-            setCargando(false);
-        }
-    }, []);
-
-    const actualizar = useCallback(
-        async ({ silencioso = false } = {}) => {
-            if (!seleccion || document.hidden) return;
-            controlador.current?.abort();
-            const actual = new AbortController();
-            controlador.current = actual;
-            if (!silencioso) setActualizando(true);
-            try {
-                const { data } = await api.get(
-                    `/seguimiento/examenes/${seleccion.examen_id}/aulas/${seleccion.aula_id}`,
-                    {
-                        params: { estado, buscar: buscado, pagina },
-                        signal: actual.signal,
-                    }
-                );
-                if (actual.signal.aborted) return;
-                setDetalle(data?.data ?? null);
-                setError('');
-                errores.current = 0;
-                setDesconectado(false);
-            } catch (fallo) {
-                if (actual.signal.aborted) return;
-                const codigoEstado = estadoDe(fallo);
-                if (codigoEstado === null) {
-                    errores.current += 1;
-                    if (errores.current >= 3) setDesconectado(true);
-                    return;
-                }
-
-                errores.current = 0;
-                setDesconectado(false);
-                const mensaje =
-                    codigoEstado === 401 || codigoEstado === 419
-                        ? 'Sesión vencida'
-                        : codigoEstado === 403 || codigoEstado === 404
-                          ? mensajeDe(fallo, 'Sin acceso')
-                          : codigoEstado >= 500
-                            ? 'No se pudo actualizar la lista'
-                            : mensajeDe(fallo, 'No se pudo actualizar la lista');
-                setError(mensaje);
-            } finally {
-                if (!actual.signal.aborted) setActualizando(false);
-            }
-        },
-        [buscado, estado, pagina, seleccion]
-    );
+    const [reportadas, setReportadas] = useState(0);
 
     useEffect(() => {
-        const actual = new AbortController();
-        void cargarAulas(actual.signal);
-        return () => {
-            actual.abort();
-            controlador.current?.abort();
-        };
-    }, [cargarAulas]);
-
-    useEffect(() => {
-        setDetalle(null);
-    }, [seleccion]);
-
-    useEffect(() => {
-        if (seleccion) void actualizar();
-    }, [actualizar, seleccion]);
-
-    useEffect(() => {
-        const intervalo = window.setInterval(() => {
-            if (!document.hidden) void actualizar({ silencioso: true });
-        }, 15_000);
-        const visible = () => {
-            if (!document.hidden) void actualizar({ silencioso: true });
-        };
-        document.addEventListener('visibilitychange', visible);
-        return () => {
-            window.clearInterval(intervalo);
-            document.removeEventListener('visibilitychange', visible);
-        };
-    }, [actualizar]);
-
-    // Espera a que se deje de teclear antes de pedir la lista.
-    useEffect(() => {
-        const texto = busqueda.trim();
+        const texto = buscar.trim();
         if (texto === buscado) return undefined;
-        const reloj = window.setTimeout(() => setBuscado(texto), ESPERA_BUSQUEDA);
-        return () => window.clearTimeout(reloj);
-    }, [busqueda, buscado]);
+        const reloj = setTimeout(() => {
+            setBuscado(texto);
+            setPagina(1);
+        }, ESPERA_BUSQUEDA);
+        return () => clearTimeout(reloj);
+    }, [buscar, buscado]);
 
-    useEffect(() => {
-        setPagina(1);
-    }, [estado, buscado, seleccion]);
+    const vivo = usarSondeo(`/seguimiento/examenes/${puesto.examen_id}/aulas/${puesto.aula_id}`, {
+        parametros: { estado: lista, buscar: buscado, pagina },
+        intervalo: INTERVALO,
+    });
+    const detalle = vivo.datos;
+    const cifras = detalle?.cifras;
+    const abierto = Boolean(detalle?.abierto);
+    const filas = detalle?.estudiantes ?? [];
+    // Las incidencias solo se reportan el día del examen.
+    const esHoy =
+        Boolean(detalle) &&
+        String(detalle.examen.hora_servidor).slice(0, 10) === detalle.examen.fecha;
+    const sinAlcance = [403, 404].includes(estadoDe(vivo.error));
+    const operaPuerta = Boolean(detalle?.puede_operar) && puede('punto_control');
+    const tipo = TIPOS[puesto.tipo] ?? puesto.tipo;
 
-    const elegirAula = (aula) => {
-        setError('');
-        setBusqueda('');
-        setBuscado('');
-        setPedida(null);
-        setPagina(1);
-        setSeleccion({ examen_id: aula.examen_id, aula_id: aula.aula_id });
-    };
+    return (
+        <>
+            <Encabezado
+                titulo={esDocente ? `Aula ${puesto.aula}` : `Mi aula · ${puesto.aula}`}
+                subtitulo={`${tipo} · ${puesto.asignatura} · ${puesto.hora}`}
+                volver={
+                    esDocente
+                        ? { a: `/en-curso?examen=${puesto.examen_id}`, texto: 'Volver a En curso' }
+                        : undefined
+                }
+                sinConexion={vivo.sinConexion}
+            >
+                {esHoy && (
+                    <BotonIncidencia
+                        aula={{ id: puesto.aula_id, nombre: puesto.aula }}
+                        por={usuario?.nombre}
+                        hora={horaDe(detalle.examen.hora_servidor)}
+                        registrar={(datos) =>
+                            api.post(`/examenes/${puesto.examen_id}/incidencias`, datos)
+                        }
+                        alRegistrar={() => {
+                            setReportadas((n) => n + 1);
+                            vivo.recargar();
+                        }}
+                    />
+                )}
+                {abierto && operaPuerta && (
+                    <Link to={`/punto-control?aula=${puesto.aula_id}`} className={CONTROLAR}>
+                        <ScanLine className="h-4 w-4" /> Controlar
+                    </Link>
+                )}
+            </Encabezado>
 
-    const atender = async (id) => {
-        setAccion(String(id));
-        setError('');
-        try {
-            await api.patch(`/seguimiento/incidencias/${id}/atendida`);
-            avisar('Incidencia atendida');
-            await actualizar();
-        } catch (fallo) {
-            avisar(mensajeDe(fallo, 'No se pudo atender'), 'error');
-        } finally {
-            setAccion('');
-        }
-    };
+            {selector}
 
-    if (cargando) {
+            {sinAlcance ? (
+                <p
+                    role="alert"
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-600"
+                >
+                    {mensajeDe(vivo.error, 'Sin acceso')}
+                </p>
+            ) : (
+                <>
+                    <div className="grid grid-cols-3 gap-3">
+                        <Dato
+                            etiqueta="Ingresaron"
+                            icono={LogIn}
+                            valor={cifras?.ingresaron ?? '—'}
+                            tono="exito"
+                        />
+                        <Dato
+                            etiqueta="Faltan"
+                            icono={Hourglass}
+                            valor={cifras?.faltan ?? '—'}
+                            tono="advertencia"
+                        />
+                        <Dato
+                            etiqueta="Habilitados"
+                            icono={CircleCheck}
+                            valor={cifras?.asignados ?? '—'}
+                        />
+                    </div>
+                    {(cifras?.en_otra_aula > 0 || cifras?.de_otra_aula > 0) && (
+                        <p className="text-sm text-slate-600">
+                            {[
+                                cifras.de_otra_aula > 0 &&
+                                    `${plural(cifras.de_otra_aula, 'ingresó', 'ingresaron')} aquí desde otra aula`,
+                                cifras.en_otra_aula > 0 &&
+                                    `${plural(cifras.en_otra_aula, 'asignado entró', 'asignados entraron')} por otra aula`,
+                            ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                        </p>
+                    )}
+
+                    {detalle && (
+                        <IncidenciasDelExamen
+                            key={reportadas}
+                            examenId={puesto.examen_id}
+                            aulaId={puesto.aula_id}
+                            puedeAtender={Boolean(detalle.puede_atender)}
+                        />
+                    )}
+
+                    <Chips
+                        etiqueta="Lista"
+                        valor={lista}
+                        onCambiar={(valor) => {
+                            setLista(valor);
+                            setPagina(1);
+                        }}
+                        opciones={[
+                            { valor: 'faltan', etiqueta: 'Faltan', conteo: cifras?.faltan },
+                            {
+                                valor: 'ingresaron',
+                                etiqueta: 'Ingresaron',
+                                conteo: cifras?.ingresaron,
+                            },
+                        ]}
+                    />
+
+                    <Tarjeta sinRelleno>
+                        <div className="border-b border-slate-200 p-3">
+                            <Buscador
+                                valor={buscar}
+                                onCambiar={setBuscar}
+                                placeholder="Nombre, código o documento"
+                                etiqueta="Buscar estudiante"
+                            />
+                        </div>
+                        <EstadoCarga
+                            cargando={vivo.cargando}
+                            error={vivo.error}
+                            vacio={filas.length === 0}
+                            textoVacio={buscado ? 'Sin resultados' : 'Sin estudiantes'}
+                            onReintentar={vivo.recargar}
+                        >
+                            <ul
+                                aria-label={lista === 'faltan' ? 'Faltan' : 'Ingresaron'}
+                                className="divide-y divide-slate-200"
+                            >
+                                {filas.map((e) => {
+                                    const [tono, condicion] = condicionDe(e, abierto);
+                                    return (
+                                        <li
+                                            key={e.estudiante_id}
+                                            className="flex min-h-12 items-center gap-3 px-4 py-2"
+                                        >
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block truncate text-sm font-medium text-slate-800">
+                                                    {e.apellidos} {e.nombres}
+                                                </span>
+                                                <span className="block truncate text-xs text-slate-600">
+                                                    <span className="font-mono">{e.codigo}</span>
+                                                    {e.grupos?.length
+                                                        ? ` · ${e.grupos.join(', ')}`
+                                                        : ''}
+                                                </span>
+                                            </span>
+                                            <span className="flex shrink-0 flex-col items-end gap-0.5">
+                                                <Insignia tono={tono}>{condicion}</Insignia>
+                                                {e.registrado_en && (
+                                                    <span className="text-xs tabular-nums text-slate-600">
+                                                        {horaDe(e.registrado_en)}
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                            <Paginacion
+                                total={detalle?.pagina?.total ?? filas.length}
+                                pagina={detalle?.pagina?.actual ?? pagina}
+                                porPagina={detalle?.pagina?.por_pagina ?? 25}
+                                onCambiar={setPagina}
+                                unidad={['estudiante', 'estudiantes']}
+                                className="border-t border-slate-200"
+                            />
+                        </EstadoCarga>
+                    </Tarjeta>
+                </>
+            )}
+        </>
+    );
+}
+
+const formaPuesto = PropTypes.shape({
+    examen_id: PropTypes.number.isRequired,
+    aula_id: PropTypes.number.isRequired,
+    aula: PropTypes.string,
+    fecha: PropTypes.string,
+    hora: PropTypes.string,
+    tipo: PropTypes.string,
+    asignatura: PropTypes.string,
+});
+
+ListaDelAula.propTypes = {
+    puesto: formaPuesto.isRequired,
+    esDocente: PropTypes.bool,
+    selector: PropTypes.node,
+};
+
+// Presentes y los que faltan de un aula, en vivo (HU-21). El auxiliar ve
+// las aulas donde lo asignaron (`/mi-aula`) y el docente llega desde «En
+// curso» a cualquiera de las de su examen (`/en-curso/aula?examen=1&aula=31`).
+// La lista se sondea cada 15 s y es de consulta: aquí no se registra ni se
+// corrige ningún ingreso.
+export default function Seguimiento() {
+    const { pathname } = useLocation();
+    const esDocente = pathname.startsWith('/en-curso');
+    usarTituloPestana(esDocente ? 'Lista del aula' : 'Mi aula');
+    const [parametros, setParametros] = useSearchParams();
+    const { datos, cargando, error, recargar } = usarConsulta('/seguimiento/aulas');
+    const puestos = Array.isArray(datos) ? datos : [];
+
+    const pedidoExamen = Number(parametros.get('examen')) || null;
+    const pedidaAula = Number(parametros.get('aula')) || null;
+    const puesto =
+        puestos.find((p) => p.examen_id === pedidoExamen && p.aula_id === pedidaAula) ??
+        (pedidoExamen ? puestos.find((p) => p.examen_id === pedidoExamen) : null) ??
+        puestos[0] ??
+        null;
+
+    if (!puesto) {
         return (
-            <div className="flex min-h-48 items-center justify-center gap-2 text-slate-600">
-                <LoaderCircle className="animate-spin" size={20} aria-hidden="true" />
-                Cargando…
+            <div className="space-y-5">
+                <Encabezado
+                    titulo={esDocente ? 'Lista del aula' : 'Mi aula'}
+                    volver={esDocente ? { a: '/en-curso', texto: 'Volver a En curso' } : undefined}
+                />
+                <Tarjeta sinRelleno>
+                    <EstadoCarga
+                        cargando={cargando}
+                        error={error}
+                        vacio={puestos.length === 0}
+                        textoVacio="Sin aula asignada"
+                        onReintentar={recargar}
+                    />
+                </Tarjeta>
             </div>
         );
     }
 
-    // Se pidió un aula que no es de la cuenta o no es de hoy: se avisa en vez
-    // de cambiar en silencio a otra.
-    const pedidaNoDisponible =
-        pedida !== null &&
-        !aulas.some(
-            (aula) => aula.examen_id === pedida.examen_id && aula.aula_id === pedida.aula_id
+    // El docente pasa de un aula a otra de su examen; el auxiliar, entre las
+    // que atiende (puede tener más de un examen).
+    const alcanzables = esDocente
+        ? puestos.filter((p) => p.examen_id === puesto.examen_id)
+        : puestos;
+    const clave = (p) => `${p.examen_id}-${p.aula_id}`;
+    const variosExamenes = new Set(alcanzables.map((p) => p.examen_id)).size > 1;
+    const ir = (valor) => {
+        const [examenId, aulaId] = valor.split('-');
+        setParametros(
+            (previos) => {
+                const siguiente = new URLSearchParams(previos);
+                siguiente.set('examen', examenId);
+                siguiente.set('aula', aulaId);
+                return siguiente;
+            },
+            { replace: true }
         );
-    const operaPuerta = Boolean(detalle?.puede_operar) && puede('punto_control');
-    const esHoy =
-        detalle !== null &&
-        String(detalle.examen.hora_servidor ?? '').slice(0, 10) === detalle.examen.fecha;
+    };
+
+    // Se pidió un aula que no es de la cuenta o no es de hoy: se avisa en
+    // vez de cambiar en silencio a otra.
+    const otraQueLaPedida =
+        (pedidaAula !== null && puesto.aula_id !== pedidaAula) ||
+        (pedidoExamen !== null && puesto.examen_id !== pedidoExamen);
 
     return (
-        <main className="mx-auto w-full max-w-6xl space-y-4 px-3 py-4 sm:px-6 sm:py-6">
-            <header className="flex flex-wrap items-center justify-between gap-3">
-                <h1 className="text-2xl font-bold tracking-tight text-slate-950">
-                    {esDocente ? 'Lista del aula' : 'Mi aula'}
-                </h1>
-                {esDocente && (
-                    <Link
-                        to="/en-curso"
-                        className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                    >
-                        <ArrowLeft size={16} aria-hidden="true" />
-                        En curso
-                    </Link>
-                )}
-            </header>
-
-            {pedidaNoDisponible && aulas.length > 0 && (
+        <div className="space-y-5">
+            {otraQueLaPedida && (
                 <p
                     role="status"
-                    className="rounded-xl bg-amber-50 p-3 text-sm font-medium text-amber-900"
+                    className="rounded-lg bg-warning-50 px-3 py-2 text-sm font-medium text-warning-800"
                 >
-                    Aula pedida no disponible
+                    Aula pedida no disponible · Aula {puesto.aula}
                 </p>
             )}
-            {desconectado && (
-                <div
-                    role="status"
-                    className="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900"
-                >
-                    <AlertTriangle size={18} aria-hidden="true" />
-                    Sin conexión
-                </div>
-            )}
-            {error && (
-                <div
-                    role="alert"
-                    className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
-                >
-                    {error}
-                </div>
-            )}
-
-            {aulas.length === 0 ? (
-                <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-                    <Activity className="mx-auto text-slate-400" size={28} aria-hidden="true" />
-                    <h2 className="mt-3 font-semibold text-slate-900">Sin aula asignada</h2>
-                </section>
-            ) : (
-                <>
-                    <nav aria-label="Aula" className="flex gap-2 overflow-x-auto pb-1">
-                        {aulas.map((aula) => {
-                            const activa =
-                                aula.examen_id === seleccion?.examen_id &&
-                                aula.aula_id === seleccion?.aula_id;
-                            return (
-                                <button
-                                    key={`${aula.examen_id}-${aula.aula_id}`}
-                                    type="button"
-                                    aria-pressed={activa}
-                                    onClick={() => elegirAula(aula)}
-                                    className={`min-w-40 rounded-xl border px-4 py-3 text-left ${
-                                        activa
-                                            ? 'border-primary-600 bg-primary-50 text-primary-950'
-                                            : 'border-slate-200 bg-white text-slate-800'
-                                    }`}
-                                >
-                                    <span className="block font-semibold">{aula.aula}</span>
-                                    <span className="mt-1 block truncate text-xs">
-                                        {aula.asignatura}
-                                    </span>
-                                    <span className="mt-1 block text-xs text-slate-600">
-                                        {fechaYHora(aula.fecha, aula.hora)}
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </nav>
-
-                    {seleccionada && detalle && (
-                        <>
-                            <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
-                                <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                                    <div>
-                                        <h2 className="text-xl font-bold text-slate-950">
-                                            Aula {detalle.aula.nombre}
-                                        </h2>
-                                        <p className="mt-1 text-sm text-slate-600">
-                                            {tipoExamenLegible(detalle.examen.tipo)} ·{' '}
-                                            {detalle.examen.asignatura} ·{' '}
-                                            {fechaYHora(detalle.examen.fecha, detalle.examen.hora)}
-                                            {' · Servidor '}
-                                            {new Date(
-                                                detalle.examen.hora_servidor
-                                            ).toLocaleTimeString('es-BO', {
-                                                hour: '2-digit',
-                                                minute: '2-digit',
-                                                second: '2-digit',
-                                            })}
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {esHoy && operaPuerta && (
-                                            <IncidenciaAula
-                                                examenId={seleccionada.examen_id}
-                                                aula={{
-                                                    id: detalle.aula.id,
-                                                    nombre: detalle.aula.nombre,
-                                                }}
-                                                por={usuario?.nombre}
-                                                hora={horaDe(detalle.examen.hora_servidor)}
-                                                alRegistrar={() => {
-                                                    avisar('Incidencia registrada');
-                                                    void actualizar({ silencioso: true });
-                                                }}
-                                            />
-                                        )}
-                                        {detalle.abierto && operaPuerta && (
-                                            <Link
-                                                to={`/punto-control?examen=${seleccionada.examen_id}&aula=${detalle.aula.id}`}
-                                                className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                                            >
-                                                <ScanLine size={16} aria-hidden="true" />
-                                                Controlar
-                                            </Link>
-                                        )}
-                                        <button
-                                            type="button"
-                                            onClick={() => void actualizar()}
-                                            disabled={actualizando}
-                                            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50"
-                                        >
-                                            <RefreshCw
-                                                size={16}
-                                                className={actualizando ? 'animate-spin' : ''}
-                                                aria-hidden="true"
-                                            />
-                                            Actualizar
-                                        </button>
-                                    </div>
-                                </div>
-                                <Cifras cifras={detalle.cifras} />
-                            </section>
-
-                            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4">
-                                    <div
-                                        className="flex gap-2"
-                                        role="tablist"
-                                        aria-label="Lista de estudiantes"
-                                    >
-                                        {[
-                                            ['faltan', `Faltan ${detalle.cifras.faltan}`],
-                                            [
-                                                'ingresaron',
-                                                `Ingresaron ${detalle.cifras.ingresaron}`,
-                                            ],
-                                        ].map(([valor, etiqueta]) => (
-                                            <button
-                                                key={valor}
-                                                type="button"
-                                                role="tab"
-                                                aria-selected={estado === valor}
-                                                onClick={() => setEstado(valor)}
-                                                className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                                                    estado === valor
-                                                        ? 'bg-slate-900 text-white'
-                                                        : 'bg-slate-100 text-slate-700'
-                                                }`}
-                                            >
-                                                {etiqueta}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <label className="relative w-full sm:max-w-xs">
-                                        <Search
-                                            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                                            size={16}
-                                            aria-hidden="true"
-                                        />
-                                        <input
-                                            type="search"
-                                            value={busqueda}
-                                            onChange={(evento) => setBusqueda(evento.target.value)}
-                                            placeholder="Nombre, código o documento"
-                                            aria-label="Buscar por nombre, código o documento"
-                                            className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm"
-                                        />
-                                    </label>
-                                </div>
-
-                                {detalle.estudiantes.length === 0 ? (
-                                    <p className="p-8 text-center text-sm text-slate-600">
-                                        {buscado ? 'Sin resultados' : 'Sin estudiantes'}
-                                    </p>
-                                ) : (
-                                    <ul
-                                        aria-label={
-                                            estado === 'faltan'
-                                                ? 'Estudiantes ausentes'
-                                                : 'Estudiantes que ingresaron'
-                                        }
-                                    >
-                                        {detalle.estudiantes.map((estudiante) => (
-                                            <li
-                                                key={`${estado}-${estudiante.estudiante_id}`}
-                                                className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0"
-                                            >
-                                                <span className="min-w-0">
-                                                    <span className="block truncate font-medium text-slate-900">
-                                                        {nombreEstudiante(estudiante)}
-                                                    </span>
-                                                    <span className="block text-xs text-slate-600">
-                                                        {estudiante.codigo}
-                                                        {estudiante.grupos?.length
-                                                            ? ` · ${estudiante.grupos.join(', ')}`
-                                                            : ''}
-                                                        {estudiante.registrado_en
-                                                            ? ` · ${estudiante.registrado_en.slice(11, 16)}`
-                                                            : ''}
-                                                    </span>
-                                                </span>
-                                                <span
-                                                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                                                        estudiante.estado === 'Expulsado'
-                                                            ? 'bg-rose-100 text-rose-800'
-                                                            : estudiante.estado === 'Ausente'
-                                                              ? 'bg-slate-100 text-slate-700'
-                                                              : 'bg-emerald-100 text-emerald-800'
-                                                    }`}
-                                                >
-                                                    {estudiante.estado}
-                                                </span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                                {detalle.pagina.ultima > 1 && (
-                                    <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm">
-                                        <span className="text-slate-600">
-                                            Página {detalle.pagina.actual} de{' '}
-                                            {detalle.pagina.ultima}
-                                        </span>
-                                        <div className="flex gap-2">
-                                            <button
-                                                type="button"
-                                                disabled={pagina <= 1}
-                                                aria-label="Página anterior"
-                                                onClick={() =>
-                                                    setPagina((valor) => Math.max(1, valor - 1))
-                                                }
-                                                className="rounded-lg border border-slate-300 p-2 disabled:opacity-40"
-                                            >
-                                                <ChevronLeft size={18} aria-hidden="true" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                disabled={pagina >= detalle.pagina.ultima}
-                                                aria-label="Página siguiente"
-                                                onClick={() =>
-                                                    setPagina((valor) =>
-                                                        Math.min(detalle.pagina.ultima, valor + 1)
-                                                    )
-                                                }
-                                                className="rounded-lg border border-slate-300 p-2 disabled:opacity-40"
-                                            >
-                                                <ChevronRight size={18} aria-hidden="true" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </section>
-
-                            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                                <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                                    <h3 className="font-semibold text-slate-900">
-                                        Incidencias · {detalle.cifras.incidencias}
-                                    </h3>
-                                </header>
-                                {detalle.incidencias.length === 0 ? (
-                                    <p className="p-5 text-sm text-slate-600">Sin incidencias</p>
-                                ) : (
-                                    <>
-                                        {detalle.cifras.incidencias >
-                                            detalle.incidencias.length && (
-                                            <p className="px-4 pt-3 text-xs text-slate-500">
-                                                Últimas 50
-                                            </p>
-                                        )}
-                                        <ul className="divide-y divide-slate-100">
-                                            {detalle.incidencias.map((incidencia) => (
-                                                <li key={incidencia.id} className="space-y-2 p-4">
-                                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                                        <div className="flex flex-wrap items-center gap-2">
-                                                            <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-800">
-                                                                {tipoIncidenciaLegible(
-                                                                    incidencia.tipo
-                                                                )}
-                                                            </span>
-                                                        </div>
-                                                        {incidencia.atendida_en ? (
-                                                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
-                                                                <Check
-                                                                    size={14}
-                                                                    aria-hidden="true"
-                                                                />
-                                                                {[
-                                                                    `Atendida por ${incidencia.atendida_por ?? '—'}`,
-                                                                    horaDe(incidencia.atendida_en),
-                                                                ]
-                                                                    .filter(Boolean)
-                                                                    .join(' · ')}
-                                                            </span>
-                                                        ) : detalle.puede_atender ? (
-                                                            <button
-                                                                type="button"
-                                                                disabled={
-                                                                    accion === String(incidencia.id)
-                                                                }
-                                                                onClick={() =>
-                                                                    void atender(incidencia.id)
-                                                                }
-                                                                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
-                                                            >
-                                                                {accion === String(incidencia.id)
-                                                                    ? 'Guardando…'
-                                                                    : 'Atender'}
-                                                            </button>
-                                                        ) : (
-                                                            <span className="text-xs font-semibold text-amber-700">
-                                                                Sin atender
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    {incidencia.estudiante && (
-                                                        <p className="text-sm font-semibold text-slate-900">
-                                                            {incidencia.estudiante}
-                                                        </p>
-                                                    )}
-                                                    <p className="text-sm text-slate-700">
-                                                        {incidencia.detalle}
-                                                    </p>
-                                                    <p className="text-xs text-slate-500">
-                                                        {[
-                                                            `Reportó ${incidencia.reportante}`,
-                                                            incidencia.rol_reportante,
-                                                            horaDe(incidencia.reportada_en),
-                                                        ]
-                                                            .filter(Boolean)
-                                                            .join(' · ')}
-                                                    </p>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </>
-                                )}
-                            </section>
-                        </>
-                    )}
-                </>
-            )}
-            {aviso}
-        </main>
+            <ListaDelAula
+                key={clave(puesto)}
+                puesto={puesto}
+                esDocente={esDocente}
+                selector={
+                    alcanzables.length > 1 && (
+                        <Chips
+                            etiqueta="Aula"
+                            valor={clave(puesto)}
+                            onCambiar={ir}
+                            opciones={alcanzables.map((p) => ({
+                                valor: clave(p),
+                                etiqueta: variosExamenes
+                                    ? `${p.aula} · ${diaMes(p.fecha)} ${p.hora} · ${p.asignatura}`
+                                    : p.aula,
+                            }))}
+                        />
+                    )
+                }
+            />
+        </div>
     );
 }

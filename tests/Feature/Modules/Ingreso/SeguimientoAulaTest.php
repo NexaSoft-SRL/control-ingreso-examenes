@@ -140,7 +140,7 @@ final class SeguimientoAulaTest extends TestCase
             ->assertJsonPath('data.estudiantes.0.estudiante_id', $estudiantes[0]->id);
     }
 
-    public function test_auxiliar_solo_ve_aulas_asignadas_y_atiende_las_incidencias_de_su_aula(): void
+    public function test_auxiliar_solo_ve_aulas_asignadas_y_las_incidencias_de_su_aula(): void
     {
         $docenteCuenta = $this->usuarioConPermisos(['seguimiento_vivo']);
         $docente = $this->docenteConCuenta($docenteCuenta);
@@ -171,49 +171,58 @@ final class SeguimientoAulaTest extends TestCase
             $otraAula->id,
         ))->assertForbidden();
 
-        $incidenciaId = DB::table('incidencias_aula')->insertGetId([
+        $incidenciaId = DB::table('incidencias')->insertGetId([
             'examen_id' => $examen->id,
             'aula_id' => $aula->id,
             'reportada_por' => $auxiliar->id,
-            'tipo' => 'OTRA_NOVEDAD',
+            'tipo' => 'OTRA',
+            'origen' => 'PERSONA',
             'detalle' => 'Incidencia para atender',
-            'reportada_en' => now(),
+            'ocurrida_en' => now(),
         ]);
 
-        $otraIncidenciaId = DB::table('incidencias_aula')->insertGetId([
+        $otraIncidenciaId = DB::table('incidencias')->insertGetId([
             'examen_id' => $examen->id,
             'aula_id' => $otraAula->id,
             'reportada_por' => $docenteCuenta->id,
-            'tipo' => 'CONDUCTA',
+            'tipo' => 'MATERIAL_NO_PERMITIDO',
+            'origen' => 'PERSONA',
             'detalle' => 'Incidencia de otra aula',
-            'reportada_en' => now(),
+            'ocurrida_en' => now(),
         ]);
 
-        // El personal del aula atiende las de su aula, no las de otra.
+        // El personal del aula ve las de su aula, no las de otra.
         $this->actingAs($auxiliar)
-            ->patchJson("/api/seguimiento/incidencias/{$otraIncidenciaId}/atendida")
+            ->getJson("/api/examenes/{$examen->id}/incidencias?aula={$aula->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $incidenciaId)
+            ->assertJsonPath('meta.sin_atender', 1);
+
+        $this->getJson("/api/examenes/{$examen->id}/incidencias?aula={$otraAula->id}")
+            ->assertForbidden();
+
+        // Solo el docente del examen las atiende.
+        $this->postJson("/api/incidencias/{$incidenciaId}/atencion")
             ->assertForbidden()
-            ->assertJsonPath('message', 'Solo atiende las incidencias de sus aulas.');
-
-        $this->patchJson("/api/seguimiento/incidencias/{$incidenciaId}/atendida")
-            ->assertOk();
-
-        $this->assertDatabaseHas('incidencias_aula', [
-            'id' => $incidenciaId,
-            'atendida_por' => $auxiliar->id,
-        ]);
+            ->assertJsonPath('message', 'Solo el docente del examen.');
 
         $this->actingAs($docenteCuenta)
-            ->patchJson("/api/seguimiento/incidencias/{$otraIncidenciaId}/atendida")
-            ->assertOk();
+            ->postJson("/api/incidencias/{$incidenciaId}/atencion")
+            ->assertOk()
+            ->assertJsonPath('data.atendida', true);
 
-        $this->patchJson("/api/seguimiento/incidencias/{$incidenciaId}/atendida")
+        $this->postJson("/api/incidencias/{$incidenciaId}/atencion")
             ->assertStatus(409)
             ->assertJsonPath('message', 'La incidencia ya estaba atendida.');
 
-        $this->assertDatabaseHas('incidencias_aula', [
-            'id' => $otraIncidenciaId,
+        $this->assertDatabaseHas('incidencias', [
+            'id' => $incidenciaId,
             'atendida_por' => $docenteCuenta->id,
+        ]);
+        $this->assertDatabaseHas('incidencias', [
+            'id' => $otraIncidenciaId,
+            'atendida_por' => null,
         ]);
 
         $this->assertDatabaseHas('examen_aula_personal', [

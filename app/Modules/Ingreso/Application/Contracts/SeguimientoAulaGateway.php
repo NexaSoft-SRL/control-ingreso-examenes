@@ -35,9 +35,8 @@ interface SeguimientoAulaGateway
      * @return array{
      *     examen: array<string, mixed>,
      *     aula: array<string, mixed>,
-     *     cifras: array{ingresaron: int, faltan: int, asignados: int, incidencias: int},
+     *     cifras: array{ingresaron: int, faltan: int, asignados: int, incidencias: int, de_otra_aula: int, en_otra_aula: int},
      *     estudiantes: list<array<string, mixed>>,
-     *     incidencias: list<array<string, mixed>>,
      *     pagina: array{actual: int, ultima: int, por_pagina: int, total: int}
      * }
      */
@@ -48,14 +47,4 @@ interface SeguimientoAulaGateway
         string $busqueda,
         int $pagina,
     ): array;
-
-    /**
-     * @return array{examen_id: int, aula_id: int}|null
-     */
-    public function ubicacionIncidencia(int $incidenciaId): ?array;
-
-    public function marcarIncidenciaAtendida(
-        int $incidenciaId,
-        int $usuarioId,
-    ): bool;
 }

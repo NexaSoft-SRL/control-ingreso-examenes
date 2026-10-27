@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Http\Controllers;
 
-use App\Modules\Ingreso\Application\Actions\AtenderIncidenciaAula;
+use App\Modules\Examenes\Application\Contracts\AlcanceExamenGateway;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\SeguimientoAulaGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
-use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,6 +32,7 @@ final class SeguimientoAulaController
         SeguimientoAulaGateway $seguimiento,
         AlcancePuntoControl $alcance,
         VentanaPuntoControl $ventana,
+        AlcanceExamenGateway $docentes,
     ): JsonResponse {
         $request->validate([
             'estado' => ['sometimes', 'string', 'in:faltan,ingresaron'],
@@ -77,32 +77,13 @@ final class SeguimientoAulaController
             // solo quien puede operarla, y «Controlar» con el ingreso abierto.
             $detalle['puede_operar'] = $alcance->puedeOperar($usuarioId, $examen, $aula);
             $detalle['abierto'] = $ventana->estaAbierta($examen);
-            // Atiende el docente del examen o el personal del aula (como «En curso»).
-            $detalle['puede_atender'] = $seguimiento->tieneAlcance($usuarioId, $examen, $aula);
+            // Atiende y corrige las incidencias el docente del examen.
+            $detalle['puede_atender'] = $docentes->esDocenteDelExamen($usuarioId, $examen);
 
             return response()->json(['data' => $detalle]);
         } catch (InvalidArgumentException $error) {
             return $this->error($error->getMessage(), 404);
         }
-    }
-
-    public function atenderIncidencia(
-        int $incidencia,
-        AtenderIncidenciaAula $atender,
-    ): JsonResponse {
-        try {
-            $actualizada = $atender->ejecutar($this->usuarioId(), $incidencia);
-        } catch (AccesoPuntoDenegado $error) {
-            return $this->error($error->getMessage(), 403);
-        } catch (InvalidArgumentException $error) {
-            return $this->error($error->getMessage(), 404);
-        }
-
-        if (! $actualizada) {
-            return $this->error('La incidencia ya estaba atendida.', 409);
-        }
-
-        return response()->json(['message' => 'Incidencia atendida.']);
     }
 
     private function usuarioId(): int

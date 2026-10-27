@@ -6,12 +6,12 @@ namespace App\Modules\Ingreso\Application\Actions;
 
 use App\Modules\Habilitacion\Application\Contracts\HabilitacionGateway;
 use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
-use App\Modules\Ingreso\Application\Contracts\IncidenciaManualPuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\OperacionesPuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
+use App\Modules\Ingreso\Application\DTOs\OperadorPuertaData;
 use App\Modules\Ingreso\Application\Queries\ExamenesOperablesEnAula;
-use App\Modules\Ingreso\Domain\Enums\TipoIncidenciaPuerta;
+use App\Modules\Ingreso\Domain\Enums\TipoExcepcion;
 use DomainException;
 use InvalidArgumentException;
 
@@ -26,7 +26,6 @@ final readonly class RegistrarExcepcionEnPuerta
     public function __construct(
         private ExamenesOperablesEnAula $operables,
         private VentanaPuntoControl $ventana,
-        private IncidenciaManualPuertaGateway $incidencias,
         private HabilitacionGateway $habilitaciones,
         private IngresoGateway $ingresos,
         private EstadoExpulsionGateway $expulsiones,
@@ -40,17 +39,13 @@ final readonly class RegistrarExcepcionEnPuerta
         int $usuarioId,
         int $aulaId,
         string $fecha,
-        TipoIncidenciaPuerta $tipo,
+        TipoExcepcion $tipo,
         string $motivo,
         ?int $estudianteId,
         ?int $examenId,
     ): array {
-        if (! $tipo->esExcepcion()) {
-            throw new InvalidArgumentException('Tipo de situación excepcional no válido.');
-        }
-
         $abiertos = array_values(array_filter(
-            $this->operables->ejecutar($usuarioId, $aulaId, $fecha),
+            $this->operables->ejecutar(OperadorPuertaData::cuenta($usuarioId), $aulaId, $fecha),
             fn (int $id): bool => $this->ventana->estaAbierta($id),
         ));
 
@@ -79,9 +74,8 @@ final readonly class RegistrarExcepcionEnPuerta
             $aulaId,
             $estudianteId,
             $usuarioId,
-            $tipo->value,
+            $tipo,
             $motivo,
-            $tipo->admite(),
         );
 
         if ($resultado === null) {
@@ -93,7 +87,7 @@ final readonly class RegistrarExcepcionEnPuerta
 
     private function comprobarAdmision(int $examenId, int $estudianteId): void
     {
-        if (! $this->incidencias->estudiantePerteneceAlExamen($examenId, $estudianteId)) {
+        if (! $this->operaciones->estudiantePerteneceAlExamen($examenId, $estudianteId)) {
             throw new DomainException('El estudiante no está inscrito en este examen.');
         }
 

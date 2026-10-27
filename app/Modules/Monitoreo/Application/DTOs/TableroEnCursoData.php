@@ -20,6 +20,7 @@ final readonly class TableroEnCursoData
         public AvanceEnCursoData $avance,
         public array $aulas,
         public array $incidencias,
+        public bool $esDocente = false,
     ) {}
 
     public function incidenciasSinAtender(): int

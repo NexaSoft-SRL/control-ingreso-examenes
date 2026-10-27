@@ -1,7 +1,6 @@
 import PropTypes from 'prop-types';
 import { useEffect, useRef, useState } from 'react';
 import {
-    AlertTriangle,
     ArrowRight,
     CheckCircle2,
     History,
@@ -12,11 +11,14 @@ import {
     XCircle,
 } from 'lucide-react';
 import { erroresDe, mensajeDe } from '../../api/errores';
-import usarEdificios from '../../api/usarEdificios';
+import usarConsulta from '../../api/usarConsulta';
 import Boton from '../../componentes/Boton';
 import Campo from '../../componentes/Campo';
+import IconoAsignatura from '../../componentes/IconoAsignatura';
+import Insignia from '../../componentes/Insignia';
 import MapaCampus from '../../componentes/MapaCampus';
 import Seleccion from '../../componentes/Seleccion';
+import { colorDeAsignatura } from '../../utiles/texto';
 
 // Los veredictos de la puerta (como en el Proyecto Guía). Los intentos sin
 // examen llegan con su `causa` (no inscrito, sin registro, QR no válido).
@@ -25,14 +27,12 @@ export const VEREDICTOS = {
     ADMITIDO: { tono: 'exito', Icono: CheckCircle2, titulo: 'Ingreso admitido' },
     ADMITIDO_EXCEPCION: { tono: 'exito', Icono: CheckCircle2, titulo: 'Admitido como excepción' },
     NO_HABILITADO: { tono: 'peligro', Icono: XCircle, titulo: 'No habilitado' },
-    OTRA_AULA: { tono: 'advertencia', Icono: AlertTriangle, titulo: 'Otra aula' },
     YA_INGRESO: { tono: 'peligro', Icono: History, titulo: 'Ya ingresó' },
     EXPULSADO: { tono: 'peligro', Icono: UserX, titulo: 'Expulsado' },
     NO_CORRESPONDE: { tono: 'peligro', Icono: ScanSearch, titulo: 'No es de esta aula' },
     NO_INSCRITO: { tono: 'peligro', Icono: ScanSearch, titulo: 'No inscrito' },
     NO_REGISTRADO: { tono: 'peligro', Icono: SearchX, titulo: 'No registrado' },
     QR_NO_VALIDO: { tono: 'peligro', Icono: ScanSearch, titulo: 'Código QR no válido' },
-    AMBIGUO: { tono: 'advertencia', Icono: AlertTriangle, titulo: 'Identificación ambigua' },
 };
 
 const CABECERA = {
@@ -53,11 +53,8 @@ export const TIPOS_EXCEPCION = {
     EXCEPCION_CAMBIO_AULA: 'Cambio de aula',
     EXCEPCION_NO_HABILITADO: 'Estudiante no habilitado',
 };
-const SUGERIDO = {
-    OTRA_AULA: 'EXCEPCION_CAMBIO_AULA',
-    NO_HABILITADO: 'EXCEPCION_NO_HABILITADO',
-};
-const CON_EXCEPCION = ['NO_HABILITADO', 'OTRA_AULA', 'NO_CORRESPONDE'];
+const SUGERIDO = { NO_HABILITADO: 'EXCEPCION_NO_HABILITADO' };
+const CON_EXCEPCION = ['NO_HABILITADO', 'NO_CORRESPONDE'];
 const MOTIVO_MINIMO = 5;
 
 const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
@@ -65,9 +62,13 @@ const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
 export const ubicacionDe = (aula) => [aula?.edificio, aula?.piso].filter(Boolean).join(' · ');
 
 // Dónde queda el aula que le corresponde, con el edificio de esta puerta
-// como punto de partida.
-function MapaDeDestino({ destino, origen }) {
-    const { edificios, caja } = usarEdificios();
+// como punto de partida. Los edificios salen de la ruta propia de la puerta,
+// que también alcanza quien entró con código de aula (GET /api/edificios
+// exige cuenta).
+function MapaDeDestino({ destino, origen, aulaId }) {
+    const { datos, meta } = usarConsulta(`/aulas/${aulaId}/punto-control/edificios`);
+    const edificios = Array.isArray(datos) ? datos : [];
+    const caja = meta?.caja ?? null;
     if (edificios.length === 0) return null;
 
     return (
@@ -91,11 +92,11 @@ MapaDeDestino.propTypes = {
         edificio_id: PropTypes.number,
     }).isRequired,
     origen: PropTypes.number,
+    aulaId: PropTypes.number.isRequired,
 };
 
 function claveDe(veredicto) {
     if (veredicto.causa) return veredicto.causa;
-    if (!veredicto.veredicto && veredicto.ambiguo) return 'AMBIGUO';
     return veredicto.veredicto ?? 'NO_CORRESPONDE';
 }
 
@@ -227,7 +228,12 @@ export default function VeredictoPuerta({
                     </div>
                 )}
                 {examen && (
-                    <p className="mt-2 text-sm font-medium text-slate-800">
+                    <p className="mt-2 flex items-center gap-2 text-sm font-medium text-slate-800">
+                        <IconoAsignatura
+                            nombre={examen.asignatura}
+                            color={colorDeAsignatura(examen.asignatura)}
+                            tamano="xs"
+                        />
                         {examen.asignatura} · {examen.tipo}
                     </p>
                 )}
@@ -240,7 +246,15 @@ export default function VeredictoPuerta({
                         {otro.aula && ` · Aula ${otro.aula}`}
                     </p>
                 )}
-                {veredicto.pie && <p className="text-sm text-slate-600">{veredicto.pie}</p>}
+                {veredicto.tarde ? (
+                    <p className="mt-2">
+                        <Insignia tono="advertencia" punto>
+                            Tarde · {veredicto.tarde} min después del inicio
+                        </Insignia>
+                    </p>
+                ) : (
+                    veredicto.pie && <p className="text-sm text-slate-600">{veredicto.pie}</p>
+                )}
 
                 {admitida && (
                     <p className="mt-3 text-2xl font-bold text-slate-900">
@@ -264,7 +278,7 @@ export default function VeredictoPuerta({
                         className="mt-4 min-h-12 w-full"
                         onClick={() => setAbierta(true)}
                     >
-                        {clave === 'OTRA_AULA' ? 'Admitir como excepción' : 'Situación excepcional'}
+                        Situación excepcional
                     </Boton>
                 )}
 
@@ -343,7 +357,11 @@ export default function VeredictoPuerta({
                 {/* El mapa va después de las acciones: no las empuja fuera de la pantalla. */}
                 {destino?.edificio_id && !admitida && (
                     <div className="mt-4">
-                        <MapaDeDestino destino={destino} origen={aula.edificio_id ?? null} />
+                        <MapaDeDestino
+                            destino={destino}
+                            origen={aula.edificio_id ?? null}
+                            aulaId={aula.id}
+                        />
                     </div>
                 )}
             </div>
@@ -355,7 +373,6 @@ VeredictoPuerta.propTypes = {
     veredicto: PropTypes.shape({
         veredicto: PropTypes.string,
         causa: PropTypes.string,
-        ambiguo: PropTypes.bool,
         estudiante: PropTypes.shape({
             id: PropTypes.number,
             codigo: PropTypes.string,
@@ -369,6 +386,7 @@ VeredictoPuerta.propTypes = {
         }),
         dato: PropTypes.string,
         pie: PropTypes.string,
+        tarde: PropTypes.number,
         aula_correcta: PropTypes.shape({
             id: PropTypes.number,
             nombre: PropTypes.string,

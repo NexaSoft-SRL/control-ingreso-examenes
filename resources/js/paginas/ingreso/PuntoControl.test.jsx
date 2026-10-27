@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import PuntoControl from './PuntoControl';
 import { api } from '../../api/cliente';
+import { renderConSesion, usuarioDePrueba } from '../../test/apoyo';
 
 vi.mock('../../api/cliente', () => ({
     api: {
@@ -80,7 +81,11 @@ function montar(ruta = '/control') {
 }
 
 async function verificarCodigo(codigo = '202210098') {
-    const campo = await screen.findByRole('textbox', { name: 'Identificador' });
+    const abrir = await screen
+        .findByRole('button', { name: 'Código SIS o C.I. manual' })
+        .catch(() => null);
+    if (abrir) fireEvent.click(abrir);
+    const campo = await screen.findByRole('textbox', { name: 'Código SIS o C.I.' });
     fireEvent.change(campo, { target: { value: codigo } });
     fireEvent.click(screen.getByRole('button', { name: 'Verificar' }));
 }
@@ -129,8 +134,9 @@ describe('PuntoControl HU-19', () => {
         const lista = await screen.findByRole('list', { name: 'Exámenes del aula' });
         expect(within(lista).getByText('Introducción a la Programación')).toBeInTheDocument();
         expect(within(lista).getByText(/Primer parcial · 08:00–09:30/)).toBeInTheDocument();
-        expect(within(lista).getByText('3 / 20 ingresados')).toBeInTheDocument();
+        expect(within(lista).getByText('3 ingresaron')).toBeInTheDocument();
         expect(within(lista).getByText('Faltan 17')).toBeInTheDocument();
+        expect(screen.getByText(/3 ingresaron · Faltan 17/)).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Normas' }));
         expect(screen.getByText('Llevar carnet')).toBeInTheDocument();
@@ -168,7 +174,7 @@ describe('PuntoControl HU-19', () => {
                 data: {
                     veredicto: 'ADMITIDO',
                     admitido: true,
-                    estudiante: { id: 5, codigo: '202210098', nombre: 'Vega Escóbar Silvia' },
+                    estudiante: { id: 5, codigo: '202210098', nombre: 'Vega Escóbar, Silvia' },
                     examen: {
                         id: 10,
                         asignatura: 'Introducción a la Programación',
@@ -184,14 +190,13 @@ describe('PuntoControl HU-19', () => {
 
         await waitFor(() => {
             expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/ingresos', {
-                tipo: 'codigo',
                 identificador: '202210098',
             });
         });
 
         const veredicto = await screen.findByText('Ingreso admitido');
         const tarjeta = veredicto.closest('[role="status"]');
-        expect(within(tarjeta).getByText('Vega Escóbar Silvia')).toBeInTheDocument();
+        expect(within(tarjeta).getByText('Vega Escóbar, Silvia')).toBeInTheDocument();
         expect(within(tarjeta).getByText('Código SIS 202210098')).toBeInTheDocument();
         expect(
             within(tarjeta).getByText('Introducción a la Programación · Primer parcial')
@@ -200,15 +205,18 @@ describe('PuntoControl HU-19', () => {
         expect(within(tarjeta).queryByText('Situación excepcional')).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /Siguiente/ }));
-        expect(await screen.findByRole('textbox', { name: 'Identificador' })).toBeInTheDocument();
+        expect(
+            await screen.findByRole('textbox', { name: 'Código SIS o C.I.' })
+        ).toBeInTheDocument();
     });
 
     it('BUG-11: «Ya ingresó» con hora y aula, sin situación excepcional (N4)', async () => {
         api.post.mockImplementation(() =>
             rechazo({
                 veredicto: 'YA_INGRESO',
-                estudiante: { id: 5, codigo: '202210098', nombre: 'Vega Escóbar Silvia' },
-                dato: 'Ya ingresó a las 08:39 por el aula 691A',
+                estudiante: { id: 5, codigo: '202210098', nombre: 'Vega Escóbar, Silvia' },
+                dato: 'Ingresó a las 08:39 en el aula 691A',
+                pie: 'Incidencia registrada',
             })
         );
 
@@ -216,7 +224,8 @@ describe('PuntoControl HU-19', () => {
         await verificarCodigo();
 
         expect(await screen.findByText('Ya ingresó')).toBeInTheDocument();
-        expect(screen.getByText('Ya ingresó a las 08:39 por el aula 691A')).toBeInTheDocument();
+        expect(screen.getByText('Ingresó a las 08:39 en el aula 691A')).toBeInTheDocument();
+        expect(screen.getByText('Incidencia registrada')).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Situación excepcional' })
         ).not.toBeInTheDocument();
@@ -237,7 +246,7 @@ describe('PuntoControl HU-19', () => {
                 rechazo({
                     veredicto: 'NO_CORRESPONDE',
                     causa: 'NO_INSCRITO',
-                    estudiante: { id: 9, codigo: '202310308', nombre: 'Rojas Ana' },
+                    estudiante: { id: 9, codigo: '202310308', nombre: 'Rojas, Ana' },
                     dato: 'No inscrito en los exámenes del aula 691A',
                     examen_correspondiente: {
                         texto: 'Su examen: Cálculo I · Primer parcial · 10:00',
@@ -264,91 +273,41 @@ describe('PuntoControl HU-19', () => {
         ).toBeInTheDocument();
     });
 
-    it('BUG-08: «Otra aula» muestra aula, edificio y piso', async () => {
-        api.post.mockImplementation(() =>
-            rechazo({
-                veredicto: 'OTRA_AULA',
-                estudiante: { id: 5, codigo: '202110007', nombre: 'Paz Luis' },
-                examen: {
-                    id: 10,
-                    asignatura: 'Introducción a la Programación',
-                    tipo: 'Primer parcial',
+    it('el aula asignada es una sugerencia y la llegada tarde se marca', async () => {
+        api.post.mockResolvedValue({
+            data: {
+                data: {
+                    veredicto: 'ADMITIDO',
+                    admitido: true,
+                    estudiante: { id: 5, codigo: '202110007', nombre: 'Paz Luis' },
+                    dato: 'Registrado a las 08:39 · su aula sugerida era la 691B',
+                    tarde: 39,
+                    pie: 'Tarde · 39 min después del inicio',
                 },
-                aula_correcta: {
-                    id: 8,
-                    nombre: '691B',
-                    edificio: 'Edificio Académico 2',
-                    piso: '2.º piso',
-                    edificio_id: 3,
-                },
-            })
-        );
-
-        montar();
-        await verificarCodigo('202110007');
-
-        expect(await screen.findByText('Otra aula')).toBeInTheDocument();
-        expect(screen.getByText('Aula 691B')).toBeInTheDocument();
-        expect(screen.getAllByText('Edificio Académico 2 · 2.º piso').length).toBeGreaterThan(0);
-        expect(screen.getByRole('button', { name: 'Admitir como excepción' })).toBeInTheDocument();
-    });
-
-    it('N1 y N6: el cambio de aula admite como excepción, con el motivo enfocado', async () => {
-        const desplazar = vi.fn();
-        Element.prototype.scrollIntoView = desplazar;
-
-        api.post.mockImplementation((ruta) => {
-            if (ruta.endsWith('/excepciones')) {
-                return Promise.resolve({
-                    data: {
-                        message: 'Admitido como excepción',
-                        data: { admitido: true, ingreso: { id: 40, hora: '08:41' } },
-                    },
-                });
-            }
-            return rechazo({
-                veredicto: 'OTRA_AULA',
-                estudiante: { id: 5, codigo: '202110007', nombre: 'Paz Luis' },
-                examen: {
-                    id: 10,
-                    asignatura: 'Introducción a la Programación',
-                    tipo: 'Primer parcial',
-                },
-                aula_correcta: { id: 8, nombre: '691B' },
-            });
+            },
         });
+        respuestas.ingresos = { data: [fila(1, { tarde: 39 })], meta: { total: 1 } };
 
         montar();
-        await verificarCodigo('202110007');
-
-        fireEvent.click(await screen.findByRole('button', { name: 'Admitir como excepción' }));
-
-        const motivo = screen.getByRole('textbox', { name: /Motivo/ });
-        await waitFor(() => expect(motivo).toHaveFocus());
-        expect(desplazar).toHaveBeenCalled();
-        expect(screen.getByRole('combobox', { name: 'Tipo' })).toHaveValue('EXCEPCION_CAMBIO_AULA');
-
-        fireEvent.change(motivo, { target: { value: 'El aula 691B está cerrada.' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Registrar' }));
+        await verificarCodigo('5003748-1a');
 
         await waitFor(() => {
-            expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/excepciones', {
-                tipo: 'EXCEPCION_CAMBIO_AULA',
-                motivo: 'El aula 691B está cerrada.',
-                estudiante_id: 5,
-                examen_id: 10,
+            expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/ingresos', {
+                identificador: '5003748-1A',
             });
         });
-
-        expect(await screen.findByText('Admitido como excepción')).toBeInTheDocument();
-        expect(screen.getByText(/Ingresó a las 08:41/)).toBeInTheDocument();
+        expect(
+            await screen.findByText('Registrado a las 08:39 · su aula sugerida era la 691B')
+        ).toBeInTheDocument();
+        expect(screen.getByText('Tarde · 39 min después del inicio')).toBeInTheDocument();
+        expect(screen.getByText('Tarde · 39 min')).toBeInTheDocument();
     });
 
     it('N4: con el no habilitado no ofrece cambio de aula', async () => {
         api.post.mockImplementation(() =>
             rechazo({
                 veredicto: 'NO_HABILITADO',
-                estudiante: { id: 6, codigo: '202610014', nombre: 'Lima Eva' },
+                estudiante: { id: 6, codigo: '202610014', nombre: 'Lima, Eva' },
                 examen: {
                     id: 10,
                     asignatura: 'Introducción a la Programación',
@@ -427,26 +386,19 @@ describe('PuntoControl HU-19', () => {
         expect(
             await screen.findByText('Cámara no disponible: requiere conexión segura (HTTPS)')
         ).toBeInTheDocument();
-        expect(screen.getByRole('textbox', { name: 'Identificador' })).toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: 'Código SIS o C.I.' })).toBeInTheDocument();
         vi.unstubAllGlobals();
     });
 
-    it('BUG-12 y BUG-13: recientes con hora corta y botón de actualizar', async () => {
+    it('BUG-12 y BUG-13: recientes con nombre sin coma, hora corta y llegada tarde', async () => {
+        respuestas.ingresos = { data: [fila(1, { tarde: 22 })], meta: { total: 1 } };
         montar();
 
-        expect(await screen.findByText('Apellido1 Nombre1')).toBeInTheDocument();
-        expect(screen.getByText('· 08:39')).toBeInTheDocument();
+        const lista = await screen.findByRole('list', { name: 'Ingresos' });
+        expect(await within(lista).findByText('Apellido1 Nombre1')).toBeInTheDocument();
+        expect(within(lista).getByText('08:39')).toBeInTheDocument();
+        expect(within(lista).getByText('Tarde · 22 min')).toBeInTheDocument();
         expect(screen.queryByText(/2026-10-26 08:39:20/)).not.toBeInTheDocument();
-
-        const antes = api.get.mock.calls.filter(
-            ([r]) => r === '/aulas/7/punto-control/ingresos'
-        ).length;
-        fireEvent.click(screen.getByRole('button', { name: 'Actualizar ingresos' }));
-        await waitFor(() => {
-            expect(
-                api.get.mock.calls.filter(([r]) => r === '/aulas/7/punto-control/ingresos').length
-            ).toBeGreaterThan(antes);
-        });
     });
 
     it('BUG-23: «Ver los N» con búsqueda y «Sin resultados»', async () => {
@@ -487,22 +439,25 @@ describe('PuntoControl HU-19', () => {
         expect(await screen.findByText('Sin conexión')).toBeInTheDocument();
     });
 
-    it('BUG-05 y N7: expulsa con motivo y marca «Expulsado» con su hora', async () => {
+    it('BUG-05 y N7: expulsa con motivo en un diálogo y marca «Expulsado» con su hora', async () => {
         api.post.mockResolvedValue({ data: { data: { expulsado: true, hora: '09:10' } } });
 
         montar();
-        fireEvent.click(await screen.findByRole('button', { name: 'Expulsar' }));
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Registrar expulsión de Apellido1 Nombre1' })
+        );
 
-        const motivo = screen.getByRole('textbox', { name: /Motivo de expulsión/ });
+        const dialogo = screen.getByRole('dialog', { name: 'Expulsión' });
+        const motivo = within(dialogo).getByRole('textbox', { name: /Motivo/ });
         fireEvent.change(motivo, { target: { value: 'abc' } });
-        expect(screen.getByRole('button', { name: 'Confirmar expulsión' })).toBeDisabled();
+        expect(within(dialogo).getByRole('button', { name: 'Registrar' })).toBeDisabled();
 
         respuestas.ingresos = {
             data: [fila(1, { expulsado: true, expulsado_a: '09:10' })],
             meta: { total: 1 },
         };
         fireEvent.change(motivo, { target: { value: 'Uso de celular.' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Confirmar expulsión' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Registrar' }));
 
         await waitFor(() => {
             expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/ingresos/1/expulsion', {
@@ -510,35 +465,6 @@ describe('PuntoControl HU-19', () => {
             });
         });
         expect(await screen.findByText('Expulsado · 09:10')).toBeInTheDocument();
-    });
-
-    it('BUG-04: lista los intentos con su tipo legible', async () => {
-        respuestas.incidencias = {
-            data: [
-                {
-                    incidencia_id: 1,
-                    tipo_rechazo: 'NO_REGISTRADO',
-                    detalle: 'Código 99999999 sin registro en el padrón.',
-                    registrado_en: '2026-10-26 08:40:00',
-                    hora: '08:40',
-                    operador: 'Blanco Coca Leticia',
-                },
-                {
-                    incidencia_id: 2,
-                    tipo_rechazo: 'QR_NO_VALIDO',
-                    detalle: 'Código QR no válido.',
-                    registrado_en: '2026-10-26 08:41:00',
-                    hora: '08:41',
-                },
-            ],
-        };
-
-        montar();
-
-        const seccion = await screen.findByRole('region', { name: 'Incidencias de ingreso' });
-        expect(await within(seccion).findByText('Sin registro')).toBeInTheDocument();
-        expect(within(seccion).getByText('Código QR no válido')).toBeInTheDocument();
-        expect(within(seccion).getByText('Blanco Coca Leticia · 08:40')).toBeInTheDocument();
     });
 
     it('bloquea la operación cuando el servidor responde 403', async () => {
@@ -549,15 +475,19 @@ describe('PuntoControl HU-19', () => {
         montar();
         await verificarCodigo();
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('Sin asignación en esta aula');
-        expect(screen.queryByRole('textbox', { name: 'Identificador' })).not.toBeInTheDocument();
+        expect((await screen.findAllByText('Sin asignación en esta aula')).length).toBeGreaterThan(
+            0
+        );
+        expect(
+            screen.queryByRole('textbox', { name: 'Código SIS o C.I.' })
+        ).not.toBeInTheDocument();
     });
 
     it('valida el identificador antes de enviar', async () => {
         montar();
         await verificarCodigo('12');
 
-        expect(await screen.findByText('Código SIS no válido')).toBeInTheDocument();
+        expect(await screen.findByText('Código SIS o C.I. no válido')).toBeInTheDocument();
         expect(api.post).not.toHaveBeenCalled();
     });
 
@@ -574,31 +504,80 @@ describe('PuntoControl HU-19', () => {
         expect(screen.queryByRole('button', { name: 'Verificar' })).not.toBeInTheDocument();
     });
 
-    it('con código de aula usa las rutas del examen y no ofrece expulsar', async () => {
-        localStorage.setItem(
-            'codigo_aula_sesion',
-            JSON.stringify({
-                examen_id: 10,
-                aula_id: 7,
-                aula_nombre: '691A',
-                nombre_colaborador: 'Ana Rocha',
+    it('con código de aula ve la misma puerta, sin expulsar ni excepción', async () => {
+        api.post.mockImplementation(() =>
+            rechazo({
+                veredicto: 'NO_HABILITADO',
+                estudiante: { id: 6, codigo: '202610014', nombre: 'Lima Eva' },
+                dato: 'Sin revisar',
             })
         );
-        api.post.mockResolvedValue({ data: { data: { veredicto: 'ADMITIDO', admitido: true } } });
 
-        montar('/aula');
+        render(
+            <MemoryRouter initialEntries={['/acceso-aula?aula=7']}>
+                <PuntoControl
+                    acceso={{
+                        examen_id: 10,
+                        aula_id: 7,
+                        aula_nombre: '691A',
+                        nombre_colaborador: 'Rocha Ana',
+                    }}
+                />
+            </MemoryRouter>
+        );
 
-        expect(await screen.findByText('Ana Rocha')).toBeInTheDocument();
+        // Los exámenes, sus cifras y las normas, como con cuenta.
+        const lista = await screen.findByRole('list', { name: 'Exámenes del aula' });
+        expect(within(lista).getByText('Introducción a la Programación')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Incidencia' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Expulsar' })).not.toBeInTheDocument();
+
         await verificarCodigo();
-
         await waitFor(() => {
-            expect(api.post).toHaveBeenCalledWith('/examenes/10/aulas/7/punto-control/ingresos', {
-                tipo: 'codigo',
+            expect(api.post).toHaveBeenCalledWith('/aulas/7/punto-control/ingresos', {
                 identificador: '202210098',
             });
         });
-        expect(await screen.findByText('Ingreso admitido')).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Expulsar' })).not.toBeInTheDocument();
-        expect(api.get).not.toHaveBeenCalledWith('/punto-control/contexto', expect.anything());
+        expect(await screen.findByText('Sin revisar')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Situación excepcional' })
+        ).not.toBeInTheDocument();
+    });
+    it('ofrece la lista del aula a quien la sigue y busca entre muchas aulas', async () => {
+        const muchas = Array.from({ length: 8 }, (_, n) => ({
+            id: 7 + n,
+            nombre: `69${n}`,
+            edificio: 'Edificio Académico 2',
+            piso: '1.er piso',
+        }));
+        api.get.mockImplementation((ruta) => {
+            if (ruta === '/punto-control/contexto') {
+                return Promise.resolve({ data: { data: [{ ...examen, aulas: muchas }] } });
+            }
+            if (/^\/aulas\/\d+\/punto-control$/.test(ruta)) {
+                return Promise.resolve({ data: puerta(7) });
+            }
+            if (ruta.endsWith('/punto-control/ingresos'))
+                return Promise.resolve({ data: respuestas.ingresos });
+            return Promise.reject(new Error(`Ruta inesperada ${ruta}`));
+        });
+
+        renderConSesion(<PuntoControl />, {
+            usuario: usuarioDePrueba('Auxiliar'),
+            ruta: '/punto-control',
+        });
+
+        expect(await screen.findByRole('link', { name: /Lista/ })).toHaveAttribute(
+            'href',
+            '/mi-aula?examen=10&aula=7'
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Cambiar' }));
+        const dialogo = screen.getByRole('dialog', { name: 'Aula' });
+        fireEvent.change(within(dialogo).getByRole('textbox', { name: 'Buscar aula' }), {
+            target: { value: '697' },
+        });
+        expect(within(dialogo).getByText('Aula 697')).toBeInTheDocument();
+        expect(within(dialogo).queryByText('Aula 691')).not.toBeInTheDocument();
     });
 });

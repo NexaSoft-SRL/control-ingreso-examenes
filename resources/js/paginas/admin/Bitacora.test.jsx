@@ -95,6 +95,39 @@ describe('Bitacora', () => {
         );
     });
 
+    it('nombra las operaciones de las incidencias unificadas', async () => {
+        simularApi(api, {
+            'GET /bitacora': {
+                data: [
+                    {
+                        id: 4,
+                        usuario: { id: 7, name: 'Blanco Coca Leticia' },
+                        operacion: 'incidencia.corregir',
+                        tabla_afectada: 'incidencias',
+                        registro_id: 15,
+                        descripcion: 'Corrigió: Material no permitido · Apuntes.',
+                        fecha_operacion: '2026-10-19 10:59:00',
+                    },
+                    {
+                        id: 5,
+                        usuario: { id: 7, name: 'Blanco Coca Leticia' },
+                        operacion: 'incidencia.atender',
+                        tabla_afectada: 'incidencias',
+                        registro_id: 15,
+                        descripcion: 'Atendió: Material no permitido en Cálculo I, aula 691A.',
+                        fecha_operacion: '2026-10-19 11:00:00',
+                    },
+                ],
+            },
+        });
+
+        montar();
+
+        expect(await screen.findByText('2 eventos')).toBeInTheDocument();
+        expect(screen.getAllByText('Corrección de incidencia').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Incidencia atendida').length).toBeGreaterThan(0);
+    });
+
     it('BUG-15 y N2: nombra las operaciones de la puerta', async () => {
         simularApi(api, {
             'GET /bitacora': {

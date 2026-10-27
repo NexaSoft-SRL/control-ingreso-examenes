@@ -8,7 +8,6 @@ enum VeredictoIngreso: string
 {
     case Admitido = 'ADMITIDO';
     case NoHabilitado = 'NO_HABILITADO';
-    case OtraAula = 'OTRA_AULA';
     case YaIngreso = 'YA_INGRESO';
     case NoCorresponde = 'NO_CORRESPONDE';
     case Expulsado = 'EXPULSADO';

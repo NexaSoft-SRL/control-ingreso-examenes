@@ -6,7 +6,7 @@ namespace App\Modules\Ingreso\Application\Actions;
 
 use App\Modules\Ingreso\Application\Contracts\DetallePuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaIngresoGateway;
-use App\Modules\Ingreso\Application\Contracts\OperacionesPuertaGateway;
+use App\Modules\Ingreso\Application\DTOs\OperadorPuertaData;
 use App\Modules\Ingreso\Application\DTOs\ResultadoResolucionPuertaData;
 use App\Modules\Ingreso\Domain\Enums\CausaIntento;
 
@@ -20,12 +20,11 @@ final readonly class RegistrarIntentoEnPuerta
 {
     public function __construct(
         private IncidenciaIngresoGateway $incidencias,
-        private OperacionesPuertaGateway $operaciones,
         private DetallePuertaGateway $detalle,
     ) {}
 
     public function ejecutar(
-        int $usuarioId,
+        OperadorPuertaData $operador,
         int $aulaId,
         string $tipo,
         string $identificador,
@@ -35,22 +34,8 @@ final readonly class RegistrarIntentoEnPuerta
             return;
         }
 
-        if ($resultado->ambiguo) {
-            // Nunca adjudicarlo a uno de los examenes del aula: queda una
-            // huella del identificador, no el QR ni el C.I.
-            $this->operaciones->auditarIntentoNoResuelto(
-                $aulaId,
-                $usuarioId,
-                $tipo,
-                $identificador,
-                true,
-            );
-
-            return;
-        }
-
         if ($resultado->causa !== null) {
-            $this->registrarIntento($usuarioId, $aulaId, $tipo, $identificador, $resultado);
+            $this->registrarIntento($operador, $aulaId, $tipo, $identificador, $resultado);
 
             return;
         }
@@ -81,14 +66,15 @@ final readonly class RegistrarIntentoEnPuerta
             $resultado->examenId,
             $aulaId,
             $estudianteId,
-            $usuarioId,
+            $operador->usuarioId,
             $veredicto,
             $texto,
+            $operador->accesoId,
         );
     }
 
     private function registrarIntento(
-        int $usuarioId,
+        OperadorPuertaData $operador,
         int $aulaId,
         string $tipo,
         string $identificador,
@@ -108,10 +94,13 @@ final readonly class RegistrarIntentoEnPuerta
                 $aula,
             ),
             // Un codigo universitario se muestra; un C.I. no se guarda.
-            CausaIntento::NoRegistrado => $tipo === 'codigo'
-                ? sprintf('Código %s sin registro en el padrón.', trim($identificador))
-                : 'Documento sin registro en el padrón.',
+            CausaIntento::NoRegistrado => match ($tipo) {
+                'codigo' => sprintf('Código %s sin registro en el padrón.', trim($identificador)),
+                'documento' => 'Documento sin registro en el padrón.',
+                default => 'Código SIS o C.I. sin registro en el padrón.',
+            },
             CausaIntento::QrNoValido => 'Código QR no válido.',
+            default => $causa->etiqueta().'.',
         };
 
         $estudianteId = $resultado->estudiante?->id;
@@ -130,9 +119,10 @@ final readonly class RegistrarIntentoEnPuerta
         $this->incidencias->registrarIntento(
             $aulaId,
             $estudianteId,
-            $usuarioId,
+            $operador->usuarioId,
             $causa,
             $texto,
+            $operador->accesoId,
         );
     }
 }

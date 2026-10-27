@@ -256,7 +256,7 @@ describe('AtencionAulas (HU-18)', () => {
 
         // Con nombre < 3 o código inválido
         fireEvent.change(screen.getByLabelText(/^Nombre completo/), { target: { value: 'Jo' } });
-        fireEvent.change(screen.getByLabelText(/^Código universitario/), {
+        fireEvent.change(screen.getByLabelText(/^Código SIS/), {
             target: { value: '123' },
         });
         fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
@@ -268,7 +268,7 @@ describe('AtencionAulas (HU-18)', () => {
         fireEvent.change(screen.getByLabelText(/^Nombre completo/), {
             target: { value: 'Carlos Rojas' },
         });
-        fireEvent.change(screen.getByLabelText(/^Código universitario/), {
+        fireEvent.change(screen.getByLabelText(/^Código SIS/), {
             target: { value: '20230005' },
         });
         fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
@@ -327,6 +327,24 @@ describe('AtencionAulas (HU-18)', () => {
         });
     });
 
+    it('avisa si alguien queda a cargo de más de dos aulas a la vez', () => {
+        render(
+            <AtencionAulas
+                aulas={[101, 102, 103]}
+                nombreAula={(id) => String(id)}
+                ubicacionAula={() => ''}
+                docentesDisponibles={[]}
+                cuenta={{ id: 1, nombre: 'Blanco Coca Leticia', rol: 'Docente' }}
+                atencion={{}}
+                onCambiarAtencion={vi.fn()}
+                examenId={7}
+                fechaExamen="2026-10-23"
+            />
+        );
+
+        expect(screen.getByText('Blanco Coca Leticia · 3 aulas a la vez')).toBeInTheDocument();
+    });
+
     it('CA-11, CA-12, CA-13: llave abre diálogo de código, genera, copia y regenera', async () => {
         const onCambiarAtencion = vi.fn();
         const atencion = {
@@ -356,12 +374,9 @@ describe('AtencionAulas (HU-18)', () => {
 
         const dialogo = await screen.findByRole('dialog');
         expect(
-            within(dialogo).getByRole('heading', { name: 'Código de acceso' })
+            within(dialogo).getByRole('heading', { name: 'Código de acceso · Aula 691A' })
         ).toBeInTheDocument();
         expect(within(dialogo).getByText('Sin código')).toBeInTheDocument();
-        expect(within(dialogo).getByText(/Aula:/)).toBeInTheDocument();
-        expect(within(dialogo).getByText(/691A/)).toBeInTheDocument();
-        expect(within(dialogo).getByText(/Fecha del examen:/)).toBeInTheDocument();
         expect(within(dialogo).getByText(/viernes 23 de octubre/)).toBeInTheDocument();
 
         // Pulsar Generar
@@ -398,9 +413,20 @@ describe('AtencionAulas (HU-18)', () => {
         api.post.mockResolvedValueOnce({
             data: { data: { codigo: '999888' } },
         });
+        expect(within(dialogo).getByText('Cada acceso se autoriza en «En curso»')).toBeVisible();
+        const llamadas = api.post.mock.calls.length;
         fireEvent.click(screen.getByRole('button', { name: /Regenerar/ }));
+        // Regenerar corta los accesos: primero se confirma.
+        expect(
+            within(dialogo).getByText(
+                'El código actual deja de abrir la puerta y se cortan sus accesos'
+            )
+        ).toBeInTheDocument();
+        expect(api.post.mock.calls.length).toBe(llamadas);
+        const botones = within(dialogo).getAllByRole('button', { name: /Regenerar/ });
+        fireEvent.click(botones.at(-1));
         await waitFor(() => {
-            expect(api.post).toHaveBeenCalledWith('/examenes/7/aulas/101/codigo');
+            expect(api.post.mock.calls.length).toBe(llamadas + 1);
         });
         expect(await screen.findByText('Código regenerado')).toBeInTheDocument();
 

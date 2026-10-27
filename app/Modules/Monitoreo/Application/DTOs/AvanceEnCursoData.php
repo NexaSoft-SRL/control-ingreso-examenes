@@ -12,12 +12,14 @@ final readonly class AvanceEnCursoData
 {
     /**
      * @param  array<int, AvanceDeAulaData>  $aulas  por id de aula
+     * @param  list<array{hora: string, ingresos: int}>  $llegadas  ingresos por tramo de cinco minutos
      */
     public function __construct(
         public int $ingresaron,
         public int $faltan,
         public ?string $ultimoRegistro,
         public array $aulas,
+        public array $llegadas = [],
     ) {}
 
     public function deAula(int $aulaId): AvanceDeAulaData

@@ -94,6 +94,40 @@ class EloquentContextoOperativoPuntoControl extends ContextoOperativoSinAsignaci
         return $examenes;
     }
 
+    public function examenesDelAula(int $aulaId): array
+    {
+        $filas = DB::table('examenes as e')
+            ->join('asignaturas as asig', 'asig.id', '=', 'e.asignatura_id')
+            ->join('examen_aula as ea', 'ea.examen_id', '=', 'e.id')
+            ->where('ea.aula_id', $aulaId)
+            ->whereDate('e.fecha', now()->toDateString())
+            ->orderBy('e.hora_inicio')
+            ->orderBy('e.id')
+            ->get(['e.id', 'e.fecha', 'e.tipo', 'e.hora_inicio', 'asig.nombre as asignatura_nombre']);
+
+        $examenes = [];
+
+        foreach ($filas as $fila) {
+            $examenId = is_numeric($fila->id) ? (int) $fila->id : 0;
+            $tipo = is_string($fila->tipo) ? $fila->tipo : '';
+
+            $examenes[] = [
+                'id' => $examenId,
+                'fecha' => substr(is_string($fila->fecha) ? $fila->fecha : '', 0, 10),
+                'tipo' => $tipo,
+                'tipo_etiqueta' => $this->etiquetaTipo->de($tipo),
+                'hora' => is_string($fila->hora_inicio) ? substr($fila->hora_inicio, 0, 5) : '',
+                'abierto' => $this->ventana->estaAbierta($examenId),
+                'asignatura' => [
+                    'nombre' => is_string($fila->asignatura_nombre) ? $fila->asignatura_nombre : '',
+                ],
+                'aulas' => $this->aulas([$aulaId]),
+            ];
+        }
+
+        return $examenes;
+    }
+
     /**
      * @param  list<int>  $ids
      * @return list<array{id: int, nombre: string, edificio: string|null, piso: string|null}>
