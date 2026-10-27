@@ -746,7 +746,7 @@ export default function AtencionAulas({
                             placeholder="Ej. Juan Pérez López"
                         />
                         <Campo
-                            etiqueta="Código universitario"
+                            etiqueta="Código SIS"
                             requerido
                             value={nuevoCodigo}
                             onChange={(e) => {
