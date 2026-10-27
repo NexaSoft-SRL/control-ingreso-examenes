@@ -131,4 +131,21 @@ return [
         'name' => env('MAIL_TO_NAME', 'Pruebas'),
     ] : null,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Direcciones permitidas
+    |--------------------------------------------------------------------------
+    |
+    | Con MAIL_PERMITIDOS (direcciones separadas por comas), solo esas
+    | reciben correo: las demas se quitan del mensaje y, si no queda nadie,
+    | no se envia. Sirve para una demostracion con estudiantes reales sobre
+    | datos ficticios, cuyos codigos podrian ser de otras personas.
+    |
+    */
+
+    'permitidos' => array_values(array_filter(array_map(
+        static fn (string $direccion): string => mb_strtolower(trim($direccion)),
+        explode(',', (string) env('MAIL_PERMITIDOS', '')),
+    ))),
+
 ];
