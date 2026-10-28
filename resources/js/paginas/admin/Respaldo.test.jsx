@@ -32,7 +32,11 @@ describe('Respaldo - Cabecera, programación y generación', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         simularApi(api, {
-            'GET /respaldos': { data: respaldosEjemplo },
+            'GET /respaldos': {
+                data: respaldosEjemplo,
+                conteos: { todos: 1, programados: 0, puntuales: 1, fallidos: 0 },
+                ultimo: '2026-10-28 13:15:00',
+            },
         });
     });
 
@@ -58,7 +62,11 @@ describe('Respaldo - Cabecera, programación y generación', () => {
 
     it('sin respaldos muestra «Sin respaldos» y no dice «último» (criterio 1)', async () => {
         simularApi(api, {
-            'GET /respaldos': { data: [] },
+            'GET /respaldos': {
+                data: [],
+                conteos: { todos: 0, programados: 0, puntuales: 0, fallidos: 0 },
+                ultimo: null,
+            },
         });
 
         montar();
@@ -92,6 +100,8 @@ describe('Respaldo - Cabecera, programación y generación', () => {
                         created_at: '2026-10-28 12:00:00',
                     },
                 ],
+                conteos: { todos: 2, programados: 0, puntuales: 2, fallidos: 1 },
+                ultimo: '2026-10-28 12:00:00',
             },
         });
 
@@ -109,7 +119,10 @@ describe('Respaldo - Cabecera, programación y generación', () => {
     it('al pulsar «Respaldar ahora» dice «Respaldando» mientras dura y avisa «Respaldo generado» (criterio 3)', async () => {
         const deferred = respuestaDiferida();
         simularApi(api, {
-            'GET /respaldos': { data: respaldosEjemplo },
+            'GET /respaldos': {
+                data: respaldosEjemplo,
+                conteos: { todos: 1, programados: 0, puntuales: 1, fallidos: 0 },
+            },
             'POST /respaldos': () => deferred.promesa,
         });
 
@@ -142,7 +155,10 @@ describe('Respaldo - Cabecera, programación y generación', () => {
         simularApi(api, {
             'GET /respaldos': () => {
                 consultasGet++;
-                return { data: respaldosEjemplo };
+                return {
+                    data: respaldosEjemplo,
+                    conteos: { todos: 1, programados: 0, puntuales: 1, fallidos: 0 },
+                };
             },
             'POST /respaldos': errorHttp(500, { message: 'Falla al volcar datos' }),
         });
@@ -173,7 +189,11 @@ describe('Respaldo - Cabecera, programación y generación', () => {
 
         // Al pulsar reintentar consulta de nuevo
         simularApi(api, {
-            'GET /respaldos': { data: respaldosEjemplo },
+            'GET /respaldos': {
+                data: respaldosEjemplo,
+                conteos: { todos: 1, programados: 0, puntuales: 1, fallidos: 0 },
+                ultimo: '2026-10-28 13:15:00',
+            },
         });
 
         fireEvent.click(botonReintentar);
@@ -181,5 +201,256 @@ describe('Respaldo - Cabecera, programación y generación', () => {
         expect(
             await screen.findByText('Diario, 03:00 · último: 28 oct 2026, 13:15')
         ).toBeInTheDocument();
+    });
+});
+
+describe('Respaldo - Filtros, listado, paginación y responsividad (Tarea 2)', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('las fichas muestran sus conteos y al pulsar una filtra en el servidor (criterio 2)', async () => {
+        simularApi(api, {
+            'GET /respaldos': (pedido) => {
+                const f = pedido.params?.filtro;
+                if (f === 'programados') {
+                    return {
+                        data: [
+                            {
+                                id: 5,
+                                archivo: 'respaldo-20261027-030000.sql',
+                                tipo: 'Programado',
+                                tamano_bytes: 4000000,
+                                estado: 'Correcto',
+                                fecha: '2026-10-27 03:00',
+                                created_at: '2026-10-27 03:00:00',
+                            },
+                        ],
+                        conteos: { todos: 3, programados: 1, puntuales: 1, fallidos: 1 },
+                        meta: { total: 1, pagina: 1, por_pagina: 15 },
+                    };
+                }
+                return {
+                    data: respaldosEjemplo,
+                    conteos: { todos: 3, programados: 1, puntuales: 1, fallidos: 1 },
+                    meta: { total: 3, pagina: 1, por_pagina: 15 },
+                };
+            },
+        });
+
+        montar();
+
+        // Verifica que las 4 fichas tengan sus conteos
+        expect(await screen.findByRole('button', { name: /Todos\s*3/ })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Programados\s*1/ })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Puntuales\s*1/ })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Fallidos\s*1/ })).toBeInTheDocument();
+
+        // Pulsar «Programados» envía el filtro al servidor
+        fireEvent.click(screen.getByRole('button', { name: /Programados/ }));
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/respaldos', {
+                params: { filtro: 'programados', pagina: 1, por_pagina: 15 },
+            });
+        });
+
+        expect((await screen.findAllByText('27 oct 2026, 03:00')).length).toBeGreaterThan(0);
+    });
+
+    it('un filtro sin coincidencias muestra «Sin resultados» (criterio 2)', async () => {
+        simularApi(api, {
+            'GET /respaldos': (pedido) => {
+                if (pedido.params?.filtro === 'fallidos') {
+                    return {
+                        data: [],
+                        conteos: { todos: 2, programados: 1, puntuales: 1, fallidos: 0 },
+                        meta: { total: 0, pagina: 1, por_pagina: 15 },
+                    };
+                }
+                return {
+                    data: respaldosEjemplo,
+                    conteos: { todos: 2, programados: 1, puntuales: 1, fallidos: 0 },
+                    meta: { total: 2, pagina: 1, por_pagina: 15 },
+                };
+            },
+        });
+
+        montar();
+
+        const fichaFallidos = await screen.findByRole('button', { name: /Fallidos/ });
+        fireEvent.click(fichaFallidos);
+
+        expect(await screen.findByText('Sin resultados')).toBeInTheDocument();
+    });
+
+    it('un filtro inexistente se rechaza con «El filtro no existe.» (criterio 2)', async () => {
+        simularApi(api, {
+            'GET /respaldos': (pedido) => {
+                if (pedido.params?.filtro === 'inexistente') {
+                    throw errorHttp(422, { message: 'El filtro no existe.' });
+                }
+                return {
+                    data: respaldosEjemplo,
+                    conteos: { todos: 1, programados: 0, puntuales: 1, fallidos: 0 },
+                    meta: { total: 1, pagina: 1, por_pagina: 15 },
+                };
+            },
+        });
+
+        montar();
+
+        // Espera a que cargue
+        expect(
+            await screen.findByRole('heading', { level: 2, name: 'Historial' })
+        ).toBeInTheDocument();
+
+        // Simulamos un rechazo de filtro
+        simularApi(api, {
+            'GET /respaldos': () => {
+                throw errorHttp(422, { message: 'El filtro no existe.' });
+            },
+        });
+
+        const ficha = screen.getByRole('button', { name: /Programados/ });
+        fireEvent.click(ficha);
+
+        expect(await screen.findByText('El filtro no existe.')).toBeInTheDocument();
+    });
+
+    it('al generar un respaldo puntual mientras se está en un filtro que lo ocultaría, cambia a «Todos» y lo muestra primero (criterio 3)', async () => {
+        let elementos = [
+            {
+                id: 5,
+                archivo: 'respaldo-20261027-030000.sql',
+                tipo: 'Programado',
+                tamano_bytes: 4000000,
+                estado: 'Correcto',
+                fecha: '2026-10-27 03:00',
+                created_at: '2026-10-27 03:00:00',
+            },
+        ];
+
+        const nuevoPuntual = {
+            id: 99,
+            archivo: 'respaldo-20261028-170000.sql',
+            tipo: 'Puntual',
+            tamano_bytes: 5000000,
+            estado: 'Correcto',
+            fecha: '2026-10-28 17:00',
+            created_at: '2026-10-28 17:00:00',
+        };
+
+        simularApi(api, {
+            'GET /respaldos': (pedido) => {
+                const f = pedido.params?.filtro;
+                const filtrados =
+                    f === 'programados'
+                        ? elementos.filter((e) => e.tipo === 'Programado')
+                        : elementos;
+                return {
+                    data: filtrados,
+                    conteos: {
+                        todos: elementos.length,
+                        programados: elementos.filter((e) => e.tipo === 'Programado').length,
+                        puntuales: elementos.filter((e) => e.tipo === 'Puntual').length,
+                        fallidos: elementos.filter((e) => e.estado === 'Fallido').length,
+                    },
+                    meta: { total: filtrados.length, pagina: 1, por_pagina: 15 },
+                };
+            },
+            'POST /respaldos': () => {
+                elementos = [nuevoPuntual, ...elementos];
+                return { data: nuevoPuntual };
+            },
+        });
+
+        montar();
+
+        // Cambiamos al filtro Programados
+        const fichaProgramados = await screen.findByRole('button', { name: /Programados/ });
+        fireEvent.click(fichaProgramados);
+
+        expect((await screen.findAllByText('27 oct 2026, 03:00')).length).toBeGreaterThan(0);
+
+        // Pulsamos Respaldar ahora
+        const botonRespaldar = screen.getByRole('button', { name: 'Respaldar ahora' });
+        fireEvent.click(botonRespaldar);
+
+        expect(await screen.findByText('Respaldo generado')).toBeInTheDocument();
+
+        // El nuevo respaldo puntual debe mostrarse de inmediato
+        expect((await screen.findAllByText('28 oct 2026, 17:00')).length).toBeGreaterThan(0);
+    });
+
+    it('un respaldo fallido muestra tamaño «—» y no tiene acciones de descarga ni restaurar (criterios 5, 6 y 10)', async () => {
+        simularApi(api, {
+            'GET /respaldos': {
+                data: [
+                    {
+                        id: 10,
+                        archivo: 'respaldo-20261028-100000.sql',
+                        tipo: 'Puntual',
+                        tamano_bytes: 0,
+                        estado: 'Fallido',
+                        error: 'Error de escritura en disco',
+                        fecha: '2026-10-28 10:00',
+                        created_at: '2026-10-28 10:00:00',
+                    },
+                ],
+                conteos: { todos: 1, programados: 0, puntuales: 1, fallidos: 1 },
+                meta: { total: 1, pagina: 1, por_pagina: 15 },
+            },
+        });
+
+        montar();
+
+        expect((await screen.findAllByText('28 oct 2026, 10:00')).length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Fallido').length).toBeGreaterThan(0);
+        // Debe mostrar tamaño «—»
+        expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+        // No debe tener botones de Descargar ni Restaurar para esta fila
+        expect(screen.queryByRole('button', { name: 'Descargar' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Restaurar' })).not.toBeInTheDocument();
+    });
+
+    it('pagina en el servidor cuando hay más de 15 respaldos (criterios 1 y 2)', async () => {
+        const crearLista = (inicio, cantidad) =>
+            Array.from({ length: cantidad }, (_, i) => ({
+                id: inicio + i,
+                archivo: `respaldo-20261028-${String(inicio + i).padStart(6, '0')}.sql`,
+                tipo: 'Puntual',
+                tamano_bytes: 1048576,
+                estado: 'Correcto',
+                fecha: `2026-10-28 12:${String(i).padStart(2, '0')}`,
+                created_at: `2026-10-28 12:${String(i).padStart(2, '0')}:00`,
+            }));
+
+        simularApi(api, {
+            'GET /respaldos': (pedido) => {
+                const pag = pedido.params?.pagina ?? 1;
+                return {
+                    data: pag === 1 ? crearLista(1, 15) : crearLista(16, 5),
+                    conteos: { todos: 20, programados: 0, puntuales: 20, fallidos: 0 },
+                    meta: { total: 20, pagina: pag, por_pagina: 15 },
+                };
+            },
+        });
+
+        montar();
+
+        expect(await screen.findByText('1–15 de 20 respaldos')).toBeInTheDocument();
+
+        // Pulsar página siguiente
+        const botonSiguiente = screen.getByRole('button', { name: 'Página siguiente' });
+        fireEvent.click(botonSiguiente);
+
+        await waitFor(() => {
+            expect(api.get).toHaveBeenCalledWith('/respaldos', {
+                params: { pagina: 2, por_pagina: 15 },
+            });
+        });
+
+        expect(await screen.findByText('16–20 de 20 respaldos')).toBeInTheDocument();
     });
 });
