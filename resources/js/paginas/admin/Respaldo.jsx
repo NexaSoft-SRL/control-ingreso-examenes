@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Download, RotateCcw } from 'lucide-react';
 import { api } from '../../api/cliente';
+import descargar from '../../api/descargar';
 import { useAviso } from '../../componentes/Aviso';
 import Boton from '../../componentes/Boton';
 import Chips from '../../componentes/Chips';
@@ -69,6 +70,10 @@ export default function Respaldo() {
     });
     const [totalSistema, setTotalSistema] = useState(0);
 
+    const [descargandoId, setDescargandoId] = useState(null);
+    const [confirmandoRestaurarId, setConfirmandoRestaurarId] = useState(null);
+    const [restaurandoId, setRestaurandoId] = useState(null);
+
     const [aviso, avisar] = useAviso();
     const ultimaConsulta = useRef(0);
 
@@ -108,7 +113,6 @@ export default function Respaldo() {
                     setConteos(cuerpo.conteos);
                     setTotalSistema(cuerpo.conteos.todos ?? totalCalculado);
                 } else {
-                    // Si no vienen conteos, estimar o preservar
                     setConteos((previos) => {
                         const nuevo = { ...previos };
                         if (filtroActual === 'todos') {
@@ -165,7 +169,7 @@ export default function Respaldo() {
     }
 
     async function manejarRespaldar() {
-        if (respaldando) return;
+        if (respaldando || restaurandoId !== null) return;
         setRespaldando(true);
 
         try {
@@ -180,23 +184,22 @@ export default function Respaldo() {
                 setPagina(1);
             } else {
                 setPagina(1);
-            }
-
-            if (nuevo && typeof nuevo === 'object') {
-                setRespaldos((anteriores) => [nuevo, ...anteriores]);
-                const fechaNuevo = nuevo.fecha ?? nuevo.created_at;
-                if (fechaNuevo && nuevo.estado?.toLowerCase() !== 'fallido') {
-                    setUltimoCorrecto(fechaNuevo);
+                if (nuevo && typeof nuevo === 'object') {
+                    setRespaldos((anteriores) => [nuevo, ...anteriores]);
+                    const fechaNuevo = nuevo.fecha ?? nuevo.created_at;
+                    if (fechaNuevo && nuevo.estado?.toLowerCase() !== 'fallido') {
+                        setUltimoCorrecto(fechaNuevo);
+                    }
+                    setConteos((c) => ({
+                        ...c,
+                        todos: (c.todos ?? 0) + 1,
+                        puntuales: (c.puntuales ?? 0) + 1,
+                    }));
+                    setTotal((t) => t + 1);
+                    setTotalSistema((t) => t + 1);
+                } else {
+                    await cargarHistorial(filtro, 1);
                 }
-                setConteos((c) => ({
-                    ...c,
-                    todos: (c.todos ?? 0) + 1,
-                    puntuales: (c.puntuales ?? 0) + 1,
-                }));
-                setTotal((t) => t + 1);
-                setTotalSistema((t) => t + 1);
-            } else {
-                await cargarHistorial(filtro, 1);
             }
         } catch {
             avisar('No se pudo generar el respaldo', 'error');
@@ -209,6 +212,80 @@ export default function Respaldo() {
     function cambiarFiltro(nuevoFiltro) {
         setFiltro(nuevoFiltro);
         setPagina(1);
+    }
+
+    async function manejarDescargar(respaldo) {
+        if (respaldo.estado?.toLowerCase() === 'fallido') {
+            avisar('Ese respaldo falló: no hay archivo que descargar.', 'error');
+            return;
+        }
+
+        setDescargandoId(respaldo.id);
+        try {
+            const nombre = await descargar(`/respaldos/${respaldo.id}/archivo`, {
+                nombre: respaldo.archivo ?? `respaldo-${respaldo.id}.sql`,
+            });
+            avisar(`${nombre} descargado`);
+        } catch (error) {
+            const mensaje = error?.response?.data?.message;
+            if (mensaje) {
+                avisar(mensaje, 'error');
+            } else if (error?.response?.status === 404) {
+                avisar('Respaldo no encontrado.', 'error');
+            } else {
+                avisar('El archivo de ese respaldo ya no está en disco.', 'error');
+            }
+        } finally {
+            setDescargandoId(null);
+        }
+    }
+
+    async function manejarConfirmarRestauracion(respaldo) {
+        if (restaurandoId !== null) return;
+        setRestaurandoId(respaldo.id);
+
+        try {
+            await api.post(`/respaldos/${respaldo.id}/restaurar`);
+
+            const fechaTexto = fechaCorta(respaldo.fecha ?? respaldo.created_at);
+            avisar(`Restaurado al ${fechaTexto}`);
+
+            // Criterio 8: marca la fila «Restaurado», solo la del último restaurado
+            setRespaldos((previos) =>
+                previos.map((r) => {
+                    if (r.id === respaldo.id) {
+                        return { ...r, estado: 'Restaurado' };
+                    }
+                    if (r.estado?.toLowerCase() === 'restaurado') {
+                        return { ...r, estado: 'Correcto' };
+                    }
+                    return r;
+                })
+            );
+            setConfirmandoRestaurarId(null);
+        } catch (error) {
+            const mensaje = error?.response?.data?.message;
+            if (
+                mensaje?.includes('versión anterior') ||
+                mensaje?.includes('incompatible') ||
+                error?.response?.status === 422
+            ) {
+                // Criterio 10: aviso Respaldo incompatible y marca la fila Incompatible
+                avisar('Respaldo incompatible', 'error');
+                setRespaldos((previos) =>
+                    previos.map((r) =>
+                        r.id === respaldo.id ? { ...r, estado: 'Incompatible' } : r
+                    )
+                );
+            } else if (mensaje) {
+                avisar(mensaje, 'error');
+            } else {
+                avisar('No se pudo restaurar el respaldo', 'error');
+            }
+            setConfirmandoRestaurarId(null);
+        } finally {
+            setRestaurandoId(null);
+        }
     }
 
     const opcionesChips = [
@@ -237,7 +314,7 @@ export default function Respaldo() {
                     type="button"
                     onClick={manejarRespaldar}
                     cargando={respaldando}
-                    disabled={respaldando}
+                    disabled={respaldando || restaurandoId !== null}
                 >
                     {respaldando ? 'Respaldando' : 'Respaldar ahora'}
                 </Boton>
@@ -311,12 +388,18 @@ export default function Respaldo() {
                                             ? 'Programado'
                                             : 'Puntual';
                                     const esFallido = respaldo.estado?.toLowerCase() === 'fallido';
+                                    const esIncompatible =
+                                        respaldo.estado?.toLowerCase() === 'incompatible';
                                     const tamano = esFallido
                                         ? '—'
                                         : formatearTamano(respaldo.tamano_bytes, respaldo.tamano);
                                     const estadoEtiqueta =
                                         respaldo.estado?.charAt(0).toUpperCase() +
                                         respaldo.estado?.slice(1).toLowerCase();
+
+                                    const enConfirmacion = confirmandoRestaurarId === respaldo.id;
+                                    const estaRestaurandoEste = restaurandoId === respaldo.id;
+                                    const hayAlgunaRestauracion = restaurandoId !== null;
 
                                     return (
                                         <tr key={respaldo.id} className="hover:bg-slate-50/80">
@@ -337,26 +420,73 @@ export default function Respaldo() {
                                             <td className="whitespace-nowrap px-4 py-3 text-right">
                                                 {esFallido ? (
                                                     <span className="text-slate-400">—</span>
+                                                ) : enConfirmacion ? (
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <span className="text-xs font-semibold text-danger-700">
+                                                            Sobrescribe los datos actuales
+                                                        </span>
+                                                        <Boton
+                                                            type="button"
+                                                            tamano="chico"
+                                                            variante="secundario"
+                                                            disabled={hayAlgunaRestauracion}
+                                                            onClick={() =>
+                                                                setConfirmandoRestaurarId(null)
+                                                            }
+                                                        >
+                                                            Cancelar
+                                                        </Boton>
+                                                        <Boton
+                                                            type="button"
+                                                            tamano="chico"
+                                                            variante="peligro"
+                                                            cargando={estaRestaurandoEste}
+                                                            disabled={hayAlgunaRestauracion}
+                                                            onClick={() =>
+                                                                manejarConfirmarRestauracion(
+                                                                    respaldo
+                                                                )
+                                                            }
+                                                        >
+                                                            {estaRestaurandoEste
+                                                                ? 'Restaurando'
+                                                                : 'Restaurar'}
+                                                        </Boton>
+                                                    </div>
                                                 ) : (
                                                     <div className="flex items-center justify-end gap-2">
                                                         <Boton
                                                             type="button"
                                                             tamano="chico"
                                                             variante="secundario"
-                                                            onClick={() => {}}
+                                                            cargando={descargandoId === respaldo.id}
+                                                            disabled={
+                                                                hayAlgunaRestauracion ||
+                                                                descargandoId === respaldo.id
+                                                            }
+                                                            onClick={() =>
+                                                                manejarDescargar(respaldo)
+                                                            }
                                                         >
                                                             <Download className="h-3.5 w-3.5" />
                                                             Descargar
                                                         </Boton>
-                                                        <Boton
-                                                            type="button"
-                                                            tamano="chico"
-                                                            variante="secundario"
-                                                            onClick={() => {}}
-                                                        >
-                                                            <RotateCcw className="h-3.5 w-3.5" />
-                                                            Restaurar
-                                                        </Boton>
+                                                        {!esIncompatible && (
+                                                            <Boton
+                                                                type="button"
+                                                                tamano="chico"
+                                                                variante="secundario"
+                                                                disabled={hayAlgunaRestauracion}
+                                                                onClick={() =>
+                                                                    setConfirmandoRestaurarId(
+                                                                        respaldo.id
+                                                                    )
+                                                                }
+                                                            >
+                                                                <RotateCcw className="h-3.5 w-3.5" />
+                                                                Restaurar
+                                                            </Boton>
+                                                        )}
                                                     </div>
                                                 )}
                                             </td>
@@ -376,12 +506,18 @@ export default function Respaldo() {
                                     ? 'Programado'
                                     : 'Puntual';
                             const esFallido = respaldo.estado?.toLowerCase() === 'fallido';
+                            const esIncompatible =
+                                respaldo.estado?.toLowerCase() === 'incompatible';
                             const tamano = esFallido
                                 ? '—'
                                 : formatearTamano(respaldo.tamano_bytes, respaldo.tamano);
                             const estadoEtiqueta =
                                 respaldo.estado?.charAt(0).toUpperCase() +
                                 respaldo.estado?.slice(1).toLowerCase();
+
+                            const enConfirmacion = confirmandoRestaurarId === respaldo.id;
+                            const estaRestaurandoEste = restaurandoId === respaldo.id;
+                            const hayAlgunaRestauracion = restaurandoId !== null;
 
                             return (
                                 <div
@@ -402,28 +538,74 @@ export default function Respaldo() {
                                     {respaldo.error && (
                                         <p className="text-xs text-danger-600">{respaldo.error}</p>
                                     )}
-                                    {!esFallido && (
+
+                                    {!esFallido && enConfirmacion && (
+                                        <div className="mt-2 flex flex-col gap-2 rounded-lg border border-danger-200 bg-danger-50 p-2.5">
+                                            <p className="text-xs font-semibold text-danger-700">
+                                                Sobrescribe los datos actuales
+                                            </p>
+                                            <div className="flex items-center gap-2">
+                                                <Boton
+                                                    type="button"
+                                                    tamano="chico"
+                                                    variante="secundario"
+                                                    className="flex-1"
+                                                    disabled={hayAlgunaRestauracion}
+                                                    onClick={() => setConfirmandoRestaurarId(null)}
+                                                >
+                                                    Cancelar
+                                                </Boton>
+                                                <Boton
+                                                    type="button"
+                                                    tamano="chico"
+                                                    variante="peligro"
+                                                    className="flex-1"
+                                                    cargando={estaRestaurandoEste}
+                                                    disabled={hayAlgunaRestauracion}
+                                                    onClick={() =>
+                                                        manejarConfirmarRestauracion(respaldo)
+                                                    }
+                                                >
+                                                    {estaRestaurandoEste
+                                                        ? 'Restaurando'
+                                                        : 'Restaurar'}
+                                                </Boton>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {!esFallido && !enConfirmacion && (
                                         <div className="mt-1 flex items-center gap-2 border-t border-slate-100 pt-2.5">
                                             <Boton
                                                 type="button"
                                                 tamano="chico"
                                                 variante="secundario"
                                                 className="flex-1"
-                                                onClick={() => {}}
+                                                cargando={descargandoId === respaldo.id}
+                                                disabled={
+                                                    hayAlgunaRestauracion ||
+                                                    descargandoId === respaldo.id
+                                                }
+                                                onClick={() => manejarDescargar(respaldo)}
                                             >
                                                 <Download className="h-3.5 w-3.5" />
                                                 Descargar
                                             </Boton>
-                                            <Boton
-                                                type="button"
-                                                tamano="chico"
-                                                variante="secundario"
-                                                className="flex-1"
-                                                onClick={() => {}}
-                                            >
-                                                <RotateCcw className="h-3.5 w-3.5" />
-                                                Restaurar
-                                            </Boton>
+                                            {!esIncompatible && (
+                                                <Boton
+                                                    type="button"
+                                                    tamano="chico"
+                                                    variante="secundario"
+                                                    className="flex-1"
+                                                    disabled={hayAlgunaRestauracion}
+                                                    onClick={() =>
+                                                        setConfirmandoRestaurarId(respaldo.id)
+                                                    }
+                                                >
+                                                    <RotateCcw className="h-3.5 w-3.5" />
+                                                    Restaurar
+                                                </Boton>
+                                            )}
                                         </div>
                                     )}
                                 </div>

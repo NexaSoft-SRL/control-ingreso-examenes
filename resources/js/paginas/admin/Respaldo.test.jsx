@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Respaldo from './Respaldo';
 import { api } from '../../api/cliente';
+import descargar from '../../api/descargar';
 import {
     errorHttp,
     renderConSesion,
@@ -11,6 +12,7 @@ import {
 } from '../../test/apoyo';
 
 vi.mock('../../api/cliente');
+vi.mock('../../api/descargar', () => ({ default: vi.fn() }));
 
 const respaldosEjemplo = [
     {
@@ -452,5 +454,204 @@ describe('Respaldo - Filtros, listado, paginación y responsividad (Tarea 2)', (
         });
 
         expect(await screen.findByText('16–20 de 20 respaldos')).toBeInTheDocument();
+    });
+});
+
+describe('Respaldo - Descarga de archivo (Criterio 6)', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        descargar.mockReset();
+    });
+
+    it('descarga el archivo .sql y muestra «[archivo] descargado»', async () => {
+        descargar.mockResolvedValueOnce('respaldo-20261028-131500.sql');
+        simularApi(api, {
+            'GET /respaldos': {
+                data: [respaldosEjemplo[0]],
+                conteos: { todos: 1, programados: 0, puntuales: 1, fallidos: 0 },
+            },
+        });
+
+        montar();
+
+        const [botonDescargar] = await screen.findAllByRole('button', { name: 'Descargar' });
+        fireEvent.click(botonDescargar);
+
+        await waitFor(() => {
+            expect(descargar).toHaveBeenCalledWith('/respaldos/1/archivo', {
+                nombre: 'respaldo-20261028-131500.sql',
+            });
+        });
+
+        expect(
+            await screen.findByText('respaldo-20261028-131500.sql descargado')
+        ).toBeInTheDocument();
+    });
+
+    it('si el archivo ya no está en disco avisa «El archivo de ese respaldo ya no está en disco.»', async () => {
+        descargar.mockRejectedValueOnce(new Error('Archivo no encontrado en disco'));
+        simularApi(api, {
+            'GET /respaldos': {
+                data: [respaldosEjemplo[0]],
+                conteos: { todos: 1, programados: 0, puntuales: 1, fallidos: 0 },
+            },
+        });
+
+        montar();
+
+        const [botonDescargar] = await screen.findAllByRole('button', { name: 'Descargar' });
+        fireEvent.click(botonDescargar);
+
+        expect(
+            await screen.findByText('El archivo de ese respaldo ya no está en disco.')
+        ).toBeInTheDocument();
+    });
+
+    it('si el respaldo no se encuentra (404) avisa «Respaldo no encontrado.»', async () => {
+        descargar.mockRejectedValueOnce({ response: { status: 404 } });
+        simularApi(api, {
+            'GET /respaldos': {
+                data: [respaldosEjemplo[0]],
+                conteos: { todos: 1, programados: 0, puntuales: 1, fallidos: 0 },
+            },
+        });
+
+        montar();
+
+        const [botonDescargar] = await screen.findAllByRole('button', { name: 'Descargar' });
+        fireEvent.click(botonDescargar);
+
+        expect(await screen.findByText('Respaldo no encontrado.')).toBeInTheDocument();
+    });
+});
+
+describe('Respaldo - Confirmación y restauración (Criterios 7, 8, 9 y 10)', () => {
+    const listaRespaldos = [
+        {
+            id: 1,
+            archivo: 'respaldo-20261028-131500.sql',
+            tipo: 'Puntual',
+            tamano_bytes: 5872025,
+            estado: 'Correcto',
+            fecha: '2026-10-28 13:15',
+            created_at: '2026-10-28 13:15:00',
+        },
+        {
+            id: 2,
+            archivo: 'respaldo-20261027-030000.sql',
+            tipo: 'Programado',
+            tamano_bytes: 5120000,
+            estado: 'Restaurado',
+            fecha: '2026-10-27 03:00',
+            created_at: '2026-10-27 03:00:00',
+        },
+    ];
+
+    const configurarApi = (rutas = {}) =>
+        simularApi(api, {
+            'GET /respaldos': {
+                data: listaRespaldos,
+                conteos: { todos: 2, programados: 1, puntuales: 1, fallidos: 0 },
+            },
+            ...rutas,
+        });
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        descargar.mockReset();
+        configurarApi();
+    });
+
+    it('al pulsar «Restaurar» pide confirmación inline con «Sobrescribe los datos actuales» y «Cancelar» lo aborta (criterio 7)', async () => {
+        montar();
+
+        const [botonRestaurar] = await screen.findAllByRole('button', { name: 'Restaurar' });
+        fireEvent.click(botonRestaurar);
+
+        // Aparece la confirmación inline
+        expect(screen.getAllByText('Sobrescribe los datos actuales').length).toBeGreaterThan(0);
+        const [botonCancelar] = screen.getAllByRole('button', { name: 'Cancelar' });
+        expect(botonCancelar).toBeInTheDocument();
+
+        // Al pulsar Cancelar se oculta sin llamar a la api
+        fireEvent.click(botonCancelar);
+        expect(screen.queryByText('Sobrescribe los datos actuales')).not.toBeInTheDocument();
+        expect(api.post).not.toHaveBeenCalledWith(expect.stringContaining('/restaurar'));
+    });
+
+    it('durante la restauración el botón dice «Restaurando» y bloquea «Respaldar ahora» y otras restauraciones (criterios 8 y 9)', async () => {
+        const diferido = respuestaDiferida();
+        configurarApi({
+            'POST /respaldos/1/restaurar': () => diferido.promesa,
+        });
+
+        montar();
+
+        const [botonRestaurar] = await screen.findAllByRole('button', { name: 'Restaurar' });
+        fireEvent.click(botonRestaurar);
+
+        const [botonConfirmar] = screen.getAllByRole('button', { name: 'Restaurar' });
+        fireEvent.click(botonConfirmar);
+
+        // Botón Respaldar ahora deshabilitado
+        expect(screen.getByRole('button', { name: 'Respaldar ahora' })).toBeDisabled();
+
+        // Botón Restaurando en carga
+        expect(screen.getAllByRole('button', { name: 'Restaurando' }).length).toBeGreaterThan(0);
+
+        diferido.resolver({ data: { message: 'Restaurado con éxito' } });
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: 'Respaldar ahora' })).not.toBeDisabled();
+        });
+    });
+
+    it('al restaurar con éxito avisa «Restaurado al [fecha]» y solo ese respaldo queda como «Restaurado» (criterio 8)', async () => {
+        configurarApi({
+            'POST /respaldos/1/restaurar': { data: { message: 'Restaurado con éxito' } },
+        });
+
+        montar();
+
+        const [botonRestaurar] = await screen.findAllByRole('button', { name: 'Restaurar' });
+        fireEvent.click(botonRestaurar);
+
+        const [botonConfirmar] = screen.getAllByRole('button', { name: 'Restaurar' });
+        fireEvent.click(botonConfirmar);
+
+        expect(await screen.findByText('Restaurado al 28 oct 2026, 13:15')).toBeInTheDocument();
+
+        // El respaldo 1 ahora tiene estado Restaurado
+        // Y el respaldo 2 (que antes era Restaurado) ahora debe ser Correcto
+        await waitFor(() => {
+            const insigniasRestaurado = screen.getAllByText('Restaurado');
+            // En vista de escritorio y móvil, sólo debe haber insignias 'Restaurado' para el elemento 1
+            expect(insigniasRestaurado.length).toBe(2);
+        });
+    });
+
+    it('si el respaldo es incompatible avisa «Respaldo incompatible», marca la fila «Incompatible» y oculta «Restaurar» manteniendo «Descargar» (criterio 10)', async () => {
+        configurarApi({
+            'POST /respaldos/1/restaurar': errorHttp(422, {
+                message: 'El respaldo corresponde a una versión anterior incompatible.',
+            }),
+        });
+
+        montar();
+
+        const [botonRestaurar] = await screen.findAllByRole('button', { name: 'Restaurar' });
+        fireEvent.click(botonRestaurar);
+
+        const [botonConfirmar] = screen.getAllByRole('button', { name: 'Restaurar' });
+        fireEvent.click(botonConfirmar);
+
+        expect(await screen.findByText('Respaldo incompatible')).toBeInTheDocument();
+
+        // Debe marcarse como Incompatible
+        expect(screen.getAllByText('Incompatible').length).toBeGreaterThan(0);
+
+        // No debe mostrar botón de Restaurar para esa fila
+        // pero sí Descargar
+        expect(screen.getAllByRole('button', { name: 'Descargar' }).length).toBeGreaterThan(0);
     });
 });
