@@ -61,6 +61,7 @@ describe('EsquemaApp', () => {
             'Padrón',
             'Usuarios y roles',
             'Bitácora',
+            'Respaldo',
         ]);
         expect(within(menus()[lateral]).getByText('Preparación')).toBeInTheDocument();
         expect(within(menus()[lateral]).queryByText('Docencia')).not.toBeInTheDocument();
@@ -75,7 +76,12 @@ describe('EsquemaApp', () => {
             within(hoja)
                 .getAllByRole('link')
                 .map((e) => e.textContent)
-        ).toEqual(['Aulas y mapaPreparación', 'Usuarios y rolesSistema', 'BitácoraSistema']);
+        ).toEqual([
+            'Aulas y mapaPreparación',
+            'Usuarios y rolesSistema',
+            'BitácoraSistema',
+            'RespaldoSistema',
+        ]);
 
         fireEvent.click(within(hoja).getByRole('link', { name: /Bitácora/ }));
         expect(screen.getByText('Estoy en /bitacora')).toBeInTheDocument();
