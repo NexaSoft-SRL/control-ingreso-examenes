@@ -2,6 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import LectorQr from './LectorQr';
 
+const motor = { terminate: vi.fn() };
+const escanear = vi.fn();
+
+vi.mock('qr-scanner', () => ({
+    default: {
+        createQrEngine: vi.fn(async () => motor),
+        scanImage: (...args) => escanear(...args),
+    },
+}));
+
 const pista = { stop: vi.fn() };
 
 const flujo = {
@@ -85,16 +95,54 @@ describe('LectorQr', () => {
         expect(pista.stop).toHaveBeenCalled();
     });
 
-    it('informa cuando el navegador carece de lector nativo', async () => {
+    it('sin lector nativo (Safari en iPhone) lee con qr-scanner', async () => {
         vi.stubGlobal('BarcodeDetector', undefined);
+        escanear
+            .mockRejectedValueOnce(new Error('No QR code found'))
+            .mockResolvedValue({ data: 'SCIQR1:contenido-cifrado' });
+        const alDetectar = vi.fn();
+
+        render(<LectorQr alDetectar={alDetectar} alCerrar={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(screen.queryByText('Iniciando cámara…')).not.toBeInTheDocument();
+        });
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+        // Un cuadro sin código sigue explorando; el siguiente lo lee.
+        await requestAnimationFrame.mock.calls[0][0]();
+        expect(alDetectar).not.toHaveBeenCalled();
+        await requestAnimationFrame.mock.calls[1][0]();
+
+        expect(alDetectar).toHaveBeenCalledWith('SCIQR1:contenido-cifrado');
+        expect(escanear).toHaveBeenCalledWith(expect.any(HTMLVideoElement), {
+            qrEngine: motor,
+            returnDetailedScanResult: true,
+        });
+        expect(pista.stop).toHaveBeenCalled();
+        expect(motor.terminate).toHaveBeenCalled();
+    });
+
+    it('informa cuando el navegador no da acceso a cámaras', async () => {
+        Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: undefined });
 
         render(<LectorQr alDetectar={vi.fn()} alCerrar={vi.fn()} />);
 
         expect(
             await screen.findByText('Cámara no disponible en este navegador')
         ).toBeInTheDocument();
+    });
 
-        expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
+    it('distingue el teléfono sin cámara del permiso denegado', async () => {
+        navigator.mediaDevices.getUserMedia.mockRejectedValue(
+            Object.assign(new Error('x'), { name: 'NotFoundError' })
+        );
+
+        render(<LectorQr alDetectar={vi.fn()} alCerrar={vi.fn()} />);
+
+        expect(
+            await screen.findByText('Cámara no disponible: no se encontró una cámara')
+        ).toBeInTheDocument();
     });
 
     it('informa cuando se deniega acceso a la cámara', async () => {

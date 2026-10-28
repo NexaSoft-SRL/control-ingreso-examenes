@@ -1,9 +1,52 @@
 import PropTypes from 'prop-types';
 import { useEffect, useRef, useState } from 'react';
 
+// Por qué no se encendió la cámara, según el error de getUserMedia.
+const MOTIVOS = {
+    NotFoundError: 'Cámara no disponible: no se encontró una cámara',
+    OverconstrainedError: 'Cámara no disponible: no se encontró una cámara',
+    NotReadableError: 'Cámara no disponible: la está usando otra aplicación',
+};
+
 // La cámara exige conexión segura (HTTPS, o localhost).
 function conexionSegura() {
     return typeof window === 'undefined' || window.isSecureContext !== false;
+}
+
+// Lee el QR de un cuadro de la cámara. Usa el lector nativo donde existe
+// (Chrome en Android); donde no (Safari en iPhone y Mac, Firefox), el de
+// qr-scanner, que decodifica en un worker propio.
+async function crearLector() {
+    if (typeof window.BarcodeDetector === 'function') {
+        const nativo = new window.BarcodeDetector({ formats: ['qr_code'] });
+
+        return {
+            leer: async (fuente) =>
+                (await nativo.detect(fuente)).find(
+                    (codigo) => typeof codigo.rawValue === 'string' && codigo.rawValue.trim() !== ''
+                )?.rawValue,
+            liberar: () => {},
+        };
+    }
+
+    const { default: QrScanner } = await import('qr-scanner');
+    const motor = await QrScanner.createQrEngine();
+
+    return {
+        leer: async (fuente) => {
+            try {
+                const resultado = await QrScanner.scanImage(fuente, {
+                    qrEngine: motor,
+                    returnDetailedScanResult: true,
+                });
+                return resultado.data?.trim() || undefined;
+            } catch {
+                // Sin código en este cuadro.
+                return undefined;
+            }
+        },
+        liberar: () => motor?.terminate?.(),
+    };
 }
 
 export default function LectorQr({ alDetectar, alCerrar, alFallar }) {
@@ -23,6 +66,7 @@ export default function LectorQr({ alDetectar, alCerrar, alFallar }) {
         let flujo = null;
         let animacion = null;
         let examinando = false;
+        let lector = null;
 
         const detener = () => {
             cerrado = true;
@@ -32,6 +76,8 @@ export default function LectorQr({ alDetectar, alCerrar, alFallar }) {
             }
 
             flujo?.getTracks().forEach((pista) => pista.stop());
+            lector?.liberar();
+            lector = null;
 
             if (video.current) {
                 video.current.pause();
@@ -51,18 +97,18 @@ export default function LectorQr({ alDetectar, alCerrar, alFallar }) {
                 return;
             }
 
-            if (
-                !navigator.mediaDevices?.getUserMedia ||
-                typeof window.BarcodeDetector !== 'function'
-            ) {
+            if (!navigator.mediaDevices?.getUserMedia) {
                 sinCamara('Cámara no disponible en este navegador');
                 return;
             }
 
             try {
-                const detector = new window.BarcodeDetector({
-                    formats: ['qr_code'],
-                });
+                lector = await crearLector();
+
+                if (cerrado) {
+                    lector.liberar();
+                    return;
+                }
 
                 flujo = await navigator.mediaDevices.getUserMedia({
                     audio: false,
@@ -97,11 +143,7 @@ export default function LectorQr({ alDetectar, alCerrar, alFallar }) {
                     examinando = true;
 
                     try {
-                        const codigos = await detector.detect(elemento);
-                        const valor = codigos.find(
-                            (codigo) =>
-                                typeof codigo.rawValue === 'string' && codigo.rawValue.trim() !== ''
-                        )?.rawValue;
+                        const valor = await lector?.leer(elemento);
 
                         if (!cerrado && valor) {
                             detener();
@@ -120,9 +162,11 @@ export default function LectorQr({ alDetectar, alCerrar, alFallar }) {
                 };
 
                 animacion = requestAnimationFrame(explorar);
-            } catch {
+            } catch (falla) {
                 if (!cerrado) {
-                    sinCamara('Cámara no disponible: sin permiso de acceso');
+                    sinCamara(
+                        MOTIVOS[falla?.name] ?? 'Cámara no disponible: sin permiso de acceso'
+                    );
                 }
 
                 detener();
