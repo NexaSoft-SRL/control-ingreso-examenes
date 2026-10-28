@@ -33,6 +33,7 @@ export const PAGINAS = {
     '/mis-grupos': lazy(() => import('../paginas/docente/MisGrupos')),
     '/admin': lazy(() => import('../paginas/admin/Usuarios')),
     '/bitacora': lazy(() => import('../paginas/admin/Bitacora')),
+    '/respaldo': lazy(() => import('../paginas/admin/Respaldo')),
 };
 
 // El armazón con menú: se monta una vez y cambia solo la página.
