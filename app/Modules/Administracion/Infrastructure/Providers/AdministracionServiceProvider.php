@@ -9,6 +9,7 @@ use App\Modules\Administracion\Application\Contracts\AlmacenImagenes;
 use App\Modules\Administracion\Application\Contracts\AuthenticationSecurityGateway;
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Application\Contracts\ConsultaBitacoraGateway;
+use App\Modules\Administracion\Application\Contracts\ConsultaRespaldosGateway;
 use App\Modules\Administracion\Application\Contracts\ConsultaUsuariosGateway;
 use App\Modules\Administracion\Application\Contracts\CredencialesGateway;
 use App\Modules\Administracion\Application\Contracts\CuentaUsuarioGateway;
@@ -22,6 +23,7 @@ use App\Modules\Administracion\Infrastructure\Files\AlmacenImagenesEnDisco;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentAuthenticationSecurityGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentBitacoraGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentConsultaBitacoraGateway;
+use App\Modules\Administracion\Infrastructure\Persistence\EloquentConsultaRespaldosGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentConsultaUsuariosGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentCredencialesGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentCuentaUsuarioGateway;
@@ -62,6 +64,11 @@ final class AdministracionServiceProvider extends ServiceProvider
         $this->app->bind(
             ConsultaBitacoraGateway::class,
             EloquentConsultaBitacoraGateway::class,
+        );
+
+        $this->app->bind(
+            ConsultaRespaldosGateway::class,
+            EloquentConsultaRespaldosGateway::class,
         );
 
         $this->app->bind(
