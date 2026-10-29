@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Modules\Administracion\Http\Controllers;
 
+use App\Modules\Administracion\Application\Actions\GenerarRespaldo;
 use App\Modules\Administracion\Application\DTOs\RespaldoData;
 use App\Modules\Administracion\Application\Queries\ListarRespaldos;
 use App\Modules\Administracion\Http\Requests\ListarRespaldosRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * HU-25: Consulta del historial de respaldos, descarga de archivos .sql,
@@ -32,6 +34,25 @@ final class RespaldoController
             'conteos' => $pagina->conteos,
             'ultimo' => $pagina->ultimo,
         ]);
+    }
+
+    public function store(Request $request, GenerarRespaldo $generar): JsonResponse
+    {
+        $identificador = $request->user()?->getAuthIdentifier();
+        $usuarioId = is_numeric($identificador) ? (int) $identificador : null;
+
+        try {
+            $respaldo = $generar->execute('puntual', $usuarioId);
+
+            return response()->json([
+                'data' => $this->serializar($respaldo),
+                'message' => 'Respaldo generado.',
+            ], 201);
+        } catch (\Throwable $error) {
+            return response()->json([
+                'message' => 'No se pudo generar el respaldo: '.$error->getMessage(),
+            ], 500);
+        }
     }
 
     /**

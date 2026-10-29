@@ -4,8 +4,10 @@ use App\Modules\Academico\Application\Actions\DetectarPeriodos;
 use App\Modules\Academico\Application\Actions\ImportarOferta;
 use App\Modules\Academico\Application\Contracts\FuenteOfertaGateway;
 use App\Modules\Academico\Domain\Exceptions\FuenteNoDisponibleException;
+use App\Modules\Administracion\Application\Actions\GenerarRespaldo;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -93,3 +95,32 @@ Artisan::command('oferta:importar {facultad? : fcyt, fce, fhce o fach; sin ella,
 
     return $fallo ? 1 : 0;
 })->purpose('Importa la oferta academica de GENDA');
+
+/*
+ * HU-25: Genera un respaldo de la base de datos (por defecto tipo programado)
+ * y lo registra en disco seguro y en el historial.
+ */
+Artisan::command('respaldo:generar {--tipo=programado : Tipo de respaldo: programado o puntual}', function (
+    GenerarRespaldo $generar,
+) {
+    $opcion = $this->option('tipo');
+    $tipo = is_string($opcion) && $opcion !== '' ? $opcion : 'programado';
+
+    try {
+        $respaldo = $generar->execute($tipo, null);
+        $this->info(sprintf(
+            'Respaldo %s generado exitosamente: %s (%d bytes).',
+            $respaldo->tipo,
+            $respaldo->archivo,
+            $respaldo->tamanoBytes,
+        ));
+
+        return 0;
+    } catch (Throwable $error) {
+        $this->error(sprintf('Error al generar respaldo: %s', $error->getMessage()));
+
+        return 1;
+    }
+})->purpose('Genera un respaldo de la base de datos');
+
+Schedule::command('respaldo:generar')->dailyAt('03:00');
