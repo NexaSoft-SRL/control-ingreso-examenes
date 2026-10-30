@@ -44,6 +44,7 @@ final readonly class RegistrarIngreso
         string $tipoIdentificador,
         string $identificador,
         ?int $accesoCodigoAulaId = null,
+        ?string $medioIdentificacion = null,
     ): VeredictoIngreso {
         return $this->ejecutarDetallado(
             $usuarioId,
@@ -52,6 +53,7 @@ final readonly class RegistrarIngreso
             $tipoIdentificador,
             $identificador,
             $accesoCodigoAulaId,
+            medioIdentificacion: $medioIdentificacion,
         )->veredicto;
     }
 
@@ -67,6 +69,7 @@ final readonly class RegistrarIngreso
         string $identificador,
         ?int $accesoCodigoAulaId = null,
         bool $porQr = false,
+        ?string $medioIdentificacion = null,
     ): ResultadoIngresoData {
         if (($usuarioId === null && $accesoCodigoAulaId === null) || $examenId <= 0 || $aulaId <= 0) {
             throw new InvalidArgumentException('Identificadores inválidos.');
@@ -166,6 +169,7 @@ final readonly class RegistrarIngreso
             $aulaId,
             $usuarioId,
             $accesoCodigoAulaId,
+            $medioIdentificacion,
         );
 
         if (! $registrado) {
