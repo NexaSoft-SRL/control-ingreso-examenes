@@ -86,6 +86,29 @@ final class GeneradorTablaReporteTest extends TestCase
         }
     }
 
+    public function test_rechaza_exportacion_que_supera_limite_sin_generar_archivo(): void
+    {
+        $tabla = new TablaReporte(
+            clave: 'volumen',
+            titulo: 'Reporte voluminoso',
+            filtros: [],
+            encabezados: ['Código'],
+            filas: array_fill(
+                0,
+                GeneradorTablaReporteDompdfPhpSpreadsheet::MAX_FILAS_EXPORTACION + 1,
+                ['001']
+            ),
+            totales: [],
+            emitidoEn: '2026-10-30 15:30',
+        );
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('supera el límite');
+
+        (new GeneradorTablaReporteDompdfPhpSpreadsheet)
+            ->generar($tabla, 'xlsx');
+    }
+
     public function test_rechaza_formatos_desconocidos(): void
     {
         $this->expectException(InvalidArgumentException::class);
