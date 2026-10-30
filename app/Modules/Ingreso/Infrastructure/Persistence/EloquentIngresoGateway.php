@@ -24,6 +24,7 @@ final class EloquentIngresoGateway implements IngresoGateway
         int $aulaId,
         ?int $usuarioId = null,
         ?int $accesoCodigoAulaId = null,
+        ?string $medioIdentificacion = null,
     ): bool {
         try {
             DB::transaction(static function () use (
@@ -32,6 +33,7 @@ final class EloquentIngresoGateway implements IngresoGateway
                 $aulaId,
                 $usuarioId,
                 $accesoCodigoAulaId,
+                $medioIdentificacion,
             ): void {
                 DB::table('ingresos')->insert([
                     'examen_id' => $examenId,
@@ -39,6 +41,7 @@ final class EloquentIngresoGateway implements IngresoGateway
                     'aula_id' => $aulaId,
                     'registrado_por' => $usuarioId,
                     'acceso_codigo_aula_id' => $accesoCodigoAulaId,
+                    'medio_identificacion' => $medioIdentificacion,
                     'registrado_en' => DB::raw('CURRENT_TIMESTAMP'),
                 ]);
             });
