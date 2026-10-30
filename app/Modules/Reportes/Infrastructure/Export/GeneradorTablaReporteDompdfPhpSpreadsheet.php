@@ -18,7 +18,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 final class GeneradorTablaReporteDompdfPhpSpreadsheet implements GeneradorTablaReporte
 {
-    public const MAX_FILAS_EXPORTACION = 1000;
+    public const MAX_FILAS_EXPORTACION = TablaReporte::MAX_FILAS_EXPORTACION;
 
     public function generar(TablaReporte $tabla, string $formato): ArchivoReporte
     {

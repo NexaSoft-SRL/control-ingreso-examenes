@@ -14,6 +14,7 @@ use App\Modules\Reportes\Application\DTOs\FilaIntento;
 use App\Modules\Reportes\Application\DTOs\FilaRegistrados;
 use App\Modules\Reportes\Application\DTOs\FilaResumenEstudiante;
 use App\Modules\Reportes\Application\DTOs\ReporteHorarios;
+use App\Modules\Reportes\Application\DTOs\TablaReporte;
 
 /**
  * Los siete reportes. Son consultas: no hay ninguna ruta de reportes que
@@ -24,6 +25,17 @@ final readonly class ConsultarReporte
     public function __construct(
         private ReporteGateway $gateway,
     ) {}
+
+    public function validarVolumenExportacion(
+        string $tipo,
+        AlcanceReporte $alcance
+    ): void {
+        $this->gateway->validarVolumenExportacion(
+            $tipo,
+            $alcance,
+            TablaReporte::MAX_FILAS_EXPORTACION
+        );
+    }
 
     public function horarios(AlcanceReporte $alcance): ReporteHorarios
     {

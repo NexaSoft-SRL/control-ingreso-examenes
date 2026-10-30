@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Modules\Reportes;
 
+use App\Modules\Reportes\Application\DTOs\AlcanceReporte;
+use App\Modules\Reportes\Infrastructure\Persistence\EloquentReporteGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -221,5 +223,35 @@ final class ReportesUniversidadDescargasTest extends TestCase
                 unlink($rutaTemporal);
             }
         }
+    }
+
+    public function test_control_previo_rechaza_una_consulta_excesiva_sin_generar_archivo(): void
+    {
+        $usuario = $this->usuarioConPermisos(['reportes_universidad']);
+        $docente = $this->docenteConCuenta($usuario);
+        $grupo = $this->grupo(
+            $docente,
+            $this->asignatura('Física General', '0002070')
+        );
+        $aula = $this->aula('950');
+        $estudiantes = $this->estudiantesInscritos($grupo, 2);
+        $examen = $this->examen($docente, [$grupo], [$aula]);
+
+        $this->habilitar($examen, $estudiantes, $aula);
+        $this->ingresar($examen, $estudiantes[0], $aula);
+        $this->ingresar($examen, $estudiantes[1], $aula);
+
+        $gateway = app(EloquentReporteGateway::class);
+        $alcance = new AlcanceReporte(examenId: $examen->id);
+
+        // Dos ingresos reales; presupuesto experimental de uno.
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('supera el límite de volumen');
+
+        $gateway->validarVolumenExportacion(
+            'asistencia',
+            $alcance,
+            1
+        );
     }
 }

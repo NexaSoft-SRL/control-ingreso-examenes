@@ -88,8 +88,9 @@ final class ReportesUniversidadController
         }
 
         try {
+            $consultar->validarVolumenExportacion($tipo, $alcance);
             $tabla = $construir->execute($tipo, $alcance);
-        } catch (InvalidArgumentException $error) {
+        } catch (DomainException|InvalidArgumentException $error) {
             return response()->json(
                 ['message' => $error->getMessage()],
                 Response::HTTP_UNPROCESSABLE_ENTITY,
