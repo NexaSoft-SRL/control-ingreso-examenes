@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\Reportes\Http\Controllers;
 
+use App\Modules\Reportes\Application\Contracts\GeneradorTablaReporte;
+use App\Modules\Reportes\Application\Queries\ConstruirTablaReporte;
 use App\Modules\Reportes\Application\Queries\ConsultarReporte;
 use App\Modules\Reportes\Application\Queries\ListarExamenesParaReporte;
 use App\Modules\Reportes\Http\Requests\AlcanceReporteRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use InvalidArgumentException;
 
 final class ReportesUniversidadController
 {
@@ -35,6 +38,74 @@ final class ReportesUniversidadController
                 'por_pagina' => $porPagina,
                 'paginas' => (int) ceil($total / $porPagina),
             ],
+        ]);
+    }
+
+    public function descargar(
+        AlcanceReporteRequest $request,
+        string $tipo,
+        string $formato,
+        ConsultarReporte $consultar,
+        ConstruirTablaReporte $construir,
+        GeneradorTablaReporte $generador,
+    ): Response|JsonResponse {
+        if (! in_array($formato, ['pdf', 'xlsx'], true)) {
+            return response()->json(
+                ['message' => 'Formato de exportación no válido.'],
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+            );
+        }
+
+        if (! in_array($tipo, [
+            'horarios', 'registrados', 'intentos', 'estudiantes',
+            'incidencias', 'asistencia', 'ausentes',
+        ], true)) {
+            return response()->json(
+                ['message' => 'Tipo de reporte no encontrado.'],
+                Response::HTTP_NOT_FOUND,
+            );
+        }
+
+        $alcance = $request->toAlcance();
+
+        if (in_array($tipo, ['incidencias', 'asistencia', 'ausentes'], true)) {
+            $examenId = $alcance->examenId;
+
+            if ($examenId === null) {
+                return response()->json(
+                    ['message' => 'Debe seleccionar un examen.'],
+                    Response::HTTP_UNPROCESSABLE_ENTITY,
+                );
+            }
+
+            if ($consultar->examen($examenId) === null) {
+                return response()->json(
+                    ['message' => 'Examen no encontrado.'],
+                    Response::HTTP_NOT_FOUND,
+                );
+            }
+        }
+
+        try {
+            $tabla = $construir->execute($tipo, $alcance);
+        } catch (InvalidArgumentException $error) {
+            return response()->json(
+                ['message' => $error->getMessage()],
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+            );
+        }
+
+        $archivo = $generador->generar($tabla, $formato);
+
+        return response($archivo->contenido, Response::HTTP_OK, [
+            'Content-Type' => $archivo->tipoContenido,
+            'Content-Disposition' => sprintf(
+                'attachment; filename="%s"; filename*=UTF-8\'\'%s',
+                $archivo->nombre,
+                rawurlencode($archivo->nombre),
+            ),
+            'Content-Length' => (string) strlen($archivo->contenido),
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 
