@@ -14,6 +14,14 @@ Route::middleware(['auth', 'permiso:reportes_universidad'])
         Route::get('/', [ReportesUniversidadController::class, 'index'])
             ->name('index');
 
+        Route::get('/descargas/{tipo}/{formato}', [ReportesUniversidadController::class, 'descargar'])
+            ->whereIn('tipo', [
+                'horarios', 'registrados', 'intentos', 'estudiantes',
+                'incidencias', 'asistencia', 'ausentes',
+            ])
+            ->whereIn('formato', ['pdf', 'xlsx'])
+            ->name('descargas');
+
         Route::get('/{tipo}', [ReportesUniversidadController::class, 'show'])
             ->whereIn('tipo', [
                 'horarios',
