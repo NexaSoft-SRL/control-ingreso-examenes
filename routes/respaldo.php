@@ -8,4 +8,6 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'permiso:respaldo_restauracion'])->group(function (): void {
     Route::get('/api/respaldos', [RespaldoController::class, 'index'])->name('respaldos.index');
     Route::post('/api/respaldos', [RespaldoController::class, 'store'])->name('respaldos.store');
+    Route::get('/api/respaldos/{id}/archivo', [RespaldoController::class, 'descargar'])->name('respaldos.descargar')->whereNumber('id');
+    Route::post('/api/respaldos/{id}/restaurar', [RespaldoController::class, 'restaurar'])->name('respaldos.restaurar')->whereNumber('id');
 });
