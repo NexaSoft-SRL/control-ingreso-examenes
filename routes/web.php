@@ -8,6 +8,7 @@ require __DIR__.'/bitacora.php';
 require __DIR__.'/academico.php';
 require __DIR__.'/estudiantes.php';
 require __DIR__.'/examenes.php';
+require __DIR__.'/reportes.php';
 require __DIR__.'/habilitacion.php';
 require __DIR__.'/ingreso.php';
 require __DIR__.'/monitoreo.php';
