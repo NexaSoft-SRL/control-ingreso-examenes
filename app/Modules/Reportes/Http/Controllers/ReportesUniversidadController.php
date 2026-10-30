@@ -9,6 +9,7 @@ use App\Modules\Reportes\Application\Queries\ConstruirTablaReporte;
 use App\Modules\Reportes\Application\Queries\ConsultarReporte;
 use App\Modules\Reportes\Application\Queries\ListarExamenesParaReporte;
 use App\Modules\Reportes\Http\Requests\AlcanceReporteRequest;
+use DomainException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use InvalidArgumentException;
@@ -95,7 +96,14 @@ final class ReportesUniversidadController
             );
         }
 
-        $archivo = $generador->generar($tabla, $formato);
+        try {
+            $archivo = $generador->generar($tabla, $formato);
+        } catch (DomainException $error) {
+            return response()->json(
+                ['message' => $error->getMessage()],
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+            );
+        }
 
         return response($archivo->contenido, Response::HTTP_OK, [
             'Content-Type' => $archivo->tipoContenido,

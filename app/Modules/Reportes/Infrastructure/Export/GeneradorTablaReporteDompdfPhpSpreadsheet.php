@@ -7,6 +7,7 @@ namespace App\Modules\Reportes\Infrastructure\Export;
 use App\Modules\Reportes\Application\Contracts\GeneradorTablaReporte;
 use App\Modules\Reportes\Application\DTOs\ArchivoReporte;
 use App\Modules\Reportes\Application\DTOs\TablaReporte;
+use DomainException;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use InvalidArgumentException;
@@ -17,10 +18,19 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 final class GeneradorTablaReporteDompdfPhpSpreadsheet implements GeneradorTablaReporte
 {
+    public const MAX_FILAS_EXPORTACION = 1000;
+
     public function generar(TablaReporte $tabla, string $formato): ArchivoReporte
     {
         if (! in_array($formato, ['pdf', 'xlsx'], true)) {
             throw new InvalidArgumentException('Formato de exportación no válido.');
+        }
+
+        if (count($tabla->filas) > self::MAX_FILAS_EXPORTACION) {
+            throw new DomainException(
+                'El reporte supera el límite de filas para exportación. '
+                .'Reduzca el alcance mediante los filtros disponibles.'
+            );
         }
 
         $ancho = count($tabla->encabezados);
