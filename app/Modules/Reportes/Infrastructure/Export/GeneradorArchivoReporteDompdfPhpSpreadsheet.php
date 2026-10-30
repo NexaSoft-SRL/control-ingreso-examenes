@@ -12,16 +12,18 @@ use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
-/**
- * @phpstan-import-type ExamenReporte from \App\Modules\Reportes\Application\Contracts\ConsultaReportesGateway
- * @phpstan-import-type FilaReporteEstudiante from \App\Modules\Reportes\Application\Contracts\ConsultaReportesGateway
- * @phpstan-import-type FilaReporteIncidencia from \App\Modules\Reportes\Application\Contracts\ConsultaReportesGateway
- */
 final class GeneradorArchivoReporteDompdfPhpSpreadsheet implements GeneradorArchivoReporte
 {
     public function generar(array $reporte, string $tipo, string $formato): ArchivoReporte
     {
-        [$titulo, $encabezados, $filas] = $this->contenido($reporte, $tipo);
+        [$titulo, $encabezados, $filas] = $this->contenido($reporte['filas'], $tipo);
+        $metadatos = [
+            'asignatura' => $reporte['asignatura'],
+            'periodo' => $reporte['periodo'],
+            'tipo' => $reporte['tipo'],
+            'fecha' => $reporte['fecha'],
+            'hora' => $reporte['hora'],
+        ];
         $etiquetaArchivo = match ($tipo) {
             'asistencia' => 'asistencia',
             'ausentes' => 'estudiantes ausentes',
@@ -30,23 +32,26 @@ final class GeneradorArchivoReporteDompdfPhpSpreadsheet implements GeneradorArch
         $nombre = sprintf('%s %s.%s', $etiquetaArchivo, $reporte['fecha'], $formato);
 
         return $formato === 'pdf'
-            ? $this->pdf($nombre, $titulo, $encabezados, $filas, $reporte)
-            : $this->xlsx($nombre, $titulo, $encabezados, $filas, $reporte);
+            ? $this->pdf($nombre, $titulo, $encabezados, $filas, $metadatos)
+            : $this->xlsx($nombre, $titulo, $encabezados, $filas, $metadatos);
     }
 
     /**
-     * @phpstan-param  ExamenReporte  $reporte
-     *
+     * @param  array{
+     *     asistencia: list<array{codigo: string, estudiante: string, grupo: string, aula: string, hora: string|null, medio: string, situacion: string}>,
+     *     ausentes: list<array{apellidos: string, nombres: string, codigo: string, grupo: string, carrera: string, aula: string}>,
+     *     incidencias: list<array{hora: string, aula: string, codigo: string|null, estudiante: string, tipo: string, detalle: string, registrado_por: string}>
+     * }  $filasReporte
      * @return array{string, list<string>, list<list<string>>}
      */
-    private function contenido(array $reporte, string $tipo): array
+    private function contenido(array $filasReporte, string $tipo): array
     {
         $celdas = [];
 
         if ($tipo === 'asistencia') {
             $encabezados = ['Código SIS', 'Estudiante', 'Grupo', 'Aula', 'Hora de ingreso', 'Medio', 'Situación'];
             $titulo = 'Reporte de asistencia';
-            foreach ($reporte['filas']['asistencia'] as $fila) {
+            foreach ($filasReporte['asistencia'] as $fila) {
                 $celdas[] = [
                     $fila['codigo'], $fila['estudiante'], $fila['grupo'], $fila['aula'],
                     $fila['hora'] ?? '', $fila['medio'], $fila['situacion'],
@@ -55,7 +60,7 @@ final class GeneradorArchivoReporteDompdfPhpSpreadsheet implements GeneradorArch
         } elseif ($tipo === 'ausentes') {
             $encabezados = ['Apellidos', 'Nombres', 'Código SIS', 'Grupo', 'Carrera', 'Aula asignada'];
             $titulo = 'Reporte de estudiantes ausentes';
-            foreach ($reporte['filas']['ausentes'] as $fila) {
+            foreach ($filasReporte['ausentes'] as $fila) {
                 $celdas[] = [
                     $fila['apellidos'], $fila['nombres'], $fila['codigo'], $fila['grupo'],
                     $fila['carrera'], $fila['aula'],
@@ -64,7 +69,7 @@ final class GeneradorArchivoReporteDompdfPhpSpreadsheet implements GeneradorArch
         } else {
             $encabezados = ['Hora', 'Aula', 'Código SIS', 'Estudiante', 'Tipo', 'Detalle', 'Registrado por'];
             $titulo = 'Reporte de incidencias';
-            foreach ($reporte['filas']['incidencias'] as $fila) {
+            foreach ($filasReporte['incidencias'] as $fila) {
                 $celdas[] = [
                     $fila['hora'], $fila['aula'], $fila['codigo'] ?? '', $fila['estudiante'],
                     $fila['tipo'], $fila['detalle'], $fila['registrado_por'],
@@ -78,8 +83,7 @@ final class GeneradorArchivoReporteDompdfPhpSpreadsheet implements GeneradorArch
     /**
      * @param  list<string>  $encabezados
      * @param  list<list<string>>  $filas
-     *
-     * @phpstan-param  ExamenReporte  $reporte
+     * @param  array{asignatura: array{nombre: string}, periodo: string, tipo: string, fecha: string, hora: string}  $reporte
      */
     private function xlsx(
         string $nombre,
@@ -145,8 +149,7 @@ final class GeneradorArchivoReporteDompdfPhpSpreadsheet implements GeneradorArch
     /**
      * @param  list<string>  $encabezados
      * @param  list<list<string>>  $filas
-     *
-     * @phpstan-param  ExamenReporte  $reporte
+     * @param  array{asignatura: array{nombre: string}, periodo: string, tipo: string, fecha: string, hora: string}  $reporte
      */
     private function pdf(
         string $nombre,

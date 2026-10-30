@@ -24,8 +24,8 @@ import {
 //
 // `grupo` arma las secciones del menú; `movil` elige lo que entra en la barra
 // inferior del teléfono; `oculta` deja la vista con ruta pero fuera del menú
-// y `padre` es la vista del menú que queda marcada. `permiso` es la clave
-// que exige la API para esa pantalla.
+// y `padre` es la vista del menú que queda marcada. `permiso` acepta una clave
+// o varias claves alternativas separadas por `|`.
 export const VISTAS = [
     {
         ruta: '/periodo',
@@ -83,6 +83,13 @@ export const VISTAS = [
         grupo: 'Docencia',
         movil: true,
         permiso: 'reportes_examenes',
+    },
+    {
+        ruta: '/bitacora-examen',
+        titulo: 'Bitácora de exámenes',
+        Icono: History,
+        grupo: 'Docencia',
+        permiso: 'reportes_examenes|reportes_universidad',
     },
     // Registrar examen y Habilitación son de un examen: se llega a ellas
     // desde la lista de exámenes, no desde el menú (`oculta`).
@@ -182,7 +189,10 @@ export const VISTAS = [
 ];
 
 function puede(usuario, permiso) {
-    return Array.isArray(usuario?.permisos) && usuario.permisos.includes(permiso);
+    return (
+        Array.isArray(usuario?.permisos) &&
+        permiso.split('|').some((requerido) => usuario.permisos.includes(requerido))
+    );
 }
 
 // Las vistas de la cuenta (con las ocultas): aquellas cuyo permiso tiene.

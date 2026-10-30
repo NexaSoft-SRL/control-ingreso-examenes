@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import PuntoControl from './PuntoControl';
 import { api } from '../../api/cliente';
@@ -429,14 +429,15 @@ describe('PuntoControl HU-19', () => {
     it('BUG-23: avisa «Sin conexión» tras fallos seguidos del sondeo', async () => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
         montar();
-        expect(await screen.findByText('Aula 691A')).toBeInTheDocument();
+        expect(await screen.findByText(/3 ingresaron · Faltan 17/)).toBeInTheDocument();
+        expect(await screen.findByText('Apellido1 Nombre1')).toBeInTheDocument();
 
         api.get.mockImplementation(() => Promise.reject(new Error('Network Error')));
         for (let i = 0; i < 3; i += 1) {
-            await vi.advanceTimersByTimeAsync(10000);
+            await act(async () => vi.advanceTimersByTimeAsync(10000));
         }
 
-        expect(await screen.findByText('Sin conexión')).toBeInTheDocument();
+        expect(screen.getByText('Sin conexión')).toBeInTheDocument();
     });
 
     it('BUG-05 y N7: expulsa con motivo en un diálogo y marca «Expulsado» con su hora', async () => {

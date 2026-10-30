@@ -123,6 +123,7 @@ function TarjetaExamen({ e, destacado = false, plegado = false, onEliminar }) {
     const [abierto, setAbierto] = useState(destacado || (pendiente(e) && !plegado));
     const puedeHabilitar = puede('habilitacion');
     const puedeEmitir = puede('codigos_qr');
+    const verBitacora = puede('reportes_examenes');
     const accion = accionDe(e, puedeHabilitar, puedeEmitir);
     const nombre = e.asignatura.nombre;
     const titulo = `${tipoDe(e)} · ${nombre}`;
@@ -261,6 +262,14 @@ function TarjetaExamen({ e, destacado = false, plegado = false, onEliminar }) {
                                     className={`${ENLACE} text-slate-700`}
                                 >
                                     Códigos QR
+                                </Link>
+                            )}
+                            {verBitacora && (
+                                <Link
+                                    to={`/bitacora-examen?examen=${e.id}`}
+                                    className={`${ENLACE} text-slate-700`}
+                                >
+                                    Bitácora
                                 </Link>
                             )}
                             {e.propio && (
