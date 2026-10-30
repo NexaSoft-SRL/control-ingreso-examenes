@@ -20,5 +20,6 @@ interface IngresoGateway
         int $aulaId,
         ?int $usuarioId = null,
         ?int $accesoCodigoAulaId = null,
+        ?string $medioIdentificacion = null,
     ): bool;
 }

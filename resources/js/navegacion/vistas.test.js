@@ -13,6 +13,7 @@ describe('vistas por permiso', () => {
             ['/docentes', 'aulas_docentes'],
             ['/estudiantes', 'padron_estudiantes'],
             ['/examenes', 'examenes'],
+            ['/reportes', 'reportes_examenes'],
             ['/examenes/nuevo', 'examenes'],
             ['/habilitacion', 'habilitacion'],
             ['/codigos-qr', 'codigos_qr'],
@@ -53,6 +54,7 @@ describe('vistas por permiso', () => {
         );
         expect(rutas(usuarioDePrueba('Docente'))).toEqual([
             '/examenes',
+            '/reportes',
             '/examenes/nuevo',
             '/habilitacion',
             '/codigos-qr',

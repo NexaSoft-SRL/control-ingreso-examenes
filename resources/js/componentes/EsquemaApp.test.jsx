@@ -88,11 +88,12 @@ describe('EsquemaApp', () => {
         expect(screen.queryByText('Más', { selector: 'p' })).not.toBeInTheDocument();
     });
 
-    it('el docente tiene sus vistas asignadas en la barra, sin «Más» ni las ocultas', () => {
+    it('el docente ve Reportes en la barra y las vistas restantes en «Más»', () => {
         montar('Docente', '/examenes');
 
         expect(enlaces(menus()[lateral])).toEqual([
             'Exámenes',
+            'Reportes',
             'Mis grupos',
             'En curso',
             'Punto de control',
@@ -100,12 +101,17 @@ describe('EsquemaApp', () => {
         ]);
         expect(enlaces(menus()[inferior])).toEqual([
             'Exámenes',
+            'Reportes',
             'En curso',
             'Punto de control',
-            'Mi aula',
-            'Mis grupos',
         ]);
-        expect(screen.queryByRole('button', { name: 'Más' })).not.toBeInTheDocument();
+        fireEvent.click(within(menus()[inferior]).getByRole('button', { name: 'Más' }));
+        const hoja = screen.getByText('Más', { selector: 'p' }).closest('div').parentElement;
+        expect(
+            within(hoja)
+                .getAllByRole('link')
+                .map((enlace) => enlace.textContent)
+        ).toEqual(['Mi aulaExámenes', 'Mis gruposDocencia']);
         expect(screen.queryByRole('link', { name: 'Habilitación' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Registrar examen' })).not.toBeInTheDocument();
     });
