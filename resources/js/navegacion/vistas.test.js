@@ -14,6 +14,7 @@ describe('vistas por permiso', () => {
             ['/estudiantes', 'padron_estudiantes'],
             ['/examenes', 'examenes'],
             ['/reportes', 'reportes_examenes'],
+            ['/bitacora-examen', 'reportes_examenes|reportes_universidad'],
             ['/examenes/nuevo', 'examenes'],
             ['/habilitacion', 'habilitacion'],
             ['/codigos-qr', 'codigos_qr'],
@@ -28,7 +29,11 @@ describe('vistas por permiso', () => {
     });
 
     it('cada permiso de una vista existe en el catálogo', () => {
-        VISTAS.forEach((v) => expect(CATALOGO_PERMISOS, v.ruta).toContain(v.permiso));
+        VISTAS.forEach((v) =>
+            v.permiso
+                .split('|')
+                .forEach((permiso) => expect(CATALOGO_PERMISOS, v.ruta).toContain(permiso))
+        );
     });
 
     it('cada rol de inicio entra por su pantalla', () => {
@@ -44,6 +49,7 @@ describe('vistas por permiso', () => {
             '/aulas',
             '/docentes',
             '/estudiantes',
+            '/bitacora-examen',
             '/admin',
             '/bitacora',
         ]);
@@ -53,6 +59,7 @@ describe('vistas por permiso', () => {
         expect(rutas(usuarioDePrueba('Docente'))).toEqual([
             '/examenes',
             '/reportes',
+            '/bitacora-examen',
             '/examenes/nuevo',
             '/habilitacion',
             '/codigos-qr',
