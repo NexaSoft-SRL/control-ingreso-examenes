@@ -14,4 +14,3 @@ interface ExportadorBaseDeDatos
      */
     public function exportar(string $versionEsquema, string $tipo): string;
 }
-

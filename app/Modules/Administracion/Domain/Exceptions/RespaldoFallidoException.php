@@ -17,4 +17,3 @@ final class RespaldoFallidoException extends RuntimeException
         parent::__construct($message, 0, $previous);
     }
 }
-
