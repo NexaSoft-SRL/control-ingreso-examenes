@@ -33,4 +33,3 @@ return [
         'presencias_puerta',
     ],
 ];
-

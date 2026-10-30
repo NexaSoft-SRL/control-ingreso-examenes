@@ -19,4 +19,3 @@ interface GeneradorRespaldoGateway
      */
     public function generar(string $tipo, ?int $usuarioId = null): RespaldoData;
 }
-
