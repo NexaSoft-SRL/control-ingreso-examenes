@@ -84,6 +84,13 @@ export const VISTAS = [
         permiso: 'reportes_examenes',
     },
     {
+        ruta: '/reportes-universidad',
+        titulo: 'Reportes de la universidad',
+        Icono: BarChart3,
+        grupo: 'Docencia',
+        permiso: 'reportes_universidad',
+    },
+    {
         ruta: '/bitacora-examen',
         titulo: 'Bitácora de exámenes',
         Icono: History,
