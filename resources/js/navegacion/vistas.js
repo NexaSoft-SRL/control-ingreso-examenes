@@ -12,6 +12,7 @@ import {
     Activity,
     Radio,
     QrCode,
+    BarChart3,
 } from 'lucide-react';
 
 // Fuente única de las pantallas. El menú (EsquemaApp), las rutas
@@ -73,6 +74,14 @@ export const VISTAS = [
         grupo: 'Docencia',
         movil: true,
         permiso: 'examenes',
+    },
+    {
+        ruta: '/reportes',
+        titulo: 'Reportes',
+        Icono: BarChart3,
+        grupo: 'Docencia',
+        movil: true,
+        permiso: 'reportes_examenes',
     },
     // Registrar examen y Habilitación son de un examen: se llega a ellas
     // desde la lista de exámenes, no desde el menú (`oculta`).
