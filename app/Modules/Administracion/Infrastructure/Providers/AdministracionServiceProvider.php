@@ -18,6 +18,7 @@ use App\Modules\Administracion\Application\Contracts\GeneradorContrasenaTemporal
 use App\Modules\Administracion\Application\Contracts\GeneradorRespaldoGateway;
 use App\Modules\Administracion\Application\Contracts\ProponedorUsuario;
 use App\Modules\Administracion\Application\Contracts\RegistroCorreoGateway;
+use App\Modules\Administracion\Application\Contracts\RestauradorRespaldoGateway;
 use App\Modules\Administracion\Application\Contracts\RolesGateway;
 use App\Modules\Administracion\Application\Contracts\RolGateway;
 use App\Modules\Administracion\Application\Contracts\Transaccion;
@@ -32,6 +33,7 @@ use App\Modules\Administracion\Infrastructure\Persistence\EloquentCredencialesGa
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentCuentaUsuarioGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentGeneradorRespaldoGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentRegistroCorreoGateway;
+use App\Modules\Administracion\Infrastructure\Persistence\EloquentRestauradorRespaldoGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentRolesGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentRolGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\GeneradorContrasenaTemporalAleatorio;
@@ -83,6 +85,11 @@ final class AdministracionServiceProvider extends ServiceProvider
         $this->app->bind(
             GeneradorRespaldoGateway::class,
             EloquentGeneradorRespaldoGateway::class,
+        );
+
+        $this->app->bind(
+            RestauradorRespaldoGateway::class,
+            EloquentRestauradorRespaldoGateway::class,
         );
 
         $this->app->bind(

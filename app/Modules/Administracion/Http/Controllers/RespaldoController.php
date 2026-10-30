@@ -4,12 +4,20 @@ declare(strict_types=1);
 
 namespace App\Modules\Administracion\Http\Controllers;
 
+use App\Modules\Administracion\Application\Actions\DescargarRespaldo;
 use App\Modules\Administracion\Application\Actions\GenerarRespaldo;
+use App\Modules\Administracion\Application\Actions\RestaurarRespaldo;
 use App\Modules\Administracion\Application\DTOs\RespaldoData;
 use App\Modules\Administracion\Application\Queries\ListarRespaldos;
+use App\Modules\Administracion\Domain\Exceptions\ArchivoRespaldoNoEncontradoException;
+use App\Modules\Administracion\Domain\Exceptions\RespaldoFallidoException;
+use App\Modules\Administracion\Domain\Exceptions\RespaldoIncompatibleException;
+use App\Modules\Administracion\Domain\Exceptions\RespaldoNoEncontradoException;
 use App\Modules\Administracion\Http\Requests\ListarRespaldosRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Throwable;
 
 /**
  * HU-25: Consulta del historial de respaldos, descarga de archivos .sql,
@@ -48,9 +56,65 @@ final class RespaldoController
                 'data' => $this->serializar($respaldo),
                 'message' => 'Respaldo generado.',
             ], 201);
-        } catch (\Throwable $error) {
+        } catch (Throwable $error) {
             return response()->json([
                 'message' => 'No se pudo generar el respaldo: '.$error->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function descargar(int $id, DescargarRespaldo $descargar): Response|JsonResponse
+    {
+        try {
+            $archivo = $descargar->execute($id);
+
+            return response($archivo['contenido'], 200, [
+                'Content-Type' => 'application/sql',
+                'Content-Disposition' => sprintf('attachment; filename="%s"', $archivo['nombre']),
+                'Cache-Control' => 'no-cache, private',
+            ]);
+        } catch (RespaldoNoEncontradoException|ArchivoRespaldoNoEncontradoException $error) {
+            return response()->json([
+                'message' => $error->getMessage(),
+            ], 404);
+        } catch (RespaldoFallidoException $error) {
+            return response()->json([
+                'message' => $error->getMessage(),
+            ], 422);
+        } catch (Throwable $error) {
+            return response()->json([
+                'message' => 'No se pudo descargar el archivo: '.$error->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function restaurar(Request $request, int $id, RestaurarRespaldo $restaurar): JsonResponse
+    {
+        $identificador = $request->user()?->getAuthIdentifier();
+        $usuarioId = is_numeric($identificador) ? (int) $identificador : null;
+
+        try {
+            $respaldo = $restaurar->execute($id, $usuarioId);
+
+            return response()->json([
+                'message' => 'Restaurado con éxito',
+                'data' => $this->serializar($respaldo),
+            ], 200);
+        } catch (RespaldoNoEncontradoException|ArchivoRespaldoNoEncontradoException $error) {
+            return response()->json([
+                'message' => $error->getMessage(),
+            ], 404);
+        } catch (RespaldoIncompatibleException $error) {
+            return response()->json([
+                'message' => $error->getMessage(),
+            ], 422);
+        } catch (RespaldoFallidoException $error) {
+            return response()->json([
+                'message' => $error->getMessage(),
+            ], 422);
+        } catch (Throwable $error) {
+            return response()->json([
+                'message' => 'No se pudo restaurar el respaldo: '.$error->getMessage(),
             ], 500);
         }
     }
