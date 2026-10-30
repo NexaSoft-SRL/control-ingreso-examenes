@@ -7,6 +7,7 @@ use App\Modules\Examenes\Infrastructure\Providers\ExamenesServiceProvider;
 use App\Modules\Habilitacion\Infrastructure\Providers\HabilitacionServiceProvider;
 use App\Modules\Ingreso\Infrastructure\Providers\IngresoServiceProvider;
 use App\Modules\Monitoreo\Infrastructure\Providers\MonitoreoServiceProvider;
+use App\Modules\Reportes\Infrastructure\Providers\ReportesServiceProvider;
 use App\Providers\AppServiceProvider;
 
 return [
@@ -18,4 +19,5 @@ return [
     HabilitacionServiceProvider::class,
     IngresoServiceProvider::class,
     MonitoreoServiceProvider::class,
+    ReportesServiceProvider::class,
 ];
