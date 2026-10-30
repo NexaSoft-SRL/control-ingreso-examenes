@@ -12,11 +12,6 @@ use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 use UnexpectedValueException;
 
-/**
- * @phpstan-import-type ExamenReporte from ConsultaReportesGateway
- * @phpstan-import-type FilaReporteEstudiante from ConsultaReportesGateway
- * @phpstan-import-type FilaReporteIncidencia from ConsultaReportesGateway
- */
 final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
 {
     private const TIPOS_EXAMEN = [
@@ -186,9 +181,6 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
         ];
     }
 
-    /**
-     * @return ExamenReporte|null
-     */
     public function reporte(int $examenId): ?array
     {
         $examen = DB::table('examenes as examen')
@@ -366,7 +358,23 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
     }
 
     /**
-     * @return list<FilaReporteEstudiante>
+     * @return list<array{
+     *     codigo: string,
+     *     estudiante: string,
+     *     apellidos: string,
+     *     nombres: string,
+     *     carrera: string,
+     *     grupo: string,
+     *     habilitado: bool|null,
+     *     aula: string,
+     *     ingreso_id: int|null,
+     *     registrado_en: string|null,
+     *     hora: string|null,
+     *     medio: string,
+     *     excepcion: bool,
+     *     expulsado: bool,
+     *     situacion: string
+     * }>
      */
     private function estudiantes(int $examenId): array
     {
@@ -447,7 +455,19 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
     }
 
     /**
-     * @return list<FilaReporteIncidencia>
+     * @return list<array{
+     *     hora: string,
+     *     aula: string,
+     *     codigo: string|null,
+     *     estudiante: string,
+     *     tipo: string,
+     *     gravedad: string,
+     *     detalle: string,
+     *     registrado_por: string,
+     *     atencion: string,
+     *     ocurrida_en: string,
+     *     rechazado: bool
+     * }>
      */
     private function listarTodasIncidencias(
         int $examenId,
@@ -512,7 +532,19 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
 
     /**
      * @param  iterable<object>  $filas
-     * @return list<FilaReporteIncidencia>
+     * @return list<array{
+     *     hora: string,
+     *     aula: string,
+     *     codigo: string|null,
+     *     estudiante: string,
+     *     tipo: string,
+     *     gravedad: string,
+     *     detalle: string,
+     *     registrado_por: string,
+     *     atencion: string,
+     *     ocurrida_en: string,
+     *     rechazado: bool
+     * }>
      */
     private function convertirIncidencias(iterable $filas): array
     {
