@@ -213,6 +213,17 @@ return static function (DeptracConfig $config): void {
                             '#^PhpOffice\\PhpSpreadsheet\\.*#'
                         )
                     ),
+                // La generacion de reportes PDF es un detalle de infraestructura (HU-23).
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('dompdf/dompdf')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Dompdf\\.*#'
+                        )
+                    ),
                 // La imagen del codigo QR se dibuja en el servidor (HU-20).
                 BoolConfig::create()
                     ->must(
