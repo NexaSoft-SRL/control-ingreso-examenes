@@ -45,6 +45,7 @@ const TITULOS = {
     '/examenes': 'Exámenes',
     '/examenes/nuevo': 'Registrar examen',
     '/reportes': 'Reportes',
+    '/bitacora-examen': 'Bitácora de exámenes',
     '/habilitacion': 'Habilitación',
     '/codigos-qr': 'Códigos QR',
     '/en-curso': 'En curso',
