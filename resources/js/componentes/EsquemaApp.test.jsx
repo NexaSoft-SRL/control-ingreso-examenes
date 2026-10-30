@@ -59,6 +59,7 @@ describe('EsquemaApp', () => {
             'Aulas y mapa',
             'Docentes',
             'Padrón',
+            'Reportes de la universidad',
             'Bitácora de exámenes',
             'Usuarios y roles',
             'Bitácora',
@@ -79,6 +80,7 @@ describe('EsquemaApp', () => {
                 .map((e) => e.textContent)
         ).toEqual([
             'Aulas y mapaPreparación',
+            'Reportes de la universidadDocencia',
             'Bitácora de exámenesDocencia',
             'Usuarios y rolesSistema',
             'BitácoraSistema',
