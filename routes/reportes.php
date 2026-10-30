@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\Reportes\Http\Controllers\BitacoraExamenController;
 use App\Modules\Reportes\Http\Controllers\ReportesExamenController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,4 +25,21 @@ Route::middleware(['auth', 'permiso:reportes_examenes'])
             ->whereIn('tipo', ['asistencia', 'ausentes', 'incidencias'])
             ->whereIn('formato', ['pdf', 'xlsx'])
             ->name('examenes.descargas');
+    });
+
+Route::middleware(['auth', 'permiso:reportes_examenes|reportes_universidad'])
+    ->prefix('api/reportes')
+    ->name('reportes.bitacora.')
+    ->group(function (): void {
+        Route::get('/bitacora/examenes', [BitacoraExamenController::class, 'examenes'])
+            ->name('examenes');
+        Route::get('/examenes/{examen}/bitacora', [BitacoraExamenController::class, 'index'])
+            ->whereNumber('examen')
+            ->name('index');
+        Route::get('/examenes/{examen}/bitacora/descargas/{formato}', [
+            BitacoraExamenController::class,
+            'descargar',
+        ])->whereNumber('examen')
+            ->whereIn('formato', ['pdf', 'xlsx'])
+            ->name('descargas');
     });
