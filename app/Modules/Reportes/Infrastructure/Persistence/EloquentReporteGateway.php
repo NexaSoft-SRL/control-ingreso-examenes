@@ -19,6 +19,7 @@ use App\Modules\Reportes\Application\DTOs\FilaResumenEstudiante;
 use App\Modules\Reportes\Application\DTOs\GrupoReporteData;
 use App\Modules\Reportes\Application\DTOs\ReporteHorarios;
 use App\Modules\Reportes\Domain\Rules\FechaLegible;
+use DomainException;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -90,6 +91,92 @@ final class EloquentReporteGateway implements ReporteGateway
         'SEGUNDA_INSTANCIA' => 'Segunda instancia',
         'MESA' => 'Examen de mesa',
     ];
+
+    /**
+     * Comprueba el volumen en PostgreSQL antes de ejecutar las consultas
+     * que materializan arreglos y objetos del reporte.
+     *
+     * En reportes consolidados se contabilizan registros de origen:
+     * el presupuesto es conservador para evitar grandes consultas intermedias.
+     */
+    public function validarVolumenExportacion(
+        string $tipo,
+        AlcanceReporte $alcance,
+        int $limite
+    ): void {
+        if ($limite < 1) {
+            throw new \InvalidArgumentException('El límite debe ser positivo.');
+        }
+
+        $examenId = $alcance->examenId;
+
+        $volumen = match ($tipo) {
+            'horarios' => $this->contarIngresos($alcance),
+
+            'registrados' => $this->contarExamenes($alcance)
+                + DB::table('examen_aula')
+                    ->whereIn('examen_id', $this->idsDe($alcance))->count()
+                + DB::table('habilitaciones')
+                    ->whereIn('examen_id', $this->idsDe($alcance))->count()
+                + $this->contarIngresos($alcance),
+
+            'intentos' => $this->contarIntentos($alcance),
+
+            'estudiantes' => $this->contarEstudiantes($alcance)
+                + DB::table('inscripciones as inscripcion')
+                    ->join('examen_grupo as eg', 'eg.grupo_id', '=', 'inscripcion.grupo_id')
+                    ->whereIn('eg.examen_id', $this->idsDe($alcance))
+                    ->count()
+                + DB::table('habilitaciones')
+                    ->whereIn('examen_id', $this->idsDe($alcance))->count()
+                + $this->contarIngresos($alcance)
+                + $this->incidenciasDe($alcance)->count(),
+
+            'incidencias' => $examenId === null
+                ? 0
+                : DB::table('incidencias as incidencia')
+                    ->crossJoin('examenes as examen')
+                    ->where('examen.id', $examenId)
+                    ->whereRaw(
+                        $this->incidenciaDelExamen(),
+                        [$this->apertura()]
+                    )->count(),
+
+            'asistencia' => $examenId === null
+                ? 0
+                : DB::table('ingresos')
+                    ->where('examen_id', $examenId)->count(),
+
+            'ausentes' => $examenId === null
+                ? 0
+                : DB::table('habilitaciones as habilitacion')
+                    ->where('habilitacion.examen_id', $examenId)
+                    ->where('habilitacion.habilitado', true)
+                    ->whereNotExists(function (Builder $existe): void {
+                        $existe->selectRaw('1')
+                            ->from('ingresos as ingreso')
+                            ->whereColumn(
+                                'ingreso.estudiante_id',
+                                'habilitacion.estudiante_id'
+                            )
+                            ->whereColumn(
+                                'ingreso.examen_id',
+                                'habilitacion.examen_id'
+                            );
+                    })->count(),
+
+            default => throw new \InvalidArgumentException(
+                'Tipo de reporte no válido.'
+            ),
+        };
+
+        if ($volumen > $limite) {
+            throw new DomainException(
+                'El reporte supera el límite de volumen para exportación. '
+                .'Reduzca el alcance mediante los filtros disponibles.'
+            );
+        }
+    }
 
     public function contarExamenes(AlcanceReporte $alcance): int
     {

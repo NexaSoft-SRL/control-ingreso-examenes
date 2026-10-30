@@ -24,6 +24,18 @@ use App\Modules\Reportes\Application\DTOs\ReporteHorarios;
 interface ReporteGateway
 {
     /**
+     * Comprueba el presupuesto de registros de una exportación.
+     * No devuelve datos ni modifica la consulta de las demás pantallas.
+     *
+     * @throws \\DomainException
+     */
+    public function validarVolumenExportacion(
+        string $tipo,
+        AlcanceReporte $alcance,
+        int $limite
+    ): void;
+
+    /**
      * Cuantos examenes abarca el alcance.
      */
     public function contarExamenes(AlcanceReporte $alcance): int;
