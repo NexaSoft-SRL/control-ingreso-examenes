@@ -62,6 +62,7 @@ describe('EsquemaApp', () => {
             'Bitácora de exámenes',
             'Usuarios y roles',
             'Bitácora',
+            'Respaldo',
         ]);
         expect(within(menus()[lateral]).getByText('Preparación')).toBeInTheDocument();
         expect(within(menus()[lateral]).getByText('Docencia')).toBeInTheDocument();
@@ -81,6 +82,7 @@ describe('EsquemaApp', () => {
             'Bitácora de exámenesDocencia',
             'Usuarios y rolesSistema',
             'BitácoraSistema',
+            'RespaldoSistema',
         ]);
 
         const enlaceBitacora = within(hoja)
