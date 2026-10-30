@@ -27,6 +27,7 @@ final readonly class IngresoAuditadoGateway implements IngresoGateway
         int $aulaId,
         ?int $usuarioId = null,
         ?int $accesoCodigoAulaId = null,
+        ?string $medioIdentificacion = null,
     ): bool {
         return DB::transaction(function () use (
             $examenId,
@@ -34,6 +35,7 @@ final readonly class IngresoAuditadoGateway implements IngresoGateway
             $aulaId,
             $usuarioId,
             $accesoCodigoAulaId,
+            $medioIdentificacion,
         ): bool {
             $registrado = $this->ingresos->registrar(
                 $examenId,
@@ -41,6 +43,7 @@ final readonly class IngresoAuditadoGateway implements IngresoGateway
                 $aulaId,
                 $usuarioId,
                 $accesoCodigoAulaId,
+                $medioIdentificacion,
             );
 
             if (! $registrado) {

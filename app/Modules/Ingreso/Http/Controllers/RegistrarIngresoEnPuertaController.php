@@ -116,6 +116,7 @@ final class RegistrarIngresoEnPuertaController
                 $identificadorRegistro,
                 $operador->accesoId,
                 porQr: $tipo === 'qr',
+                medioIdentificacion: $medio,
             );
             $veredicto = $registro->veredicto;
         } catch (AccesoPuntoDenegado $error) {
