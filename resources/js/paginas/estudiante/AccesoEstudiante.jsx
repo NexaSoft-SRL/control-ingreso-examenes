@@ -7,6 +7,7 @@ import Boton from '../../componentes/Boton';
 import usarTituloPestana from '../../utiles/usarTituloPestana';
 import FondoAcceso from '../../componentes/FondoAcceso';
 import Campo from '../../componentes/Campo';
+import Logo from '../../componentes/Logo';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
@@ -139,12 +140,24 @@ export default function AccesoEstudiante() {
     return (
         <FondoAcceso>
             <div className="w-full max-w-sm">
+                <header className="mb-6 flex items-center justify-center gap-3">
+                    <Logo className="h-11 w-11" />
+                    <div>
+                        <p className="font-bold leading-tight text-primary-900">UMSS</p>
+                        <p className="text-xs font-medium text-primary-700">CONTROL DE INGRESO</p>
+                    </div>
+                    <span className="ml-2 hidden border-l border-slate-300 pl-4 text-sm font-medium text-slate-700 sm:block">
+                        Sistema Institucional de Verificación
+                    </span>
+                </header>
                 <div className="mb-6 flex flex-col items-center text-center">
                     <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-600 text-white">
                         <GraduationCap className="h-6 w-6" />
                     </div>
-                    <h1 className="text-lg font-semibold text-slate-900">Estudiantes</h1>
-                    <p className="mt-1 text-sm text-slate-600">Exámenes y foto</p>
+                    <h1 className="text-2xl font-semibold text-slate-900">Ingreso al sistema</h1>
+                    <p className="mt-1 text-sm text-slate-600">
+                        Ingrese su código universitario para acceder
+                    </p>
                 </div>
 
                 {envio ? (
@@ -225,10 +238,10 @@ export default function AccesoEstudiante() {
                         onSubmit={pedirCodigo}
                     >
                         <Campo
-                            etiqueta="Código SIS"
+                            etiqueta="Código universitario"
                             inputMode="numeric"
                             autoComplete="username"
-                            placeholder="202100417"
+                            placeholder="Ej: 20251234"
                             autoFocus
                             value={sis}
                             error={errores.sis}
@@ -238,8 +251,11 @@ export default function AccesoEstudiante() {
                             }}
                         />
                         <Boton type="submit" className="w-full" disabled={enviando}>
-                            Enviar código al correo
+                            Enviar código de acceso
                         </Boton>
+                        <p className="text-center text-sm text-slate-600">
+                            Recibirá el código de acceso en su correo institucional.
+                        </p>
                     </form>
                 )}
 

@@ -13,6 +13,7 @@ import Paginacion from '../../componentes/Paginacion';
 import Tarjeta from '../../componentes/Tarjeta';
 import CargaDeLista from './CargaDeLista';
 import FotoDelInscrito, { BotonFoto } from './FotoDelInscrito';
+import PlazoFotosDelGrupo from './PlazoFotosDelGrupo';
 import ResumenDeCarga from './ResumenDeCarga';
 import { FORMA_GRUPO, horariosDe } from './SelectorDeGrupos';
 
@@ -97,6 +98,7 @@ export default function InscritosDelGrupo({
                     >
                         <Download className="h-4 w-4 shrink-0" /> Reporte de mis estudiantes
                     </Boton>
+                    <PlazoFotosDelGrupo key={grupo.id} grupoId={grupo.id} onAvisar={onAvisar} />
                 </div>
             </header>
 

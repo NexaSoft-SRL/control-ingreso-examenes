@@ -33,6 +33,8 @@ final readonly class ListarHabilitacion
             throw new ExamenAjenoException;
         }
 
+        $this->habilitaciones->aplicarPlazosDeFoto($examenId, now()->toDateString());
+
         $condiciones = $this->habilitaciones->condiciones($examenId, $filtros);
 
         return new ListadoHabilitacionData(

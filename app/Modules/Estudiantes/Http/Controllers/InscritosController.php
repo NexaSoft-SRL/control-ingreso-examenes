@@ -12,6 +12,7 @@ use App\Modules\Estudiantes\Domain\Exceptions\CambioDeFotoNoPermitidoException;
 use App\Modules\Estudiantes\Domain\Exceptions\GrupoAjenoException;
 use App\Modules\Estudiantes\Domain\Exceptions\GrupoSinListaException;
 use App\Modules\Estudiantes\Domain\Exceptions\NoInscritoException;
+use App\Modules\Estudiantes\Http\Requests\HabilitarFotoRequest;
 use App\Modules\Estudiantes\Http\Requests\ListaRequest;
 use App\Modules\Estudiantes\Http\Requests\PlantillaRequest;
 use Illuminate\Http\JsonResponse;
@@ -76,12 +77,12 @@ final class InscritosController
 
     /**
      * El docente habilita a un inscrito para que suba o cambie su foto
-     * durante unos dias; la foto la sube el estudiante desde su acceso.
+     * hasta el dia que elige, o cambia ese dia si ya estaba habilitado.
      */
-    public function habilitarFoto(int $grupo, int $estudiante, HabilitarCambioDeFoto $habilitar): JsonResponse
+    public function habilitarFoto(int $grupo, int $estudiante, HabilitarFotoRequest $request, HabilitarCambioDeFoto $habilitar): JsonResponse
     {
         try {
-            $hasta = $habilitar->execute((int) Auth::id(), $grupo, $estudiante, now()->toDateString());
+            $hasta = $habilitar->execute((int) Auth::id(), $grupo, $estudiante, now()->toDateString(), $request->hasta());
         } catch (GrupoAjenoException $excepcion) {
             return response()->json([
                 'message' => $excepcion->getMessage(),

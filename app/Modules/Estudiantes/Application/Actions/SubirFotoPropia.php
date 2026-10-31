@@ -37,9 +37,17 @@ final readonly class SubirFotoPropia
                 throw new FotoYaSubidaException;
             }
 
-            $plazo = $this->portal->plazo();
+            $plazoGeneral = $this->portal->plazo();
+            $plazoDeGrupoAbierto = false;
 
-            if ($plazo === null || ! $plazo->abiertoEl($hoy)) {
+            foreach ($this->portal->plazosDeGruposDelEstudiante($estudianteId) as $plazo) {
+                if ($plazo['desde'] <= $hoy && $hoy <= $plazo['hasta']) {
+                    $plazoDeGrupoAbierto = true;
+                    break;
+                }
+            }
+
+            if (! ($plazoGeneral?->abiertoEl($hoy) === true || $plazoDeGrupoAbierto)) {
                 throw new FueraDePlazoDeFotoException;
             }
         }
