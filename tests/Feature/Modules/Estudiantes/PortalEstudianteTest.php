@@ -312,6 +312,34 @@ final class PortalEstudianteTest extends TestCase
         $this->getJson('/api/estudiante/sesion')->assertJsonPath('foto.puede_subir', false);
     }
 
+    public function test_the_deadline_of_a_group_lets_the_student_upload_and_says_where_it_expired(): void
+    {
+        $fisica = $this->grupo($this->docente, $this->asignatura('Física'), '1');
+        DB::table('inscripciones')->insert([
+            'estudiante_id' => $this->estudiante->id,
+            'grupo_id' => $fisica->id,
+            'via' => 'DOCENTE',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('plazos_foto_grupo')->insert([
+            ['grupo_id' => $this->grupo->id, 'desde' => now()->toDateString(), 'hasta' => now()->addDays(10)->toDateString(), 'created_at' => now(), 'updated_at' => now()],
+            ['grupo_id' => $fisica->id, 'desde' => now()->subDays(10)->toDateString(), 'hasta' => now()->subDay()->toDateString(), 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        $this->entrar();
+
+        // Sin plazo general, el de su grupo le deja subirla; en Fisica ya vencio.
+        $this->getJson('/api/estudiante/sesion')
+            ->assertJsonPath('plazo_foto', null)
+            ->assertJsonPath('foto.puede_subir', true)
+            ->assertJsonPath('foto.vencido_en', ['Física']);
+        $this->post('/api/estudiante/foto', ['foto' => UploadedFile::fake()->image('yo.jpg', 600, 800)], ['Accept' => 'application/json'])
+            ->assertCreated();
+        $this->getJson('/api/estudiante/sesion')
+            ->assertJsonPath('foto.puede_subir', false)
+            ->assertJsonPath('foto.vencido_en', []);
+    }
+
     public function test_without_a_session_nothing_of_the_student_opens(): void
     {
         $this->getJson('/api/estudiante/examenes')->assertUnauthorized();

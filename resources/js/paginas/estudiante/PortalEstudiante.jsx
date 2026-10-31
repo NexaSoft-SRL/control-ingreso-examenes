@@ -229,12 +229,23 @@ function MiFoto({ sesion, alGuardar }) {
         (item) =>
             `${item.asignatura} · ${item.grupo}: ${diaMes(item.desde)} – ${fechaCorta(item.hasta)}`
     );
-    const rango = plazo
-        ? `${diaMes(plazo.desde)} – ${fechaCorta(plazo.hasta)}`
-        : rangosGrupo.join(' · ') || null;
+    // El de sus grupos cuenta cuando el general no está abierto.
+    const rango =
+        plazo && (plazo.abierto || rangosGrupo.length === 0)
+            ? `${diaMes(plazo.desde)} – ${fechaCorta(plazo.hasta)}`
+            : rangosGrupo.join(' · ') || null;
+    const vencidoEn = sesion.foto?.vencido_en ?? [];
 
     return (
         <Tarjeta titulo="Mi foto">
+            {vencidoEn.length > 0 && (
+                <p
+                    role="alert"
+                    className="mb-4 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-800"
+                >
+                    Sin foto · no habilitado en {vencidoEn.join(', ')}
+                </p>
+            )}
             {estudiante.con_foto && !puede ? (
                 <div className="flex flex-col items-center gap-3">
                     {url && (
@@ -280,7 +291,7 @@ function MiFoto({ sesion, alGuardar }) {
                     )}
                     <ul className="list-inside list-disc text-sm text-slate-700">
                         <li>Rostro de frente</li>
-                        <li>Sin lentes oscuros ni gorra</li>
+                        <li>Sin lentes ni gorra</li>
                         <li>Fondo claro</li>
                     </ul>
                     <CampoImagen
@@ -377,6 +388,7 @@ MiFoto.propTypes = {
             subida_en: PropTypes.string,
             habilitada_hasta: PropTypes.string,
             habilitada_por: PropTypes.string,
+            vencido_en: PropTypes.arrayOf(PropTypes.string),
         }),
     }).isRequired,
     alGuardar: PropTypes.func.isRequired,
