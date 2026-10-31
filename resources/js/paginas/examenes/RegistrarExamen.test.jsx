@@ -684,7 +684,7 @@ describe('RegistrarExamen · guardar', () => {
         );
         expect(screen.getByRole('link', { name: /Habilitar estudiantes/ })).toHaveAttribute(
             'href',
-            '/habilitacion?examen=9'
+            '/examenes/detalle?examen=9&pestana=habilitacion'
         );
     });
 

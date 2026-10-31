@@ -33,6 +33,7 @@ import { usarSesion } from '../../sesion/SesionContexto';
 import { diaMes, fechaLarga, normalizar, plural } from '../../utiles/texto';
 import NormasDelExamen from './NormasDelExamen';
 import AtencionAulas from './AtencionAulas';
+import rutaDelExamen from './rutaDelExamen';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
@@ -367,7 +368,7 @@ function Resumen({ examen, recien = false }) {
                 </Link>
                 {aulas.length > 0 && puede('habilitacion') && (
                     <Link
-                        to={`/habilitacion?examen=${examen.id}`}
+                        to={rutaDelExamen(examen.id, 'habilitacion')}
                         className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 ${FOCO}`}
                     >
                         Habilitar estudiantes <ArrowRight className="h-4 w-4" />

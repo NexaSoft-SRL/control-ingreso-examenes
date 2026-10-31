@@ -17,6 +17,7 @@ describe('vistas por permiso', () => {
             ['/reportes-universidad', 'reportes_universidad'],
             ['/bitacora-examen', 'reportes_examenes|reportes_universidad'],
             ['/examenes/nuevo', 'examenes'],
+            ['/examenes/detalle', 'examenes'],
             ['/habilitacion', 'habilitacion'],
             ['/codigos-qr', 'codigos_qr'],
             ['/en-curso', 'examenes'],
@@ -63,6 +64,7 @@ describe('vistas por permiso', () => {
             '/reportes',
             '/bitacora-examen',
             '/examenes/nuevo',
+            '/examenes/detalle',
             '/habilitacion',
             '/codigos-qr',
             '/en-curso',
@@ -85,6 +87,7 @@ describe('vistas por permiso', () => {
             '/oferta',
             '/examenes',
             '/examenes/nuevo',
+            '/examenes/detalle',
             '/en-curso',
             '/en-curso/aula',
         ]);
@@ -113,6 +116,7 @@ describe('vistas por permiso', () => {
     it('encuentra la vista de una dirección, la más específica primero', () => {
         const vistas = vistasDe(usuarioDePrueba('Docente'));
         expect(vistaDeRuta(vistas, '/examenes/nuevo').padre).toBe('/examenes');
+        expect(vistaDeRuta(vistas, '/examenes/detalle').padre).toBe('/examenes');
         expect(vistaDeRuta(vistas, '/examenes').ruta).toBe('/examenes');
         expect(vistaDeRuta(vistas, '/periodo')).toBeNull();
     });
