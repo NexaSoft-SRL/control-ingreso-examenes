@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     ArrowRight,
     Check,
@@ -30,7 +30,7 @@ import Pasos from '../../componentes/Pasos';
 import Seleccion from '../../componentes/Seleccion';
 import Tarjeta from '../../componentes/Tarjeta';
 import { usarSesion } from '../../sesion/SesionContexto';
-import { fechaLarga, normalizar, plural } from '../../utiles/texto';
+import { diaMes, fechaLarga, normalizar, plural } from '../../utiles/texto';
 import NormasDelExamen from './NormasDelExamen';
 import AtencionAulas from './AtencionAulas';
 
@@ -43,6 +43,20 @@ const VACIO = 'rounded-lg border border-slate-200 py-4 text-center text-sm text-
 const ERROR = 'mt-1.5 text-sm text-danger-600';
 
 const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
+// La fecha de hoy en el navegador, 'AAAA-MM-DD'.
+const hoyLocal = () => {
+    const ahora = new Date();
+    const dos = (n) => String(n).padStart(2, '0');
+    return `${ahora.getFullYear()}-${dos(ahora.getMonth() + 1)}-${dos(ahora.getDate())}`;
+};
+// La primera fecha posible: hoy, salvo que el período empiece después; vacía
+// si el período ya terminó.
+const fechaSugerida = (periodo, hoy) => {
+    const desde = [hoy, periodo?.fecha_inicio].filter(Boolean).sort().at(-1);
+    return periodo?.fecha_fin && desde > periodo.fecha_fin ? '' : desde;
+};
+// La hora de la primera franja de la mañana en la UMSS.
+const HORA_SUGERIDA = '08:15';
 const duracionValida = (texto) =>
     /^\d+$/.test(String(texto).trim()) && Number(texto) >= 15 && Number(texto) <= 480;
 const alternar = (lista, valor) =>
@@ -469,23 +483,78 @@ Resumen.propTypes = { examen: FORMA_DETALLE.isRequired, recien: PropTypes.bool }
 // Las normas del examen que quedaron sin plantilla (la plantilla se quitó).
 const sueltasDe = (examen) => (examen?.normas_marcadas ?? []).filter((n) => !n.plantilla_id);
 
+// De qué examen copiar las normas de uno nuevo: el último propio de la
+// asignatura o, si no tiene, el último propio de cualquiera.
+function fuenteDeNormas(examenes, asignaturaId) {
+    const propios = examenes
+        .filter((e) => e.propio)
+        .sort((a, b) => `${b.fecha}${b.hora}`.localeCompare(`${a.fecha}${a.hora}`));
+    return propios.find((e) => e.asignatura?.id === asignaturaId) ?? propios[0] ?? null;
+}
+
 // El asistente: examen y normas, grupos, aulas y resumen. Todo se guarda de
 // una vez al final (POST o PUT /examenes).
-function Asistente({ asignaturas, tipos, periodos, inicial, pasoInicial, onExamen }) {
+function Asistente({
+    asignaturas,
+    tipos,
+    periodos,
+    inicial,
+    pasoInicial,
+    onExamen,
+    anteriores = [],
+}) {
     const [examen, setExamen] = useState(inicial);
     const [paso, setPaso] = useState(pasoInicial);
     const [asignaturaId, setAsignaturaId] = useState(
         inicial?.asignatura.id ?? asignaturas[0]?.id ?? null
     );
+    const periodoDe = (id) =>
+        periodos.find((p) => p.codigo === asignaturas.find((a) => a.id === id)?.periodo) ?? null;
+    const [hoy] = useState(hoyLocal);
     const [tipo, setTipo] = useState(inicial?.tipo ?? tipos[0]?.valor ?? '');
-    const [fecha, setFecha] = useState(inicial?.fecha ?? '');
-    const [hora, setHora] = useState(inicial?.hora ?? '');
+    // Un examen nuevo empieza con fecha y hora cargadas: hoy (o la primera
+    // fecha del período) y la primera franja de la mañana.
+    const [fecha, setFecha] = useState(
+        () => inicial?.fecha ?? fechaSugerida(periodoDe(asignaturas[0]?.id), hoy)
+    );
+    const [hora, setHora] = useState(inicial?.hora ?? HORA_SUGERIDA);
     const [duracion, setDuracion] = useState(String(inicial?.duracion ?? '90'));
     const [normas, setNormas] = useState(inicial?.normas ?? '');
     const [marcadas, setMarcadas] = useState(() =>
         (inicial?.normas_marcadas ?? []).map((n) => n.plantilla_id).filter(Boolean)
     );
     const [conservadas, setConservadas] = useState(() => sueltasDe(inicial).map((n) => n.id));
+    // Un examen nuevo empieza con las normas del último examen propio de su
+    // asignatura o, si no hay, del último que registró el docente: suelen
+    // repetirse de un examen a otro. Se copian hasta que el docente las toca.
+    const [normasTocadas, setNormasTocadas] = useState(false);
+    const [copiadasDe, setCopiadasDe] = useState(null);
+    const fuente = inicial || normasTocadas ? null : fuenteDeNormas(anteriores, asignaturaId);
+    const fuenteId = fuente?.id ?? null;
+    useEffect(() => {
+        if (fuenteId === null) return undefined;
+        let vigente = true;
+        api.get(`/examenes/${fuenteId}`)
+            .then(({ data }) => {
+                const previo = data?.data ?? data;
+                if (!vigente || !previo) return;
+                setMarcadas(
+                    (previo.normas_marcadas ?? []).map((n) => n.plantilla_id).filter(Boolean)
+                );
+                // Las que perdieron su plantilla pasan al texto libre.
+                setNormas(
+                    [...sueltasDe(previo).map((n) => n.texto), previo.normas]
+                        .filter(Boolean)
+                        .join('\n')
+                );
+                setCopiadasDe(fuenteId);
+            })
+            .catch(() => {});
+        return () => {
+            vigente = false;
+        };
+    }, [fuenteId]);
+    const copiadas = anteriores.find((e) => copiadasDe !== null && e.id === copiadasDe) ?? null;
     // `null`: todavía no se tocó; valen los grupos propios de la asignatura.
     const [grupos, setGrupos] = useState(() => inicial?.grupos_detalle?.map((g) => g.id) ?? null);
     const [aulas, setAulas] = useState(() => inicial?.aulas_detalle?.map((a) => a.aula_id) ?? []);
@@ -611,6 +680,15 @@ function Asistente({ asignaturas, tipos, periodos, inicial, pasoInicial, onExame
 
     const cambiarAsignatura = (valor) => {
         setAsignaturaId(Number(valor));
+        // Una fecha que queda fuera del período de la nueva asignatura pasa a
+        // la primera posible; la que sigue valiendo se respeta.
+        if (!examen) {
+            const nuevo = periodoDe(Number(valor));
+            const sugerida = fechaSugerida(nuevo, hoy);
+            if (!fecha || fecha < sugerida || (nuevo?.fecha_fin && fecha > nuevo.fecha_fin)) {
+                setFecha(sugerida);
+            }
+        }
         setGrupos(null);
         setAulas([]);
         setBuscado('');
@@ -825,13 +903,20 @@ function Asistente({ asignaturas, tipos, periodos, inicial, pasoInicial, onExame
                             marcadas={marcadas}
                             onMarcadas={(siguiente) => {
                                 setMarcadas(siguiente);
+                                setNormasTocadas(true);
                                 quitarError('normas_marcadas');
                             }}
                             texto={normas}
                             onTexto={(valor) => {
                                 setNormas(valor);
+                                setNormasTocadas(true);
                                 quitarError('normas');
                             }}
+                            copiadasDe={
+                                copiadas
+                                    ? `${copiadas.tipo_texto ?? copiadas.tipo} · ${copiadas.asignatura.nombre} · ${diaMes(copiadas.fecha)}`
+                                    : null
+                            }
                             sueltas={sueltasDe(examen)}
                             conservadas={conservadas}
                             onConservadas={setConservadas}
@@ -1216,6 +1301,7 @@ Asistente.propTypes = {
     inicial: FORMA_DETALLE,
     pasoInicial: PropTypes.number.isRequired,
     onExamen: PropTypes.func.isRequired,
+    anteriores: PropTypes.array,
 };
 
 // Registro y edición de un examen. Con `?examen=3&paso=2` se abre un examen
@@ -1229,12 +1315,15 @@ export default function RegistrarExamen() {
     const tipos = usarConsulta('/examenes/tipos');
     const periodos = usarConsulta('/periodos/vigentes');
     const detalle = usarConsulta(examenId ? `/examenes/${examenId}` : null);
+    // Los exámenes del docente, para copiar las normas a uno nuevo.
+    const anteriores = usarConsulta(examenId ? null : '/examenes');
     // El examen recién guardado, para el título.
     const [guardado, setGuardado] = useState(null);
 
     const previo = detalle.datos ?? null;
     const examen = guardado ?? previo;
-    const cargando = misGrupos.cargando || tipos.cargando || detalle.cargando;
+    // Con los períodos cargados, el examen nuevo propone una fecha válida.
+    const cargando = misGrupos.cargando || tipos.cargando || periodos.cargando || detalle.cargando;
     const negado = detalle.error && [403, 404].includes(estadoDe(detalle.error));
     const error = misGrupos.error || tipos.error || (negado ? null : detalle.error);
 
@@ -1293,6 +1382,7 @@ export default function RegistrarExamen() {
                             tipos={tipos.datos ?? []}
                             periodos={periodos.datos ?? []}
                             inicial={previo}
+                            anteriores={anteriores.datos ?? []}
                             pasoInicial={previo ? pasoPedido : 0}
                             onExamen={setGuardado}
                         />
