@@ -231,6 +231,45 @@ describe('PuntoControl HU-19', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('HU-27: muestra la foto para comparar la cara, o «Sin foto»', async () => {
+        api.post.mockImplementationOnce(() =>
+            rechazo({
+                veredicto: 'NO_HABILITADO',
+                estudiante: {
+                    id: 5,
+                    codigo: '202210098',
+                    nombre: 'Vega Escóbar, Silvia',
+                    foto: 'data:image/jpeg;base64,AAAA',
+                },
+                dato: 'No subió su foto',
+            })
+        );
+
+        montar();
+        await verificarCodigo();
+
+        expect(
+            await screen.findByRole('img', { name: 'Foto de Vega Escóbar, Silvia' })
+        ).toHaveAttribute('src', 'data:image/jpeg;base64,AAAA');
+        expect(screen.getByText('No subió su foto')).toBeInTheDocument();
+
+        api.post.mockResolvedValueOnce({
+            data: {
+                data: {
+                    veredicto: 'ADMITIDO',
+                    admitido: true,
+                    estudiante: { id: 6, codigo: '202210099', nombre: 'Rojas Paz, Ana' },
+                    dato: 'Registrado a las 08:40',
+                },
+            },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /Siguiente/ }));
+        await verificarCodigo('202210099');
+
+        expect(await screen.findByText('Rojas Paz, Ana')).toBeInTheDocument();
+        expect(screen.getByText('Sin foto')).toBeInTheDocument();
+    });
+
     it('BUG-14: distingue «No registrado» de «No es de esta aula»', async () => {
         api.post
             .mockImplementationOnce(() =>

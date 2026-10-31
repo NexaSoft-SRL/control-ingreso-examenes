@@ -133,6 +133,39 @@ describe('PortalEstudiante', () => {
         expect(screen.queryByRole('button', { name: 'Guardar foto' })).not.toBeInTheDocument();
     });
 
+    it('con el general cerrado sube con el de su grupo y avisa dónde ya venció', async () => {
+        montar('/estudiante/foto', {
+            'GET /estudiante/sesion': {
+                estudiante: ESTUDIANTE,
+                plazo_foto: { ...PLAZO, abierto: false },
+                plazos_foto_grupo: [
+                    {
+                        id: 4,
+                        asignatura: 'Introducción a la Programación',
+                        grupo: '2',
+                        desde: '2026-11-01',
+                        hasta: '2026-11-15',
+                    },
+                ],
+                foto: {
+                    puede_subir: true,
+                    habilitada_hasta: null,
+                    habilitada_por: null,
+                    vencido_en: ['Física'],
+                },
+            },
+        });
+
+        expect(
+            await screen.findByText(
+                'Plazo · Introducción a la Programación · 2: 1 nov – 15 nov 2026'
+            )
+        ).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveTextContent('Sin foto · no habilitado en Física');
+        expect(screen.getByText('Sin lentes ni gorra')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Guardar foto' })).toBeInTheDocument();
+    });
+
     it('con el cambio habilitado por un docente muestra la actual y deja reemplazarla', async () => {
         montar('/estudiante/foto', {
             'GET /estudiante/sesion': {

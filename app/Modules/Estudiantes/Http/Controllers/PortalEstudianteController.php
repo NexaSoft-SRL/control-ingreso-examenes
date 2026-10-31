@@ -155,6 +155,12 @@ final class PortalEstudianteController
         $plazoDeGrupoAbierto = collect($plazosDeGrupo)->contains(
             fn (array $plazoGrupo): bool => $plazoGrupo['desde'] <= $hoy && $hoy <= $plazoGrupo['hasta'],
         );
+        // Las asignaturas en que ya vencio el plazo de su grupo sin que la
+        // suba: ahi queda no habilitado.
+        $vencidoEn = $estudiante->conFoto ? [] : array_values(array_unique(array_map(
+            static fn (array $plazoGrupo): string => $plazoGrupo['asignatura'],
+            array_filter($plazosDeGrupo, static fn (array $plazoGrupo): bool => $plazoGrupo['hasta'] < $hoy),
+        )));
 
         return response()->json([
             'estudiante' => $estudiante->comoArreglo(),
@@ -171,6 +177,7 @@ final class PortalEstudianteController
                 'subida_en' => $foto['subida_en'],
                 'habilitada_hasta' => $habilitado ? $foto['habilitada_hasta'] : null,
                 'habilitada_por' => $habilitado ? $foto['habilitada_por'] : null,
+                'vencido_en' => $vencidoEn,
             ],
         ]);
     }

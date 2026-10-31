@@ -36,6 +36,7 @@
         "lucide-react": "^1.47.0",
         "maplibre-gl": "^5.24.0",
         "prop-types": "^15.8.1",
+        "qr-scanner": "^1.4.2",
         "react": "^19.2.8",
         "react-dom": "^19.2.8",
         "react-router-dom": "^7.18.4"
