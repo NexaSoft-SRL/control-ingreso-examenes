@@ -6,6 +6,7 @@ namespace App\Modules\Examenes\Http\Controllers;
 
 use App\Modules\Examenes\Application\Actions\ActualizarExamen;
 use App\Modules\Examenes\Application\Actions\EliminarExamen;
+use App\Modules\Examenes\Application\Actions\FinalizarExamen;
 use App\Modules\Examenes\Application\Actions\RegistrarExamen;
 use App\Modules\Examenes\Application\DTOs\AulaDetalleData;
 use App\Modules\Examenes\Application\DTOs\ExamenDetalleData;
@@ -18,6 +19,7 @@ use App\Modules\Examenes\Domain\Enums\TipoExamen;
 use App\Modules\Examenes\Domain\Exceptions\DatoInvalidoException;
 use App\Modules\Examenes\Domain\Exceptions\ExamenAjenoException;
 use App\Modules\Examenes\Domain\Exceptions\ExamenConIngresosException;
+use App\Modules\Examenes\Domain\Exceptions\ExamenNoAbiertoException;
 use App\Modules\Examenes\Http\Requests\GuardarExamenRequest;
 use App\Modules\Examenes\Http\Requests\ListarExamenesRequest;
 use Illuminate\Http\JsonResponse;
@@ -130,6 +132,36 @@ final class ExamenController
     }
 
     /**
+     * HU-28: un docente del examen lo finaliza; se cierran la puerta, el
+     * seguimiento y el acceso con codigo de aula.
+     */
+    public function finalizar(int $examen, FinalizarExamen $finalizar): JsonResponse
+    {
+        try {
+            $cierre = $finalizar->execute($examen, $this->usuarioId());
+        } catch (ExamenAjenoException) {
+            return response()->json([
+                'message' => 'Este examen no está a su cargo.',
+                'alcance' => true,
+            ], Response::HTTP_FORBIDDEN);
+        } catch (ExamenNoAbiertoException) {
+            return response()->json([
+                'message' => 'El examen no está abierto: no se puede finalizar.',
+                'codigo' => 'EXAMEN_NO_ABIERTO',
+            ], Response::HTTP_CONFLICT);
+        }
+
+        if ($cierre === null) {
+            return $this->noEncontrado();
+        }
+
+        return response()->json([
+            'message' => 'Examen finalizado.',
+            'finalizado_en' => $cierre,
+        ]);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function resumen(ExamenResumenData $examen): array
@@ -156,6 +188,7 @@ final class ExamenController
             'avance' => [
                 'grupos' => $examen->avance->grupos,
                 'aulas' => $examen->avance->aulas,
+                'auxiliares' => $examen->avance->auxiliares,
                 'habilitacion' => $examen->avance->habilitacion,
                 'qr' => $examen->avance->qr,
             ],
@@ -169,6 +202,11 @@ final class ExamenController
             'junto_con' => $examen->juntoCon,
             'es_hoy' => $examen->esHoy,
             'rendido' => $examen->rendido,
+            'finalizado_en' => $examen->finalizadoEn,
+            'con_ingresos' => $examen->conIngresos,
+            'con_incidencias' => $examen->conIncidencias,
+            'codigos_aula' => $examen->codigosAula,
+            'auxiliares' => $examen->atienden,
         ];
     }
 

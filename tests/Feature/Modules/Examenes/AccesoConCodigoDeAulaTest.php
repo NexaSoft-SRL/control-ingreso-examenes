@@ -209,6 +209,53 @@ final class AccesoConCodigoDeAulaTest extends TestCase
             ->assertUnauthorized();
     }
 
+    public function test_el_codigo_vale_pasada_la_hora_prevista_hasta_que_el_docente_finaliza(): void
+    {
+        $this->travelTo(now()->setTime(12, 0));
+        $docente = $this->docente();
+        $aula = $this->aula('691A');
+        // 09:00 + 60 min: el examen se paso de su hora prevista y nadie lo
+        // finalizo.
+        $examen = $this->examen($docente, [$this->grupo($docente)], [$aula], [
+            'hora_inicio' => '09:00:00',
+            'duracion_minutos' => 60,
+        ]);
+        ExamenAulaCodigo::create([
+            'examen_id' => $examen->id,
+            'aula_id' => $aula->id,
+            'codigo' => '445566',
+            'generado_en' => now()->toDateTimeString(),
+        ]);
+
+        $token = $this->postJson('/api/auth/codigo-aula', [
+            'codigo' => '445566',
+            'nombre_colaborador' => 'Laura Gomez',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.estado', 'pendiente')
+            ->json('data.token');
+        self::assertIsString($token);
+
+        $this->actingAs($this->cuenta($docente))
+            ->postJson("/api/examenes/{$examen->id}/finalizar")
+            ->assertOk();
+        $this->travelTo(now()->addSecond());
+
+        $this->withHeader('X-Codigo-Aula-Token', $token)
+            ->getJson('/api/auth/codigo-aula/sesion')
+            ->assertUnauthorized();
+        $this->postJson('/api/auth/codigo-aula', [
+            'codigo' => '445566',
+            'nombre_colaborador' => 'Laura Gomez',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.codigo.0', sprintf(
+                'El examen ya terminó: cerró el %d %s a las 12:00.',
+                (int) now()->format('j'),
+                ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'][(int) now()->format('n') - 1],
+            ));
+    }
+
     public function test_un_codigo_repetido_en_otro_dia_no_impide_entrar_con_el_vigente(): void
     {
         $docente = $this->docente();
