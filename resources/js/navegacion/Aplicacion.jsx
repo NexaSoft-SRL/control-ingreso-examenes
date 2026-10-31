@@ -118,6 +118,7 @@ export function Rutas() {
                 {/* El estudiante entra sin cuenta, con un código por correo. */}
                 <Route path="/estudiante/ingreso" element={<AccesoEstudiante />} />
                 <Route path="/estudiante" element={<PortalEstudiante />} />
+                <Route path="/estudiante/examenes" element={<PortalEstudiante />} />
                 <Route path="/estudiante/foto" element={<PortalEstudiante />} />
                 <Route path="/estudiante/*" element={<Navigate to="/estudiante" replace />} />
                 <Route element={<ConMenu />}>

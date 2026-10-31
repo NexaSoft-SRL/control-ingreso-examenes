@@ -150,6 +150,11 @@ final class PortalEstudianteController
         $estudiante = $this->estudiante($request);
         $foto = $portal->estadoFoto($estudiante->id);
         $habilitado = $foto['habilitada_hasta'] !== null && $foto['habilitada_hasta'] >= $hoy;
+        $plazosDeGrupo = $portal->plazosDeGruposDelEstudiante($estudiante->id);
+        $plazoGeneralAbierto = $plazo?->abiertoEl($hoy) === true;
+        $plazoDeGrupoAbierto = collect($plazosDeGrupo)->contains(
+            fn (array $plazoGrupo): bool => $plazoGrupo['desde'] <= $hoy && $hoy <= $plazoGrupo['hasta'],
+        );
 
         return response()->json([
             'estudiante' => $estudiante->comoArreglo(),
@@ -158,10 +163,12 @@ final class PortalEstudianteController
                 'hasta' => $plazo->hasta,
                 'abierto' => $plazo->abiertoEl($hoy),
             ],
+            'plazos_foto_grupo' => $plazosDeGrupo,
             // Sube la primera dentro del plazo, o cuando un docente se lo
             // habilita (tambien para cambiarla).
             'foto' => [
-                'puede_subir' => $habilitado || (! $estudiante->conFoto && $plazo?->abiertoEl($hoy) === true),
+                'puede_subir' => $habilitado || (! $estudiante->conFoto && ($plazoGeneralAbierto || $plazoDeGrupoAbierto)),
+                'subida_en' => $foto['subida_en'],
                 'habilitada_hasta' => $habilitado ? $foto['habilitada_hasta'] : null,
                 'habilitada_por' => $habilitado ? $foto['habilitada_por'] : null,
             ],

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { CalendarDays, Camera, LogOut, MapPin } from 'lucide-react';
+import { CalendarDays, Camera, Home, Info, LogOut, MapPin } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
@@ -16,6 +16,7 @@ import Tarjeta from '../../componentes/Tarjeta';
 import { PantallaDeCarga } from '../../sesion/SesionContexto';
 import usarTituloPestana from '../../utiles/usarTituloPestana';
 import { colorDeAsignatura, diaMes, fechaCorta, fechaLarga, normalizar } from '../../utiles/texto';
+import { MAXIMO_MB } from '../../utiles/imagen';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
@@ -41,8 +42,9 @@ const ESTADOS = {
 };
 
 const PESTANAS = [
-    { ruta: '/estudiante', titulo: 'Mis exámenes', Icono: CalendarDays },
-    { ruta: '/estudiante/foto', titulo: 'Mi foto', Icono: Camera },
+    { ruta: '/estudiante', titulo: 'Inicio', Icono: Home },
+    { ruta: '/estudiante/examenes', titulo: 'Mis exámenes', Icono: CalendarDays },
+    { ruta: '/estudiante/foto', titulo: 'Mi fotografía', Icono: Camera },
 ];
 
 function Examen({ examen, hoy }) {
@@ -81,6 +83,16 @@ function Examen({ examen, hoy }) {
             <p className="mt-3 text-sm font-medium text-slate-800">
                 {fechaLarga(examen.fecha)} · {examen.hora}
             </p>
+            {examen.normas?.length > 0 && (
+                <div className="mt-3 rounded-lg bg-primary-50 px-3 py-2 text-sm text-primary-900">
+                    <p className="font-semibold">Normas del examen</p>
+                    <ul className="mt-1 list-inside list-disc space-y-1">
+                        {examen.normas.map((norma, indice) => (
+                            <li key={`${indice}-${norma}`}>{norma}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
                 <Insignia tono={estado.tono} punto>
                     {estado.texto}
@@ -113,6 +125,7 @@ Examen.propTypes = {
         estado: PropTypes.string,
         motivo: PropTypes.string,
         ingreso: PropTypes.string,
+        normas: PropTypes.arrayOf(PropTypes.string),
         aula: PropTypes.string,
         edificio: PropTypes.string,
         piso: PropTypes.string,
@@ -212,7 +225,13 @@ function MiFoto({ sesion, alGuardar }) {
         return undefined;
     }
 
-    const rango = plazo ? `${diaMes(plazo.desde)} – ${fechaCorta(plazo.hasta)}` : null;
+    const rangosGrupo = (sesion.plazos_foto_grupo ?? []).map(
+        (item) =>
+            `${item.asignatura} · ${item.grupo}: ${diaMes(item.desde)} – ${fechaCorta(item.hasta)}`
+    );
+    const rango = plazo
+        ? `${diaMes(plazo.desde)} – ${fechaCorta(plazo.hasta)}`
+        : rangosGrupo.join(' · ') || null;
 
     return (
         <Tarjeta titulo="Mi foto">
@@ -230,6 +249,11 @@ function MiFoto({ sesion, alGuardar }) {
                             Registrada
                         </Insignia>
                     </span>
+                    {sesion.foto?.subida_en && (
+                        <p className="text-sm text-slate-600">
+                            Fecha de registro: {fechaCorta(sesion.foto.subida_en.slice(0, 10))}
+                        </p>
+                    )}
                 </div>
             ) : puede ? (
                 <div className="space-y-4">
@@ -269,6 +293,7 @@ function MiFoto({ sesion, alGuardar }) {
                         error={error}
                         camara={null}
                         minimo={240}
+                        maximoMB={MAXIMO_MB}
                     />
                     {confirmando ? (
                         <div
@@ -338,8 +363,18 @@ MiFoto.propTypes = {
             hasta: PropTypes.string,
             abierto: PropTypes.bool,
         }),
+        plazos_foto_grupo: PropTypes.arrayOf(
+            PropTypes.shape({
+                id: PropTypes.number,
+                asignatura: PropTypes.string,
+                grupo: PropTypes.string,
+                desde: PropTypes.string,
+                hasta: PropTypes.string,
+            })
+        ),
         foto: PropTypes.shape({
             puede_subir: PropTypes.bool,
+            subida_en: PropTypes.string,
             habilitada_hasta: PropTypes.string,
             habilitada_por: PropTypes.string,
         }),
@@ -406,7 +441,7 @@ export default function PortalEstudiante() {
     return (
         <div className="flex min-h-dvh flex-col bg-slate-100">
             <header className="sticky top-0 z-10 border-b border-slate-200 bg-white">
-                <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-2.5">
+                <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2.5">
                     <div className="flex min-w-0 items-center gap-3">
                         <Logo className="h-8 w-8" />
                         <span className="min-w-0">
@@ -426,7 +461,7 @@ export default function PortalEstudiante() {
                         <LogOut className="h-[18px] w-[18px]" /> Cerrar sesión
                     </button>
                 </div>
-                <nav aria-label="Estudiante" className="mx-auto flex max-w-2xl gap-1 px-4">
+                <nav aria-label="Estudiante" className="mx-auto flex max-w-5xl gap-1 px-4">
                     {PESTANAS.map(({ ruta, titulo, Icono }) => {
                         const activa = pathname === ruta;
                         return (
@@ -449,14 +484,55 @@ export default function PortalEstudiante() {
                     })}
                 </nav>
             </header>
-            <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-5">
+            <main className="mx-auto w-full max-w-5xl flex-1 space-y-5 px-4 py-5">
                 <h1 className="sr-only">
                     {PESTANAS.find((p) => p.ruta === pathname)?.titulo ?? 'Mis exámenes'}
                 </h1>
                 {pathname === '/estudiante/foto' ? (
                     <MiFoto sesion={sesion} alGuardar={cargar} />
+                ) : pathname === '/estudiante/examenes' ? (
+                    <Tarjeta titulo="Mis exámenes" icono={CalendarDays}>
+                        <MisExamenes />
+                    </Tarjeta>
                 ) : (
-                    <MisExamenes />
+                    <>
+                        <section className="flex flex-col justify-between gap-4 rounded-xl bg-gradient-to-r from-primary-900 via-primary-800 to-primary-700 p-5 text-white sm:flex-row sm:items-center">
+                            <div>
+                                <h2 className="text-xl font-semibold">{estudiante.nombre}</h2>
+                                <p className="mt-1 text-sm text-primary-100">
+                                    Código universitario: {estudiante.codigo}
+                                </p>
+                            </div>
+                            <span className="text-sm font-semibold tracking-wide">UMSS</span>
+                        </section>
+                        <p
+                            role="status"
+                            className="rounded-lg border border-success-200 bg-success-100 px-4 py-3 font-medium text-success-700"
+                        >
+                            ¡Bienvenido al sistema!
+                        </p>
+                        <Tarjeta
+                            titulo="Mis exámenes"
+                            icono={CalendarDays}
+                            acciones={
+                                <Link
+                                    to="/estudiante/examenes"
+                                    className={`rounded-lg px-3 py-2 text-sm font-medium text-primary-700 hover:bg-primary-50 ${FOCO}`}
+                                >
+                                    Ver todos
+                                </Link>
+                            }
+                        >
+                            <MisExamenes />
+                        </Tarjeta>
+                        <Tarjeta titulo="Información importante" icono={Info}>
+                            <p className="text-sm text-slate-700">
+                                Preséntate 15 minutos antes del examen con tu carnet universitario.
+                                Revisa el aula y las normas indicadas para cada examen.
+                            </p>
+                        </Tarjeta>
+                        <MiFoto sesion={sesion} alGuardar={cargar} />
+                    </>
                 )}
             </main>
             {avisoSalida}

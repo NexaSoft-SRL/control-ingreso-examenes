@@ -75,6 +75,7 @@ final class EsquemaReplanteoTest extends TestCase
         'estudiantes',
         'inscripciones',
         'plazos_foto',
+        'plazos_foto_grupo',
         // Examenes y atencion de aulas (HU-18).
         'accesos_codigo_aula',
         'docente_auxiliares',

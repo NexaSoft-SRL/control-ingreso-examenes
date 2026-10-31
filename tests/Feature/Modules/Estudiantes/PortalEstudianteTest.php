@@ -233,6 +233,15 @@ final class PortalEstudianteTest extends TestCase
 
     public function test_the_student_sees_the_time_and_room_of_each_exam_and_when_entered(): void
     {
+        DB::table('examenes')->where('id', $this->examen->id)->update([
+            'normas' => 'Presentar carnet universitario.',
+        ]);
+        DB::table('examen_norma')->insert([
+            'examen_id' => $this->examen->id,
+            'plantilla_id' => null,
+            'texto' => 'No usar celular.',
+            'orden' => 1,
+        ]);
         $otro = $this->examen($this->docente, [$this->grupo], [$this->aula], [
             'fecha' => now()->addDays(8)->toDateString(),
             'hora_inicio' => '14:15:00',
@@ -253,6 +262,10 @@ final class PortalEstudianteTest extends TestCase
         $this->assertSame('Edificio Académico 2', $porId[$this->examen->id]['edificio']);
         $this->assertSame('Introducción a la Programación', $porId[$this->examen->id]['asignatura']);
         $this->assertSame('Primer parcial', $porId[$this->examen->id]['tipo']);
+        $this->assertSame(
+            ['Presentar carnet universitario.', 'No usar celular.'],
+            $porId[$this->examen->id]['normas'],
+        );
         $this->assertNull($porId[$this->examen->id]['ingreso']);
         $this->assertSame('NO_HABILITADO', $porId[$otro->id]['estado']);
         $this->assertSame('Debe la práctica 3.', $porId[$otro->id]['motivo']);
@@ -265,6 +278,38 @@ final class PortalEstudianteTest extends TestCase
         $hora = substr($registrado, 11, 5);
 
         $this->getJson('/api/estudiante/examenes')->assertJsonPath('data.0.ingreso', $hora);
+    }
+
+    public function test_a_group_photo_deadline_is_available_without_an_open_general_deadline(): void
+    {
+        DB::table('plazos_foto_grupo')->insert([
+            'grupo_id' => $this->grupo->id,
+            'desde' => now()->subDay()->toDateString(),
+            'hasta' => now()->addDay()->toDateString(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->entrar();
+        $this->getJson('/api/estudiante/sesion')
+            ->assertJsonPath('foto.puede_subir', true)
+            ->assertJsonPath('plazos_foto_grupo.0.desde', now()->subDay()->toDateString())
+            ->assertJsonPath('plazos_foto_grupo.0.hasta', now()->addDay()->toDateString());
+
+    }
+
+    public function test_an_expired_group_photo_deadline_does_not_allow_upload(): void
+    {
+        DB::table('plazos_foto_grupo')->insert([
+            'grupo_id' => $this->grupo->id,
+            'desde' => now()->subDays(5)->toDateString(),
+            'hasta' => now()->subDay()->toDateString(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->entrar();
+        $this->getJson('/api/estudiante/sesion')->assertJsonPath('foto.puede_subir', false);
     }
 
     public function test_without_a_session_nothing_of_the_student_opens(): void
@@ -399,6 +444,34 @@ final class PortalEstudianteTest extends TestCase
             ->assertJsonPath('data.hasta', $dia(20));
         $this->assertDatabaseHas('plazos_foto', ['fijado_por' => $admin->id]);
         $this->assertDatabaseHas('bitacora_operaciones', ['operacion' => 'estudiante.plazo_fotos']);
+    }
+
+    public function test_administration_can_set_and_remove_a_group_photo_deadline(): void
+    {
+        $admin = $this->usuarioConPermisos(['padron_estudiantes']);
+        $desde = now()->toDateString();
+        $hasta = now()->addDays(15)->toDateString();
+
+        $this->actingAs($admin)
+            ->getJson('/api/estudiantes/plazo-fotos/grupos')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $this->grupo->id)
+            ->assertJsonPath('data.0.asignatura', 'Introducción a la Programación');
+
+        $this->putJson("/api/estudiantes/plazo-fotos/grupos/{$this->grupo->id}", [
+            'desde' => $desde,
+            'hasta' => $hasta,
+        ])->assertOk()->assertJsonPath('data.desde', $desde);
+
+        $this->assertDatabaseHas('plazos_foto_grupo', [
+            'grupo_id' => $this->grupo->id,
+            'desde' => $desde,
+            'hasta' => $hasta,
+        ]);
+
+        $this->deleteJson("/api/estudiantes/plazo-fotos/grupos/{$this->grupo->id}")
+            ->assertNoContent();
+        $this->assertDatabaseMissing('plazos_foto_grupo', ['grupo_id' => $this->grupo->id]);
     }
 
     public function test_the_administration_replaces_a_photo_and_photos_are_protected_by_permission(): void

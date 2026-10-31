@@ -8,6 +8,7 @@ use App\Modules\Administracion\Application\Contracts\ExportadorBaseDeDatos;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use PDO;
+use RuntimeException;
 
 /**
  * HU-25: Exportador SQL en PHP que genera el volcado de la base de datos
@@ -36,7 +37,10 @@ final class ExportadorSqlBaseDeDatos implements ExportadorBaseDeDatos
         $isPgsql = $driver === 'pgsql';
         $pdo = DB::connection()->getPdo();
 
-        $zona = is_string(config('umss.zona_horaria')) ? config('umss.zona_horaria') : 'America/La_Paz';
+        $zona = is_string(config('umss.zona_horaria'))
+            ? config('umss.zona_horaria')
+            : 'America/La_Paz';
+
         $fecha = now($zona)->format('Y-m-d H:i:s');
 
         $tablas = $this->obtenerTablas($driver);
@@ -44,8 +48,18 @@ final class ExportadorSqlBaseDeDatos implements ExportadorBaseDeDatos
 
         $tablasAExportar = array_values(array_filter(
             $tablas,
-            static fn (string $tabla): bool => ! in_array(strtolower($tabla), $tablasExcluidas, true)
+            static fn (string $tabla): bool => ! in_array(
+                strtolower($tabla),
+                $tablasExcluidas,
+                true
+            )
         ));
+
+        $tablasParaInsertar = $isPgsql
+            ? $this->ordenarTablasPorDependencias($tablasAExportar)
+            : $tablasAExportar;
+
+        $tablasParaEliminar = array_reverse($tablasParaInsertar);
 
         $sql = [];
         $sql[] = '-- ============================================================';
@@ -57,23 +71,44 @@ final class ExportadorSqlBaseDeDatos implements ExportadorBaseDeDatos
         $sql[] = '';
 
         if ($isPgsql) {
-            $sql[] = "SET session_replication_role = 'replica';";
             $sql[] = 'BEGIN;';
-            $sql[] = '';
         } else {
             $sql[] = 'PRAGMA foreign_keys = OFF;';
             $sql[] = 'BEGIN TRANSACTION;';
+        }
+
+        $sql[] = '';
+        $sql[] = '-- ============================================================';
+        $sql[] = '-- FASE 1: ELIMINACIÓN DE REGISTROS';
+        $sql[] = '-- ============================================================';
+        $sql[] = '';
+
+        foreach ($tablasParaEliminar as $tabla) {
+            $totalFilas = DB::table($tabla)->count();
+
+            $sql[] = "-- Tabla: \"{$tabla}\" ({$totalFilas} registros)";
+            $sql[] = "DELETE FROM \"{$tabla}\";";
             $sql[] = '';
         }
 
-        foreach ($tablasAExportar as $tabla) {
+        $sql[] = '-- ============================================================';
+        $sql[] = '-- FASE 2: INSERCIÓN DE REGISTROS';
+        $sql[] = '-- ============================================================';
+        $sql[] = '';
+
+        foreach ($tablasParaInsertar as $tabla) {
             /** @var list<string> $columnas */
-            $columnas = array_values(array_filter(Schema::getColumnListing($tabla), 'is_string'));
+            $columnas = array_values(array_filter(
+                Schema::getColumnListing($tabla),
+                'is_string'
+            ));
+
             if (empty($columnas)) {
                 continue;
             }
 
             $consulta = DB::table($tabla);
+
             if (in_array('id', $columnas, true)) {
                 $consulta->orderBy('id');
             }
@@ -81,27 +116,27 @@ final class ExportadorSqlBaseDeDatos implements ExportadorBaseDeDatos
             $filas = $consulta->get()->all();
             $totalFilas = count($filas);
 
-            $sql[] = '-- ------------------------------------------------------------';
             $sql[] = "-- Tabla: \"{$tabla}\" ({$totalFilas} registros)";
-            $sql[] = '-- ------------------------------------------------------------';
-            $sql[] = "DELETE FROM \"{$tabla}\";";
 
             if ($totalFilas > 0) {
                 $columnasSql = implode(', ', array_map(
-                    static fn (mixed $col): string => '"'.(string) $col.'"',
+                    static fn (string $col): string => '"'.$col.'"',
                     $columnas
                 ));
 
                 foreach (array_chunk($filas, 100) as $lote) {
                     $tuplas = [];
+
                     foreach ($lote as $fila) {
                         /** @var array<string, mixed> $filaArr */
                         $filaArr = (array) $fila;
                         $valores = [];
+
                         foreach ($columnas as $col) {
                             $valor = $filaArr[$col] ?? null;
                             $valores[] = $this->escaparValor($pdo, $valor);
                         }
+
                         $tuplas[] = '('.implode(', ', $valores).')';
                     }
 
@@ -112,25 +147,126 @@ final class ExportadorSqlBaseDeDatos implements ExportadorBaseDeDatos
 
             if ($isPgsql && in_array('id', $columnas, true)) {
                 /** @var object{seq: string|null}|null $seqResult */
-                $seqResult = DB::selectOne("SELECT pg_get_serial_sequence(?, 'id') as seq", [$tabla]);
+                $seqResult = DB::selectOne(
+                    "SELECT pg_get_serial_sequence(?, 'id') as seq",
+                    [$tabla]
+                );
+
                 if ($seqResult !== null && $seqResult->seq !== null) {
-                    $sql[] = "SELECT setval(pg_get_serial_sequence('{$tabla}', 'id'), coalesce(max(id), 1), max(id) IS NOT NULL) FROM \"{$tabla}\";";
+                    $tablaSql = str_replace("'", "''", $tabla);
+
+                    $sql[] = "SELECT setval(pg_get_serial_sequence('{$tablaSql}', 'id'), coalesce(max(id), 1), max(id) IS NOT NULL) FROM \"{$tabla}\";";
                 }
             }
 
             $sql[] = '';
         }
 
-        if ($isPgsql) {
-            $sql[] = 'COMMIT;';
-            $sql[] = "SET session_replication_role = 'origin';";
-        } else {
-            $sql[] = 'COMMIT;';
+        $sql[] = 'COMMIT;';
+
+        if (! $isPgsql) {
             $sql[] = 'PRAGMA foreign_keys = ON;';
         }
+
         $sql[] = '';
 
         return implode("\n", $sql);
+    }
+
+    /**
+     * Calcula un orden de tablas respetando las claves foráneas.
+     *
+     * Las tablas padre aparecen antes que las tablas hijas.
+     *
+     * @param  list<string>  $tablas
+     * @return list<string>
+     */
+    private function ordenarTablasPorDependencias(array $tablas): array
+    {
+        if (empty($tablas)) {
+            return [];
+        }
+
+        /** @var array<string, true> $tablasIncluidas */
+        $tablasIncluidas = array_fill_keys($tablas, true);
+
+        /** @var array<string, int> $gradosEntrada */
+        $gradosEntrada = [];
+
+        /** @var array<string, list<string>> $hijasPorPadre */
+        $hijasPorPadre = [];
+
+        foreach ($tablas as $tabla) {
+            $gradosEntrada[$tabla] = 0;
+            $hijasPorPadre[$tabla] = [];
+        }
+
+        $relaciones = DB::select(
+            "SELECT
+                conrelid::regclass::text AS tabla_hija,
+                confrelid::regclass::text AS tabla_padre
+             FROM pg_constraint
+             WHERE contype = 'f'
+               AND connamespace = 'public'::regnamespace"
+        );
+
+        foreach ($relaciones as $relacion) {
+            $hija = (string) $relacion->tabla_hija;
+            $padre = (string) $relacion->tabla_padre;
+
+            if (
+                ! isset($tablasIncluidas[$hija])
+                || ! isset($tablasIncluidas[$padre])
+            ) {
+                continue;
+            }
+
+            if (in_array($hija, $hijasPorPadre[$padre], true)) {
+                continue;
+            }
+
+            $hijasPorPadre[$padre][] = $hija;
+            $gradosEntrada[$hija]++;
+        }
+
+        $disponibles = [];
+
+        foreach ($gradosEntrada as $tabla => $grado) {
+            if ($grado === 0) {
+                $disponibles[] = $tabla;
+            }
+        }
+
+        sort($disponibles);
+
+        $orden = [];
+
+        while (! empty($disponibles)) {
+            $tabla = array_shift($disponibles);
+            $orden[] = $tabla;
+
+            $hijas = $hijasPorPadre[$tabla];
+            sort($hijas);
+
+            foreach ($hijas as $hija) {
+                $gradosEntrada[$hija]--;
+
+                if ($gradosEntrada[$hija] === 0) {
+                    $disponibles[] = $hija;
+                }
+            }
+
+            sort($disponibles);
+        }
+
+        if (count($orden) !== count($tablas)) {
+            throw new RuntimeException(
+                'No se pudo determinar el orden de restauración: '
+                .'se detectó una dependencia circular entre tablas.'
+            );
+        }
+
+        return $orden;
     }
 
     /**
@@ -150,7 +286,11 @@ final class ExportadorSqlBaseDeDatos implements ExportadorBaseDeDatos
         }
 
         /** @var list<string> $tablas */
-        $tablas = array_values(array_filter(Schema::getTableListing(), 'is_string'));
+        $tablas = array_values(array_filter(
+            Schema::getTableListing(),
+            'is_string'
+        ));
+
         sort($tablas);
 
         return $tablas;
@@ -168,7 +308,9 @@ final class ExportadorSqlBaseDeDatos implements ExportadorBaseDeDatos
         }
 
         return array_values(array_map(
-            static fn (mixed $nombre): string => is_string($nombre) ? strtolower($nombre) : '',
+            static fn (mixed $nombre): string => is_string($nombre)
+                ? strtolower($nombre)
+                : '',
             $configuradas
         ));
     }
@@ -192,7 +334,10 @@ final class ExportadorSqlBaseDeDatos implements ExportadorBaseDeDatos
         }
 
         if (is_array($valor) || is_object($valor)) {
-            $json = json_encode($valor, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $json = json_encode(
+                $valor,
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            );
 
             return $pdo->quote($json !== false ? $json : '{}');
         }
