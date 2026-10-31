@@ -607,7 +607,7 @@ describe('Mis grupos · grupo con lista', () => {
 });
 
 describe('Mis grupos · foto del inscrito', () => {
-    it('habilita a un inscrito sin foto para que la suba durante 7 días', async () => {
+    it('habilita a un inscrito sin foto para que la suba hasta el día propuesto', async () => {
         const lista = estudiantes(2).map((e, i) => ({
             ...e,
             foto: i === 0 ? { subida_en: null, habilitada_hasta: null } : undefined,
@@ -628,10 +628,12 @@ describe('Mis grupos · foto del inscrito', () => {
 
         const dialogo = await screen.findByRole('dialog');
         expect(within(dialogo).getByText('Sin foto')).toBeInTheDocument();
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Habilitar 7 días' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Habilitar' }));
 
         await waitFor(() =>
-            expect(api.post).toHaveBeenCalledWith('/docente/grupos/37/inscritos/1/foto')
+            expect(api.post).toHaveBeenCalledWith('/docente/grupos/37/inscritos/1/foto', {
+                hasta: expect.any(String),
+            })
         );
         expect(await screen.findByText('Foto habilitada hasta el 2 nov 2026')).toBeInTheDocument();
     });

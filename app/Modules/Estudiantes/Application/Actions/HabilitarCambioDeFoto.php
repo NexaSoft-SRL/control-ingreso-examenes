@@ -15,7 +15,8 @@ use App\Modules\Estudiantes\Domain\Rules\CambioDeFoto;
 
 /**
  * Un docente habilita a un estudiante de su grupo para que suba o cambie
- * su foto durante unos dias, aunque el plazo general este cerrado. No la
+ * su foto hasta el dia que elige, aunque el plazo general este cerrado. Si
+ * ya esta habilitado, cualquier docente de sus grupos cambia ese dia. No la
  * sube el docente: la sube el estudiante desde su acceso.
  */
 final readonly class HabilitarCambioDeFoto
@@ -30,13 +31,14 @@ final readonly class HabilitarCambioDeFoto
     ) {}
 
     /**
-     * Hasta que dia queda habilitado, o nulo si el grupo no existe.
+     * Hasta que dia queda habilitado, o nulo si el grupo no existe. Sin
+     * `$hasta`, una semana desde hoy.
      *
      * @throws GrupoAjenoException
      * @throws NoInscritoException
      * @throws CambioDeFotoNoPermitidoException
      */
-    public function execute(int $usuarioId, int $grupoId, int $estudianteId, string $hoy): ?string
+    public function execute(int $usuarioId, int $grupoId, int $estudianteId, string $hoy, ?string $hasta = null): ?string
     {
         if ($this->inscripciones->grupo($grupoId) === null) {
             return null;
@@ -51,17 +53,27 @@ final readonly class HabilitarCambioDeFoto
         }
 
         $estado = $this->portal->estadoFoto($estudianteId);
+        $hasta ??= CambioDeFoto::habilitadaHasta($hoy);
+        $vigente = $estado['habilitada_hasta'] !== null && $estado['habilitada_hasta'] >= $hoy;
+        $estudiante = $this->portal->estudiante($estudianteId);
+        $quien = $estudiante === null ? 'un estudiante' : $estudiante->nombre.' · '.$estudiante->codigo;
 
-        // Otro docente ya lo habilito: no hace falta de nuevo.
-        if ($estado['habilitada_hasta'] !== null && $estado['habilitada_hasta'] >= $hoy) {
-            throw new CambioDeFotoNoPermitidoException(
-                sprintf(
-                    'Ya habilitado hasta el %s por %s.',
-                    $this->dia($estado['habilitada_hasta']),
-                    $estado['habilitada_por'] ?? 'otro docente',
-                ),
-                'YA_HABILITADO',
-            );
+        // Ya habilitado: se cambia el dia limite.
+        if ($vigente) {
+            $antes = (string) $estado['habilitada_hasta'];
+
+            if ($antes !== $hasta) {
+                $this->portal->habilitarFoto($estudianteId, $hasta, $usuarioId);
+                $this->bitacora->registrar(
+                    $usuarioId,
+                    'estudiante.foto_habilitar',
+                    'estudiantes',
+                    $estudianteId,
+                    sprintf('Foto de %s: plazo del %s → %s.', $quien, $this->dia($antes), $this->dia($hasta)),
+                );
+            }
+
+            return $hasta;
         }
 
         $desde = CambioDeFoto::habilitableDesde($estado['subida_en']);
@@ -77,10 +89,7 @@ final readonly class HabilitarCambioDeFoto
             );
         }
 
-        $hasta = CambioDeFoto::habilitadaHasta($hoy);
         $this->portal->habilitarFoto($estudianteId, $hasta, $usuarioId);
-
-        $estudiante = $this->portal->estudiante($estudianteId);
         $this->bitacora->registrar(
             $usuarioId,
             'estudiante.foto_habilitar',
@@ -89,7 +98,7 @@ final readonly class HabilitarCambioDeFoto
             sprintf(
                 '%s de %s habilitado hasta el %s.',
                 $desde === null ? 'Subir la foto' : 'Cambiar la foto',
-                $estudiante === null ? 'un estudiante' : $estudiante->nombre.' · '.$estudiante->codigo,
+                $quien,
                 $this->dia($hasta),
             ),
         );
