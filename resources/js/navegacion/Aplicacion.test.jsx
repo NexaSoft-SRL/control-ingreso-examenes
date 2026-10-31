@@ -45,6 +45,7 @@ const TITULOS = {
     '/estudiantes': 'Padrón',
     '/examenes': 'Exámenes',
     '/examenes/nuevo': 'Registrar examen',
+    '/examenes/detalle': 'Examen',
     '/reportes': 'Reportes',
     '/reportes-universidad': 'Reportes de la universidad',
     '/bitacora-examen': 'Bitácora de exámenes',

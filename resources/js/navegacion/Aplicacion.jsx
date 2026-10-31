@@ -24,6 +24,7 @@ export const PAGINAS = {
     '/estudiantes': lazy(() => import('../paginas/estudiantes/Padron')),
     '/examenes': lazy(() => import('../paginas/examenes/Examenes')),
     '/examenes/nuevo': lazy(() => import('../paginas/examenes/RegistrarExamen')),
+    '/examenes/detalle': lazy(() => import('../paginas/examenes/DetalleExamen')),
     '/reportes': lazy(() => import('../paginas/examenes/Reportes')),
     '/reportes-universidad': lazy(() => import('../paginas/examenes/ReportesUniversidad')),
     '/bitacora-examen': lazy(() => import('../paginas/examenes/BitacoraExamen')),

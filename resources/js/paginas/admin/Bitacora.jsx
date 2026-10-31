@@ -39,6 +39,7 @@ const etiquetaOperacion = {
     'examen.registrar': 'Registro de examen',
     'examen.modificar': 'Edición de examen',
     'examen.eliminar': 'Eliminación de examen',
+    'examen.finalizar': 'Finalización de examen',
     'habilitacion.habilitar': 'Habilitación de estudiantes',
     'habilitacion.inhabilitar': 'Inhabilitación de estudiantes',
     'habilitacion.repartir': 'Reparto por aula',

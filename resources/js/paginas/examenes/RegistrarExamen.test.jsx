@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import RegistrarExamen from './RegistrarExamen';
 import { api } from '../../api/cliente';
 import { olvidarEdificios } from '../../api/usarEdificios';
@@ -251,6 +251,8 @@ function guardado(cuerpo, id = 9) {
 }
 
 let detalle;
+// Los exámenes del docente (GET /examenes), para copiar las normas.
+let anteriores;
 
 const montar = (ruta = '/examenes/nuevo', usuario = usuarioDePrueba('Docente')) =>
     renderConSesion(<RegistrarExamen />, { usuario, ruta });
@@ -279,7 +281,9 @@ async function irAAulas(datos) {
 beforeEach(() => {
     olvidarEdificios();
     detalle = DETALLE;
+    anteriores = [];
     simularApi(api, {
+        'GET /examenes': () => ({ data: anteriores }),
         'GET /docente/grupos': { data: MIS_GRUPOS, meta: { periodo: '2/2026', asignaturas: 2 } },
         'GET /examenes/tipos': { data: TIPOS },
         'GET /periodos/vigentes': { data: PERIODOS, principal: '2/2026' },
@@ -294,7 +298,88 @@ beforeEach(() => {
     });
 });
 
+afterEach(() => {
+    vi.useRealTimers();
+});
+
+describe('RegistrarExamen · normas del examen anterior', () => {
+    const anterior = (id, asignatura, fecha, cambios = {}) => ({
+        id,
+        asignatura,
+        tipo_texto: 'Primer parcial',
+        fecha,
+        hora: '08:15',
+        propio: true,
+        ...cambios,
+    });
+
+    it('un examen nuevo trae las normas del último de su asignatura', async () => {
+        anteriores = [
+            anterior(30, INTRO, '2026-10-01'),
+            anterior(31, INTRO, '2026-10-10'),
+            anterior(32, TALLER, '2026-10-20'),
+            anterior(33, INTRO, '2026-10-25', { propio: false }),
+        ];
+        detalle = {
+            ...DETALLE,
+            normas_marcadas: [
+                { id: 5, plantilla_id: 2, texto: 'Sin celular' },
+                { id: 6, plantilla_id: null, texto: 'Sin gorra' },
+            ],
+            normas: 'Traer calculadora básica',
+        };
+        montar();
+
+        expect(await casilla('Sin celular')).toBeChecked();
+        expect(await casilla('Documento de identidad a la vista')).not.toBeChecked();
+        await waitFor(() =>
+            expect(screen.getByLabelText('Otras normas')).toHaveValue(
+                'Sin gorra\nTraer calculadora básica'
+            )
+        );
+        expect(
+            screen.getByText(/^Como en Primer parcial · Introducción a la Programación/)
+        ).toBeInTheDocument();
+        expect(api.get).toHaveBeenCalledWith('/examenes/31');
+        expect(api.get).not.toHaveBeenCalledWith('/examenes/33');
+    });
+
+    it('sin examen de la asignatura copia el último que registró', async () => {
+        anteriores = [anterior(32, TALLER, '2026-10-20')];
+        montar();
+
+        await waitFor(() => expect(api.get).toHaveBeenCalledWith('/examenes/32'));
+        expect(
+            await screen.findByText(/^Como en Primer parcial · Taller de Ingeniería de Software/)
+        ).toBeInTheDocument();
+    });
+
+    it('sin exámenes anteriores empieza sin normas marcadas', async () => {
+        montar();
+
+        expect(await casilla('Sin celular')).not.toBeChecked();
+        expect(screen.queryByText(/^Como en/)).not.toBeInTheDocument();
+    });
+});
+
 describe('RegistrarExamen · paso 1, examen', () => {
+    it('un examen nuevo empieza con la fecha de hoy y la primera hora de la mañana', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date(2026, 9, 12, 7, 30));
+        montar();
+
+        expect(await campo(/^Fecha/)).toHaveValue('2026-10-12');
+        expect(screen.getByLabelText(/^Hora de inicio/)).toHaveValue('08:15');
+    });
+
+    it('antes del período propone su primer día', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date(2026, 6, 1, 9, 0));
+        montar();
+
+        expect(await campo(/^Fecha/)).toHaveValue('2026-08-10');
+    });
+
     it('ofrece solo las asignaturas que dicta y los cinco tipos', async () => {
         montar();
 
@@ -332,7 +417,8 @@ describe('RegistrarExamen · paso 1, examen', () => {
 
     it('sin fecha u hora no avanza y señala «Obligatorio»', async () => {
         montar();
-        await campo(/^Fecha/);
+        cambiar(await campo(/^Fecha/), '');
+        cambiar(screen.getByLabelText(/^Hora de inicio/), '');
 
         pulsar(/Continuar/);
 
@@ -598,7 +684,7 @@ describe('RegistrarExamen · guardar', () => {
         );
         expect(screen.getByRole('link', { name: /Habilitar estudiantes/ })).toHaveAttribute(
             'href',
-            '/habilitacion?examen=9'
+            '/examenes/detalle?examen=9&pestana=habilitacion'
         );
     });
 

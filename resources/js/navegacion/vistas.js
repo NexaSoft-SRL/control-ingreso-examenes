@@ -109,6 +109,17 @@ export const VISTAS = [
         padre: '/examenes',
         permiso: 'examenes',
     },
+    // HU-28: la página de cada examen, con su resumen, su habilitación y sus
+    // códigos QR en pestañas.
+    {
+        ruta: '/examenes/detalle',
+        titulo: 'Examen',
+        Icono: FileText,
+        grupo: 'Docencia',
+        oculta: true,
+        padre: '/examenes',
+        permiso: 'examenes',
+    },
     {
         ruta: '/habilitacion',
         titulo: 'Habilitación',

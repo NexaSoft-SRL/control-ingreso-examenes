@@ -23,9 +23,11 @@ final class ComprobarVentanaIngresoTest extends TestCase
             'un segundo antes del examen' => ['2026-10-20 07:59:59', true],
             'inicio exacto' => ['2026-10-20 08:00:00', true],
             'durante el examen' => ['2026-10-20 09:00:00', true],
-            'ultimo segundo' => ['2026-10-20 09:59:59', true],
-            'fin exacto' => ['2026-10-20 10:00:00', false],
-            'dia siguiente' => ['2026-10-21 08:00:00', false],
+            'fin previsto' => ['2026-10-20 10:00:00', true],
+            // Sin finalizar, sigue abierto hasta que termina su dia.
+            'pasado el fin previsto' => ['2026-10-20 13:30:00', true],
+            'ultimo segundo del dia' => ['2026-10-20 23:59:59', true],
+            'dia siguiente' => ['2026-10-21 00:00:00', false],
         ];
     }
 
@@ -46,6 +48,27 @@ final class ComprobarVentanaIngresoTest extends TestCase
                 $ahora,
             ),
         );
+    }
+
+    public function test_se_cierra_cuando_el_docente_lo_finaliza(): void
+    {
+        $zona = new DateTimeZone('America/La_Paz');
+        $regla = new ComprobarVentanaIngreso;
+
+        self::assertTrue($regla->comprobar(
+            '2026-10-20',
+            '08:00:00',
+            120,
+            new DateTimeImmutable('2026-10-20 10:29:59', $zona),
+            '2026-10-20 10:30:00',
+        ));
+        self::assertFalse($regla->comprobar(
+            '2026-10-20',
+            '08:00:00',
+            120,
+            new DateTimeImmutable('2026-10-20 10:30:00', $zona),
+            '2026-10-20 10:30:00',
+        ));
     }
 
     public function test_acepta_hora_sin_segundos(): void
