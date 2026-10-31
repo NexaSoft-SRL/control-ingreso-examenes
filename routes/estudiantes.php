@@ -54,6 +54,17 @@ Route::prefix('api')->group(function (): void {
 
         Route::put('/estudiantes/plazo-fotos', [FotoEstudianteController::class, 'fijarPlazo'])
             ->name('estudiantes.plazo-fotos.fijar');
+
+        Route::get('/estudiantes/plazo-fotos/grupos', [FotoEstudianteController::class, 'plazosDeGrupos'])
+            ->name('estudiantes.plazo-fotos.grupos');
+
+        Route::put('/estudiantes/plazo-fotos/grupos/{grupo}', [FotoEstudianteController::class, 'fijarPlazoDeGrupo'])
+            ->whereNumber('grupo')
+            ->name('estudiantes.plazo-fotos.grupos.fijar');
+
+        Route::delete('/estudiantes/plazo-fotos/grupos/{grupo}', [FotoEstudianteController::class, 'quitarPlazoDeGrupo'])
+            ->whereNumber('grupo')
+            ->name('estudiantes.plazo-fotos.grupos.quitar');
     });
 
     // El estudiante, sin cuenta: un codigo al correo institucional. Los

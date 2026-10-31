@@ -23,6 +23,7 @@ const EXAMENES = [
         fecha: '2026-10-22',
         hora: '08:15',
         estado: 'HABILITADO',
+        normas: ['Presentar carnet universitario.', 'No usar celular.'],
         aula: '691A',
         edificio: 'Edificio Académico 2',
         piso: '1° Piso',
@@ -53,6 +54,7 @@ function montar(ruta = '/estudiante', rutas = {}) {
     return renderConSesion(
         <Routes>
             <Route path="/estudiante" element={<PortalEstudiante />} />
+            <Route path="/estudiante/examenes" element={<PortalEstudiante />} />
             <Route path="/estudiante/foto" element={<PortalEstudiante />} />
             <Route path="*" element={<Donde />} />
         </Routes>,
@@ -69,13 +71,15 @@ describe('PortalEstudiante', () => {
     it('muestra cada examen con su hora, su aula y si está habilitado', async () => {
         montar();
 
-        expect(await screen.findByText('Diego Mamani')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Diego Mamani' })).toBeInTheDocument();
         expect(await screen.findByText('Aula 691A')).toBeInTheDocument();
         expect(screen.getByText('Hoy')).toBeInTheDocument();
         expect(screen.getByText('Habilitado')).toBeInTheDocument();
         expect(screen.getByText('No habilitado')).toBeInTheDocument();
         expect(screen.getByText('Debe la práctica 3.')).toBeInTheDocument();
         expect(screen.getByText('Edificio Académico 2 · 1° Piso')).toBeInTheDocument();
+        expect(screen.getByText('Normas del examen')).toBeInTheDocument();
+        expect(screen.getByText('No usar celular.')).toBeInTheDocument();
     });
 
     it('sube la foto dentro del plazo', async () => {
@@ -95,6 +99,21 @@ describe('PortalEstudiante', () => {
         );
         expect(api.post.mock.calls[0][1].get('foto')).toBe(foto);
         expect(await screen.findByText('Foto registrada')).toBeInTheDocument();
+    });
+
+    it('rechaza una foto mayor a 8 MB antes de intentar subirla', async () => {
+        montar('/estudiante/foto');
+        await screen.findByRole('button', { name: 'Guardar foto' });
+        const demasiadoGrande = new File([new Uint8Array(8 * 1024 * 1024 + 1)], 'foto-grande.jpg', {
+            type: 'image/jpeg',
+        });
+
+        fireEvent.change(screen.getByLabelText('Foto'), {
+            target: { files: [demasiadoGrande] },
+        });
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('Máximo 8 MB');
+        expect(api.post).not.toHaveBeenCalled();
     });
 
     it('con foto la muestra y no deja cambiarla', async () => {
