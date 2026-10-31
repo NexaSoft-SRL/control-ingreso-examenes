@@ -6,6 +6,7 @@ namespace Tests\Feature\Modules\Ingreso;
 
 use App\Modules\Academico\Domain\Models\Aula;
 use App\Modules\Academico\Domain\Models\Docente;
+use App\Modules\Academico\Domain\Models\Grupo;
 use App\Modules\Administracion\Domain\Models\User;
 use App\Modules\Estudiantes\Domain\Enums\OrigenEstudiante;
 use App\Modules\Estudiantes\Domain\Models\Estudiante;
@@ -120,6 +121,35 @@ final class RegistrarIngresoEnPuertaHttpTest extends TestCase
             'aula_id' => $aula->id,
             'registrado_por' => $usuario->id,
         ]);
+    }
+
+    public function test_la_puerta_sigue_abierta_pasada_la_hora_prevista_hasta_que_se_finaliza(): void
+    {
+        if (now()->format('H:i') < '00:20') {
+            self::markTestSkipped('Necesita que el examen de las 00:00 ya haya pasado su hora prevista.');
+        }
+
+        [$usuario, $examen, $aula, $estudiante] = $this->escenarioDePuerta();
+        // 00:00 + 15 min: el examen se paso y nadie lo finalizo.
+        $examen->forceFill(['hora_inicio' => '00:00:00', 'duracion_minutos' => 15])->save();
+        $grupo = Grupo::query()
+            ->whereIn('id', DB::table('examen_grupo')->where('examen_id', $examen->id)->select('grupo_id'))
+            ->firstOrFail();
+        [$otro] = $this->estudiantesInscritos($grupo, 1);
+        $this->habilitar($examen, [$otro], $aula);
+        $url = "/api/aulas/{$aula->id}/punto-control/ingresos";
+
+        $this->actingAs($usuario)
+            ->postJson($url, ['tipo' => 'codigo', 'identificador' => $estudiante->codigo_universitario])
+            ->assertCreated()
+            ->assertJsonPath('data.admitido', true);
+
+        // El docente lo finaliza: la puerta se cierra.
+        $examen->forceFill(['finalizado_en' => now()->subSecond()])->save();
+
+        $respuesta = $this->postJson($url, ['tipo' => 'codigo', 'identificador' => $otro->codigo_universitario]);
+        self::assertNotSame(201, $respuesta->getStatusCode());
+        $this->assertDatabaseCount('ingresos', 1);
     }
 
     public function test_segundo_ingreso_no_duplica_registro(): void

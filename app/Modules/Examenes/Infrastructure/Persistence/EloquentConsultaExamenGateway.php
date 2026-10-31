@@ -218,6 +218,7 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
                 'examen.duracion_minutos',
                 'examen.normas',
                 'examen.creado_por',
+                'examen.finalizado_en',
                 'asignatura.codigo as asignatura_codigo',
                 'asignatura.nombre as asignatura_nombre',
                 'creador.nombre as creador_nombre',
@@ -267,9 +268,11 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         $codigosQr = $this->codigosQrPorExamen($ids);
         $normas = $this->normasPorExamen($ids);
         $juntos = $this->juntosPorExamen($ids, $usuarioId);
+        $conIngresos = $this->conFilas('ingresos', $ids);
+        $conIncidencias = $this->conFilas('incidencias', $ids);
         $ahora = now();
         $hoy = $ahora->toDateString();
-        $instante = $ahora->format('Y-m-d H:i');
+        $instante = $ahora->format('Y-m-d H:i:s');
 
         $examenes = [];
 
@@ -280,6 +283,8 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
             $fecha = $this->fecha($columnas['fecha'] ?? null);
             $hora = $this->hora($columnas['hora_inicio'] ?? null);
             $duracion = $this->entero($columnas['duracion_minutos'] ?? null);
+            $finalizado = $this->texto($columnas['finalizado_en'] ?? null);
+            $finalizado = $finalizado === null ? null : substr($finalizado, 0, 19);
             $total = $inscritos[$id] ?? 0;
             $habilitados = $condiciones[$id]['habilitados'] ?? 0;
             $noHabilitados = $condiciones[$id]['no_habilitados'] ?? 0;
@@ -320,7 +325,17 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
                     ?? $this->cadena($columnas['creador_nombre'] ?? null),
                 juntoCon: $juntos[$id] ?? 0,
                 esHoy: $fecha === $hoy,
-                rendido: $this->finDe($fecha, $hora, $duracion) <= $instante,
+                // Rendido cuando un docente lo finalizo; si nadie lo hizo, al
+                // terminar su dia (puede pasarse de la duracion prevista).
+                rendido: $finalizado !== null ? $finalizado <= $instante : $fecha < $hoy,
+                finalizadoEn: $finalizado,
+                conIngresos: isset($conIngresos[$id]),
+                conIncidencias: isset($conIncidencias[$id]),
+                codigosAula: count(array_filter(
+                    $aulasDelExamen,
+                    static fn (AulaDetalleData $aula): bool => $aula->codigo !== null,
+                )),
+                atienden: self::atienden($aulasDelExamen),
             );
 
             $examenes[] = new ExamenDetalleData(
@@ -353,6 +368,46 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         return $cuenta === [] ? 1 : max($cuenta);
     }
 
+    /**
+     * Personas distintas que atienden las aulas del examen, a cargo o de
+     * apoyo.
+     *
+     * @param  list<AulaDetalleData>  $aulas
+     */
+    private static function atienden(array $aulas): int
+    {
+        $personas = [];
+
+        foreach ($aulas as $aula) {
+            if ($aula->aCargo !== null) {
+                $personas[$aula->aCargo['id']] = true;
+            }
+
+            foreach ($aula->apoyo as $apoyo) {
+                $personas[$apoyo['id']] = true;
+            }
+        }
+
+        return count($personas);
+    }
+
+    /**
+     * Los examenes que tienen alguna fila en esa tabla (por `examen_id`).
+     *
+     * @param  list<int>  $examenIds
+     * @return array<int, true>
+     */
+    private function conFilas(string $tabla, array $examenIds): array
+    {
+        $con = [];
+
+        foreach (DB::table($tabla)->whereIn('examen_id', $examenIds)->distinct()->pluck('examen_id') as $id) {
+            $con[$this->entero($id)] = true;
+        }
+
+        return $con;
+    }
+
     private function avance(int $aulas, int $habilitados, int $sinRevisar, int $conCodigoQr, int $aulasPorPersona = 1): AvanceData
     {
         $avance = AvanceDeExamen::calcular($aulas, $habilitados, $sinRevisar, $conCodigoQr, $aulasPorPersona);
@@ -365,6 +420,7 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
             estado: $avance['estado'],
             accion: $avance['accion'],
             paso: $avance['paso'],
+            auxiliares: $avance['auxiliares'],
         );
     }
 
@@ -785,19 +841,6 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
     private function minutos(string $hora): int
     {
         return ((int) substr($hora, 0, 2)) * 60 + (int) substr($hora, 3, 2);
-    }
-
-    /**
-     * El instante en que termina el examen, `AAAA-MM-DD HH:MM`, comparable
-     * como texto.
-     */
-    private function finDe(string $fecha, string $hora, int $duracion): string
-    {
-        $fin = strtotime("{$fecha} {$hora}:00 UTC");
-
-        return $fin === false
-            ? "{$fecha} {$hora}"
-            : gmdate('Y-m-d H:i', $fin + $duracion * 60);
     }
 
     public function docentesDeGrupos(array $grupoIds): array

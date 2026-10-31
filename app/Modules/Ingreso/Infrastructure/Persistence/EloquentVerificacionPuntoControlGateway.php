@@ -25,6 +25,7 @@ final class EloquentVerificacionPuntoControlGateway implements VerificacionPunto
                 'examen.fecha',
                 'examen.hora_inicio',
                 'examen.duracion_minutos',
+                'examen.finalizado_en',
             ]);
 
         if ($fila === null) {
@@ -34,7 +35,9 @@ final class EloquentVerificacionPuntoControlGateway implements VerificacionPunto
         $columnas = get_object_vars($fila);
         $texto = static fn (string $clave): string => is_scalar($columnas[$clave] ?? null) ? (string) $columnas[$clave] : '';
         $entero = static fn (string $clave): int => is_numeric($columnas[$clave] ?? null) ? (int) $columnas[$clave] : 0;
-        $fin = VentanaDeAcceso::fin($texto('fecha'), $texto('hora_inicio'), $entero('duracion_minutos'));
+        $finalizado = $texto('finalizado_en') === '' ? null : $texto('finalizado_en');
+        $fin = VentanaDeAcceso::fin($texto('fecha'), $texto('hora_inicio'), $entero('duracion_minutos'), $finalizado);
+        $cierre = VentanaDeAcceso::cierre($texto('fecha'), $finalizado);
 
         return [
             'id' => $entero('id'),
@@ -43,8 +46,9 @@ final class EloquentVerificacionPuntoControlGateway implements VerificacionPunto
             'aula' => $texto('aula'),
             'nombre' => $texto('nombre_colaborador'),
             'hasta' => $fin->format('Y-m-d\TH:i:sP'),
-            // Solo el autorizado opera la puerta; con el examen cerrado, nadie.
-            'estado' => now()->greaterThan($fin) ? 'finalizado' : mb_strtolower($texto('estado')),
+            // Solo el autorizado opera la puerta; con el examen finalizado (o
+            // terminado su dia), nadie.
+            'estado' => now() >= $cierre ? 'finalizado' : mb_strtolower($texto('estado')),
         ];
     }
 

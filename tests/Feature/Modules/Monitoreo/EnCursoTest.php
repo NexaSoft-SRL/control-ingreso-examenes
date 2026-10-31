@@ -338,6 +338,36 @@ final class EnCursoTest extends TestCase
             ->assertJsonPath('data.cifras.ingresaron', 0);
     }
 
+    public function test_pasada_la_hora_prevista_sigue_abierto_y_avisa_hasta_que_se_finaliza(): void
+    {
+        if (now()->format('H:i') < '00:20') {
+            self::markTestSkipped('Necesita que el examen de las 00:00 ya haya pasado su hora prevista.');
+        }
+
+        // 00:00 + 15 min: paso su hora prevista y nadie lo finalizo.
+        $examen = $this->examen($this->docente, [$this->grupo($this->docente)], [$this->aula()], [
+            'hora_inicio' => '00:00:00',
+            'duracion_minutos' => 15,
+        ]);
+
+        $this->actingAs($this->cuenta)
+            ->getJson("/api/en-curso/{$examen->id}")
+            ->assertOk()
+            ->assertJsonPath('data.examen.abierto', true)
+            ->assertJsonPath('data.examen.fin', '00:15')
+            ->assertJsonPath('data.examen.excedido', true);
+
+        $this->actingAs($this->cuenta)
+            ->postJson("/api/examenes/{$examen->id}/finalizar")
+            ->assertOk();
+
+        $this->actingAs($this->cuenta)
+            ->getJson("/api/en-curso/{$examen->id}")
+            ->assertOk()
+            ->assertJsonPath('data.examen.abierto', false)
+            ->assertJsonPath('data.examen.excedido', false);
+    }
+
     public function test_senala_el_aula_compartida_con_otro_examen_a_la_misma_hora(): void
     {
         $compartida = $this->aula('617');

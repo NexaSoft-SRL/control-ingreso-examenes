@@ -64,11 +64,11 @@ final class EloquentReporteGateway implements ReporteGateway
     /**
      * La ventana de un examen (alias `%1$s`): desde que abre la puerta
      * (un parametro: los minutos de apertura) hasta que el docente lo
-     * finaliza, que puede pasar de su duracion programada. No existe en este
-     * esquema un cierre real persistido.
+     * finaliza, que puede pasar de su duracion prevista; sin finalizar,
+     * hasta el fin de su dia.
      */
     private const EN_LA_VENTANA = "incidencia.ocurrida_en >= (%1\$s.fecha + %1\$s.hora_inicio) - (?::int * interval '1 minute')"
-        ." and incidencia.ocurrida_en <= (%1\$s.fecha + %1\$s.hora_inicio + (%1\$s.duracion_minutos * interval '1 minute'))";
+        ." and incidencia.ocurrida_en <= coalesce(%1\$s.finalizado_en, %1\$s.fecha + interval '1 day')";
 
     /**
      * Lo asentado en el examen `examen`: lo que lleva su `examen_id` y los

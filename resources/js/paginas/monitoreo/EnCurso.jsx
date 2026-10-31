@@ -1,12 +1,16 @@
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
-import { DoorOpen, Hourglass, LogIn, TriangleAlert } from 'lucide-react';
+import { DoorOpen, Flag, Hourglass, LogIn, TriangleAlert } from 'lucide-react';
 import { api } from '../../api/cliente';
+import { mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
 import usarEdificios from '../../api/usarEdificios';
 import usarSondeo from '../../api/usarSondeo';
+import { useAviso } from '../../componentes/Aviso';
+import Boton from '../../componentes/Boton';
 import Chips from '../../componentes/Chips';
 import Dato from '../../componentes/Dato';
+import Dialogo from '../../componentes/Dialogo';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
 import Insignia from '../../componentes/Insignia';
@@ -41,8 +45,11 @@ const FILTROS = {
 
 // El examen mientras se toma: cifras, incidencias, aulas y mapa. Se monta de
 // nuevo con cada examen (`key`), así el cambio limpia filtros y orden.
-function Tablero({ examen, examenes, elegir }) {
+function Tablero({ examen, examenes, elegir, onFinalizado }) {
     const { usuario, puede } = usarSesion();
+    const [porFinalizar, setPorFinalizar] = useState(false);
+    const [finalizando, setFinalizando] = useState(false);
+    const [rechazo, setRechazo] = useState(null);
     const [filtro, setFiltro] = useState(null);
     const [orden, setOrden] = useState('avance');
     const [reportadas, setReportadas] = useState(0);
@@ -61,6 +68,25 @@ function Tablero({ examen, examenes, elegir }) {
     // aulas del tablero.
     const esHoy = Boolean(tablero) && String(tablero.hora_servidor).slice(0, 10) === examen.fecha;
     const aulasIncidencia = aulas.map((a) => ({ id: a.aula_id, nombre: a.nombre }));
+    // HU-28: la duración es la prevista; el examen se cierra cuando un
+    // docente lo finaliza. `excedido`: pasó la hora prevista y sigue abierto.
+    const finalizable = abierto && Boolean(tablero?.es_docente) && puede('examenes');
+    const excedido = Boolean(tablero?.examen.excedido);
+
+    const finalizar = async () => {
+        setFinalizando(true);
+        setRechazo(null);
+        try {
+            await api.post(`/examenes/${examen.id}/finalizar`);
+            setPorFinalizar(false);
+            vivo.recargar();
+            onFinalizado('Examen finalizado');
+        } catch (fallo) {
+            setRechazo(mensajeDe(fallo, 'No se pudo finalizar'));
+        } finally {
+            setFinalizando(false);
+        }
+    };
     const ultimoRegistro = tablero?.ultimo_registro
         ? `Último registro ${horaDe(tablero.ultimo_registro)}`
         : 'Sin registros';
@@ -115,9 +141,71 @@ function Tablero({ examen, examenes, elegir }) {
                         }}
                     />
                 )}
+                {finalizable && (
+                    <Boton
+                        type="button"
+                        variante={excedido ? 'peligro' : 'secundario'}
+                        onClick={() => {
+                            setRechazo(null);
+                            setPorFinalizar(true);
+                        }}
+                    >
+                        <Flag className="h-4 w-4" /> Finalizar examen
+                    </Boton>
+                )}
             </Encabezado>
 
             <SelectorExamen valor={examen.id} onCambiar={elegir} examenes={examenes} />
+
+            {finalizable && excedido && (
+                <p
+                    role="status"
+                    className="flex items-center gap-2 rounded-lg bg-warning-50 px-4 py-3 text-sm font-medium text-warning-800"
+                >
+                    <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    Pasó la hora prevista de término ({tablero.examen.fin}). La puerta sigue abierta
+                    hasta que finalice el examen.
+                </p>
+            )}
+
+            <Dialogo
+                titulo="Finalizar examen"
+                abierto={porFinalizar}
+                onCerrar={() => setPorFinalizar(false)}
+                acciones={
+                    <>
+                        <Boton
+                            type="button"
+                            variante="secundario"
+                            onClick={() => setPorFinalizar(false)}
+                        >
+                            Cancelar
+                        </Boton>
+                        <Boton
+                            type="button"
+                            variante="peligro"
+                            cargando={finalizando}
+                            onClick={finalizar}
+                        >
+                            Finalizar
+                        </Boton>
+                    </>
+                }
+            >
+                <p className="text-sm text-slate-700">
+                    Se cierra la puerta en todas las aulas: ya no se registran ingresos.
+                </p>
+                {cifras && (
+                    <p className="mt-2 text-sm font-medium text-slate-900">
+                        Ingresaron {cifras.ingresaron} · Faltan {cifras.faltan}
+                    </p>
+                )}
+                {rechazo && (
+                    <p role="alert" className="mt-2 text-sm text-danger-600">
+                        {rechazo}
+                    </p>
+                )}
+            </Dialogo>
 
             <EstadoCarga
                 cargando={vivo.cargando}
@@ -258,6 +346,7 @@ Tablero.propTypes = {
     }).isRequired,
     examenes: PropTypes.array.isRequired,
     elegir: PropTypes.func.isRequired,
+    onFinalizado: PropTypes.func.isRequired,
 };
 
 // HU-22: el examen en curso, aula por aula, para el docente que pasa de un
@@ -268,6 +357,12 @@ export default function EnCurso() {
     const { datos, cargando, error, recargar } = usarConsulta('/en-curso');
     const examenes = useMemo(() => datos ?? [], [datos]);
     const [examen, elegir] = usarExamen(examenes);
+    const [aviso, avisar] = useAviso();
+    // Al finalizar, el examen deja de estar en curso: se relee la lista.
+    const finalizado = (texto) => {
+        avisar(texto);
+        recargar();
+    };
 
     if (!examen) {
         return (
@@ -282,13 +377,21 @@ export default function EnCurso() {
                         onReintentar={recargar}
                     />
                 </Tarjeta>
+                {aviso}
             </div>
         );
     }
 
     return (
         <div className="space-y-6">
-            <Tablero key={examen.id} examen={examen} examenes={examenes} elegir={elegir} />
+            <Tablero
+                key={examen.id}
+                examen={examen}
+                examenes={examenes}
+                elegir={elegir}
+                onFinalizado={finalizado}
+            />
+            {aviso}
         </div>
     );
 }

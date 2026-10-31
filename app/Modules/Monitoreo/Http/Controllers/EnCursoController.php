@@ -81,6 +81,8 @@ final class EnCursoController
             'tipo_texto' => $examen->tipoTexto,
             'asignatura' => $examen->asignatura,
             'abierto' => $examen->abierto,
+            'fin' => $examen->fin,
+            'excedido' => $examen->excedido,
         ];
     }
 
