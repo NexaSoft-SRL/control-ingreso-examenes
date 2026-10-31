@@ -10,6 +10,7 @@ use App\Modules\Estudiantes\Application\DTOs\FilaInscritoData;
 use App\Modules\Estudiantes\Application\DTOs\FiltroListaData;
 use App\Modules\Estudiantes\Application\DTOs\GrupoDeCargaData;
 use App\Modules\Estudiantes\Application\DTOs\PaginaData;
+use App\Modules\Estudiantes\Application\DTOs\PlazoFotoDeGrupoData;
 use App\Modules\Estudiantes\Application\DTOs\RechazoCargaData;
 use App\Modules\Estudiantes\Application\DTOs\RegistroCargaData;
 use App\Modules\Estudiantes\Domain\Enums\EstadoConflicto;
@@ -463,5 +464,31 @@ final class EloquentInscripcionGateway implements InscripcionGateway
         foreach (array_chunk($nuevos, 500) as $lote) {
             DB::table('conflictos_padron')->insert($lote);
         }
+    }
+
+    public function plazoFotoDeGrupo(int $grupoId): PlazoFotoDeGrupoData
+    {
+        $plazo = DB::table('plazos_foto_grupo as plazo')
+            ->leftJoin('usuarios as autor', 'autor.id', '=', 'plazo.fijado_por')
+            ->where('plazo.grupo_id', $grupoId)
+            ->first(['plazo.desde', 'plazo.hasta', 'autor.nombre as autor']);
+        $columnas = $plazo === null ? [] : get_object_vars($plazo);
+
+        $cifras = DB::table('inscripciones as inscripcion')
+            ->join('estudiantes as estudiante', 'estudiante.id', '=', 'inscripcion.estudiante_id')
+            ->where('inscripcion.grupo_id', $grupoId)
+            ->selectRaw("count(*) as inscritos, count(*) filter (where coalesce(estudiante.foto, '') = '') as sin_foto")
+            ->first();
+        $cuentas = $cifras === null ? [] : get_object_vars($cifras);
+        $desde = $this->texto($columnas['desde'] ?? null);
+        $hasta = $this->texto($columnas['hasta'] ?? null);
+
+        return new PlazoFotoDeGrupoData(
+            desde: $desde === null ? null : substr($desde, 0, 10),
+            hasta: $hasta === null ? null : substr($hasta, 0, 10),
+            fijadoPor: $this->texto($columnas['autor'] ?? null),
+            inscritos: $this->entero($cuentas['inscritos'] ?? 0),
+            sinFoto: $this->entero($cuentas['sin_foto'] ?? 0),
+        );
     }
 }

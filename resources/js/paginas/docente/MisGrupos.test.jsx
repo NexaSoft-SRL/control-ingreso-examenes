@@ -96,6 +96,9 @@ function servidor(grupos, { inscritos = {}, carga = RESULTADO, rutas = {} } = {}
         }),
         'GET /docente/grupos/*/inscritos': lista,
         'GET /docente/grupos/*/inscritos/descarga': () => new Blob(['x']),
+        'GET /docente/grupos/*/plazo-foto': {
+            data: { hasta: null, fijado_por: null, inscritos: 3, sin_foto: 3, vencido: false },
+        },
         'GET /inscritos/plantilla': () => new Blob(['x']),
         'POST /docente/grupos/*/inscritos/carga': cargar,
         ...rutas,

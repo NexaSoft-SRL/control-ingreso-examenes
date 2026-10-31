@@ -20,7 +20,9 @@ interface HabilitacionGateway
     /**
      * La condicion registrada de un estudiante en un examen, o `null` si
      * esta sin revisar. Es el contrato que usa la puerta (modulo Ingreso).
-     * No comprueba la inscripcion: eso lo sabe quien pregunta.
+     * No comprueba la inscripcion: eso lo sabe quien pregunta. Sin foto y
+     * con el plazo de su grupo vencido, no habilitado aunque la lista no se
+     * haya vuelto a abrir.
      */
     public function condicionDe(int $examenId, int $estudianteId): ?HabilitacionData;
 
@@ -77,8 +79,16 @@ interface HabilitacionGateway
     public function cuantosConIngreso(int $examenId, array $estudianteIds): int;
 
     /**
+     * Inhabilita a quien no subio su foto hasta el plazo de su grupo y
+     * devuelve a «sin revisar» a quien ya la subio (o cuyo plazo se movio).
+     * Solo en examenes de hoy en adelante.
+     */
+    public function aplicarPlazosDeFoto(int $examenId, string $hoy): void;
+
+    /**
      * Habilita: `habilitado = true`, sin motivo, y no toca el aula. Solo
-     * escribe a quienes no estaban habilitados. Devuelve cuantos cambiaron.
+     * escribe a quienes no estaban habilitados, y no a quienes inhabilito el
+     * sistema por la foto. Devuelve cuantos cambiaron.
      *
      * @param  list<int>  $estudianteIds
      */
