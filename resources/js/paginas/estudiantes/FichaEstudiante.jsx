@@ -8,6 +8,9 @@ import {
     IdCard,
     Loader2,
     Mail,
+    Pencil,
+    X,
+    Check,
     ShieldCheck,
     UserRound,
     UsersRound,
@@ -16,6 +19,8 @@ import { api } from '../../api/cliente';
 import { erroresDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
 import { useAviso } from '../../componentes/Aviso';
+import Boton from '../../componentes/Boton';
+import Campo from '../../componentes/Campo';
 import Dialogo from '../../componentes/Dialogo';
 import EstadoCarga from '../../componentes/EstadoCarga';
 import { PuntoFacultad } from '../../componentes/FiltroFacultad';
@@ -188,9 +193,49 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
     const { datos, cargando, error, recargar } = usarConsulta(`/estudiantes/${estudiante.id}`);
     const ficha = datos?.id === estudiante.id ? datos : null;
     const materias = ficha?.materias ?? [];
+    const [editando, setEditando] = useState(false);
+    const [guardando, setGuardando] = useState(false);
+    const [valores, setValores] = useState({ nombres: '', apellidos: '', documento: '' });
+    const [errores, setErrores] = useState({});
+    const [errorGeneral, setErrorGeneral] = useState('');
+    const [aviso, avisar] = useAviso();
+
+    useEffect(() => {
+        if (ficha && !editando) {
+            setValores({
+                nombres: ficha.nombres ?? '',
+                apellidos: ficha.apellidos ?? '',
+                documento: ficha.documento ?? '',
+            });
+        }
+    }, [ficha, editando]);
+
+    async function guardar(e) {
+        e.preventDefault();
+        setGuardando(true);
+        setErrores({});
+        setErrorGeneral('');
+        try {
+            await api.put(`/estudiantes/${estudiante.id}`, {
+                ...valores,
+                documento: valores.documento.trim() || null,
+            });
+            setEditando(false);
+            await recargar();
+            avisar('Datos del estudiante actualizados');
+        } catch (fallo) {
+            const campos = erroresDe(fallo);
+            setErrores(campos);
+            if (Object.keys(campos).length === 0) {
+                setErrorGeneral(mensajeDe(fallo, 'No se pudieron guardar las correcciones'));
+            }
+        } finally {
+            setGuardando(false);
+        }
+    }
 
     return (
-        <Dialogo titulo={estudiante.nombre} onCerrar={onCerrar} ancho="max-w-2xl">
+        <Dialogo titulo={ficha?.nombre ?? estudiante.nombre} onCerrar={onCerrar} ancho="max-w-2xl">
             <EstadoCarga
                 cargando={cargando || (!ficha && !error)}
                 error={error}
@@ -210,7 +255,8 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
                                 }}
                             />
                             <div className="min-w-0 flex-1 space-y-3">
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                                     <p className="font-mono text-xl font-semibold tracking-wide text-slate-900">
                                         <span className="sr-only">Código SIS </span>
                                         {ficha.codigo}
@@ -223,8 +269,96 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
                                             <PuntoFacultad sigla={ficha.facultad} />
                                         </span>
                                     )}
+                                    </div>
+                                    {!editando ? (
+                                        <Boton
+                                            type="button"
+                                            variante="secundario"
+                                            onClick={() => setEditando(true)}
+                                        >
+                                            <Pencil className="h-4 w-4" aria-hidden="true" />
+                                            Editar datos
+                                        </Boton>
+                                    ) : (
+                                        <div className="flex gap-2">
+                                            <Boton
+                                                type="button"
+                                                variante="secundario"
+                                                disabled={guardando}
+                                                onClick={() => {
+                                                    setEditando(false);
+                                                    setErrores({});
+                                                    setErrorGeneral('');
+                                                }}
+                                            >
+                                                <X className="h-4 w-4" aria-hidden="true" /> Cancelar
+                                            </Boton>
+                                            <Boton
+                                                type="submit"
+                                                form="corregir-datos-estudiante"
+                                                cargando={guardando}
+                                            >
+                                                <Check className="h-4 w-4" aria-hidden="true" />
+                                                Guardar correcciones
+                                            </Boton>
+                                        </div>
+                                    )}
                                 </div>
+                                {editando ? (
+                                    <form
+                                        id="corregir-datos-estudiante"
+                                        className="grid gap-3 sm:grid-cols-2"
+                                        onSubmit={guardar}
+                                    >
+                                        <Campo
+                                            etiqueta="Nombres"
+                                            requerido
+                                            value={valores.nombres}
+                                            error={errores.nombres}
+                                            onChange={(e) =>
+                                                setValores((actual) => ({
+                                                    ...actual,
+                                                    nombres: e.target.value,
+                                                }))
+                                            }
+                                        />
+                                        <Campo
+                                            etiqueta="Apellidos"
+                                            requerido
+                                            value={valores.apellidos}
+                                            error={errores.apellidos}
+                                            onChange={(e) =>
+                                                setValores((actual) => ({
+                                                    ...actual,
+                                                    apellidos: e.target.value,
+                                                }))
+                                            }
+                                        />
+                                        <Campo
+                                            etiqueta="Documento de identidad"
+                                            value={valores.documento}
+                                            error={errores.documento}
+                                            onChange={(e) =>
+                                                setValores((actual) => ({
+                                                    ...actual,
+                                                    documento: e.target.value,
+                                                }))
+                                            }
+                                        />
+                                        {errorGeneral && (
+                                            <p role="alert" className="text-sm text-danger-700">
+                                                {errorGeneral}
+                                            </p>
+                                        )}
+                                    </form>
+                                ) : (
                                 <dl className="space-y-1.5">
+                                    <Dato icono={UserRound} etiqueta="Nombres">
+                                        {ficha.nombres}
+                                    </Dato>
+                                    <Dato icono={UserRound} etiqueta="Apellidos">
+                                        {ficha.apellidos}
+                                    </Dato>
                                     <Dato icono={GraduationCap} etiqueta="Carrera">
                                         {ficha.carrera ?? '—'}
                                     </Dato>
@@ -235,6 +369,7 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
                                         {ficha.correo ?? '—'}
                                     </Dato>
                                 </dl>
+                                )}
                             </div>
                         </div>
 
@@ -307,6 +442,7 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
                     </div>
                 )}
             </EstadoCarga>
+            {aviso}
         </Dialogo>
     );
 }

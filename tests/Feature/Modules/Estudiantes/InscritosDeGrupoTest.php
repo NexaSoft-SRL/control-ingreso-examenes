@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Modules\Estudiantes;
 
 use App\Modules\Estudiantes\Application\Contracts\InscritosDeExamenGateway;
+use App\Modules\Estudiantes\Application\Contracts\FotosDeEstudiantes;
 use App\Modules\Estudiantes\Application\DTOs\EstudianteData;
 use App\Modules\Estudiantes\Domain\Enums\OrigenEstudiante;
 use App\Modules\Estudiantes\Domain\Models\Inscripcion;
@@ -116,6 +117,42 @@ final class InscritosDeGrupoTest extends TestCase
             ->getJson("/api/docente/grupos/{$ajeno->id}/inscritos")
             ->assertForbidden()
             ->assertExactJson(['message' => 'Grupo no autorizado.', 'alcance' => true]);
+    }
+
+    public function test_a_teacher_can_view_the_photo_only_for_a_student_enrolled_in_its_group(): void
+    {
+        $docente = $this->docente();
+        $grupo = $this->grupo($docente);
+        $estudiante = $this->estudiantesInscritos($grupo, 1)[0];
+
+        $this->mock(FotosDeEstudiantes::class)
+            ->shouldReceive('foto')
+            ->once()
+            ->with($estudiante->id)
+            ->andReturn('jpeg-bytes');
+
+        $this->actingAs($this->cuentaDe($docente))
+            ->get("/api/docente/grupos/{$grupo->id}/inscritos/{$estudiante->id}/foto")
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/jpeg')
+            ->assertHeader('Cache-Control', 'no-store, private')
+            ->assertContent('jpeg-bytes');
+    }
+
+    public function test_a_teacher_cannot_view_a_student_photo_outside_its_group(): void
+    {
+        $docente = $this->docente();
+        $grupo = $this->grupo($docente);
+        $estudiante = $this->estudiantesInscritos($grupo, 1)[0];
+        $otroGrupo = $this->grupo($docente);
+        $porDesignar = $this->grupo();
+
+        $this->mock(FotosDeEstudiantes::class)
+            ->shouldNotReceive('foto');
+
+        $this->actingAs($this->cuentaDe($docente))
+            ->getJson("/api/docente/grupos/{$otroGrupo->id}/inscritos/{$estudiante->id}/foto")
+            ->assertNotFound();
 
         $this->actingAs($this->cuentaDe($docente))
             ->getJson("/api/docente/grupos/{$porDesignar->id}/inscritos")

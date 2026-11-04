@@ -319,6 +319,14 @@ final class EloquentInscripcionGateway implements InscripcionGateway
         return new PaginaData($datos, $total, $filtro->pagina, $filtro->porPagina);
     }
 
+    public function inscritoEnGrupo(int $grupoId, int $estudianteId): bool
+    {
+        return DB::table('inscripciones')
+            ->where('grupo_id', $grupoId)
+            ->where('estudiante_id', $estudianteId)
+            ->exists();
+    }
+
     /**
      * @return list<array{codigo: string, nombre: string, documento: string, origen: string}>
      */

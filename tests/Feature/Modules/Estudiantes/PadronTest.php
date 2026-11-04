@@ -252,13 +252,16 @@ final class PadronTest extends TestCase
         $this->actingAs($cuenta)->getJson('/api/estudiantes/resumen')->assertForbidden();
     }
 
-    public function test_the_padron_has_no_routes_to_edit_a_student(): void
+    public function test_student_corrections_validate_required_identity_fields(): void
     {
         $estudiante = $this->estudiante();
         $administrador = $this->administrador();
 
         $this->actingAs($administrador)->postJson('/api/estudiantes', [])->assertStatus(405);
-        $this->actingAs($administrador)->putJson("/api/estudiantes/{$estudiante->id}", [])->assertStatus(405);
+        $this->actingAs($administrador)
+            ->putJson("/api/estudiantes/{$estudiante->id}", [])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['nombres', 'apellidos']);
         $this->actingAs($administrador)->deleteJson("/api/estudiantes/{$estudiante->id}")->assertStatus(405);
     }
 

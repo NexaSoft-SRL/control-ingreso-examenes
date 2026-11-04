@@ -41,6 +41,10 @@ Route::prefix('api')->group(function (): void {
             ->whereNumber('estudiante')
             ->name('estudiantes.show');
 
+        Route::put('/estudiantes/{estudiante}', [PadronController::class, 'corregir'])
+            ->whereNumber('estudiante')
+            ->name('estudiantes.corregir');
+
         // Las fotos se sirven por permiso, nunca como archivo publico.
         Route::get('/estudiantes/{estudiante}/foto', [FotoEstudianteController::class, 'ver'])
             ->whereNumber('estudiante')
@@ -99,6 +103,10 @@ Route::prefix('api')->group(function (): void {
         Route::get('/docente/grupos/{grupo}/inscritos', [InscritosController::class, 'index'])
             ->whereNumber('grupo')
             ->name('docente.grupos.inscritos.index');
+
+        Route::get('/docente/grupos/{grupo}/inscritos/{estudiante}/foto', [InscritosController::class, 'foto'])
+            ->whereNumber(['grupo', 'estudiante'])
+            ->name('docente.grupos.inscritos.foto.ver');
 
         Route::post('/docente/grupos/{grupo}/inscritos/carga', [CargaInscritosController::class, 'grupo'])
             ->whereNumber('grupo')
