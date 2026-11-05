@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Download, RotateCcw } from 'lucide-react';
 import { api } from '../../api/cliente';
 import descargar from '../../api/descargar';
@@ -54,12 +55,16 @@ export default function Respaldo() {
     const { puede } = usarSesion();
     const tienePermiso = puede('respaldo_restauracion');
 
+    const [parametrosUrl, setParametrosUrl] = useSearchParams();
+    const filtroUrl = parametrosUrl.get('filtro') ?? 'todos';
+
     const [respaldos, setRespaldos] = useState([]);
     const [ultimoCorrecto, setUltimoCorrecto] = useState(null);
     const [cargando, setCargando] = useState(true);
     const [errorCarga, setErrorCarga] = useState(false);
+    const [errorFiltro, setErrorFiltro] = useState(null);
     const [respaldando, setRespaldando] = useState(false);
-    const [filtro, setFiltro] = useState('todos');
+    const [filtro, setFiltro] = useState(filtroUrl);
     const [pagina, setPagina] = useState(1);
     const [total, setTotal] = useState(0);
     const [conteos, setConteos] = useState({
@@ -94,6 +99,8 @@ export default function Respaldo() {
 
                 const respuesta = await api.get('/respaldos', { params });
                 if (idConsulta !== ultimaConsulta.current) return;
+
+                setErrorFiltro(null);
 
                 const cuerpo = respuesta.data ?? {};
                 const datos = Array.isArray(cuerpo)
@@ -144,8 +151,21 @@ export default function Respaldo() {
             } catch (error) {
                 if (idConsulta !== ultimaConsulta.current) return;
                 const mensaje = error?.response?.data?.message;
-                if (mensaje === 'El filtro no existe.') {
-                    avisar(mensaje, 'error');
+                const errorDeFiltro =
+                    mensaje === 'El filtro no existe.' ||
+                    error?.response?.data?.errors?.filtro !== undefined ||
+                    (error?.response?.status === 422 &&
+                        Boolean(filtroActual && filtroActual !== 'todos'));
+
+                if (errorDeFiltro) {
+                    const textoError =
+                        mensaje ||
+                        error?.response?.data?.errors?.filtro?.[0] ||
+                        'El filtro no existe.';
+                    setErrorFiltro(textoError);
+                    avisar(textoError, 'error');
+                    setRespaldos([]);
+                    setTotal(0);
                 } else {
                     setErrorCarga(true);
                 }
@@ -157,6 +177,12 @@ export default function Respaldo() {
         },
         [tienePermiso, filtro, pagina, avisar]
     );
+
+    useEffect(() => {
+        const urlFiltro = parametrosUrl.get('filtro') ?? 'todos';
+        setFiltro(urlFiltro);
+        setPagina(1);
+    }, [parametrosUrl]);
 
     useEffect(() => {
         if (tienePermiso) {
@@ -210,8 +236,21 @@ export default function Respaldo() {
     }
 
     function cambiarFiltro(nuevoFiltro) {
+        setErrorFiltro(null);
         setFiltro(nuevoFiltro);
         setPagina(1);
+        setParametrosUrl(
+            (previos) => {
+                const siguientes = new URLSearchParams(previos);
+                if (nuevoFiltro === 'todos') {
+                    siguientes.delete('filtro');
+                } else {
+                    siguientes.set('filtro', nuevoFiltro);
+                }
+                return siguientes;
+            },
+            { replace: true }
+        );
     }
 
     async function manejarDescargar(respaldo) {
@@ -332,6 +371,20 @@ export default function Respaldo() {
 
             {cargando ? (
                 <EstadoCarga cargando />
+            ) : errorFiltro ? (
+                <div
+                    role="alert"
+                    className="flex flex-col items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-8 text-center"
+                >
+                    <p className="text-sm font-semibold text-red-800">{errorFiltro}</p>
+                    <Boton
+                        type="button"
+                        variante="secundario"
+                        onClick={() => cambiarFiltro('todos')}
+                    >
+                        Ver todos los respaldos
+                    </Boton>
+                </div>
             ) : errorCarga ? (
                 <div
                     role="alert"

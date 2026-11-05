@@ -81,7 +81,8 @@ final class RespaldoGeneracionTest extends TestCase
         $this->assertTrue(Storage::disk('local')->exists($rutaEnDisco));
 
         $contenidoSql = (string) Storage::disk('local')->get($rutaEnDisco);
-        $this->assertStringContainsString('SET session_replication_role', $contenidoSql);
+        $this->assertStringContainsString('FASE 1: ELIMINACIÓN DE REGISTROS', $contenidoSql);
+        $this->assertStringContainsString('FASE 2: INSERCIÓN DE REGISTROS', $contenidoSql);
         $this->assertStringContainsString('BEGIN;', $contenidoSql);
         $this->assertStringContainsString('COMMIT;', $contenidoSql);
 
