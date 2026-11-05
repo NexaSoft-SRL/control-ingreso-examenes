@@ -217,10 +217,7 @@ export default function InscritosDelGrupo({
                                         </td>
                                         <td className="py-1 pr-3">
                                             <span className="flex justify-end">
-                                                <FotoMiniatura
-                                                    grupoId={grupo.id}
-                                                    estudiante={e}
-                                                />
+                                                <FotoMiniatura grupoId={grupo.id} estudiante={e} />
                                                 <BotonFoto estudiante={e} onAbrir={setConFoto} />
                                             </span>
                                         </td>

@@ -263,10 +263,7 @@ describe('Mis grupos · lista de inscritos', () => {
         });
         expect(fotos).toHaveLength(2);
         fotos.forEach((foto) =>
-            expect(foto).toHaveAttribute(
-                'src',
-                '/api/docente/grupos/37/inscritos/1/foto'
-            )
+            expect(foto).toHaveAttribute('src', '/api/docente/grupos/37/inscritos/1/foto')
         );
     });
 

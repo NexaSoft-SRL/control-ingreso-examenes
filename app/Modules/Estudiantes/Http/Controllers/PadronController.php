@@ -61,12 +61,27 @@ final class PadronController
         }
 
         $datos = $request->validated();
+
+        $nombres = $datos['nombres'] ?? null;
+        $apellidos = $datos['apellidos'] ?? null;
+        $documento = $datos['documento'] ?? null;
+
+        if (
+            ! is_string($nombres)
+            || ! is_string($apellidos)
+            || ($documento !== null && ! is_string($documento))
+        ) {
+            return response()->json([
+                'message' => 'Los datos proporcionados no son válidos.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         if (! $corregir->execute(
             $usuarioId,
             $estudiante,
-            $datos['nombres'],
-            $datos['apellidos'],
-            $datos['documento'] ?? null,
+            $nombres,
+            $apellidos,
+            $documento,
         )) {
             return response()->json(['message' => 'Estudiante no encontrado.'], Response::HTTP_NOT_FOUND);
         }

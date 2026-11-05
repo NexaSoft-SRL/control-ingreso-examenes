@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Estudiantes\Http\Controllers;
 
 use App\Modules\Estudiantes\Application\Actions\HabilitarCambioDeFoto;
-use App\Modules\Estudiantes\Application\Queries\ConsultarFotoDeInscrito;
 use App\Modules\Estudiantes\Application\Queries\ArmarListaDeGrupo;
 use App\Modules\Estudiantes\Application\Queries\ArmarPlantilla;
+use App\Modules\Estudiantes\Application\Queries\ConsultarFotoDeInscrito;
 use App\Modules\Estudiantes\Application\Queries\ListarInscritosDeGrupo;
 use App\Modules\Estudiantes\Domain\Exceptions\CambioDeFotoNoPermitidoException;
 use App\Modules\Estudiantes\Domain\Exceptions\GrupoAjenoException;

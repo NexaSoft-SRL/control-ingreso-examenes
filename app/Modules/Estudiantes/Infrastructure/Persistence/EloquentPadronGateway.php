@@ -180,6 +180,13 @@ final class EloquentPadronGateway implements PadronGateway
         ?string $documento,
     ): bool {
         return DB::transaction(function () use ($usuarioId, $estudianteId, $nombres, $apellidos, $documento): bool {
+            /** @var object{
+             *     codigo_universitario: string,
+             *     nombres: string,
+             *     apellidos: string,
+             *     documento_identidad: string|null
+             * }|null $actual
+             */
             $actual = DB::table('estudiantes')
                 ->where('id', $estudianteId)
                 ->lockForUpdate()

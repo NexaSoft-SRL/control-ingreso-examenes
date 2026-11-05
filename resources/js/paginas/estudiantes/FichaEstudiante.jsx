@@ -257,18 +257,18 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
                             <div className="min-w-0 flex-1 space-y-3">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                                    <p className="font-mono text-xl font-semibold tracking-wide text-slate-900">
-                                        <span className="sr-only">Código SIS </span>
-                                        {ficha.codigo}
-                                    </p>
-                                    <span role="group" aria-label="Origen">
-                                        <Origen origen={ficha.origen} />
-                                    </span>
-                                    {ficha.facultad && (
-                                        <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
-                                            <PuntoFacultad sigla={ficha.facultad} />
+                                        <p className="font-mono text-xl font-semibold tracking-wide text-slate-900">
+                                            <span className="sr-only">Código SIS </span>
+                                            {ficha.codigo}
+                                        </p>
+                                        <span role="group" aria-label="Origen">
+                                            <Origen origen={ficha.origen} />
                                         </span>
-                                    )}
+                                        {ficha.facultad && (
+                                            <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+                                                <PuntoFacultad sigla={ficha.facultad} />
+                                            </span>
+                                        )}
                                     </div>
                                     {!editando ? (
                                         <Boton
@@ -291,7 +291,8 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
                                                     setErrorGeneral('');
                                                 }}
                                             >
-                                                <X className="h-4 w-4" aria-hidden="true" /> Cancelar
+                                                <X className="h-4 w-4" aria-hidden="true" />{' '}
+                                                Cancelar
                                             </Boton>
                                             <Boton
                                                 type="submit"
@@ -352,23 +353,23 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
                                         )}
                                     </form>
                                 ) : (
-                                <dl className="space-y-1.5">
-                                    <Dato icono={UserRound} etiqueta="Nombres">
-                                        {ficha.nombres}
-                                    </Dato>
-                                    <Dato icono={UserRound} etiqueta="Apellidos">
-                                        {ficha.apellidos}
-                                    </Dato>
-                                    <Dato icono={GraduationCap} etiqueta="Carrera">
-                                        {ficha.carrera ?? '—'}
-                                    </Dato>
-                                    <Dato icono={IdCard} etiqueta="C.I.">
-                                        {ficha.documento ?? '—'}
-                                    </Dato>
-                                    <Dato icono={Mail} etiqueta="Correo">
-                                        {ficha.correo ?? '—'}
-                                    </Dato>
-                                </dl>
+                                    <dl className="space-y-1.5">
+                                        <Dato icono={UserRound} etiqueta="Nombres">
+                                            {ficha.nombres}
+                                        </Dato>
+                                        <Dato icono={UserRound} etiqueta="Apellidos">
+                                            {ficha.apellidos}
+                                        </Dato>
+                                        <Dato icono={GraduationCap} etiqueta="Carrera">
+                                            {ficha.carrera ?? '—'}
+                                        </Dato>
+                                        <Dato icono={IdCard} etiqueta="C.I.">
+                                            {ficha.documento ?? '—'}
+                                        </Dato>
+                                        <Dato icono={Mail} etiqueta="Correo">
+                                            {ficha.correo ?? '—'}
+                                        </Dato>
+                                    </dl>
                                 )}
                             </div>
                         </div>

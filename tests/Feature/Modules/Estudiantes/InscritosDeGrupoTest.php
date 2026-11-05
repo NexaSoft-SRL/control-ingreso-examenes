@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Modules\Estudiantes;
 
-use App\Modules\Estudiantes\Application\Contracts\InscritosDeExamenGateway;
 use App\Modules\Estudiantes\Application\Contracts\FotosDeEstudiantes;
+use App\Modules\Estudiantes\Application\Contracts\InscritosDeExamenGateway;
 use App\Modules\Estudiantes\Application\DTOs\EstudianteData;
 use App\Modules\Estudiantes\Domain\Enums\OrigenEstudiante;
 use App\Modules\Estudiantes\Domain\Models\Inscripcion;
