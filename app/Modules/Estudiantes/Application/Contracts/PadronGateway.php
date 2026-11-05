@@ -48,6 +48,18 @@ interface PadronGateway
     public function ficha(int $estudianteId, string $dominioCorreo): ?array;
 
     /**
+     * Corrige los datos identificativos y registra el cambio en la bitácora.
+     * Devuelve false cuando no existe el estudiante.
+     */
+    public function corregirDatos(
+        int $usuarioId,
+        int $estudianteId,
+        string $nombres,
+        string $apellidos,
+        ?string $documento,
+    ): bool;
+
+    /**
      * @return array{estudiantes: int, inscripciones: int, cargados_por_docentes: int, conflictos_pendientes: int}
      */
     public function resumen(): array;

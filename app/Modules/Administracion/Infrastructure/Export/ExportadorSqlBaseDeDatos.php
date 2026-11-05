@@ -201,6 +201,7 @@ final class ExportadorSqlBaseDeDatos implements ExportadorBaseDeDatos
             $hijasPorPadre[$tabla] = [];
         }
 
+        /** @var list<object{tabla_hija: string, tabla_padre: string}> $relaciones */
         $relaciones = DB::select(
             "SELECT
                 conrelid::regclass::text AS tabla_hija,
@@ -211,12 +212,8 @@ final class ExportadorSqlBaseDeDatos implements ExportadorBaseDeDatos
         );
 
         foreach ($relaciones as $relacion) {
-            if (! $relacion instanceof \stdClass) {
-                continue;
-            }
-
-            $hija = is_scalar($relacion->tabla_hija ?? null) ? (string) $relacion->tabla_hija : '';
-            $padre = is_scalar($relacion->tabla_padre ?? null) ? (string) $relacion->tabla_padre : '';
+            $hija = $relacion->tabla_hija;
+            $padre = $relacion->tabla_padre;
 
             if (
                 ! isset($tablasIncluidas[$hija])

@@ -16,6 +16,8 @@ const FICHA = {
     id: 5,
     codigo: '202104821',
     nombre: 'Aguilar Cossío Mariana',
+    nombres: 'Mariana',
+    apellidos: 'Aguilar Cossío',
     documento: '7928194',
     correo: '202104821@est.umss.edu',
     facultad: 'FCyT',
@@ -26,6 +28,35 @@ const FICHA = {
 };
 
 describe('FichaEstudiante', () => {
+    it('edita los nombres y el documento y confirma el guardado', async () => {
+        simularApi(api, {
+            'GET /estudiantes/5': { data: FICHA },
+            'PUT /estudiantes/5': { data: { ...FICHA, nombres: 'Mariana Elena' } },
+        });
+        renderConSesion(
+            <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={vi.fn()} />
+        );
+
+        await screen.findByText('Sin foto');
+        fireEvent.click(screen.getByRole('button', { name: 'Editar datos' }));
+        fireEvent.change(screen.getByRole('textbox', { name: /Nombres/ }), {
+            target: { value: 'Mariana Elena' },
+        });
+        fireEvent.change(screen.getByRole('textbox', { name: 'Documento de identidad' }), {
+            target: { value: '7928195' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Guardar correcciones' }));
+
+        await waitFor(() =>
+            expect(api.put).toHaveBeenCalledWith('/estudiantes/5', {
+                nombres: 'Mariana Elena',
+                apellidos: 'Aguilar Cossío',
+                documento: '7928195',
+            })
+        );
+        expect(await screen.findByText('Datos del estudiante actualizados')).toBeInTheDocument();
+    });
+
     it('sin foto la sube apenas se elige, sin pasos de más', async () => {
         simularApi(api, {
             'GET /estudiantes/5': { data: FICHA },

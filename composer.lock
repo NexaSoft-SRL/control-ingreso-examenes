@@ -8197,7 +8197,8 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-09-12T21:39:33+00:00"
+            "time": "2026-09-12T21:39:33+00:00",
+            "published-time": "2026-09-12T21:39:45+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
@@ -10131,5 +10132,5 @@
     "platform-overrides": {
         "php": "8.2.0"
     },
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.11.0"
 }

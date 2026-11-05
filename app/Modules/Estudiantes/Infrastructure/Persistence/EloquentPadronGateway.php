@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Estudiantes\Infrastructure\Persistence;
 
+use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Estudiantes\Application\Contracts\PadronGateway;
 use App\Modules\Estudiantes\Application\DTOs\EstudianteData;
 use App\Modules\Estudiantes\Application\DTOs\FiltroListaData;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\DB;
 final class EloquentPadronGateway implements PadronGateway
 {
     use ConsultasDePadron;
+
+    public function __construct(private readonly BitacoraGateway $bitacora) {}
 
     public function listar(FiltroListaData $filtro): PaginaData
     {
@@ -167,6 +170,73 @@ final class EloquentPadronGateway implements PadronGateway
             'foto_subida_en' => $this->texto($datos['foto_subida_en'] ?? null),
             'materias' => $materias,
         ];
+    }
+
+    public function corregirDatos(
+        int $usuarioId,
+        int $estudianteId,
+        string $nombres,
+        string $apellidos,
+        ?string $documento,
+    ): bool {
+        return DB::transaction(function () use ($usuarioId, $estudianteId, $nombres, $apellidos, $documento): bool {
+            /** @var object{
+             *     codigo_universitario: string,
+             *     nombres: string,
+             *     apellidos: string,
+             *     documento_identidad: string|null
+             * }|null $actual
+             */
+            $actual = DB::table('estudiantes')
+                ->where('id', $estudianteId)
+                ->lockForUpdate()
+                ->first(['codigo_universitario', 'nombres', 'apellidos', 'documento_identidad']);
+
+            if ($actual === null) {
+                return false;
+            }
+
+            $cambios = [];
+            $descripcion = [];
+
+            foreach (['nombres' => $nombres, 'apellidos' => $apellidos] as $campo => $nuevo) {
+                if ($actual->{$campo} !== $nuevo) {
+                    $cambios[$campo] = $nuevo;
+                    $descripcion[] = sprintf('%s «%s» → «%s»', ucfirst($campo), $actual->{$campo}, $nuevo);
+                }
+            }
+
+            if ($actual->documento_identidad !== $documento) {
+                $cambios['documento_identidad'] = $documento;
+                $descripcion[] = sprintf(
+                    'Documento de identidad «%s» → «%s»',
+                    $actual->documento_identidad ?? 'sin documento',
+                    $documento ?? 'sin documento',
+                );
+            }
+
+            if ($cambios === []) {
+                return true;
+            }
+
+            DB::table('estudiantes')
+                ->where('id', $estudianteId)
+                ->update([...$cambios, 'updated_at' => now()]);
+
+            $this->bitacora->registrar(
+                $usuarioId,
+                'estudiante.datos_corregidos',
+                'estudiantes',
+                $estudianteId,
+                sprintf(
+                    'Corrección de datos de %s: %s.',
+                    $actual->codigo_universitario,
+                    implode('; ', $descripcion),
+                ),
+            );
+
+            return true;
+        }, 3);
     }
 
     public function resumen(): array

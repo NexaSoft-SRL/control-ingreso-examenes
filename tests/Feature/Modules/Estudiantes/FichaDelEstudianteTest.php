@@ -200,4 +200,55 @@ final class FichaDelEstudianteTest extends TestCase
             ->assertForbidden()
             ->assertJsonPath('permiso_requerido', 'padron_estudiantes');
     }
+
+    public function test_an_administrator_can_correct_student_names_and_identity_and_the_change_is_audited(): void
+    {
+        $estudiante = $this->estudiante();
+
+        $this->actingAs($this->administrador())
+            ->putJson("/api/estudiantes/{$estudiante->id}", [
+                'nombres' => 'Mariana Elena',
+                'apellidos' => 'Aguilar Cossío',
+                'documento' => '7928195',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.nombres', 'Mariana Elena')
+            ->assertJsonPath('data.apellidos', 'Aguilar Cossío')
+            ->assertJsonPath('data.documento', '7928195');
+
+        $this->assertDatabaseHas('estudiantes', [
+            'id' => $estudiante->id,
+            'nombres' => 'Mariana Elena',
+            'apellidos' => 'Aguilar Cossío',
+            'documento_identidad' => '7928195',
+        ]);
+        $this->assertDatabaseHas('bitacora_operaciones', [
+            'operacion' => 'estudiante.datos_corregidos',
+            'tabla_afectada' => 'estudiantes',
+            'registro_id' => $estudiante->id,
+        ]);
+    }
+
+    public function test_a_corrected_identity_cannot_belong_to_another_student(): void
+    {
+        $estudiante = $this->estudiante();
+        $otro = $this->estudiante([
+            'codigo_universitario' => '201901349',
+            'documento_identidad' => '6492819',
+        ]);
+
+        $this->actingAs($this->administrador())
+            ->putJson("/api/estudiantes/{$estudiante->id}", [
+                'nombres' => $estudiante->nombres,
+                'apellidos' => $estudiante->apellidos,
+                'documento' => $otro->documento_identidad,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['documento']);
+
+        $this->assertDatabaseHas('estudiantes', [
+            'id' => $estudiante->id,
+            'documento_identidad' => $estudiante->documento_identidad,
+        ]);
+    }
 }
