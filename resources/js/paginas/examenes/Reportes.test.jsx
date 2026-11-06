@@ -246,7 +246,9 @@ describe('Reportes · HU-23', () => {
     it('no muestra el selector de período cuando solo hay uno vigente', async () => {
         renderConSesion(<Reportes />);
 
-        expect(await screen.findByText('Período 2/2026 · 1 examen · 1 rendido')).toBeInTheDocument();
+        expect(
+            await screen.findByText('Período 2/2026 · 1 examen · 1 rendido')
+        ).toBeInTheDocument();
         expect(screen.queryByRole('group', { name: 'Período' })).not.toBeInTheDocument();
     });
 

@@ -676,7 +676,9 @@ export default function Reportes() {
                     )}
                     {consultaDetalle.error && (
                         <div role="alert" className="mt-4 text-center text-sm text-danger-700">
-                            <p>{mensajeDe(consultaDetalle.error, 'No se pudo cargar el reporte.')}</p>
+                            <p>
+                                {mensajeDe(consultaDetalle.error, 'No se pudo cargar el reporte.')}
+                            </p>
                             <Boton
                                 type="button"
                                 variante="secundario"
