@@ -136,4 +136,56 @@ describe('Bitácora del examen · HU-29', () => {
         expect(screen.getByRole('button', { name: 'PDF' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'XLSX' })).toBeDisabled();
     });
+
+    it('indica cuántos eventos quedan y los carga por páginas', async () => {
+        const todosLosEventos = Array.from({ length: 109 }, (_, indice) => ({
+            ...eventos[0],
+            id: `ingreso-${indice + 1}`,
+            suceso: `Evento ${indice + 1}`,
+        }));
+
+        api.get.mockImplementation((ruta, opciones) => {
+            if (ruta === '/reportes/bitacora/examenes') {
+                return Promise.resolve({ data: { data: [examen] } });
+            }
+            if (ruta === '/reportes/examenes/21/bitacora') {
+                const pagina = opciones?.params?.pagina ?? 1;
+                const inicio = (pagina - 1) * 100;
+                return Promise.resolve({
+                    data: {
+                        data: todosLosEventos.slice(inicio, inicio + 100),
+                        examen,
+                        aulas: [{ id: 7, nombre: '624' }],
+                        categorias: [{ valor: 'INGRESO', etiqueta: 'Ingresos', total: 109 }],
+                        meta: {
+                            total: 109,
+                            total_examen: 109,
+                            pagina,
+                            por_pagina: 100,
+                            paginas: 2,
+                        },
+                    },
+                });
+            }
+            return Promise.reject(errorHttp(404));
+        });
+
+        renderConSesion(<BitacoraExamen />, {
+            ruta: '/bitacora-examen?examen=21',
+            usuario: usuarioDePrueba('Docente'),
+        });
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Mostrar más · quedan 9' }));
+
+        await waitFor(() => {
+            expect(
+                api.get.mock.calls.some(
+                    ([ruta, opciones]) =>
+                        ruta === '/reportes/examenes/21/bitacora' && opciones?.params?.pagina === 2
+                )
+            ).toBe(true);
+        });
+        expect(await screen.findByRole('heading', { name: 'Evento 109' })).toBeVisible();
+        expect(screen.queryByRole('button', { name: /Mostrar más/ })).not.toBeInTheDocument();
+    });
 });

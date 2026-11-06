@@ -336,7 +336,11 @@ export default function BitacoraExamen() {
                                         cargando={consultaBitacora.actualizando}
                                     >
                                         <ChevronDown className="h-4 w-4" aria-hidden="true" />
-                                        Mostrar más
+                                        Mostrar más · quedan{' '}
+                                        {Math.max(
+                                            (meta.total ?? eventos.length) - eventos.length,
+                                            0
+                                        )}
                                     </Boton>
                                 </div>
                             )}
