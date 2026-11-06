@@ -12,6 +12,7 @@ require __DIR__.'/reportes.php';
 require __DIR__.'/habilitacion.php';
 require __DIR__.'/ingreso.php';
 require __DIR__.'/monitoreo.php';
+require __DIR__.'/respaldo.php';
 
 /*
  * El cliente es una aplicacion de pagina unica: cualquier direccion que no sea

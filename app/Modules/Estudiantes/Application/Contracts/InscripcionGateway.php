@@ -61,6 +61,8 @@ interface InscripcionGateway
      */
     public function inscritosDeGrupo(int $grupoId, FiltroListaData $filtro): PaginaData;
 
+    public function inscritoEnGrupo(int $grupoId, int $estudianteId): bool;
+
     /**
      * La lista entera del grupo, por apellidos y nombres, para descargar.
      *

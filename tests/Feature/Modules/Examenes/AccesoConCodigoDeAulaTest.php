@@ -96,8 +96,7 @@ final class AccesoConCodigoDeAulaTest extends TestCase
             'generado_en' => now()->toDateTimeString(),
         ]);
 
-        // La fecha es la de la apertura: de noche puede ser la vispera del inicio.
-        $apertura = $inicio->copy()->subMinutes(60);
+        $abre = $inicio->copy()->subMinutes(60);
 
         $this->postJson('/api/auth/codigo-aula', [
             'codigo' => '112233',
@@ -106,9 +105,9 @@ final class AccesoConCodigoDeAulaTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonPath('errors.codigo.0', sprintf(
                 'La puerta abre el %d %s a las %s.',
-                (int) $apertura->format('j'),
-                ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'][(int) $apertura->format('n') - 1],
-                $apertura->format('H:i'),
+                (int) $abre->format('j'),
+                ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'][(int) $abre->format('n') - 1],
+                $abre->format('H:i'),
             ));
 
         // Un codigo que ya cerro dice cuando cerro; uno que no existe, nada mas.

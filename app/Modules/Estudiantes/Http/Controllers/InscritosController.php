@@ -7,6 +7,7 @@ namespace App\Modules\Estudiantes\Http\Controllers;
 use App\Modules\Estudiantes\Application\Actions\HabilitarCambioDeFoto;
 use App\Modules\Estudiantes\Application\Queries\ArmarListaDeGrupo;
 use App\Modules\Estudiantes\Application\Queries\ArmarPlantilla;
+use App\Modules\Estudiantes\Application\Queries\ConsultarFotoDeInscrito;
 use App\Modules\Estudiantes\Application\Queries\ListarInscritosDeGrupo;
 use App\Modules\Estudiantes\Domain\Exceptions\CambioDeFotoNoPermitidoException;
 use App\Modules\Estudiantes\Domain\Exceptions\GrupoAjenoException;
@@ -73,6 +74,33 @@ final class InscritosController
         }
 
         return $this->hojaDeCalculo($archivo->nombre, $archivo->contenido);
+    }
+
+    public function foto(int $grupo, int $estudiante, ConsultarFotoDeInscrito $consultar): JsonResponse|Response
+    {
+        $usuarioId = Auth::id();
+
+        if (! is_int($usuarioId)) {
+            return response()->json(['message' => 'No hay una sesión activa.'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        try {
+            $jpeg = $consultar->execute($usuarioId, $grupo, $estudiante);
+        } catch (GrupoAjenoException $excepcion) {
+            return response()->json([
+                'message' => $excepcion->getMessage(),
+                'alcance' => true,
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if ($jpeg === null) {
+            return response()->json(['message' => 'Foto no encontrada.'], Response::HTTP_NOT_FOUND);
+        }
+
+        return response($jpeg, Response::HTTP_OK, [
+            'Content-Type' => 'image/jpeg',
+            'Cache-Control' => 'private, no-store',
+        ]);
     }
 
     /**

@@ -102,6 +102,7 @@ final class CanonicalUserSchemaTest extends TestCase
                 'plazos_foto.fijado_por',
                 'plazos_foto_grupo.fijado_por',
                 'presencias_puerta.usuario_id',
+                'respaldos.usuario_id',
             ],
             $actual
         );

@@ -16,6 +16,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
 use stdClass;
@@ -189,6 +190,7 @@ class DemoSeeder extends Seeder
         $this->examenesDeLeticia();
         $this->examenesDeCargaAlta();
         $this->bitacora();
+        $this->respaldos();
     }
 
     /**
@@ -1135,5 +1137,35 @@ class DemoSeeder extends Seeder
     protected function texto(mixed $valor): string
     {
         return is_scalar($valor) ? (string) $valor : '';
+    }
+
+    /**
+     * HU-25 / CDI-26: Provee un respaldo de esquema anterior incompatible en disco
+     * y base de datos para que el equipo de QA pueda verificar la incompatibilidad.
+     */
+    protected function respaldos(): void
+    {
+        $discoNombre = is_string(config('respaldo.disco')) ? config('respaldo.disco') : 'local';
+        $directorio = is_string(config('respaldo.directorio')) ? config('respaldo.directorio') : 'respaldos';
+        $disco = Storage::disk($discoNombre);
+
+        $nombreArchivo = 'respaldo-20260901-000000.sql';
+        $ruta = trim($directorio, '/').'/'.$nombreArchivo;
+        $contenido = "-- Respaldo de esquema anterior incompatible (CDI-26)\n-- Version: 2026_09_01_000000_legacy_v0\nSELECT 1;\n";
+
+        $disco->put($ruta, $contenido);
+
+        DB::table('respaldos')->updateOrInsert(
+            ['archivo' => $nombreArchivo],
+            [
+                'tipo' => 'programado',
+                'tamano_bytes' => strlen($contenido),
+                'estado' => 'correcto',
+                'version_esquema' => '2026_09_01_000000_legacy_v0',
+                'error' => null,
+                'created_at' => '2026-09-01 00:00:00',
+                'updated_at' => '2026-09-01 00:00:00',
+            ]
+        );
     }
 }

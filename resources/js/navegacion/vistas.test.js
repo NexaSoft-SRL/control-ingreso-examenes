@@ -27,6 +27,7 @@ describe('vistas por permiso', () => {
             ['/mis-grupos', 'mis_grupos'],
             ['/admin', 'usuarios_roles'],
             ['/bitacora', 'bitacora'],
+            ['/respaldo', 'respaldo_restauracion'],
         ]);
     });
 
@@ -55,6 +56,7 @@ describe('vistas por permiso', () => {
             '/bitacora-examen',
             '/admin',
             '/bitacora',
+            '/respaldo',
         ]);
         expect(rutas(usuarioDePrueba('Administrador', { permisos: CATALOGO_PERMISOS }))).toEqual(
             VISTAS.map((v) => v.ruta)

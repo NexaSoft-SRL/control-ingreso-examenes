@@ -252,6 +252,21 @@ describe('Mis grupos · muchos grupos', () => {
 });
 
 describe('Mis grupos · lista de inscritos', () => {
+    it('muestra la fotografía de cada estudiante que ya la registró', async () => {
+        const lista = estudiantes(1);
+        lista[0].foto = { subida_en: '2026-10-12', habilitada_hasta: null };
+        servidor(POCOS(), { inscritos: { 37: lista } });
+        renderConSesion(<MisGrupos />);
+
+        const fotos = await screen.findAllByRole('img', {
+            name: 'Fotografía de Apellido001 Nombre',
+        });
+        expect(fotos).toHaveLength(2);
+        fotos.forEach((foto) =>
+            expect(foto).toHaveAttribute('src', '/api/docente/grupos/37/inscritos/1/foto')
+        );
+    });
+
     it('la pide de a 25 y la muestra con código, nombre, documento y origen', async () => {
         servidor(POCOS(), { inscritos: { 37: estudiantes(65) } });
         renderConSesion(<MisGrupos />);
