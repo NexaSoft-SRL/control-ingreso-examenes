@@ -317,7 +317,41 @@ describe('Respaldo - Filtros, listado, paginación y responsividad (Tarea 2)', (
         const ficha = screen.getByRole('button', { name: /Programados/ });
         fireEvent.click(ficha);
 
-        expect(await screen.findByText('El filtro no existe.')).toBeInTheDocument();
+        const avisos = await screen.findAllByText('El filtro no existe.');
+        expect(avisos.length).toBeGreaterThan(0);
+        expect(screen.getByRole('button', { name: 'Ver todos los respaldos' })).toBeInTheDocument();
+    });
+
+    it('si se accede con ?filtro=inventado en la URL, consulta con ese filtro y muestra el rechazo (CDI-18)', async () => {
+        simularApi(api, {
+            'GET /respaldos': (pedido) => {
+                if (pedido.params?.filtro === 'inventado') {
+                    throw errorHttp(422, { message: 'El filtro no existe.' });
+                }
+                return {
+                    data: respaldosEjemplo,
+                    conteos: { todos: 1, programados: 0, puntuales: 1, fallidos: 0 },
+                    meta: { total: 1, pagina: 1, por_pagina: 15 },
+                };
+            },
+        });
+
+        renderConSesion(<Respaldo />, {
+            usuario: usuarioDePrueba('Administrador'),
+            ruta: '/respaldo?filtro=inventado',
+        });
+
+        const avisos = await screen.findAllByText('El filtro no existe.');
+        expect(avisos.length).toBeGreaterThan(0);
+
+        const botonRestablecer = screen.getByRole('button', { name: 'Ver todos los respaldos' });
+        expect(botonRestablecer).toBeInTheDocument();
+
+        fireEvent.click(botonRestablecer);
+
+        expect(
+            await screen.findByRole('heading', { level: 2, name: 'Historial' })
+        ).toBeInTheDocument();
     });
 
     it('al generar un respaldo puntual mientras se está en un filtro que lo ocultaría, cambia a «Todos» y lo muestra primero (criterio 3)', async () => {

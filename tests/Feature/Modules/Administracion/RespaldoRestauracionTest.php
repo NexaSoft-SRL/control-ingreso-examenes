@@ -8,6 +8,7 @@ use App\Modules\Administracion\Domain\Models\Respaldo;
 use App\Modules\Administracion\Domain\Models\User;
 use App\Modules\Administracion\Infrastructure\Export\ExportadorSqlBaseDeDatos;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\UsuarioConPermisos;
@@ -275,6 +276,31 @@ final class RespaldoRestauracionTest extends TestCase
             'tabla_afectada' => 'respaldos',
             'registro_id' => $respaldo->id,
         ]);
+    }
+
+    public function test_command_respaldo_incompatible_creates_legacy_backup_and_rejects_restore(): void
+    {
+        $codigo = Artisan::call('respaldo:incompatible');
+        $this->assertSame(0, $codigo);
+
+        $respaldo = Respaldo::where('archivo', 'respaldo-20260901-000000.sql')->firstOrFail();
+        $this->assertSame('correcto', $respaldo->estado);
+        $this->assertSame('2026_09_01_000000_legacy_v0', $respaldo->version_esquema);
+
+        // Al intentar restaurarlo se rechaza con 422
+        $this->actingAs($this->administrador)
+            ->postJson("/api/respaldos/{$respaldo->id}/restaurar")
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'El respaldo corresponde a una versión anterior incompatible.');
+
+        $respaldo->refresh();
+        $this->assertSame('incompatible', $respaldo->estado);
+
+        // Se puede seguir descargando a pesar de ser incompatible
+        $this->actingAs($this->administrador)
+            ->get("/api/respaldos/{$respaldo->id}/archivo")
+            ->assertOk()
+            ->assertHeader('content-disposition', 'attachment; filename="respaldo-20260901-000000.sql"');
     }
 
     public function test_admin_restores_backup_successfully_and_updates_states_and_bitacora(): void
