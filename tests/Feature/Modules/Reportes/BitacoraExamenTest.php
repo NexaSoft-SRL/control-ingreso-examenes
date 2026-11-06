@@ -68,6 +68,129 @@ final class BitacoraExamenTest extends TestCase
         $this->assertSame(['RECHAZO', 'INGRESO'], array_column($datos, 'categoria'));
     }
 
+    public function test_timeline_includes_unlogged_classroom_access_requests_and_resolutions(): void
+    {
+        $usuario = $this->usuarioConPermisos(['reportes_examenes']);
+        $docente = $this->docenteConCuenta($usuario);
+        $grupo = $this->grupo($docente);
+        $aula = $this->aula('624');
+        $examen = $this->examen($docente, [$grupo], [$aula]);
+        $solicitud = now()->subMinute();
+
+        DB::table('accesos_codigo_aula')->insert([
+            'examen_id' => $examen->id,
+            'aula_id' => $aula->id,
+            'codigo' => '123456',
+            'nombre_colaborador' => 'María Pérez',
+            'token' => str_repeat('a', 64),
+            'ultimo_acceso_en' => $solicitud,
+            'estado' => 'AUTORIZADO',
+            'resuelto_por' => $usuario->id,
+            'resuelto_en' => now(),
+            'created_at' => $solicitud,
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($usuario)
+            ->getJson("/api/reportes/examenes/{$examen->id}/bitacora")
+            ->assertOk()
+            ->assertJsonPath('meta.total_examen', 2)
+            ->assertJsonPath('data.0.suceso', 'Acceso del personal autorizado')
+            ->assertJsonPath('data.0.estudiante', 'María Pérez')
+            ->assertJsonPath('data.0.actor', $usuario->nombre)
+            ->assertJsonPath('data.1.suceso', 'Solicitud de acceso de personal')
+            ->assertJsonPath('data.1.actor', 'María Pérez (código de aula)');
+    }
+
+    public function test_timeline_does_not_duplicate_classroom_accesses_with_audit_records(): void
+    {
+        $usuario = $this->usuarioConPermisos(['reportes_examenes']);
+        $docente = $this->docenteConCuenta($usuario);
+        $grupo = $this->grupo($docente);
+        $aula = $this->aula('624');
+        $examen = $this->examen($docente, [$grupo], [$aula]);
+        $solicitud = now()->subMinute();
+        $accesoId = DB::table('accesos_codigo_aula')->insertGetId([
+            'examen_id' => $examen->id,
+            'aula_id' => $aula->id,
+            'codigo' => '123456',
+            'nombre_colaborador' => 'María Pérez',
+            'token' => str_repeat('b', 64),
+            'ultimo_acceso_en' => $solicitud,
+            'estado' => 'AUTORIZADO',
+            'resuelto_por' => $usuario->id,
+            'resuelto_en' => now(),
+            'created_at' => $solicitud,
+            'updated_at' => now(),
+        ]);
+
+        DB::table('bitacora_operaciones')->insert([
+            [
+                'usuario_id' => null,
+                'operacion' => 'acceso_codigo_aula.ingreso',
+                'tabla_afectada' => 'accesos_codigo_aula',
+                'registro_id' => $accesoId,
+                'descripcion' => 'María Pérez pidió controlar el aula 624 con su código.',
+                'fecha_operacion' => $solicitud,
+            ],
+            [
+                'usuario_id' => $usuario->id,
+                'operacion' => 'acceso_aula.autorizar',
+                'tabla_afectada' => 'accesos_codigo_aula',
+                'registro_id' => $accesoId,
+                'descripcion' => 'María Pérez fue autorizado a controlar el aula 624.',
+                'fecha_operacion' => now(),
+            ],
+        ]);
+
+        $respuesta = $this->actingAs($usuario)
+            ->getJson("/api/reportes/examenes/{$examen->id}/bitacora")
+            ->assertOk()
+            ->assertJsonPath('meta.total_examen', 2);
+
+        $ids = array_column($respuesta->json('data'), 'id');
+        $this->assertCount(2, $ids);
+        $this->assertSame(
+            [true, true],
+            array_map(static fn (string $id): bool => str_starts_with($id, 'operacion-'), $ids),
+        );
+    }
+
+    public function test_entry_timeline_describes_identification_exception_suggested_classroom_and_late_arrival(): void
+    {
+        $usuario = $this->usuarioConPermisos(['reportes_examenes']);
+        $docente = $this->docenteConCuenta($usuario);
+        $grupo = $this->grupo($docente);
+        $aulaIngreso = $this->aula('624');
+        $aulaSugerida = $this->aula('691A');
+        $estudiante = $this->estudiantesInscritos($grupo, 1)[0];
+        $inicio = now()->subMinutes(30);
+        $examen = $this->examen($docente, [$grupo], [$aulaIngreso, $aulaSugerida], [
+            'fecha' => $inicio->toDateString(),
+            'hora_inicio' => $inicio->format('H:i:00'),
+        ]);
+        $this->habilitar($examen, [$estudiante], $aulaSugerida);
+        $ingresoId = $this->ingresar($examen, $estudiante, $aulaIngreso);
+        DB::table('ingresos')->where('id', $ingresoId)->update([
+            'registrado_en' => now(),
+            'medio_identificacion' => 'qr',
+            'es_excepcion' => true,
+            'motivo_excepcion' => 'Documento deteriorado',
+        ]);
+
+        $respuesta = $this->actingAs($usuario)
+            ->getJson("/api/reportes/examenes/{$examen->id}/bitacora")
+            ->assertOk()
+            ->assertJsonPath('meta.total_examen', 1)
+            ->assertJsonPath('data.0.aula', '624');
+
+        $detalle = $respuesta->json('data.0.detalle');
+        $this->assertStringContainsString('Código QR', $detalle);
+        $this->assertStringContainsString('Excepción: Documento deteriorado', $detalle);
+        $this->assertStringContainsString('Aula sugerida: 691A', $detalle);
+        $this->assertStringContainsString('Ingreso posterior al inicio', $detalle);
+    }
+
     public function test_category_and_classroom_filters_and_accent_insensitive_search_are_applied(): void
     {
         $usuario = $this->usuarioConPermisos(['reportes_examenes']);

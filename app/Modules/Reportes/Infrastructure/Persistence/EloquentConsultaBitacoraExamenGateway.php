@@ -249,6 +249,7 @@ final class EloquentConsultaBitacoraExamenGateway implements ConsultaBitacoraExa
     {
         $union = $this->ingresos($examenId)
             ->unionAll($this->incidencias($examenId))
+            ->unionAll($this->accesosCodigoAula($examenId))
             ->unionAll($this->operaciones($examenId));
 
         return DB::query()->fromSub($union, 'evento');
@@ -259,6 +260,12 @@ final class EloquentConsultaBitacoraExamenGateway implements ConsultaBitacoraExa
         return DB::table('ingresos as ingreso')
             ->leftJoin('estudiantes as estudiante', 'estudiante.id', '=', 'ingreso.estudiante_id')
             ->leftJoin('aulas as aula', 'aula.id', '=', 'ingreso.aula_id')
+            ->leftJoin('habilitaciones as habilitacion', static function (JoinClause $join): void {
+                $join->on('habilitacion.examen_id', '=', 'ingreso.examen_id')
+                    ->on('habilitacion.estudiante_id', '=', 'ingreso.estudiante_id');
+            })
+            ->leftJoin('aulas as aula_sugerida', 'aula_sugerida.id', '=', 'habilitacion.aula_id')
+            ->join('examenes as examen', 'examen.id', '=', 'ingreso.examen_id')
             ->leftJoin('usuarios as actor', 'actor.id', '=', 'ingreso.registrado_por')
             ->leftJoin('accesos_codigo_aula as acceso', 'acceso.id', '=', 'ingreso.acceso_codigo_aula_id')
             ->where('ingreso.examen_id', $examenId)
@@ -267,10 +274,93 @@ final class EloquentConsultaBitacoraExamenGateway implements ConsultaBitacoraExa
                 ."'INGRESO' as categoria, 'Ingreso autorizado' as suceso, "
                 ."coalesce(nullif(trim(concat_ws(' ', estudiante.apellidos, estudiante.nombres)), ''), 'Sin identificar') as estudiante, "
                 .'estudiante.codigo_universitario as codigo, aula.id as aula_id, aula.nombre as aula, '
-                ."concat_ws(' · ', nullif(ingreso.medio_identificacion, ''), "
-                ."'Identidad verificada correctamente') as detalle, "
+                ."concat_ws(' · ', "
+                ."case lower(ingreso.medio_identificacion) when 'qr' then 'Código QR' "
+                ."when 'codigo' then 'Código SIS' when 'documento' then 'C.I.' "
+                ."else nullif(trim(ingreso.medio_identificacion), '') end, "
+                ."'Identidad verificada correctamente', "
+                ."case when ingreso.es_excepcion then concat('Excepción: ', "
+                ."coalesce(nullif(trim(ingreso.motivo_excepcion), ''), 'ingreso autorizado')) end, "
+                .'case when habilitacion.aula_id is not null and ingreso.aula_id is distinct from habilitacion.aula_id '
+                ."then concat('Aula sugerida: ', aula_sugerida.nombre) end, "
+                .'case when ingreso.registrado_en > (examen.fecha + examen.hora_inicio) '
+                ."then 'Ingreso posterior al inicio' end) as detalle, "
                 ."coalesce(acceso.nombre_colaborador, actor.nombre, 'Sistema') as actor",
             );
+    }
+
+    private function accesosCodigoAula(int $examenId): Builder
+    {
+        $solicitudes = DB::table('accesos_codigo_aula as acceso')
+            ->leftJoin('aulas as aula', 'aula.id', '=', 'acceso.aula_id')
+            ->where('acceso.examen_id', $examenId)
+            ->whereNotExists(static function (Builder $auditoria): void {
+                $auditoria->selectRaw('1')
+                    ->from('bitacora_operaciones as operacion')
+                    ->where('operacion.operacion', 'acceso_codigo_aula.ingreso')
+                    ->where('operacion.tabla_afectada', 'accesos_codigo_aula')
+                    ->whereColumn('operacion.registro_id', 'acceso.id');
+            })
+            ->selectRaw(
+                "concat('acceso-solicitud-', acceso.id) as id, acceso.created_at as ocurrida_en, "
+                ."'ACCESO_AULA' as categoria, 'acceso_codigo_aula.ingreso' as suceso, "
+                .'acceso.nombre_colaborador as estudiante, cast(null as varchar) as codigo, '
+                .'aula.id as aula_id, aula.nombre as aula, '
+                ."concat(acceso.nombre_colaborador, ' pidió controlar el aula ', aula.nombre, "
+                ."' con su código; espera la autorización del docente.') as detalle, "
+                ."concat(acceso.nombre_colaborador, ' (código de aula)') as actor",
+            );
+
+        $resoluciones = DB::table('accesos_codigo_aula as acceso')
+            ->leftJoin('aulas as aula', 'aula.id', '=', 'acceso.aula_id')
+            ->leftJoin('usuarios as actor', 'actor.id', '=', 'acceso.resuelto_por')
+            ->where('acceso.examen_id', $examenId)
+            ->whereIn('acceso.estado', ['AUTORIZADO', 'RECHAZADO', 'CORTADO'])
+            ->whereNotExists(static function (Builder $auditoria): void {
+                $auditoria->selectRaw('1')
+                    ->from('bitacora_operaciones as operacion')
+                    ->where('operacion.tabla_afectada', 'accesos_codigo_aula')
+                    ->whereColumn('operacion.registro_id', 'acceso.id')
+                    ->where(static function (Builder $accion): void {
+                        $accion
+                            ->where(static function (Builder $autorizacion): void {
+                                $autorizacion
+                                    ->where('acceso.estado', 'AUTORIZADO')
+                                    ->whereIn('operacion.operacion', [
+                                        'acceso_aula.autorizar',
+                                        'acceso_aula.trasladar',
+                                    ]);
+                            })
+                            ->orWhere(static function (Builder $rechazo): void {
+                                $rechazo
+                                    ->where('acceso.estado', 'RECHAZADO')
+                                    ->where('operacion.operacion', 'acceso_aula.rechazar');
+                            })
+                            ->orWhere(static function (Builder $corte): void {
+                                $corte
+                                    ->where('acceso.estado', 'CORTADO')
+                                    ->where('operacion.operacion', 'acceso_aula.cortar');
+                            });
+                    });
+            })
+            ->selectRaw(
+                "concat('acceso-resolucion-', acceso.id) as id, "
+                .'coalesce(acceso.resuelto_en, acceso.updated_at, acceso.created_at) as ocurrida_en, '
+                ."'ACCESO_AULA' as categoria, "
+                ."case acceso.estado when 'AUTORIZADO' then 'acceso_aula.autorizar' "
+                ."when 'RECHAZADO' then 'acceso_aula.rechazar' else 'acceso_aula.cortar' end as suceso, "
+                .'acceso.nombre_colaborador as estudiante, cast(null as varchar) as codigo, '
+                .'aula.id as aula_id, aula.nombre as aula, '
+                ."case acceso.estado when 'AUTORIZADO' then concat(acceso.nombre_colaborador, "
+                ."' fue autorizado a controlar el aula ', aula.nombre, '.') "
+                ."when 'RECHAZADO' then concat(acceso.nombre_colaborador, "
+                ."' no fue autorizado a controlar el aula ', aula.nombre, '.') "
+                ."else concat('Se cortó el acceso de ', acceso.nombre_colaborador, "
+                ."' al aula ', aula.nombre, '.') end as detalle, "
+                ."coalesce(actor.nombre, 'Sistema') as actor",
+            );
+
+        return $solicitudes->unionAll($resoluciones);
     }
 
     private function incidencias(int $examenId): Builder
