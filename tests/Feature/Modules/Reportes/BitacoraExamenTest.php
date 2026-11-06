@@ -148,11 +148,16 @@ final class BitacoraExamenTest extends TestCase
             ->assertOk()
             ->assertJsonPath('meta.total_examen', 2);
 
-        $ids = array_column($respuesta->json('data'), 'id');
+        $eventos = $respuesta->json('data');
+        $this->assertIsArray($eventos);
+        $ids = array_column($eventos, 'id');
         $this->assertCount(2, $ids);
         $this->assertSame(
             [true, true],
-            array_map(static fn (string $id): bool => str_starts_with($id, 'operacion-'), $ids),
+            array_map(
+                static fn (mixed $id): bool => is_string($id) && str_starts_with($id, 'operacion-'),
+                $ids,
+            ),
         );
     }
 
@@ -185,6 +190,7 @@ final class BitacoraExamenTest extends TestCase
             ->assertJsonPath('data.0.aula', '624');
 
         $detalle = $respuesta->json('data.0.detalle');
+        $this->assertIsString($detalle);
         $this->assertStringContainsString('Código QR', $detalle);
         $this->assertStringContainsString('Excepción: Documento deteriorado', $detalle);
         $this->assertStringContainsString('Aula sugerida: 691A', $detalle);
