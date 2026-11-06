@@ -242,4 +242,37 @@ describe('Reportes · HU-23', () => {
             })
         );
     });
+
+    it('no muestra el selector de período cuando solo hay uno vigente', async () => {
+        renderConSesion(<Reportes />);
+
+        expect(await screen.findByText('Período 2/2026 · 1 examen · 1 rendido')).toBeInTheDocument();
+        expect(screen.queryByRole('group', { name: 'Período' })).not.toBeInTheDocument();
+    });
+
+    it.each([
+        [403, 'Este examen no está a su cargo.'],
+        [404, 'Examen no encontrado.'],
+    ])('muestra el error HTTP %s del examen y permite reintentar', async (estado, mensaje) => {
+        let intentosDeDetalle = 0;
+        api.get.mockImplementation((ruta) => {
+            if (ruta === '/reportes') return Promise.resolve(respuestaLista());
+            if (ruta === '/reportes/examenes/21') {
+                intentosDeDetalle += 1;
+                return intentosDeDetalle === 1
+                    ? Promise.reject(errorHttp(estado, { message: mensaje }))
+                    : Promise.resolve({ data: { data: detalle } });
+            }
+            return Promise.reject(errorHttp(404, { message: 'No encontrado.' }));
+        });
+        renderConSesion(<Reportes />, { ruta: '/reportes?examen=21' });
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(mensaje);
+        fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+
+        expect(
+            await screen.findByRole('heading', { name: /Primer parcial · Introducción/ })
+        ).toBeVisible();
+        expect(intentosDeDetalle).toBe(2);
+    });
 });
