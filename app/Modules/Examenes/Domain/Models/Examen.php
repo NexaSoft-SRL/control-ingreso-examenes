@@ -22,6 +22,8 @@ use Illuminate\Support\Carbon;
  * @property int $duracion_minutos
  * @property string|null $normas
  * @property int $creado_por
+ * @property Carbon|null $finalizado_en
+ * @property int|null $finalizado_por
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -41,6 +43,8 @@ final class Examen extends Model
         'duracion_minutos',
         'normas',
         'creado_por',
+        'finalizado_en',
+        'finalizado_por',
     ];
 
     /**
@@ -55,6 +59,8 @@ final class Examen extends Model
             'fecha' => 'date',
             'duracion_minutos' => 'integer',
             'creado_por' => 'integer',
+            'finalizado_en' => 'datetime',
+            'finalizado_por' => 'integer',
         ];
     }
 

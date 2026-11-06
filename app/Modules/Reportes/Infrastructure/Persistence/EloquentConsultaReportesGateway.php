@@ -146,7 +146,7 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
     {
         $examen = DB::table('examenes')
             ->where('id', $examenId)
-            ->first(['fecha', 'hora_inicio', 'duracion_minutos']);
+            ->first(['fecha', 'hora_inicio', 'finalizado_en']);
 
         if ($examen === null) {
             return [
@@ -159,7 +159,7 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
         $consulta = $this->consultaIncidencias(
             $examenId,
             $this->inicio($examen['fecha'], $examen['hora_inicio']),
-            (int) $examen['duracion_minutos'],
+            $this->cierre($examen['fecha'], $examen['finalizado_en']),
         );
         $total = (clone $consulta)->count('incidencia.id');
         $porPagina = 8;
@@ -192,6 +192,7 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
                 'examen.fecha',
                 'examen.hora_inicio',
                 'examen.duracion_minutos',
+                'examen.finalizado_en',
                 'examen.tipo',
                 'periodo.codigo as periodo',
                 'asignatura.codigo as asignatura_codigo',
@@ -222,7 +223,7 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
         $incidencias = $this->listarTodasIncidencias(
             (int) $examen['id'],
             $inicio,
-            (int) $examen['duracion_minutos'],
+            $this->cierre($examen['fecha'], $examen['finalizado_en']),
         );
         $habilitados = count(array_filter(
             $estudiantes,
@@ -472,17 +473,22 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
     private function listarTodasIncidencias(
         int $examenId,
         DateTimeImmutable $inicio,
-        int $duracionMinutos,
+        DateTimeImmutable $cierre,
     ): array {
         return $this->convertirIncidencias(
-            $this->consultaIncidencias($examenId, $inicio, $duracionMinutos)->get(),
+            $this->consultaIncidencias($examenId, $inicio, $cierre)->get(),
         );
     }
 
+    /**
+     * Las incidencias del examen y los rechazos sin examen en sus aulas
+     * mientras estuvo abierto: desde una hora antes del inicio hasta que se
+     * finalizo (o termino su dia).
+     */
     private function consultaIncidencias(
         int $examenId,
         DateTimeImmutable $inicio,
-        int $duracionMinutos,
+        DateTimeImmutable $fin,
     ): Builder {
         $aulas = DB::table('examen_aula')
             ->where('examen_id', $examenId)
@@ -490,7 +496,6 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
             ->map(fn (mixed $id): int => $this->entero($id, 'aula_id'))
             ->all();
 
-        $fin = $inicio->modify(sprintf('+%d minutes', $duracionMinutos));
         $apertura = $inicio->modify('-1 hour');
 
         return DB::table('incidencias as incidencia')
@@ -594,6 +599,19 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
             substr((string) $fecha, 0, 10).' '.substr((string) $hora, 0, 8),
             new DateTimeZone(date_default_timezone_get()),
         );
+    }
+
+    /**
+     * Cuando se cerro el examen: al finalizarlo o, sin finalizar, al terminar
+     * su dia.
+     */
+    private function cierre(string|int|float|bool|null $fecha, string|int|float|bool|null $finalizadoEn): DateTimeImmutable
+    {
+        $zona = new DateTimeZone(date_default_timezone_get());
+
+        return is_string($finalizadoEn) && $finalizadoEn !== ''
+            ? new DateTimeImmutable(substr($finalizadoEn, 0, 19), $zona)
+            : (new DateTimeImmutable(substr((string) $fecha, 0, 10), $zona))->modify('+1 day');
     }
 
     private function ahora(): DateTimeImmutable

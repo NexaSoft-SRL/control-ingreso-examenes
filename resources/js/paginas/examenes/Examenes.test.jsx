@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Examenes from './Examenes';
 import { api } from '../../api/cliente';
@@ -9,7 +9,7 @@ vi.mock('../../api/cliente');
 const INTRO = { id: 20, codigo: '2010010', nombre: 'Introducción a la Programación' };
 const TALLER = { id: 53, codigo: '2010024', nombre: 'Taller de Ingeniería de Software' };
 
-// Un examen del resumen, como lo devuelve GET /examenes (plan, 9 · B2).
+// Un examen del resumen, como lo devuelve GET /examenes.
 function examen(cambios) {
     return {
         tipo: 'PRIMER_PARCIAL',
@@ -19,11 +19,18 @@ function examen(cambios) {
         grupos: ['2'],
         inscritos: 65,
         aulas: [],
+        auxiliares: 0,
         habilitados: 0,
         no_habilitados: 0,
         sin_revisar: 65,
         qr_emitidos: 0,
-        avance: { grupos: 'ok', aulas: 'ahora', habilitacion: 'falta', qr: 'falta' },
+        avance: {
+            grupos: 'ok',
+            aulas: 'ahora',
+            auxiliares: 'falta',
+            habilitacion: 'falta',
+            qr: 'falta',
+        },
         estado: 'Faltan aulas',
         accion: { clave: 'elegir_aulas', paso: 2 },
         propio: true,
@@ -43,9 +50,10 @@ const CON_QR = examen({
     grupos: ['1', '2', '3', '6'],
     inscritos: 260,
     aulas: ['617', '624', '691A', '691B', '691E'],
+    auxiliares: 4,
     habilitados: 251,
     no_habilitados: 9,
-    avance: { grupos: 'ok', aulas: 'ok', habilitacion: 'ok', qr: 'ahora' },
+    avance: { grupos: 'ok', aulas: 'ok', auxiliares: 'ok', habilitacion: 'ok', qr: 'ahora' },
     estado: 'Faltan códigos QR',
     accion: { clave: 'emitir_qr', paso: null },
     es_hoy: true,
@@ -59,7 +67,7 @@ const AJENO = examen({
     aulas: ['690E', 'INFLAB'],
     habilitados: 44,
     no_habilitados: 1,
-    avance: { grupos: 'ok', aulas: 'ok', habilitacion: 'ahora', qr: 'falta' },
+    avance: { grupos: 'ok', aulas: 'ok', auxiliares: 'ok', habilitacion: 'ahora', qr: 'falta' },
     estado: 'Falta habilitar',
     accion: { clave: 'habilitar', paso: null },
     propio: false,
@@ -81,7 +89,7 @@ const POR_HABILITAR = examen({
     fecha: '2026-11-25',
     inscritos: 46,
     aulas: ['INFLAB'],
-    avance: { grupos: 'ok', aulas: 'ok', habilitacion: 'ahora', qr: 'falta' },
+    avance: { grupos: 'ok', aulas: 'ok', auxiliares: 'ok', habilitacion: 'ahora', qr: 'falta' },
     estado: 'Falta habilitar',
     accion: { clave: 'habilitar', paso: null },
 });
@@ -117,8 +125,9 @@ describe('Examenes · lista', () => {
         const destacada = await tarjeta('Primer parcial · Introducción a la Programación');
         expect(seccion('Hoy')).toContainElement(destacada);
         expect(
-            within(destacada).getByText(/4 grupos · 260 inscritos · 5 aulas · 3 de 4 pasos/)
+            within(destacada).getByText(/4 grupos · 260 inscritos · 5 aulas/)
         ).toBeInTheDocument();
+        expect(within(destacada).getByText(/4 de 5 pasos/)).toBeInTheDocument();
         expect(within(destacada).getByText('Faltan códigos QR')).toBeInTheDocument();
         expect(within(destacada).getByText('12:30')).toBeInTheDocument();
 
@@ -157,22 +166,8 @@ describe('Examenes · lista', () => {
         montar();
         await tarjeta('Primer parcial · Introducción a la Programación');
 
-        const filtro = screen.getByRole('group', { name: 'Filtro' });
-        // Pendientes va primero y es lo que se ve al entrar; después «Todas» y las asignaturas.
-        expect(
-            within(filtro)
-                .getAllByRole('button')
-                .map((b) => b.textContent)
-        ).toEqual([
-            'Pendientes4',
-            'Todas4',
-            'Introducción a la Programación2',
-            'Taller de Ingeniería de Software2',
-        ]);
-        expect(within(filtro).getByRole('button', { name: /Pendientes/ })).toHaveAttribute(
-            'aria-pressed',
-            'true'
-        );
+        const filtro = screen.getByRole('group', { name: 'Asignatura' });
+        expect(within(filtro).getByRole('button', { name: /Todas/ })).toHaveTextContent('Todas4');
         const taller = within(filtro).getByRole('button', {
             name: /Taller de Ingeniería de Software/,
         });
@@ -185,43 +180,7 @@ describe('Examenes · lista', () => {
         expect(screen.queryByText(/· Introducción a la Programación/)).not.toBeInTheDocument();
         // El de hoy es de otra asignatura: no se destaca.
         expect(screen.queryByRole('heading', { name: 'Hoy' })).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Pendientes/ })).toHaveAttribute(
-            'aria-pressed',
-            'false'
-        );
-    });
-
-    it('«Pendientes» deja los que no están listos', async () => {
-        examenes = [AJENO, { ...POR_HABILITAR, estado: 'Listo', accion: null }];
-        hoy = '2026-10-01';
-        montar();
-        await tarjeta('Primer parcial · Taller de Ingeniería de Software');
-
-        // Al entrar se ven solo los pendientes.
-        const pendientes = screen.getByRole('button', { name: /Pendientes/ });
-        expect(pendientes).toHaveTextContent('Pendientes1');
-        expect(pendientes).toHaveAttribute('aria-pressed', 'true');
-        expect(screen.getAllByRole('article')).toHaveLength(1);
-
-        fireEvent.click(screen.getByRole('button', { name: /Todas/ }));
-
-        expect(pendientes).toHaveAttribute('aria-pressed', 'false');
-        expect(screen.getAllByRole('article')).toHaveLength(2);
-    });
-
-    it('sin pendientes arranca en «Todas»; «Pendientes» muestra «Sin exámenes»', async () => {
-        examenes = [{ ...POR_HABILITAR, estado: 'Listo', accion: null }];
-        montar();
-        await tarjeta('Segundo parcial · Taller de Ingeniería de Software');
-        expect(screen.getByRole('button', { name: /Todas/ })).toHaveAttribute(
-            'aria-pressed',
-            'true'
-        );
-
-        fireEvent.click(screen.getByRole('button', { name: /Pendientes/ }));
-
-        expect(screen.getByText('Sin exámenes')).toBeInTheDocument();
-        expect(screen.queryByRole('article')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Pendientes/ })).not.toBeInTheDocument();
     });
 
     it('sin exámenes en el período muestra «Sin exámenes»', async () => {
@@ -247,7 +206,7 @@ describe('Examenes · lista', () => {
 });
 
 describe('Examenes · pasos y acción siguiente', () => {
-    it('despliega los cuatro pasos; no hay «Quién atiende» y lleva a emitir los códigos QR', async () => {
+    it('despliega los cinco pasos, con «Quién atiende» y los códigos QR', async () => {
         montar();
         const fila = await tarjeta('Primer parcial · Introducción a la Programación');
 
@@ -256,81 +215,121 @@ describe('Examenes · pasos y acción siguiente', () => {
         expect(pasos.map((p) => p.textContent)).toEqual([
             'Grupos4 · 260 inscritos',
             'Aulas617, 624, 691A, 691B, 691E',
+            'Quién atiende4 personas',
             'Habilitación251 de 260',
             'Códigos QRPendiente',
         ]);
-        expect(screen.queryByText('Quién atiende')).not.toBeInTheDocument();
         expect(within(fila).getByText('viernes 9 de octubre')).toBeInTheDocument();
         expect(within(fila).getByText('90 min')).toBeInTheDocument();
-        // `emitir_qr` lleva a los códigos del examen.
-        expect(within(fila).getByRole('link', { name: 'Emitir códigos' })).toHaveAttribute(
-            'href',
-            '/codigos-qr?examen=1'
-        );
-        expect(within(fila).getByRole('link', { name: 'Habilitación' })).toHaveAttribute(
-            'href',
-            '/habilitacion?examen=1'
+        // El pie solo lleva datos: habilitación y códigos QR son pestañas del examen.
+        expect(within(fila).queryByRole('link', { name: 'Habilitación' })).not.toBeInTheDocument();
+
+        const sinAuxiliares = await tarjeta('Segundo parcial · Taller de Ingeniería de Software');
+        expect(within(sinAuxiliares).getByText('Solo docente')).toBeInTheDocument();
+        const sinAulas = await tarjeta('Segundo parcial · Introducción a la Programación');
+        expect(within(sinAulas).getAllByRole('listitem')[2]).toHaveTextContent(
+            'Quién atiendePendiente'
         );
     });
 
-    it('un examen listo muestra sus códigos emitidos y enlaza a ellos', async () => {
+    it('el paso de códigos QR muestra los emitidos', async () => {
         examenes = [
+            { ...CON_QR, qr_emitidos: 120 },
             {
-                ...CON_QR,
-                qr_emitidos: 251,
-                avance: { grupos: 'ok', aulas: 'ok', habilitacion: 'ok', qr: 'ok' },
+                ...POR_HABILITAR,
+                habilitados: 46,
+                qr_emitidos: 46,
+                avance: { ...POR_HABILITAR.avance, habilitacion: 'ok', qr: 'ok' },
                 estado: 'Listo',
                 accion: { clave: 'ver_qr', paso: null },
             },
         ];
         montar();
+
+        const aMedias = await tarjeta('Primer parcial · Introducción a la Programación');
+        expect(within(aMedias).getAllByRole('listitem')[4]).toHaveTextContent(
+            'Códigos QR120 de 251'
+        );
+
+        const lista = await tarjeta('Segundo parcial · Taller de Ingeniería de Software');
+        expect(within(lista).getByText('Listo')).toBeInTheDocument();
+        expect(within(lista).getByText(/5 de 5 pasos/)).toBeInTheDocument();
+        expect(within(lista).getByRole('link', { name: 'Códigos QR' })).toHaveAttribute(
+            'href',
+            '/examenes/detalle?examen=5&pestana=qr'
+        );
+        expect(within(lista).getAllByRole('listitem')[4]).toHaveTextContent(
+            'Códigos QR46 emitidos'
+        );
+        // Un solo enlace a los códigos: la acción siguiente.
+        expect(within(lista).getAllByRole('link', { name: 'Códigos QR' })).toHaveLength(1);
+    });
+
+    it('el examen de hoy tiene una sola acción: «En curso»', async () => {
+        montar();
         const fila = await tarjeta('Primer parcial · Introducción a la Programación');
 
-        expect(within(fila).getByText('251 de 251')).toBeInTheDocument();
-        expect(within(fila).queryByRole('link', { name: 'Emitir códigos' })).toBeNull();
-        expect(within(fila).getByRole('link', { name: 'Códigos QR' })).toHaveAttribute(
+        expect(within(fila).getByRole('link', { name: /En curso/ })).toHaveAttribute(
             'href',
-            '/codigos-qr?examen=1'
+            '/en-curso?examen=1'
+        );
+        expect(
+            within(fila).queryByRole('link', { name: 'Emitir códigos QR' })
+        ).not.toBeInTheDocument();
+
+        const otra = await tarjeta('Segundo parcial · Taller de Ingeniería de Software');
+        expect(within(otra).queryByRole('link', { name: /En curso/ })).not.toBeInTheDocument();
+        expect(within(otra).getByRole('link', { name: /Habilitar/ })).toHaveAttribute(
+            'href',
+            '/examenes/detalle?examen=5&pestana=habilitacion'
         );
     });
 
-    it('sin el permiso de códigos QR no ofrece emitirlos', async () => {
+    it('el examen de hoy ya rendido o sin aulas no ofrece «En curso»', async () => {
+        examenes = [
+            { ...CON_QR, rendido: true },
+            { ...SIN_AULAS, es_hoy: true, fecha: '2026-10-09' },
+        ];
+        montar();
+        await tarjeta('Primer parcial · Introducción a la Programación');
+
+        expect(screen.queryByRole('link', { name: /En curso/ })).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /Emitir códigos/ })).toHaveAttribute(
+            'href',
+            '/examenes/detalle?examen=1&pestana=qr'
+        );
+    });
+
+    it('sin el permiso de códigos QR no dibuja su enlace', async () => {
+        examenes = [{ ...CON_QR, es_hoy: false, fecha: '2026-10-20' }];
         montar(usuarioDePrueba('Docente', { permisos: ['examenes', 'habilitacion'] }));
         const fila = await tarjeta('Primer parcial · Introducción a la Programación');
 
-        expect(within(fila).queryByRole('link', { name: /Emitir códigos|Códigos QR/ })).toBeNull();
+        expect(within(fila).queryByRole('link', { name: /QR|códigos/i })).not.toBeInTheDocument();
+        // Queda el título, que abre el examen.
+        expect(within(fila).getAllByRole('link')).toHaveLength(1);
     });
 
-    it('pliega y despliega la fila', async () => {
+    it('cada fila muestra sus pasos y su título abre la página del examen', async () => {
         montar();
         const fila = await tarjeta('Segundo parcial · Introducción a la Programación');
-        const boton = within(fila).getByRole('button', {
-            name: 'Pasos de Segundo parcial · Introducción a la Programación',
-        });
 
-        // Con cuatro exámenes, los pendientes vienen desplegados.
-        expect(boton).toHaveAttribute('aria-expanded', 'true');
+        expect(within(fila).getByRole('list', { name: 'Pasos' })).toBeInTheDocument();
         expect(within(fila).getByText('Sin elegir')).toBeInTheDocument();
-
-        fireEvent.click(boton);
-        expect(boton).toHaveAttribute('aria-expanded', 'false');
-        expect(within(fila).queryByText('Sin elegir')).not.toBeInTheDocument();
+        expect(
+            within(fila).getByRole('link', {
+                name: 'Segundo parcial · Introducción a la Programación',
+            })
+        ).toHaveAttribute('href', expect.stringMatching(/^\/examenes\/detalle\?examen=\d+$/));
+        expect(within(fila).queryByRole('button', { name: /^Pasos de/ })).not.toBeInTheDocument();
     });
 
-    it('con más de cuatro exámenes solo el destacado viene desplegado', async () => {
+    it('con más de cuatro exámenes todos siguen mostrando sus pasos', async () => {
         examenes = [...examenes, { ...SIN_AULAS, id: 9, fecha: '2026-12-01' }];
         montar();
 
-        const destacada = await tarjeta('Primer parcial · Introducción a la Programación');
-        expect(within(destacada).getByRole('button', { name: /^Pasos de/ })).toHaveAttribute(
-            'aria-expanded',
-            'true'
-        );
         const otra = await tarjeta('Primer parcial · Taller de Ingeniería de Software');
-        expect(within(otra).getByRole('button', { name: /^Pasos de/ })).toHaveAttribute(
-            'aria-expanded',
-            'false'
-        );
+        expect(within(otra).getByRole('list', { name: 'Pasos' })).toBeInTheDocument();
     });
 
     it('«Elegir aulas» lleva a la edición en el paso de aulas', async () => {
@@ -344,11 +343,11 @@ describe('Examenes · pasos y acción siguiente', () => {
         expect(within(fila).queryByRole('link', { name: 'Habilitación' })).not.toBeInTheDocument();
     });
 
-    it('«Quién atiende» lleva a la edición en el paso de quién atiende', async () => {
+    it('«Asignar quién atiende» lleva a la edición en el paso de quién atiende', async () => {
         examenes = [
             {
                 ...POR_HABILITAR,
-                propio: true,
+                avance: { ...POR_HABILITAR.avance, auxiliares: 'ahora', habilitacion: 'falta' },
                 estado: 'Falta quién atiende',
                 accion: { clave: 'quien_atiende', paso: 3 },
             },
@@ -356,9 +355,12 @@ describe('Examenes · pasos y acción siguiente', () => {
         montar();
         const fila = await tarjeta('Segundo parcial · Taller de Ingeniería de Software');
 
-        expect(within(fila).getByRole('link', { name: /Quién atiende/ })).toHaveAttribute(
+        expect(within(fila).getByRole('link', { name: /Asignar quién atiende/ })).toHaveAttribute(
             'href',
             '/examenes/nuevo?examen=5&paso=3'
+        );
+        expect(within(fila).getAllByRole('listitem')[2]).toHaveTextContent(
+            'Quién atiendeMás de 2 aulas por persona'
         );
     });
 
@@ -368,12 +370,12 @@ describe('Examenes · pasos y acción siguiente', () => {
         const sinEmpezar = await tarjeta('Segundo parcial · Taller de Ingeniería de Software');
         expect(within(sinEmpezar).getByRole('link', { name: /Habilitar/ })).toHaveAttribute(
             'href',
-            '/habilitacion?examen=5'
+            '/examenes/detalle?examen=5&pestana=habilitacion'
         );
         const empezada = await tarjeta('Primer parcial · Taller de Ingeniería de Software');
         expect(
             within(empezada).getByRole('link', { name: /Terminar habilitación/ })
-        ).toHaveAttribute('href', '/habilitacion?examen=3');
+        ).toHaveAttribute('href', '/examenes/detalle?examen=3&pestana=habilitacion');
     });
 
     it('sin el permiso de habilitación no dibuja sus enlaces', async () => {
@@ -381,76 +383,26 @@ describe('Examenes · pasos y acción siguiente', () => {
         const fila = await tarjeta('Segundo parcial · Taller de Ingeniería de Software');
 
         expect(within(fila).queryByRole('link', { name: /Habilit/ })).not.toBeInTheDocument();
-        expect(within(fila).getByRole('link', { name: 'Editar' })).toBeInTheDocument();
+        expect(within(fila).getAllByRole('link')).toHaveLength(1);
     });
 
-    it('solo quien lo registró lo edita o lo elimina', async () => {
+    it('al volver de eliminar un examen muestra el aviso', async () => {
+        renderConSesion(<Examenes />, {
+            usuario: usuarioDePrueba('Docente'),
+            ruta: { pathname: '/examenes', state: { aviso: 'Examen eliminado' } },
+        });
+
+        expect(await screen.findByText('Examen eliminado')).toBeInTheDocument();
+    });
+
+    it('editar y eliminar van en la página del examen, no en la tarjeta', async () => {
         montar();
 
         const propio = await tarjeta('Segundo parcial · Introducción a la Programación');
-        expect(within(propio).getByRole('link', { name: 'Editar' })).toHaveAttribute(
-            'href',
-            '/examenes/nuevo?examen=4'
-        );
-        expect(within(propio).getByRole('button', { name: 'Eliminar' })).toBeInTheDocument();
+        expect(within(propio).queryByRole('link', { name: 'Editar' })).not.toBeInTheDocument();
+        expect(within(propio).queryByRole('button', { name: 'Eliminar' })).not.toBeInTheDocument();
 
         const ajeno = await tarjeta('Primer parcial · Taller de Ingeniería de Software');
         expect(within(ajeno).getByText(/Rodriguez Bilbao Erika Patricia/)).toBeInTheDocument();
-        expect(within(ajeno).queryByRole('link', { name: 'Editar' })).not.toBeInTheDocument();
-        expect(within(ajeno).queryByRole('button', { name: 'Eliminar' })).not.toBeInTheDocument();
-    });
-});
-
-describe('Examenes · eliminación', () => {
-    it('elimina con confirmación', async () => {
-        montar();
-        const fila = await tarjeta('Segundo parcial · Introducción a la Programación');
-
-        fireEvent.click(within(fila).getByRole('button', { name: 'Eliminar' }));
-        expect(api.delete).not.toHaveBeenCalled();
-        const dialogo = screen.getByRole('dialog', { name: 'Eliminar examen' });
-        expect(dialogo).toHaveTextContent('Segundo parcial · Introducción a la Programación');
-        expect(dialogo).toHaveTextContent('lunes 23 de noviembre, 14:15');
-
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Eliminar' }));
-
-        expect(await screen.findByText('Examen eliminado')).toBeInTheDocument();
-        expect(api.delete).toHaveBeenCalledWith('/examenes/4');
-        await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(3));
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    });
-
-    it('cancelar no elimina', async () => {
-        montar();
-        const fila = await tarjeta('Segundo parcial · Introducción a la Programación');
-
-        fireEvent.click(within(fila).getByRole('button', { name: 'Eliminar' }));
-        fireEvent.click(
-            within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancelar' })
-        );
-
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        expect(api.delete).not.toHaveBeenCalled();
-    });
-
-    it('con ingresos registrados muestra el rechazo y el examen sigue en la lista', async () => {
-        api.delete.mockRejectedValueOnce(
-            errorHttp(409, {
-                message: 'El examen ya tiene ingresos registrados: no se puede eliminar.',
-                codigo: 'EXAMEN_CON_INGRESOS',
-            })
-        );
-        montar();
-        const fila = await tarjeta('Segundo parcial · Introducción a la Programación');
-
-        fireEvent.click(within(fila).getByRole('button', { name: 'Eliminar' }));
-        fireEvent.click(
-            within(screen.getByRole('dialog')).getByRole('button', { name: 'Eliminar' })
-        );
-
-        expect(await screen.findByRole('alert')).toHaveTextContent(
-            'El examen ya tiene ingresos registrados: no se puede eliminar.'
-        );
-        expect(screen.getAllByRole('article')).toHaveLength(4);
     });
 });

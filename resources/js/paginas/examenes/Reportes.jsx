@@ -649,7 +649,6 @@ export default function Reportes() {
             {examenId && (
                 <EstadoCarga
                     cargando={consultaDetalle.cargando}
-                    error={consultaDetalle.error}
                     vacio={!consultaDetalle.error && !reporte}
                     textoVacio="No se encontró el examen."
                     onReintentar={consultaDetalle.recargar}
@@ -676,9 +675,20 @@ export default function Reportes() {
                         />
                     )}
                     {consultaDetalle.error && (
-                        <p role="alert" className="mt-4 text-sm text-danger-700">
-                            {mensajeDe(consultaDetalle.error, 'No se pudo cargar el reporte.')}
-                        </p>
+                        <div role="alert" className="mt-4 text-center text-sm text-danger-700">
+                            <p>
+                                {mensajeDe(consultaDetalle.error, 'No se pudo cargar el reporte.')}
+                            </p>
+                            <Boton
+                                type="button"
+                                variante="secundario"
+                                tamano="chico"
+                                className="mt-3"
+                                onClick={() => consultaDetalle.recargar()}
+                            >
+                                Reintentar
+                            </Boton>
+                        </div>
                     )}
                 </EstadoCarga>
             )}

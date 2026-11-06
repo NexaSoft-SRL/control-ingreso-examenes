@@ -33,7 +33,7 @@ final readonly class EloquentAccesoCodigoAulaGateway implements AccesoCodigoAula
         // El mismo codigo puede servir otro dia en otra aula: vale el del
         // examen cuya ventana esta abierta ahora.
         foreach ($this->candidatos($codigo) as $candidato) {
-            if ($ahora >= $candidato['abre'] && $ahora <= $candidato['cierra']) {
+            if ($ahora >= $candidato['abre'] && $ahora < $candidato['cierra']) {
                 $elegido = $candidato;
                 break;
             }
@@ -74,7 +74,7 @@ final readonly class EloquentAccesoCodigoAulaGateway implements AccesoCodigoAula
             'aula_id' => $elegido['aula_id'],
             'aula_nombre' => $aulaNombre,
             'nombre_colaborador' => $nombreColaborador,
-            'expira_en' => $elegido['cierra']->format('Y-m-d H:i:s'),
+            'expira_en' => $elegido['fin']->format('Y-m-d H:i:s'),
             'estado' => 'pendiente',
         ];
     }
@@ -88,7 +88,7 @@ final readonly class EloquentAccesoCodigoAulaGateway implements AccesoCodigoAula
         }
 
         $ahora = now();
-        $porVenir = array_values(array_filter($candidatos, static fn (array $c): bool => $c['cierra'] >= $ahora));
+        $porVenir = array_values(array_filter($candidatos, static fn (array $c): bool => $c['cierra'] > $ahora));
 
         // Primero lo que viene, del mas cercano; despues lo ya cerrado, del
         // mas reciente.
@@ -100,10 +100,11 @@ final readonly class EloquentAccesoCodigoAulaGateway implements AccesoCodigoAula
             $ventana = $candidatos[0];
         }
 
+        // `cierra` dice el termino: el real si se finalizo, si no el previsto.
         return [
             'abre' => $ventana['abre']->format('Y-m-d H:i'),
-            'cierra' => $ventana['cierra']->format('Y-m-d H:i'),
-            'cerrada' => $ventana['cierra'] < $ahora,
+            'cierra' => $ventana['fin']->format('Y-m-d H:i'),
+            'cerrada' => $ventana['cierra'] <= $ahora,
         ];
     }
 
@@ -124,13 +125,13 @@ final readonly class EloquentAccesoCodigoAulaGateway implements AccesoCodigoAula
             return ['estado' => 'no_valido'];
         }
 
-        $cierra = $this->cierreDe($acceso->examen_id);
+        $ventana = $this->ventanaDe($acceso->examen_id);
 
-        if ($cierra === null) {
+        if ($ventana === null) {
             return ['estado' => 'no_valido'];
         }
 
-        if (now() > $cierra) {
+        if (now() >= $ventana['cierra']) {
             return ['estado' => 'finalizado'];
         }
 
@@ -151,7 +152,7 @@ final readonly class EloquentAccesoCodigoAulaGateway implements AccesoCodigoAula
                 'aula_id' => $acceso->aula_id,
                 'aula_nombre' => $this->nombreDeAula($acceso->aula_id),
                 'nombre_colaborador' => $acceso->nombre_colaborador,
-                'expira_en' => $cierra->format('Y-m-d H:i:s'),
+                'expira_en' => $ventana['fin']->format('Y-m-d H:i:s'),
                 'estado' => mb_strtolower($estado),
             ],
         ];
@@ -262,46 +263,66 @@ final readonly class EloquentAccesoCodigoAulaGateway implements AccesoCodigoAula
     }
 
     /**
-     * Las ventanas del codigo, de todos los examenes que lo usan.
+     * Las ventanas del codigo, de todos los examenes que lo usan. Abre una
+     * hora antes del inicio y `cierra` cuando un docente finaliza el examen
+     * o, si nadie lo hace, al terminar su dia; `fin` es el termino que se
+     * muestra (el real o el previsto).
      *
-     * @return list<array{examen_id: int, aula_id: int, abre: DateTimeImmutable, cierra: DateTimeImmutable}>
+     * @return list<array{examen_id: int, aula_id: int, abre: DateTimeImmutable, cierra: DateTimeImmutable, fin: DateTimeImmutable}>
      */
     private function candidatos(string $codigo): array
     {
         $filas = DB::table('examen_aula_codigos as c')
             ->join('examenes as e', 'e.id', '=', 'c.examen_id')
             ->where('c.codigo', $codigo)
-            ->get(['c.examen_id', 'c.aula_id', 'e.fecha', 'e.hora_inicio', 'e.duracion_minutos']);
+            ->get(['c.examen_id', 'c.aula_id', 'e.fecha', 'e.hora_inicio', 'e.duracion_minutos', 'e.finalizado_en']);
 
         $candidatos = [];
 
         foreach ($filas as $fila) {
             $columnas = get_object_vars($fila);
-            $inicio = self::inicio(self::texto($columnas['fecha'] ?? null), self::texto($columnas['hora_inicio'] ?? null));
 
             $candidatos[] = [
                 'examen_id' => self::entero($columnas['examen_id'] ?? null),
                 'aula_id' => self::entero($columnas['aula_id'] ?? null),
-                'abre' => $inicio->modify(sprintf('-%d minutes', self::MINUTOS_ANTES)),
-                'cierra' => $inicio->modify(sprintf('+%d minutes', self::entero($columnas['duracion_minutos'] ?? null))),
+                ...self::ventana($columnas),
             ];
         }
 
         return $candidatos;
     }
 
-    private function cierreDe(int $examenId): ?DateTimeImmutable
+    /**
+     * @return array{abre: DateTimeImmutable, cierra: DateTimeImmutable, fin: DateTimeImmutable}|null
+     */
+    private function ventanaDe(int $examenId): ?array
     {
-        $examen = DB::table('examenes')->where('id', $examenId)->first(['fecha', 'hora_inicio', 'duracion_minutos']);
+        $examen = DB::table('examenes')
+            ->where('id', $examenId)
+            ->first(['fecha', 'hora_inicio', 'duracion_minutos', 'finalizado_en']);
 
-        if ($examen === null) {
-            return null;
-        }
+        return $examen === null ? null : self::ventana(get_object_vars($examen));
+    }
 
-        $columnas = get_object_vars($examen);
+    /**
+     * @param  array<mixed>  $columnas
+     * @return array{abre: DateTimeImmutable, cierra: DateTimeImmutable, fin: DateTimeImmutable}
+     */
+    private static function ventana(array $columnas): array
+    {
+        $fecha = self::texto($columnas['fecha'] ?? null);
+        $inicio = self::inicio($fecha, self::texto($columnas['hora_inicio'] ?? null));
+        $finalizado = self::texto($columnas['finalizado_en'] ?? null);
+        $finalizadoEn = $finalizado === ''
+            ? null
+            : new DateTimeImmutable(substr($finalizado, 0, 19), now()->getTimezone());
 
-        return self::inicio(self::texto($columnas['fecha'] ?? null), self::texto($columnas['hora_inicio'] ?? null))
-            ->modify(sprintf('+%d minutes', self::entero($columnas['duracion_minutos'] ?? null)));
+        return [
+            'abre' => $inicio->modify(sprintf('-%d minutes', self::MINUTOS_ANTES)),
+            'cierra' => $finalizadoEn ?? self::inicio($fecha, '00:00')->modify('+1 day'),
+            'fin' => $finalizadoEn
+                ?? $inicio->modify(sprintf('+%d minutes', self::entero($columnas['duracion_minutos'] ?? null))),
+        ];
     }
 
     private static function inicio(string $fecha, string $hora): DateTimeImmutable

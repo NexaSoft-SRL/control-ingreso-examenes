@@ -17,6 +17,7 @@ export default function CampoImagen({
     error,
     camara = 'environment',
     minimo = 0,
+    maximoMB,
 }) {
     const id = useId();
     const [vista, setVista] = useState(null);
@@ -29,6 +30,10 @@ export default function CampoImagen({
         if (!elegido) return;
         setProcesando(true);
         try {
+            const limiteMB = maximoMB ?? null;
+            if (limiteMB !== null && elegido.size > limiteMB * 1024 * 1024) {
+                throw new ImagenNoValida(`Máximo ${limiteMB} MB`);
+            }
             if (minimo > 0) {
                 const medidas = await dimensionesDe(elegido);
                 if (medidas && Math.min(medidas.ancho, medidas.alto) < minimo) {
@@ -129,4 +134,5 @@ CampoImagen.propTypes = {
     // `null` deja elegir de la galería además de la cámara.
     camara: PropTypes.oneOf(['environment', 'user', null]),
     minimo: PropTypes.number,
+    maximoMB: PropTypes.number,
 };

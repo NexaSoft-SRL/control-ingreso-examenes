@@ -21,6 +21,7 @@ import Tarjeta from '../../componentes/Tarjeta';
 import usarExamen from '../../componentes/usarExamen';
 import { fechaCorta, fechaLarga, plural } from '../../utiles/texto';
 import CredencialExamen, { EstadoEnvio } from './CredencialExamen';
+import rutaDelExamen from './rutaDelExamen';
 
 // La hora del navegador como «AAAA-MM-DD HH:MM»: `toISOString` la daría en UTC.
 const ahoraLocal = () => {
@@ -82,7 +83,9 @@ async function enTandas(ruta, cuerpo, alAvanzar) {
 // Los códigos de un examen: emisión en lote, credencial de cada habilitado,
 // hoja imprimible, envío por correo y su estado. Se monta de nuevo con cada
 // examen (`key`): el cambio limpia filtros, búsqueda y credencial elegida.
-function CodigosDelExamen({ examen, selector }) {
+// `incrustado` la muestra dentro de la página del examen: sin encabezado
+// propio, con las acciones arriba a la derecha.
+export function CodigosDelExamen({ examen, selector, incrustado = false }) {
     const ruta = `/examenes/${examen.id}/codigos-qr`;
     const lista = usarPaginaServidor({ porPagina: POR_PAGINA, filtros: SIN_FILTROS });
     const { datos, meta, cargando, error, recargar } = usarConsulta(ruta, {
@@ -103,14 +106,17 @@ function CodigosDelExamen({ examen, selector }) {
     const muestra = filas.find((e) => e.estudiante_id === elegido) ?? filas[0] ?? null;
     const credencial = usarConsulta(muestra ? `${ruta}/${muestra.estudiante_id}` : null);
 
-    const encabezado = (acciones) => (
-        <>
-            <Encabezado titulo="Códigos QR" subtitulo={tituloDe(examen)} volver={VOLVER}>
-                {acciones}
-            </Encabezado>
-            {selector}
-        </>
-    );
+    const encabezado = (acciones) =>
+        incrustado ? (
+            acciones && <div className="flex flex-wrap justify-end gap-2">{acciones}</div>
+        ) : (
+            <>
+                <Encabezado titulo="Códigos QR" subtitulo={tituloDe(examen)} volver={VOLVER}>
+                    {acciones}
+                </Encabezado>
+                {selector}
+            </>
+        );
 
     if (cargando || error) {
         return (
@@ -325,7 +331,7 @@ function CodigosDelExamen({ examen, selector }) {
                 >
                     {plural(sinAula, 'habilitado sin aula', 'habilitados sin aula')}
                     <Link
-                        to={`/habilitacion?examen=${examen.id}`}
+                        to={rutaDelExamen(examen.id, 'habilitacion')}
                         className="font-semibold text-primary-700 underline-offset-2 hover:underline"
                     >
                         Repartir aulas
@@ -630,6 +636,7 @@ CodigosDelExamen.propTypes = {
         asignatura: PropTypes.shape({ nombre: PropTypes.string }),
     }).isRequired,
     selector: PropTypes.node,
+    incrustado: PropTypes.bool,
 };
 
 // Códigos QR del examen elegido (`?examen=`). Cada código es de un

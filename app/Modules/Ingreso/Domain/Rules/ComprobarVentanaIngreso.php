@@ -8,6 +8,11 @@ use DateTimeImmutable;
 use DateTimeZone;
 use InvalidArgumentException;
 
+/**
+ * La puerta abre una hora antes del inicio. La duracion es la prevista: el
+ * examen sigue abierto hasta que un docente lo finaliza (`$finalizadoEn`,
+ * `AAAA-MM-DD HH:MM:SS`) o, si nadie lo hace, hasta que termina su dia.
+ */
 final readonly class ComprobarVentanaIngreso
 {
     public function comprobar(
@@ -15,6 +20,7 @@ final readonly class ComprobarVentanaIngreso
         string $horaInicio,
         int $duracionMinutos,
         DateTimeImmutable $ahora,
+        ?string $finalizadoEn = null,
     ): bool {
         if ($duracionMinutos <= 0) {
             throw new InvalidArgumentException('Duración inválida.');
@@ -45,10 +51,12 @@ final readonly class ComprobarVentanaIngreso
             throw new InvalidArgumentException('Fecha u hora inválida.');
         }
 
-        $fin = $inicio->modify("+{$duracionMinutos} minutes");
+        $cierre = $finalizadoEn !== null
+            ? new DateTimeImmutable($finalizadoEn, $zona)
+            : $inicio->setTime(0, 0)->modify('+1 day');
 
         $apertura = $inicio->modify('-60 minutes');
 
-        return $ahora >= $apertura && $ahora < $fin;
+        return $ahora >= $apertura && $ahora < $cierre;
     }
 }

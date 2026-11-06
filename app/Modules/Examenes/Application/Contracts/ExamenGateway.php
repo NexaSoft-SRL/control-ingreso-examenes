@@ -35,4 +35,11 @@ interface ExamenGateway
     public function actualizar(int $examenId, GuardarExamenData $datos, int $usuarioId): bool;
 
     public function eliminar(int $examenId, int $usuarioId): bool;
+
+    /**
+     * Cierra el examen si esta abierto (ya abrio su puerta, sigue en su dia y
+     * nadie lo finalizo) y asienta `examen.finalizar`. Devuelve el instante
+     * de cierre, o null si no estaba abierto.
+     */
+    public function finalizar(int $examenId, int $usuarioId): ?string;
 }

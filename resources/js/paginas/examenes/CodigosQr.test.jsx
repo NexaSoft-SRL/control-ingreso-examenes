@@ -327,7 +327,7 @@ describe('Códigos QR', () => {
         expect(screen.getByText('3 habilitados sin aula')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Repartir aulas' })).toHaveAttribute(
             'href',
-            '/habilitacion?examen=1'
+            '/examenes/detalle?examen=1&pestana=habilitacion'
         );
         expect(screen.getByRole('button', { name: /Emitir códigos/ })).toBeDisabled();
         expect(screen.getAllByRole('button', { name: /Enviar aviso/ })[0]).toBeDisabled();

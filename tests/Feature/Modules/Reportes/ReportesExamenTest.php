@@ -159,6 +159,15 @@ final class ReportesExamenTest extends TestCase
             ->assertForbidden()
             ->assertJsonPath('message', 'Este examen no está a su cargo.');
 
+        $this->actingAs($usuarioAjeno)
+            ->getJson("/api/reportes/examenes/{$examen->id}/descargas/asistencia/pdf")
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Este examen no está a su cargo.');
+
+        $this->actingAs($usuarioAjeno)
+            ->getJson('/api/reportes/examenes/999999')
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Examen no encontrado.');
     }
 
     public function test_incident_details_require_tracking_permission_even_with_report_access(): void
@@ -184,10 +193,12 @@ final class ReportesExamenTest extends TestCase
             'hora_inicio' => '08:00:00',
         ]);
 
-        $this->actingAs($usuario)
-            ->getJson("/api/reportes/examenes/{$examen->id}/descargas/incidencias/pdf")
-            ->assertStatus(409)
-            ->assertJsonPath('codigo', 'EXAMEN_NO_INICIADO')
-            ->assertJsonPath('message', 'El examen todavía no se rindió.');
+        foreach (['asistencia', 'ausentes', 'incidencias'] as $tipo) {
+            $this->actingAs($usuario)
+                ->getJson("/api/reportes/examenes/{$examen->id}/descargas/{$tipo}/pdf")
+                ->assertStatus(409)
+                ->assertJsonPath('codigo', 'EXAMEN_NO_INICIADO')
+                ->assertJsonPath('message', 'El examen todavía no se rindió.');
+        }
     }
 }

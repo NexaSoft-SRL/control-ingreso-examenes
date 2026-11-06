@@ -8,7 +8,9 @@ use App\Modules\Estudiantes\Application\Contracts\PortalEstudianteGateway;
 use App\Modules\Estudiantes\Application\DTOs\EstudiantePortalData;
 use App\Modules\Estudiantes\Application\DTOs\PlazoFotoData;
 use App\Modules\Estudiantes\Domain\Models\Estudiante;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentPortalEstudianteGateway implements PortalEstudianteGateway
@@ -146,6 +148,7 @@ final class EloquentPortalEstudianteGateway implements PortalEstudianteGateway
                 'examen.fecha',
                 'examen.hora_inicio',
                 'examen.duracion_minutos',
+                'examen.normas',
                 'asignatura.nombre as asignatura',
                 'habilitacion.habilitado',
                 'habilitacion.motivo',
@@ -156,6 +159,15 @@ final class EloquentPortalEstudianteGateway implements PortalEstudianteGateway
                 'ingreso.registrado_en as ingreso_en',
             ]);
 
+        /** @var Collection<int|string, Collection<int, object{examen_id: int|string, texto: string|null}>> $normasMarcadas */
+        $normasMarcadas = $filas->isEmpty()
+            ? collect()
+            : DB::table('examen_norma')
+                ->whereIn('examen_id', $filas->pluck('id'))
+                ->orderBy('orden')
+                ->get(['examen_id', 'texto'])
+                ->groupBy('examen_id');
+
         $hoy = now()->toDateString();
         $proximos = [];
         $rendidos = [];
@@ -165,6 +177,22 @@ final class EloquentPortalEstudianteGateway implements PortalEstudianteGateway
             $fecha = substr($this->texto($fila['fecha'] ?? null) ?? '', 0, 10);
             $habilitado = ($fila['habilitado'] ?? null) === null ? null : (bool) $fila['habilitado'];
             $tipo = $this->texto($fila['tipo'] ?? null) ?? '';
+            $normas = [];
+            $normaLibre = $this->texto($fila['normas'] ?? null);
+
+            if ($normaLibre !== null) {
+                $normas[] = $normaLibre;
+            }
+
+            $idExamen = $this->entero($fila['id'] ?? null);
+
+            foreach ($normasMarcadas->get($idExamen) ?? [] as $norma) {
+                $texto = $this->texto($norma->texto ?? null);
+
+                if ($texto !== null) {
+                    $normas[] = $texto;
+                }
+            }
 
             $examen = [
                 'id' => $this->entero($fila['id'] ?? null),
@@ -173,6 +201,7 @@ final class EloquentPortalEstudianteGateway implements PortalEstudianteGateway
                 'fecha' => $fecha,
                 'hora' => substr($this->texto($fila['hora_inicio'] ?? null) ?? '', 0, 5),
                 'duracion' => $this->entero($fila['duracion_minutos'] ?? null),
+                'normas' => $normas,
                 'estado' => match ($habilitado) {
                     true => 'HABILITADO',
                     false => 'NO_HABILITADO',
@@ -228,6 +257,97 @@ final class EloquentPortalEstudianteGateway implements PortalEstudianteGateway
             desde: substr($this->texto($columnas['desde'] ?? null) ?? '', 0, 10),
             hasta: substr($this->texto($columnas['hasta'] ?? null) ?? '', 0, 10),
         );
+    }
+
+    public function plazosDeGrupos(): array
+    {
+        $resultado = DB::table('grupos as grupo')
+            ->join('periodos as periodo', 'periodo.id', '=', 'grupo.periodo_id')
+            ->join('asignaturas as asignatura', 'asignatura.id', '=', 'grupo.asignatura_id')
+            ->leftJoin('plazos_foto_grupo as plazo', 'plazo.grupo_id', '=', 'grupo.id')
+            ->where(function (Builder $consulta): void {
+                $consulta->whereNull('periodo.fecha_fin')
+                    ->orWhereDate('periodo.fecha_fin', '>=', now()->toDateString());
+            })
+            ->orderBy('periodo.fecha_inicio')
+            ->orderBy('asignatura.nombre')
+            ->orderBy('grupo.codigo')
+            ->get([
+                'grupo.id',
+                'grupo.codigo as grupo',
+                'asignatura.nombre as asignatura',
+                'periodo.codigo as periodo',
+                'periodo.fecha_inicio as periodo_desde',
+                'periodo.fecha_fin as periodo_hasta',
+                'plazo.desde',
+                'plazo.hasta',
+            ])
+            ->map(fn ($fila): array => [
+                'id' => $this->entero($fila->id),
+                'grupo' => $this->texto($fila->grupo) ?? '',
+                'asignatura' => $this->texto($fila->asignatura) ?? '',
+                'periodo' => $this->texto($fila->periodo) ?? '',
+                'periodo_desde' => $this->texto($fila->periodo_desde) === null ? null : substr($this->texto($fila->periodo_desde), 0, 10),
+                'periodo_hasta' => $this->texto($fila->periodo_hasta) === null ? null : substr($this->texto($fila->periodo_hasta), 0, 10),
+                'desde' => $this->texto($fila->desde),
+                'hasta' => $this->texto($fila->hasta),
+            ])
+            ->values()
+            ->all();
+
+        /** @var list<array{id: int, grupo: string, asignatura: string, periodo: string, periodo_desde: string|null, periodo_hasta: string|null, desde: string|null, hasta: string|null}> $resultado */
+
+        return $resultado;
+    }
+
+    public function plazosDeGruposDelEstudiante(int $estudianteId): array
+    {
+        $resultado = DB::table('inscripciones as inscripcion')
+            ->join('grupos as grupo', 'grupo.id', '=', 'inscripcion.grupo_id')
+            ->join('asignaturas as asignatura', 'asignatura.id', '=', 'grupo.asignatura_id')
+            ->join('plazos_foto_grupo as plazo', 'plazo.grupo_id', '=', 'grupo.id')
+            ->where('inscripcion.estudiante_id', $estudianteId)
+            ->orderBy('asignatura.nombre')
+            ->orderBy('grupo.codigo')
+            ->get([
+                'grupo.id',
+                'grupo.codigo as grupo',
+                'asignatura.nombre as asignatura',
+                'plazo.desde',
+                'plazo.hasta',
+            ])
+            ->map(fn ($fila): array => [
+                'id' => $this->entero($fila->id),
+                'grupo' => $this->texto($fila->grupo) ?? '',
+                'asignatura' => $this->texto($fila->asignatura) ?? '',
+                'desde' => substr($this->texto($fila->desde) ?? '', 0, 10),
+                'hasta' => substr($this->texto($fila->hasta) ?? '', 0, 10),
+            ])
+            ->values()
+            ->all();
+
+        /** @var list<array{id: int, grupo: string, asignatura: string, desde: string, hasta: string}> $resultado */
+
+        return $resultado;
+    }
+
+    public function fijarPlazoDeGrupo(int $grupoId, PlazoFotoData $plazo, int $usuarioId): void
+    {
+        DB::table('plazos_foto_grupo')->updateOrInsert(
+            ['grupo_id' => $grupoId],
+            [
+                'desde' => $plazo->desde,
+                'hasta' => $plazo->hasta,
+                'fijado_por' => $usuarioId,
+                'updated_at' => now(),
+                'created_at' => now(),
+            ],
+        );
+    }
+
+    public function quitarPlazoDeGrupo(int $grupoId): void
+    {
+        DB::table('plazos_foto_grupo')->where('grupo_id', $grupoId)->delete();
     }
 
     public function fijarPlazo(PlazoFotoData $plazo, int $usuarioId): void

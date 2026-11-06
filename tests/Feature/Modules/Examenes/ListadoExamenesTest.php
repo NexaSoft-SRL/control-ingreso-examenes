@@ -82,7 +82,7 @@ final class ListadoExamenesTest extends TestCase
             ->assertJsonPath('data.0.inscritos', 4)
             ->assertJsonPath('data.0.sin_revisar', 4)
             ->assertJsonPath('data.0.avance', [
-                'grupos' => 'ok', 'aulas' => 'ahora', 'habilitacion' => 'falta', 'qr' => 'falta',
+                'grupos' => 'ok', 'aulas' => 'ahora', 'auxiliares' => 'falta', 'habilitacion' => 'falta', 'qr' => 'falta',
             ])
             ->assertJsonPath('data.0.estado', 'Faltan aulas')
             ->assertJsonPath('data.0.accion', ['clave' => 'elegir_aulas', 'paso' => 2]);
@@ -98,7 +98,7 @@ final class ListadoExamenesTest extends TestCase
         $this->actingAs($cuenta)->getJson('/api/examenes')
             ->assertJsonPath('data.0.aulas', [$aula->nombre])
             ->assertJsonPath('data.0.avance', [
-                'grupos' => 'ok', 'aulas' => 'ok', 'habilitacion' => 'ahora', 'qr' => 'falta',
+                'grupos' => 'ok', 'aulas' => 'ok', 'auxiliares' => 'ok', 'habilitacion' => 'ahora', 'qr' => 'falta',
             ])
             ->assertJsonPath('data.0.estado', 'Falta habilitar')
             ->assertJsonPath('data.0.accion', ['clave' => 'habilitar', 'paso' => null]);
@@ -122,12 +122,14 @@ final class ListadoExamenesTest extends TestCase
             ->assertJsonPath('data.0.sin_revisar', 0)
             ->assertJsonPath('data.0.qr_emitidos', 0)
             ->assertJsonPath('data.0.avance', [
-                'grupos' => 'ok', 'aulas' => 'ok', 'habilitacion' => 'ok', 'qr' => 'ahora',
+                'grupos' => 'ok', 'aulas' => 'ok', 'auxiliares' => 'ok', 'habilitacion' => 'ok', 'qr' => 'ahora',
             ])
             ->assertJsonPath('data.0.estado', 'Faltan códigos QR')
             ->assertJsonPath('data.0.accion', ['clave' => 'emitir_qr', 'paso' => null]);
 
-        $this->assertArrayNotHasKey('auxiliares', (array) $respuesta->json('data.0'));
+        // Quien atiende: sin personal guardado, el aula queda a cargo de quien
+        // registro el examen.
+        $this->assertSame(1, $respuesta->json('data.0.auxiliares'));
 
         // 5. Con el codigo QR de cada habilitado, el examen esta listo.
         foreach ([$estudiantes[0], $estudiantes[1], $estudiantes[3]] as $estudiante) {
@@ -144,7 +146,7 @@ final class ListadoExamenesTest extends TestCase
         $this->actingAs($cuenta)->getJson('/api/examenes')
             ->assertJsonPath('data.0.qr_emitidos', 3)
             ->assertJsonPath('data.0.avance', [
-                'grupos' => 'ok', 'aulas' => 'ok', 'habilitacion' => 'ok', 'qr' => 'ok',
+                'grupos' => 'ok', 'aulas' => 'ok', 'auxiliares' => 'ok', 'habilitacion' => 'ok', 'qr' => 'ok',
             ])
             ->assertJsonPath('data.0.estado', 'Listo')
             ->assertJsonPath('data.0.accion', ['clave' => 'ver_qr', 'paso' => null]);
@@ -226,6 +228,17 @@ final class ListadoExamenesTest extends TestCase
             'tipo' => TipoExamen::Final,
             'fecha' => now()->addDays(4)->toDateString(),
         ]);
+        // Paso su hora prevista pero nadie lo finalizo: sigue sin rendir.
+        $pasado = $this->examen($docente, [$this->grupo($docente, $asignatura)], [], [
+            'tipo' => TipoExamen::SegundaInstancia,
+            'hora_inicio' => '09:00:00',
+            'duracion_minutos' => 60,
+        ]);
+        $terminado->forceFill(['finalizado_en' => now()->setTime(9, 10)])->save();
+        $deAyer = $this->examen($docente, [$this->grupo($docente, $asignatura)], [], [
+            'tipo' => TipoExamen::Mesa,
+            'fecha' => now()->subDay()->toDateString(),
+        ]);
 
         $respuesta = $this->actingAs($this->cuenta($docente))->getJson('/api/examenes')->assertOk();
         $datos = collect((array) $respuesta->json('data'));
@@ -235,6 +248,8 @@ final class ListadoExamenesTest extends TestCase
         $this->assertSame([true, false], [$hoy[$enCurso->id], $rendido[$enCurso->id]]);
         $this->assertSame([true, true], [$hoy[$terminado->id], $rendido[$terminado->id]]);
         $this->assertSame([false, false], [$hoy[$futuro->id], $rendido[$futuro->id]]);
+        $this->assertSame([true, false], [$hoy[$pasado->id], $rendido[$pasado->id]]);
+        $this->assertSame([false, true], [$hoy[$deAyer->id], $rendido[$deAyer->id]]);
     }
 
     public function test_by_default_only_current_periods_are_listed_and_a_period_can_be_asked(): void

@@ -57,7 +57,7 @@ Condicion.propTypes = { estado: PropTypes.string };
 // La lista de un examen: cifras, distribución por aula, filtros, selección
 // y lotes. Se monta de nuevo con cada examen (`key`), así el cambio de
 // examen limpia la selección, los filtros, la búsqueda y el motivo.
-function ListaDelExamen({ examenId }) {
+export function ListaDelExamen({ examenId }) {
     const ruta = `/examenes/${examenId}/habilitaciones`;
     const lista = usarPaginaServidor({ porPagina: POR_PAGINA, filtros: SIN_FILTROS });
     const { datos, meta, cargando, error, recargar } = usarConsulta(ruta, {

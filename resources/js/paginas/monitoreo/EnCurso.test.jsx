@@ -712,4 +712,95 @@ describe('EnCurso (HU-22)', () => {
         ).toBeVisible();
         expect(ordenDeAulas()[0]).toBe('Aula 620');
     });
+
+    describe('finalizar el examen (HU-28)', () => {
+        it('el docente lo finaliza con confirmación y deja de estar en curso', async () => {
+            let finalizado = false;
+            rutas['POST /examenes/1/finalizar'] = () => {
+                finalizado = true;
+                return { message: 'Examen finalizado.', finalizado_en: '2026-10-09 17:40:00' };
+            };
+            rutas['GET /en-curso/1'] = () => ({
+                data: {
+                    ...tablero().data,
+                    examen: { ...EXAMENES[0], abierto: !finalizado },
+                },
+            });
+            simularApi(api, rutas);
+            montar();
+            await cargado();
+
+            fireEvent.click(screen.getByRole('button', { name: /Finalizar examen/ }));
+            const dialogo = screen.getByRole('dialog', { name: 'Finalizar examen' });
+            expect(dialogo).toHaveTextContent(
+                'Se cierra la puerta en todas las aulas: ya no se registran ingresos.'
+            );
+            expect(dialogo).toHaveTextContent('Ingresaron 59 · Faltan 92');
+            expect(api.post).not.toHaveBeenCalled();
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Finalizar' }));
+
+            expect(await screen.findByText('Examen finalizado')).toBeInTheDocument();
+            expect(api.post).toHaveBeenCalledWith('/examenes/1/finalizar');
+            await waitFor(() =>
+                expect(screen.queryByRole('button', { name: /Finalizar examen/ })).toBeNull()
+            );
+        });
+
+        it('«Cancelar» no finaliza y un rechazo se muestra en el diálogo', async () => {
+            rutas['POST /examenes/1/finalizar'] = () => {
+                throw errorHttp(409, {
+                    message: 'El examen no está abierto: no se puede finalizar.',
+                    codigo: 'EXAMEN_NO_ABIERTO',
+                });
+            };
+            simularApi(api, rutas);
+            montar();
+            await cargado();
+
+            fireEvent.click(screen.getByRole('button', { name: /Finalizar examen/ }));
+            fireEvent.click(
+                within(screen.getByRole('dialog', { name: 'Finalizar examen' })).getByRole(
+                    'button',
+                    { name: 'Cancelar' }
+                )
+            );
+            expect(api.post).not.toHaveBeenCalled();
+            expect(screen.queryByRole('dialog', { name: 'Finalizar examen' })).toBeNull();
+
+            fireEvent.click(screen.getByRole('button', { name: /Finalizar examen/ }));
+            const dialogo = screen.getByRole('dialog', { name: 'Finalizar examen' });
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Finalizar' }));
+
+            expect(await within(dialogo).findByRole('alert')).toHaveTextContent(
+                'El examen no está abierto: no se puede finalizar.'
+            );
+        });
+
+        it('pasada la hora prevista avisa que sigue abierto hasta finalizarlo', async () => {
+            rutas['GET /en-curso/1'] = () => ({
+                data: {
+                    ...tablero().data,
+                    examen: { ...EXAMENES[0], fin: '17:29', excedido: true },
+                },
+            });
+            simularApi(api, rutas);
+            montar();
+            await cargado();
+
+            expect(
+                screen.getByText(
+                    'Pasó la hora prevista de término (17:29). La puerta sigue abierta hasta que finalice el examen.'
+                )
+            ).toBeVisible();
+            expect(screen.getByRole('button', { name: /Finalizar examen/ })).toHaveClass(
+                'bg-danger-600'
+            );
+        });
+
+        it('sin el permiso de exámenes no ofrece finalizar', async () => {
+            montar('/en-curso', usuarioDePrueba('Docente', { permisos: ['seguimiento_vivo'] }));
+            await cargado();
+            expect(screen.queryByRole('button', { name: /Finalizar examen/ })).toBeNull();
+        });
+    });
 });

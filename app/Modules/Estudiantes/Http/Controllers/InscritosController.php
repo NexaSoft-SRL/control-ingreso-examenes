@@ -7,11 +7,13 @@ namespace App\Modules\Estudiantes\Http\Controllers;
 use App\Modules\Estudiantes\Application\Actions\HabilitarCambioDeFoto;
 use App\Modules\Estudiantes\Application\Queries\ArmarListaDeGrupo;
 use App\Modules\Estudiantes\Application\Queries\ArmarPlantilla;
+use App\Modules\Estudiantes\Application\Queries\ConsultarFotoDeInscrito;
 use App\Modules\Estudiantes\Application\Queries\ListarInscritosDeGrupo;
 use App\Modules\Estudiantes\Domain\Exceptions\CambioDeFotoNoPermitidoException;
 use App\Modules\Estudiantes\Domain\Exceptions\GrupoAjenoException;
 use App\Modules\Estudiantes\Domain\Exceptions\GrupoSinListaException;
 use App\Modules\Estudiantes\Domain\Exceptions\NoInscritoException;
+use App\Modules\Estudiantes\Http\Requests\HabilitarFotoRequest;
 use App\Modules\Estudiantes\Http\Requests\ListaRequest;
 use App\Modules\Estudiantes\Http\Requests\PlantillaRequest;
 use Illuminate\Http\JsonResponse;
@@ -74,14 +76,41 @@ final class InscritosController
         return $this->hojaDeCalculo($archivo->nombre, $archivo->contenido);
     }
 
+    public function foto(int $grupo, int $estudiante, ConsultarFotoDeInscrito $consultar): JsonResponse|Response
+    {
+        $usuarioId = Auth::id();
+
+        if (! is_int($usuarioId)) {
+            return response()->json(['message' => 'No hay una sesión activa.'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        try {
+            $jpeg = $consultar->execute($usuarioId, $grupo, $estudiante);
+        } catch (GrupoAjenoException $excepcion) {
+            return response()->json([
+                'message' => $excepcion->getMessage(),
+                'alcance' => true,
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if ($jpeg === null) {
+            return response()->json(['message' => 'Foto no encontrada.'], Response::HTTP_NOT_FOUND);
+        }
+
+        return response($jpeg, Response::HTTP_OK, [
+            'Content-Type' => 'image/jpeg',
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
     /**
      * El docente habilita a un inscrito para que suba o cambie su foto
-     * durante unos dias; la foto la sube el estudiante desde su acceso.
+     * hasta el dia que elige, o cambia ese dia si ya estaba habilitado.
      */
-    public function habilitarFoto(int $grupo, int $estudiante, HabilitarCambioDeFoto $habilitar): JsonResponse
+    public function habilitarFoto(int $grupo, int $estudiante, HabilitarFotoRequest $request, HabilitarCambioDeFoto $habilitar): JsonResponse
     {
         try {
-            $hasta = $habilitar->execute((int) Auth::id(), $grupo, $estudiante, now()->toDateString());
+            $hasta = $habilitar->execute((int) Auth::id(), $grupo, $estudiante, now()->toDateString(), $request->hasta());
         } catch (GrupoAjenoException $excepcion) {
             return response()->json([
                 'message' => $excepcion->getMessage(),

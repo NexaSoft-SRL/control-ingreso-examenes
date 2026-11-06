@@ -55,6 +55,24 @@ interface PortalEstudianteGateway
     public function fijarPlazo(PlazoFotoData $plazo, int $usuarioId): void;
 
     /**
+     * Grupos del periodo actual o futuro y sus plazos de foto, si existen.
+     *
+     * @return list<array{id: int, grupo: string, asignatura: string, periodo: string, periodo_desde: string|null, periodo_hasta: string|null, desde: string|null, hasta: string|null}>
+     */
+    public function plazosDeGrupos(): array;
+
+    /**
+     * Plazos de los grupos en que el estudiante esta inscrito.
+     *
+     * @return list<array{id: int, grupo: string, asignatura: string, desde: string, hasta: string}>
+     */
+    public function plazosDeGruposDelEstudiante(int $estudianteId): array;
+
+    public function fijarPlazoDeGrupo(int $grupoId, PlazoFotoData $plazo, int $usuarioId): void;
+
+    public function quitarPlazoDeGrupo(int $grupoId): void;
+
+    /**
      * Las fechas que cubren los periodos vigentes hoy (`AAAA-MM-DD`): el
      * plazo de fotos cae dentro. Nulo si no hay ninguno.
      *

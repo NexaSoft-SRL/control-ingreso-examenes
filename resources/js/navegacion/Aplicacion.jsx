@@ -24,6 +24,7 @@ export const PAGINAS = {
     '/estudiantes': lazy(() => import('../paginas/estudiantes/Padron')),
     '/examenes': lazy(() => import('../paginas/examenes/Examenes')),
     '/examenes/nuevo': lazy(() => import('../paginas/examenes/RegistrarExamen')),
+    '/examenes/detalle': lazy(() => import('../paginas/examenes/DetalleExamen')),
     '/reportes': lazy(() => import('../paginas/examenes/Reportes')),
     '/reportes-universidad': lazy(() => import('../paginas/examenes/ReportesUniversidad')),
     '/bitacora-examen': lazy(() => import('../paginas/examenes/BitacoraExamen')),
@@ -36,6 +37,7 @@ export const PAGINAS = {
     '/mis-grupos': lazy(() => import('../paginas/docente/MisGrupos')),
     '/admin': lazy(() => import('../paginas/admin/Usuarios')),
     '/bitacora': lazy(() => import('../paginas/admin/Bitacora')),
+    '/respaldo': lazy(() => import('../paginas/admin/Respaldo')),
 };
 
 // El armazón con menú: se monta una vez y cambia solo la página.
@@ -117,6 +119,7 @@ export function Rutas() {
                 {/* El estudiante entra sin cuenta, con un código por correo. */}
                 <Route path="/estudiante/ingreso" element={<AccesoEstudiante />} />
                 <Route path="/estudiante" element={<PortalEstudiante />} />
+                <Route path="/estudiante/examenes" element={<PortalEstudiante />} />
                 <Route path="/estudiante/foto" element={<PortalEstudiante />} />
                 <Route path="/estudiante/*" element={<Navigate to="/estudiante" replace />} />
                 <Route element={<ConMenu />}>

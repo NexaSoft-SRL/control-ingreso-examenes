@@ -96,6 +96,9 @@ function servidor(grupos, { inscritos = {}, carga = RESULTADO, rutas = {} } = {}
         }),
         'GET /docente/grupos/*/inscritos': lista,
         'GET /docente/grupos/*/inscritos/descarga': () => new Blob(['x']),
+        'GET /docente/grupos/*/plazo-foto': {
+            data: { hasta: null, fijado_por: null, inscritos: 3, sin_foto: 3, vencido: false },
+        },
         'GET /inscritos/plantilla': () => new Blob(['x']),
         'POST /docente/grupos/*/inscritos/carga': cargar,
         ...rutas,
@@ -249,6 +252,21 @@ describe('Mis grupos · muchos grupos', () => {
 });
 
 describe('Mis grupos · lista de inscritos', () => {
+    it('muestra la fotografía de cada estudiante que ya la registró', async () => {
+        const lista = estudiantes(1);
+        lista[0].foto = { subida_en: '2026-10-12', habilitada_hasta: null };
+        servidor(POCOS(), { inscritos: { 37: lista } });
+        renderConSesion(<MisGrupos />);
+
+        const fotos = await screen.findAllByRole('img', {
+            name: 'Fotografía de Apellido001 Nombre',
+        });
+        expect(fotos).toHaveLength(2);
+        fotos.forEach((foto) =>
+            expect(foto).toHaveAttribute('src', '/api/docente/grupos/37/inscritos/1/foto')
+        );
+    });
+
     it('la pide de a 25 y la muestra con código, nombre, documento y origen', async () => {
         servidor(POCOS(), { inscritos: { 37: estudiantes(65) } });
         renderConSesion(<MisGrupos />);
@@ -607,7 +625,7 @@ describe('Mis grupos · grupo con lista', () => {
 });
 
 describe('Mis grupos · foto del inscrito', () => {
-    it('habilita a un inscrito sin foto para que la suba durante 7 días', async () => {
+    it('habilita a un inscrito sin foto para que la suba hasta el día propuesto', async () => {
         const lista = estudiantes(2).map((e, i) => ({
             ...e,
             foto: i === 0 ? { subida_en: null, habilitada_hasta: null } : undefined,
@@ -628,10 +646,12 @@ describe('Mis grupos · foto del inscrito', () => {
 
         const dialogo = await screen.findByRole('dialog');
         expect(within(dialogo).getByText('Sin foto')).toBeInTheDocument();
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Habilitar 7 días' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Habilitar' }));
 
         await waitFor(() =>
-            expect(api.post).toHaveBeenCalledWith('/docente/grupos/37/inscritos/1/foto')
+            expect(api.post).toHaveBeenCalledWith('/docente/grupos/37/inscritos/1/foto', {
+                hasta: expect.any(String),
+            })
         );
         expect(await screen.findByText('Foto habilitada hasta el 2 nov 2026')).toBeInTheDocument();
     });

@@ -33,6 +33,7 @@ final readonly class VentanaExamen implements VentanaPuntoControl
                 'now',
                 new DateTimeZone('America/La_Paz'),
             ),
+            $examen->finalizadoEn,
         );
     }
 }

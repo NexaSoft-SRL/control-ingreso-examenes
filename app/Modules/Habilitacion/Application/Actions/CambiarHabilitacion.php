@@ -37,6 +37,8 @@ final readonly class CambiarHabilitacion
             throw new ExamenAjenoException;
         }
 
+        $this->habilitaciones->aplicarPlazosDeFoto($examenId, now()->toDateString());
+
         if ($cambio->todos) {
             $estudiantes = $this->habilitaciones->estudiantesFiltrados($examenId, $cambio->filtros);
         } else {

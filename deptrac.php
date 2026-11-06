@@ -150,6 +150,21 @@ return static function (DeptracConfig $config): void {
                     ),
             ),
 
+            $laravelCollection = Layer::withName(
+                'LaravelCollection'
+            )->collectors(
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('laravel/framework')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Illuminate\\Support\\Collection$#'
+                        )
+                    ),
+            ),
+
             $laravelAuthSupport = Layer::withName(
                 'LaravelAuthSupport'
             )->collectors(
@@ -293,6 +308,7 @@ return static function (DeptracConfig $config): void {
                     $domain,
                     $laravelPersistenceSupport,
                     $laravelQueryBuilder,
+                    $laravelCollection,
                 ),
 
             Ruleset::forLayer($http)
@@ -309,6 +325,8 @@ return static function (DeptracConfig $config): void {
             Ruleset::forLayer($laravelHttpSupport),
 
             Ruleset::forLayer($laravelQueryBuilder),
+
+            Ruleset::forLayer($laravelCollection),
 
             Ruleset::forLayer($laravelAuthSupport),
 

@@ -13,10 +13,35 @@ import Paginacion from '../../componentes/Paginacion';
 import Tarjeta from '../../componentes/Tarjeta';
 import CargaDeLista from './CargaDeLista';
 import FotoDelInscrito, { BotonFoto } from './FotoDelInscrito';
+import PlazoFotosDelGrupo from './PlazoFotosDelGrupo';
 import ResumenDeCarga from './ResumenDeCarga';
 import { FORMA_GRUPO, horariosDe } from './SelectorDeGrupos';
 
 const tonoDe = (origen) => (origen === 'Docente' ? 'neutro' : 'exito');
+
+function FotoMiniatura({ grupoId, estudiante }) {
+    if (!estudiante.foto?.subida_en) return null;
+
+    return (
+        <img
+            src={`/api/docente/grupos/${grupoId}/inscritos/${estudiante.id}/foto`}
+            alt={`Fotografía de ${estudiante.nombre}`}
+            className="h-11 w-11 rounded-full border border-slate-200 object-cover"
+            loading="lazy"
+        />
+    );
+}
+
+FotoMiniatura.propTypes = {
+    grupoId: PropTypes.number.isRequired,
+    estudiante: PropTypes.shape({
+        id: PropTypes.number.isRequired,
+        nombre: PropTypes.string.isRequired,
+        foto: PropTypes.shape({
+            subida_en: PropTypes.string,
+        }),
+    }).isRequired,
+};
 
 // La lista de inscritos del grupo elegido: carga desde archivo, resumen de
 // la última carga, búsqueda, páginas de 25 y descarga. También habilita a un
@@ -97,6 +122,7 @@ export default function InscritosDelGrupo({
                     >
                         <Download className="h-4 w-4 shrink-0" /> Reporte de mis estudiantes
                     </Boton>
+                    <PlazoFotosDelGrupo key={grupo.id} grupoId={grupo.id} onAvisar={onAvisar} />
                 </div>
             </header>
 
@@ -152,6 +178,7 @@ export default function InscritosDelGrupo({
                                         </p>
                                     </div>
                                     <div className="flex shrink-0 items-center gap-1">
+                                        <FotoMiniatura grupoId={grupo.id} estudiante={e} />
                                         <Insignia tono={tonoDe(e.origen)}>{e.origen}</Insignia>
                                         <BotonFoto estudiante={e} onAbrir={setConFoto} />
                                     </div>
@@ -190,6 +217,7 @@ export default function InscritosDelGrupo({
                                         </td>
                                         <td className="py-1 pr-3">
                                             <span className="flex justify-end">
+                                                <FotoMiniatura grupoId={grupo.id} estudiante={e} />
                                                 <BotonFoto estudiante={e} onAbrir={setConFoto} />
                                             </span>
                                         </td>

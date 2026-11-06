@@ -60,6 +60,7 @@ final class EloquentExamenGateway implements ExamenGateway
             grupos: $this->ids(ExamenGrupo::where('examen_id', $examenId)->pluck('grupo_id')->all()),
             aulas: $this->ids(ExamenAula::where('examen_id', $examenId)->pluck('aula_id')->all()),
             creadoPor: (int) $examen->creado_por,
+            finalizadoEn: $examen->finalizado_en?->format('Y-m-d H:i:s'),
         );
     }
 
@@ -173,6 +174,40 @@ final class EloquentExamenGateway implements ExamenGateway
             );
 
             return true;
+        }, 3);
+    }
+
+    public function finalizar(int $examenId, int $usuarioId): ?string
+    {
+        return DB::transaction(function () use ($examenId, $usuarioId): ?string {
+            $ahora = now()->format('Y-m-d H:i:s');
+            $antes = config('umss.minutos_apertura', 60);
+            $antes = is_numeric($antes) ? (int) $antes : 60;
+
+            // Abierto: ya abrio su puerta, sigue en su dia y nadie lo
+            // finalizo.
+            $examen = Examen::whereKey($examenId)
+                ->whereNull('finalizado_en')
+                ->whereRaw("(fecha + hora_inicio) - (? * interval '1 minute') <= ?::timestamp", [$antes, $ahora])
+                ->whereRaw("?::timestamp < fecha + interval '1 day'", [$ahora])
+                ->lockForUpdate()
+                ->first();
+
+            if (! $examen instanceof Examen) {
+                return null;
+            }
+
+            $examen->forceFill(['finalizado_en' => $ahora, 'finalizado_por' => $usuarioId])->save();
+
+            $this->bitacora->registrar(
+                $usuarioId,
+                'examen.finalizar',
+                'examenes',
+                $examenId,
+                $this->descripcion($examen, 'finalizado'),
+            );
+
+            return $ahora;
         }, 3);
     }
 

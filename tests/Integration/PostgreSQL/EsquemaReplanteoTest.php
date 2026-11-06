@@ -34,7 +34,7 @@ final class EsquemaReplanteoTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * Las 49 tablas del esquema; `migrations` va aparte.
+     * Las 50 tablas del esquema; `migrations` va aparte.
      *
      * @var list<string>
      */
@@ -54,6 +54,7 @@ final class EsquemaReplanteoTest extends TestCase
         'bitacora_operaciones',
         'permission_role',
         'permissions',
+        'respaldos',
         'roles',
         // Academico.
         'asignaturas',
@@ -74,6 +75,7 @@ final class EsquemaReplanteoTest extends TestCase
         'estudiantes',
         'inscripciones',
         'plazos_foto',
+        'plazos_foto_grupo',
         // Examenes y atencion de aulas (HU-18).
         'accesos_codigo_aula',
         'docente_auxiliares',

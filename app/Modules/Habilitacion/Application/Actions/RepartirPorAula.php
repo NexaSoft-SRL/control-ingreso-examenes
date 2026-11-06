@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Habilitacion\Application\Actions;
 
 use App\Modules\Examenes\Application\Contracts\AlcanceExamenGateway;
+use App\Modules\Habilitacion\Application\Contracts\HabilitacionGateway;
 use App\Modules\Habilitacion\Application\Contracts\RepartoGateway;
 use App\Modules\Habilitacion\Application\DTOs\RepartoData;
 use App\Modules\Habilitacion\Domain\Exceptions\ExamenAjenoException;
@@ -17,6 +18,7 @@ final readonly class RepartirPorAula
 {
     public function __construct(
         private RepartoGateway $reparto,
+        private HabilitacionGateway $habilitaciones,
         private AlcanceExamenGateway $alcance,
     ) {}
 
@@ -29,6 +31,8 @@ final readonly class RepartirPorAula
         if (! $this->alcance->esDocenteDelExamen($usuarioId, $examenId)) {
             throw new ExamenAjenoException;
         }
+
+        $this->habilitaciones->aplicarPlazosDeFoto($examenId, now()->toDateString());
 
         if ($this->reparto->porAula($examenId) === []) {
             throw new ExamenSinAulasException;

@@ -18,6 +18,7 @@ use App\Modules\Monitoreo\Application\DTOs\IncidenciaEnCursoData;
 use App\Modules\Monitoreo\Application\DTOs\TableroEnCursoData;
 use App\Modules\Monitoreo\Domain\Exceptions\ExamenAjenoException;
 use App\Modules\Monitoreo\Domain\Exceptions\ExamenNoEncontradoException;
+use DateTimeImmutable;
 use LogicException;
 
 /**
@@ -89,6 +90,14 @@ final readonly class ConsultarEnCurso
             ? $avance
             : $this->avanceDeAulasVisibles($avance, $idsVisibles);
 
+        $horaServidor = $this->consulta->horaServidor();
+        $abierto = $this->ventana->estaAbierta($examenId);
+        // La duracion es la prevista: pasada esa hora, el examen sigue
+        // abierto hasta que un docente lo finaliza (HU-28).
+        $ahora = new DateTimeImmutable($horaServidor);
+        $finPrevisto = (new DateTimeImmutable("{$resumen->fecha} {$resumen->hora}", $ahora->getTimezone()))
+            ->modify("+{$resumen->duracion} minutes");
+
         return new TableroEnCursoData(
             examen: new ExamenEnCursoData(
                 id: $resumen->id,
@@ -98,9 +107,11 @@ final readonly class ConsultarEnCurso
                 tipo: $resumen->tipo,
                 tipoTexto: $resumen->tipoTexto,
                 asignatura: $resumen->asignaturaNombre,
-                abierto: $this->ventana->estaAbierta($examenId),
+                abierto: $abierto,
+                fin: $finPrevisto->format('H:i'),
+                excedido: $abierto && $resumen->finalizadoEn === null && $ahora > $finPrevisto,
             ),
-            horaServidor: $this->consulta->horaServidor(),
+            horaServidor: $horaServidor,
             avance: $avanceVisible,
             aulas: array_map(
                 fn (AulaDetalleData $aula): AulaEnCursoData => new AulaEnCursoData(

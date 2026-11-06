@@ -87,6 +87,7 @@ final class CanonicalUserSchemaTest extends TestCase
                 'estudiantes.foto_habilitada_por',
                 'examen_aula_personal.usuario_id',
                 'examenes.creado_por',
+                'examenes.finalizado_por',
                 'habilitaciones.registrada_por',
                 'importaciones_oferta.ejecutada_por',
                 'incidencias.atendida_por',
@@ -99,7 +100,9 @@ final class CanonicalUserSchemaTest extends TestCase
                 'periodos.ajustado_por',
                 'plantillas_norma.usuario_id',
                 'plazos_foto.fijado_por',
+                'plazos_foto_grupo.fijado_por',
                 'presencias_puerta.usuario_id',
+                'respaldos.usuario_id',
             ],
             $actual
         );

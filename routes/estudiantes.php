@@ -7,6 +7,7 @@ use App\Modules\Estudiantes\Http\Controllers\ConflictoController;
 use App\Modules\Estudiantes\Http\Controllers\FotoEstudianteController;
 use App\Modules\Estudiantes\Http\Controllers\InscritosController;
 use App\Modules\Estudiantes\Http\Controllers\PadronController;
+use App\Modules\Estudiantes\Http\Controllers\PlazoFotoGrupoController;
 use App\Modules\Estudiantes\Http\Controllers\PortalEstudianteController;
 use App\Modules\Estudiantes\Http\Middleware\ExigirEstudiante;
 use Illuminate\Support\Facades\Route;
@@ -40,6 +41,10 @@ Route::prefix('api')->group(function (): void {
             ->whereNumber('estudiante')
             ->name('estudiantes.show');
 
+        Route::put('/estudiantes/{estudiante}', [PadronController::class, 'corregir'])
+            ->whereNumber('estudiante')
+            ->name('estudiantes.corregir');
+
         // Las fotos se sirven por permiso, nunca como archivo publico.
         Route::get('/estudiantes/{estudiante}/foto', [FotoEstudianteController::class, 'ver'])
             ->whereNumber('estudiante')
@@ -54,6 +59,17 @@ Route::prefix('api')->group(function (): void {
 
         Route::put('/estudiantes/plazo-fotos', [FotoEstudianteController::class, 'fijarPlazo'])
             ->name('estudiantes.plazo-fotos.fijar');
+
+        Route::get('/estudiantes/plazo-fotos/grupos', [FotoEstudianteController::class, 'plazosDeGrupos'])
+            ->name('estudiantes.plazo-fotos.grupos');
+
+        Route::put('/estudiantes/plazo-fotos/grupos/{grupo}', [FotoEstudianteController::class, 'fijarPlazoDeGrupo'])
+            ->whereNumber('grupo')
+            ->name('estudiantes.plazo-fotos.grupos.fijar');
+
+        Route::delete('/estudiantes/plazo-fotos/grupos/{grupo}', [FotoEstudianteController::class, 'quitarPlazoDeGrupo'])
+            ->whereNumber('grupo')
+            ->name('estudiantes.plazo-fotos.grupos.quitar');
     });
 
     // El estudiante, sin cuenta: un codigo al correo institucional. Los
@@ -88,6 +104,10 @@ Route::prefix('api')->group(function (): void {
             ->whereNumber('grupo')
             ->name('docente.grupos.inscritos.index');
 
+        Route::get('/docente/grupos/{grupo}/inscritos/{estudiante}/foto', [InscritosController::class, 'foto'])
+            ->whereNumber(['grupo', 'estudiante'])
+            ->name('docente.grupos.inscritos.foto.ver');
+
         Route::post('/docente/grupos/{grupo}/inscritos/carga', [CargaInscritosController::class, 'grupo'])
             ->whereNumber('grupo')
             ->name('docente.grupos.inscritos.carga');
@@ -95,6 +115,15 @@ Route::prefix('api')->group(function (): void {
         Route::get('/docente/grupos/{grupo}/inscritos/descarga', [InscritosController::class, 'descarga'])
             ->whereNumber('grupo')
             ->name('docente.grupos.inscritos.descarga');
+
+        // Hasta que dia suben su foto los inscritos del grupo.
+        Route::get('/docente/grupos/{grupo}/plazo-foto', [PlazoFotoGrupoController::class, 'ver'])
+            ->whereNumber('grupo')
+            ->name('docente.grupos.plazo-foto');
+
+        Route::put('/docente/grupos/{grupo}/plazo-foto', [PlazoFotoGrupoController::class, 'fijar'])
+            ->whereNumber('grupo')
+            ->name('docente.grupos.plazo-foto.fijar');
 
         // El estudiante sube o cambia su foto: el docente se lo habilita.
         Route::post('/docente/grupos/{grupo}/inscritos/{estudiante}/foto', [InscritosController::class, 'habilitarFoto'])

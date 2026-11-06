@@ -7,9 +7,9 @@ namespace App\Modules\Examenes\Domain\Rules;
 use App\Modules\Examenes\Domain\Enums\TipoExamen;
 
 /**
- * Los cuatro pasos de un examen (grupos, aulas, habilitacion y codigos QR),
- * su estado y el paso que sigue. Esta «Listo» cuando cada habilitado tiene
- * su codigo QR (HU-20).
+ * Los cinco pasos de un examen (grupos, aulas, quien atiende, habilitacion y
+ * codigos QR), su estado y el paso que sigue. Esta «Listo» cuando cada
+ * habilitado tiene su codigo QR (HU-20).
  */
 final class AvanceDeExamen
 {
@@ -26,6 +26,7 @@ final class AvanceDeExamen
      * @return array{
      *     grupos: string,
      *     aulas: string,
+     *     auxiliares: string,
      *     habilitacion: string,
      *     qr: string,
      *     estado: string,
@@ -58,6 +59,11 @@ final class AvanceDeExamen
         return [
             'grupos' => self::OK,
             'aulas' => $hayAulas ? self::OK : self::AHORA,
+            'auxiliares' => match (true) {
+                ! $hayAulas => self::FALTA,
+                $atendido => self::OK,
+                default => self::AHORA,
+            },
             'habilitacion' => match (true) {
                 $habilitado => self::OK,
                 $hayAulas => self::AHORA,

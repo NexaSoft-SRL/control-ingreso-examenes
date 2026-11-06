@@ -9,7 +9,7 @@ use App\Modules\Examenes\Http\Controllers\OpcionesExamenController;
 use App\Modules\Examenes\Http\Controllers\PlantillaNormaController;
 use Illuminate\Support\Facades\Route;
 
-// Examenes y plantillas de normas (Examenes): HU-08, HU-18.
+// Examenes y plantillas de normas (Examenes): HU-08, HU-18, HU-28.
 //
 // Todas van bajo `/api`, con sesion (`auth`) y el permiso de su pantalla
 // (`permiso:<clave>`; `permiso:a|b` cuando alcanza con uno de varios). Que
@@ -39,6 +39,10 @@ Route::prefix('api')
         Route::delete('/examenes/{examen}', [ExamenController::class, 'destroy'])
             ->whereNumber('examen')
             ->name('examenes.destroy');
+
+        Route::post('/examenes/{examen}/finalizar', [ExamenController::class, 'finalizar'])
+            ->whereNumber('examen')
+            ->name('examenes.finalizar');
 
         Route::get('/examenes/{examen}/aulas/{aula}/codigo', [CodigoAulaController::class, 'show'])
             ->whereNumber('examen')

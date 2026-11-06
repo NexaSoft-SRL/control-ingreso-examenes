@@ -7,6 +7,7 @@ namespace App\Modules\Estudiantes\Application\Contracts;
 use App\Modules\Estudiantes\Application\DTOs\FiltroListaData;
 use App\Modules\Estudiantes\Application\DTOs\GrupoDeCargaData;
 use App\Modules\Estudiantes\Application\DTOs\PaginaData;
+use App\Modules\Estudiantes\Application\DTOs\PlazoFotoDeGrupoData;
 use App\Modules\Estudiantes\Application\DTOs\RegistroCargaData;
 
 /**
@@ -60,10 +61,17 @@ interface InscripcionGateway
      */
     public function inscritosDeGrupo(int $grupoId, FiltroListaData $filtro): PaginaData;
 
+    public function inscritoEnGrupo(int $grupoId, int $estudianteId): bool;
+
     /**
      * La lista entera del grupo, por apellidos y nombres, para descargar.
      *
      * @return list<array{codigo: string, nombre: string, documento: string, origen: string}>
      */
     public function listaDeGrupo(int $grupoId): array;
+
+    /**
+     * El plazo de fotos del grupo y cuantos de sus inscritos no la tienen.
+     */
+    public function plazoFotoDeGrupo(int $grupoId): PlazoFotoDeGrupoData;
 }

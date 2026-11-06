@@ -34,6 +34,7 @@ export default function NormasDelExamen({
     error,
     errorMarcadas,
     onAviso,
+    copiadasDe = null,
 }) {
     const { datos, cargando, error: errorCarga, recargar } = usarConsulta('/normas/plantillas');
     // `{ id, texto }`: con `id` nulo es una plantilla nueva.
@@ -104,6 +105,11 @@ export default function NormasDelExamen({
         <fieldset className="min-w-0">
             <div className="mb-1.5 flex min-h-9 flex-wrap items-center justify-between gap-x-3">
                 <legend className="float-left text-sm font-medium text-slate-700">Normas</legend>
+                {copiadasDe && (
+                    <span className="mr-auto pl-2 text-xs text-slate-500">
+                        Como en {copiadasDe}
+                    </span>
+                )}
                 <Boton
                     type="button"
                     variante="enlace"
@@ -308,4 +314,5 @@ NormasDelExamen.propTypes = {
     error: PropTypes.string,
     errorMarcadas: PropTypes.string,
     onAviso: PropTypes.func,
+    copiadasDe: PropTypes.string,
 };

@@ -22,6 +22,7 @@ function montar(ruta, usuario) {
             : errorHttp(401, { message: 'No hay una sesión activa.' }),
         'GET /facultades': { data: FACULTADES },
         'GET /bitacora': { data: [] },
+        'GET /respaldos': { data: [] },
     });
     return render(
         <MemoryRouter initialEntries={[ruta]}>
@@ -44,6 +45,7 @@ const TITULOS = {
     '/estudiantes': 'Padrón',
     '/examenes': 'Exámenes',
     '/examenes/nuevo': 'Registrar examen',
+    '/examenes/detalle': 'Examen',
     '/reportes': 'Reportes',
     '/reportes-universidad': 'Reportes de la universidad',
     '/bitacora-examen': 'Bitácora de exámenes',
@@ -56,6 +58,7 @@ const TITULOS = {
     '/mis-grupos': 'Mis grupos',
     '/admin': 'Usuarios y roles',
     '/bitacora': 'Bitácora',
+    '/respaldo': 'Respaldo',
 };
 
 describe('Aplicacion', () => {
@@ -108,7 +111,7 @@ describe('Aplicacion', () => {
     });
 
     it('una dirección desconocida lleva a la entrada de la cuenta', async () => {
-        montar('/respaldo', usuarioDePrueba('Docente'));
+        montar('/ruta-inexistente', usuarioDePrueba('Docente'));
         expect(await titulo('Exámenes')).toBeInTheDocument();
     });
 

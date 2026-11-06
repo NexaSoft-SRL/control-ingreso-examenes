@@ -77,6 +77,96 @@ final class FotoEstudianteController
         ]);
     }
 
+    public function plazosDeGrupos(PortalEstudianteGateway $portal): JsonResponse
+    {
+        return response()->json(['data' => $portal->plazosDeGrupos()]);
+    }
+
+    public function fijarPlazoDeGrupo(
+        int $grupo,
+        PlazoFotoRequest $request,
+        PortalEstudianteGateway $portal,
+        BitacoraGateway $bitacora,
+    ): JsonResponse {
+        $usuarioId = Auth::id();
+
+        if (! is_int($usuarioId)) {
+            return response()->json(['message' => 'No hay una sesión activa.'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $grupoData = collect($portal->plazosDeGrupos())->firstWhere('id', $grupo);
+
+        if ($grupoData === null) {
+            return response()->json(['message' => 'Grupo no encontrado.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $plazo = $request->toData();
+        $inicioPeriodo = $grupoData['periodo_desde'];
+        $finPeriodo = $grupoData['periodo_hasta'];
+
+        if (($inicioPeriodo !== null && $plazo->desde < $inicioPeriodo)
+            || ($finPeriodo !== null && $plazo->hasta > $finPeriodo)) {
+            $fuera = sprintf(
+                'Fuera del período del grupo: %s – %s',
+                $inicioPeriodo === null ? 'sin inicio' : $this->fecha($inicioPeriodo),
+                $finPeriodo === null ? 'sin fin' : $this->fecha($finPeriodo),
+            );
+
+            return response()->json([
+                'message' => $fuera.'.',
+                'errors' => $inicioPeriodo !== null && $plazo->desde < $inicioPeriodo
+                    ? ['desde' => [$fuera]]
+                    : ['hasta' => [$fuera]],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $portal->fijarPlazoDeGrupo($grupo, $plazo, $usuarioId);
+        $bitacora->registrar(
+            $usuarioId,
+            'estudiante.plazo_fotos_grupo',
+            'grupos',
+            $grupo,
+            sprintf('Plazo de fotos del grupo %d: %s al %s.', $grupo, $this->fecha($plazo->desde), $this->fecha($plazo->hasta)),
+        );
+
+        return response()->json([
+            'data' => [
+                'desde' => $plazo->desde,
+                'hasta' => $plazo->hasta,
+                'abierto' => $plazo->abiertoEl(now()->toDateString()),
+                'estado' => $plazo->estadoEl(now()->toDateString()),
+            ],
+            'message' => 'Plazo del grupo guardado.',
+        ]);
+    }
+
+    public function quitarPlazoDeGrupo(
+        int $grupo,
+        PortalEstudianteGateway $portal,
+        BitacoraGateway $bitacora,
+    ): Response|JsonResponse {
+        $usuarioId = Auth::id();
+
+        if (! is_int($usuarioId)) {
+            return response()->json(['message' => 'No hay una sesión activa.'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        if (! collect($portal->plazosDeGrupos())->contains('id', $grupo)) {
+            return response()->json(['message' => 'Grupo no encontrado.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $portal->quitarPlazoDeGrupo($grupo);
+        $bitacora->registrar(
+            $usuarioId,
+            'estudiante.plazo_fotos_grupo',
+            'grupos',
+            $grupo,
+            sprintf('Se quitó el plazo de fotos del grupo %d.', $grupo),
+        );
+
+        return response()->noContent();
+    }
+
     public function fijarPlazo(
         PlazoFotoRequest $request,
         PortalEstudianteGateway $portal,

@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Monitoreo\Application\DTOs;
 
 /**
- * Un examen del selector de «En curso».
+ * Un examen del selector de «En curso». `fin` es la hora prevista de
+ * termino ('HH:MM'); `excedido`, que esa hora ya paso y nadie lo finalizo.
  */
 final readonly class ExamenEnCursoData
 {
@@ -18,5 +19,7 @@ final readonly class ExamenEnCursoData
         public string $tipoTexto,
         public string $asignatura,
         public bool $abierto,
+        public string $fin = '',
+        public bool $excedido = false,
     ) {}
 }

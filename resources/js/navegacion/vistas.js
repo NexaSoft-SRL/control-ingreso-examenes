@@ -13,6 +13,7 @@ import {
     Radio,
     QrCode,
     BarChart3,
+    DatabaseBackup,
 } from 'lucide-react';
 
 // Fuente única de las pantallas. El menú (EsquemaApp), las rutas
@@ -108,6 +109,17 @@ export const VISTAS = [
         padre: '/examenes',
         permiso: 'examenes',
     },
+    // HU-28: la página de cada examen, con su resumen, su habilitación y sus
+    // códigos QR en pestañas.
+    {
+        ruta: '/examenes/detalle',
+        titulo: 'Examen',
+        Icono: FileText,
+        grupo: 'Docencia',
+        oculta: true,
+        padre: '/examenes',
+        permiso: 'examenes',
+    },
     {
         ruta: '/habilitacion',
         titulo: 'Habilitación',
@@ -184,6 +196,13 @@ export const VISTAS = [
         Icono: History,
         grupo: 'Sistema',
         permiso: 'bitacora',
+    },
+    {
+        ruta: '/respaldo',
+        titulo: 'Respaldo',
+        Icono: DatabaseBackup,
+        grupo: 'Sistema',
+        permiso: 'respaldo_restauracion',
     },
 ];
 

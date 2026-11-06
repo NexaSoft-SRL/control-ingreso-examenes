@@ -27,6 +27,9 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
 
     private const LOTE = 500;
 
+    /** El motivo de la inhabilitacion que pone el sistema. */
+    public const MOTIVO_SIN_FOTO = 'No subió su foto';
+
     /** Para buscar sin distinguir mayusculas ni tildes. */
     private const CON_TILDE = 'áéíóúüñÁÉÍÓÚÜÑ';
 
@@ -38,11 +41,38 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
 
     public function condicionDe(int $examenId, int $estudianteId): ?HabilitacionData
     {
+        // Sin foto y con el plazo de su grupo vencido no pasa, aunque la
+        // lista no se haya vuelto a abrir desde que vencio.
+        $sinFoto = $this->sinFotoVencida($examenId, now()->toDateString())
+            ->where('inscripcion.estudiante_id', $estudianteId)
+            ->leftJoin('usuarios as autor', 'autor.id', '=', 'plazo.fijado_por')
+            ->orderBy('plazo.hasta')
+            ->first(['plazo.fijado_por', 'autor.nombre as autor_nombre', 'plazo.hasta']);
+
+        if ($sinFoto !== null) {
+            $columnas = $this->columnas($sinFoto);
+
+            return new HabilitacionData(
+                examenId: $examenId,
+                estudianteId: $estudianteId,
+                habilitado: false,
+                aulaId: null,
+                aulaNombre: null,
+                motivo: self::MOTIVO_SIN_FOTO,
+                registradaPorId: $this->enteroONulo($columnas['fijado_por'] ?? null),
+                registradaPor: $this->texto($columnas['autor_nombre'] ?? null),
+                registradaEn: null,
+            );
+        }
+
+        // La que puso el sistema por la foto ya no vale: la subio o se
+        // movio el plazo.
         $fila = DB::table('habilitaciones as habilitacion')
             ->leftJoin('aulas as aula', 'aula.id', '=', 'habilitacion.aula_id')
             ->leftJoin('usuarios as autor', 'autor.id', '=', 'habilitacion.registrada_por')
             ->where('habilitacion.examen_id', $examenId)
             ->where('habilitacion.estudiante_id', $estudianteId)
+            ->where('habilitacion.por_foto', false)
             ->select([
                 'habilitacion.habilitado',
                 'habilitacion.aula_id',
@@ -275,6 +305,85 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
         return $conIngreso;
     }
 
+    public function aplicarPlazosDeFoto(int $examenId, string $hoy): void
+    {
+        $fecha = $this->texto(DB::table('examenes')->where('id', $examenId)->value('fecha'));
+
+        // Un examen pasado queda como estaba.
+        if ($fecha === null || substr($fecha, 0, 10) < $hoy) {
+            return;
+        }
+
+        DB::transaction(function () use ($examenId, $hoy): void {
+            // Las que puso el sistema y ya no corresponden: subio la foto o
+            // el docente movio el plazo. Vuelven a «sin revisar».
+            DB::table('habilitaciones')
+                ->where('examen_id', $examenId)
+                ->where('por_foto', true)
+                ->whereNotIn('estudiante_id', $this->sinFotoVencida($examenId, $hoy)->select('inscripcion.estudiante_id'))
+                ->delete();
+
+            $faltan = $this->sinFotoVencida($examenId, $hoy)
+                ->whereNotExists(function (Builder $condicion) use ($examenId): void {
+                    // Ni las que ya puso, ni las que puso un docente a mano.
+                    $condicion->from('habilitaciones as habilitacion')
+                        ->whereColumn('habilitacion.estudiante_id', 'inscripcion.estudiante_id')
+                        ->where('habilitacion.examen_id', $examenId)
+                        ->where('habilitacion.habilitado', false);
+                })
+                ->whereNotExists(function (Builder $ingreso) use ($examenId): void {
+                    // Quien ya entro queda como estaba.
+                    $ingreso->from('ingresos')
+                        ->whereColumn('ingresos.estudiante_id', 'inscripcion.estudiante_id')
+                        ->where('ingresos.examen_id', $examenId);
+                })
+                ->selectRaw('distinct on (inscripcion.estudiante_id) inscripcion.estudiante_id, plazo.fijado_por')
+                ->orderBy('inscripcion.estudiante_id')
+                ->orderBy('plazo.hasta')
+                ->get();
+
+            if ($faltan->isEmpty()) {
+                return;
+            }
+
+            $ahora = now();
+
+            foreach ($faltan->chunk(self::LOTE) as $lote) {
+                DB::table('habilitaciones')->upsert(
+                    $lote->map(function (object $fila) use ($examenId, $ahora): array {
+                        $columnas = $this->columnas($fila);
+
+                        return [
+                            'examen_id' => $examenId,
+                            'estudiante_id' => $this->entero($columnas['estudiante_id'] ?? null),
+                            'habilitado' => false,
+                            'aula_id' => null,
+                            'motivo' => self::MOTIVO_SIN_FOTO,
+                            'por_foto' => true,
+                            'registrada_por' => $this->enteroONulo($columnas['fijado_por'] ?? null),
+                            'created_at' => $ahora,
+                            'updated_at' => $ahora,
+                        ];
+                    })->values()->all(),
+                    ['examen_id', 'estudiante_id'],
+                    ['habilitado', 'aula_id', 'motivo', 'por_foto', 'registrada_por', 'updated_at'],
+                );
+            }
+
+            $this->bitacora->registrar(
+                null,
+                'habilitacion.sin_foto',
+                'habilitaciones',
+                $examenId,
+                sprintf(
+                    '%d estudiante(s) inhabilitado(s) en el examen %d por no subir su foto a tiempo.',
+                    $faltan->count(),
+                    $examenId,
+                ),
+            );
+        }, 3);
+    }
+
     /**
      * @param  list<int>  $estudianteIds
      */
@@ -293,7 +402,11 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                     ...$this->enteros(
                         DB::table('habilitaciones')
                             ->where('examen_id', $examenId)
-                            ->where('habilitado', true)
+                            ->where(function (Builder $fila): void {
+                                // Tampoco a quien inhabilito el sistema por
+                                // la foto: lo habilita subirla.
+                                $fila->where('habilitado', true)->orWhere('por_foto', true);
+                            })
                             ->whereIn('estudiante_id', $lote)
                             ->pluck('estudiante_id')
                             ->all(),
@@ -312,6 +425,7 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
             $this->guardar($examenId, $porHabilitar, true, null, $usuarioId, [
                 'habilitado',
                 'motivo',
+                'por_foto',
                 'registrada_por',
                 'updated_at',
             ]);
@@ -340,10 +454,12 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
         }
 
         return $this->entero(DB::transaction(function () use ($examenId, $estudianteIds, $motivo, $usuarioId): int {
+            // A mano: deja de ser la del sistema.
             $this->guardar($examenId, $estudianteIds, false, $motivo, $usuarioId, [
                 'habilitado',
                 'aula_id',
                 'motivo',
+                'por_foto',
                 'registrada_por',
                 'updated_at',
             ]);
@@ -384,6 +500,7 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                     'habilitado' => $habilitado,
                     'aula_id' => null,
                     'motivo' => $motivo,
+                    'por_foto' => false,
                     'registrada_por' => $usuarioId,
                     'created_at' => $ahora,
                     'updated_at' => $ahora,
@@ -419,6 +536,23 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                 $union
                     ->on('habilitacion.estudiante_id', '=', 'lista.estudiante_id')
                     ->where('habilitacion.examen_id', '=', $examenId);
+            });
+    }
+
+    /**
+     * Los inscritos sin foto de los grupos del examen cuyo plazo de fotos
+     * (`plazos_foto_grupo`) ya vencio.
+     */
+    private function sinFotoVencida(int $examenId, string $hoy): Builder
+    {
+        return DB::table('examen_grupo as incluido')
+            ->join('plazos_foto_grupo as plazo', 'plazo.grupo_id', '=', 'incluido.grupo_id')
+            ->join('inscripciones as inscripcion', 'inscripcion.grupo_id', '=', 'incluido.grupo_id')
+            ->join('estudiantes as estudiante', 'estudiante.id', '=', 'inscripcion.estudiante_id')
+            ->where('incluido.examen_id', $examenId)
+            ->where('plazo.hasta', '<', $hoy)
+            ->where(function (Builder $sinFoto): void {
+                $sinFoto->whereNull('estudiante.foto')->orWhere('estudiante.foto', '');
             });
     }
 

@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { BotonPlazoFotos } from './PlazoFotos';
+import { BotonPlazoFotos, BotonPlazosFotoGrupo } from './PlazoFotos';
 import { api } from '../../api/cliente';
 import { errorHttp, renderConSesion, simularApi } from '../../test/apoyo';
 
@@ -29,6 +29,51 @@ describe('Plazo de fotos', () => {
         expect(
             await screen.findByRole('button', { name: /Fotos: 1 oct – 31 oct 2026/ })
         ).toBeInTheDocument();
+    });
+
+    describe('Plazos de fotos por grupo', () => {
+        it('permite fijar un plazo para un grupo', async () => {
+            const avisar = vi.fn();
+            simularApi(api, {
+                'GET /estudiantes/plazo-fotos/grupos': {
+                    data: [
+                        {
+                            id: 8,
+                            grupo: 'A',
+                            asignatura: 'Matemática I',
+                            periodo: '2-2026',
+                            desde: null,
+                            hasta: null,
+                        },
+                    ],
+                },
+                'PUT /estudiantes/plazo-fotos/grupos/8': { data: plazo().data },
+            });
+            renderConSesion(<BotonPlazosFotoGrupo avisar={avisar} />);
+
+            fireEvent.click(await screen.findByRole('button', { name: /Plazos por grupo/ }));
+            const dialogo = await screen.findByRole('dialog', {
+                name: 'Plazos de fotos por grupo',
+            });
+            fireEvent.change(within(dialogo).getByLabelText(/Grupo/), {
+                target: { value: '8' },
+            });
+            fireEvent.change(within(dialogo).getByLabelText(/Desde/), {
+                target: { value: '2026-10-01' },
+            });
+            fireEvent.change(within(dialogo).getByLabelText(/Hasta/), {
+                target: { value: '2026-10-31' },
+            });
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
+
+            await waitFor(() =>
+                expect(api.put).toHaveBeenCalledWith('/estudiantes/plazo-fotos/grupos/8', {
+                    desde: '2026-10-01',
+                    hasta: '2026-10-31',
+                })
+            );
+            expect(avisar).toHaveBeenCalledWith('Plazo del grupo guardado');
+        });
     });
 
     it('dice si todavía no empieza o ya cerró', async () => {
