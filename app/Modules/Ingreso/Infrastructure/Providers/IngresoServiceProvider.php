@@ -12,6 +12,7 @@ use App\Modules\Ingreso\Application\Contracts\ControlPuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\CorreoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\GeneradorImagenQr;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaGateway;
+use App\Modules\Ingreso\Application\Contracts\IncidenciasComunesGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\PuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\Transaccion;
@@ -21,6 +22,7 @@ use App\Modules\Ingreso\Infrastructure\Persistence\EloquentCondicionHabilitacion
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentControlPuertaGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentCorreoQrGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIncidenciaGateway;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIncidenciasComunesGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIngresoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentPuertaGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\TransaccionDeBaseDeDatos;
@@ -43,6 +45,7 @@ final class IngresoServiceProvider extends ServiceProvider
         $this->app->bind(GeneradorImagenQr::class, GeneradorImagenQrEndroid::class);
         $this->app->bind(CodigosQrDelEstudiante::class, CodigosQrDelEstudianteEmitidos::class);
         $this->app->bind(IncidenciaGateway::class, EloquentIncidenciaGateway::class);
+        $this->app->bind(IncidenciasComunesGateway::class, EloquentIncidenciasComunesGateway::class);
         $this->app->bind(IngresoGateway::class, EloquentIngresoGateway::class);
         $this->app->bind(PuertaGateway::class, EloquentPuertaGateway::class);
         $this->app->bind(Transaccion::class, TransaccionDeBaseDeDatos::class);

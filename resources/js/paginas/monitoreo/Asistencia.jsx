@@ -118,6 +118,7 @@ function ListaDelAula({ examen, aula, esDocente, selector }) {
                         por={usuario?.nombre}
                         hora={horaDe(cuerpo.hora_servidor)}
                         registrar={(datos) => api.post(`/examenes/${examenId}/incidencias`, datos)}
+                        catalogo={`/examenes/${examenId}/incidencias/catalogo`}
                         alRegistrar={reportes.recargar}
                     />
                 )}

@@ -50,7 +50,7 @@ enum TipoIncidencia: string
     }
 
     /**
-     * Muy grave: alguien rinde por otro o se lo saca del examen. Grave: un
+     * La gravedad que se sugiere si nadie eligio otra. Muy grave: alguien rinde por otro o se lo saca del examen. Grave: un
      * intento de entrar sin derecho o de copiar. Leve: lo que no es falta
      * (un cambio de aula) o todavia no se sabe (otra).
      */

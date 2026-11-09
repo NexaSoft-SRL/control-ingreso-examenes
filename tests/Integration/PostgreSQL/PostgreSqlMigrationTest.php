@@ -89,6 +89,7 @@ final class PostgreSqlMigrationTest extends TestCase
             'horarios',
             'importaciones_oferta',
             'incidencias',
+            'incidencias_comunes',
             'ingresos',
             'inscripciones',
             'job_batches',

@@ -363,6 +363,8 @@ final class EloquentBitacoraExamenGateway implements BitacoraExamenGateway
             })
             ->select([
                 'incidencia.tipo',
+                'incidencia.gravedad',
+                'incidencia.tipo_texto',
                 'incidencia.causa',
                 'incidencia.detalle',
                 'incidencia.estudiante_texto',
@@ -386,14 +388,14 @@ final class EloquentBitacoraExamenGateway implements BitacoraExamenGateway
             $c = get_object_vars($fila);
             $tipo = $this->texto($c['tipo']) ?? 'OTRA';
             $rechazo = $tipo === 'INTENTO_NO_AUTORIZADO';
-            $titulo = $rechazo ? 'Intento rechazado' : (self::INCIDENCIAS[$tipo] ?? 'Incidencia');
+            $titulo = $rechazo ? 'Intento rechazado' : ($this->texto($c['tipo_texto']) ?? self::INCIDENCIAS[$tipo] ?? 'Incidencia');
             $aula = $this->texto($c['aula']);
             $estudiante = $this->texto($c['estudiante']) ?? $this->texto($c['estudiante_texto']);
             $codigo = $this->texto($c['codigo']);
             $autor = $this->texto($c['acceso']) !== null
                 ? $this->texto($c['acceso']).' (código de aula)'
                 : $this->texto($c['autor']);
-            $gravedad = GravedadIncidencia::deTipo($tipo)->value;
+            $gravedad = GravedadIncidencia::deFila($this->texto($c['gravedad']), $tipo)->value;
 
             $sucesos[] = new SucesoExamen(
                 instante: $this->texto($c['instante']) ?? '',

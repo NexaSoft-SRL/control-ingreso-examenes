@@ -551,6 +551,8 @@ final class EloquentReporteGateway implements ReporteGateway
                 'incidencia.estudiante_id',
                 'incidencia.estudiante_texto',
                 'incidencia.tipo',
+                'incidencia.gravedad',
+                'incidencia.tipo_texto',
                 'incidencia.origen',
                 'incidencia.causa',
                 'incidencia.detalle',
@@ -585,6 +587,8 @@ final class EloquentReporteGateway implements ReporteGateway
                 detalle: $this->texto($columnas['detalle'] ?? null) ?? '',
                 registradoPor: $autor ?? $this->texto($columnas['acceso'] ?? null),
                 conCodigoDeAula: $autor === null && ($columnas['acceso'] ?? null) !== null,
+                gravedad: $this->texto($columnas['gravedad'] ?? null),
+                tipoTexto: $this->texto($columnas['tipo_texto'] ?? null),
             );
         }
 

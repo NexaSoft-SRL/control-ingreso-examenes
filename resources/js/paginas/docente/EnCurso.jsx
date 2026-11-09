@@ -17,6 +17,7 @@ import EstadoCarga from '../../componentes/EstadoCarga';
 import SinActividad from '../../componentes/SinActividad';
 import {
     BotonIncidencia,
+    BotonIncidenciasComunes,
     FiltroGravedad,
     gravedadDe,
     ListaIncidencias,
@@ -188,12 +189,14 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
                         por={usuario?.nombre}
                         hora={horaDe(cuerpo.hora_servidor)}
                         registrar={(datos) => api.post(`/examenes/${examen.id}/incidencias`, datos)}
+                        catalogo={`/examenes/${examen.id}/incidencias/catalogo`}
                         alRegistrar={() => {
                             reportes.recargar();
                             vivo.recargar();
                         }}
                     />
                 )}
+                <BotonIncidenciasComunes />
                 {finalizable && (
                     <Boton
                         type="button"
