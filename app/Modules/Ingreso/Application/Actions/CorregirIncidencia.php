@@ -17,6 +17,11 @@ use App\Modules\Ingreso\Domain\Exceptions\DatoNoValidoException;
  */
 final readonly class CorregirIncidencia
 {
+    /**
+     * Fotos de evidencia por incidencia, entre el reporte y las correcciones.
+     */
+    public const MAXIMO_EVIDENCIAS = 3;
+
     public function __construct(
         private IncidenciaGateway $incidencias,
         private AlcancePuerta $alcance,
@@ -24,13 +29,16 @@ final readonly class CorregirIncidencia
         private EstudianteDeIncidencia $estudiantes,
     ) {}
 
+    /**
+     * @param  list<string>  $imagenes  fotos que se agregan a la evidencia
+     */
     public function ejecutar(
         int $incidenciaId,
         int $examenId,
         TipoIncidencia $actual,
         TipoIncidencia $tipo,
         string $detalle,
-        ?string $imagen,
+        array $imagenes,
         int $usuarioId,
         bool $cambiaEstudiante = false,
         ?string $estudiante = null,
@@ -54,27 +62,37 @@ final readonly class CorregirIncidencia
             ? $this->estudiantes->resolver($examenId, trim($estudiante))
             : null;
 
-        $ruta = null;
+        $libres = self::MAXIMO_EVIDENCIAS - $this->incidencias->cuantasEvidencias($incidenciaId);
 
-        if ($imagen !== null) {
+        if (count($imagenes) > $libres) {
+            throw new DatoNoValidoException('evidencias', $libres <= 0
+                ? sprintf('Ya tiene %d fotos', self::MAXIMO_EVIDENCIAS)
+                : sprintf('Máximo %d %s más', $libres, $libres === 1 ? 'foto' : 'fotos'));
+        }
+
+        $rutas = [];
+
+        foreach ($imagenes as $imagen) {
             $ruta = $this->evidencias->guardar($imagen);
 
             if ($ruta === null) {
-                throw new DatoNoValidoException('evidencia', 'La imagen no se pudo leer.');
+                // Las que ya se guardaron no quedan sueltas.
+                array_map(fn (string $guardada) => $this->evidencias->borrar($guardada), $rutas);
+
+                throw new DatoNoValidoException('evidencias', 'La imagen no se pudo leer.');
             }
+
+            $rutas[] = $ruta;
         }
 
-        $anterior = $this->incidencias->corregir(
+        // Las fotos se agregan: no reemplazan ni borran las que habia.
+        $this->incidencias->corregir(
             $incidenciaId,
             $tipo,
             $detalle,
-            $ruta,
+            $rutas,
             $usuarioId,
             $cambiaEstudiante ? ['texto' => $estudiante, 'id' => $estudianteId] : null,
         );
-
-        if ($anterior !== null) {
-            $this->evidencias->borrar($anterior);
-        }
     }
 }

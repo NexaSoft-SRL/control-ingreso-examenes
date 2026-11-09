@@ -8,6 +8,8 @@ use App\Modules\Academico\Domain\Enums\TipoPeriodo;
 use App\Modules\Academico\Domain\Models\Periodo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Tests\Feature\Modules\Examenes\ArmaExamenes;
 use Tests\TestCase;
 
@@ -119,6 +121,8 @@ final class ReportesExamenTest extends TestCase
             ->assertJsonPath('data.incidencias', 1)
             ->assertJsonPath('data.muestras.asistencia.0.medio', 'Código SIS')
             ->assertJsonPath('data.muestras.asistencia.0.codigo', '202100001')
+            ->assertJsonPath('data.muestras.asistencia.0.docente', $docente->nombre_completo)
+            ->assertJsonPath('data.grupos', '2 · '.$docente->nombre_completo)
             ->assertJsonPath('data.muestras.incidencias', []);
 
         $this->actingAs($usuario)
@@ -137,6 +141,19 @@ final class ReportesExamenTest extends TestCase
             ->assertOk()
             ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             ->assertHeader('Content-Disposition', 'attachment; filename="estudiantes ausentes '.$examen->fecha->format('Y-m-d').'.xlsx"');
+
+        $libro = $this->actingAs($usuario)
+            ->get("/api/reportes/examenes/{$examen->id}/descargas/ausentes/xlsx")
+            ->baseResponse;
+        $archivo = tempnam(sys_get_temp_dir(), 'reporte');
+        file_put_contents($archivo, $libro instanceof BinaryFileResponse
+            ? (string) file_get_contents($libro->getFile()->getPathname())
+            : (string) $libro->getContent());
+        $hoja = IOFactory::load($archivo)->getActiveSheet();
+        unlink($archivo);
+
+        $this->assertSame('Grupos: 2 · '.$docente->nombre_completo, $hoja->getCell('A4')->getValue());
+        $this->assertSame('Docente', $hoja->getCell('E5')->getValue());
     }
 
     public function test_permission_exam_scope_and_start_time_are_checked_for_reports_and_downloads(): void
@@ -168,6 +185,47 @@ final class ReportesExamenTest extends TestCase
             ->getJson('/api/reportes/examenes/999999')
             ->assertNotFound()
             ->assertJsonPath('message', 'Examen no encontrado.');
+    }
+
+    public function test_the_incidents_of_the_report_are_filtered_by_severity_with_their_counts(): void
+    {
+        $usuario = $this->usuarioConPermisos(['reportes_examenes', 'seguimiento_vivo']);
+        $docente = $this->docenteConCuenta($usuario);
+        $grupo = $this->grupo($docente);
+        $aula = $this->aula('691A');
+        $examen = $this->examen($docente, [$grupo], [$aula]);
+
+        foreach (['SUPLANTACION', 'MATERIAL_NO_PERMITIDO', 'DISPOSITIVO_NO_PERMITIDO', 'OTRA'] as $tipo) {
+            DB::table('incidencias')->insert([
+                'examen_id' => $examen->id,
+                'aula_id' => $aula->id,
+                'tipo' => $tipo,
+                'origen' => 'PERSONA',
+                'detalle' => 'Detalle de la incidencia.',
+                'ocurrida_en' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+        $ruta = "/api/reportes/examenes/{$examen->id}/incidencias";
+
+        $this->actingAs($usuario)->getJson($ruta)
+            ->assertOk()
+            ->assertJsonPath('meta.total', 4)
+            ->assertJsonPath('meta.gravedades', ['MUY_GRAVE' => 1, 'GRAVE' => 2, 'LEVE' => 1]);
+
+        $this->actingAs($usuario)->getJson($ruta.'?gravedad=GRAVE')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('data.0.gravedad', 'Grave')
+            ->assertJsonPath('meta.gravedades.MUY_GRAVE', 1);
+
+        $this->actingAs($usuario)->getJson($ruta.'?gravedad=MUY_GRAVE')
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.gravedad', 'Muy grave');
+
+        // Una gravedad que no existe no filtra.
+        $this->actingAs($usuario)->getJson($ruta.'?gravedad=MEDIA')->assertJsonPath('meta.total', 4);
     }
 
     public function test_incident_details_require_tracking_permission_even_with_report_access(): void

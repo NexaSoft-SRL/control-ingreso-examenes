@@ -340,6 +340,79 @@ final class PortalEstudianteTest extends TestCase
             ->assertJsonPath('foto.vencido_en', []);
     }
 
+    public function test_an_expired_general_deadline_says_where_the_student_is_left_out(): void
+    {
+        $fisica = $this->grupo($this->docente, $this->asignatura('Física'), '1');
+        DB::table('inscripciones')->insert([
+            'estudiante_id' => $this->estudiante->id,
+            'grupo_id' => $fisica->id,
+            'via' => 'DOCENTE',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('plazos_foto')->insert([
+            'desde' => now()->subDays(10)->toDateString(),
+            'hasta' => now()->subDay()->toDateString(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        // Fisica tiene plazo propio, todavia abierto: ahi no vencio.
+        DB::table('plazos_foto_grupo')->insert([
+            'grupo_id' => $fisica->id,
+            'desde' => now()->toDateString(),
+            'hasta' => now()->addDays(5)->toDateString(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $this->entrar();
+
+        $this->getJson('/api/estudiante/sesion')
+            ->assertJsonPath('foto.vencido_en', ['Introducción a la Programación']);
+    }
+
+    public function test_the_student_downloads_its_own_qr_once_it_was_emitted(): void
+    {
+        $otro = $this->examen($this->docente, [$this->grupo], [$this->aula], [
+            'fecha' => now()->addDays(2)->toDateString(),
+        ]);
+        $this->inhabilitar($otro, [$this->estudiante], 'Debe la práctica 3.');
+        $this->entrar();
+
+        // Sin emitir todavia: el portal no ofrece QR.
+        $this->getJson("/api/estudiante/examenes/{$this->examen->id}/qr")->assertNotFound();
+
+        foreach ([$this->examen, $otro] as $examen) {
+            DB::table('codigos_qr')->insert([
+                'examen_id' => $examen->id,
+                'estudiante_id' => $this->estudiante->id,
+                'contenido' => 'contenido-cifrado-'.$examen->id,
+                'emitido_en' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $qr = [];
+
+        foreach ((array) $this->getJson('/api/estudiante/examenes')->assertOk()->json('data') as $fila) {
+            if (is_array($fila) && is_int($fila['id'] ?? null)) {
+                $qr[$fila['id']] = $fila['qr'] ?? null;
+            }
+        }
+
+        $this->assertTrue($qr[$this->examen->id]);
+        // Inhabilitado: aunque tenga codigo, no se ofrece.
+        $this->assertFalse($qr[$otro->id]);
+
+        $respuesta = $this->get("/api/estudiante/examenes/{$this->examen->id}/qr")->assertOk();
+        $this->assertSame('image/png', $respuesta->headers->get('Content-Type'));
+        $this->assertStringContainsString(
+            'qr-'.$this->estudiante->codigo_universitario.'-'.$this->examen->fecha->toDateString().'.png',
+            (string) $respuesta->headers->get('Content-Disposition'),
+        );
+        $this->getJson("/api/estudiante/examenes/{$otro->id}/qr")->assertNotFound();
+    }
+
     public function test_without_a_session_nothing_of_the_student_opens(): void
     {
         $this->getJson('/api/estudiante/examenes')->assertUnauthorized();

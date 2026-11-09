@@ -46,22 +46,32 @@ interface IncidenciaGateway
     public function atender(int $incidenciaId, int $usuarioId): bool;
 
     /**
-     * Cambia el tipo y el detalle, la evidencia si viene una nueva y el
-     * estudiante si viene `$estudiante`. Devuelve la ruta de la evidencia
-     * que se reemplazo.
+     * Cambia el tipo y el detalle, agrega las fotos nuevas a la evidencia
+     * (no reemplaza ni borra las que habia) y el estudiante si viene
+     * `$estudiante`.
      *
+     * @param  list<string>  $evidencias  rutas de las fotos nuevas, ya guardadas
      * @param  array{texto: string|null, id: int|null}|null  $estudiante
      */
     public function corregir(
         int $incidenciaId,
         TipoIncidencia $tipo,
         string $detalle,
-        ?string $evidencia,
+        array $evidencias,
         int $usuarioId,
         ?array $estudiante = null,
-    ): ?string;
+    ): void;
 
-    public function evidencia(int $incidenciaId): ?string;
+    /**
+     * Cuantas fotos de evidencia tiene ya la incidencia.
+     */
+    public function cuantasEvidencias(int $incidenciaId): int;
+
+    /**
+     * Donde esta la foto numero `$numero` (1, 2 o 3) de la evidencia, o
+     * nulo si no la tiene.
+     */
+    public function evidencia(int $incidenciaId, int $numero = 1): ?string;
 
     /**
      * El estudiante inscrito en el examen con ese codigo SIS o C.I.

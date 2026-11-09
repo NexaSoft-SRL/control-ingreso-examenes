@@ -7,7 +7,6 @@ use App\Modules\Estudiantes\Http\Controllers\ConflictoController;
 use App\Modules\Estudiantes\Http\Controllers\FotoEstudianteController;
 use App\Modules\Estudiantes\Http\Controllers\InscritosController;
 use App\Modules\Estudiantes\Http\Controllers\PadronController;
-use App\Modules\Estudiantes\Http\Controllers\PlazoFotoGrupoController;
 use App\Modules\Estudiantes\Http\Controllers\PortalEstudianteController;
 use App\Modules\Estudiantes\Http\Middleware\ExigirEstudiante;
 use Illuminate\Support\Facades\Route;
@@ -89,6 +88,10 @@ Route::prefix('api')->group(function (): void {
         ->group(function (): void {
             Route::get('/sesion', [PortalEstudianteController::class, 'sesion'])->name('sesion');
             Route::get('/examenes', [PortalEstudianteController::class, 'examenes'])->name('examenes');
+            // Su QR de un examen, para descargarlo o compartirlo.
+            Route::get('/examenes/{examen}/qr', [PortalEstudianteController::class, 'qr'])
+                ->whereNumber('examen')
+                ->name('examenes.qr');
             Route::get('/foto', [PortalEstudianteController::class, 'foto'])->name('foto');
             Route::post('/foto', [PortalEstudianteController::class, 'subirFoto'])->name('foto.subir');
         });
@@ -115,15 +118,6 @@ Route::prefix('api')->group(function (): void {
         Route::get('/docente/grupos/{grupo}/inscritos/descarga', [InscritosController::class, 'descarga'])
             ->whereNumber('grupo')
             ->name('docente.grupos.inscritos.descarga');
-
-        // Hasta que dia suben su foto los inscritos del grupo.
-        Route::get('/docente/grupos/{grupo}/plazo-foto', [PlazoFotoGrupoController::class, 'ver'])
-            ->whereNumber('grupo')
-            ->name('docente.grupos.plazo-foto');
-
-        Route::put('/docente/grupos/{grupo}/plazo-foto', [PlazoFotoGrupoController::class, 'fijar'])
-            ->whereNumber('grupo')
-            ->name('docente.grupos.plazo-foto.fijar');
 
         // El estudiante sube o cambia su foto: el docente se lo habilita.
         Route::post('/docente/grupos/{grupo}/inscritos/{estudiante}/foto', [InscritosController::class, 'habilitarFoto'])

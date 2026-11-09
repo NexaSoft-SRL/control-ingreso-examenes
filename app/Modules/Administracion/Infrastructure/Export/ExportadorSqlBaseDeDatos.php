@@ -63,7 +63,7 @@ final class ExportadorSqlBaseDeDatos implements ExportadorBaseDeDatos
 
         $sql = [];
         $sql[] = '-- ============================================================';
-        $sql[] = '-- Respaldo de Base de Datos - Sistema de Control de Ingreso';
+        $sql[] = '-- Respaldo de Base de Datos - Sistema de Control de Exámenes';
         $sql[] = "-- Fecha: {$fecha}";
         $sql[] = "-- Tipo: {$tipo}";
         $sql[] = "-- Versión Esquema: {$versionEsquema}";

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, LogOut } from 'lucide-react';
-import Logo from './Logo';
+import Escudo, { Marca } from './Escudo';
 import { usarSesion } from '../sesion/SesionContexto';
 import { vistaDeRuta, vistasDe } from '../navegacion/vistas';
 import { iniciales } from '../utiles/texto';
@@ -13,7 +13,9 @@ const FOCO =
 
 function itemClases(activo) {
     return `flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${FOCO} ${
-        activo ? 'bg-primary-50 text-primary-700' : 'text-slate-700 hover:bg-slate-100'
+        activo
+            ? 'bg-primary-50 font-semibold text-primary-800 shadow-[inset_3px_0_0_var(--color-primary-600)]'
+            : 'text-slate-700 hover:bg-primary-50/60 hover:text-primary-800'
     }`;
 }
 
@@ -70,7 +72,7 @@ export default function EsquemaApp({ children }) {
     const usuario = (
         <div className="flex min-w-0 items-center gap-2.5">
             <span
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-800"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-umss-marino text-xs font-semibold text-white"
                 aria-hidden="true"
             >
                 {iniciales(nombre)}
@@ -85,17 +87,13 @@ export default function EsquemaApp({ children }) {
     );
 
     return (
-        <div className="flex min-h-dvh flex-col bg-slate-100 md:flex-row">
+        <div className="flex min-h-dvh flex-col bg-fondo md:flex-row">
             <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white md:sticky md:top-0 md:flex md:h-dvh">
                 <Link
                     to={vistas[0]?.ruta ?? '/'}
-                    className={`flex items-center gap-2 border-b border-slate-200 px-5 py-4 ${FOCO}`}
+                    className={`flex h-16 shrink-0 items-center border-b border-slate-200 px-5 ${FOCO}`}
                 >
-                    <Logo />
-                    <div className="leading-tight">
-                        <p className="text-sm font-semibold text-slate-800">Control de ingreso</p>
-                        <p className="text-xs text-slate-600">Exámenes masivos</p>
-                    </div>
+                    <Marca />
                 </Link>
                 <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-4" aria-label="Principal">
                     {grupos.map((grupo) => (
@@ -146,7 +144,7 @@ export default function EsquemaApp({ children }) {
 
             <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2.5 md:hidden">
                 <div className="flex min-w-0 items-center gap-3">
-                    <Logo className="h-8 w-8" />
+                    <Escudo className="h-9" />
                     {usuario}
                 </div>
                 <button

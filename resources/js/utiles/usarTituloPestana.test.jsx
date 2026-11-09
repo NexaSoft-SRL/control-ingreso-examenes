@@ -7,9 +7,9 @@ describe('usarTituloPestana', () => {
         const { rerender } = renderHook(({ titulo }) => usarTituloPestana(titulo), {
             initialProps: { titulo: 'Período' },
         });
-        expect(document.title).toBe('Período · Control de ingreso a exámenes');
+        expect(document.title).toBe('Período · Control de exámenes');
 
         rerender({ titulo: undefined });
-        expect(document.title).toBe('Control de ingreso a exámenes');
+        expect(document.title).toBe('Control de exámenes');
     });
 });

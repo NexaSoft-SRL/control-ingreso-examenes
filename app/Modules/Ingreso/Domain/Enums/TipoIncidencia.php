@@ -52,8 +52,9 @@ enum TipoIncidencia: string
     public function gravedad(): Gravedad
     {
         return match ($this) {
-            self::Suplantacion, self::IngresoRepetido, self::Expulsion => Gravedad::Grave,
-            self::IntentoNoAutorizado, self::MaterialNoPermitido, self::DispositivoNoPermitido => Gravedad::Media,
+            // La suplantacion de identidad es el ejemplo de muy grave.
+            self::Suplantacion, self::Expulsion => Gravedad::MuyGrave,
+            self::IngresoRepetido, self::IntentoNoAutorizado, self::MaterialNoPermitido, self::DispositivoNoPermitido => Gravedad::Grave,
             self::CambioAula, self::Otra => Gravedad::Leve,
         };
     }

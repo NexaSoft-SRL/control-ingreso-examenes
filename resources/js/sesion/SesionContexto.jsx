@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import PropTypes from 'prop-types';
 import { api, suscribirSesion, SIN_SESION } from '../api/cliente';
 import { olvidarEdificios } from '../api/usarEdificios';
-import Logo from '../componentes/Logo';
+import Escudo from '../componentes/Escudo';
 
 const SIN_PROVEEDOR = {
     usuario: null,
@@ -33,12 +33,12 @@ export { useSesion as usarSesion, useFacultades as usarFacultades };
 export function PantallaDeCarga() {
     return (
         <div
-            className="flex min-h-dvh items-center justify-center bg-slate-100"
+            className="flex min-h-dvh items-center justify-center bg-fondo"
             role="status"
             aria-busy="true"
             aria-label="Cargando"
         >
-            <Logo className="h-14 w-14 animate-pulse" />
+            <Escudo className="h-16 animate-pulse" alt="" />
         </div>
     );
 }

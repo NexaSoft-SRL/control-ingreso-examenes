@@ -73,6 +73,7 @@ final class EsquemaReplanteoTest extends TestCase
         'codigos_acceso_estudiante',
         'conflictos_padron',
         'estudiantes',
+        'evidencias_incidencia',
         'inscripciones',
         'plazos_foto',
         'plazos_foto_grupo',

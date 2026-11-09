@@ -4,7 +4,8 @@ import { TriangleAlert, Check, Image as IconoImagen, Pencil } from 'lucide-react
 import { api } from '../api/cliente';
 import Boton from './Boton';
 import Campo from './Campo';
-import CampoImagen from './CampoImagen';
+import Chips from './Chips';
+import FotosEvidencia from './FotosEvidencia';
 import Dialogo from './Dialogo';
 import Insignia from './Insignia';
 import Seleccion, { AreaTexto } from './Seleccion';
@@ -25,20 +26,21 @@ export const TIPOS_INCIDENCIA = {
     OTRA: 'Otra',
 };
 
-// La gravedad sale del tipo y se lee por el color y por el texto.
+// La gravedad sale del tipo y se lee por el color y por el texto: leve,
+// grave o muy grave (decimotercera revisión).
 export const GRAVEDADES = {
-    GRAVE: { texto: 'Grave', tono: 'peligro' },
-    MEDIA: { texto: 'Media', tono: 'advertencia' },
+    MUY_GRAVE: { texto: 'Muy grave', tono: 'peligro' },
+    GRAVE: { texto: 'Grave', tono: 'advertencia' },
     LEVE: { texto: 'Leve', tono: 'info' },
 };
 
 export const GRAVEDAD_DE_TIPO = {
-    SUPLANTACION: 'GRAVE',
+    SUPLANTACION: 'MUY_GRAVE',
+    EXPULSION: 'MUY_GRAVE',
     INGRESO_REPETIDO: 'GRAVE',
-    EXPULSION: 'GRAVE',
-    INTENTO_NO_AUTORIZADO: 'MEDIA',
-    MATERIAL_NO_PERMITIDO: 'MEDIA',
-    DISPOSITIVO_NO_PERMITIDO: 'MEDIA',
+    INTENTO_NO_AUTORIZADO: 'GRAVE',
+    MATERIAL_NO_PERMITIDO: 'GRAVE',
+    DISPOSITIVO_NO_PERMITIDO: 'GRAVE',
     CAMBIO_AULA: 'LEVE',
     OTRA: 'LEVE',
 };
@@ -49,16 +51,28 @@ const FIJOS = ['EXPULSION', 'INGRESO_REPETIDO'];
 const opcionDe = (clave) =>
     `${TIPOS_INCIDENCIA[clave]} · ${GRAVEDADES[GRAVEDAD_DE_TIPO[clave]].texto}`;
 
-// Con foto, el cuerpo va como formulario multipart.
-function cuerpoCon(datos, foto) {
-    if (!foto) return datos;
+// Hasta tres fotos de evidencia por incidencia.
+const MAXIMO_FOTOS = 3;
+
+// Con fotos, el cuerpo va como formulario multipart (`evidencias[]`).
+function cuerpoCon(datos, fotos) {
+    if (fotos.length === 0) return datos;
     const formulario = new FormData();
     Object.entries(datos).forEach(([clave, valor]) => {
         if (valor !== null && valor !== undefined) formulario.append(clave, valor);
     });
-    formulario.append('evidencia', foto);
+    fotos.forEach((foto) => formulario.append('evidencias[]', foto));
     return formulario;
 }
+
+// Cuántas fotos tiene: las respuestas viejas solo decían si había una.
+const fotosDe = (incidencia) => incidencia.evidencias ?? (incidencia.evidencia ? 1 : 0);
+
+// El primer error de las fotos, venga de la lista o de una de ellas.
+const errorDeFotos = (errores) =>
+    errores.evidencias ??
+    Object.entries(errores).find(([clave]) => clave.startsWith('evidencias.'))?.[1] ??
+    errores.evidencia;
 
 // Quién atendió la incidencia y cuándo: 'Blanco Coca Leticia · 9 oct 2026, 16:12'.
 // `atendida_en` es un instante ISO ('2026-10-09T16:12:40-04:00').
@@ -110,7 +124,7 @@ export function BotonIncidencia({
     const [donde, setDonde] = useState(aula?.id ?? aulas?.[0]?.id ?? '');
     const [estudiante, setEstudiante] = useState('');
     const [detalle, setDetalle] = useState('');
-    const [foto, setFoto] = useState(null);
+    const [fotos, setFotos] = useState([]);
     const [intento, setIntento] = useState(false);
     const [enviando, setEnviando] = useState(false);
     const [errores, setErrores] = useState({});
@@ -122,7 +136,7 @@ export function BotonIncidencia({
         setTipo('');
         setEstudiante('');
         setDetalle('');
-        setFoto(null);
+        setFotos([]);
         setIntento(false);
         setErrores({});
     };
@@ -145,7 +159,7 @@ export function BotonIncidencia({
                         estudiante: estudiante.trim() || null,
                         detalle: detalle.trim(),
                     },
-                    foto
+                    fotos
                 )
             );
             cerrar();
@@ -249,11 +263,12 @@ export function BotonIncidencia({
                         }
                         pie={corto ? `Mínimo ${DETALLE_MINIMO} caracteres` : null}
                     />
-                    <CampoImagen
+                    <FotosEvidencia
                         etiqueta="Evidencia"
-                        archivo={foto}
-                        onCambiar={setFoto}
-                        error={errores.evidencia}
+                        fotos={fotos}
+                        onCambiar={setFotos}
+                        maximo={MAXIMO_FOTOS}
+                        error={errorDeFotos(errores)}
                     />
                 </div>
             </Dialogo>
@@ -349,6 +364,7 @@ export function ListaIncidencias({ items, atender, corregir, conAula = false, li
                                             onClick={() => setViendo(i)}
                                         >
                                             <IconoImagen className="h-4 w-4" /> Evidencia
+                                            {fotosDe(i) > 1 && ` · ${fotosDe(i)}`}
                                         </Boton>
                                     )}
                                     {corregir && (
@@ -441,52 +457,112 @@ export function ListaIncidencias({ items, atender, corregir, conAula = false, li
 }
 
 const TEXTO_GRAVEDAD = {
-    GRAVE: 'text-danger-700',
-    MEDIA: 'text-warning-700',
+    MUY_GRAVE: 'text-danger-700',
+    GRAVE: 'text-warning-700',
     LEVE: 'text-info-700',
 };
 
-const gravedadDe = (i) => i.gravedad ?? GRAVEDAD_DE_TIPO[i.tipo] ?? null;
+export const gravedadDe = (i) => i.gravedad ?? GRAVEDAD_DE_TIPO[i.tipo] ?? null;
+
+// Filtra una lista de incidencias por gravedad, con el conteo de cada una.
+export function FiltroGravedad({ items, valor, onCambiar }) {
+    return (
+        <Chips
+            etiqueta="Gravedad"
+            valor={valor}
+            onCambiar={onCambiar}
+            opciones={[
+                { valor: null, etiqueta: 'Todas', conteo: items.length },
+                ...Object.entries(GRAVEDADES).map(([clave, g]) => ({
+                    valor: clave,
+                    etiqueta: g.texto,
+                    conteo: items.filter((i) => gravedadDe(i) === clave).length,
+                })),
+            ]}
+        />
+    );
+}
+
+FiltroGravedad.propTypes = {
+    items: PropTypes.arrayOf(PropTypes.object).isRequired,
+    valor: PropTypes.string,
+    onCambiar: PropTypes.func.isRequired,
+};
 const tonoDe = (i) => (i.atendida ? 'neutro' : (GRAVEDADES[gravedadDe(i)]?.tono ?? 'peligro'));
 
-// La foto de la evidencia (GET /api/incidencias/{id}/evidencia), pedida
-// con la sesión y mostrada desde la memoria.
+// Las fotos de la evidencia (GET /api/incidencias/{id}/evidencias/{n}),
+// pedidas con la sesión y mostradas desde la memoria: una grande y debajo
+// las miniaturas para pasar de una a otra.
 function VerEvidencia({ incidencia, onCerrar }) {
-    const [url, setUrl] = useState(null);
+    const cantidad = Math.max(1, fotosDe(incidencia));
+    const [urls, setUrls] = useState([]);
     const [fallo, setFallo] = useState(false);
+    const [actual, setActual] = useState(0);
 
     useEffect(() => {
         let vigente = true;
-        let creada = null;
-        api.get(`/incidencias/${incidencia.id}/evidencia`, { responseType: 'blob' })
-            .then((respuesta) => {
-                if (!vigente) return;
-                creada = URL.createObjectURL(respuesta.data);
-                setUrl(creada);
-            })
-            .catch(() => vigente && setFallo(true));
+        const creadas = [];
+        Promise.all(
+            Array.from({ length: cantidad }, (_, i) =>
+                api
+                    .get(`/incidencias/${incidencia.id}/evidencias/${i + 1}`, {
+                        responseType: 'blob',
+                    })
+                    .then((respuesta) => {
+                        const url = URL.createObjectURL(respuesta.data);
+                        creadas.push(url);
+                        return url;
+                    })
+                    .catch(() => null)
+            )
+        ).then((todas) => {
+            if (!vigente) return;
+            const abiertas = todas.filter(Boolean);
+            setUrls(abiertas);
+            setFallo(abiertas.length === 0);
+        });
         return () => {
             vigente = false;
-            if (creada) URL.revokeObjectURL(creada);
+            creadas.forEach((url) => URL.revokeObjectURL(url));
         };
-    }, [incidencia.id]);
+    }, [incidencia.id, cantidad]);
 
     return (
         <Dialogo titulo="Evidencia" abierto onCerrar={onCerrar}>
             <p className="mb-3 text-sm text-slate-600">
-                {[incidencia.tipo_texto ?? TIPOS_INCIDENCIA[incidencia.tipo], incidencia.hora]
+                {[
+                    incidencia.tipo_texto ?? TIPOS_INCIDENCIA[incidencia.tipo],
+                    incidencia.hora,
+                    cantidad > 1 && `${cantidad} fotos`,
+                ]
                     .filter(Boolean)
                     .join(' · ')}
             </p>
-            {url && (
+            {urls[actual] && (
                 <img
-                    src={url}
-                    alt="Evidencia"
-                    className="max-h-[60vh] w-full rounded-lg object-contain"
+                    src={urls[actual]}
+                    alt={`Evidencia ${actual + 1}`}
+                    className="max-h-[55vh] w-full rounded-lg object-contain"
                 />
             )}
+            {urls.length > 1 && (
+                <div className="mt-3 flex gap-2">
+                    {urls.map((url, i) => (
+                        <button
+                            key={url}
+                            type="button"
+                            aria-label={`Ver la foto ${i + 1}`}
+                            aria-pressed={i === actual}
+                            onClick={() => setActual(i)}
+                            className={`h-16 w-16 overflow-hidden rounded-lg border-2 ${i === actual ? 'border-primary-600' : 'border-transparent opacity-70 hover:opacity-100'}`}
+                        >
+                            <img src={url} alt="" className="h-full w-full object-cover" />
+                        </button>
+                    ))}
+                </div>
+            )}
             {fallo && <p className="text-sm text-danger-600">No se pudo abrir</p>}
-            {!url && !fallo && <p className="text-sm text-slate-600">Cargando…</p>}
+            {urls.length === 0 && !fallo && <p className="text-sm text-slate-600">Cargando…</p>}
         </Dialogo>
     );
 }
@@ -497,6 +573,8 @@ VerEvidencia.propTypes = {
         tipo: PropTypes.string,
         tipo_texto: PropTypes.string,
         hora: PropTypes.string,
+        evidencia: PropTypes.bool,
+        evidencias: PropTypes.number,
     }).isRequired,
     onCerrar: PropTypes.func.isRequired,
 };
@@ -511,11 +589,14 @@ function CorregirIncidencia({ incidencia, corregir, onCerrar }) {
     const [detalle, setDetalle] = useState(incidencia.detalle ?? '');
     const [estudiante, setEstudiante] = useState(incidencia.estudiante ?? '');
     const [tocoEstudiante, setTocoEstudiante] = useState(false);
-    const [foto, setFoto] = useState(null);
+    const [fotos, setFotos] = useState([]);
     const [errores, setErrores] = useState({});
     const [enviando, setEnviando] = useState(false);
     const [aviso, avisar] = useAviso();
     const corto = detalle.trim().length < DETALLE_MINIMO;
+    // Las fotos se agregan a las que ya tiene, hasta tres en total.
+    const yaTiene = fotosDe(incidencia);
+    const libres = Math.max(0, MAXIMO_FOTOS - yaTiene);
 
     const guardar = async () => {
         if (corto) return setErrores({ detalle: `Mínimo ${DETALLE_MINIMO} caracteres` });
@@ -528,7 +609,7 @@ function CorregirIncidencia({ incidencia, corregir, onCerrar }) {
             const datos = { tipo, detalle: detalle.trim() };
             // Solo viaja si se cambió: el texto mostrado no es el guardado.
             if (tocoEstudiante) datos.estudiante = estudiante.trim();
-            await corregir(incidencia.id, cuerpoCon(datos, foto));
+            await corregir(incidencia.id, cuerpoCon(datos, fotos));
             onCerrar();
         } catch (error) {
             const campos = erroresDe(error);
@@ -555,7 +636,7 @@ function CorregirIncidencia({ incidencia, corregir, onCerrar }) {
                     <Boton
                         type="button"
                         onClick={guardar}
-                        disabled={(delSistema ? !foto : corto) || enviando}
+                        disabled={(delSistema ? fotos.length === 0 : corto) || enviando}
                         cargando={enviando}
                     >
                         Guardar
@@ -611,12 +692,17 @@ function CorregirIncidencia({ incidencia, corregir, onCerrar }) {
                         pie={corto ? `Mínimo ${DETALLE_MINIMO} caracteres` : null}
                     />
                 )}
-                <CampoImagen
-                    etiqueta={incidencia.evidencia ? 'Nueva evidencia' : 'Evidencia'}
-                    archivo={foto}
-                    onCambiar={setFoto}
-                    error={errores.evidencia}
-                />
+                {libres > 0 ? (
+                    <FotosEvidencia
+                        etiqueta={yaTiene > 0 ? `Agregar fotos · tiene ${yaTiene}` : 'Evidencia'}
+                        fotos={fotos}
+                        onCambiar={setFotos}
+                        maximo={libres}
+                        error={errorDeFotos(errores)}
+                    />
+                ) : (
+                    <p className="text-sm text-slate-600">{MAXIMO_FOTOS} fotos de evidencia</p>
+                )}
             </div>
             {aviso}
         </Dialogo>
@@ -630,6 +716,7 @@ CorregirIncidencia.propTypes = {
         detalle: PropTypes.string,
         estudiante: PropTypes.string,
         evidencia: PropTypes.bool,
+        evidencias: PropTypes.number,
     }).isRequired,
     corregir: PropTypes.func.isRequired,
     onCerrar: PropTypes.func.isRequired,

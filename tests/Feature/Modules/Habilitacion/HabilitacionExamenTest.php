@@ -7,6 +7,7 @@ namespace Tests\Feature\Modules\Habilitacion;
 use App\Modules\Academico\Domain\Models\Docente;
 use App\Modules\Academico\Domain\Models\Grupo;
 use App\Modules\Administracion\Domain\Models\User;
+use App\Modules\Estudiantes\Application\Contracts\FotosDeEstudiantes;
 use App\Modules\Estudiantes\Domain\Enums\OrigenEstudiante;
 use App\Modules\Estudiantes\Domain\Models\Estudiante;
 use App\Modules\Estudiantes\Domain\Models\Inscripcion;
@@ -126,6 +127,7 @@ final class HabilitacionExamenTest extends TestCase
                 'motivo' => null,
                 'registrada_por' => null,
                 'registrada_el' => null,
+                'con_foto' => false,
             ])
             ->assertJsonPath('data.1.estado', 'no')
             ->assertJsonPath('data.1.aula', null)
@@ -160,6 +162,61 @@ final class HabilitacionExamenTest extends TestCase
 
         $this->assertIsString($momento);
         $this->assertMatchesRegularExpression('/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$/', $momento);
+    }
+
+    public function test_each_row_says_if_the_student_has_a_photo(): void
+    {
+        $grupo = $this->grupo($this->docente);
+        [$conFoto, $sinFoto] = $this->estudiantesInscritos($grupo, 2);
+        $conFoto->forceFill(['foto' => 'imagenes/estudiantes/una.jpg'])->save();
+        $examen = $this->examen($this->docente, [$grupo]);
+
+        $datos = $this->actingAs($this->cuenta)
+            ->getJson("/api/examenes/{$examen->id}/habilitaciones")
+            ->assertOk()
+            ->json('data');
+        $this->assertIsArray($datos);
+        $conFotoPorId = [];
+
+        foreach ($datos as $fila) {
+            $this->assertIsArray($fila);
+            $this->assertIsInt($fila['estudiante_id']);
+            $conFotoPorId[$fila['estudiante_id']] = $fila['con_foto'];
+        }
+
+        $this->assertTrue($conFotoPorId[$conFoto->id]);
+        $this->assertFalse($conFotoPorId[$sinFoto->id]);
+    }
+
+    public function test_the_teacher_of_the_exam_sees_the_photo_of_an_enrolled_student_only(): void
+    {
+        $this->app->instance(FotosDeEstudiantes::class, new class implements FotosDeEstudiantes
+        {
+            public function foto(int $estudianteId): ?string
+            {
+                return $estudianteId % 2 === 0 ? "jpeg-{$estudianteId}" : null;
+            }
+        });
+        $grupo = $this->grupo($this->docente);
+        $inscritos = $this->estudiantesInscritos($grupo, 2);
+        [$ajeno] = $this->estudiantesInscritos($this->grupo($this->docente), 1);
+        $examen = $this->examen($this->docente, [$grupo]);
+        [$par] = array_values(array_filter($inscritos, fn (Estudiante $e): bool => $e->id % 2 === 0));
+        [$impar] = array_values(array_filter($inscritos, fn (Estudiante $e): bool => $e->id % 2 === 1));
+        $ruta = fn (Estudiante $e): string => "/api/examenes/{$examen->id}/habilitaciones/{$e->id}/foto";
+
+        $respuesta = $this->actingAs($this->cuenta)->get($ruta($par))->assertOk();
+        $this->assertSame("jpeg-{$par->id}", $respuesta->getContent());
+        $this->assertSame('image/jpeg', $respuesta->headers->get('Content-Type'));
+
+        $this->actingAs($this->cuenta)->getJson($ruta($impar))->assertNotFound()->assertJsonPath('message', 'Sin foto.');
+        // De otro grupo, aunque sea del mismo docente: no esta en el examen.
+        $this->actingAs($this->cuenta)->getJson($ruta($ajeno))->assertNotFound();
+
+        $otro = $this->usuarioConPermisos(['habilitacion']);
+        $this->docenteConCuenta($otro);
+        $this->actingAs($otro)->getJson($ruta($par))->assertForbidden();
+        $this->actingAs($this->usuarioConRol('Administrador'))->getJson($ruta($par))->assertForbidden();
     }
 
     public function test_the_list_is_ordered_by_surnames_and_names(): void

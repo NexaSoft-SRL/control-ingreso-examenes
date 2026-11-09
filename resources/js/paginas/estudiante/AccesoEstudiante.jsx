@@ -5,9 +5,8 @@ import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
 import Boton from '../../componentes/Boton';
 import usarTituloPestana from '../../utiles/usarTituloPestana';
-import FondoAcceso from '../../componentes/FondoAcceso';
+import FondoAcceso, { CabeceraAcceso, TARJETA_ACCESO } from '../../componentes/FondoAcceso';
 import Campo from '../../componentes/Campo';
-import Logo from '../../componentes/Logo';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
@@ -139,125 +138,111 @@ export default function AccesoEstudiante() {
 
     return (
         <FondoAcceso>
-            <div className="w-full max-w-sm">
-                <header className="mb-6 flex items-center justify-center gap-3">
-                    <Logo className="h-11 w-11" />
-                    <div>
-                        <p className="font-bold leading-tight text-primary-900">UMSS</p>
-                        <p className="text-xs font-medium text-primary-700">CONTROL DE INGRESO</p>
-                    </div>
-                    <span className="ml-2 hidden border-l border-slate-300 pl-4 text-sm font-medium text-slate-700 sm:block">
-                        Sistema Institucional de Verificación
-                    </span>
-                </header>
-                <div className="mb-6 flex flex-col items-center text-center">
-                    <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-600 text-white">
-                        <GraduationCap className="h-6 w-6" />
-                    </div>
-                    <h1 className="text-2xl font-semibold text-slate-900">Ingreso al sistema</h1>
-                    <p className="mt-1 text-sm text-slate-600">
-                        Ingrese su código universitario para acceder
-                    </p>
-                </div>
+            <div className="w-full max-w-md">
+                <div className={TARJETA_ACCESO}>
+                    <CabeceraAcceso
+                        icono={GraduationCap}
+                        titulo="Estudiantes"
+                        subtitulo="Exámenes y foto"
+                    />
 
-                {envio ? (
-                    <form
-                        className="space-y-4 rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-lg shadow-primary-900/5 backdrop-blur"
-                        noValidate
-                        onSubmit={entrar}
-                    >
-                        <div className="text-sm text-slate-700">
-                            <p>
-                                Código SIS <span className="font-medium text-slate-900">{sis}</span>
-                            </p>
-                            <p>
-                                Enviado a{' '}
-                                <span className="break-all font-medium text-slate-900">
-                                    {envio.correo}
-                                </span>
-                            </p>
-                        </div>
-                        {reenviado && (
-                            <p
-                                role="status"
-                                className="flex items-center gap-2 rounded-lg bg-success-50 px-3 py-2 text-sm font-medium text-success-700"
-                            >
-                                <CheckCircle2 className="h-4 w-4 shrink-0" /> Código reenviado
-                            </p>
-                        )}
-                        {general && (
-                            <p
-                                role="alert"
-                                className="rounded-lg bg-danger-50 px-3 py-2 text-sm font-medium text-danger-700"
-                            >
-                                {general}
-                            </p>
-                        )}
-                        {envio.codigo_prueba && (
-                            <p className="rounded-lg bg-warning-50 px-3 py-2 text-sm text-warning-700">
-                                Modo de prueba · {envio.codigo_prueba}
-                            </p>
-                        )}
-                        <Campo
-                            ref={campoCodigo}
-                            etiqueta="Código"
-                            ayuda={`Vence en ${venceEn(envio.minutos)}`}
-                            inputMode="numeric"
-                            autoComplete="one-time-code"
-                            placeholder="000000"
-                            autoFocus
-                            value={codigo}
-                            error={errores.codigo}
-                            onChange={(e) => {
-                                setCodigo(soloDigitos(e.target.value, 6));
-                                setErrores({});
-                            }}
-                        />
-                        <Boton type="submit" className="w-full" disabled={enviando}>
-                            Iniciar sesión
-                        </Boton>
-                        <div className="flex justify-between gap-2">
-                            <Boton type="button" variante="enlace" tamano="chico" onClick={otroSis}>
-                                Otro código SIS
+                    {envio ? (
+                        <form className="space-y-4" noValidate onSubmit={entrar}>
+                            <div className="text-sm text-slate-700">
+                                <p>
+                                    Código SIS{' '}
+                                    <span className="font-medium text-slate-900">{sis}</span>
+                                </p>
+                                <p>
+                                    Enviado a{' '}
+                                    <span className="break-all font-medium text-slate-900">
+                                        {envio.correo}
+                                    </span>
+                                </p>
+                            </div>
+                            {reenviado && (
+                                <p
+                                    role="status"
+                                    className="flex items-center gap-2 rounded-lg bg-success-50 px-3 py-2 text-sm font-medium text-success-700"
+                                >
+                                    <CheckCircle2 className="h-4 w-4 shrink-0" /> Código reenviado
+                                </p>
+                            )}
+                            {general && (
+                                <p
+                                    role="alert"
+                                    className="rounded-lg bg-danger-50 px-3 py-2 text-sm font-medium text-danger-700"
+                                >
+                                    {general}
+                                </p>
+                            )}
+                            {envio.codigo_prueba && (
+                                <p className="rounded-lg bg-warning-50 px-3 py-2 text-sm text-warning-700">
+                                    Modo de prueba · {envio.codigo_prueba}
+                                </p>
+                            )}
+                            <Campo
+                                ref={campoCodigo}
+                                etiqueta="Código"
+                                ayuda={`Vence en ${venceEn(envio.minutos)}`}
+                                inputMode="numeric"
+                                autoComplete="one-time-code"
+                                placeholder="000000"
+                                autoFocus
+                                value={codigo}
+                                error={errores.codigo}
+                                onChange={(e) => {
+                                    setCodigo(soloDigitos(e.target.value, 6));
+                                    setErrores({});
+                                }}
+                            />
+                            <Boton type="submit" className="w-full" disabled={enviando}>
+                                Iniciar sesión
                             </Boton>
-                            <Boton
-                                type="button"
-                                variante="enlace"
-                                tamano="chico"
-                                disabled={enviando || espera > 0}
-                                onClick={() => pedirCodigo(null, true)}
-                            >
-                                {espera > 0 ? `Reenviar en ${espera} s` : 'Reenviar'}
+                            <div className="flex justify-between gap-2">
+                                <Boton
+                                    type="button"
+                                    variante="enlace"
+                                    tamano="chico"
+                                    onClick={otroSis}
+                                >
+                                    Otro código SIS
+                                </Boton>
+                                <Boton
+                                    type="button"
+                                    variante="enlace"
+                                    tamano="chico"
+                                    disabled={enviando || espera > 0}
+                                    onClick={() => pedirCodigo(null, true)}
+                                >
+                                    {espera > 0 ? `Reenviar en ${espera} s` : 'Reenviar'}
+                                </Boton>
+                            </div>
+                        </form>
+                    ) : (
+                        <form className="space-y-4" noValidate onSubmit={pedirCodigo}>
+                            <Campo
+                                etiqueta="Código universitario"
+                                inputMode="numeric"
+                                autoComplete="username"
+                                placeholder="Ej: 20251234"
+                                autoFocus
+                                value={sis}
+                                error={errores.sis}
+                                onChange={(e) => {
+                                    setSis(soloDigitos(e.target.value, 10));
+                                    setErrores({});
+                                }}
+                            />
+                            <Boton type="submit" className="w-full" disabled={enviando}>
+                                Enviar código de acceso
                             </Boton>
-                        </div>
-                    </form>
-                ) : (
-                    <form
-                        className="space-y-4 rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-lg shadow-primary-900/5 backdrop-blur"
-                        noValidate
-                        onSubmit={pedirCodigo}
-                    >
-                        <Campo
-                            etiqueta="Código universitario"
-                            inputMode="numeric"
-                            autoComplete="username"
-                            placeholder="Ej: 20251234"
-                            autoFocus
-                            value={sis}
-                            error={errores.sis}
-                            onChange={(e) => {
-                                setSis(soloDigitos(e.target.value, 10));
-                                setErrores({});
-                            }}
-                        />
-                        <Boton type="submit" className="w-full" disabled={enviando}>
-                            Enviar código de acceso
-                        </Boton>
-                        <p className="text-center text-sm text-slate-600">
-                            Recibirá el código de acceso en su correo institucional.
-                        </p>
-                    </form>
-                )}
+                            <p className="text-center text-sm text-slate-600">
+                                Recibirá el código de acceso en su correo institucional.
+                            </p>
+                        </form>
+                    )}
+                </div>
 
                 <Link
                     to="/login"

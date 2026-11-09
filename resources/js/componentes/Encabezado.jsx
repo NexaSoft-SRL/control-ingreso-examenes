@@ -19,7 +19,7 @@ export default function Encabezado({ titulo, subtitulo, volver, sinConexion = fa
                     </Link>
                 )}
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">{titulo}</h1>
+                    <h1 className="text-xl font-bold text-umss-marino sm:text-2xl">{titulo}</h1>
                     {sinConexion && (
                         <Insignia tono="peligro" punto>
                             Sin conexión

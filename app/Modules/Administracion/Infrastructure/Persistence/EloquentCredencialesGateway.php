@@ -8,6 +8,7 @@ use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Application\Contracts\CredencialesGateway;
 use App\Modules\Administracion\Domain\Exceptions\ContrasenaRepetidaException;
 use App\Modules\Administracion\Domain\Models\User;
+use App\Modules\Administracion\Domain\Rules\NombreDeUsuario;
 use App\Modules\Administracion\Infrastructure\Mail\EnlaceRestablecimientoMail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -60,7 +61,7 @@ final class EloquentCredencialesGateway implements CredencialesGateway
     {
         $usuarioNormalizado = mb_strtolower(trim($usuario));
         $cuenta = User::query()
-            ->whereRaw('lower(usuario) = ?', [$usuarioNormalizado])
+            ->whereRaw("replace(lower(usuario), ' ', '') = ?", [NombreDeUsuario::compacto($usuarioNormalizado)])
             ->where('is_active', true)
             ->first();
 

@@ -50,8 +50,8 @@ export default function Chips({ opciones, valor, onCambiar, etiqueta, extra, max
                         onClick={() => onCambiar(o.valor)}
                         className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 ${
                             activo
-                                ? 'border-slate-900 bg-slate-900 text-white'
-                                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                                ? 'border-umss-marino bg-umss-marino text-white'
+                                : 'border-slate-300 bg-white text-slate-700 hover:border-primary-300 hover:bg-primary-50'
                         }`}
                     >
                         {o.color && (
@@ -62,7 +62,7 @@ export default function Chips({ opciones, valor, onCambiar, etiqueta, extra, max
                         )}
                         {o.etiqueta}
                         {o.conteo !== undefined && (
-                            <span className={activo ? 'text-slate-300' : 'text-slate-500'}>
+                            <span className={activo ? 'text-primary-200' : 'text-slate-500'}>
                                 {o.conteo}
                             </span>
                         )}

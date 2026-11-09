@@ -9,6 +9,7 @@ use App\Modules\Administracion\Domain\Exceptions\ContrasenaTemporalVencidaExcept
 use App\Modules\Administracion\Domain\Exceptions\CuentaDesactivadaException;
 use App\Modules\Administracion\Domain\Models\Role;
 use App\Modules\Administracion\Domain\Models\User;
+use App\Modules\Administracion\Domain\Rules\NombreDeUsuario;
 use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -57,7 +58,7 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
             ): ?User {
                 $identificador = mb_strtolower(trim($identifier));
                 $user = User::query()
-                    ->where('usuario', $identificador)
+                    ->whereRaw("replace(usuario, ' ', '') = ?", [NombreDeUsuario::compacto($identificador)])
                     ->lockForUpdate()
                     ->first();
 
@@ -237,7 +238,7 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
     {
         $identificador = mb_strtolower(trim($usuario));
         $user = User::query()
-            ->where('usuario', $identificador)
+            ->whereRaw("replace(usuario, ' ', '') = ?", [NombreDeUsuario::compacto($identificador)])
             ->first();
 
         if (! $user instanceof User || ! $user->is_active) {
@@ -263,7 +264,7 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
     {
         $identificador = mb_strtolower(trim($usuario));
         $user = User::query()
-            ->where('usuario', $identificador)
+            ->whereRaw("replace(usuario, ' ', '') = ?", [NombreDeUsuario::compacto($identificador)])
             ->first();
 
         if (! $user instanceof User) {

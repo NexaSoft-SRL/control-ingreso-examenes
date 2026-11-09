@@ -6,42 +6,37 @@ namespace App\Modules\Administracion\Application\Actions;
 
 use App\Modules\Administracion\Application\Contracts\CuentaUsuarioGateway;
 use App\Modules\Administracion\Application\Contracts\ProponedorUsuario;
+use App\Modules\Administracion\Domain\Rules\NombreDeUsuario;
 
 /**
- * Propone el usuario de una cuenta nueva: primer nombre de pila y apellido
- * paterno juntos, sin punto; en minusculas y sin tildes. Es una propuesta: quien
- * crea la cuenta puede cambiarla.
+ * Propone el usuario de una cuenta nueva: el primer nombre de pila y el
+ * apellido paterno, separados por un espacio («jose soruco»), en minusculas
+ * y sin tildes, aunque el nombre completo sea mas largo. Es una propuesta:
+ * quien crea la cuenta puede cambiarla.
  */
 final readonly class ProponerUsuario implements ProponedorUsuario
 {
-    private const LARGO_MAXIMO = 60;
-
-    private const SIN_TILDES = [
-        'á' => 'a', 'à' => 'a', 'ä' => 'a', 'â' => 'a', 'ã' => 'a',
-        'é' => 'e', 'è' => 'e', 'ë' => 'e', 'ê' => 'e',
-        'í' => 'i', 'ì' => 'i', 'ï' => 'i', 'î' => 'i',
-        'ó' => 'o', 'ò' => 'o', 'ö' => 'o', 'ô' => 'o', 'õ' => 'o',
-        'ú' => 'u', 'ù' => 'u', 'ü' => 'u', 'û' => 'u',
-        'ñ' => 'n', 'ç' => 'c',
-    ];
+    /**
+     * Las que van delante de un apellido compuesto, ya en minusculas.
+     */
+    private const PARTICULAS = ['de', 'del', 'la', 'las', 'los', 'y'];
 
     public function __construct(
         private CuentaUsuarioGateway $cuentas,
     ) {}
 
     /**
-     * El nombre llega como en la oferta, «Paterno Materno Nombres»: el de
-     * pila es la tercera palabra si hay mas de dos; si no, la ultima.
+     * Con un numero al final si ya hay otra cuenta igual («jose soruco2»).
      */
     public function execute(string $nombreCompleto): string
     {
-        $base = $this->base($nombreCompleto);
+        $base = self::formar($nombreCompleto);
         $propuesta = $base;
         $sufijo = 2;
 
         while ($this->cuentas->usuarioRegistrado($propuesta)) {
             $numero = (string) $sufijo;
-            $propuesta = substr($base, 0, self::LARGO_MAXIMO - strlen($numero)).$numero;
+            $propuesta = substr($base, 0, NombreDeUsuario::LARGO_MAXIMO - strlen($numero)).$numero;
             $sufijo++;
         }
 
@@ -53,38 +48,69 @@ final readonly class ProponerUsuario implements ProponedorUsuario
         return $this->execute($nombreCompleto);
     }
 
-    private function base(string $nombreCompleto): string
+    public function normalizar(string $usuario): string
+    {
+        return NombreDeUsuario::normalizar($usuario);
+    }
+
+    /**
+     * El usuario que le toca a un nombre, sin mirar si ya existe. El nombre
+     * llega como en la oferta, «Paterno Materno Nombres»: el de pila es el
+     * primero despues de los dos apellidos; con solo dos grupos, el
+     * segundo. Los apellidos compuestos («Del Castillo», «De La Barra»)
+     * cuentan como un solo apellido y van juntos: «nelly delabarra».
+     */
+    public static function formar(string $nombreCompleto): string
     {
         $palabras = [];
 
         foreach (preg_split('/\s+/u', trim($nombreCompleto)) ?: [] as $palabra) {
-            $limpia = $this->limpiar($palabra);
+            $limpia = NombreDeUsuario::limpiar($palabra);
 
             if ($limpia !== '') {
                 $palabras[] = $limpia;
             }
         }
 
-        $cantidad = count($palabras);
-
-        if ($cantidad === 0) {
+        if ($palabras === []) {
             return 'usuario';
         }
 
-        if ($cantidad === 1) {
-            return substr($palabras[0], 0, self::LARGO_MAXIMO);
+        // «Paterno Materno Nombres»: hasta dos apellidos y lo que sigue.
+        $grupos = [];
+        $resto = $palabras;
+
+        while ($resto !== [] && count($grupos) < 2) {
+            $grupos[] = self::apellido($resto);
         }
 
-        $paterno = $palabras[0];
-        $pila = $cantidad > 2 ? $palabras[2] : $palabras[$cantidad - 1];
+        // Sin nombres despues de dos apellidos («Mamani Diego»): el segundo
+        // es el nombre. Con un solo grupo, queda ese.
+        $pila = $resto[0] ?? $grupos[1] ?? '';
 
-        return substr($pila.$paterno, 0, self::LARGO_MAXIMO);
+        return substr(trim($pila.' '.$grupos[0]), 0, NombreDeUsuario::LARGO_MAXIMO);
     }
 
-    private function limpiar(string $palabra): string
+    /**
+     * Saca del principio de `$palabras` un apellido: las particulas que
+     * tenga delante y la palabra que las sigue, juntas.
+     *
+     * @param  list<string>  $palabras
+     */
+    private static function apellido(array &$palabras): string
     {
-        $minusculas = strtr(mb_strtolower($palabra), self::SIN_TILDES);
+        $apellido = '';
 
-        return preg_replace('/[^a-z0-9]/', '', $minusculas) ?? '';
+        while ($palabras !== []) {
+            $palabra = array_shift($palabras);
+            $apellido .= $palabra;
+
+            // La particula sola al final («Jorge De») no se queda esperando.
+            if (! in_array($palabra, self::PARTICULAS, true) || $palabras === []) {
+                break;
+            }
+        }
+
+        return $apellido;
     }
 }

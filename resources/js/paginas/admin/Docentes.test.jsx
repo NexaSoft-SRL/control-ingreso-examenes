@@ -406,10 +406,8 @@ describe('Docentes', () => {
         const usuario = await screen.findByLabelText(/Usuario/);
         const boton = screen.getByRole('button', { name: /Activar cuenta/ });
 
-        fireEvent.change(usuario, { target: { value: 'maría cespedes' } });
-        expect(
-            screen.getByText('Letras o números, separados por punto o guion')
-        ).toBeInTheDocument();
+        fireEvent.change(usuario, { target: { value: 'maría..cespedes' } });
+        expect(screen.getByText('Nombre y apellido, separados por un espacio')).toBeInTheDocument();
         expect(boton).toBeDisabled();
 
         fireEvent.change(usuario, { target: { value: '' } });

@@ -14,10 +14,11 @@ interface GeneradorArchivoReporte
      *     hora: string,
      *     periodo: string,
      *     tipo: string,
+     *     grupos?: string,
      *     asignatura: array{nombre: string},
      *     filas: array{
-     *         asistencia: list<array{codigo: string, estudiante: string, grupo: string, aula: string, hora: string|null, medio: string, situacion: string}>,
-     *         ausentes: list<array{apellidos: string, nombres: string, codigo: string, grupo: string, carrera: string, aula: string}>,
+     *         asistencia: list<array{codigo: string, estudiante: string, grupo: string, docente: string, aula: string, hora: string|null, medio: string, situacion: string}>,
+     *         ausentes: list<array{apellidos: string, nombres: string, codigo: string, grupo: string, docente: string, carrera: string, aula: string}>,
      *         incidencias: list<array{hora: string, aula: string, codigo: string|null, estudiante: string, tipo: string, detalle: string, registrado_por: string}>
      *     }
      * }  $reporte

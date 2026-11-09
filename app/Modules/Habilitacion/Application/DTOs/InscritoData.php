@@ -25,5 +25,7 @@ final readonly class InscritoData
         public ?string $registradaPor = null,
         /** Cuando la registro, «AAAA-MM-DD HH:MM». */
         public ?string $registradaEl = null,
+        /** Si tiene foto: la lista la muestra sin pedir las que no hay. */
+        public bool $conFoto = false,
     ) {}
 }

@@ -35,3 +35,6 @@ yarn-error.log
 .vscode/
 .DS_Store
 Thumbs.db
+
+# ---- WebAssembly de MediaPipe: lo copia `npm run mediapipe:copiar` (postinstall) ----
+/public/vendor/mediapipe/wasm/

@@ -27,6 +27,8 @@ import { PuntoFacultad } from '../../componentes/FiltroFacultad';
 import IconoAsignatura from '../../componentes/IconoAsignatura';
 import Insignia from '../../componentes/Insignia';
 import { dimensionesDe, ImagenNoValida, reducirImagen } from '../../utiles/imagen';
+import { encuadrarFoto } from '../../utiles/encuadrarFoto';
+import { revisarFoto } from '../../utiles/revisarFoto';
 
 // De dónde salió el dato del estudiante: «Administración» si lo cargó la
 // administración (verificado), «Docente» si llegó en la lista de un grupo.
@@ -119,8 +121,13 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
             if (medidas && Math.min(medidas.ancho, medidas.alto) < MINIMO_PX) {
                 throw new ImagenNoValida(`Resolución insuficiente · mínimo ${MINIMO_PX} px`);
             }
+            // Cuadrada alrededor del rostro y revisada (un solo rostro, de
+            // frente) antes de guardarla.
+            const reducida = await encuadrarFoto(await reducirImagen(elegida));
+            const { errores } = await revisarFoto(reducida);
+            if (errores.length > 0) throw new ImagenNoValida(errores[0]);
             const formulario = new FormData();
-            formulario.append('foto', await reducirImagen(elegida));
+            formulario.append('foto', reducida);
             await api.post(`/estudiantes/${id}/foto`, formulario);
             avisar('Foto guardada');
             setVersion((v) => v + 1);
@@ -143,10 +150,10 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
                 <img
                     src={url}
                     alt="Foto del estudiante"
-                    className="h-32 w-24 rounded-xl border border-slate-200 object-cover shadow-sm"
+                    className="h-28 w-28 rounded-xl border border-slate-200 object-cover shadow-sm"
                 />
             ) : (
-                <span className="flex h-32 w-24 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500">
+                <span className="flex h-28 w-28 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500">
                     <UserRound className="h-7 w-7 text-slate-400" strokeWidth={1.5} />
                     Sin foto
                 </span>

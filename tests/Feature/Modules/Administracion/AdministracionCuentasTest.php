@@ -176,13 +176,13 @@ final class AdministracionCuentasTest extends TestCase
         $this->actingAs($this->administrador)
             ->postJson('/api/usuarios', [
                 'nombre' => 'Al',
-                'usuario' => 'con espacios',
+                'usuario' => 'con..puntos',
                 'correo' => 'mal',
                 'rol' => 'Responsable',
             ])
             ->assertUnprocessable()
             ->assertJsonPath('errors.nombre.0', 'Mínimo 3 caracteres')
-            ->assertJsonPath('errors.usuario.0', 'Letras o números, separados por punto o guion')
+            ->assertJsonPath('errors.usuario.0', 'Nombre y apellido, separados por un espacio')
             ->assertJsonPath('errors.correo.0', 'Correo no válido')
             ->assertJsonPath('errors.rol.0', 'El rol no existe');
 
@@ -311,7 +311,7 @@ final class AdministracionCuentasTest extends TestCase
         $this->actingAs($this->administrador)
             ->putJson($this->ruta(), [
                 'nombre' => '',
-                'usuario' => 'con espacios',
+                'usuario' => 'con..puntos',
                 'correo' => 'mal',
                 'rol' => 'Otro',
                 'activo' => 'quizas',
