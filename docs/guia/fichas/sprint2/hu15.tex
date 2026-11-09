@@ -1,0 +1,131 @@
+% Ficha HU-15 del sprint 2 rehecho. Una historia = una vista completa: las
+% cuentas y los roles, con la creacion de roles nuevos y sus permisos.
+% Tipo: mejora de HU-02.
+\def\HUNro{15}
+\def\HUSprint{2}
+\def\HUTitulo{Administración > Usuarios y roles > Gestionar cuentas y crear roles}
+\def\HUModulo{M7}
+\def\HUReq{16}
+\def\HUPuntos{5}
+
+\def\HUComo{administrador}
+\def\HUQuiero{administrar las cuentas del sistema y definir roles nuevos con los permisos
+que cada uno necesita}
+\def\HUPara{que cada persona entre solo a lo que le corresponde y que, cuando la
+universidad necesite un perfil distinto de los tres de inicio, pueda darle acceso sin
+pedir un cambio en el sistema}
+
+\def\HUDescripcion{%
+No hay registro público: toda cuenta la crea el administrador (o nace de activar a un
+docente, HU-12). Esta vista reúne las dos cosas de las que depende el acceso: quién tiene
+cuenta y qué puede hacer cada rol.
+
+La parte de cuentas muestra cuántas hay por rol y la lista, que se busca por nombre,
+usuario o correo y se filtra por rol y por «Bloqueadas». Desde ella se crea una cuenta
+(nombre, usuario, correo opcional y rol), se la edita, se la bloquea o desbloquea y se le
+restablece la contraseña. Toda cuenta nueva y todo restablecimiento generan una
+contraseña temporal individual, que se muestra una sola vez, se envía al correo si lo
+hay, vence a las 72 horas y obliga a cambiarla en el primer ingreso. Las cuentas no se
+eliminan, se bloquean: así la bitácora conserva a su autor. El administrador no puede
+bloquear su propia cuenta.
+
+La parte de roles muestra la matriz de permisos: qué pantallas alcanza cada rol. El
+sistema arranca con tres roles ---Administrador, Docente y Auxiliar--- y el
+administrador puede crear otros: les pone un nombre, marca los permisos que tendrán y
+los asigna a las cuentas. Un permiso equivale a una pantalla del sistema con sus
+acciones. Los tres roles de inicio no se eliminan. Un rol creado se puede modificar, y
+se elimina solo si ninguna cuenta lo usa. El estudiante no tiene cuenta ni rol.
+
+De esta vista depende el acceso a todas las demás: cada pantalla comprueba el permiso
+del rol antes de responder. Todas las escrituras quedan en la bitácora (HU-07), sin
+contraseñas.
+
+Esta historia mejora la gestión de roles y permisos del sprint 1 (HU-02). Aquella
+historia se centraba en los roles: crearlos, darles permisos y asignarlos a los usuarios.
+Ahora la vista suma la gestión completa de las cuentas (alta con usuario y contraseña
+temporal, edición, bloqueo y restablecimiento, con búsqueda y filtros), los roles de
+inicio pasan a ser tres y los permisos siguen las pantallas del diseño vigente. Se
+mantiene la creación de roles nuevos, que la consultora pidió conservar en la novena
+revisión.}
+
+\def\HUCriterios{%
+\item Dado que el administrador abre Usuarios y roles, Cuando se carga la vista, Entonces
+      el sistema muestra cuántas cuentas hay por rol y lista las cuentas, las más
+      recientes primero y de a 20 por página, con nombre, usuario, correo o «Sin correo»,
+      rol y estado («Activo» o «Bloqueado»).
+\item Dado que el administrador escribe un nombre, un usuario o un correo, Cuando se
+      aplica la búsqueda, Entonces la lista muestra solo las coincidencias y, si no hay
+      ninguna, «Sin resultados».
+\item Dado que el administrador elige un rol ---en el filtro o pulsando su cifra---,
+      Cuando se aplica, Entonces la lista muestra solo las cuentas de ese rol y cada
+      opción lleva su conteo.
+\item Dado que el administrador activa «Bloqueadas», Cuando se aplica, Entonces la lista
+      muestra solo las cuentas bloqueadas, y el filtro se combina con el de rol y con la
+      búsqueda.
+\item Dado que el administrador pulsa «Nuevo usuario» y completa nombre, usuario y rol,
+      Cuando pulsa «Crear», Entonces el sistema crea la cuenta, la muestra primera en la
+      lista y entrega una contraseña temporal una sola vez, que vence a las 72 horas y se
+      envía también al correo si se indicó uno.
+\item Dado que el nombre o el usuario están vacíos, el nombre tiene menos de tres
+      caracteres, el usuario tiene caracteres no permitidos o ya existe, o el correo no es
+      válido, Cuando se intenta guardar, Entonces el sistema no guarda y señala el campo
+      con «Obligatorio», «Mínimo 3 caracteres», «Solo letras, números, puntos y guiones»,
+      «Ya existe» o «Correo no válido».
+\item Dado que el administrador pulsa «Editar» en una cuenta, Cuando cambia su nombre,
+      usuario, correo o rol y guarda, Entonces el sistema aplica los cambios y avisa
+      «Cambios guardados»; no admite el usuario ni el correo de otra cuenta.
+\item Dado que el administrador pulsa «Bloquear» en una cuenta, Cuando guarda, Entonces
+      la cuenta queda «Bloqueado», no puede iniciar sesión y no se elimina; con
+      «Desbloquear» vuelve a «Activo», y el intento de bloquear la cuenta propia se
+      rechaza con «No puedes bloquear tu propia cuenta.».
+\item Dado que el administrador pulsa «Restablecer contraseña» en una cuenta, Cuando se
+      confirma, Entonces el sistema emite una contraseña temporal nueva, que se muestra
+      una sola vez, se envía al correo si lo hay y obliga a cambiarla en el siguiente
+      ingreso.
+\item Dado que la vista está cargada, Cuando se muestra «Permisos por rol», Entonces el
+      sistema presenta la matriz de pantallas por rol, con los tres roles de inicio y los
+      roles creados.
+\item Dado que el administrador pulsa «Nuevo rol», escribe un nombre y marca al menos un
+      permiso, Cuando guarda, Entonces el rol aparece en la matriz, en el filtro y en el
+      selector de rol de las cuentas; sin nombre, con un nombre que ya existe o sin
+      permisos, el sistema no lo crea y señala el campo.
+\item Dado que existe un rol creado por el administrador, Cuando cambia sus permisos y
+      guarda, Entonces las cuentas de ese rol ganan o pierden esos accesos desde su
+      siguiente petición.
+\item Dado que se intenta eliminar uno de los tres roles de inicio, o un rol creado que
+      tiene cuentas asignadas, Cuando se pide, Entonces el sistema lo rechaza indicando el
+      motivo; un rol creado sin cuentas sí se elimina.
+\item Dado que un rol no tiene el permiso de usuarios y roles, Cuando intenta ver las
+      cuentas, modificarlas o tocar un rol, Entonces el sistema responde con una negativa
+      explícita.
+\item Dado que se crea, edita, bloquea o desbloquea una cuenta, se restablece una
+      contraseña o se crea, modifica o elimina un rol, Cuando la operación se completa,
+      Entonces queda asentada en la bitácora con su autor y sin la contraseña.
+\item Dado que el administrador accede desde un dispositivo móvil, Cuando abre Usuarios y
+      roles, Entonces las tablas pasan a listas y los formularios se adaptan de forma
+      completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{UsuariosListadoTest}: cuentas con su rol y estado, las más recientes
+      primero, búsqueda por nombre, usuario y correo, filtros por rol y por bloqueadas, y
+      paginación (criterios 1 a 4).
+\item \texttt{ContrasenaTemporalTest}: la cuenta nueva recibe una contraseña temporal
+      que vence a las 72 horas, viaja al correo de contacto y no queda en la bitácora
+      (criterios 5 y 15).
+\item \texttt{AdministracionCuentasTest}: edición de nombre, usuario, correo y rol,
+      validación de los campos, usuario o correo de otra cuenta, bloqueo en lugar de
+      eliminación, desbloqueo y cuenta propia (criterios 6 a 8).
+\item \texttt{RestablecerTemporalTest}: contraseña temporal nueva devuelta una sola vez,
+      envío al correo y asiento en la bitácora (criterios 9 y 15).
+\item \texttt{MatrizPermisosTest} y \texttt{RolesDelSistemaTest}: matriz de pantallas por
+      rol y los tres roles de inicio con sus permisos (criterio 10).
+\item \texttt{RolesPersonalizadosTest} (por escribir): crear un rol con sus permisos,
+      nombre repetido o sin permisos, cambio de permisos con efecto en sus cuentas, y
+      rechazo al eliminar un rol de inicio o uno con cuentas (criterios 11 a 13 y 15).
+\item \texttt{AdministracionCuentasTest}, \texttt{UsuariosListadoTest} y
+      \texttt{MatrizPermisosTest}: sin sesión y rol sin el permiso (criterio 14).
+\item \texttt{Usuarios.test.jsx} (por escribir): filtros, formulario de cuenta con sus
+      errores, bloqueo, matriz de permisos y formulario de rol (criterios 2 a 8, 10, 11
+      y 16).}
+
+\input{cuerpo}

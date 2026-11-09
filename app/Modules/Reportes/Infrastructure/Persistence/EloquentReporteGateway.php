@@ -19,7 +19,6 @@ use App\Modules\Reportes\Application\DTOs\FilaResumenEstudiante;
 use App\Modules\Reportes\Application\DTOs\GrupoReporteData;
 use App\Modules\Reportes\Application\DTOs\ReporteHorarios;
 use App\Modules\Reportes\Domain\Rules\FechaLegible;
-use DomainException;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -49,7 +48,7 @@ final class EloquentReporteGateway implements ReporteGateway
      * Quien registro el examen: su nombre de docente o, si la cuenta no es
      * de un docente, el de la cuenta.
      */
-    private const DOCENTE = 'coalesce(docente.nombre_completo, creador.nombre)';
+    private const DOCENTE = 'coalesce(docente.nombre_completo, creador.name)';
 
     /**
      * El grupo del estudiante entre los del examen.
@@ -57,15 +56,26 @@ final class EloquentReporteGateway implements ReporteGateway
     private const GRUPO_DEL_ESTUDIANTE = '(select grupo_e.codigo from inscripciones as inscripcion_e'
         .' join examen_grupo as eg_e on eg_e.grupo_id = inscripcion_e.grupo_id'
         .' join grupos as grupo_e on grupo_e.id = inscripcion_e.grupo_id'
-        .' where inscripcion_e.estudiante_id = estudiante.id'
+        .' where inscripcion_e.estudiante_id = estudiante.id and inscripcion_e.baja_en is null'
         .' and eg_e.examen_id = %s'
         .' order by grupo_e.id limit 1) as grupo';
 
     /**
+     * El docente de ese mismo grupo (el de codigo menor entre los del examen).
+     */
+    private const DOCENTE_DEL_ESTUDIANTE = '(select docente_e.nombre_completo from inscripciones as inscripcion_e'
+        .' join examen_grupo as eg_e on eg_e.grupo_id = inscripcion_e.grupo_id'
+        .' join grupos as grupo_e on grupo_e.id = inscripcion_e.grupo_id'
+        .' left join docentes as docente_e on docente_e.id = grupo_e.docente_id'
+        .' where inscripcion_e.estudiante_id = estudiante.id and inscripcion_e.baja_en is null'
+        .' and eg_e.examen_id = %s'
+        .' order by grupo_e.id limit 1) as docente';
+
+    /**
      * La ventana de un examen (alias `%1$s`): desde que abre la puerta
      * (un parametro: los minutos de apertura) hasta que el docente lo
-     * finaliza, que puede pasar de su duracion prevista; sin finalizar,
-     * hasta el fin de su dia.
+     * finaliza, que puede pasar de su duracion; sin finalizar, hasta el fin
+     * de su dia.
      */
     private const EN_LA_VENTANA = "incidencia.ocurrida_en >= (%1\$s.fecha + %1\$s.hora_inicio) - (?::int * interval '1 minute')"
         ." and incidencia.ocurrida_en <= coalesce(%1\$s.finalizado_en, %1\$s.fecha + interval '1 day')";
@@ -91,92 +101,6 @@ final class EloquentReporteGateway implements ReporteGateway
         'SEGUNDA_INSTANCIA' => 'Segunda instancia',
         'MESA' => 'Examen de mesa',
     ];
-
-    /**
-     * Comprueba el volumen en PostgreSQL antes de ejecutar las consultas
-     * que materializan arreglos y objetos del reporte.
-     *
-     * En reportes consolidados se contabilizan registros de origen:
-     * el presupuesto es conservador para evitar grandes consultas intermedias.
-     */
-    public function validarVolumenExportacion(
-        string $tipo,
-        AlcanceReporte $alcance,
-        int $limite
-    ): void {
-        if ($limite < 1) {
-            throw new \InvalidArgumentException('El límite debe ser positivo.');
-        }
-
-        $examenId = $alcance->examenId;
-
-        $volumen = match ($tipo) {
-            'horarios' => $this->contarIngresos($alcance),
-
-            'registrados' => $this->contarExamenes($alcance)
-                + DB::table('examen_aula')
-                    ->whereIn('examen_id', $this->idsDe($alcance))->count()
-                + DB::table('habilitaciones')
-                    ->whereIn('examen_id', $this->idsDe($alcance))->count()
-                + $this->contarIngresos($alcance),
-
-            'intentos' => $this->contarIntentos($alcance),
-
-            'estudiantes' => $this->contarEstudiantes($alcance)
-                + DB::table('inscripciones as inscripcion')
-                    ->join('examen_grupo as eg', 'eg.grupo_id', '=', 'inscripcion.grupo_id')
-                    ->whereIn('eg.examen_id', $this->idsDe($alcance))
-                    ->count()
-                + DB::table('habilitaciones')
-                    ->whereIn('examen_id', $this->idsDe($alcance))->count()
-                + $this->contarIngresos($alcance)
-                + $this->incidenciasDe($alcance)->count(),
-
-            'incidencias' => $examenId === null
-                ? 0
-                : DB::table('incidencias as incidencia')
-                    ->crossJoin('examenes as examen')
-                    ->where('examen.id', $examenId)
-                    ->whereRaw(
-                        $this->incidenciaDelExamen(),
-                        [$this->apertura()]
-                    )->count(),
-
-            'asistencia' => $examenId === null
-                ? 0
-                : DB::table('ingresos')
-                    ->where('examen_id', $examenId)->count(),
-
-            'ausentes' => $examenId === null
-                ? 0
-                : DB::table('habilitaciones as habilitacion')
-                    ->where('habilitacion.examen_id', $examenId)
-                    ->where('habilitacion.habilitado', true)
-                    ->whereNotExists(function (Builder $existe): void {
-                        $existe->selectRaw('1')
-                            ->from('ingresos as ingreso')
-                            ->whereColumn(
-                                'ingreso.estudiante_id',
-                                'habilitacion.estudiante_id'
-                            )
-                            ->whereColumn(
-                                'ingreso.examen_id',
-                                'habilitacion.examen_id'
-                            );
-                    })->count(),
-
-            default => throw new \InvalidArgumentException(
-                'Tipo de reporte no válido.'
-            ),
-        };
-
-        if ($volumen > $limite) {
-            throw new DomainException(
-                'El reporte supera el límite de volumen para exportación. '
-                .'Reduzca el alcance mediante los filtros disponibles.'
-            );
-        }
-    }
 
     public function contarExamenes(AlcanceReporte $alcance): int
     {
@@ -429,6 +353,8 @@ final class EloquentReporteGateway implements ReporteGateway
         $filas = $this->intentosDe($alcance)
             ->leftJoin('estudiantes as estudiante', 'estudiante.id', '=', 'incidencia.estudiante_id')
             ->leftJoin('aulas as aula', 'aula.id', '=', 'incidencia.aula_id')
+            ->leftJoin('examenes as correspondiente', 'correspondiente.id', '=', 'incidencia.examen_correspondiente_id')
+            ->leftJoin('asignaturas as materia', 'materia.id', '=', 'correspondiente.asignatura_id')
             ->orderBy('incidencia.ocurrida_en')
             ->orderBy('incidencia.id')
             // A que examen intento ingresar: el que anoto la puerta o, si
@@ -459,6 +385,8 @@ final class EloquentReporteGateway implements ReporteGateway
                 'estudiante.nombres',
                 'estudiante.apellidos',
                 'aula.nombre as aula',
+                'materia.nombre as materia',
+                'correspondiente.tipo as tipo_correspondiente',
             ])
             ->get();
 
@@ -466,6 +394,7 @@ final class EloquentReporteGateway implements ReporteGateway
 
         foreach ($filas as $fila) {
             $columnas = $this->columnas($fila);
+            $materia = $this->texto($columnas['materia'] ?? null);
 
             $intentos[] = new FilaIntento(
                 ocurridaEn: $this->instante($columnas['ocurrida_en'] ?? null),
@@ -476,7 +405,9 @@ final class EloquentReporteGateway implements ReporteGateway
                     : $this->nombre($columnas),
                 aula: $this->texto($columnas['aula'] ?? null),
                 examenIntentado: $this->texto($columnas['intentado'] ?? null),
-                examenCorrespondiente: null,
+                examenCorrespondiente: $materia === null
+                    ? null
+                    : sprintf('%s · %s', $materia, $this->tipo($columnas['tipo_correspondiente'] ?? null)),
                 causa: $this->texto($columnas['causa'] ?? null),
             );
         }
@@ -538,7 +469,7 @@ final class EloquentReporteGateway implements ReporteGateway
             ->whereNotNull('incidencia.estudiante_id')
             ->groupBy('incidencia.estudiante_id')
             ->selectRaw('incidencia.estudiante_id as estudiante_id')
-            ->selectRaw("count(*) filter (where incidencia.origen = 'SISTEMA' and incidencia.tipo = 'INTENTO_NO_AUTORIZADO') as intentos")
+            ->selectRaw("count(*) filter (where incidencia.origen = 'SISTEMA') as intentos")
             ->selectRaw(
                 "count(*) filter (where incidencia.origen <> 'SISTEMA' and incidencia.tipo = 'EXPULSION') as expulsiones"
             )
@@ -609,9 +540,9 @@ final class EloquentReporteGateway implements ReporteGateway
             ->crossJoin('examenes as examen')
             ->leftJoin('aulas as aula', 'aula.id', '=', 'incidencia.aula_id')
             ->leftJoin('estudiantes as estudiante', 'estudiante.id', '=', 'incidencia.estudiante_id')
-            ->leftJoin('usuarios as autor', 'autor.id', '=', 'incidencia.reportada_por')
+            ->leftJoin('users as autor', 'autor.id', '=', 'incidencia.reportada_por')
             ->leftJoin('docentes as docente_autor', 'docente_autor.user_id', '=', 'autor.id')
-            ->leftJoin('accesos_codigo_aula as acceso', 'acceso.id', '=', 'incidencia.acceso_codigo_aula_id')
+            ->leftJoin('accesos_aula as acceso', 'acceso.id', '=', 'incidencia.acceso_aula_id')
             ->where('examen.id', $examenId)
             ->whereRaw($this->incidenciaDelExamen(), [$this->apertura()])
             ->orderBy('incidencia.ocurrida_en')
@@ -628,10 +559,10 @@ final class EloquentReporteGateway implements ReporteGateway
                 'estudiante.codigo_universitario',
                 'estudiante.nombres',
                 'estudiante.apellidos',
-                'acceso.nombre_colaborador as acceso',
+                'acceso.nombre as acceso',
             ])
             // Como en los demas reportes: el nombre de docente o el de la cuenta.
-            ->selectRaw('coalesce(docente_autor.nombre_completo, autor.nombre) as autor')
+            ->selectRaw('coalesce(docente_autor.nombre_completo, autor.name) as autor')
             ->get();
 
         $incidencias = [];
@@ -677,10 +608,11 @@ final class EloquentReporteGateway implements ReporteGateway
                 'estudiante.apellidos',
                 'aula.nombre as aula',
                 'ingreso.registrado_en',
-                'ingreso.medio_identificacion',
+                'ingreso.medio',
                 'ingreso.es_excepcion',
             ])
             ->selectRaw(sprintf(self::GRUPO_DEL_ESTUDIANTE, 'ingreso.examen_id'))
+            ->selectRaw(sprintf(self::DOCENTE_DEL_ESTUDIANTE, 'ingreso.examen_id'))
             ->selectRaw(
                 'exists (select 1 from incidencias as expulsion where expulsion.ingreso_id = ingreso.id'
                 ." and expulsion.tipo = 'EXPULSION') as expulsado"
@@ -697,13 +629,9 @@ final class EloquentReporteGateway implements ReporteGateway
                 nombre: $this->nombre($columnas),
                 grupo: $this->texto($columnas['grupo'] ?? null),
                 aula: $this->texto($columnas['aula'] ?? null),
+                docente: $this->texto($columnas['docente'] ?? null),
                 hora: substr($this->instante($columnas['registrado_en'] ?? null), 11),
-                medio: match ($this->texto($columnas['medio_identificacion'] ?? null)) {
-                    'qr' => 'Código QR',
-                    'codigo' => 'Código SIS',
-                    'documento' => 'C.I.',
-                    default => 'Sin dato',
-                },
+                medio: $this->texto($columnas['medio'] ?? null) ?? '',
                 expulsado: (bool) ($columnas['expulsado'] ?? false),
                 excepcion: (bool) ($columnas['es_excepcion'] ?? false),
             );
@@ -741,6 +669,7 @@ final class EloquentReporteGateway implements ReporteGateway
                 'aula.nombre as aula',
             ])
             ->selectRaw(sprintf(self::GRUPO_DEL_ESTUDIANTE, 'habilitacion.examen_id'))
+            ->selectRaw(sprintf(self::DOCENTE_DEL_ESTUDIANTE, 'habilitacion.examen_id'))
             ->get();
 
         $ausentes = [];
@@ -752,6 +681,7 @@ final class EloquentReporteGateway implements ReporteGateway
                 codigoUniversitario: $this->texto($columnas['codigo_universitario'] ?? null) ?? '',
                 nombre: $this->nombre($columnas),
                 grupo: $this->texto($columnas['grupo'] ?? null),
+                docente: $this->texto($columnas['docente'] ?? null),
                 carrera: $this->texto($columnas['carrera'] ?? null),
                 aula: $this->texto($columnas['aula'] ?? null),
             );
@@ -826,12 +756,30 @@ final class EloquentReporteGateway implements ReporteGateway
 
         $columnas = $this->columnas($fila);
 
+        // Los grupos del examen con su docente, para el encabezado.
+        $grupos = [];
+
+        foreach (DB::table('examen_grupo as eg')
+            ->join('grupos as grupo', 'grupo.id', '=', 'eg.grupo_id')
+            ->leftJoin('docentes as docente', 'docente.id', '=', 'grupo.docente_id')
+            ->where('eg.examen_id', $examenId)
+            ->orderBy('grupo.codigo')
+            ->get(['grupo.codigo', 'docente.nombre_completo']) as $grupo) {
+            $g = $this->columnas($grupo);
+            $grupos[] = trim(sprintf(
+                '%s · %s',
+                $this->texto($g['codigo'] ?? null) ?? '',
+                $this->texto($g['nombre_completo'] ?? null) ?? 'Sin docente',
+            ));
+        }
+
         return new ExamenReporteData(
             id: $this->entero($columnas['id'] ?? null),
             asignatura: $this->texto($columnas['asignatura'] ?? null) ?? '',
             tipo: $this->tipo($columnas['tipo'] ?? null),
             fecha: $this->fecha($columnas['fecha'] ?? null),
             hora: $this->hora($columnas['hora_inicio'] ?? null),
+            grupos: implode('; ', $grupos),
         );
     }
 
@@ -965,6 +913,7 @@ final class EloquentReporteGateway implements ReporteGateway
         $filas = DB::table('inscripciones as inscripcion')
             ->join('estudiantes as estudiante', 'estudiante.id', '=', 'inscripcion.estudiante_id')
             ->where('inscripcion.grupo_id', $grupoId)
+            ->whereNull('inscripcion.baja_en')
             ->orderByRaw("translate(lower(estudiante.apellidos), 'áéíóúüñ', 'aeiouun')")
             ->orderByRaw("translate(lower(estudiante.nombres), 'áéíóúüñ', 'aeiouun')")
             ->orderBy('estudiante.id')
@@ -1001,7 +950,7 @@ final class EloquentReporteGateway implements ReporteGateway
     {
         $consulta = DB::table('examenes as examen')
             ->join('asignaturas as asignatura', 'asignatura.id', '=', 'examen.asignatura_id')
-            ->join('usuarios as creador', 'creador.id', '=', 'examen.creado_por')
+            ->join('users as creador', 'creador.id', '=', 'examen.creado_por')
             ->leftJoin('docentes as docente', 'docente.user_id', '=', 'examen.creado_por');
 
         if ($alcance->examenId !== null) {
@@ -1100,6 +1049,7 @@ final class EloquentReporteGateway implements ReporteGateway
         return DB::table('inscripciones as inscripcion')
             ->join('examen_grupo as eg', 'eg.grupo_id', '=', 'inscripcion.grupo_id')
             ->whereIn('eg.examen_id', $this->idsDe($alcance))
+            ->whereNull('inscripcion.baja_en')
             ->select(['inscripcion.estudiante_id', 'eg.examen_id'])
             ->union(
                 DB::table('habilitaciones')

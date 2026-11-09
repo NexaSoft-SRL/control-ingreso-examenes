@@ -1,5 +1,15 @@
 import { useState } from 'react';
-import { ClipboardList, GraduationCap, TriangleAlert, Upload, UserPen } from 'lucide-react';
+import {
+    Camera,
+    ClipboardList,
+    Download,
+    GraduationCap,
+    TriangleAlert,
+    Upload,
+    UserPen,
+} from 'lucide-react';
+import descargar from '../../api/descargar';
+import { mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
 import usarPaginaServidor from '../../api/usarPaginaServidor';
 import { useAviso } from '../../componentes/Aviso';
@@ -9,13 +19,15 @@ import Dato from '../../componentes/Dato';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
 import FiltroFacultad, { PuntoFacultad } from '../../componentes/FiltroFacultad';
+import Insignia from '../../componentes/Insignia';
 import Paginacion from '../../componentes/Paginacion';
 import Seleccion from '../../componentes/Seleccion';
 import Tarjeta from '../../componentes/Tarjeta';
+import { diaMes, fechaCorta } from '../../utiles/texto';
 import CargaInscripciones from './CargaInscripciones';
 import Conflictos from './Conflictos';
 import FichaEstudiante, { Origen } from './FichaEstudiante';
-import { BotonPlazoFotos, BotonPlazosFotoGrupo } from './PlazoFotos';
+import PlazoFotos from './PlazoFotos';
 
 const POR_PAGINA = 25;
 const TH = 'px-4 py-3 font-medium';
@@ -31,23 +43,39 @@ export default function Padron() {
     const [pestana, setPestana] = useState('padron');
     const [ficha, setFicha] = useState(null);
     const [cargando, setCargando] = useState(false);
+    const [fijandoPlazo, setFijandoPlazo] = useState(false);
     // Cada carga vuelve a pedir los conflictos aunque la pestaña esté abierta.
     const [cargas, setCargas] = useState(0);
     const [aviso, avisar] = useAviso();
 
     const resumen = usarConsulta('/estudiantes/resumen');
+    const plazo = usarConsulta('/estudiantes/plazo-fotos');
+    // El subtítulo es un adorno: si la consulta falla, la página sigue sin él.
+    const periodos = usarConsulta('/periodos/vigentes');
+    const periodo = periodos.cuerpo?.principal;
     const lista = usarPaginaServidor({
         porPagina: POR_PAGINA,
-        filtros: { facultad: null, carrera: null },
+        filtros: { facultad: null, carrera: null, foto: null },
     });
     const estudiantes = usarConsulta('/estudiantes', { parametros: lista.parametros });
-    const { facultad, carrera } = lista.filtros;
+    const { facultad, carrera, foto } = lista.filtros;
     const carreras = usarConsulta('/oferta/carreras', { parametros: { facultad } });
 
     const cifras = resumen.datos ?? {};
     const pendientes = cifras.conflictos_pendientes;
     const conteos = estudiantes.meta?.conteos ?? {};
     const filas = estudiantes.datos ?? [];
+
+    function plantilla() {
+        descargar('/inscritos/plantilla', {
+            parametros: { alcance: 'facultad' },
+            nombre: 'plantilla_inscritos.xlsx',
+        })
+            .then((nombre) => avisar(`${nombre} descargado`))
+            .catch((fallo) =>
+                avisar(mensajeDe(fallo, 'No se pudo descargar').replace(/\.$/, ''), 'error')
+            );
+    }
 
     function refrescar() {
         resumen.recargar();
@@ -56,9 +84,21 @@ export default function Padron() {
 
     return (
         <div className="space-y-6">
-            <Encabezado titulo="Padrón">
-                <BotonPlazoFotos avisar={avisar} />
-                <BotonPlazosFotoGrupo avisar={avisar} />
+            <Encabezado titulo="Padrón" subtitulo={periodo ? `Período ${periodo}` : undefined}>
+                <Boton variante="secundario" onClick={() => setFijandoPlazo(true)}>
+                    <Camera className="h-4 w-4" aria-hidden="true" />
+                    {plazo.datos
+                        ? `Fotos: ${diaMes(plazo.datos.desde)} – ${fechaCorta(plazo.datos.hasta)}`
+                        : 'Plazo de fotos'}
+                    {plazo.datos && !plazo.datos.abierto && (
+                        <Insignia tono={plazo.datos.estado === 'proximo' ? 'info' : 'neutro'}>
+                            {plazo.datos.estado === 'proximo' ? 'Próximo' : 'Cerrado'}
+                        </Insignia>
+                    )}
+                </Boton>
+                <Boton variante="secundario" onClick={plantilla}>
+                    <Download className="h-4 w-4" aria-hidden="true" /> Plantilla
+                </Boton>
                 <Boton onClick={() => setCargando(true)}>
                     <Upload className="h-4 w-4" aria-hidden="true" /> Cargar inscripciones
                 </Boton>
@@ -143,7 +183,7 @@ export default function Padron() {
                     />
 
                     <Tarjeta sinRelleno titulo="Estudiantes">
-                        <div className="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:grid-cols-[minmax(0,24rem)_minmax(0,20rem)]">
+                        <div className="grid gap-3 border-b border-slate-200 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:grid-cols-[minmax(0,24rem)_minmax(0,20rem)_minmax(0,12rem)]">
                             <Buscador
                                 valor={lista.buscar}
                                 onCambiar={lista.ponerBuscar}
@@ -167,6 +207,16 @@ export default function Padron() {
                                         {c.nombre}
                                     </option>
                                 ))}
+                            </Seleccion>
+                            <Seleccion
+                                className="min-w-0"
+                                aria-label="Filtrar por foto"
+                                value={foto ?? ''}
+                                onChange={(e) => lista.ponerFiltro('foto', e.target.value || null)}
+                            >
+                                <option value="">Con y sin foto</option>
+                                <option value="con">Con foto</option>
+                                <option value="sin">Sin foto</option>
                             </Seleccion>
                         </div>
 
@@ -198,6 +248,7 @@ export default function Padron() {
                                             <span className="block text-xs text-slate-600">
                                                 <span className="font-mono">{e.codigo}</span> · C.I.{' '}
                                                 {e.documento}
+                                                {!e.con_foto && ' · Sin foto'}
                                             </span>
                                             <span className="flex min-w-0 items-center gap-3 text-xs text-slate-600">
                                                 {e.facultad && <PuntoFacultad sigla={e.facultad} />}
@@ -230,6 +281,9 @@ export default function Padron() {
                                         </th>
                                         <th scope="col" className={`${TH} hidden md:table-cell`}>
                                             Grupos
+                                        </th>
+                                        <th scope="col" className={TH}>
+                                            Foto
                                         </th>
                                         <th scope="col" className={TH}>
                                             Origen
@@ -271,6 +325,19 @@ export default function Padron() {
                                                 {e.grupos}
                                             </td>
                                             <td className="px-4 py-3">
+                                                {e.con_foto ? (
+                                                    <Camera
+                                                        className="h-4 w-4 text-success-700"
+                                                        aria-label="Con foto"
+                                                        role="img"
+                                                    />
+                                                ) : (
+                                                    <span className="whitespace-nowrap text-xs text-slate-500">
+                                                        Sin foto
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3">
                                                 <Origen origen={e.origen} />
                                             </td>
                                         </tr>
@@ -295,7 +362,10 @@ export default function Padron() {
                 <FichaEstudiante
                     estudiante={ficha}
                     onCerrar={() => setFicha(null)}
-                    onFotoCambiada={refrescar}
+                    onFotoCambiada={() => {
+                        resumen.recargar();
+                        estudiantes.recargar();
+                    }}
                 />
             )}
 
@@ -311,6 +381,14 @@ export default function Padron() {
                         setCargando(false);
                         setPestana('conflictos');
                     }}
+                    avisar={avisar}
+                />
+            )}
+            {fijandoPlazo && (
+                <PlazoFotos
+                    plazo={plazo.datos}
+                    onCerrar={() => setFijandoPlazo(false)}
+                    onGuardado={plazo.recargar}
                     avisar={avisar}
                 />
             )}

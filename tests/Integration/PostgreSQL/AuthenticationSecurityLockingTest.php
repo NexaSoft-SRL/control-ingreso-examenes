@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\PostgreSQL;
 
 use App\Modules\Administracion\Application\Contracts\AuthenticationSecurityGateway;
+use App\Modules\Administracion\Application\DTOs\ResultadoAccesoData;
 use Database\Factories\UserFactory;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,7 +32,7 @@ final class AuthenticationSecurityLockingTest extends TestCase
 
         try {
             $this->assertTrue(
-                DB::table('usuarios')
+                DB::table('users')
                     ->where('id', $userId)
                     ->exists()
             );
@@ -39,7 +40,7 @@ final class AuthenticationSecurityLockingTest extends TestCase
             $lockingConnection->beginTransaction();
 
             $statement = $lockingConnection->prepare(
-                'SELECT id FROM usuarios WHERE id = :id FOR UPDATE'
+                'SELECT id FROM users WHERE id = :id FOR UPDATE'
             );
 
             if ($statement === false) {
@@ -113,7 +114,6 @@ final class AuthenticationSecurityLockingTest extends TestCase
     {
         $user = UserFactory::new()->createOne([
             'usuario' => 'atomic-counter',
-            'email' => 'atomic-counter@example.invalid',
             'password' => 'CorrectPassword123!',
             'is_active' => true,
         ]);
@@ -127,14 +127,25 @@ final class AuthenticationSecurityLockingTest extends TestCase
             AuthenticationSecurityGateway::class
         );
 
+        $estados = [];
+
         for ($attempt = 1; $attempt <= 3; $attempt++) {
-            $gateway->authenticate(
-                $user->usuario,
+            $estados[] = $gateway->authenticate(
+                'atomic-counter',
                 'IncorrectPassword123!',
                 '192.0.2.21',
                 'HU-01 PostgreSQL persistence test',
-            );
+            )->estado;
         }
+
+        $this->assertSame(
+            [
+                ResultadoAccesoData::CREDENCIALES,
+                ResultadoAccesoData::CREDENCIALES,
+                ResultadoAccesoData::BLOQUEADA,
+            ],
+            $estados
+        );
 
         $user->refresh();
 
@@ -187,9 +198,9 @@ final class AuthenticationSecurityLockingTest extends TestCase
 
         $actualDatabase = $statement->fetchColumn();
 
-        if ($actualDatabase !== $database) {
+        if ($actualDatabase !== 'control_ingreso_testing') {
             throw new RuntimeException(
-                "La conexión auxiliar no apunta a {$database}."
+                'La conexión auxiliar no apunta a control_ingreso_testing.'
             );
         }
 
@@ -204,18 +215,18 @@ final class AuthenticationSecurityLockingTest extends TestCase
     ): int {
         $statement = $connection->prepare(
             <<<'SQL'
-            INSERT INTO usuarios (
-                nombre,
-                correo,
+            INSERT INTO users (
+                name,
                 usuario,
+                email,
                 password,
                 created_at,
                 updated_at
             )
             VALUES (
                 :name,
-                :email,
                 :usuario,
+                :email,
                 :password,
                 CURRENT_TIMESTAMP,
                 CURRENT_TIMESTAMP
@@ -232,8 +243,9 @@ final class AuthenticationSecurityLockingTest extends TestCase
 
         if (! $statement->execute([
             'name' => $name,
+            // El usuario es obligatorio y unico: se deriva del correo.
+            'usuario' => strstr($email, '@', true),
             'email' => $email,
-            'usuario' => explode('@', $email, 2)[0],
             'password' => $password,
         ])) {
             throw new RuntimeException(
@@ -257,7 +269,7 @@ final class AuthenticationSecurityLockingTest extends TestCase
         int $userId,
     ): void {
         $statement = $connection->prepare(
-            'DELETE FROM usuarios WHERE id = :id'
+            'DELETE FROM users WHERE id = :id'
         );
 
         if ($statement === false) {

@@ -1,0 +1,65 @@
+% Ficha HU-12. Criterios tomados del backlog de la iteracion 2. Comparte
+% pantalla y tabla con HU-11: el motivo es una columna de la habilitacion.
+\def\HUNro{12}
+\def\HUSprint{2}
+\def\HUTitulo{Habilitación > Estudiantes > Registrar el motivo de inhabilitación}
+\def\HUModulo{M3}
+\def\HUReq{3}
+\def\HUPuntos{3}
+
+\def\HUComo{docente}
+\def\HUQuiero{registrar por qué un estudiante no está habilitado}
+\def\HUPara{poder responder en la puerta cuando el estudiante pregunte}
+
+\def\HUDescripcion{%
+Un estudiante al que se le niega el ingreso pregunta por qué. Si el sistema solo dice «no
+habilitado», el personal de control no tiene respuesta y el estudiante vuelve a la
+oficina: esta historia evita ese viaje.
+
+El motivo es obligatorio al inhabilitar. Sin él, el sistema no registra la condición y lo
+dice con todas las letras, tanto en la pantalla como en la API. Al habilitar, en cambio,
+el motivo no corresponde: si el estudiante estaba inhabilitado y se lo habilita, el motivo
+anterior se borra, para que no quede una explicación que ya no aplica.
+
+Junto con el motivo queda constancia de quién lo registró y cuándo, que es lo que permite
+resolver una discusión en la puerta sin buscar a nadie. El personal de control verá el
+motivo al verificar al estudiante en la puerta (HU-19), sin entrar a esta pantalla.
+
+El motivo viaja en la misma tabla que la condición: son el mismo hecho, y separarlos
+obligaría a unir dos tablas para responder la pregunta más frecuente del sistema.}
+
+\def\HUCriterios{%
+\item Dado que se inhabilita a un estudiante, Cuando no se indica el motivo, Entonces el
+      sistema rechaza la operación y lo señala.
+\item Dado que se inhabilita a un estudiante con su motivo, Cuando se guarda, Entonces el
+      sistema registra la condición junto con el motivo.
+\item Dado que un estudiante está inhabilitado, Cuando se consulta el listado del examen,
+      Entonces el motivo se muestra junto a su condición.
+\item Dado que un estudiante inhabilitado pasa a estar habilitado, Cuando se registra la
+      nueva condición, Entonces el motivo anterior deja de figurar.
+\item Dado que se registra una inhabilitación, Cuando se la consulta, Entonces consta
+      quién la registró y cuándo.
+\item Dado que se inhabilita a varios estudiantes a la vez, Cuando se aplica el motivo,
+      Entonces el sistema lo registra para todos ellos.
+\item Dado que se inhabilita a un estudiante, Cuando la operación se completa, Entonces
+      queda asentada en la bitácora con su autor.
+\item Dado que el docente accede desde un dispositivo móvil, Cuando registra un motivo,
+      Entonces la interfaz se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{HabilitacionExamenTest::disabling\_without\_a\_reason\_is\_rejected}: sin
+      motivo no se inhabilita a nadie (criterio 1).
+\item \texttt{HabilitacionExamenTest::a\_student\_is\_disabled\_with\_its\_reason}: la
+      condición se guarda junto con el motivo (criterio 2).
+\item \texttt{HabilitacionExamenTest::a\_disabled\_student\_stays\_in\_the\_list\_with\_its\_reason}:
+      el motivo se muestra en el listado (criterio 3).
+\item \texttt{HabilitacionExamenTest::the\_condition\_of\_a\_student\_is\_replaced\_not\_duplicated}:
+      al habilitar, el motivo anterior se limpia (criterio 4).
+\item \texttt{HabilitacionExamenTest::the\_record\_keeps\_who\_registered\_it}: autor y
+      fecha de la inhabilitación (criterio 5).
+\item \texttt{HabilitacionExamenTest::every\_movement\_is\_recorded\_in\_the\_audit\_log}:
+      asiento de la inhabilitación (criterio 7).
+\item \texttt{Habilitacion.test.jsx}: la pantalla no envía la inhabilitación sin motivo y
+      sí la envía con él, también sobre una selección múltiple (criterios 1, 2 y 6).}
+
+\input{cuerpo}

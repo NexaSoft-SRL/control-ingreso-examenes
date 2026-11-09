@@ -1,0 +1,113 @@
+% Ficha HU-12 del sprint 2 rehecho. Una historia = una vista completa: los
+% docentes de la oferta y la activacion de sus cuentas.
+% Tipo: mejora de HU-02. La ficha anterior queda en sprint2/v1/.
+\def\HUNro{12}
+\def\HUSprint{2}
+\def\HUTitulo{Administración > Docentes > Activar cuentas de docente}
+\def\HUModulo{M7}
+\def\HUReq{16}
+\def\HUPuntos{5}
+
+\def\HUComo{administrador}
+\def\HUQuiero{ver a los docentes que trae la oferta, saber cuáles no tienen cuenta y
+activársela con un usuario y una contraseña temporal}
+\def\HUPara{que cada docente entre con su propia cuenta y encuentre ya asociados sus
+grupos, sin que yo tenga que crear usuarios a mano ni repartir una contraseña común}
+
+\def\HUDescripcion{%
+La oferta importada trae el nombre de cada docente, pero no su usuario ni su correo.
+Para que el docente entre al sistema y encuentre sus grupos, alguien tiene que
+convertir ese nombre en una cuenta. Esta vista lo resuelve como una cola de trabajo: se
+filtran los que no tienen cuenta, se activa uno y se pasa al siguiente.
+
+La lista muestra a los docentes del período con las facultades en que dictan, la
+cantidad de grupos y el estado de su cuenta: activa, temporal o sin cuenta. Se busca por
+nombre y se filtra por facultad, por «Sin cuenta» y por «Más de una facultad». Al elegir
+un docente se abre su detalle, con sus grupos y materias separados por facultad.
+
+Reglas: un docente es una sola persona con una sola cuenta, aunque dicte en más de una
+facultad. Para activar, el sistema propone un usuario a partir del nombre (nombre de
+pila, punto y apellido paterno, con un número si ya está tomado), y el administrador
+puede cambiarlo. El correo es opcional, porque no hay una regla única para deducirlo. La
+cuenta se crea con el rol Docente, unida al docente de la oferta, y con una contraseña
+temporal individual que se muestra una sola vez, vence a las 72 horas y debe cambiarse
+en el primer ingreso. Si se indicó un correo, además se envía allí.
+
+La vista depende de la importación de la oferta (HU-10). De ella dependen las vistas del
+docente: sin cuenta no hay Mis grupos (HU-14) ni registro de exámenes (HU-08). Cada
+activación queda en la bitácora (HU-07), sin la contraseña.
+
+Esta historia mejora la gestión de roles y permisos del sprint 1 (HU-02). Allí el rol
+se asignaba a mano, usuario por usuario, y nada unía la cuenta con las materias del
+docente. Ahora la cuenta del docente nace del dato importado: el sistema propone el
+usuario, asigna el rol y la deja unida a sus grupos.}
+
+\def\HUCriterios{%
+\item Dado que el administrador abre Docentes, Cuando se carga la vista, Entonces el
+      sistema lista a los docentes de la oferta del período, por nombre y de a 20 por
+      página, cada uno con sus facultades, su cantidad de grupos y el estado de su
+      cuenta («Cuenta activa», «Temporal» o «Sin cuenta»), e indica cuántos son y cuántos
+      dictan en más de una facultad.
+\item Dado que el administrador escribe un nombre en el buscador, Cuando se aplica,
+      Entonces la lista muestra solo a los docentes que coinciden y, si no hay ninguno,
+      «Sin resultados».
+\item Dado que el administrador elige una facultad, Cuando se aplica el filtro, Entonces
+      la lista muestra solo a quienes dictan en ella y cada opción muestra su conteo.
+\item Dado que el administrador activa «Sin cuenta», Cuando se aplica, Entonces la lista
+      muestra solo a los docentes sin cuenta y el conteo baja con cada activación.
+\item Dado que el administrador activa «Más de una facultad», Cuando se aplica, Entonces
+      la lista muestra solo a los docentes que dictan en dos o más facultades.
+\item Dado que el administrador elige un docente, Cuando se abre su detalle, Entonces ve
+      sus grupos y sus materias separados por facultad y la indicación de que tiene una
+      sola cuenta.
+\item Dado que el docente elegido ya tiene cuenta, Cuando se muestra su detalle, Entonces
+      aparece su usuario, no se ofrece activar y un segundo intento de activación se
+      rechaza.
+\item Dado que el docente elegido no tiene cuenta, Cuando se muestra el formulario,
+      Entonces el usuario viene propuesto a partir de su nombre, marcado «Sugerido», y el
+      administrador puede cambiarlo; el correo es opcional.
+\item Dado que el usuario está vacío o tiene caracteres no permitidos, o el correo
+      escrito no es válido, Cuando el administrador intenta activar, Entonces el botón no
+      procede y el campo muestra «Solo letras, números, puntos y guiones» o «Correo no
+      válido».
+\item Dado que el usuario o el correo ya pertenecen a otra cuenta, Cuando se intenta
+      activar, Entonces el sistema lo rechaza señalando el campo.
+\item Dado que los datos son válidos, Cuando el administrador pulsa «Activar cuenta»,
+      Entonces el sistema crea la cuenta con el rol Docente unida a ese docente, avisa
+      «Cuenta activada» y el estado pasa a «Temporal».
+\item Dado que la cuenta acaba de activarse, Cuando se muestra el resultado, Entonces la
+      contraseña temporal aparece una sola vez, con «Copiar» y el aviso de que caduca en
+      72 horas; si se indicó un correo, también se envía allí, y al volver a abrir el
+      detalle ya no se muestra.
+\item Dado que quedan docentes sin cuenta en la lista filtrada, Cuando el administrador
+      pulsa «Siguiente sin cuenta», Entonces se abre el detalle del siguiente con su
+      usuario propuesto.
+\item Dado que un rol no tiene el permiso de aulas y docentes, Cuando intenta ver la
+      lista o activar una cuenta, Entonces el sistema responde con una negativa
+      explícita.
+\item Dado que se activa una cuenta, Cuando la operación se completa, Entonces queda
+      asentada en la bitácora con su autor y sin la contraseña.
+\item Dado que el administrador accede desde un dispositivo móvil, Cuando elige un
+      docente, Entonces la pantalla se desplaza hasta su detalle, que queda debajo de la
+      lista, y la interfaz se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{DocentesTest}: lista por nombre con facultades y estado de la cuenta,
+      paginación y filtros por facultad, sin cuenta, más de una facultad y nombre
+      (criterios 1 a 5).
+\item \texttt{DocentesTest}: detalle con las materias por facultad y la cuenta, usuario
+      propuesto libre y cuenta con contraseña temporal (criterios 6 a 8).
+\item \texttt{ProponerUsuarioTest}: nombre de pila, punto y apellido paterno, y sufijo
+      numérico cuando el usuario está tomado (criterio 8).
+\item \texttt{DocentesTest}: validación del usuario y del correo, usuario o correo en
+      uso, y docente que ya tiene cuenta (criterios 7, 9 y 10).
+\item \texttt{DocentesTest} y \texttt{ContrasenaTemporalTest}: la activación devuelve la
+      contraseña temporal una sola vez y une la cuenta al docente, la envía si hay
+      correo y vence a las 72 horas (criterios 11 y 12).
+\item \texttt{DocentesTest}: sin sesión, rol sin permiso, docente inexistente y asiento
+      en la bitácora (criterios 14 y 15).
+\item \texttt{Docentes.test.jsx} (por escribir): filtros, detalle, formulario con sus
+      errores, contraseña mostrada una vez con «Copiar» y «Siguiente sin cuenta»
+      (criterios 2 a 6, 9, 12, 13 y 16).}
+
+\input{cuerpo}

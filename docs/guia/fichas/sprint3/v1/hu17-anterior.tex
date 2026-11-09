@@ -1,0 +1,73 @@
+% Ficha HU-17. Criterios tomados del backlog de la iteracion 3. El codigo
+% codifica un token opaco: quien fotografie la tarjeta no obtiene ningun
+% dato del estudiante.
+\def\HUNro{17}
+\def\HUSprint{3}
+\def\HUTitulo{Administración > Códigos QR > Generar códigos del examen}
+\def\HUModulo{M4}
+\def\HUReq{4}
+\def\HUPuntos{8}
+
+\def\HUComo{administrador}
+\def\HUQuiero{generar un código QR por estudiante y examen}
+\def\HUPara{agilizar la identificación en la puerta}
+
+\def\HUDescripcion{%
+Tecleando el código universitario de cada estudiante, una fila de doscientos tarda. Con
+un código QR, la identificación es instantánea: por eso esta historia emite uno por cada
+estudiante habilitado.
+
+El código es único por combinación de estudiante y examen: el mismo estudiante en dos
+exámenes lleva dos códigos distintos, y por eso un código no sirve para entrar a otro
+examen (HU-18). Se emiten en lote para todo el examen, y volver a emitir no duplica: solo
+alcanza a quienes todavía no tienen el suyo.
+
+Lo que viaja dentro del código es un identificador opaco de cuarenta y ocho caracteres al
+azar. No lleva el nombre, ni el código universitario, ni el documento, ni el examen:
+quien fotografíe la tarjeta de otro no obtiene ningún dato personal, y el token por sí
+solo no dice nada fuera del sistema.
+
+La exportación es una hoja lista para imprimir o enviar, con una tarjeta por estudiante
+---su código QR, su nombre y su código universitario---, que el navegador imprime tal
+cual.}
+
+\def\HUCriterios{%
+\item Dado que un examen tiene estudiantes habilitados, Cuando se emiten los códigos,
+      Entonces el sistema genera uno por cada uno de ellos.
+\item Dado que un estudiante no está habilitado, Cuando se emiten los códigos, Entonces no
+      se le genera ninguno.
+\item Dado que el mismo estudiante rinde dos exámenes, Cuando se emiten los códigos de
+      ambos, Entonces recibe un código distinto para cada uno.
+\item Dado que los códigos ya fueron emitidos, Cuando se vuelve a emitir, Entonces el
+      sistema no duplica los existentes.
+\item Dado que se genera un código, Cuando se lo inspecciona, Entonces no contiene el
+      nombre, el código universitario ni el documento del estudiante.
+\item Dado que el administrador consulta el examen, Cuando se cargan los códigos, Entonces
+      se listan con el estudiante al que pertenecen y la fecha de emisión.
+\item Dado que el administrador necesita repartir los códigos, Cuando exporta la hoja,
+      Entonces obtiene una tarjeta por estudiante lista para imprimir o enviar.
+\item Dado que un rol no tiene el permiso de códigos QR, Cuando intenta emitirlos,
+      Entonces el sistema responde con una negativa explícita.
+\item Dado que se emiten códigos, Cuando la operación se completa, Entonces queda asentada
+      en la bitácora con su autor.
+\item Dado que el examen no existe, Cuando se intenta emitir, Entonces el sistema responde
+      que no lo encontró.}
+
+\def\HUPruebas{%
+\item \texttt{CodigosQrTest::the\_codes\_are\_issued\_in\_batch\_for\_the\_whole\_exam} y
+      \texttt{only\_enabled\_students\_get\_a\_code}: emisión en lote solo de los
+      habilitados (criterios 1 y 2).
+\item \texttt{CodigosQrTest::the\_code\_is\_unique\_per\_student\_and\_exam}: un código
+      distinto por examen (criterio 3).
+\item \texttt{CodigosQrTest::issuing\_twice\_does\_not\_duplicate\_codes}: la reemisión no
+      duplica (criterio 4).
+\item \texttt{CodigosQrTest::the\_code\_does\_not\_expose\_personal\_data}: el token no
+      contiene ningún dato del estudiante (criterio 5).
+\item \texttt{CodigosQrTest::the\_sheet\_to\_print\_has\_one\_card\_per\_student}: la hoja
+      con una imagen por estudiante (criterio 7).
+\item \texttt{CodigosQrTest}: rol sin permiso, examen inexistente y asiento en la bitácora
+      (criterios 8 a 10).
+\item \texttt{CodigosQr.test.jsx}: listado, emisión desde la pantalla, enlace a la hoja y
+      el token nunca visible en la interfaz (criterios 1, 5, 6 y 7).}
+
+\input{cuerpo}

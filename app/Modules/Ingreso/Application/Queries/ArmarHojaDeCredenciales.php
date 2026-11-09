@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Queries;
 
-use App\Modules\Ingreso\Application\Authorization\AlcanceCodigosQr;
-use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
+use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
+use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\GeneradorImagenQr;
 use App\Modules\Ingreso\Application\DTOs\CredencialData;
 use App\Modules\Ingreso\Application\DTOs\FiltroCodigosData;
-use App\Modules\Ingreso\Domain\Exceptions\ExamenAjenoException;
 
 /**
  * Las credenciales emitidas del filtro, listas para la hoja imprimible.
@@ -17,17 +16,15 @@ use App\Modules\Ingreso\Domain\Exceptions\ExamenAjenoException;
 final readonly class ArmarHojaDeCredenciales
 {
     public function __construct(
-        private EmisionQrGateway $codigos,
+        private CodigoQrGateway $codigos,
         private GeneradorImagenQr $imagenes,
-        private AlcanceCodigosQr $alcance,
+        private AlcancePuesto $alcance,
     ) {}
 
     /**
      * @return list<array<string, string|int|null>>
-     *
-     * @throws ExamenAjenoException
      */
-    public function execute(int $examenId, FiltroCodigosData $filtro, int $usuarioId): array
+    public function execute(int $examenId, FiltroCodigosData $filtro, ?int $usuarioId): array
     {
         $this->alcance->exigirDocente($usuarioId, $examenId);
 
@@ -35,14 +32,15 @@ final readonly class ArmarHojaDeCredenciales
             fn (CredencialData $credencial): array => [
                 'facultad' => $credencial->facultad,
                 'examen' => $credencial->examen,
-                'fecha' => $credencial->fechaTexto,
+                'fecha' => $credencial->fecha,
                 'hora' => $credencial->hora,
                 'duracion' => $credencial->duracion,
                 'estudiante' => $credencial->estudiante,
                 'codigo' => $credencial->codigo,
                 'aula' => $credencial->aula?->nombre,
-                'ubicacion' => $credencial->aula?->ubicacion(),
-                'imagen' => $this->imagenes->comoUriDeDatos($credencial->contenido ?? ''),
+                'edificio' => $credencial->aula?->edificio,
+                'piso' => $credencial->aula?->piso,
+                'imagen' => $this->imagenes->comoUriDeDatos($credencial->token ?? ''),
             ],
             $this->codigos->emitidas($examenId, $filtro),
         );

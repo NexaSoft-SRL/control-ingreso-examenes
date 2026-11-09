@@ -1,0 +1,55 @@
+% Ficha HU-16. Criterios tomados del backlog de la iteracion 3. El mismo
+% campo acepta codigo o documento: en la puerta no hay tiempo de elegir.
+\def\HUNro{16}
+\def\HUSprint{3}
+\def\HUTitulo{Punto de control > Identificación > Por documento de identidad}
+\def\HUModulo{M4}
+\def\HUReq{4}
+\def\HUPuntos{3}
+
+\def\HUComo{personal de control}
+\def\HUQuiero{identificar al estudiante por su documento de identidad}
+\def\HUPara{resolver el ingreso de quien olvidó su código}
+
+\def\HUDescripcion{%
+No todos los estudiantes llegan con su código a mano, pero todos llevan su documento de
+identidad: es lo que la universidad les exige para rendir.
+
+El documento se ingresa en el mismo campo que el código universitario. El sistema busca
+por los dos y devuelve exactamente el mismo resultado: nombre, condición de habilitación,
+ambiente y, si corresponde, el motivo de la inhabilitación. Obligar al personal a elegir
+antes qué tipo de identificador va a escribir sería una decisión de más en el peor
+momento.
+
+Un mismo valor puede ser el código universitario de un estudiante y el documento de otro.
+En ese caso el sistema no adivina: muestra los dos con su código y su documento para que
+el personal elija cuál tiene delante.}
+
+\def\HUCriterios{%
+\item Dado que el personal de control ingresa un documento de identidad, Cuando
+      identifica, Entonces el sistema devuelve el mismo resultado que con el código
+      universitario.
+\item Dado que el mismo campo acepta los dos identificadores, Cuando se ingresa
+      cualquiera, Entonces el sistema no exige indicar de cuál se trata.
+\item Dado que el valor ingresado corresponde a más de un estudiante, Cuando se
+      identifica, Entonces el sistema los muestra a todos para elegir.
+\item Dado que se muestran varias coincidencias, Cuando se elige una, Entonces el sistema
+      sigue con ese estudiante y descarta las demás.
+\item Dado que el valor corresponde a un solo estudiante, Cuando se identifica, Entonces
+      el sistema no pide elegir nada.
+\item Dado que el documento no corresponde a ningún estudiante, Cuando se identifica,
+      Entonces el sistema muestra un aviso claro.
+\item Dado que el personal de control atiende desde un dispositivo móvil, Cuando usa la
+      pantalla, Entonces la interfaz se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{ConsultaHabilitacionTest::the\_query\_answers\_by\_identity\_document}: el
+      documento devuelve el mismo resultado que el código (criterios 1 y 2).
+\item \texttt{ConsultaHabilitacionTest::the\_same\_value\_for\_two\_students\_offers\_both}:
+      las dos coincidencias (criterio 3).
+\item \texttt{ConsultaHabilitacionTest::the\_answer\_of\_a\_single\_match\_is\_not\_a\_list}:
+      una sola coincidencia no pide elegir (criterio 5).
+\item \texttt{PuntoControl.test.jsx}: la pantalla ofrece elegir entre los dos estudiantes
+      y sigue con el elegido (criterios 3 y 4).}
+
+\input{cuerpo}

@@ -6,7 +6,7 @@ export const FALLOS_SIN_CONEXION = 3;
 // usarConsulta + recarga periódica (no hay WebSockets). El sondeo se detiene
 // con la pestaña oculta y se reanuda con una carga inmediata.
 //
-//   const { datos, sinConexion } = usarSondeo(`/en-curso/${examen}`, { intervalo: 10000 });
+//   const { datos, sinConexion } = usarSondeo(`/puerta/aulas/${id}`, { intervalo: 10000 });
 //
 // `sinConexion` es cierto tras tres fallos seguidos y se apaga al primer acierto.
 export default function useSondeo(ruta, { parametros, intervalo = 10000, activa = true } = {}) {

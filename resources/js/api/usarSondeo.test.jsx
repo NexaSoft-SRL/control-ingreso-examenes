@@ -22,8 +22,8 @@ describe('usarSondeo', () => {
     });
 
     it('consulta al montar y luego en cada intervalo', async () => {
-        simularApi(api, { 'GET /en-curso/1': { data: [], hora_servidor: '08:21' } });
-        const { result } = renderHook(() => usarSondeo('/en-curso/1', { intervalo: 10000 }));
+        simularApi(api, { 'GET /seguimiento': { data: [], hora_servidor: '08:21' } });
+        const { result } = renderHook(() => usarSondeo('/seguimiento', { intervalo: 10000 }));
 
         await act(async () => vi.advanceTimersByTimeAsync(0));
         expect(api.get).toHaveBeenCalledTimes(1);
@@ -36,8 +36,8 @@ describe('usarSondeo', () => {
     });
 
     it('se detiene con la pestaña oculta y se reanuda con una carga inmediata', async () => {
-        simularApi(api, { 'GET /en-curso/1': { data: [] } });
-        renderHook(() => usarSondeo('/en-curso/1', { intervalo: 10000 }));
+        simularApi(api, { 'GET /seguimiento': { data: [] } });
+        renderHook(() => usarSondeo('/seguimiento', { intervalo: 10000 }));
         await act(async () => vi.advanceTimersByTimeAsync(0));
         expect(api.get).toHaveBeenCalledTimes(1);
 
@@ -54,11 +54,11 @@ describe('usarSondeo', () => {
     });
 
     it('marca sin conexión tras tres fallos seguidos y lo quita al primer acierto', async () => {
-        simularApi(api, { 'GET /en-curso/1': { data: [{ id: 1 }] } });
-        const { result } = renderHook(() => usarSondeo('/en-curso/1', { intervalo: 10000 }));
+        simularApi(api, { 'GET /seguimiento': { data: [{ id: 1 }] } });
+        const { result } = renderHook(() => usarSondeo('/seguimiento', { intervalo: 10000 }));
         await act(async () => vi.advanceTimersByTimeAsync(0));
 
-        simularApi(api, { 'GET /en-curso/1': errorHttp(503) });
+        simularApi(api, { 'GET /seguimiento': errorHttp(503) });
         await act(async () => vi.advanceTimersByTimeAsync(20000));
         expect(result.current.sinConexion).toBe(false);
 
@@ -68,15 +68,15 @@ describe('usarSondeo', () => {
         expect(result.current.datos).toEqual([{ id: 1 }]);
         expect(result.current.error).toBeNull();
 
-        simularApi(api, { 'GET /en-curso/1': { data: [{ id: 2 }] } });
+        simularApi(api, { 'GET /seguimiento': { data: [{ id: 2 }] } });
         await act(async () => vi.advanceTimersByTimeAsync(10000));
         expect(result.current.sinConexion).toBe(false);
         expect(result.current.datos).toEqual([{ id: 2 }]);
     });
 
     it('deja de sondear al desmontar', async () => {
-        simularApi(api, { 'GET /en-curso/1': { data: [] } });
-        const { unmount } = renderHook(() => usarSondeo('/en-curso/1', { intervalo: 15000 }));
+        simularApi(api, { 'GET /seguimiento': { data: [] } });
+        const { unmount } = renderHook(() => usarSondeo('/seguimiento', { intervalo: 15000 }));
         await act(async () => vi.advanceTimersByTimeAsync(0));
 
         unmount();

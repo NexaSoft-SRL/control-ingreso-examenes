@@ -11,6 +11,7 @@ use App\Modules\Academico\Application\Queries\ConsultarResumenPeriodo;
 use App\Modules\Academico\Application\Queries\ListarPeriodos;
 use App\Modules\Academico\Http\Requests\AjustarPeriodoRequest;
 use App\Modules\Academico\Http\Requests\PaginaRequest;
+use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
@@ -56,9 +57,24 @@ final class PeriodoController
         return response()->json(['data' => $fila]);
     }
 
-    public function detectar(DetectarPeriodos $detectar): JsonResponse
+    public function detectar(DetectarPeriodos $detectar, BitacoraGateway $bitacora): JsonResponse
     {
         $resultado = $detectar->execute();
+        $autorId = Auth::id();
+
+        $bitacora->registrar(
+            is_int($autorId) ? $autorId : null,
+            'periodo.detectar',
+            'periodos',
+            null,
+            sprintf(
+                'Períodos detectados en las fuentes: %d %s, %d %s.',
+                $resultado->creados,
+                $resultado->creados === 1 ? 'nuevo' : 'nuevos',
+                $resultado->actualizados,
+                $resultado->actualizados === 1 ? 'revisado' : 'revisados',
+            ),
+        );
 
         return response()->json([
             'creados' => $resultado->creados,

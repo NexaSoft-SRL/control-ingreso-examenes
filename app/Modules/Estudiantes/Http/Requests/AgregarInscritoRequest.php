@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Modules\Estudiantes\Http\Requests;
 
+use App\Modules\Estudiantes\Domain\Rules\DatosDeInscrito;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Un estudiante suelto que el docente agrega a la lista de su grupo. Los
- * formatos (codigo SIS, C.I., nombres) los revisa la carga, igual que en una
- * fila del archivo; aqui solo que vengan.
+ * El estudiante que el docente agrega suelto: valida como una fila del
+ * archivo de carga.
  */
 final class AgregarInscritoRequest extends FormRequest
 {
@@ -24,10 +24,10 @@ final class AgregarInscritoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'codigo_universitario' => ['required', 'string', 'max:20'],
-            'documento_identidad' => ['required', 'string', 'max:20'],
-            'nombres' => ['required', 'string', 'max:150'],
-            'apellidos' => ['required', 'string', 'max:150'],
+            'codigo' => ['required', 'string', 'regex:'.DatosDeInscrito::PATRON_CODIGO],
+            'documento' => ['required', 'string', 'max:'.DatosDeInscrito::MAXIMO_DOCUMENTO, 'regex:'.DatosDeInscrito::PATRON_DOCUMENTO],
+            'nombres' => ['required', 'string', 'max:'.DatosDeInscrito::MAXIMO_NOMBRE, 'regex:'.DatosDeInscrito::PATRON_NOMBRE],
+            'apellidos' => ['required', 'string', 'max:'.DatosDeInscrito::MAXIMO_NOMBRE, 'regex:'.DatosDeInscrito::PATRON_NOMBRE],
         ];
     }
 
@@ -37,24 +37,41 @@ final class AgregarInscritoRequest extends FormRequest
     public function messages(): array
     {
         return [
-            '*.required' => 'Obligatorio',
-            '*.string' => 'Obligatorio',
-            '*.max' => 'Demasiado largo',
+            'codigo.required' => 'El código SIS es obligatorio.',
+            'codigo.string' => 'El código SIS no es válido.',
+            'codigo.regex' => 'El código SIS debe tener entre 5 y 10 dígitos.',
+            'documento.required' => 'El documento es obligatorio.',
+            'documento.string' => 'El documento no es válido.',
+            'documento.max' => 'El documento no puede superar los '.DatosDeInscrito::MAXIMO_DOCUMENTO.' caracteres.',
+            'documento.regex' => 'De 4 a 10 dígitos y su complemento («5003748-1A»).',
+            'nombres.regex' => 'Solo letras, sin signos seguidos.',
+            'apellidos.regex' => 'Solo letras, sin signos seguidos.',
+            'nombres.required' => 'Los nombres son obligatorios.',
+            'nombres.string' => 'Los nombres no son válidos.',
+            'nombres.max' => 'Los nombres no pueden superar los '.DatosDeInscrito::MAXIMO_NOMBRE.' caracteres.',
+            'apellidos.required' => 'Los apellidos son obligatorios.',
+            'apellidos.string' => 'Los apellidos no son válidos.',
+            'apellidos.max' => 'Los apellidos no pueden superar los '.DatosDeInscrito::MAXIMO_NOMBRE.' caracteres.',
         ];
     }
 
-    /**
-     * La fila en el orden de la lista de un grupo.
-     *
-     * @return list<string>
-     */
-    public function fila(): array
+    public function codigo(): string
     {
-        return [
-            $this->string('codigo_universitario')->trim()->toString(),
-            $this->string('documento_identidad')->trim()->toString(),
-            $this->string('nombres')->trim()->toString(),
-            $this->string('apellidos')->trim()->toString(),
-        ];
+        return $this->string('codigo')->trim()->toString();
+    }
+
+    public function documento(): string
+    {
+        return $this->string('documento')->trim()->toString();
+    }
+
+    public function nombres(): string
+    {
+        return $this->string('nombres')->squish()->toString();
+    }
+
+    public function apellidos(): string
+    {
+        return $this->string('apellidos')->squish()->toString();
     }
 }

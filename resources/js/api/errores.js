@@ -1,7 +1,10 @@
 // Lectura de los errores de la API (sección 3.1 del contrato).
 
 // El `message` del servidor o el texto por defecto.
+// Un 413 (el servidor rechaza el tamaño antes de leer la petición) tiene
+// su propio texto: el del servidor viene en inglés.
 export function mensajeDe(error, porDefecto = 'No se pudo completar') {
+    if (error?.response?.status === 413) return 'Archivo demasiado grande';
     const mensaje = error?.response?.data?.message;
     return typeof mensaje === 'string' && mensaje.trim() !== '' ? mensaje : porDefecto;
 }

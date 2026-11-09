@@ -8,9 +8,9 @@ use App\Modules\Examenes\Application\Contracts\ConsultaExamenGateway;
 use App\Modules\Examenes\Application\DTOs\OpcionesDeAulasData;
 
 /**
- * Paso 3 del asistente: las aulas que sugieren los horarios de los grupos
- * y, a la hora del examen, los otros examenes y las clases del horario en
- * cada aula. Compartir aula no se impide.
+ * Paso 3 del asistente: las aulas que sugieren los horarios de los grupos,
+ * las clases del horario a la hora del examen y los examenes
+ * que se solapan. Todo es aviso: el docente elige igual.
  */
 final readonly class ConsultarOpcionesDeAulas
 {
@@ -29,13 +29,18 @@ final readonly class ConsultarOpcionesDeAulas
         ?int $exceptoExamenId,
     ): OpcionesDeAulasData {
         $conHora = $fecha !== null && $horaInicio !== null && $duracionMinutos !== null;
+        $examenes = $conHora
+            ? $this->consulta->examenesALaHora($grupoIds, $fecha, $horaInicio, $duracionMinutos, $exceptoExamenId)
+            : [];
 
         return new OpcionesDeAulasData(
             sugeridas: $grupoIds === [] ? [] : $this->consulta->aulasSugeridas($grupoIds),
-            compartidas: $conHora
-                ? $this->consulta->aulasCompartidas($fecha, $horaInicio, $duracionMinutos, $exceptoExamenId)
-                : [],
             clases: $conHora ? $this->consulta->clasesALaHora($grupoIds, $fecha, $horaInicio, $duracionMinutos) : [],
+            examenes: $examenes,
+            compartidas: array_map(
+                fn (array $lista): array => array_map(fn (array $examen): string => $examen['examen'], $lista),
+                $examenes,
+            ),
         );
     }
 }

@@ -14,26 +14,39 @@ final class SolicitarRestablecimientoRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $usuario = $this->input('usuario');
+
+        if (is_string($usuario)) {
+            $this->merge(['usuario' => NombreDeUsuario::normalizar($usuario)]);
+        }
+    }
+
     /**
      * @return array<string, list<string>>
      */
     public function rules(): array
     {
         return [
-            'usuario' => ['required', 'string', 'max:60', 'regex:'.NombreDeUsuario::FORMATO],
+            'usuario' => [
+                'required',
+                'string',
+                'max:60',
+                'regex:'.NombreDeUsuario::FORMATO,
+            ],
         ];
     }
 
     /**
-     * Un correo u otro texto con espacios no es un usuario.
-     *
      * @return array<string, string>
      */
     public function messages(): array
     {
         return [
-            'usuario.regex' => 'Usuario no válido.',
-            'usuario.max' => 'Usuario no válido.',
+            'usuario.required' => 'Escriba su usuario.',
+            'usuario.max' => 'El usuario no puede pasar de 60 caracteres.',
+            'usuario.regex' => 'El usuario lleva letras y números, separados por un espacio, punto o guion.',
         ];
     }
 }

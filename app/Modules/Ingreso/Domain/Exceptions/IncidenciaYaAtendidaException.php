@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Domain\Exceptions;
 
-use DomainException;
+use RuntimeException;
 
-final class IncidenciaYaAtendidaException extends DomainException
+/**
+ * Atender no se deshace ni se repite.
+ */
+final class IncidenciaYaAtendidaException extends RuntimeException
 {
     public function __construct()
     {

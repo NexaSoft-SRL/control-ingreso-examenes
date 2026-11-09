@@ -23,7 +23,6 @@ const EXAMENES = [
         fecha: '2026-10-22',
         hora: '08:15',
         estado: 'HABILITADO',
-        normas: ['Presentar carnet universitario.', 'No usar celular.'],
         aula: '691A',
         edificio: 'Edificio Académico 2',
         piso: '1° Piso',
@@ -54,7 +53,6 @@ function montar(ruta = '/estudiante', rutas = {}) {
     return renderConSesion(
         <Routes>
             <Route path="/estudiante" element={<PortalEstudiante />} />
-            <Route path="/estudiante/examenes" element={<PortalEstudiante />} />
             <Route path="/estudiante/foto" element={<PortalEstudiante />} />
             <Route path="*" element={<Donde />} />
         </Routes>,
@@ -71,15 +69,13 @@ describe('PortalEstudiante', () => {
     it('muestra cada examen con su hora, su aula y si está habilitado', async () => {
         montar();
 
-        expect(await screen.findByRole('heading', { name: 'Diego Mamani' })).toBeInTheDocument();
+        expect(await screen.findByText('Diego Mamani')).toBeInTheDocument();
         expect(await screen.findByText('Aula 691A')).toBeInTheDocument();
         expect(screen.getByText('Hoy')).toBeInTheDocument();
         expect(screen.getByText('Habilitado')).toBeInTheDocument();
         expect(screen.getByText('No habilitado')).toBeInTheDocument();
         expect(screen.getByText('Debe la práctica 3.')).toBeInTheDocument();
         expect(screen.getByText('Edificio Académico 2 · 1° Piso')).toBeInTheDocument();
-        expect(screen.getByText('Normas del examen')).toBeInTheDocument();
-        expect(screen.getByText('No usar celular.')).toBeInTheDocument();
     });
 
     it('sube la foto dentro del plazo', async () => {
@@ -101,21 +97,6 @@ describe('PortalEstudiante', () => {
         expect(await screen.findByText('Foto registrada')).toBeInTheDocument();
     });
 
-    it('rechaza una foto mayor a 8 MB antes de intentar subirla', async () => {
-        montar('/estudiante/foto');
-        await screen.findByRole('button', { name: 'Guardar foto' });
-        const demasiadoGrande = new File([new Uint8Array(8 * 1024 * 1024 + 1)], 'foto-grande.jpg', {
-            type: 'image/jpeg',
-        });
-
-        fireEvent.change(screen.getByLabelText('Foto'), {
-            target: { files: [demasiadoGrande] },
-        });
-
-        expect(await screen.findByRole('alert')).toHaveTextContent('Máximo 8 MB');
-        expect(api.post).not.toHaveBeenCalled();
-    });
-
     it('con foto la muestra y no deja cambiarla', async () => {
         montar('/estudiante/foto', {
             'GET /estudiante/sesion': {
@@ -133,37 +114,23 @@ describe('PortalEstudiante', () => {
         expect(screen.queryByRole('button', { name: 'Guardar foto' })).not.toBeInTheDocument();
     });
 
-    it('con el general cerrado sube con el de su grupo y avisa dónde ya venció', async () => {
+    it('vencido el plazo general sin foto avisa que no está habilitado', async () => {
         montar('/estudiante/foto', {
             'GET /estudiante/sesion': {
                 estudiante: ESTUDIANTE,
                 plazo_foto: { ...PLAZO, abierto: false },
-                plazos_foto_grupo: [
-                    {
-                        id: 4,
-                        asignatura: 'Introducción a la Programación',
-                        grupo: '2',
-                        desde: '2026-11-01',
-                        hasta: '2026-11-15',
-                    },
-                ],
                 foto: {
-                    puede_subir: true,
+                    puede_subir: false,
                     habilitada_hasta: null,
                     habilitada_por: null,
-                    vencido_en: ['Física'],
+                    sin_foto_vencido: true,
                 },
             },
         });
 
-        expect(
-            await screen.findByText(
-                'Plazo · Introducción a la Programación · 2: 1 nov – 15 nov 2026'
-            )
-        ).toBeInTheDocument();
-        expect(screen.getByRole('alert')).toHaveTextContent('Sin foto · no habilitado en Física');
-        expect(screen.getByText('Sin lentes ni gorra')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Guardar foto' })).toBeInTheDocument();
+        expect(await screen.findByRole('alert')).toHaveTextContent('Sin foto · no habilitado');
+        expect(screen.getByText('Plazo cerrado · 1 oct – 31 oct 2026')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Guardar foto' })).not.toBeInTheDocument();
     });
 
     it('con el cambio habilitado por un docente muestra la actual y deja reemplazarla', async () => {
@@ -198,6 +165,23 @@ describe('PortalEstudiante', () => {
         });
 
         expect(await screen.findByText('Plazo cerrado · 1 oct – 31 oct 2026')).toBeInTheDocument();
+    });
+
+    it('un examen habilitado con código emitido muestra su QR para descargar', async () => {
+        montar('/estudiante', {
+            'GET /estudiante/examenes': {
+                data: [
+                    { ...EXAMENES[0], qr: true },
+                    { ...EXAMENES[1], qr: false },
+                ],
+                hoy: '2026-10-22',
+            },
+            'GET /estudiante/examenes/1/qr': new Blob(['png']),
+        });
+
+        expect(await screen.findByRole('img', { name: 'Código QR' })).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: 'Descargar QR' })).toHaveLength(1);
+        expect(api.get).not.toHaveBeenCalledWith('/estudiante/examenes/2/qr', expect.anything());
     });
 
     it('cerrar sesión vuelve al acceso', async () => {

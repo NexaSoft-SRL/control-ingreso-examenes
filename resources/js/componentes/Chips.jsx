@@ -54,12 +54,13 @@ export default function Chips({ opciones, valor, onCambiar, etiqueta, extra, max
                                 : 'border-slate-300 bg-white text-slate-700 hover:border-primary-300 hover:bg-primary-50'
                         }`}
                     >
-                        {o.color && (
-                            <span
-                                className="h-2.5 w-2.5 rounded-full ring-1 ring-white/60"
-                                style={{ backgroundColor: o.color }}
-                            />
-                        )}
+                        {o.icono ??
+                            (o.color && (
+                                <span
+                                    className="h-2.5 w-2.5 rounded-full ring-1 ring-white/60"
+                                    style={{ backgroundColor: o.color }}
+                                />
+                            ))}
                         {o.etiqueta}
                         {o.conteo !== undefined && (
                             <span className={activo ? 'text-primary-200' : 'text-slate-500'}>

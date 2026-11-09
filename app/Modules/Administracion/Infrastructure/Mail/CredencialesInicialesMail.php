@@ -18,7 +18,6 @@ final class CredencialesInicialesMail extends Mailable
     public function __construct(
         public readonly string $nombre,
         public readonly string $usuario,
-        public readonly string $correo,
         public readonly string $contrasenaTemporal,
         public readonly string $enlace,
         public readonly int $horasVigencia,
@@ -27,7 +26,7 @@ final class CredencialesInicialesMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Credenciales de acceso',
+            subject: 'Sus credenciales de acceso',
         );
     }
 
@@ -38,7 +37,6 @@ final class CredencialesInicialesMail extends Mailable
             with: [
                 'nombre' => $this->nombre,
                 'usuario' => $this->usuario,
-                'correo' => $this->correo,
                 'contrasenaTemporal' => $this->contrasenaTemporal,
                 'enlace' => $this->enlace,
                 'horasVigencia' => $this->horasVigencia,

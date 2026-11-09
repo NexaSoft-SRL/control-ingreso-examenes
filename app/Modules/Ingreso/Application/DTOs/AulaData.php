@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\DTOs;
 
-/**
- * Donde rinde el estudiante: el aula, su edificio y su piso.
- */
 final readonly class AulaData
 {
     public function __construct(
@@ -18,7 +15,7 @@ final readonly class AulaData
     ) {}
 
     /**
-     * «Edificio Académico 2 · 1° Piso»; nulo si el aula esta sin ubicar.
+     * «Edificio Academico 2 · 1° Piso»; nulo si el aula esta sin ubicar.
      */
     public function ubicacion(): ?string
     {
@@ -28,5 +25,19 @@ final readonly class AulaData
         );
 
         return $partes === [] ? null : implode(' · ', $partes);
+    }
+
+    /**
+     * @return array{id: int, nombre: string, edificio: string|null, piso: string|null, edificio_id: int|null}
+     */
+    public function comoArreglo(): array
+    {
+        return [
+            'id' => $this->id,
+            'nombre' => $this->nombre,
+            'edificio' => $this->edificio,
+            'piso' => $this->piso,
+            'edificio_id' => $this->edificioId,
+        ];
     }
 }

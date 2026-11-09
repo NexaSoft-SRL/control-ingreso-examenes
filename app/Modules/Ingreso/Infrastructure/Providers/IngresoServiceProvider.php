@@ -5,137 +5,46 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Infrastructure\Providers;
 
 use App\Modules\Estudiantes\Application\Contracts\CodigosQrDelEstudiante;
-use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
-use App\Modules\Ingreso\Application\Contracts\AlmacenEvidencias;
+use App\Modules\Ingreso\Application\Contracts\AccesoAulaGateway;
 use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
-use App\Modules\Ingreso\Application\Contracts\ContextoOperativoPuntoControl;
+use App\Modules\Ingreso\Application\Contracts\CondicionHabilitacionGateway;
 use App\Modules\Ingreso\Application\Contracts\ControlPuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\CorreoQrGateway;
-use App\Modules\Ingreso\Application\Contracts\DetallePuertaGateway;
-use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
-use App\Modules\Ingreso\Application\Contracts\EstadoExpulsionGateway;
-use App\Modules\Ingreso\Application\Contracts\ExamenesDePuerta;
 use App\Modules\Ingreso\Application\Contracts\GeneradorImagenQr;
-use App\Modules\Ingreso\Application\Contracts\IdentificacionEstudianteGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaGateway;
-use App\Modules\Ingreso\Application\Contracts\IncidenciaIngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
-use App\Modules\Ingreso\Application\Contracts\OperacionesPuertaGateway;
-use App\Modules\Ingreso\Application\Contracts\SeguimientoAulaGateway;
-use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
-use App\Modules\Ingreso\Application\Contracts\VerificacionPuntoControlGateway;
-use App\Modules\Ingreso\Infrastructure\Files\AlmacenEvidenciasEnDisco;
-use App\Modules\Ingreso\Infrastructure\Persistence\EloquentAlcancePuntoControl;
-use App\Modules\Ingreso\Infrastructure\Persistence\EloquentContextoOperativoPuntoControl;
+use App\Modules\Ingreso\Application\Contracts\PuertaGateway;
+use App\Modules\Ingreso\Application\Contracts\Transaccion;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentAccesoAulaGateway;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentCodigoQrGateway;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentCondicionHabilitacionGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentControlPuertaGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentCorreoQrGateway;
-use App\Modules\Ingreso\Infrastructure\Persistence\EloquentDetallePuertaGateway;
-use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEmisionQrGateway;
-use App\Modules\Ingreso\Infrastructure\Persistence\EloquentEstadoExpulsionGateway;
-use App\Modules\Ingreso\Infrastructure\Persistence\EloquentExamenesDePuerta;
-use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIdentificacionEstudianteGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIncidenciaGateway;
-use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIncidenciaIngresoGateway;
-use App\Modules\Ingreso\Infrastructure\Persistence\EloquentOperacionesPuertaGateway;
-use App\Modules\Ingreso\Infrastructure\Persistence\EloquentSeguimientoAulaGateway;
-use App\Modules\Ingreso\Infrastructure\Persistence\EloquentVerificacionPuntoControlGateway;
-use App\Modules\Ingreso\Infrastructure\Persistence\IngresoAuditadoGateway;
-use App\Modules\Ingreso\Infrastructure\Persistence\VentanaExamen;
-use App\Modules\Ingreso\Infrastructure\QR\CodigoQrCifrado;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentIngresoGateway;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentPuertaGateway;
+use App\Modules\Ingreso\Infrastructure\Persistence\TransaccionDeBaseDeDatos;
 use App\Modules\Ingreso\Infrastructure\QR\CodigosQrDelEstudianteEmitidos;
 use App\Modules\Ingreso\Infrastructure\QR\GeneradorImagenQrEndroid;
 use Illuminate\Support\ServiceProvider;
 
+/**
+ * Enlaces contrato -> implementacion del modulo Ingreso.
+ */
 final class IngresoServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // El QR del estudiante, para su portal (contrato de Estudiantes).
-        $this->app->bind(CodigosQrDelEstudiante::class, CodigosQrDelEstudianteEmitidos::class);
-
-        // Las incidencias en un solo modelo y sus evidencias con foto.
-        $this->app->bind(IncidenciaGateway::class, EloquentIncidenciaGateway::class);
-        $this->app->bind(AlmacenEvidencias::class, AlmacenEvidenciasEnDisco::class);
+        $this->app->bind(AccesoAulaGateway::class, EloquentAccesoAulaGateway::class);
         $this->app->bind(ControlPuertaGateway::class, EloquentControlPuertaGateway::class);
-
-        $this->app->bind(
-            DetallePuertaGateway::class,
-            EloquentDetallePuertaGateway::class,
-        );
-
-        $this->app->bind(
-            OperacionesPuertaGateway::class,
-            EloquentOperacionesPuertaGateway::class,
-        );
-
-        $this->app->bind(
-            IdentificacionEstudianteGateway::class,
-            EloquentIdentificacionEstudianteGateway::class,
-        );
-
-        $this->app->bind(
-            ExamenesDePuerta::class,
-            EloquentExamenesDePuerta::class,
-        );
-
-        $this->app->bind(
-            IngresoGateway::class,
-            IngresoAuditadoGateway::class,
-        );
-
-        $this->app->bind(
-            IncidenciaIngresoGateway::class,
-            EloquentIncidenciaIngresoGateway::class,
-        );
-
-        $this->app->bind(
-            VentanaPuntoControl::class,
-            VentanaExamen::class,
-        );
-        $this->app->bind(
-            EstadoExpulsionGateway::class,
-            EloquentEstadoExpulsionGateway::class,
-        );
-
-        $this->app->bind(
-            AlcancePuntoControl::class,
-            EloquentAlcancePuntoControl::class,
-        );
-
-        $this->app->bind(
-            ContextoOperativoPuntoControl::class,
-            EloquentContextoOperativoPuntoControl::class,
-        );
-
-        $this->app->bind(
-            SeguimientoAulaGateway::class,
-            EloquentSeguimientoAulaGateway::class,
-        );
-
-        $this->app->bind(
-            CodigoQrGateway::class,
-            CodigoQrCifrado::class,
-        );
-
-        $this->app->bind(
-            VerificacionPuntoControlGateway::class,
-            EloquentVerificacionPuntoControlGateway::class,
-        );
-
-        // HU-20: los codigos QR emitidos de cada examen.
-        $this->app->bind(
-            EmisionQrGateway::class,
-            EloquentEmisionQrGateway::class,
-        );
-
-        $this->app->bind(
-            CorreoQrGateway::class,
-            EloquentCorreoQrGateway::class,
-        );
-
-        $this->app->bind(
-            GeneradorImagenQr::class,
-            GeneradorImagenQrEndroid::class,
-        );
+        $this->app->bind(CodigoQrGateway::class, EloquentCodigoQrGateway::class);
+        $this->app->bind(CondicionHabilitacionGateway::class, EloquentCondicionHabilitacionGateway::class);
+        $this->app->bind(CorreoQrGateway::class, EloquentCorreoQrGateway::class);
+        $this->app->bind(GeneradorImagenQr::class, GeneradorImagenQrEndroid::class);
+        $this->app->bind(CodigosQrDelEstudiante::class, CodigosQrDelEstudianteEmitidos::class);
+        $this->app->bind(IncidenciaGateway::class, EloquentIncidenciaGateway::class);
+        $this->app->bind(IngresoGateway::class, EloquentIngresoGateway::class);
+        $this->app->bind(PuertaGateway::class, EloquentPuertaGateway::class);
+        $this->app->bind(Transaccion::class, TransaccionDeBaseDeDatos::class);
     }
 }

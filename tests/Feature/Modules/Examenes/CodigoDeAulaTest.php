@@ -4,222 +4,295 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Modules\Examenes;
 
-use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
-use App\Modules\Examenes\Application\Contracts\CodigoAulaGateway;
-use App\Modules\Examenes\Domain\Models\AccesoCodigoAula;
-use App\Modules\Examenes\Domain\Models\ExamenAulaCodigo;
-use App\Modules\Examenes\Infrastructure\Persistence\EloquentCodigoAulaGateway;
+use App\Modules\Examenes\Domain\Models\AccesoAula;
+use App\Modules\Examenes\Domain\Models\ExamenAula;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
+/**
+ * El codigo de acceso de un aula (rutas 52 y 53): seis digitos, unico,
+ * regenerable; lo ve y lo cambia cualquier docente del examen. Consultarlo
+ * (52) no lo genera: eso lo hace solo la 53.
+ */
 final class CodigoDeAulaTest extends TestCase
 {
     use ArmaExamenes;
     use RefreshDatabase;
 
-    public function test_consultar_codigo_no_lo_genera_si_no_existe(): void
+    public function test_consulting_the_code_does_not_generate_it(): void
     {
         $docente = $this->docente();
+        $aula = $this->aula();
+        $examen = $this->examen($docente, [$this->grupo($docente)], [$aula], [
+            'fecha' => '2026-10-12',
+            'hora_inicio' => '08:15:00',
+        ]);
+        $auxiliar = $this->usuarioConRol('Auxiliar', ['name' => 'Vargas Arce Sergio']);
+        $this->ponerACargo($examen, $aula, $auxiliar);
         $cuenta = $this->cuenta($docente);
-        $grupo = $this->grupo($docente);
-        $aula = $this->aula('691A');
-        $examen = $this->examen($docente, [$grupo], [$aula]);
+        $ruta = "/api/examenes/{$examen->id}/aulas/{$aula->id}/codigo";
+
+        for ($vez = 0; $vez < 2; $vez++) {
+            $this->actingAs($cuenta)
+                ->getJson($ruta)
+                ->assertOk()
+                ->assertExactJson(['data' => [
+                    'codigo' => null,
+                    'generado_en' => null,
+                    'encargado' => 'Vargas Arce Sergio',
+                    'examen' => '2026-10-12 08:15',
+                ]]);
+        }
+
+        $this->assertDatabaseHas('examen_aula', ['examen_id' => $examen->id, 'aula_id' => $aula->id, 'codigo_acceso' => null]);
+        $this->assertDatabaseCount('bitacora_operaciones', 0);
 
         $this->actingAs($cuenta)
-            ->getJson("/api/examenes/{$examen->id}/aulas/{$aula->id}/codigo")
-            ->assertOk()
-            ->assertJsonPath('data.codigo', null)
-            ->assertJsonPath('data.generado_en', null);
-
-        $this->assertDatabaseMissing('examen_aula_codigos', [
-            'examen_id' => $examen->id,
-            'aula_id' => $aula->id,
-        ]);
+            ->getJson("/api/examenes/{$examen->id}")
+            ->assertJsonPath('data.aulas_detalle.0.usa_codigo', false);
     }
 
-    public function test_docente_puede_generar_codigo_de_seis_digitos(): void
+    public function test_the_code_is_generated_on_request_and_then_kept(): void
     {
         $docente = $this->docente();
+        $aula = $this->aula();
+        $examen = $this->examen($docente, [$this->grupo($docente)], [$aula], [
+            'fecha' => '2026-10-12',
+            'hora_inicio' => '08:15:00',
+        ]);
+        $auxiliar = $this->usuarioConRol('Auxiliar', ['name' => 'Vargas Arce Sergio']);
+        $this->ponerACargo($examen, $aula, $auxiliar);
         $cuenta = $this->cuenta($docente);
-        $grupo = $this->grupo($docente);
-        $aula = $this->aula('691A');
-        $examen = $this->examen($docente, [$grupo], [$aula]);
+        $ruta = "/api/examenes/{$examen->id}/aulas/{$aula->id}/codigo";
 
         $respuesta = $this->actingAs($cuenta)
-            ->postJson("/api/examenes/{$examen->id}/aulas/{$aula->id}/codigo")
-            ->assertCreated()
-            ->assertJsonPath('message', 'Código generado');
+            ->postJson($ruta)
+            ->assertOk()
+            ->assertJsonPath('message', 'Código generado.')
+            ->assertJsonPath('data.encargado', 'Vargas Arce Sergio')
+            ->assertJsonPath('data.examen', '2026-10-12 08:15');
 
         $codigo = $respuesta->json('data.codigo');
-        self::assertIsString($codigo);
-        self::assertMatchesRegularExpression('/^[0-9]{6}$/', $codigo);
 
-        $this->assertDatabaseHas('examen_aula_codigos', [
-            'examen_id' => $examen->id,
-            'aula_id' => $aula->id,
-            'codigo' => $codigo,
+        $this->assertIsString($codigo);
+        $this->assertMatchesRegularExpression('/^\d{6}$/', $codigo);
+        $generadoEn = $respuesta->json('data.generado_en');
+
+        $this->assertIsString($generadoEn);
+        $this->assertStringEndsWith('-04:00', $generadoEn);
+        $this->assertDatabaseHas('examen_aula', ['examen_id' => $examen->id, 'aula_id' => $aula->id, 'codigo_acceso' => $codigo]);
+
+        $this->actingAs($cuenta)
+            ->getJson($ruta)
+            ->assertOk()
+            ->assertJsonPath('data.codigo', $codigo)
+            ->assertJsonPath('data.generado_en', $generadoEn);
+
+        // El examen ya dice que esa aula usa codigo.
+        $this->actingAs($cuenta)
+            ->getJson("/api/examenes/{$examen->id}")
+            ->assertJsonPath('data.aulas_detalle.0.usa_codigo', true);
+    }
+
+    public function test_regenerating_replaces_the_code(): void
+    {
+        $docente = $this->docente();
+        $aula = $this->aula();
+        $examen = $this->examen($docente, [$this->grupo($docente)], [$aula]);
+        $cuenta = $this->cuenta($docente);
+        $ruta = "/api/examenes/{$examen->id}/aulas/{$aula->id}/codigo";
+
+        $anterior = $this->actingAs($cuenta)->postJson($ruta)->json('data.codigo');
+
+        $nuevo = $this->actingAs($cuenta)
+            ->postJson($ruta)
+            ->assertOk()
+            ->assertJsonPath('message', 'Código regenerado.')
+            ->assertJsonStructure(['data' => ['codigo', 'generado_en', 'encargado', 'examen']])
+            ->json('data.codigo');
+
+        $this->assertIsString($nuevo);
+        $this->assertMatchesRegularExpression('/^\d{6}$/', $nuevo);
+        $this->assertNotSame($anterior, $nuevo);
+        $this->assertDatabaseMissing('examen_aula', ['codigo_acceso' => $anterior]);
+        $this->assertDatabaseHas('examen_aula', ['examen_id' => $examen->id, 'codigo_acceso' => $nuevo]);
+    }
+
+    public function test_regenerating_closes_the_accesses_opened_with_the_previous_code(): void
+    {
+        $docente = $this->docente();
+        $aula = $this->aula();
+        $examen = $this->examen($docente, [$this->grupo($docente)], [$aula]);
+        $cuenta = $this->cuenta($docente);
+        $ruta = "/api/examenes/{$examen->id}/aulas/{$aula->id}/codigo";
+
+        $this->actingAs($cuenta)->postJson($ruta)->assertOk();
+        $asignada = ExamenAula::where('examen_id', $examen->id)->firstOrFail();
+
+        // Un acceso abierto en este mismo segundo.
+        $acceso = AccesoAula::create([
+            'examen_aula_id' => $asignada->id,
+            'nombre' => 'Vargas Arce Sergio',
+            'creado_en' => now(),
         ]);
 
+        $vale = static fn (): bool => AccesoAula::query()
+            ->where('id', $acceso->id)
+            ->whereIn('estado', ['PENDIENTE', 'AUTORIZADO'])
+            ->exists();
+
+        $this->assertTrue($vale());
+
+        $this->actingAs($cuenta)->postJson($ruta)->assertOk();
+
+        // El acceso no se borra (los ingresos lo nombran): deja de valer.
+        $this->assertFalse($vale());
+        $this->assertDatabaseHas('accesos_aula', ['id' => $acceso->id]);
+
+        // Un acceso abierto despues con el codigo nuevo si vale.
+        $this->travel(5)->seconds();
+
+        $nuevo = AccesoAula::create([
+            'examen_aula_id' => $asignada->id,
+            'nombre' => 'Rojas Ledezma Andrea',
+            'creado_en' => now(),
+        ]);
+
+        $this->assertDatabaseHas('accesos_aula', ['id' => $nuevo->id, 'estado' => 'PENDIENTE']);
+        $this->assertDatabaseHas('accesos_aula', ['id' => $acceso->id, 'estado' => 'CORTADO']);
+    }
+
+    public function test_each_room_of_each_exam_has_its_own_code(): void
+    {
+        $docente = $this->docente();
+        $cuenta = $this->cuenta($docente);
+        $codigos = [];
+
+        for ($i = 0; $i < 4; $i++) {
+            $aulas = [$this->aula(), $this->aula(), $this->aula()];
+            $examen = $this->examen($docente, [$this->grupo($docente)], $aulas);
+
+            foreach ($aulas as $aula) {
+                $codigo = $this->actingAs($cuenta)
+                    ->postJson("/api/examenes/{$examen->id}/aulas/{$aula->id}/codigo")
+                    ->assertOk()
+                    ->json('data.codigo');
+
+                $this->assertIsString($codigo);
+                $codigos[] = $codigo;
+            }
+        }
+
+        $this->assertCount(12, array_unique($codigos));
+    }
+
+    public function test_any_teacher_of_the_exam_handles_the_code_but_not_a_stranger(): void
+    {
+        $registra = $this->docente();
+        $sumado = $this->docente();
+        $ajeno = $this->docente();
+        $asignatura = $this->asignatura();
+        $aula = $this->aula();
+        $examen = $this->examen($registra, [
+            $this->grupo($registra, $asignatura),
+            $this->grupo($sumado, $asignatura),
+        ], [$aula]);
+        $ruta = "/api/examenes/{$examen->id}/aulas/{$aula->id}/codigo";
+
+        $this->actingAs($this->cuenta($sumado))->getJson($ruta)->assertOk()->assertJsonPath('data.codigo', null);
+        $this->actingAs($this->cuenta($sumado))->postJson($ruta)->assertOk();
+        $this->actingAs($this->cuenta($sumado))->getJson($ruta)->assertOk()->assertJsonPath(
+            'data.codigo',
+            ExamenAula::where('examen_id', $examen->id)->value('codigo_acceso'),
+        );
+
+        $this->actingAs($this->cuenta($ajeno))
+            ->getJson($ruta)
+            ->assertForbidden()
+            ->assertExactJson(['message' => 'Este examen no está a su cargo.', 'alcance' => true]);
+
+        $codigo = ExamenAula::where('examen_id', $examen->id)->value('codigo_acceso');
+
+        $this->actingAs($this->cuenta($ajeno))
+            ->postJson($ruta)
+            ->assertForbidden()
+            ->assertJsonPath('alcance', true);
+
+        $this->assertSame($codigo, ExamenAula::where('examen_id', $examen->id)->value('codigo_acceso'));
+    }
+
+    public function test_a_room_that_is_not_of_the_exam_is_not_found(): void
+    {
+        $docente = $this->docente();
+        $examen = $this->examen($docente, [$this->grupo($docente)], [$this->aula()]);
+        $otraAula = $this->aula();
+        $cuenta = $this->cuenta($docente);
+
+        $this->actingAs($cuenta)
+            ->getJson("/api/examenes/{$examen->id}/aulas/{$otraAula->id}/codigo")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Examen o aula no encontrados.');
+
+        $this->actingAs($cuenta)
+            ->postJson("/api/examenes/{$examen->id}/aulas/{$otraAula->id}/codigo")
+            ->assertNotFound();
+
+        $this->actingAs($cuenta)
+            ->getJson("/api/examenes/999999/aulas/{$otraAula->id}/codigo")
+            ->assertNotFound();
+
+        $this->actingAs($cuenta)
+            ->getJson("/api/examenes/{$examen->id}/aulas/abc/codigo")
+            ->assertNotFound();
+    }
+
+    public function test_generating_and_regenerating_are_recorded_in_the_audit_log(): void
+    {
+        $docente = $this->docente();
+        $aula = $this->aula();
+        $examen = $this->examen($docente, [$this->grupo($docente)], [$aula]);
+        $cuenta = $this->cuenta($docente);
+        $ruta = "/api/examenes/{$examen->id}/aulas/{$aula->id}/codigo";
+        $asignadaId = ExamenAula::where('examen_id', $examen->id)->value('id');
+
+        $this->actingAs($cuenta)->postJson($ruta)->assertOk()->assertJsonPath('message', 'Código generado.');
+        // Consultarlo no asienta nada.
+        $this->actingAs($cuenta)->getJson($ruta)->assertOk();
+
+        $this->assertDatabaseCount('bitacora_operaciones', 1);
         $this->assertDatabaseHas('bitacora_operaciones', [
-            'operacion' => 'examen_aula_codigo.generar',
+            'operacion' => 'codigo_aula.generar',
+            'tabla_afectada' => 'examen_aula',
+            'registro_id' => $asignadaId,
+            'usuario_id' => $cuenta->id,
+        ]);
+
+        $this->actingAs($cuenta)->postJson($ruta)->assertOk()->assertJsonPath('message', 'Código regenerado.');
+
+        $this->assertDatabaseHas('bitacora_operaciones', [
+            'operacion' => 'codigo_aula.regenerar',
+            'registro_id' => $asignadaId,
             'usuario_id' => $cuenta->id,
         ]);
     }
 
-    public function test_regenerar_codigo_revoca_sesiones_abiertas_anteriores(): void
+    public function test_the_code_needs_a_session_and_the_permission(): void
     {
         $docente = $this->docente();
-        $cuenta = $this->cuenta($docente);
-        $grupo = $this->grupo($docente);
-        $aula = $this->aula('691A');
-        $examen = $this->examen($docente, [$grupo], [$aula]);
+        $aula = $this->aula();
+        $examen = $this->examen($docente, [$this->grupo($docente)], [$aula]);
+        $ruta = "/api/examenes/{$examen->id}/aulas/{$aula->id}/codigo";
 
-        // Código inicial
-        ExamenAulaCodigo::create([
-            'examen_id' => $examen->id,
-            'aula_id' => $aula->id,
-            'codigo' => '123456',
-            'generado_en' => now()->toDateTimeString(),
-        ]);
+        $this->getJson($ruta)->assertUnauthorized();
+        $this->postJson($ruta)->assertUnauthorized();
 
-        // Sesión activa abierta con el código anterior
-        $acceso = AccesoCodigoAula::create([
-            'examen_id' => $examen->id,
-            'aula_id' => $aula->id,
-            'codigo' => '123456',
-            'nombre_colaborador' => 'Colaborador Juan',
-            'token' => 'token-prueba-123456',
-            'ultimo_acceso_en' => now(),
-            'revocado_en' => null,
-        ]);
+        // El auxiliar a cargo del aula no tiene la pantalla de examenes.
+        $auxiliar = $this->usuarioConRol('Auxiliar');
+        $this->ponerACargo($examen, $aula, $auxiliar);
 
-        // Regeneramos el código
-        $respuesta = $this->actingAs($cuenta)
-            ->postJson("/api/examenes/{$examen->id}/aulas/{$aula->id}/codigo")
-            ->assertOk()
-            ->assertJsonPath('message', 'Código regenerado');
+        $this->actingAs($auxiliar)->getJson($ruta)->assertForbidden()->assertJsonPath('permiso_requerido', 'examenes');
+        $this->actingAs($auxiliar)->postJson($ruta)->assertForbidden()->assertJsonPath('permiso_requerido', 'examenes');
 
-        $nuevoCodigo = $respuesta->json('data.codigo');
-        self::assertIsString($nuevoCodigo);
-        self::assertNotSame('123456', $nuevoCodigo);
-        self::assertMatchesRegularExpression('/^[0-9]{6}$/', $nuevoCodigo);
-
-        // La sesión previa debe haber sido revocada
-        $accesoActualizado = AccesoCodigoAula::find($acceso->id);
-        self::assertNotNull($accesoActualizado?->revocado_en);
-
-        $this->assertDatabaseHas('bitacora_operaciones', [
-            'operacion' => 'examen_aula_codigo.regenerar',
-            'usuario_id' => $cuenta->id,
-        ]);
-    }
-
-    public function test_docente_ajeno_no_puede_consultar_ni_generar_codigo(): void
-    {
-        $docenteA = $this->docente('Docente A');
-        $docenteB = $this->docente('Docente B');
-        $cuentaB = $this->cuenta($docenteB);
-
-        $grupo = $this->grupo($docenteA);
-        $aula = $this->aula('691A');
-        $examen = $this->examen($docenteA, [$grupo], [$aula]);
-
-        $this->actingAs($cuentaB)
-            ->getJson("/api/examenes/{$examen->id}/aulas/{$aula->id}/codigo")
-            ->assertForbidden();
-
-        $this->actingAs($cuentaB)
-            ->postJson("/api/examenes/{$examen->id}/aulas/{$aula->id}/codigo")
-            ->assertForbidden();
-    }
-
-    public function test_la_bitacora_describe_el_codigo_con_el_examen_y_el_aula(): void
-    {
-        $docente = $this->docente();
-        $cuenta = $this->cuenta($docente);
-        $grupo = $this->grupo($docente);
-        $aula = $this->aula('691A');
-        $examen = $this->examen($docente, [$grupo], [$aula]);
-        $asignatura = DB::table('asignaturas')->where('id', $examen->asignatura_id)->value('nombre');
-        self::assertIsString($asignatura);
-
-        $this->actingAs($cuenta)
-            ->postJson("/api/examenes/{$examen->id}/aulas/{$aula->id}/codigo")
-            ->assertCreated();
-        $this->actingAs($cuenta)
-            ->postJson("/api/examenes/{$examen->id}/aulas/{$aula->id}/codigo")
-            ->assertOk();
-
-        $this->assertDatabaseHas('bitacora_operaciones', [
-            'operacion' => 'examen_aula_codigo.generar',
-            'descripcion' => "Código generado: Primer parcial · {$asignatura}, aula 691A.",
-        ]);
-        $this->assertDatabaseHas('bitacora_operaciones', [
-            'operacion' => 'examen_aula_codigo.regenerar',
-            'descripcion' => "Código regenerado: Primer parcial · {$asignatura}, aula 691A.",
-        ]);
-    }
-
-    public function test_el_codigo_no_se_repite_entre_examenes_de_la_misma_fecha(): void
-    {
-        $docente = $this->docente();
-        $cuenta = $this->cuenta($docente);
-        $aulaA = $this->aula('691A');
-        $aulaB = $this->aula('691B');
-        $aulaC = $this->aula('691C');
-        $dentroDeTresDias = now()->addDays(3)->toDateString();
-
-        // Otro examen del mismo día (no de hoy) ya usa 111111.
-        $otro = $this->examen($docente, [$this->grupo($docente)], [$aulaA], ['fecha' => $dentroDeTresDias]);
-        ExamenAulaCodigo::create([
-            'examen_id' => $otro->id,
-            'aula_id' => $aulaA->id,
-            'codigo' => '111111',
-            'generado_en' => now()->toDateTimeString(),
-        ]);
-        // Uno de otro día usa 333333: ese sí puede repetirse.
-        $ayer = $this->examen($docente, [$this->grupo($docente)], [$aulaC], ['fecha' => now()->subDay()->toDateString()]);
-        ExamenAulaCodigo::create([
-            'examen_id' => $ayer->id,
-            'aula_id' => $aulaC->id,
-            'codigo' => '333333',
-            'generado_en' => now()->toDateTimeString(),
-        ]);
-
-        $examen = $this->examen($docente, [$this->grupo($docente)], [$aulaB], ['fecha' => $dentroDeTresDias]);
-        $sorteos = ['111111', '222222'];
-        $this->sortearEn($sorteos);
-
-        $this->actingAs($cuenta)
-            ->postJson("/api/examenes/{$examen->id}/aulas/{$aulaB->id}/codigo")
-            ->assertCreated()
-            ->assertJsonPath('data.codigo', '222222');
-
-        $this->sortearEn(['333333']);
-
-        $this->actingAs($cuenta)
-            ->postJson("/api/examenes/{$examen->id}/aulas/{$aulaB->id}/codigo")
-            ->assertOk()
-            ->assertJsonPath('data.codigo', '333333');
-    }
-
-    /**
-     * Fija los códigos que saldrán sorteados, en orden.
-     *
-     * @param  list<string>  $codigos
-     */
-    private function sortearEn(array $codigos): void
-    {
-        $bitacora = $this->app->make(BitacoraGateway::class);
-
-        $this->app->bind(CodigoAulaGateway::class, static function () use ($bitacora, $codigos): EloquentCodigoAulaGateway {
-            return new EloquentCodigoAulaGateway(
-                $bitacora,
-                static function () use (&$codigos): string {
-                    return array_shift($codigos) ?? '999999';
-                },
-            );
-        });
+        $this->assertDatabaseHas('examen_aula', ['examen_id' => $examen->id, 'codigo_acceso' => null]);
     }
 }

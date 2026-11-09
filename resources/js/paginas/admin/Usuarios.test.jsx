@@ -29,7 +29,20 @@ const CATALOGO = [
 const CLAVES = CATALOGO.map((p) => p.clave);
 
 const ROLES = [
-    { id: 1, nombre: 'Administrador', es_sistema: true, permisos: CLAVES },
+    {
+        id: 1,
+        nombre: 'Administrador',
+        es_sistema: true,
+        permisos: [
+            'periodo_oferta',
+            'aulas_docentes',
+            'padron_estudiantes',
+            'reportes_universidad',
+            'usuarios_roles',
+            'bitacora',
+            'respaldo_restauracion',
+        ],
+    },
     {
         id: 2,
         nombre: 'Docente',
@@ -75,8 +88,7 @@ const CUENTAS = [
         usuario: 'diego.mamani',
         correo: null,
         rol: 'Auxiliar',
-        // Todavía con la contraseña temporal.
-        estado: 'temporal',
+        estado: 'activo',
     },
     {
         id: 30,
@@ -192,7 +204,7 @@ function servidor({ roles: rolesIniciales = ROLES, propio = 'Administrador' } = 
         const rechazo = erroresDeCuenta(data, id);
         if (rechazo) return rechazo;
         if (data.activo === false && id === 7) {
-            return errorHttp(422, { message: 'No puede bloquear su propia cuenta.' });
+            return errorHttp(422, { message: 'No se puede bloquear la propia cuenta.' });
         }
         const { activo, ...campos } = data;
         Object.assign(cuenta, campos);
@@ -223,7 +235,7 @@ function servidor({ roles: rolesIniciales = ROLES, propio = 'Administrador' } = 
         }
         if (data.permisos.length === 0) errors.permisos = ['Al menos un permiso'];
         else if (rol?.nombre === propio && !data.permisos.includes('usuarios_roles')) {
-            errors.permisos = ['No puede quitar «Usuarios y roles» a su propio rol.'];
+            errors.permisos = ['No se puede quitar «Usuarios y roles» al propio rol.'];
         }
         return Object.keys(errors).length > 0 ? validacion(errors) : null;
     };
@@ -435,39 +447,6 @@ describe('Usuarios y roles · cuentas', () => {
         );
     });
 
-    it('los estados de cuenta son los de Docentes: Activo, Temporal y Bloqueado', async () => {
-        await montar();
-        expect(within(fila('Mamani Torrez Diego')).getByText('Temporal')).toBeInTheDocument();
-        expect(within(fila('Blanco Coca Leticia')).getByText('Activo')).toBeInTheDocument();
-        expect(
-            within(fila('Montano Quiroga Victor Hugo')).getByText('Bloqueado')
-        ).toBeInTheDocument();
-    });
-
-    it('el estudiante figura aparte: sin cuenta, con su cifra y enlace al padrón', async () => {
-        await montar();
-        const tarjeta = await screen.findByRole('link', { name: /Estudiante/ });
-        expect(tarjeta).toHaveAttribute('href', '/estudiantes');
-        expect(tarjeta).toHaveTextContent(/4\.?218/);
-        expect(tarjeta).toHaveTextContent('Estudiante · sin cuenta');
-        // No es un rol de la matriz: no tiene permisos que repartir.
-        expect(within(matriz()).queryByText('Estudiante')).not.toBeInTheDocument();
-    });
-
-    it('«Restablecer roles base» confirma y vuelve los roles de inicio a fábrica', async () => {
-        await montar();
-        fireEvent.click(screen.getByRole('button', { name: 'Restablecer roles base' }));
-
-        const dialogo = within(screen.getByRole('dialog', { name: 'Restablecer roles base' }));
-        expect(dialogo.getByText('Los roles creados no cambian')).toBeInTheDocument();
-        expect(api.post).not.toHaveBeenCalledWith('/roles/restablecer');
-        fireEvent.click(dialogo.getByRole('button', { name: 'Restablecer' }));
-
-        expect(await screen.findByText('Roles base restablecidos: Auxiliar')).toBeInTheDocument();
-        expect(api.post).toHaveBeenCalledWith('/roles/restablecer');
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    });
-
     it('«Nuevo usuario» crea la cuenta, la deja primera y entrega la temporal una sola vez (criterio 5)', async () => {
         const writeText = vi.fn(() => Promise.resolve());
         Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
@@ -494,7 +473,7 @@ describe('Usuarios y roles · cuentas', () => {
         });
         expect(within(resultado).getByText(TEMPORAL)).toBeInTheDocument();
         expect(within(resultado).getByText('ana.quispe · sin correo')).toBeInTheDocument();
-        expect(within(resultado).getByText('Caduca en 72 horas')).toBeInTheDocument();
+        expect(within(resultado).getByText('Caduca el 12 oct 2026, 12:50')).toBeInTheDocument();
         fireEvent.click(within(resultado).getByRole('button', { name: 'Copiar' }));
         expect(writeText).toHaveBeenCalledWith(TEMPORAL);
         expect(await screen.findByText('Contraseña copiada')).toBeInTheDocument();
@@ -536,14 +515,22 @@ describe('Usuarios y roles · cuentas', () => {
         expect(within(dialogo).getAllByText('Obligatorio')).toHaveLength(2);
 
         escribir(dialogo, 'Nombre', 'An');
-        escribir(dialogo, 'Usuario', 'ana..quispe');
+        escribir(dialogo, 'Usuario', 'ana/quispe');
         escribir(dialogo, 'Correo', 'ana@umss');
         fireEvent.click(crear);
-        expect(within(dialogo).getByText('Mínimo 3 caracteres')).toBeInTheDocument();
+        expect(within(dialogo).getByText('Mínimo 3 letras')).toBeInTheDocument();
         expect(
             within(dialogo).getByText('Nombre y apellido, separados por un espacio')
         ).toBeInTheDocument();
         expect(within(dialogo).getByText('Correo no válido')).toBeInTheDocument();
+
+        escribir(dialogo, 'Nombre', 'Ana--Quispe');
+        escribir(dialogo, 'Usuario', '...');
+        fireEvent.click(crear);
+        expect(within(dialogo).getByText('Solo letras, sin signos seguidos')).toBeInTheDocument();
+        expect(
+            within(dialogo).getByText('Nombre y apellido, separados por un espacio')
+        ).toBeInTheDocument();
         expect(api.post).not.toHaveBeenCalled();
 
         // El usuario y el correo de otra cuenta los rechaza el servidor.
@@ -621,17 +608,12 @@ describe('Usuarios y roles · cuentas', () => {
         );
     });
 
-    it('bloquear la cuenta propia se rechaza con el mensaje del servidor (criterio 8)', async () => {
+    it('la cuenta propia no ofrece bloquearse ni cambiar su rol (criterio 8)', async () => {
         await montar();
         const dialogo = await abrirEdicion('Administración académica');
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Bloquear' }));
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
 
-        expect(await within(dialogo).findByRole('alert')).toHaveTextContent(
-            'No puede bloquear su propia cuenta.'
-        );
-        expect(screen.getByRole('dialog', { name: 'Editar usuario' })).toBeInTheDocument();
-        expect(within(fila('Administración académica')).getByText('Activo')).toBeInTheDocument();
+        expect(within(dialogo).queryByRole('button', { name: 'Bloquear' })).not.toBeInTheDocument();
+        expect(within(dialogo).getByRole('combobox', { name: /Rol/ })).toBeDisabled();
     });
 
     it('«Restablecer contraseña» pide confirmar y muestra la temporal nueva una sola vez (criterio 9)', async () => {
@@ -652,7 +634,7 @@ describe('Usuarios y roles · cuentas', () => {
         expect(
             within(dialogo).getByText('leticia.blanco · enviada a leticia.blanco@umss.edu.bo')
         ).toBeInTheDocument();
-        expect(within(dialogo).getByText('Caduca en 72 horas')).toBeInTheDocument();
+        expect(within(dialogo).getByText('Caduca el 12 oct 2026, 12:50')).toBeInTheDocument();
         fireEvent.click(within(dialogo).getByRole('button', { name: 'Copiar' }));
         expect(writeText).toHaveBeenCalledWith(OTRA_TEMPORAL);
 
@@ -756,6 +738,30 @@ describe('Usuarios y roles · permisos por rol', () => {
         expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled();
     });
 
+    it('el estudiante figura aparte: sin cuenta, con su cifra y enlace al padrón', async () => {
+        await montar();
+        const tarjeta = await screen.findByRole('link', { name: /Estudiante/ });
+        expect(tarjeta).toHaveAttribute('href', '/estudiantes');
+        expect(tarjeta).toHaveTextContent('4.218');
+        expect(tarjeta).toHaveTextContent('Estudiante · sin cuenta');
+        // No es un rol de la matriz: no tiene permisos que repartir.
+        expect(within(matriz()).queryByText('Estudiante')).not.toBeInTheDocument();
+    });
+
+    it('«Restablecer roles base» confirma y vuelve los roles de inicio a fábrica', async () => {
+        await montar();
+        fireEvent.click(screen.getByRole('button', { name: 'Restablecer roles base' }));
+
+        const dialogo = within(screen.getByRole('dialog', { name: 'Restablecer roles base' }));
+        expect(dialogo.getByText('Los roles creados no cambian')).toBeInTheDocument();
+        expect(api.post).not.toHaveBeenCalledWith('/roles/restablecer');
+        fireEvent.click(dialogo.getByRole('button', { name: 'Restablecer' }));
+
+        expect(await screen.findByText('Roles base restablecidos: Auxiliar')).toBeInTheDocument();
+        expect(api.post).toHaveBeenCalledWith('/roles/restablecer');
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
     it('«Nuevo rol» señala el nombre vacío, el repetido y la falta de permisos (criterio 11)', async () => {
         await montar();
         const dialogo = abrirNuevoRol();
@@ -848,7 +854,7 @@ describe('Usuarios y roles · permisos por rol', () => {
 
         expect(await screen.findByText('Cambios guardados')).toBeInTheDocument();
         expect(api.put).toHaveBeenCalledWith('/roles/1', {
-            permisos: CLAVES.filter((c) => c !== 'respaldo_restauracion'),
+            permisos: ROLES[0].permisos.filter((c) => c !== 'respaldo_restauracion'),
         });
         expect(sesion.actualizar).toHaveBeenCalledTimes(1);
     });
@@ -865,7 +871,7 @@ describe('Usuarios y roles · permisos por rol', () => {
 
         const alerta = await screen.findByRole('alert');
         expect(alerta).toHaveTextContent(
-            'Administrador: No puede quitar «Usuarios y roles» a su propio rol.'
+            'Administrador: No se puede quitar «Usuarios y roles» al propio rol.'
         );
         expect(alerta).toHaveTextContent('Auxiliar: Al menos un permiso');
         // El que sí se pudo queda guardado; los rechazados siguen pendientes.

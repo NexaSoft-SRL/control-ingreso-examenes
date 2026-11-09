@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import Dialogo from './Dialogo';
@@ -48,5 +49,35 @@ describe('Dialogo', () => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         fireEvent.keyDown(window, { key: 'Escape' });
         expect(onCerrar).not.toHaveBeenCalled();
+    });
+});
+
+describe('Dialogo · foco', () => {
+    function ConBoton() {
+        const [abierto, setAbierto] = useState(false);
+        return (
+            <>
+                <button type="button" onClick={() => setAbierto(true)}>
+                    Abrir
+                </button>
+                {abierto && (
+                    <Dialogo titulo="Prueba" onCerrar={() => setAbierto(false)}>
+                        <input aria-label="Campo" autoFocus />
+                    </Dialogo>
+                )}
+            </>
+        );
+    }
+
+    it('lleva el foco al campo y al cerrar con Escape lo devuelve a quien lo abrió', () => {
+        render(<ConBoton />);
+        const abrir = screen.getByRole('button', { name: 'Abrir' });
+        abrir.focus();
+        fireEvent.click(abrir);
+
+        expect(screen.getByLabelText('Campo')).toHaveFocus();
+        fireEvent.keyDown(window, { key: 'Escape' });
+
+        expect(abrir).toHaveFocus();
     });
 });

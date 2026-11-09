@@ -1,0 +1,60 @@
+' Flujo 2: carga de la lista de inscritos de un grupo, sin duplicar.
+@startuml flujo_2_cargar_inscritos
+skinparam shadowing false
+skinparam defaultFontName "Helvetica Neue"
+skinparam ActivityBackgroundColor White
+skinparam ActivityBorderColor #1168BD
+skinparam ActivityBorderThickness 1.5
+skinparam ArrowColor #444444
+skinparam SwimlaneBorderColor #BBBBBB
+skinparam NoteBackgroundColor #FFF6E5
+skinparam NoteBorderColor #E8820C
+title Flujo 2 · Cargar la lista de inscritos de un grupo
+
+|Docente|
+start
+:Descarga de la WebSIS la lista\nde inscritos de su grupo;
+:Entra a «Mis grupos» y elige el grupo;
+:Sube el archivo;
+
+|Sistema|
+if (¿El grupo es de este docente\ny el período está activo?) then (no)
+  :Niega la carga y explica por qué;
+  stop
+else (sí)
+endif
+while (¿Quedan filas?) is (sí)
+  if (¿La fila está completa\ny bien formada?) then (no)
+    :Rechaza la fila\ncon su número y motivo;
+  elseif (¿Existe el código universitario\nen el padrón?) then (no)
+    :Crea al estudiante\n(origen: docente);
+    :Lo inscribe en el grupo;
+  elseif (¿Coincide el documento\ncon el guardado?) then (no)
+    :No toca nada y abre\nun conflicto para el administrador;
+  elseif (¿Ya está inscrito\nen este grupo?) then (sí)
+    :Omite la fila;
+  else (no)
+    :Reutiliza al estudiante\ny solo lo inscribe en el grupo;
+  endif
+endwhile (no)
+:Asienta la carga en la bitácora;
+:Muestra el resumen: nuevos, reutilizados,\nya inscritos, rechazados y en conflicto;
+
+|Docente|
+:Revisa el resumen y la lista del grupo;
+
+|Administrador|
+if (¿Hay conflictos pendientes?) then (sí)
+  :Compara los datos y decide\ncuál es el correcto;
+  :Resuelve el conflicto;
+else (no)
+endif
+stop
+
+note right
+  La carga del administrador sigue
+  las mismas reglas, para toda la
+  facultad, y deja a los estudiantes
+  como «verificados».
+end note
+@enduml

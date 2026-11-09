@@ -1,8 +1,7 @@
 <?php
 
-use App\Modules\Administracion\Http\Middleware\ExigirCambioContrasenaTemporal;
+use App\Modules\Administracion\Http\Middleware\ExigirContrasenaPropia;
 use App\Modules\Administracion\Http\Middleware\ExigirPermiso;
-use App\Modules\Administracion\Http\Middleware\GestionarSesionUsuario;
 use App\Modules\Ingreso\Http\Middleware\ExigirPuesto;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -20,17 +19,18 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->web(append: [
-            GestionarSesionUsuario::class,
-            ExigirCambioContrasenaTemporal::class,
-        ]);
+        $middleware->appendToGroup('web', ExigirContrasenaPropia::class);
 
-        // HU-02: las rutas declaran con "permiso:<nombre>" que atribucion
-        // exigen al rol de quien las llama.
         $middleware->alias([
             'permiso' => ExigirPermiso::class,
             'puesto' => ExigirPuesto::class,
         ]);
+
+        // Sin sesion, la API responde 401 en JSON aunque el pedido no traiga
+        // `Accept`; las pantallas llevan al acceso.
+        $middleware->redirectGuestsTo(
+            static fn (Request $request): ?string => $request->is('api/*') ? null : '/login'
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         /*
@@ -41,7 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
             static fn (Request $request): bool => $request->is('api/*') || $request->expectsJson()
         );
 
-        // Sin sesion: el mismo cuerpo que da `permiso`.
+        // Sin sesion: el mismo cuerpo que dan `permiso` y `puesto`.
         $exceptions->render(static function (AuthenticationException $error, Request $request): ?JsonResponse {
             if (! $request->is('api/*') && ! $request->expectsJson()) {
                 return null;

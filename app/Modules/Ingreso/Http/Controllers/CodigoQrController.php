@@ -8,65 +8,50 @@ use App\Modules\Ingreso\Application\Actions\EmitirCodigosQr;
 use App\Modules\Ingreso\Application\Actions\EnviarAvisos;
 use App\Modules\Ingreso\Application\Actions\EnviarCodigosQr;
 use App\Modules\Ingreso\Application\Actions\ReenviarCodigoQr;
-use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
+use App\Modules\Ingreso\Application\Contracts\PuertaGateway;
 use App\Modules\Ingreso\Application\Queries\ArmarHojaDeCredenciales;
 use App\Modules\Ingreso\Application\Queries\ConsultarCredencial;
 use App\Modules\Ingreso\Application\Queries\ListarCodigosQr;
-use App\Modules\Ingreso\Domain\Exceptions\ExamenAjenoException;
+use App\Modules\Ingreso\Domain\Exceptions\FueraDeAlcanceException;
 use App\Modules\Ingreso\Domain\Exceptions\SinCodigosException;
 use App\Modules\Ingreso\Http\Requests\EnviarAvisoRequest;
 use App\Modules\Ingreso\Http\Requests\FiltroCodigosRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Auth;
 
-/**
- * HU-20: los codigos QR de un examen. Ademas del permiso `codigos_qr`,
- * cada accion exige ser docente del examen.
- */
 final class CodigoQrController
 {
+    use Responde;
+
     public function index(
         int $examen,
         FiltroCodigosRequest $request,
         ListarCodigosQr $listar,
-        EmisionQrGateway $codigos,
+        PuertaGateway $puerta,
     ): JsonResponse {
-        $usuarioId = Auth::id();
-
-        if (! is_int($usuarioId)) {
-            return $this->sinSesion();
-        }
-
-        if ($codigos->examen($examen) === null) {
+        if ($puerta->examen($examen) === null) {
             return $this->noEncontrado('Examen no encontrado.');
         }
 
         try {
-            return response()->json($listar->execute($examen, $request->toData(), $usuarioId));
-        } catch (ExamenAjenoException $excepcion) {
-            return $this->ajeno($excepcion);
+            return response()->json($listar->execute($examen, $request->toData(), $this->usuarioId()));
+        } catch (FueraDeAlcanceException $error) {
+            return $this->fueraDeAlcance($error);
         }
     }
 
-    public function store(int $examen, EmitirCodigosQr $emitir, EmisionQrGateway $codigos): JsonResponse
+    public function store(int $examen, EmitirCodigosQr $emitir, PuertaGateway $puerta): JsonResponse
     {
-        $usuarioId = Auth::id();
-
-        if (! is_int($usuarioId)) {
-            return $this->sinSesion();
-        }
-
-        if ($codigos->examen($examen) === null) {
+        if ($puerta->examen($examen) === null) {
             return $this->noEncontrado('Examen no encontrado.');
         }
 
         try {
-            $resultado = $emitir->execute($examen, $usuarioId);
-        } catch (ExamenAjenoException $excepcion) {
-            return $this->ajeno($excepcion);
-        } catch (SinCodigosException $excepcion) {
-            return $this->conflicto($excepcion);
+            $resultado = $emitir->execute($examen, $this->usuarioId());
+        } catch (FueraDeAlcanceException $error) {
+            return $this->fueraDeAlcance($error);
+        } catch (SinCodigosException $error) {
+            return $this->conflicto($error->getMessage(), $error->codigo);
         }
 
         return response()->json([
@@ -84,22 +69,16 @@ final class CodigoQrController
         int $examen,
         int $estudiante,
         ConsultarCredencial $consultar,
-        EmisionQrGateway $codigos,
+        PuertaGateway $puerta,
     ): JsonResponse {
-        $usuarioId = Auth::id();
-
-        if (! is_int($usuarioId)) {
-            return $this->sinSesion();
-        }
-
-        if ($codigos->examen($examen) === null) {
+        if ($puerta->examen($examen) === null) {
             return $this->noEncontrado('Examen no encontrado.');
         }
 
         try {
-            $credencial = $consultar->execute($examen, $estudiante, $usuarioId);
-        } catch (ExamenAjenoException $excepcion) {
-            return $this->ajeno($excepcion);
+            $credencial = $consultar->execute($examen, $estudiante, $this->usuarioId());
+        } catch (FueraDeAlcanceException $error) {
+            return $this->fueraDeAlcance($error);
         }
 
         if ($credencial === null) {
@@ -109,31 +88,22 @@ final class CodigoQrController
         return response()->json(['data' => $credencial]);
     }
 
-    /**
-     * El codigo de cada estudiante del filtro, a su correo institucional.
-     */
     public function enviar(
         int $examen,
         FiltroCodigosRequest $request,
         EnviarCodigosQr $enviar,
-        EmisionQrGateway $codigos,
+        PuertaGateway $puerta,
     ): JsonResponse {
-        $usuarioId = Auth::id();
-
-        if (! is_int($usuarioId)) {
-            return $this->sinSesion();
-        }
-
-        if ($codigos->examen($examen) === null) {
+        if ($puerta->examen($examen) === null) {
             return $this->noEncontrado('Examen no encontrado.');
         }
 
         try {
-            $resultado = $enviar->execute($examen, $request->toData(), $usuarioId, $request->tanda());
-        } catch (ExamenAjenoException $excepcion) {
-            return $this->ajeno($excepcion);
-        } catch (SinCodigosException $excepcion) {
-            return $this->conflicto($excepcion);
+            $resultado = $enviar->execute($examen, $request->toData(), $this->usuarioId(), $request->tanda());
+        } catch (FueraDeAlcanceException $error) {
+            return $this->fueraDeAlcance($error);
+        } catch (SinCodigosException $error) {
+            return $this->conflicto($error->getMessage(), $error->codigo);
         }
 
         return response()->json([
@@ -153,24 +123,18 @@ final class CodigoQrController
         int $examen,
         int $estudiante,
         ReenviarCodigoQr $reenviar,
-        EmisionQrGateway $codigos,
+        PuertaGateway $puerta,
     ): JsonResponse {
-        $usuarioId = Auth::id();
-
-        if (! is_int($usuarioId)) {
-            return $this->sinSesion();
-        }
-
-        if ($codigos->examen($examen) === null) {
+        if ($puerta->examen($examen) === null) {
             return $this->noEncontrado('Examen no encontrado.');
         }
 
         try {
-            $correo = $reenviar->execute($examen, $estudiante, $usuarioId);
-        } catch (ExamenAjenoException $excepcion) {
-            return $this->ajeno($excepcion);
-        } catch (SinCodigosException $excepcion) {
-            return $this->conflicto($excepcion);
+            $correo = $reenviar->execute($examen, $estudiante, $this->usuarioId());
+        } catch (FueraDeAlcanceException $error) {
+            return $this->fueraDeAlcance($error);
+        } catch (SinCodigosException $error) {
+            return $this->conflicto($error->getMessage(), $error->codigo);
         }
 
         if ($correo === null) {
@@ -192,15 +156,9 @@ final class CodigoQrController
         int $examen,
         EnviarAvisoRequest $request,
         EnviarAvisos $avisar,
-        EmisionQrGateway $codigos,
+        PuertaGateway $puerta,
     ): JsonResponse {
-        $usuarioId = Auth::id();
-
-        if (! is_int($usuarioId)) {
-            return $this->sinSesion();
-        }
-
-        if ($codigos->examen($examen) === null) {
+        if ($puerta->examen($examen) === null) {
             return $this->noEncontrado('Examen no encontrado.');
         }
 
@@ -209,13 +167,13 @@ final class CodigoQrController
                 $examen,
                 $request->toData(),
                 $request->recomendaciones(),
-                $usuarioId,
+                $this->usuarioId(),
                 $request->tanda(),
             );
-        } catch (ExamenAjenoException $excepcion) {
-            return $this->ajeno($excepcion);
-        } catch (SinCodigosException $excepcion) {
-            return $this->conflicto($excepcion);
+        } catch (FueraDeAlcanceException $error) {
+            return $this->fueraDeAlcance($error);
+        } catch (SinCodigosException $error) {
+            return $this->conflicto($error->getMessage(), $error->codigo);
         }
 
         return response()->json([
@@ -229,68 +187,31 @@ final class CodigoQrController
     }
 
     /**
-     * Hoja imprimible en otra pestaña: solo las credenciales, dos por fila.
-     * El navegador la imprime o la guarda como PDF.
+     * Hoja imprimible: el navegador la imprime o la guarda como PDF.
      */
     public function hoja(
         int $examen,
         FiltroCodigosRequest $request,
         ArmarHojaDeCredenciales $armar,
-        EmisionQrGateway $codigos,
+        PuertaGateway $puerta,
     ): JsonResponse|Response {
-        $usuarioId = Auth::id();
-
-        if (! is_int($usuarioId)) {
-            return $this->sinSesion();
-        }
-
-        $datos = $codigos->examen($examen);
+        $datos = $puerta->examen($examen);
 
         if ($datos === null) {
             return $this->noEncontrado('Examen no encontrado.');
         }
 
         try {
-            $tarjetas = $armar->execute($examen, $request->toData(), $usuarioId);
-        } catch (ExamenAjenoException $excepcion) {
-            return $this->ajeno($excepcion);
+            $tarjetas = $armar->execute($examen, $request->toData(), $this->usuarioId());
+        } catch (FueraDeAlcanceException $error) {
+            return $this->fueraDeAlcance($error);
         }
 
         return response()
             ->view('qr.hoja', [
-                'titulo' => sprintf('Credenciales · %s · %s', $datos->texto, $datos->fechaTexto),
+                'titulo' => sprintf('Credenciales · %s · %s', $datos->texto(), $datos->fecha),
                 'tarjetas' => $tarjetas,
             ])
             ->header('Content-Type', 'text/html; charset=utf-8');
-    }
-
-    private function sinSesion(): JsonResponse
-    {
-        return response()->json([
-            'message' => 'No hay una sesión activa.',
-        ], Response::HTTP_UNAUTHORIZED);
-    }
-
-    private function noEncontrado(string $mensaje): JsonResponse
-    {
-        return response()->json([
-            'message' => $mensaje,
-        ], Response::HTTP_NOT_FOUND);
-    }
-
-    private function ajeno(ExamenAjenoException $excepcion): JsonResponse
-    {
-        return response()->json([
-            'message' => $excepcion->getMessage(),
-            'alcance' => true,
-        ], Response::HTTP_FORBIDDEN);
-    }
-
-    private function conflicto(SinCodigosException $excepcion): JsonResponse
-    {
-        return response()->json([
-            'message' => $excepcion->getMessage(),
-            'codigo' => $excepcion->codigo,
-        ], Response::HTTP_CONFLICT);
     }
 }

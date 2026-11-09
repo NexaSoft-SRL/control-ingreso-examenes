@@ -1,0 +1,68 @@
+% Ficha HU-21. Criterios tomados del backlog de la iteracion 3. El registro
+% es inmutable: la correccion es una anulacion que conserva el original.
+\def\HUNro{21}
+\def\HUSprint{3}
+\def\HUTitulo{Punto de control > Ingreso > Registrar fecha y hora}
+\def\HUModulo{M4}
+\def\HUReq{7}
+\def\HUPuntos{3}
+
+\def\HUComo{personal de control}
+\def\HUQuiero{que el sistema registre la hora por su cuenta}
+\def\HUPara{que el dato sea confiable y no dependa de quien opera}
+
+\def\HUDescripcion{%
+La hora de ingreso es la prueba de que un estudiante entró y cuándo. Si la pusiera el
+teléfono del personal, bastaría con un reloj mal configurado ---o cambiado a propósito---
+para que el registro no sirva.
+
+La toma el servidor en el momento en que se guarda el ingreso. El dispositivo no la envía
+ni puede modificarla, y el registro guarda además quién lo hizo, con qué medio se
+identificó al estudiante y en qué ambiente ingresó.
+
+El registro es inmutable: no hay forma de editarlo ni de borrarlo. Una corrección ---se
+registró al estudiante equivocado--- se asienta como anulación, con su motivo y su autor,
+y el registro original queda en la base para siempre. Un ingreso anulado deja libre al
+estudiante para volver a ingresar, y en la lista figuran los dos hechos.
+
+Tanto el registro como la anulación quedan asentados en la bitácora del sistema (HU-07).}
+
+\def\HUCriterios{%
+\item Dado que se registra un ingreso, Cuando se guarda, Entonces la fecha y la hora las
+      toma el servidor y no el dispositivo.
+\item Dado que se registra un ingreso, Cuando se lo consulta, Entonces consta quién lo
+      registró, con qué medio y en qué ambiente.
+\item Dado que un ingreso quedó registrado, Cuando se intenta modificarlo, Entonces el
+      sistema no lo permite: no existe forma de editarlo.
+\item Dado que hubo un error al registrar, Cuando se anula el ingreso con su motivo,
+      Entonces el registro original se conserva marcado como anulado.
+\item Dado que se intenta anular sin motivo, Cuando se envía, Entonces el sistema lo
+      rechaza señalando el campo.
+\item Dado que un ingreso fue anulado, Cuando el estudiante vuelve a la puerta, Entonces
+      el sistema le permite registrar un ingreso nuevo.
+\item Dado que se intenta anular un ingreso inexistente o ya anulado, Cuando se envía,
+      Entonces el sistema lo informa.
+\item Dado que se registra o se anula un ingreso, Cuando la operación se completa,
+      Entonces queda asentada en la bitácora con su autor.
+\item Dado que el personal de control consulta el examen, Cuando abre la pantalla,
+      Entonces ve los ingresos registrados con su hora.
+\item Dado que un rol no tiene el permiso del punto de control, Cuando intenta consultar
+      los ingresos, Entonces el sistema responde con una negativa explícita.}
+
+\def\HUPruebas{%
+\item \texttt{RegistroIngresoTest::an\_enabled\_student\_enters\_and\_the\_server\_sets\_the\_time}:
+      la hora la pone el servidor, dentro del margen de la prueba (criterios 1 y 2).
+\item \texttt{RegistroIngresoTest::an\_entry\_is\_annulled\_without\_losing\_the\_original\_record}:
+      la anulación conserva el registro (criterios 3 y 4).
+\item \texttt{RegistroIngresoTest::annulling\_requires\_a\_reason}: sin motivo no se anula
+      (criterio 5).
+\item \texttt{RegistroIngresoTest::an\_annulled\_entry\_lets\_the\_student\_enter\_again}:
+      el ingreso nuevo tras la anulación (criterio 6).
+\item \texttt{RegistroIngresoTest::every\_movement\_is\_recorded\_in\_the\_audit\_log}:
+      asientos de registro y anulación (criterio 8).
+\item \texttt{RegistroIngresoTest}: listado de ingresos y rol sin permiso (criterios 9
+      y 10).
+\item \texttt{PuntoControl.test.jsx}: la pantalla registra el ingreso y muestra la lista
+      con su hora (criterios 1 y 9).}
+
+\input{cuerpo}

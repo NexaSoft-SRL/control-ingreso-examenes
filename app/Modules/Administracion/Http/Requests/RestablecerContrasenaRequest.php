@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Administracion\Http\Requests;
 
+use App\Modules\Administracion\Domain\Rules\NombreDeUsuario;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rules\Password;
 
 final class RestablecerContrasenaRequest extends FormRequest
 {
@@ -13,36 +15,54 @@ final class RestablecerContrasenaRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $usuario = $this->input('usuario');
+
+        if (is_string($usuario)) {
+            $this->merge(['usuario' => NombreDeUsuario::normalizar($usuario)]);
+        }
+    }
+
     /**
-     * @return array<string, list<mixed>>
+     * @return array<string, list<string|Password>>
      */
     public function rules(): array
     {
         return [
-            'correo' => ['required', 'string', 'email', 'max:255'],
-            'token' => ['required', 'string', 'size:64'],
-            'password' => [
+            'usuario' => [
                 'required',
                 'string',
+                'max:60',
+                'regex:'.NombreDeUsuario::FORMATO,
+            ],
+            'token' => [
+                'required',
+                'string',
+            ],
+            'contrasena_nueva' => [
+                'required',
+                'string',
+                Password::min(10)->mixedCase()->numbers(),
                 'confirmed',
-                ...ReglasContrasena::reglas(),
             ],
         ];
     }
 
     /**
-     * Un enlace alterado o recortado se informa igual que uno vencido.
-     *
      * @return array<string, string>
      */
     public function messages(): array
     {
-        $enlace = 'Enlace no válido o vencido.';
-
         return [
-            'correo.*' => $enlace,
-            'token.*' => $enlace,
-            ...ReglasContrasena::mensajes(),
+            'usuario.required' => 'Falta el usuario del enlace.',
+            'usuario.regex' => 'El usuario del enlace no es válido.',
+            'token.required' => 'Falta el código del enlace.',
+            'contrasena_nueva.required' => 'Escriba la contraseña nueva.',
+            'contrasena_nueva.confirmed' => 'La confirmación no coincide con la contraseña nueva.',
+            'contrasena_nueva.min' => 'La contraseña nueva debe tener al menos 10 caracteres.',
+            'contrasena_nueva.password.mixed' => 'La contraseña nueva debe tener una mayúscula y una minúscula.',
+            'contrasena_nueva.password.numbers' => 'La contraseña nueva debe tener un número.',
         ];
     }
 }

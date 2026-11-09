@@ -9,7 +9,7 @@ import { errorHttp, renderConSesion, simularApi } from '../../test/apoyo';
 vi.mock('../../api/cliente');
 
 const PREDEFINIDAS = [
-    { id: 1, texto: 'Documento de identidad a la vista', predefinida: true, propia: false },
+    { id: 1, texto: 'C.I. a la vista', predefinida: true, propia: false },
     { id: 2, texto: 'Sin celular', predefinida: true, propia: false },
 ];
 const PROPIA = { id: 7, texto: 'Hoja de fórmulas A4', predefinida: false, propia: true };
@@ -77,7 +77,7 @@ describe('NormasDelExamen', () => {
     it('muestra las predefinidas y las propias; solo las propias se editan y se quitan', async () => {
         montar();
 
-        expect(await casilla('Documento de identidad a la vista')).not.toBeChecked();
+        expect(await casilla('C.I. a la vista')).not.toBeChecked();
         expect(await casilla('Sin celular')).toBeInTheDocument();
         expect(await casilla('Hoja de fórmulas A4')).toBeInTheDocument();
 
@@ -210,7 +210,7 @@ describe('NormasDelExamen', () => {
 
     it('un rechazo del servidor queda en el diálogo', async () => {
         api.delete.mockRejectedValueOnce(
-            errorHttp(403, { message: 'Plantilla no autorizada.', alcance: true })
+            errorHttp(403, { message: 'Esta plantilla no es de su cuenta.', alcance: true })
         );
         montar();
 
@@ -219,7 +219,9 @@ describe('NormasDelExamen', () => {
         );
         fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Quitar' }));
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('Plantilla no autorizada.');
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'Esta plantilla no es de su cuenta.'
+        );
         expect(await casilla('Hoja de fórmulas A4')).toBeInTheDocument();
     });
 

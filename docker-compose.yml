@@ -1,4 +1,6 @@
-# Base de datos para el entorno de desarrollo.
+# Base de datos del proyecto guia. Es independiente de la del proyecto
+# original: otro contenedor, otro volumen y el puerto 5433, para que ambos
+# puedan correr a la vez.
 #
 # No corresponde al despliegue: en el servidor de TIS la base se crea desde el
 # panel de administracion y la aplicacion se transfiere por FTP. Su finalidad es
@@ -12,21 +14,21 @@ services:
   postgres:
     # Version equivalente a la del servidor de destino (15.10).
     image: postgres:15.10-alpine
-    container_name: control_ingreso_db
+    container_name: control_ingreso_guia_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: control_ingreso
+      POSTGRES_DB: control_ingreso_guia
       POSTGRES_USER: nexasoft
       POSTGRES_PASSWORD: nexasoft
     ports:
-      - '5432:5432'
+      - '5434:5432'
     volumes:
-      - datos_postgres:/var/lib/postgresql/data
+      - datos_postgres_guia:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U nexasoft -d control_ingreso']
+      test: ['CMD-SHELL', 'pg_isready -U nexasoft -d control_ingreso_guia']
       interval: 10s
       timeout: 5s
       retries: 5
 
 volumes:
-  datos_postgres:
+  datos_postgres_guia:

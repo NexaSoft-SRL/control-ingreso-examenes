@@ -12,9 +12,10 @@ use App\Modules\Estudiantes\Domain\Exceptions\ArchivoRechazadoException;
  * columnas, las trae en otro orden o no parece una lista, se rechaza
  * entero.
  *
- * Con encabezado la revision es exacta. Sin encabezado solo se puede
- * inferir por el contenido: el codigo universitario (5 a 10 digitos) tiene
- * que estar en la primera columna.
+ * Con encabezado, cada columna se reconoce por su nombre y puede venir en
+ * cualquier orden: las filas se devuelven en el orden de la carga. Sin
+ * encabezado solo se puede inferir por el contenido: el codigo
+ * universitario (5 a 10 digitos) tiene que estar en la primera columna.
  */
 final class FormatoDeLista
 {
@@ -81,7 +82,17 @@ final class FormatoDeLista
                     throw ArchivoRechazadoException::vacio();
                 }
 
-                return $conDatos;
+                $columnas = [...$obligatorias, ...$opcionales];
+
+                return array_map(
+                    static fn (array $fila): array => array_map(
+                        static fn (string $columna): string => isset($encabezado[$columna])
+                            ? ($fila[$encabezado[$columna]] ?? '')
+                            : '',
+                        $columnas,
+                    ),
+                    $conDatos,
+                );
             }
 
             if ($conDatos === []) {
@@ -141,13 +152,7 @@ final class FormatoDeLista
         ));
 
         if ($faltan !== []) {
-            throw ArchivoRechazadoException::faltanColumnas($faltan, $obligatorias);
-        }
-
-        foreach ([...$obligatorias, ...$opcionales] as $posicion => $columna) {
-            if (isset($encabezado[$columna]) && $encabezado[$columna] !== $posicion) {
-                throw ArchivoRechazadoException::ordenDeColumnas($obligatorias);
-            }
+            throw ArchivoRechazadoException::faltanColumnas($faltan, self::orden($obligatorias, $opcionales));
         }
     }
 
@@ -193,7 +198,7 @@ final class FormatoDeLista
         if ($ancho < count($obligatorias)) {
             throw ArchivoRechazadoException::faltanColumnas(
                 array_slice($obligatorias, $ancho),
-                $obligatorias,
+                self::orden($obligatorias, $opcionales),
             );
         }
 
@@ -213,7 +218,7 @@ final class FormatoDeLista
             // El documento tambien son digitos: en su columna solo delata
             // un cambio de orden si la primera trae texto.
             if (! $numerica || $soloTexto * 2 > $total) {
-                throw ArchivoRechazadoException::ordenDeColumnas($obligatorias);
+                throw ArchivoRechazadoException::ordenDeColumnas(self::orden($obligatorias, $opcionales));
             }
         }
     }
@@ -251,5 +256,21 @@ final class FormatoDeLista
         ]);
 
         return trim((string) preg_replace('/[^a-z0-9]+/', '_', $celda), '_');
+    }
+
+    /**
+     * El orden que espera la carga, con las columnas opcionales al final y
+     * marcadas.
+     *
+     * @param  list<string>  $obligatorias
+     * @param  list<string>  $opcionales
+     * @return list<string>
+     */
+    private static function orden(array $obligatorias, array $opcionales): array
+    {
+        return [
+            ...$obligatorias,
+            ...array_map(static fn (string $columna): string => $columna.' (opcional)', $opcionales),
+        ];
     }
 }

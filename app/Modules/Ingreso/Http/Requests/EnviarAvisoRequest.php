@@ -13,8 +13,6 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 final class EnviarAvisoRequest extends FormRequest
 {
-    public const MAXIMO_RECOMENDACIONES = 2000;
-
     public function authorize(): bool
     {
         return true;
@@ -26,11 +24,11 @@ final class EnviarAvisoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'recomendaciones' => ['nullable', 'string', 'max:'.self::MAXIMO_RECOMENDACIONES],
+            'recomendaciones' => ['nullable', 'string', 'max:2000'],
             'grupo' => ['nullable', 'integer', 'min:1'],
             'aula' => ['nullable', 'integer', 'min:1'],
             'buscar' => ['nullable', 'string', 'max:100'],
-            'envio' => ['nullable', 'string', 'in:'.implode(',', FiltroCodigosData::ENVIOS)],
+            'envio' => ['nullable', 'string', 'in:'.implode(',', FiltroCodigosRequest::ENVIOS)],
             'tanda' => ['nullable', 'date'],
         ];
     }
@@ -41,7 +39,7 @@ final class EnviarAvisoRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'recomendaciones.*' => 'Máximo '.self::MAXIMO_RECOMENDACIONES.' caracteres',
+            'recomendaciones.*' => 'Máximo 2000 caracteres',
             'grupo.*' => 'El grupo no es válido.',
             'aula.*' => 'El aula no es válida.',
             'buscar.*' => 'La búsqueda admite hasta 100 caracteres.',

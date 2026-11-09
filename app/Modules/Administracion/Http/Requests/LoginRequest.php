@@ -35,11 +35,25 @@ class LoginRequest extends FormRequest
                 'required',
                 'string',
                 'max:60',
+                'regex:'.NombreDeUsuario::FORMATO,
             ],
             'password' => [
                 'required',
                 'string',
             ],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'usuario.required' => 'Escriba su usuario.',
+            'usuario.max' => 'El usuario no puede pasar de 60 caracteres.',
+            'usuario.regex' => 'El usuario lleva letras y números, separados por un espacio, punto o guion.',
+            'password.required' => 'Escriba su contraseña.',
         ];
     }
 }

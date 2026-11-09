@@ -13,6 +13,8 @@ final readonly class FilaAusente
         public string $codigoUniversitario,
         public string $nombre,
         public ?string $grupo,
+        /** El docente del grupo del estudiante. */
+        public ?string $docente,
         public ?string $carrera,
         public ?string $aula,
     ) {}

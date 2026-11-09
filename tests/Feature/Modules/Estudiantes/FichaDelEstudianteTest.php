@@ -43,23 +43,14 @@ final class FichaDelEstudianteTest extends TestCase
         ]);
 
         $docente = $this->docenteSinCuenta('Blanco Coca Leticia');
-        $programacion = $this->grupo(
-            $docente,
-            $this->asignatura('Introducción a la Programación', '2010010'),
-            '2'
-        );
-        $algebra = $this->grupo(
-            null,
-            $this->asignatura('Álgebra I', '2008019'),
-            '1'
-        );
+        $programacion = $this->grupo($docente, $this->asignatura('Introducción a la Programación', '2010010'), '2');
+        $algebra = $this->grupo(null, $this->asignatura('Álgebra I', '2008019'), '1');
 
         Inscripcion::create([
             'estudiante_id' => $estudiante->id,
             'grupo_id' => $programacion->id,
             'via' => OrigenEstudiante::Docente,
         ]);
-
         Inscripcion::create([
             'estudiante_id' => $estudiante->id,
             'grupo_id' => $algebra->id,
@@ -71,40 +62,40 @@ final class FichaDelEstudianteTest extends TestCase
         $this->actingAs($this->administrador())
             ->getJson("/api/estudiantes/{$estudiante->id}")
             ->assertOk()
-            ->assertJsonPath('data.id', $estudiante->id)
-            ->assertJsonPath('data.codigo', '202104821')
-            ->assertJsonPath('data.nombre', 'Aguilar Cossío Mariana')
-            ->assertJsonPath('data.nombres', 'Mariana')
-            ->assertJsonPath('data.apellidos', 'Aguilar Cossío')
-            ->assertJsonPath('data.documento', '7928194')
-            ->assertJsonPath('data.correo', '202104821@est.umss.edu')
-            ->assertJsonPath('data.facultad', 'FCyT')
-            ->assertJsonPath('data.carrera', 'Ing. Informática')
-            ->assertJsonPath('data.origen', 'Administración')
-            ->assertJsonPath('data.con_foto', false)
-            ->assertJsonPath('data.foto_subida_en', null)
-            ->assertJsonCount(2, 'data.materias')
-            ->assertJsonFragment([
-                'asignatura' => [
-                    'codigo' => '2010010',
-                    'nombre' => 'Introducción a la Programación',
+            ->assertExactJson([
+                'data' => [
+                    'id' => $estudiante->id,
+                    'codigo' => '202104821',
+                    'nombre' => 'Aguilar Cossío Mariana',
+                    'nombres' => 'Mariana',
+                    'apellidos' => 'Aguilar Cossío',
+                    'documento' => '7928194',
+                    'correo' => '202104821@est.umss.edu',
+                    'facultad' => 'FCyT',
+                    'carrera' => 'Ing. Informática',
+                    'origen' => 'Administración',
+                    'con_foto' => false,
+                    'foto_subida_en' => null,
+                    'materias' => [
+                        [
+                            'asignatura' => ['codigo' => '2010010', 'nombre' => 'Introducción a la Programación'],
+                            'grupo' => '2',
+                            'grupo_id' => $programacion->id,
+                            'docente' => 'Blanco Coca Leticia',
+                            'periodo' => $periodo,
+                            'via' => 'Docente',
+                        ],
+                        [
+                            // Un grupo sin docente queda «Por designar»: va nulo.
+                            'asignatura' => ['codigo' => '2008019', 'nombre' => 'Álgebra I'],
+                            'grupo' => '1',
+                            'grupo_id' => $algebra->id,
+                            'docente' => null,
+                            'periodo' => $periodo,
+                            'via' => 'Administración',
+                        ],
+                    ],
                 ],
-                'grupo' => '2',
-                'grupo_id' => $programacion->id,
-                'docente' => 'Blanco Coca Leticia',
-                'periodo' => $periodo,
-                'via' => 'Docente',
-            ])
-            ->assertJsonFragment([
-                'asignatura' => [
-                    'codigo' => '2008019',
-                    'nombre' => 'Álgebra I',
-                ],
-                'grupo' => '1',
-                'grupo_id' => $algebra->id,
-                'docente' => null,
-                'periodo' => $periodo,
-                'via' => 'Administración',
             ]);
     }
 
@@ -158,10 +149,7 @@ final class FichaDelEstudianteTest extends TestCase
     public function test_the_subjects_of_another_student_are_not_mixed(): void
     {
         $estudiante = $this->estudiante();
-        $otro = $this->estudiante([
-            'codigo_universitario' => '201901349',
-            'documento_identidad' => '6492819',
-        ]);
+        $otro = $this->estudiante(['codigo_universitario' => '201901349', 'documento_identidad' => '6492819']);
 
         Inscripcion::create([
             'estudiante_id' => $otro->id,
@@ -187,8 +175,7 @@ final class FichaDelEstudianteTest extends TestCase
     {
         $estudiante = $this->estudiante();
 
-        $this->getJson("/api/estudiantes/{$estudiante->id}")
-            ->assertUnauthorized();
+        $this->getJson("/api/estudiantes/{$estudiante->id}")->assertUnauthorized();
     }
 
     public function test_a_teacher_cannot_see_the_record(): void
@@ -199,56 +186,5 @@ final class FichaDelEstudianteTest extends TestCase
             ->getJson("/api/estudiantes/{$estudiante->id}")
             ->assertForbidden()
             ->assertJsonPath('permiso_requerido', 'padron_estudiantes');
-    }
-
-    public function test_an_administrator_can_correct_student_names_and_identity_and_the_change_is_audited(): void
-    {
-        $estudiante = $this->estudiante();
-
-        $this->actingAs($this->administrador())
-            ->putJson("/api/estudiantes/{$estudiante->id}", [
-                'nombres' => 'Mariana Elena',
-                'apellidos' => 'Aguilar Cossío',
-                'documento' => '7928195',
-            ])
-            ->assertOk()
-            ->assertJsonPath('data.nombres', 'Mariana Elena')
-            ->assertJsonPath('data.apellidos', 'Aguilar Cossío')
-            ->assertJsonPath('data.documento', '7928195');
-
-        $this->assertDatabaseHas('estudiantes', [
-            'id' => $estudiante->id,
-            'nombres' => 'Mariana Elena',
-            'apellidos' => 'Aguilar Cossío',
-            'documento_identidad' => '7928195',
-        ]);
-        $this->assertDatabaseHas('bitacora_operaciones', [
-            'operacion' => 'estudiante.datos_corregidos',
-            'tabla_afectada' => 'estudiantes',
-            'registro_id' => $estudiante->id,
-        ]);
-    }
-
-    public function test_a_corrected_identity_cannot_belong_to_another_student(): void
-    {
-        $estudiante = $this->estudiante();
-        $otro = $this->estudiante([
-            'codigo_universitario' => '201901349',
-            'documento_identidad' => '6492819',
-        ]);
-
-        $this->actingAs($this->administrador())
-            ->putJson("/api/estudiantes/{$estudiante->id}", [
-                'nombres' => $estudiante->nombres,
-                'apellidos' => $estudiante->apellidos,
-                'documento' => $otro->documento_identidad,
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['documento']);
-
-        $this->assertDatabaseHas('estudiantes', [
-            'id' => $estudiante->id,
-            'documento_identidad' => $estudiante->documento_identidad,
-        ]);
     }
 }

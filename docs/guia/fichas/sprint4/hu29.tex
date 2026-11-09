@@ -1,0 +1,151 @@
+% Ficha HU-29 del sprint 4. Una historia = una vista completa: la bitacora
+% de un examen: todo lo ocurrido en orden, con filtros y descarga, para el
+% docente y para el administrador.
+% Tipo: mejora de HU-07.
+% Mockups: el principal es la captura «bitacora-del-examen» (hu29-escritorio.png
+% y hu29-movil.png); las demas, en mockups/hu29-<nombre>.png.
+\def\HUNro{29}
+\def\HUSprint{4}
+\def\HUTitulo{Reportes > Bitácora del examen > Ver en orden todo lo ocurrido en un
+examen}
+\def\HUModulo{M6}
+\def\HUReq{13, 15, 16}
+\def\HUPuntos{3}
+
+\def\HUComo{docente o administrador}
+\def\HUQuiero{ver en orden todo lo que ocurrió en un examen ---ingresos, rechazos,
+incidencias, accesos con código de aula y lo hecho con el examen--- y descargarlo}
+\def\HUPara{reconstruir el examen ante un reclamo sin cruzar varios reportes ni buscar
+en la bitácora general}
+
+\def\HUDescripcion{%
+La bitácora del primer sprint (HU-07) asienta las operaciones de todo el sistema y es
+del administrador; para saber qué pasó en un examen hay que filtrarla y cruzarla con los
+ingresos y las incidencias, que se guardan aparte. Esta historia la mejora con una
+bitácora por examen que reúne, en orden, todo lo ocurrido en él. No registra nada nuevo:
+lee lo que ya asientan la puerta, el seguimiento, el acceso con código de aula y la
+bitácora general.
+
+El docente la ve en la pestaña «Bitácora» de la página del examen (HU-28) y también en
+sus reportes (HU-23), junto a las cifras del examen; el administrador, desde sus reportes (HU-24), con el botón «Bitácora» del examen elegido,
+en un diálogo. Es una línea de tiempo agrupada por día: cada suceso lleva su hora, su
+título, el aula, el estudiante con su código, el detalle y quién lo hizo. Arriba va, por
+aula, quién la controló, cuántos ingresos registró y de qué hora a qué hora; luego las
+fichas por tipo de suceso y por gravedad, la búsqueda por estudiante y, con más de un
+aula, el selector de aula; «PDF» y «Hoja de cálculo» descargan la bitácora completa.
+
+Reglas: los sucesos son los ingresos ---con su medio, si fue por excepción, si entró por
+otra aula que la sugerida y si llegó después del inicio---, los intentos que rechazó la
+puerta con su causa, las incidencias con su gravedad (leve, grave o muy grave), su
+atención y su corrección, los pedidos de acceso con código de aula y cómo se
+resolvieron, las operaciones del examen ---registro, modificación, personal de aulas,
+habilitación, inhabilitación por foto, reparto en aulas, códigos QR, avisos y
+finalización---, el inicio programado y, al cerrarse, un resumen del cierre y cada
+habilitado que no se presentó. Una incidencia puede llevar hasta tres fotos de
+evidencia, tomadas con la cámara de atrás al reportarla o al corregirla; se agregan y
+no se reemplazan. Un intento sin examen cuenta si ocurrió en un
+aula del examen mientras estaba abierto. El docente lee la de los exámenes que registró
+o que incluyen un grupo suyo; el administrador, la de cualquiera. Leer y descargar no
+deja rastro.
+
+La vista depende de lo que registran la puerta (HU-19), el acceso con código de aula
+(HU-18), el seguimiento (HU-21 y HU-22), la habilitación (HU-09 y HU-27), los códigos QR
+y avisos (HU-20) y el cierre (HU-28). La abre quien tiene el permiso «Reportes de sus
+exámenes» o «Reportes de la universidad» (HU-15).}
+
+\def\HUCriterios{%
+\item Dado que el docente abre la pestaña «Bitácora» de un examen suyo, Cuando se carga,
+      Entonces ve la tarjeta «Bitácora del examen» con todo lo ocurrido agrupado por día
+      (por ejemplo, «lunes 26 de octubre») y en orden, cada suceso con su hora, su
+      título, el aula («Aula 692C»), el estudiante con su código SIS, el detalle y quién
+      lo hizo.
+\item Dado que un estudiante ingresó, Cuando figura en la bitácora, Entonces el suceso
+      es «Ingresó» con el medio («por código QR», «por código SIS» o «por C.I.»), «por
+      excepción» si lo fue, «su aula sugerida era la» con el aula si entró por otra y
+      «después del inicio» si llegó tarde, y como autor quien lo registró o, si fue en
+      una puerta abierta con código de aula, su nombre con «(código de aula)».
+\item Dado que la puerta rechazó un intento o se reportó una incidencia, Cuando figura
+      en la bitácora, Entonces el rechazo es «Intento rechazado» con su causa («no
+      inscrito en el examen», «no habilitado» o «código no válido») y su detalle, y la
+      incidencia lleva su tipo («Suplantación de identidad», «Material no permitido»,
+      «Dispositivo no permitido», «Intento de ingreso repetido», «Expulsión», «Cambio de
+      aula» o «Incidencia») y su gravedad: «Muy grave» la suplantación y la expulsión,
+      «Grave» el ingreso repetido, el intento no autorizado, el material y el
+      dispositivo, y «Leve» el cambio de aula y otras; su atención y su corrección
+      figuran aparte, a su hora, con
+      «: atendida» y «: corregida» y quién lo hizo. El intento sin examen ocurrido en un
+      aula del examen mientras estaba abierto también figura.
+\item Dado que alguien entró con código de aula o se operó sobre el examen, Cuando
+      figura en la bitácora, Entonces el acceso es «Acceso con código de aula» con
+      «pidió entrar a la puerta» y, al resolverse, «autorizado», «rechazado» o «cortado»
+      con quién lo resolvió; las operaciones son «Examen registrado», «Examen
+      modificado», «Personal de aulas asignado», «Estudiantes habilitados», «Estudiantes
+      no habilitados», «No habilitados por no subir su foto», «Estudiantes repartidos en
+      aulas», «Códigos QR emitidos», «Aviso enviado por correo» o «Examen finalizado»,
+      con su descripción y su autor.
+\item Dado que el examen ya empezó o ya se cerró, Cuando se muestra la bitácora,
+      Entonces figura «Inicio del examen» con el horario programado y, cerrado el
+      examen ---finalizado a mano o terminado su día («Fin del día del examen · Sin
+      finalización manual»)---, «Cierre del examen» con «Ingresaron N de M habilitados»,
+      cuántos no se presentaron, cuántas incidencias y cuántos intentos rechazados, y un
+      suceso «No se presentó» por cada habilitado sin ingreso, con su aula. Arriba, cada
+      aula dice «controló:» con quién la atendió, cuántos ingresos registró y de qué
+      hora a qué hora.
+\item Dado que se reporta o se corrige una incidencia (HU-21), Cuando se adjunta
+      evidencia, Entonces se toman o eligen hasta tres fotos, que se ven en miniatura y
+      se quitan con la equis antes de enviar; al corregir se agregan a las que ya tenía,
+      hasta tres en total («Máximo N fotos más» o «Ya tiene 3 fotos»), y «Evidencia ·
+      N» las abre una grande con sus miniaturas para pasar de una a otra.
+\item Dado que la bitácora tiene sucesos, Cuando el docente usa las fichas «Tipo de
+      suceso» («Todo», «Ingresos», «Rechazos», «Incidencias», «Accesos», «Examen» y «No
+      se presentaron», cada una con su conteo y solo si tiene alguno), las de gravedad
+      («Todas», «Muy grave», «Grave» y «Leve»), el buscador «Estudiante o código SIS»,
+      que no distingue mayúsculas ni tildes, o, con más de un aula, el selector «Todas
+      las aulas», Entonces la lista se filtra al instante y dice «N sucesos de M», o
+      «Sin coincidencias».
+\item Dado que la lista tiene más de cien sucesos, Cuando se muestra, Entonces se ven
+      los cien primeros y «Mostrar más · quedan N» suma otros cien.
+\item Dado que la bitácora tiene sucesos, Cuando se pulsa «PDF» u «Hoja de cálculo»,
+      Entonces baja la «Bitácora del examen» completa, sin los filtros de la vista, con
+      «Hora», «Suceso», «Estudiante», «Aula», «Detalle» y «Por», el examen, «Emitido el»
+      y el total «N sucesos»; el archivo se llama como la bitácora y la fecha del examen
+      (\texttt{bitacora\_2026-10-12.xlsx}). Sin sucesos, la tarjeta muestra «Sin sucesos
+      todavía» y la descarga queda deshabilitada.
+\item Dado que el administrador eligió un examen en sus reportes (HU-24), Cuando pulsa
+      «Bitácora», Entonces se abre un diálogo con la asignatura, el tipo y la fecha del
+      examen y la misma bitácora, con sus filtros y su descarga, para cualquier examen
+      de cualquier docente.
+\item Dado que no hay sesión, el rol no tiene el permiso o el examen no es del docente,
+      Cuando se intenta leer o descargar la bitácora, Entonces el servidor responde con
+      una negativa explícita: el examen ajeno recibe «Este examen no está a su cargo.» y
+      el que no existe «Examen no encontrado.»; la pestaña «Bitácora» solo se habilita
+      con el permiso «Reportes de sus exámenes» y con aulas elegidas, y si la lectura
+      falla la vista ofrece «Reintentar».
+\item Dado que la bitácora solo se lee, Cuando se consulta o se descarga, Entonces no
+      cambia ningún dato ni deja asientos, y sus rutas solo admiten lectura. En un
+      dispositivo móvil los filtros van uno bajo otro y la línea de tiempo ocupa una
+      sola columna, con «PDF» y «Hoja», de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{BitacoraExamenTest}: todo lo ocurrido en el examen en orden ---ingreso con
+      su medio y su autor, ingreso por otra aula y después del inicio, intento rechazado
+      con su causa y finalización del examen---; inicio, cierre con sus cifras, los que
+      no se presentaron y quién controló cada aula (criterios 1 a 5).
+\item \texttt{IncidenciasTest}: hasta tres fotos al reportar, cada una por su número,
+      más de tres rechazadas y la corrección que agrega sin quitar; gravedad de cada tipo
+      (criterios 3 y 6).
+\item \texttt{Incidencias.test.jsx}: fotos en miniatura con su equis, hasta tres, y
+      el visor de evidencia con sus miniaturas (criterio 6).
+\item \texttt{BitacoraExamenTest}: lectura solo para un docente del examen, sin sesión y
+      examen inexistente (criterio 11).
+\item \texttt{BitacoraExamenTest}: el administrador lee y descarga la bitácora de
+      cualquier examen, con el nombre del archivo, y el docente no usa esa ruta
+      (criterios 9 a 11).
+\item \texttt{BitacoraDelExamen.test.jsx}: sucesos por día con hora, aula, estudiante y
+      autor, filtros por tipo, gravedad, aula y estudiante con su cuenta, y bitácora
+      vacía sin descarga (criterios 1, 7 y 9).
+\item \texttt{Reportes.test.jsx}: el botón «Bitácora» solo con un examen elegido y la
+      bitácora de ese examen en un diálogo (criterio 10); \texttt{ReportesDocente.test.jsx}:
+      la pestaña «Bitácora» en los reportes del docente (criterio 1).}
+
+\input{cuerpo}

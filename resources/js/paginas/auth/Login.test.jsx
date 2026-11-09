@@ -1,8 +1,7 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import Login from './Login';
-import RecuperarContrasena from './RecuperarContrasena';
 import { api } from '../../api/cliente';
 import { errorHttp, renderConSesion, simularApi, usuarioDePrueba } from '../../test/apoyo';
 
@@ -12,201 +11,223 @@ function Donde() {
     return <p>Estoy en {useLocation().pathname}</p>;
 }
 
-function montar({ usuario = null, entrar = vi.fn() } = {}) {
+function montar({ entrar = vi.fn(), usuario = null, ruta = '/login' } = {}) {
     return renderConSesion(
         <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/recuperar-contrasena" element={<RecuperarContrasena />} />
             <Route path="*" element={<Donde />} />
         </Routes>,
-        { usuario, ruta: '/login', sesion: { entrar } }
+        { usuario, ruta, sesion: { entrar } }
     );
 }
 
-function completar(usuario, contrasena) {
-    fireEvent.change(screen.getByLabelText(/Usuario/), { target: { value: usuario } });
-    fireEvent.change(screen.getByLabelText(/^Contraseña/), { target: { value: contrasena } });
-    fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+const escribir = (campo, valor) => fireEvent.change(campo, { target: { value: valor } });
+const campoUsuario = () => screen.getByLabelText(/^Usuario/);
+const campoClave = () => screen.getByLabelText(/^Contraseña/);
+const enviar = () => fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+
+function intentar(usuario = 'leticia.blanco', clave = 'Secreta123') {
+    escribir(campoUsuario(), usuario);
+    escribir(campoClave(), clave);
+    enviar();
 }
 
 describe('Login', () => {
-    it('muestra el logo, el nombre y el formulario por usuario', () => {
+    it('pide usuario y contraseña, sin correo ni andamiaje', () => {
         montar();
 
-        expect(screen.getByRole('img', { name: 'Escudo de la UMSS' })).toBeInTheDocument();
-        expect(
-            screen.getByRole('heading', { level: 1, name: 'Control de exámenes' })
-        ).toBeInTheDocument();
-        expect(screen.getByText('Cuenta institucional')).toBeInTheDocument();
-        expect(screen.getByLabelText(/Usuario/)).toHaveAttribute('type', 'text');
-        expect(screen.getByLabelText(/Usuario/)).toHaveAttribute('placeholder', 'nombre apellido');
-        expect(document.title).toBe('Iniciar sesión · Control de exámenes');
-        expect(screen.getByLabelText(/^Contraseña/)).toHaveAttribute('type', 'password');
+        expect(screen.getByRole('heading', { name: 'Control de exámenes' })).toBeInTheDocument();
+        expect(campoUsuario()).toHaveAttribute('autocomplete', 'username');
+        expect(campoUsuario()).toHaveValue('');
+        expect(campoClave()).toHaveAttribute('type', 'password');
+        expect(screen.queryByText(/Simular estado/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/correo/i)).not.toBeInTheDocument();
     });
 
-    it('ofrece entrar como estudiante o con código de aula', () => {
+    it('enlaza al acceso con código de aula y al de estudiantes', () => {
         montar();
-
-        expect(screen.getByRole('link', { name: 'Soy estudiante' })).toHaveAttribute(
-            'href',
-            '/estudiante/ingreso'
-        );
         expect(screen.getByRole('link', { name: 'Código de aula' })).toHaveAttribute(
             'href',
             '/acceso-aula'
         );
-    });
-
-    it('recupera la contraseña en un diálogo con el usuario escrito', async () => {
-        simularApi(api, {
-            'POST /auth/recuperar-contrasena': {
-                message: 'Si la cuenta tiene correo registrado, recibirá el enlace.',
-            },
-        });
-        montar();
-        fireEvent.change(screen.getByLabelText(/Usuario/), { target: { value: 'rodrigo' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Recuperar contraseña' }));
-
-        const dialogo = screen.getByRole('dialog', { name: 'Recuperar contraseña' });
-        const campo = dialogo.querySelector('input');
-        expect(campo).toHaveValue('rodrigo');
-        fireEvent.click(screen.getByRole('button', { name: 'Enviar enlace' }));
-
-        await waitFor(() =>
-            expect(api.post).toHaveBeenCalledWith('/auth/recuperar-contrasena', {
-                usuario: 'rodrigo',
-            })
+        expect(screen.getByRole('link', { name: 'Soy estudiante' })).toHaveAttribute(
+            'href',
+            '/estudiante/ingreso'
         );
-        expect(
-            await screen.findByText(
-                'Si la cuenta tiene correo registrado, recibirá el enlace. Si no llega, pida una contraseña temporal a la administración'
-            )
-        ).toBeInTheDocument();
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
-    it('no trae textos explicativos ni voseo', () => {
-        const { container } = montar();
-        expect(container.textContent).not.toMatch(/ingresá|tenés|podés|\bvos\b/i);
-        expect(container.textContent).not.toMatch(/credenciales para continuar|deberá cambiarla/);
-        expect(screen.getByText('Cuenta institucional')).toBeInTheDocument();
-        // La universidad, la cuenta y las dos líneas del pie (NexaSoft).
-        expect(container.querySelectorAll('p')).toHaveLength(4);
-        expect(screen.getByText('Desarrollado por NexaSoft SRL')).toBeInTheDocument();
-        expect(container.textContent).not.toMatch(/Sistema Institucional de Verificación/);
-    });
-
-    it('entra con el usuario y lleva a la entrada de la cuenta', async () => {
-        const docente = usuarioDePrueba('Docente');
-        const entrar = vi.fn().mockResolvedValue(docente);
+    it('valida antes de llamar al servidor', () => {
+        const entrar = vi.fn();
         montar({ entrar });
-        completar(' rodrigo ', 'clave-correcta');
+
+        enviar();
+        expect(screen.getByText('Obligatorio')).toBeInTheDocument();
+
+        escribir(campoUsuario(), 'leticia/blanco');
+        enviar();
+        expect(
+            screen.getByText('Solo letras y números, separados por un espacio')
+        ).toBeInTheDocument();
+
+        escribir(campoUsuario(), 'leticia.blanco');
+        enviar();
+        expect(screen.getByText('Obligatorio')).toBeInTheDocument();
+        expect(entrar).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['Administrador', '/periodo'],
+        ['Docente', '/examenes'],
+        ['Auxiliar', '/ingreso'],
+    ])('el %s entra a su pantalla', async (rol, destino) => {
+        const entrar = vi.fn(() => Promise.resolve(usuarioDePrueba(rol)));
+        montar({ entrar });
+        intentar();
+
+        expect(await screen.findByText(`Estoy en ${destino}`)).toBeInTheDocument();
+        expect(entrar).toHaveBeenCalledWith('leticia.blanco', 'Secreta123');
+    });
+
+    it('acepta el usuario escrito como nombre y apellido', async () => {
+        const entrar = vi.fn(() => Promise.resolve(usuarioDePrueba('Docente')));
+        montar({ entrar });
+        expect(campoUsuario()).toHaveAttribute('placeholder', 'nombre apellido');
+        intentar('Letícia Blanco');
 
         expect(await screen.findByText('Estoy en /examenes')).toBeInTheDocument();
-        expect(entrar).toHaveBeenCalledWith('rodrigo', 'clave-correcta');
+        expect(entrar).toHaveBeenCalledWith('leticia blanco', 'Secreta123');
     });
 
-    it('una cuenta sin pantallas va a /sin-acceso', async () => {
-        const entrar = vi.fn().mockResolvedValue(usuarioDePrueba('Auxiliar', { permisos: [] }));
-        montar({ entrar });
-        completar('auxiliar', 'clave-correcta');
+    it('con contraseña temporal va al primer ingreso', async () => {
+        const cuenta = usuarioDePrueba('Docente', { debe_cambiar_contrasena: true });
+        montar({ entrar: vi.fn(() => Promise.resolve(cuenta)) });
+        intentar('corina.flores', 'Fa7-Kmq4-Ru9');
 
-        expect(await screen.findByText('Estoy en /sin-acceso')).toBeInTheDocument();
+        expect(await screen.findByText('Estoy en /primer-ingreso')).toBeInTheDocument();
     });
 
-    it('con sesión abierta no muestra el formulario', () => {
-        montar({ usuario: usuarioDePrueba('Administrador') });
-        expect(screen.getByText('Estoy en /periodo')).toBeInTheDocument();
+    it('muestra el error con los intentos restantes', async () => {
+        const rechazo = errorHttp(401, {
+            message: 'Usuario o contraseña incorrectos.',
+            intentos_restantes: 3,
+        });
+        montar({ entrar: vi.fn(() => Promise.reject(rechazo)) });
+        intentar();
+
+        expect(
+            await screen.findByText('Usuario o contraseña incorrectos · 3 intentos restantes')
+        ).toBeInTheDocument();
+        expect(campoClave()).toHaveAttribute('aria-invalid', 'true');
+        expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toBeEnabled();
+
+        escribir(campoClave(), 'otra');
+        expect(screen.queryByText(/intentos restantes/)).not.toBeInTheDocument();
     });
 
-    it('muestra el rechazo de credenciales', async () => {
+    it('escribe el último intento en singular y omite la cifra si la cuenta no existe', async () => {
         const entrar = vi
             .fn()
-            .mockRejectedValue(errorHttp(401, { message: 'Credenciales incorrectas.' }));
+            .mockRejectedValueOnce(errorHttp(401, { message: '…', intentos_restantes: 1 }))
+            .mockRejectedValueOnce(
+                errorHttp(401, { message: 'Usuario o contraseña incorrectos.' })
+            );
         montar({ entrar });
-        completar('rodrigo', 'clave-incorrecta');
 
-        expect(await screen.findByRole('alert')).toHaveTextContent(
-            'Usuario o contraseña incorrectos'
-        );
-        expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toBeEnabled();
+        intentar();
+        expect(
+            await screen.findByText('Usuario o contraseña incorrectos · 1 intento restante')
+        ).toBeInTheDocument();
+        intentar('nadie.existe');
+        expect(await screen.findByText('Usuario o contraseña incorrectos')).toBeInTheDocument();
     });
 
-    it('muestra el bloqueo de la cuenta', async () => {
-        const entrar = vi.fn().mockRejectedValue(errorHttp(423, { minutos: 15 }));
-        montar({ entrar });
-        completar('rodrigo', 'clave');
+    it('muestra el bloqueo con sus minutos', async () => {
+        montar({
+            entrar: vi.fn(() =>
+                Promise.reject(errorHttp(423, { message: 'Cuenta bloqueada.', minutos: 15 }))
+            ),
+        });
+        intentar();
 
         expect(await screen.findByRole('alert')).toHaveTextContent('Cuenta bloqueada · 15 minutos');
     });
 
-    it('avisa que la cuenta desactivada está bloqueada, sin minutos', async () => {
+    it('una cuenta desactivada no lleva minutos', async () => {
+        montar({
+            entrar: vi.fn(() => Promise.reject(errorHttp(423, { message: 'Cuenta bloqueada.' }))),
+        });
+        intentar();
+
+        const alerta = await screen.findByRole('alert');
+        expect(alerta).toHaveTextContent('Cuenta bloqueada');
+        expect(alerta).not.toHaveTextContent('minuto');
+    });
+
+    it('avisa de la contraseña temporal vencida y de un fallo del servidor', async () => {
         const entrar = vi
             .fn()
-            .mockRejectedValue(
-                errorHttp(423, { code: 'ACCOUNT_DISABLED', message: 'Cuenta bloqueada.' })
-            );
-        montar({ entrar });
-        completar('rodrigo', 'Ge8-Crx2-Et7');
-
-        expect(await screen.findByRole('alert')).toHaveTextContent(/^Cuenta bloqueada$/);
-    });
-
-    it('la temporal vencida se informa sin tuteo ni instrucciones', async () => {
-        const entrar = vi.fn().mockRejectedValue(
-            errorHttp(403, {
-                code: 'TEMPORARY_PASSWORD_EXPIRED',
-                message: 'Contraseña temporal vencida.',
-            })
-        );
-        montar({ entrar });
-        completar('rodrigo', 'Fa7-Kmq4-Ru9');
-
-        expect(await screen.findByRole('alert')).toHaveTextContent(/^Contraseña temporal vencida$/);
-    });
-
-    it('marca el campo que rechaza la validación del servidor', async () => {
-        const entrar = vi
-            .fn()
-            .mockRejectedValue(
-                errorHttp(422, { errors: { usuario: ['El usuario no es válido.'] } })
-            );
-        montar({ entrar });
-        completar('rodrigo', 'clave');
-
-        await waitFor(() =>
-            expect(screen.getByLabelText(/Usuario/)).toHaveAttribute('aria-invalid', 'true')
-        );
-        expect(screen.getByText('No válido')).toBeInTheDocument();
-    });
-
-    it('sin conexión informa que no se pudo iniciar sesión', async () => {
-        const entrar = vi.fn().mockRejectedValue(new Error('network'));
-        montar({ entrar });
-        completar('rodrigo', 'clave');
-
-        expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo iniciar sesión');
-    });
-
-    it('no envía sin usuario ni sin contraseña', () => {
-        const entrar = vi.fn();
+            .mockRejectedValueOnce(errorHttp(401, { message: '…', codigo: 'TEMPORAL_VENCIDA' }))
+            .mockRejectedValueOnce(errorHttp(500));
         montar({ entrar });
 
-        fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
-        expect(screen.getByText('Obligatorio')).toBeInTheDocument();
-        fireEvent.change(screen.getByLabelText(/Usuario/), { target: { value: 'rodrigo' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
-        expect(entrar).not.toHaveBeenCalled();
+        intentar();
+        expect(await screen.findByText('Contraseña temporal vencida')).toBeInTheDocument();
+        intentar();
+        expect(await screen.findByText('No se pudo iniciar sesión')).toBeInTheDocument();
     });
 
-    it('alterna entre ocultar y mostrar la contraseña', () => {
+    it('recuperar contraseña pide el usuario y envía el enlace', async () => {
+        simularApi(api, {
+            'POST /auth/contrasena/olvide': { message: 'Si la cuenta tiene un correo…' },
+        });
         montar();
-        const campo = screen.getByLabelText(/^Contraseña/);
+        escribir(campoUsuario(), 'Leticia.Blanco');
 
-        fireEvent.click(screen.getByRole('button', { name: 'Mostrar contraseña' }));
-        expect(campo).toHaveAttribute('type', 'text');
+        fireEvent.click(screen.getByRole('button', { name: 'Recuperar contraseña' }));
+        const dialogo = within(screen.getByRole('dialog', { name: 'Recuperar contraseña' }));
+        expect(dialogo.getByLabelText(/Usuario/)).toHaveValue('Leticia.Blanco');
+        // Quien no tiene correo sabe a quién acudir.
+        expect(
+            dialogo.getByText('Si no llega, pida una contraseña temporal a la administración.')
+        ).toBeInTheDocument();
+        fireEvent.click(dialogo.getByRole('button', { name: 'Enviar enlace' }));
 
-        fireEvent.click(screen.getByRole('button', { name: 'Ocultar contraseña' }));
-        expect(campo).toHaveAttribute('type', 'password');
+        expect(await screen.findByRole('status')).toHaveTextContent(
+            'Si leticia.blanco tiene correo registrado, le llegará el enlace. Si no llega, pida una contraseña temporal a la administración.'
+        );
+        expect(api.post).toHaveBeenCalledWith('/auth/contrasena/olvide', {
+            usuario: 'leticia.blanco',
+        });
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('recuperar no envía sin usuario', () => {
+        simularApi(api, {});
+        montar();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Recuperar contraseña' }));
+        const dialogo = within(screen.getByRole('dialog'));
+        // Al abrir no hay error y el foco está en el campo.
+        expect(dialogo.queryByText('Obligatorio')).not.toBeInTheDocument();
+        expect(dialogo.getByLabelText(/Usuario/)).toHaveFocus();
+        fireEvent.click(dialogo.getByRole('button', { name: 'Enviar enlace' }));
+
+        expect(dialogo.getByText('Obligatorio')).toBeInTheDocument();
+        expect(api.post).not.toHaveBeenCalled();
+    });
+
+    it('con sesión abierta va directo a la entrada', () => {
+        montar({ usuario: usuarioDePrueba('Administrador') });
+        expect(screen.getByText('Estoy en /periodo')).toBeInTheDocument();
+    });
+
+    it('muestra el aviso con que llega desde el restablecimiento', async () => {
+        renderConSesion(<Login />, {
+            usuario: null,
+            ruta: { pathname: '/login', state: { aviso: 'Contraseña actualizada' } },
+        });
+        await waitFor(() =>
+            expect(screen.getByRole('status')).toHaveTextContent('Contraseña actualizada')
+        );
     });
 });

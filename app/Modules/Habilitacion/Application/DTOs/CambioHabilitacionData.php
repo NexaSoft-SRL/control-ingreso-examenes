@@ -6,12 +6,14 @@ namespace App\Modules\Habilitacion\Application\DTOs;
 
 /**
  * Un cambio de condicion en lote: sobre una lista de estudiantes o sobre
- * todo lo que dejan los filtros («Seleccionar los N»).
+ * todo lo que dejan los filtros («Seleccionar los N»), menos los que se
+ * desmarcaron despues (`excluidos`).
  */
 final readonly class CambioHabilitacionData
 {
     /**
      * @param  list<int>  $estudiantes
+     * @param  list<int>  $excluidos
      */
     public function __construct(
         public bool $habilitado,
@@ -19,5 +21,6 @@ final readonly class CambioHabilitacionData
         public array $estudiantes,
         public bool $todos,
         public FiltroHabilitacionData $filtros,
+        public array $excluidos = [],
     ) {}
 }

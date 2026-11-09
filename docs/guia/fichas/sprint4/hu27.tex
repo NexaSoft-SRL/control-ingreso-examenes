@@ -1,0 +1,140 @@
+% Ficha HU-27 del sprint 4. Una historia = una vista completa: el control
+% de las fotos: el plazo general de la administracion, la inhabilitacion de quien
+% no la subio, las fotos en la habilitacion, la habilitacion de un cambio y la foto
+% en la puerta y en el padron.
+% Tipo: propia, pedida en la 12.a revision y ajustada en la 13.a (el plazo lo
+% fija solo la administracion).
+% Mockups: el principal es la captura «foto-en-la-puerta» (hu27-escritorio.png
+% y hu27-movil.png); las demas, en mockups/hu27-<nombre>.png.
+\def\HUNro{27}
+\def\HUSprint{4}
+\def\HUTitulo{Estudiantes > Control de fotos > Inhabilitar a quien no subió su foto,
+ver las fotos al habilitar, habilitar un cambio y ver la foto en la puerta}
+\def\HUModulo{M1}
+\def\HUReq{3, 4}
+\def\HUPuntos{5}
+
+\def\HUComo{docente}
+\def\HUQuiero{que quien no subió su foto en el plazo de la administración quede no
+habilitado, ver la foto de cada inscrito al habilitar, habilitar a un estudiante para
+subirla tarde o cambiarla, y ver su foto al identificarlo en la puerta}
+\def\HUPara{que nadie llegue al examen sin una foto con que reconocerlo y que en la
+puerta se compare la cara con una foto actual y no con la del carnet}
+
+\def\HUDescripcion{%
+La pidió la consultora en la duodécima revisión: la foto que sube el estudiante desde su
+portal (HU-26) solo sirve si todos la suben a tiempo. En la decimotercera revisión se
+acordó que el plazo lo fija solo la administración, uno para todos, y no cada docente
+por grupo. Vencido ese plazo, quien no subió su foto queda no habilitado en sus
+exámenes. Toca los requerimientos 3 (razones de inhabilitación) y 4 (verificación de
+identidad).
+
+En el «Padrón», el botón de fotos dice el plazo («Fotos:» con las dos fechas, con
+«Próximo» o «Cerrado» si no está abierto) o «Plazo de fotos» si no hay; abre «Plazo de
+fotos», con «Desde» y «Hasta». En la habilitación del examen, cada inscrito lleva su
+foto en un círculo (o sus iniciales si no la tiene) y, al tocarla, se ve grande con su
+código, grupo y condición, para comparar caras antes de habilitar; la selección se
+vacía con «Deseleccionar». En «Mis grupos», la columna «Foto» de la lista de inscritos
+dice «Sin foto», «Con foto» o «Habilitada» y abre «Foto del estudiante», donde el
+docente le habilita subir o cambiar la foto hasta el día que elige.
+
+Reglas: «Hasta» no puede ser antes de «Desde» ni de hoy. Vencido el plazo, quien no
+subió su foto queda «No habilitado» con el motivo «No subió su foto» en sus exámenes de
+hoy en adelante, y el docente no puede habilitarlo a mano; un examen pasado queda como
+estaba y sin plazo nadie se inhabilita. La inhabilitación se aplica cuando se lee o se
+cambia la habilitación del examen; la puerta la comprueba siempre al identificar. Para
+subirla tarde, o para cambiarla, un docente de sus grupos le habilita la subida hasta el
+día que elige (una semana si no elige, un mes como mucho); un cambio se habilita solo
+cuando la foto tiene doce meses. Al subirla, o si la administración mueve el plazo a una
+fecha futura, la inhabilitación del sistema se levanta y el estudiante vuelve a «Sin
+revisar», para que el docente lo habilite.
+
+La foto se ve en el veredicto de la puerta, junto al nombre, para comparar la cara, y en
+la ficha del estudiante del padrón, donde el administrador también puede ponerla o
+cambiarla. La vista depende de la subida del estudiante (HU-26), de las listas de
+inscritos (HU-14 y HU-30), de la habilitación (HU-09) y del punto de control (HU-19).
+El plazo, las habilitaciones y la inhabilitación por foto quedan en la bitácora (HU-07)
+y en la del examen (HU-29).}
+
+\def\HUCriterios{%
+\item Dado que el administrador abre el «Padrón», Cuando pulsa el botón de fotos
+      («Plazo de fotos», o «Fotos:» con las fechas y «Próximo» o «Cerrado»), Entonces se
+      abre «Plazo de fotos» con «Desde» y «Hasta»; «Guardar» avisa «Plazo guardado» y
+      un día faltante se señala «Obligatorio» y un «Hasta» anterior al inicio o a hoy,
+      «No puede ser antes del inicio ni de hoy». El docente ya no fija un plazo por
+      grupo: «Mis grupos» no ofrece esa opción.
+\item Dado que venció el plazo y un inscrito no subió su foto, Cuando se abre o se
+      cambia la habilitación de un examen suyo de hoy en adelante, Entonces el sistema
+      lo deja «No habilitado» con el motivo «No subió su foto» y como autor quien fijó
+      el plazo, aunque estuviera habilitado; «Habilitar» no lo cambia y el estudiante ve
+      «Sin foto · no habilitado» en su portal (HU-26). Un examen pasado queda como estaba
+      y sin plazo nadie se inhabilita.
+\item Dado que un estudiante sin foto y con el plazo vencido se presenta en la puerta,
+      Cuando se lo identifica, Entonces el veredicto es «No habilitado» con «No subió su
+      foto», aunque la lista del examen no se haya vuelto a abrir desde que venció el
+      plazo.
+\item Dado que el estudiante sube su foto con una habilitación, o la administración
+      mueve el plazo a una fecha futura, Cuando se vuelve a leer la habilitación del
+      examen, Entonces la inhabilitación que puso el sistema se quita y el estudiante
+      vuelve a «Sin revisar», para que el docente lo habilite, y la puerta deja de
+      rechazarlo por la foto.
+\item Dado que el docente abre la habilitación de un examen, Cuando ve la lista,
+      Entonces cada inscrito lleva su foto en un círculo, o sus iniciales con «sin foto»
+      si no la tiene; al tocarla («Ver la foto de» con el nombre) se abre grande con el
+      «Código SIS», el «Grupo» y la «Condición». Solo la ve el docente del examen y
+      solo de quien rinde ese examen. La selección se vacía con «Deseleccionar».
+\item Dado que el docente pulsa la foto de un inscrito en «Mis grupos» («Sin foto»,
+      «Con foto» o «Habilitada»), Cuando se abre «Foto del estudiante», Entonces ve el
+      nombre, «Foto del» con la fecha o «Sin foto», y el campo «Puede subirla hasta» o
+      «Puede cambiarla hasta», que propone una semana y llega hasta 30 días; «Habilitar»
+      avisa «Foto habilitada hasta el» con la fecha y el estudiante puede subirla o
+      cambiarla hasta ese día (HU-26). Si la foto tiene menos de doce meses ve «Cambio
+      habilitable desde el» con la fecha; solo un docente del grupo habilita a un
+      inscrito.
+\item Dado que se identifica a un estudiante en la puerta, Cuando se muestra el
+      veredicto, Entonces junto a su nombre y su «Código SIS» aparece su foto, o un
+      recuadro «Sin foto» si no la tiene; la foto viaja dentro del veredicto, también
+      para quien entró con código de aula. La ficha del estudiante en el padrón muestra
+      la misma foto, y el administrador la pone o la cambia.
+\item Dado que la administración fija o mueve el plazo, un docente habilita una subida,
+      o el sistema inhabilita por no subir la foto, Cuando la operación se completa,
+      Entonces queda asentada en la bitácora ---la inhabilitación como del sistema, con
+      el autor del plazo--- y la bitácora del examen la muestra (HU-29). En un
+      dispositivo móvil el plazo, la lista con fotos, los diálogos y el veredicto con la
+      foto se adaptan de forma completamente responsiva.}
+
+\def\HUMockupsPares{%
+\CajaMockup{hu27-plazo-de-fotos}{10.6cm} & \CajaMockup{hu27-plazo-de-fotos-movil}{3.2cm} \\[4pt]
+\hline
+\CajaMockup{hu27-fotos-en-la-habilitacion}{10.6cm} & \CajaMockup{hu27-fotos-en-la-habilitacion-movil}{3.2cm} \\[4pt]
+\hline
+\CajaMockup{hu27-habilitar-cambio-de-foto}{10.6cm} & \CajaMockup{hu27-habilitar-cambio-de-foto-movil}{3.2cm} \\[4pt]
+\hline
+\CajaMockup{hu27-habilitacion-sin-foto}{10.6cm} & \CajaMockup{hu27-habilitacion-sin-foto-movil}{3.2cm} \\[4pt]
+\hline
+\CajaMockup{hu27-puerta-sin-foto}{10.6cm} & \CajaMockup{hu27-puerta-sin-foto-movil}{3.2cm} \\[4pt]
+\hline}
+
+
+\def\HUPruebas{%
+\item \texttt{PlazoFotoGeneralTest}: el docente ya no fija un plazo por grupo; vencido el
+      plazo general, quien no tiene foto queda inhabilitado hasta subirla, habilitarlo a
+      mano no sirve y la puerta lo rechaza; con el plazo abierto nadie se inhabilita y
+      moverlo levanta la inhabilitación; sin plazo nadie se inhabilita (criterios 1 a
+      4).
+\item \texttt{HabilitacionExamenTest}: cada fila dice si el inscrito tiene foto, y solo
+      el docente del examen ve la de quien rinde ese examen (criterio 5).
+\item \texttt{Habilitacion.test.jsx}: la foto de cada inscrito y su ampliación, sus
+      iniciales sin foto, y «Deseleccionar» (criterio 5).
+\item \texttt{PortalEstudianteTest}: cambio habilitado por un docente una vez al año,
+      con el día límite y su asiento, y solo por un docente del grupo (criterios 6 y 8);
+      la administración fija el plazo y reemplaza una foto, y la puerta muestra la foto
+      con el veredicto (criterios 1 y 7).
+\item \texttt{FotoDelInscrito.test.jsx}: sin foto propone una semana y el docente elige
+      otro día, foto de menos de un año con la fecha desde la que se puede cambiar y
+      rechazo del servidor (criterio 6).
+\item \texttt{PuntoControl.test.jsx} y \texttt{FichaEstudiante.test.jsx}: la foto en el
+      veredicto para comparar la cara, o «Sin foto», y la foto en la ficha del padrón
+      (criterio 7).}
+
+\input{cuerpo}

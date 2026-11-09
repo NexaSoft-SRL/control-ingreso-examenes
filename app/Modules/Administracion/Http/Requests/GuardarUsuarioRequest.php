@@ -35,9 +35,11 @@ final class GuardarUsuarioRequest extends FormRequest
             $valor = $this->input($campo);
 
             if (is_string($valor)) {
-                $limpios[$campo] = $campo === 'nombre'
-                    ? trim($valor)
-                    : mb_strtolower(trim($valor));
+                $limpios[$campo] = match ($campo) {
+                    'nombre' => trim($valor),
+                    'usuario' => NombreDeUsuario::normalizar($valor),
+                    default => mb_strtolower(trim($valor)),
+                };
             }
         }
 
@@ -56,12 +58,14 @@ final class GuardarUsuarioRequest extends FormRequest
         $propia = $this->usuarioId();
 
         return [
-            'nombre' => ['required', 'string', 'min:3', 'max:255'],
+            // Letras, espacios, puntos, apóstrofos y guiones; empieza con letra.
+            'nombre' => ['required', 'string', 'min:3', 'max:255', "regex:/^(?=(?:.*\\p{L}){2})\\p{L}+(?:(?:\\.\\s*|\\s+|['-])\\p{L}+)*\\.?$/u"],
             'usuario' => [
                 'required',
                 'string',
                 'max:60',
-                // Empieza y termina con letra o numero, sin separadores seguidos.
+                // Nombre y apellido con un espacio («jose soruco»); tambien
+                // punto o guion. Sin separadores seguidos ni en los bordes.
                 'regex:'.NombreDeUsuario::FORMATO,
                 function (string $atributo, mixed $valor, Closure $fallar) use ($cuentas, $propia): void {
                     if (is_string($valor) && $cuentas->usuarioRegistrado($valor, $propia)) {
@@ -96,6 +100,7 @@ final class GuardarUsuarioRequest extends FormRequest
             'nombre.string' => 'Obligatorio',
             'nombre.min' => 'Mínimo 3 caracteres',
             'nombre.max' => 'Máximo 255 caracteres',
+            'nombre.regex' => 'Solo letras, sin signos seguidos',
             'usuario.required' => 'Obligatorio',
             'usuario.string' => 'Obligatorio',
             'usuario.max' => 'Máximo 60 caracteres',

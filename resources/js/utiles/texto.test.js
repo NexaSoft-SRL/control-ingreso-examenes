@@ -3,6 +3,7 @@ import {
     COLORES_ASIGNATURA,
     colorDeAsignatura,
     diaMes,
+    ubicacionSin,
     fechaCorta,
     fechaLarga,
     iniciales,
@@ -10,7 +11,6 @@ import {
     nombreCompleto,
     normalizar,
     plural,
-    ubicacionSin,
 } from './texto';
 
 describe('utiles de texto', () => {

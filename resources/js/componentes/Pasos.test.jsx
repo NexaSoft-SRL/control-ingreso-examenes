@@ -19,4 +19,21 @@ describe('Pasos', () => {
         render(<Pasos pasos={['Examen', 'Grupos']} actual={0} />);
         expect(screen.getByRole('button', { name: /^1\s*Examen$/ })).toHaveClass('bg-primary-600');
     });
+
+    it('un paso anterior incompleto no lleva ✓ y se puede volver a él', () => {
+        const onIr = vi.fn();
+        render(
+            <Pasos
+                pasos={['Examen', 'Grupos', 'Aulas', 'Personal']}
+                actual={3}
+                onIr={onIr}
+                completos={[true, true, false, false]}
+            />
+        );
+        const aulas = screen.getByRole('button', { name: 'Aulas · incompleto' });
+        expect(aulas).toBeEnabled();
+        expect(aulas).toHaveTextContent('3');
+        fireEvent.click(aulas);
+        expect(onIr).toHaveBeenCalledWith(2);
+    });
 });

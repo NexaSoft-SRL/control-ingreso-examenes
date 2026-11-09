@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * Un aula de la oferta. Sin edificio es un aula que no se pudo ubicar. Solo
- * se conoce su nombre y donde queda: no lleva cupo ni estado.
+ * Un aula de la oferta. Sin edificio es un aula que no se pudo ubicar; no
+ * tiene capacidad ni estado.
  *
  * @property int $id
  * @property string $nombre

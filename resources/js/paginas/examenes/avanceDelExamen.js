@@ -29,14 +29,19 @@ export const PASOS = [
                 : e.avance?.auxiliares === 'ahora'
                   ? 'Más de 2 aulas por persona'
                   : e.auxiliares
-                    ? plural(e.auxiliares, 'persona')
+                    ? plural(e.auxiliares, 'auxiliar', 'auxiliares')
                     : 'Solo docente',
     },
     {
         clave: 'habilitacion',
         Icono: ListChecks,
         texto: 'Habilitación',
-        detalle: (e) => (e.habilitados ? `${e.habilitados} de ${e.inscritos}` : 'Pendiente'),
+        detalle: (e) =>
+            e.estado === 'Falta repartir'
+                ? 'Sin aula asignada'
+                : e.habilitados
+                  ? `${e.habilitados} de ${e.inscritos}`
+                  : 'Pendiente',
     },
     {
         clave: 'qr',
@@ -54,9 +59,8 @@ export const PASOS = [
 export const pendiente = (e) => e.estado !== 'Listo';
 export const tipoDe = (e) => e.tipo_texto ?? e.tipo;
 
-// A dónde lleva la acción siguiente. Las aulas y quién atiende solo los
-// cambia quien registró el examen; las otras dos dependen del permiso de su
-// pantalla.
+// A dónde lleva la acción siguiente. Las aulas solo las elige quien registró
+// el examen; las otras dos dependen del permiso de su pantalla.
 export function accionDe(e, puedeHabilitar, puedeEmitir) {
     const clave = e.accion?.clave;
     if (clave === 'elegir_aulas' && e.propio) {
@@ -70,6 +74,9 @@ export function accionDe(e, puedeHabilitar, puedeEmitir) {
             texto: 'Asignar quién atiende',
             a: `/examenes/nuevo?examen=${e.id}&paso=${e.accion.paso ?? 3}`,
         };
+    }
+    if (clave === 'repartir' && puedeHabilitar) {
+        return { texto: 'Repartir aulas', a: rutaDelExamen(e.id, 'habilitacion') };
     }
     if (clave === 'habilitar' && puedeHabilitar) {
         const empezada = (e.habilitados ?? 0) + (e.no_habilitados ?? 0) > 0;

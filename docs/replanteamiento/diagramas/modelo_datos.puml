@@ -1,0 +1,251 @@
+' =====================================================================
+'  Modelo de datos replanteado - entidad-relacion (pata de gallo)
+'  Tres ideas: el periodo academico es una entidad; el estudiante existe
+'  una sola vez y la inscripcion lo une a un grupo; el examen es de una
+'  asignatura y abarca varios grupos.
+' =====================================================================
+@startuml modelo_datos
+skinparam shadowing false
+skinparam linetype ortho
+skinparam defaultFontName "Helvetica Neue"
+skinparam legendBackgroundColor transparent
+skinparam legendBorderColor transparent
+skinparam classAttributeIconSize 0
+skinparam nodesep 40
+skinparam ranksep 55
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  BorderThickness 1.5
+  FontColor Black
+  AttributeFontColor Black
+}
+skinparam class<<nuevo>> {
+  BackgroundColor #EAF3FB
+  BorderColor #1168BD
+}
+skinparam class<<cambia>> {
+  BackgroundColor #FFF6E5
+  BorderColor #E8820C
+}
+skinparam ArrowColor Black
+hide circle
+hide empty methods
+hide stereotype
+
+class Periodo <<nuevo>> {
+  id : bigint <<PK>>
+  --
+  anio : int
+  tipo : SEMESTRE_1 | SEMESTRE_2 | ANUAL | VERANO | INVIERNO
+  nombre : string  «2/2026»
+  fecha_inicio : date
+  fecha_fin : date
+  estado : PREPARACION | ACTIVO | CERRADO
+}
+
+class Facultad <<nuevo>> {
+  id : bigint <<PK>>
+  --
+  sigla : string <<único>>  «FCYT»
+  nombre : string
+}
+
+class Carrera <<nuevo>> {
+  id : bigint <<PK>>
+  --
+  facultad_id : bigint <<FK>>
+  codigo : string <<único>>  «114071»
+  nombre : string
+  regimen : SEMESTRAL | ANUAL
+}
+
+class Asignatura <<cambia>> {
+  id : bigint <<PK>>
+  --
+  codigo : string <<único>>  «2008019»
+  nombre : string
+}
+
+class PlanDeEstudios <<nuevo>> {
+  carrera_id : bigint <<FK>>
+  asignatura_id : bigint <<FK>>
+  --
+  nivel : string  «SEMESTRE 3»
+}
+
+class Docente <<cambia>> {
+  id : bigint <<PK>>
+  --
+  usuario_id : bigint <<FK, nulo>>
+  nombre_completo : string
+  correo : string <<nulo>>
+  cuenta : SIN_ACTIVAR | ACTIVA
+}
+
+class Grupo <<cambia>> {
+  id : bigint <<PK>>
+  --
+  periodo_id : bigint <<FK>>
+  asignatura_id : bigint <<FK>>
+  docente_id : bigint <<FK, nulo>>
+  codigo : string  «3»
+  <<único>> periodo + asignatura + codigo
+}
+
+class Horario <<nuevo>> {
+  id : bigint <<PK>>
+  --
+  grupo_id : bigint <<FK>>
+  ambiente_id : bigint <<FK, nulo>>
+  dia : LU..SA
+  hora_inicio : time
+  hora_fin : time
+}
+
+class Edificio <<nuevo>> {
+  id : bigint <<PK>>
+  --
+  facultad_id : bigint <<FK>>
+  nombre : string
+  poligono : json  «coordenadas»
+}
+
+class Ambiente <<cambia>> {
+  id : bigint <<PK>>
+  --
+  edificio_id : bigint <<FK, nulo>>
+  nombre : string  «691B»
+  piso : string <<nulo>>
+  estado : string
+}
+
+class Estudiante <<cambia>> {
+  id : bigint <<PK>>
+  --
+  codigo_universitario : string <<único>>
+  documento_identidad : string <<único>>
+  nombres : string
+  apellidos : string
+  carrera_id : bigint <<FK, nulo>>
+  origen : ADMINISTRACION | DOCENTE
+  activo : bool
+}
+
+class Inscripcion <<nuevo>> {
+  id : bigint <<PK>>
+  --
+  estudiante_id : bigint <<FK>>
+  grupo_id : bigint <<FK>>
+  via : ADMINISTRACION | DOCENTE
+  cargada_por : bigint <<FK>>
+  <<único>> estudiante + grupo
+}
+
+class ConflictoDeCarga <<nuevo>> {
+  id : bigint <<PK>>
+  --
+  grupo_id : bigint <<FK>>
+  codigo_universitario : string
+  documento_identidad : string
+  motivo : string
+  estado : PENDIENTE | RESUELTO
+}
+
+class Examen <<cambia>> {
+  id : bigint <<PK>>
+  --
+  periodo_id : bigint <<FK>>
+  asignatura_id : bigint <<FK>>
+  tipo : PARCIAL_1 | PARCIAL_2 | FINAL | INSTANCIA
+  fecha : date
+  hora_inicio : time
+  duracion_minutos : int
+  creado_por : bigint <<FK>>
+}
+
+class ExamenGrupo <<nuevo>> {
+  examen_id : bigint <<FK>>
+  grupo_id : bigint <<FK>>
+}
+
+class ExamenAmbiente {
+  examen_id : bigint <<FK>>
+  ambiente_id : bigint <<FK>>
+  --
+  encargado_id : bigint <<FK, nulo>>
+}
+
+class Habilitacion {
+  id : bigint <<PK>>
+  --
+  examen_id : bigint <<FK>>
+  estudiante_id : bigint <<FK>>
+  ambiente_id : bigint <<FK, nulo>>
+  habilitado : bool
+  motivo : text <<nulo>>
+  registrada_por : bigint <<FK>>
+  <<único>> examen + estudiante
+}
+
+class CodigoQr {
+  id : bigint <<PK>>
+  --
+  habilitacion_id : bigint <<FK>>
+  token : string <<único>>
+}
+
+class Ingreso {
+  id : bigint <<PK>>
+  --
+  habilitacion_id : bigint <<FK, único>>
+  ambiente_id : bigint <<FK>>
+  registrado_por : bigint <<FK>>
+  hora : timestamp
+}
+
+class Usuario {
+  id : bigint <<PK>>
+  --
+  correo : string <<único>>
+  rol_id : bigint <<FK>>
+  debe_cambiar_clave : bool
+}
+
+Facultad ||--o{ Carrera
+Facultad ||--o{ Edificio
+Carrera ||--o{ PlanDeEstudios
+Asignatura ||--o{ PlanDeEstudios
+Carrera |o--o{ Estudiante
+
+Periodo ||--o{ Grupo
+Asignatura ||--o{ Grupo
+Docente |o--o{ Grupo
+Usuario |o--o| Docente
+Grupo ||--o{ Horario
+Ambiente |o--o{ Horario
+Edificio |o--o{ Ambiente
+
+Estudiante ||--o{ Inscripcion
+Grupo ||--o{ Inscripcion
+Grupo ||--o{ ConflictoDeCarga
+
+Periodo ||--o{ Examen
+Asignatura ||--o{ Examen
+Examen ||--|{ ExamenGrupo
+Grupo ||--o{ ExamenGrupo
+Examen ||--o{ ExamenAmbiente
+Ambiente ||--o{ ExamenAmbiente
+
+Examen ||--o{ Habilitacion
+Estudiante ||--o{ Habilitacion
+Ambiente |o--o{ Habilitacion
+Habilitacion ||--o| CodigoQr
+Habilitacion ||--o| Ingreso
+
+legend left
+<font size=15 color=#444444><b>Modelo de datos replanteado</b></font>
+<font size=11 color=#1168BD>■</font> <font size=11 color=#666666>entidad nueva</font>   <font size=11 color=#E8820C>■</font> <font size=11 color=#666666>entidad que cambia</font>   <font size=11 color=#666666>□ se mantiene</font>
+<font size=11 color=#666666>No se muestran incidencias, expulsiones, normas, bitácora ni roles: no cambian.</font>
+endlegend
+@enduml

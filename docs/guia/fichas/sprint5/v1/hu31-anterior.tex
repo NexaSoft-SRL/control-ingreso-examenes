@@ -1,0 +1,53 @@
+% Ficha HU-31. Criterios del backlog de la iteracion 5. El reparto por
+% tramos se arma en PHP para no atarse al dialecto de fechas de un motor.
+\def\HUNro{31}
+\def\HUSprint{5}
+\def\HUTitulo{Reportes > Horarios de ingreso}
+\def\HUModulo{M6}
+\def\HUReq{12}
+\def\HUPuntos{3}
+
+\def\HUComo{responsable académico}
+\def\HUQuiero{ver los horarios de ingreso}
+\def\HUPara{evaluar cómo se comportó la fila}
+
+\def\HUDescripcion{%
+Saber cuántos entraron no dice si el ingreso fue ordenado. Doscientos estudiantes
+repartidos en cuarenta minutos es una fila que fluyó; los mismos doscientos en los últimos
+diez minutos es una fila que casi hace empezar tarde el examen.
+
+El reporte reparte los ingresos del examen en tramos de quince minutos y muestra cuántos
+entraron en cada uno. Con eso se ve de un vistazo si hubo un cuello de botella, a qué hora
+y de qué tamaño.
+
+Señala además el primer y el último ingreso registrados: el primero dice si el personal
+abrió la puerta a tiempo, y el último, si alguien entró después de comenzada la
+evaluación.
+
+El reparto por tramos se calcula sobre las horas que devuelve la consulta, no con
+funciones de fecha del motor: así el reporte no depende del dialecto de la base de datos.
+Se puede acotar a un ambiente y se exporta como los demás (HU-34).}
+
+\def\HUCriterios{%
+\item Dado un examen con ingresos, Cuando se pide el reporte, Entonces muestra cuántos
+      ingresaron en cada tramo de quince minutos.
+\item Dado que se pide el reporte, Cuando hay ingresos, Entonces señala el primero y el
+      último registrados.
+\item Dado que nadie ingresó todavía, Cuando se pide el reporte, Entonces lo dice en vez
+      de mostrar una tabla vacía sin explicación.
+\item Dado que el examen se rindió en varias aulas, Cuando se acota el reporte a una,
+      Entonces el reparto es el de esa aula.
+\item Dado que se pide el reporte, Cuando se lee el pie, Entonces consta el total de
+      ingresos del período.}
+
+\def\HUPruebas{%
+\item \texttt{ReportesTest::the\_schedule\_report\_shows\_the\_distribution\_and\_the\_ends}
+      (criterios 1, 2 y 5).
+\item \texttt{ReportesTest::the\_schedule\_report\_says\_when\_nobody\_entered}
+      (criterio 3).
+\item \texttt{ReportesTest::the\_academic\_officer\_reaches\_the\_consolidated\_reports\_only}:
+      el reporte es del responsable académico.
+\item \texttt{Reportes.test.jsx}, caso de la pestaña de horarios: los tramos, los
+      extremos y el filtro por ambiente (criterio 4).}
+
+\input{cuerpo}

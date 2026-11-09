@@ -6,11 +6,8 @@ use App\Modules\Habilitacion\Http\Controllers\HabilitacionController;
 use App\Modules\Habilitacion\Http\Controllers\RepartoController;
 use Illuminate\Support\Facades\Route;
 
-// Habilitacion y reparto por aula (Habilitacion): HU-09.
-//
-// Todas van bajo `/api`, con sesion (`auth`) y el permiso de su pantalla
-// (`permiso:<clave>`). Ademas del permiso, las acciones exigen ser docente
-// del examen.
+// Habilitacion y reparto por aula (Habilitacion). Ademas del permiso, las
+// acciones exigen ser docente del examen.
 Route::middleware(['auth', 'permiso:habilitacion'])->group(function (): void {
     Route::get(
         '/api/examenes/{examen}/habilitaciones',

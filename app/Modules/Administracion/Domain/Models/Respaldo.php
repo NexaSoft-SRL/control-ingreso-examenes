@@ -4,18 +4,32 @@ declare(strict_types=1);
 
 namespace App\Modules\Administracion\Domain\Models;
 
+use App\Modules\Administracion\Domain\Enums\EstadoRespaldo;
+use App\Modules\Administracion\Domain\Enums\TipoRespaldo;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
- * HU-25: cada intento de respaldo del sistema (programado o puntual),
- * con su archivo en disco, tamano y estado resultante.
+ * Una generacion de respaldo, correcta o fallida. Esta tabla queda fuera
+ * del volcado: restaurar no borra el historial.
+ *
+ * @property int $id
+ * @property string|null $archivo
+ * @property TipoRespaldo $tipo
+ * @property EstadoRespaldo $estado
+ * @property int|null $tamano_bytes
+ * @property int|null $tablas
+ * @property int|null $filas
+ * @property string|null $error
+ * @property int|null $generado_por
+ * @property Carbon|null $restaurado_en
+ * @property int|null $restaurado_por
+ * @property Carbon|null $created_at
  */
-class Respaldo extends Model
+final class Respaldo extends Model
 {
-    /**
-     * @var string
-     */
+    public const UPDATED_AT = null;
+
     protected $table = 'respaldos';
 
     /**
@@ -24,11 +38,14 @@ class Respaldo extends Model
     protected $fillable = [
         'archivo',
         'tipo',
-        'tamano_bytes',
         'estado',
+        'tamano_bytes',
+        'tablas',
+        'filas',
         'error',
-        'version_esquema',
-        'usuario_id',
+        'generado_por',
+        'restaurado_en',
+        'restaurado_por',
     ];
 
     /**
@@ -37,17 +54,14 @@ class Respaldo extends Model
     protected function casts(): array
     {
         return [
+            'tipo' => TipoRespaldo::class,
+            'estado' => EstadoRespaldo::class,
             'tamano_bytes' => 'integer',
-            'created_at' => 'datetime',
-            'updated_at' => 'datetime',
+            'tablas' => 'integer',
+            'filas' => 'integer',
+            'generado_por' => 'integer',
+            'restaurado_en' => 'datetime',
+            'restaurado_por' => 'integer',
         ];
-    }
-
-    /**
-     * @return BelongsTo<User, $this>
-     */
-    public function usuario(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'usuario_id');
     }
 }

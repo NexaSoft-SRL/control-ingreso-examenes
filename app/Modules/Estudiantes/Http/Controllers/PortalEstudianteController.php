@@ -22,6 +22,7 @@ use App\Modules\Estudiantes\Http\Requests\SolicitarCodigoRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
 use LogicException;
 
@@ -57,10 +58,7 @@ final class PortalEstudianteController
         // Para un SIS que no esta en el padron se simula un codigo vigente:
         // al entrar responde igual que uno real con el codigo equivocado.
         if ($codigo === null) {
-            // El primer golpe marca el codigo simulado; vence con los minutos
-            // del codigo real.
-            RateLimiter::clear(self::FALSO.$codigoUniversitario);
-            RateLimiter::hit(self::FALSO.$codigoUniversitario, SolicitarCodigoDeAcceso::MINUTOS * 60);
+            Cache::put(self::FALSO.$codigoUniversitario, 0, now()->addMinutes(SolicitarCodigoDeAcceso::MINUTOS));
         }
         $dominio = config('umss.dominio_correo_estudiantes');
 
@@ -151,25 +149,6 @@ final class PortalEstudianteController
         $estudiante = $this->estudiante($request);
         $foto = $portal->estadoFoto($estudiante->id);
         $habilitado = $foto['habilitada_hasta'] !== null && $foto['habilitada_hasta'] >= $hoy;
-        $plazosDeGrupo = $portal->plazosDeGruposDelEstudiante($estudiante->id);
-        $plazoGeneralAbierto = $plazo?->abiertoEl($hoy) === true;
-        $plazoDeGrupoAbierto = collect($plazosDeGrupo)->contains(
-            fn (array $plazoGrupo): bool => $plazoGrupo['desde'] <= $hoy && $hoy <= $plazoGrupo['hasta'],
-        );
-        // Las asignaturas en que ya vencio el plazo sin que la suba: ahi
-        // queda no habilitado. El plazo lo fija la administracion: el del
-        // grupo si le puso uno; si no, el general.
-        $vencidoEn = $estudiante->conFoto ? [] : array_map(
-            static fn (array $plazoGrupo): string => $plazoGrupo['asignatura'],
-            array_filter($plazosDeGrupo, static fn (array $plazoGrupo): bool => $plazoGrupo['hasta'] < $hoy),
-        );
-
-        if (! $estudiante->conFoto && $plazo !== null && $plazo->hasta < $hoy) {
-            $vencidoEn = [...$vencidoEn, ...$portal->asignaturasConPlazoGeneral($estudiante->id)];
-        }
-
-        $vencidoEn = array_values(array_unique($vencidoEn));
-        sort($vencidoEn);
 
         return response()->json([
             'estudiante' => $estudiante->comoArreglo(),
@@ -178,15 +157,15 @@ final class PortalEstudianteController
                 'hasta' => $plazo->hasta,
                 'abierto' => $plazo->abiertoEl($hoy),
             ],
-            'plazos_foto_grupo' => $plazosDeGrupo,
-            // Sube la primera dentro del plazo, o cuando un docente se lo
-            // habilita (tambien para cambiarla).
+            // Sube la primera dentro del plazo general, o cuando un docente
+            // se lo habilita (tambien para cambiarla). Vencido el plazo sin
+            // foto, no esta habilitado en sus examenes.
             'foto' => [
-                'puede_subir' => $habilitado || (! $estudiante->conFoto && ($plazoGeneralAbierto || $plazoDeGrupoAbierto)),
-                'subida_en' => $foto['subida_en'],
+                'puede_subir' => $habilitado
+                    || (! $estudiante->conFoto && $plazo?->abiertoEl($hoy) === true),
                 'habilitada_hasta' => $habilitado ? $foto['habilitada_hasta'] : null,
                 'habilitada_por' => $habilitado ? $foto['habilitada_por'] : null,
-                'vencido_en' => $vencidoEn,
+                'sin_foto_vencido' => ! $estudiante->conFoto && $plazo !== null && $plazo->estadoEl($hoy) === 'cerrado',
             ],
         ]);
     }
@@ -200,8 +179,8 @@ final class PortalEstudianteController
     }
 
     /**
-     * Su propio codigo QR de un examen, el mismo del correo: para
-     * descargarlo o compartirlo desde el portal.
+     * El PNG de su propio codigo QR para ese examen, para guardarlo o
+     * compartirlo. 404 si no esta habilitado o el codigo no se emitio.
      */
     public function qr(Request $request, int $examen, CodigosQrDelEstudiante $codigos): JsonResponse|Response
     {
@@ -265,12 +244,14 @@ final class PortalEstudianteController
      */
     private function restantesSimulados(string $sis): ?int
     {
-        if (RateLimiter::attempts(self::FALSO.$sis) === 0) {
+        $usados = Cache::get(self::FALSO.$sis);
+
+        if (! is_int($usados)) {
             return null;
         }
 
-        // El primer golpe fue el pedido: los demas son intentos usados.
-        $usados = RateLimiter::hit(self::FALSO.$sis, SolicitarCodigoDeAcceso::MINUTOS * 60) - 1;
+        $usados++;
+        Cache::put(self::FALSO.$sis, $usados, now()->addMinutes(SolicitarCodigoDeAcceso::MINUTOS));
 
         return max(0, EntrarComoEstudiante::INTENTOS - $usados);
     }

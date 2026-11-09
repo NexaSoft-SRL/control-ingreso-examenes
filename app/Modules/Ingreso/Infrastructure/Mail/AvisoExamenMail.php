@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Infrastructure\Mail;
 
-use App\Modules\Administracion\Application\Contracts\RegistroCorreoGateway;
 use App\Modules\Ingreso\Application\DTOs\AvisoData;
 use App\Modules\Ingreso\Application\DTOs\CredencialData;
 use Illuminate\Bus\Queueable;
@@ -13,12 +12,14 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
  * El aviso de un examen para un estudiante: fecha, hora, aula, normas y
- * las recomendaciones del docente. Va en cola; al salir marca su envio y,
- * si falla, deja el error. No toca el codigo QR.
+ * las recomendaciones del docente. Va en cola; al salir marca su fila de
+ * `envios_correo` como enviada y, si falla, deja el error. No toca el
+ * codigo QR.
  */
 final class AvisoExamenMail extends Mailable implements ShouldQueue
 {
@@ -55,21 +56,22 @@ final class AvisoExamenMail extends Mailable implements ShouldQueue
     {
         $enviado = parent::send($mailer);
 
-        // Nulo: el envio se cancelo porque el destinatario no esta entre
-        // las direcciones permitidas (`mail.permitidos`).
-        if ($enviado === null) {
-            app(RegistroCorreoGateway::class)->marcarFallido($this->envioId, 'Dirección no permitida en esta instalación.');
+        $ahora = now();
 
-            return null;
-        }
-
-        app(RegistroCorreoGateway::class)->marcarEnviado($this->envioId);
+        DB::table('envios_correo')
+            ->where('id', $this->envioId)
+            ->update([
+                'estado' => 'ENVIADO',
+                'error' => null,
+                'enviado_en' => $ahora,
+                'updated_at' => $ahora,
+            ]);
 
         return $enviado;
     }
 
     public function failed(Throwable $error): void
     {
-        app(RegistroCorreoGateway::class)->marcarFallido($this->envioId, $error->getMessage());
+        CodigoQrMail::marcarFallido($this->envioId, $error->getMessage());
     }
 }

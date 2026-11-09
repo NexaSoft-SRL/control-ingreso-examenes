@@ -1,0 +1,164 @@
+% Ficha HU-24 del sprint 4. Una historia = una vista completa: los reportes
+% consolidados de toda la universidad, con los examenes de todas las
+% facultades, sus filtros y las cuatro descargas.
+% Tipo: propia del sprint.
+% Mockups: una sola vista, «reportes-de-la-universidad» (hu24-escritorio.png y
+% hu24-movil.png): los cuatro reportes son tarjetas de esa misma pantalla.
+\def\HUNro{24}
+\def\HUSprint{4}
+\def\HUTitulo{Reportes > Reportes de la universidad > Descargar los reportes
+consolidados de los exámenes}
+\def\HUModulo{M6}
+\def\HUReq{12, 13}
+\def\HUPuntos{5}
+
+\def\HUComo{administrador}
+\def\HUQuiero{obtener los reportes consolidados de los exámenes de todas las facultades}
+\def\HUPara{dar cuenta de cómo se controló el ingreso y elevar los casos que lo
+ameriten}
+
+\def\HUDescripcion{%
+Es la vista con la que la administración rinde cuentas del control de ingreso
+(requerimientos 12 y 13). No mira un examen sino todos: los de las cuatro facultades, de
+cualquier docente, a lo largo del período. Lee lo que dejaron la puerta y el
+seguimiento; no modifica nada.
+
+Arriba van el selector «Período», las fichas de facultad con su conteo y los filtros
+«Buscar», «Desde» y «Hasta». Debajo, cuatro tarjetas, una por reporte ---«Horarios de
+ingreso», «Registrados por examen», «Intentos rechazados» y «Resumen por estudiante»---,
+cada una con su cifra y sus botones «PDF» y «Hoja de cálculo». Al pie, la tabla
+«Exámenes», de a diez, donde se pulsa un examen para que las cifras y los archivos se
+limiten a él y para abrir su «Bitácora».
+
+Reglas: el alcance de un reporte es el de los filtros vigentes o el del examen elegido,
+y sus cifras se calculan sobre todo ese alcance, no sobre la página. La facultad de un
+examen es la de su primer grupo, para que los conteos sumen el total. Cada archivo
+consigna los filtros con que se pidió y la fecha y hora de emisión, y su nombre dice el
+alcance. Una descarga corre aparte en el navegador: no detiene la vista ni las demás
+descargas. El servidor arma el archivo en una sola petición y dibuja el PDF fila por
+fila para que un reporte de miles de filas no agote la memoria; no hay generación por
+partes ni en segundo plano. Descargar no deja rastro en los datos.
+
+El catálogo llama a uno de los reportes «intentos no correspondientes»; en la vista y en
+el archivo se llama «Intentos rechazados» y reúne los rechazos de la puerta por no estar
+inscrito, no estar habilitado o presentar un código no válido. El ingreso repetido no
+figura: es una incidencia del examen.
+
+La vista depende del período y la oferta con sus facultades y docentes (HU-10 y HU-17),
+de los exámenes con sus aulas (HU-08), de la habilitación (HU-09) y de lo que registran
+la puerta (HU-19) y el seguimiento (HU-21 y HU-22). La bitácora de un examen que abre es
+la de HU-29, y los reportes de un examen para su docente son de HU-23. La abre quien
+tiene el permiso «Reportes de la universidad», que de inicio es el administrador
+(HU-15).}
+
+\def\HUCriterios{%
+\item Dado que hay exámenes registrados, Cuando el administrador abre «Reportes»,
+      Entonces el sistema abre en el período vigente principal y muestra las fichas
+      «Todas» y una por facultad con su conteo, los filtros «Buscar», «Desde» y «Hasta»,
+      las cuatro tarjetas con su cifra y la tabla «Exámenes» ---«Examen» (asignatura,
+      tipo y docente), «Facultad», «Fecha» con la hora, «Aulas» e «Ingresaron» como «N
+      de M»---, ordenada por fecha y hora y de a diez por página.
+\item Dado que la cuenta administra los períodos, Cuando abre «Período», Entonces ve
+      «Todos» y cada período, también los cerrados; una cuenta sin ese permiso ve solo
+      los vigentes.
+\item Dado que la vista muestra los exámenes, Cuando el administrador elige una
+      facultad, un período o un rango de fechas, o escribe en «Buscar» («Asignatura o
+      docente»), Entonces la lista se filtra en el servidor y vuelve a la página 1; la
+      búsqueda encuentra la asignatura o el docente sin distinguir mayúsculas ni tildes
+      y admite hasta 100 caracteres, los conteos de las fichas no dependen de la
+      facultad elegida y sin coincidencias se muestra «Sin resultados».
+\item Dado que «Hasta» es anterior a «Desde», Cuando se elige la fecha, Entonces el
+      campo señala «Anterior a «Desde»» y la vista no consulta; si la consulta llega
+      igual al servidor, este la rechaza con «La fecha final no puede ser anterior a la
+      inicial.».
+\item Dado que hay filtros vigentes, Cuando se muestran las tarjetas, Entonces «Horarios
+      de ingreso» dice cuántos ingresos, «Registrados por examen» cuántos exámenes,
+      «Intentos rechazados» cuántos intentos y «Resumen por estudiante» cuántos
+      estudiantes, en singular cuando es uno, calculados sobre todo el alcance y no
+      sobre la página.
+\item Dado que la tabla lista exámenes, Cuando el administrador pulsa uno, Entonces la
+      fila se resalta y aparece una franja con su asignatura, tipo y fecha, el botón
+      «Bitácora» y «Ver todos»; las cifras y las descargas pasan a ser de ese examen y
+      la tabla se conserva. Pulsarlo otra vez o «Ver todos» lo suelta, y cambiar un
+      filtro también.
+\item Dado que hay un examen elegido, Cuando el administrador pulsa «Bitácora», Entonces
+      se abre un diálogo con la asignatura, el tipo y la fecha y la bitácora completa de
+      ese examen, con sus filtros y su descarga (HU-29), para auditar un reclamo.
+\item Dado que se descarga «Horarios de ingreso», Cuando llega el archivo, Entonces el
+      «Reporte de horarios de ingreso» reparte los ingresos del alcance por «Día» y
+      «Tramo de 15 min» con su cantidad, y cierra con «Primer ingreso:», «Último
+      ingreso:» y el total; sin ingresos, el primero y el último dicen «ninguno».
+\item Dado que se descarga «Registrados por examen», Cuando llega el archivo, Entonces
+      el «Reporte de registrados por examen» tiene una fila por examen y aula con
+      «Fecha», «Examen», «Facultad», «Docente», «Aula», «Habilitados» e «Ingresaron»; el
+      ingreso cuenta en el aula por la que entró, los habilitados todavía sin aula van
+      en «Sin aula», al final, un examen sin aulas ni habilitados figura en cero y el
+      archivo cierra con el total de exámenes, habilitados e ingresos.
+\item Dado que se descarga «Intentos rechazados», Cuando llega el archivo, Entonces el
+      «Reporte de intentos rechazados» lista los intentos que rechazó la puerta con
+      hora, «Código SIS», estudiante («Sin identificar» si no se lo reconoció), aula,
+      «Examen al que intentó ingresar», «Examen que le correspondía» («Ninguno a esa
+      hora» si no hay) y «Motivo» («No inscrito en la materia», «No habilitado» o
+      «Código no válido»); el intento sin examen se atribuye al que tenía abierta esa
+      aula a esa hora, y no figuran lo que reportaron las personas ni el ingreso
+      repetido.
+\item Dado que se descarga «Resumen por estudiante», Cuando llega el archivo, Entonces
+      tiene una fila por estudiante del alcance ---inscrito en un grupo de sus exámenes,
+      con condición registrada, con ingreso o identificado en algo asentado---, por
+      apellidos, con «Código SIS», «Carrera», «Materias», «Exámenes», «Ingresos»,
+      «Intentos», «Expulsiones» e «Incidencias» en todas sus materias, y cierra con el
+      total de cada columna.
+\item Dado que se descarga cualquiera de los cuatro, Cuando se abre el archivo, Entonces
+      lleva el título, «Universidad Mayor de San Simón · Control de exámenes»,
+      los filtros aplicados («Período:», «Facultad:», «Búsqueda:», «Desde:», «Hasta:»),
+      «Sin filtros: todos los exámenes.» o el examen elegido, y «Emitido el» con la
+      fecha y la hora; su nombre lleva el alcance y la fecha
+      (\texttt{horarios\_ingreso\_fcyt\_2026-10-09.pdf}) y la vista avisa «\ldots{}
+      descargado». Sin formato el archivo sale en PDF y un formato desconocido se
+      rechaza con «Los reportes se exportan a PDF (pdf) o a hoja de cálculo (xlsx).».
+\item Dado que el alcance no tiene exámenes, Cuando se muestran las tarjetas, Entonces
+      las descargas quedan deshabilitadas, y si se piden igual el servidor responde «No
+      hay exámenes en ese alcance.».
+\item Dado que una descarga está en curso, Cuando el administrador pide otra, cambia de
+      página o de filtro, Entonces la vista responde: solo queda deshabilitado el botón
+      que la pidió y el aviso sale cuando llega el archivo; un reporte de miles de filas
+      se reparte en las hojas que hagan falta, con «Página N de M», y si la descarga
+      falla se muestra el mensaje del servidor.
+\item Dado que no hay sesión o el rol no tiene el permiso «Reportes de la universidad»,
+      Cuando se intenta abrir la vista, descargar o leer la bitácora de un examen,
+      Entonces la vista muestra «Sin permiso» sin consultar nada y el servidor responde
+      con una negativa explícita que nombra el permiso; el docente no usa estos
+      reportes. Las rutas solo leen y no dejan rastro en los datos ni asientos en la
+      bitácora. En un dispositivo móvil los filtros van de a dos, las tarjetas una bajo
+      otra con «PDF» y «Hoja», y la tabla pasa a una lista en la que cada examen se
+      elige con un toque, de forma completamente responsiva.}
+
+
+
+\def\HUPruebas{%
+\item \texttt{ReportesTest}: listado con sus cifras, orden por fecha y hora y
+      paginación, filtro de facultad que no cambia los conteos, búsqueda por asignatura
+      y docente sin tildes, rango de fechas y período, cifras sobre todo el alcance,
+      examen elegido y validación de filtros (criterios 1, 3 a 6).
+\item \texttt{ReportesTest}: horarios en tramos de 15 minutos y sin ingresos,
+      registrados por examen y aula y por la puerta usada, y reportes que siguen a los
+      filtros o al examen elegido (criterios 8 y 9).
+\item \texttt{ReportesTest}: intentos con su motivo y el examen que correspondía,
+      intento sin examen atribuido por aula y hora, exámenes del aula a esa hora y fuera
+      lo reportado por personas; resumen por estudiante y sus filtros (criterios 10 y
+      11).
+\item \texttt{ReportesTest}: sesión y permiso del listado, rutas sin escritura y sin
+      rastro en los datos ni en la bitácora (criterio 15).
+\item \texttt{ExportacionTest}: los cuatro reportes en PDF y en hoja de cálculo, miles
+      de filas en un PDF, PDF sin formato, filtros en el archivo, «Sin filtros», nombre
+      con el alcance, examen elegido, formato desconocido, alcance sin exámenes, sesión
+      y rol de cada reporte (criterios 12 a 15).
+\item \texttt{BitacoraExamenTest}: el administrador lee y descarga la bitácora de
+      cualquier examen (criterio 7).
+\item \texttt{Reportes.test.jsx}: exámenes de todas las facultades con sus cifras, carga
+      y «Reintentar», filtros y búsqueda en el servidor, rango invertido, examen
+      elegido, descargas con los filtros vigentes y el resumen por estudiante, descarga
+      que no bloquea, mensaje del servidor, bitácora del examen elegido, alcance vacío,
+      períodos vigentes y «Sin permiso» (criterios 1 a 7 y 12 a 15).}
+
+\input{cuerpo}

@@ -15,7 +15,7 @@
         <p style="margin: 2px 0 12px; font-size: 13px; color: #475569;">Código {{ $credencial->codigo }}</p>
 
         <p style="margin: 0; font-size: 14px;">
-            {{ $credencial->fechaTexto }} · {{ $credencial->hora }} · {{ $credencial->duracion }} min
+            {{ $credencial->fecha }} · {{ $credencial->hora }} · {{ $credencial->duracion }} min
         </p>
         <p style="margin: 4px 0 16px; font-size: 14px;">
             @if ($credencial->aula)

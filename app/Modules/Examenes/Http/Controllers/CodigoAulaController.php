@@ -4,67 +4,64 @@ declare(strict_types=1);
 
 namespace App\Modules\Examenes\Http\Controllers;
 
-use App\Modules\Examenes\Application\Contracts\AlcanceExamenGateway;
-use App\Modules\Examenes\Application\Contracts\CodigoAulaGateway;
+use App\Modules\Examenes\Application\Actions\RegenerarCodigoDeAula;
+use App\Modules\Examenes\Application\DTOs\CodigoAulaData;
+use App\Modules\Examenes\Application\Queries\ConsultarCodigoDeAula;
+use App\Modules\Examenes\Domain\Exceptions\ExamenAjenoException;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Auth;
 
 final class CodigoAulaController
 {
-    public function show(
+    use RespuestasDeExamen;
+
+    public function show(int $examen, int $aula, ConsultarCodigoDeAula $consultar): JsonResponse
+    {
+        try {
+            $codigo = $consultar->execute($examen, $aula, $this->usuarioId());
+        } catch (ExamenAjenoException) {
+            return $this->ajeno();
+        }
+
+        if ($codigo === null) {
+            return $this->noEncontrado('Examen o aula no encontrados.');
+        }
+
+        return response()->json(['data' => $this->serializar($codigo)]);
+    }
+
+    public function regenerar(
         int $examen,
         int $aula,
-        AlcanceExamenGateway $alcance,
-        CodigoAulaGateway $gateway,
+        ConsultarCodigoDeAula $consultar,
+        RegenerarCodigoDeAula $regenerar,
     ): JsonResponse {
-        $usuarioId = (int) Auth::id();
-
-        if (! $alcance->esDocenteDelExamen($usuarioId, $examen)) {
-            return response()->json(['message' => 'Examen no autorizado.'], Response::HTTP_FORBIDDEN);
+        try {
+            $anterior = $consultar->execute($examen, $aula, $this->usuarioId());
+            $codigo = $regenerar->execute($examen, $aula, $this->usuarioId());
+        } catch (ExamenAjenoException) {
+            return $this->ajeno();
         }
 
-        if (! $gateway->aulaPerteneceAlExamen($examen, $aula)) {
-            return response()->json(['message' => 'El aula no pertenece al examen.'], Response::HTTP_NOT_FOUND);
+        if ($codigo === null) {
+            return $this->noEncontrado('Examen o aula no encontrados.');
         }
-
-        $datos = $gateway->consultar($examen, $aula);
 
         return response()->json([
-            'data' => [
-                'codigo' => $datos['codigo'],
-                'generado_en' => $datos['generado_en'],
-            ],
+            'data' => $this->serializar($codigo),
+            'message' => $anterior?->codigo === null ? 'Código generado.' : 'Código regenerado.',
         ]);
     }
 
-    public function store(
-        int $examen,
-        int $aula,
-        AlcanceExamenGateway $alcance,
-        CodigoAulaGateway $gateway,
-    ): JsonResponse {
-        $usuarioId = (int) Auth::id();
-
-        if (! $alcance->esDocenteDelExamen($usuarioId, $examen)) {
-            return response()->json(['message' => 'Examen no autorizado.'], Response::HTTP_FORBIDDEN);
-        }
-
-        if (! $gateway->aulaPerteneceAlExamen($examen, $aula)) {
-            return response()->json(['message' => 'El aula no pertenece al examen.'], Response::HTTP_NOT_FOUND);
-        }
-
-        $resultado = $gateway->generar($examen, $aula, $usuarioId);
-
-        $mensaje = $resultado['regenerado'] ? 'Código regenerado' : 'Código generado';
-        $status = $resultado['regenerado'] ? Response::HTTP_OK : Response::HTTP_CREATED;
-
-        return response()->json([
-            'message' => $mensaje,
-            'data' => [
-                'codigo' => $resultado['codigo'],
-                'generado_en' => $resultado['generado_en'],
-            ],
-        ], $status);
+    /**
+     * @return array<string, string|null>
+     */
+    private function serializar(CodigoAulaData $codigo): array
+    {
+        return [
+            'codigo' => $codigo->codigo,
+            'generado_en' => $codigo->generadoEn,
+            'encargado' => $codigo->encargado,
+            'examen' => $codigo->examen,
+        ];
     }
 }

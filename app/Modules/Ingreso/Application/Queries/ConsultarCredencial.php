@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Queries;
 
-use App\Modules\Ingreso\Application\Authorization\AlcanceCodigosQr;
-use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
+use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
+use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\GeneradorImagenQr;
-use App\Modules\Ingreso\Domain\Exceptions\ExamenAjenoException;
 
 /**
  * La credencial de un habilitado: examen, estudiante, donde rinde y, si
@@ -16,19 +15,15 @@ use App\Modules\Ingreso\Domain\Exceptions\ExamenAjenoException;
 final readonly class ConsultarCredencial
 {
     public function __construct(
-        private EmisionQrGateway $codigos,
+        private CodigoQrGateway $codigos,
         private GeneradorImagenQr $imagenes,
-        private AlcanceCodigosQr $alcance,
+        private AlcancePuesto $alcance,
     ) {}
 
     /**
-     * Nulo si el estudiante no esta habilitado en el examen.
-     *
      * @return array<string, mixed>|null
-     *
-     * @throws ExamenAjenoException
      */
-    public function execute(int $examenId, int $estudianteId, int $usuarioId): ?array
+    public function execute(int $examenId, int $estudianteId, ?int $usuarioId): ?array
     {
         $this->alcance->exigirDocente($usuarioId, $examenId);
 
@@ -53,10 +48,10 @@ final readonly class ConsultarCredencial
                 'piso' => $credencial->aula->piso,
                 'edificio_id' => $credencial->aula->edificioId,
             ],
-            'emitido' => $credencial->contenido !== null,
-            'qr' => $credencial->contenido === null
+            'emitido' => $credencial->token !== null,
+            'qr' => $credencial->token === null
                 ? null
-                : $this->imagenes->comoUriDeDatos($credencial->contenido),
+                : $this->imagenes->comoUriDeDatos($credencial->token),
         ];
     }
 }

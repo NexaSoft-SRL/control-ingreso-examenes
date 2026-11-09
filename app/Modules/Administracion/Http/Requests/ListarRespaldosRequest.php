@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Administracion\Http\Requests;
 
-use App\Modules\Administracion\Application\DTOs\FiltroRespaldosData;
+use App\Modules\Administracion\Application\Queries\ListarRespaldos;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -23,7 +23,7 @@ final class ListarRespaldosRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'filtro' => ['nullable', 'string', Rule::in(['todos', 'programados', 'puntuales', 'fallidos'])],
+            'filtro' => ['nullable', 'string', Rule::in(ListarRespaldos::FILTROS)],
             'pagina' => ['nullable', 'integer', 'min:1'],
             'por_pagina' => ['nullable', 'integer', 'min:1', 'max:100'],
         ];
@@ -40,18 +40,24 @@ final class ListarRespaldosRequest extends FormRequest
             'pagina.min' => 'La página no es válida.',
             'por_pagina.integer' => 'El tamaño de página no es válido.',
             'por_pagina.min' => 'El tamaño de página no es válido.',
-            'por_pagina.max' => 'Máximo 100 filas por página.',
+            'por_pagina.max' => 'No se pueden pedir más de 100 filas por página.',
         ];
     }
 
-    public function toData(): FiltroRespaldosData
+    public function filtro(): ?string
     {
         $filtro = $this->validated('filtro');
 
-        return new FiltroRespaldosData(
-            filtro: is_string($filtro) ? $filtro : null,
-            pagina: max(1, $this->integer('pagina', 1)),
-            porPagina: max(1, $this->integer('por_pagina', self::POR_PAGINA)),
-        );
+        return is_string($filtro) && $filtro !== '' ? $filtro : null;
+    }
+
+    public function pagina(): int
+    {
+        return max(1, $this->integer('pagina', 1));
+    }
+
+    public function porPagina(): int
+    {
+        return max(1, $this->integer('por_pagina', self::POR_PAGINA));
     }
 }

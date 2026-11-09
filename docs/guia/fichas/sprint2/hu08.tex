@@ -1,0 +1,154 @@
+% Ficha HU-08 del sprint 2 rehecho. Una historia = una vista completa: la
+% lista de examenes del docente y el asistente de registro y edicion.
+% Incluye las normas con plantillas. Tipo: propia del sprint. Quien atiende
+% cada aula queda en HU-18.
+% La ficha anterior queda en sprint2/v1/.
+\def\HUNro{08}
+\def\HUSprint{2}
+\def\HUTitulo{Exámenes > Mis exámenes > Listar y registrar exámenes por asignatura}
+\def\HUModulo{M2}
+\def\HUReq{2, 10}
+\def\HUPuntos{16}
+
+\def\HUComo{docente}
+\def\HUQuiero{ver en una sola lista los exámenes de todas mis asignaturas y registrar
+cada uno con su fecha, sus normas, sus grupos y sus aulas}
+\def\HUPara{tener presente qué examen tomo, cuándo, a qué grupos, en qué aulas y bajo
+qué normas lo anuncié, y saber qué me falta preparar en cada uno antes del día del examen}
+
+\def\HUDescripcion{%
+Un docente dicta más de una asignatura y toma, por cada una, varios exámenes en el
+período. Esta vista le responde dos preguntas: qué exámenes tiene y qué le falta a cada
+uno. La lista reúne los exámenes del período vigente, de todas sus asignaturas, ordenados
+por fecha y agrupados por mes; el de hoy ---o, si hoy no hay ninguno, el próximo--- va
+primero y destacado. Cada examen muestra su estado («Faltan aulas», «Falta habilitar»,
+«Faltan códigos QR» o «Listo»), el avance por pasos y la acción que sigue. La lista se
+filtra por asignatura y, aparte, por los que tienen algo pendiente.
+
+El registro es un asistente. Primero los datos del examen: la asignatura (solo las que
+el docente dicta en el período), el tipo (primer parcial, segundo parcial, examen final,
+segunda instancia o examen de mesa), la fecha, la hora de inicio, la duración y las normas. Después los
+grupos: el examen es de la asignatura y puede abarcar varios, los propios y los de otros
+docentes de la misma asignatura; eso es lo que lo vuelve masivo. Por último las aulas:
+se elige cualquiera de las importadas, el sistema propone primero las de los horarios de
+los grupos y el mapa muestra dónde quedan. Todo se guarda de una vez al final.
+
+Las normas se arman de tres formas que se combinan. Las predefinidas del sistema valen
+para cualquier examen (por ejemplo, «documento de identidad a la vista») y solo hay que
+marcarlas. Las plantillas propias las crea el docente una vez (por ejemplo, «hoja de
+fórmulas A4») y después las marca con un clic en cada examen. El texto libre cubre lo
+que ninguna plantilla dice. Así el docente no vuelve a escribir lo mismo en cada examen,
+y al abrirlo el sistema le recuerda las condiciones que fijó. Las plantillas son de cada
+docente, y cambiarlas o quitarlas no altera los exámenes ya registrados, que conservan
+las normas con que se guardaron.
+
+Reglas: el examen lleva al menos un grupo; un grupo no puede tener dos exámenes del
+mismo tipo; la duración va de 15 a 480 minutos; la fecha cae dentro del período de los
+grupos. Un aula que ya tiene otro examen a esa hora se avisa como compartida y no se
+impide, porque los auditorios se comparten. Solo quien registró el examen lo modifica;
+los docentes de los grupos sumados lo ven en su lista. Con ingresos registrados ya no se
+cambia ni se elimina: solo se pueden ajustar las normas.
+
+La vista depende del período vigente y de la oferta importada (HU-10), que es de donde
+salen las asignaturas, los grupos y las aulas, y de que el docente tenga su cuenta
+activada (HU-12). El examen queda asociado al período vigente y cada escritura se asienta
+en la bitácora (HU-07). Quién atiende cada aula y los auxiliares no son parte de esta
+historia: se resuelven en HU-18.}
+
+\def\HUCriterios{%
+\item Dado que el docente tiene exámenes en el período vigente, Cuando abre Exámenes,
+      Entonces el sistema lista los de todas sus asignaturas, agrupados por mes y
+      ordenados por fecha y hora, cada uno con su tipo, asignatura, grupos, inscritos,
+      aulas y estado; el de hoy o, si no hay, el próximo aparece primero y destacado bajo
+      el rótulo «Hoy» o «Próximo».
+\item Dado que el docente elige una asignatura o activa «Pendientes», Cuando se aplica el
+      filtro, Entonces la lista muestra solo los exámenes de esa asignatura o los que no
+      están «Listo», con su conteo, y si ninguno coincide muestra «Sin exámenes».
+\item Dado que un examen tiene pasos sin completar, Cuando el docente despliega su fila,
+      Entonces ve el avance por pasos (grupos, aulas, habilitación y códigos QR), el
+      estado que resulta y el enlace a la acción siguiente.
+\item Dado que el docente pulsa «Registrar examen», Cuando se abre el primer paso,
+      Entonces la asignatura solo ofrece las que dicta en el período vigente y el tipo
+      ofrece primer parcial, segundo parcial, examen final, segunda instancia y examen
+      de mesa.
+\item Dado que falta la fecha o la hora, la duración no es un número entre 15 y 480, o
+      la fecha cae fuera del período de los grupos, Cuando el docente intenta continuar
+      o guardar, Entonces el sistema no avanza y señala el campo con su mensaje
+      («Obligatorio», «Entre 15 y 480»).
+\item Dado que el docente llega a las normas del examen, Cuando se muestran, Entonces ve
+      las normas predefinidas del sistema y sus plantillas propias, puede marcar las que
+      apliquen y sumar un texto libre; al guardar, lo marcado y lo escrito quedan con el
+      examen y vuelven a mostrarse al abrirlo. No marcar ninguna es válido.
+\item Dado que el docente necesita una norma que usará en más de un examen, Cuando crea
+      una plantilla propia con su texto, Entonces queda disponible para marcarla en ese
+      examen y en los siguientes; sin texto o con el texto de una plantilla que ya tiene,
+      el sistema no la crea y señala el campo.
+\item Dado que el docente edita o quita una de sus plantillas, Cuando guarda, Entonces el
+      cambio rige para los exámenes que registre después, y los exámenes ya registrados
+      conservan las normas con que se guardaron; las normas predefinidas no se editan
+      ni se quitan.
+\item Dado que las plantillas son de cada docente, Cuando otro docente registra un
+      examen, Entonces ve las normas predefinidas y sus propias plantillas, y no las de
+      los demás.
+\item Dado que el docente llega al paso de grupos, Cuando se muestra, Entonces sus grupos
+      vienen marcados, los de otros docentes de la misma asignatura se pueden sumar (uno a
+      uno, con «Todos» o buscando por grupo o docente), se ve el total de inscritos y sin
+      al menos un grupo no se puede continuar.
+\item Dado que un grupo elegido ya tiene un examen del mismo tipo, Cuando se intenta
+      guardar, Entonces el sistema lo rechaza con un mensaje que nombra el grupo y el
+      tipo (por ejemplo, «El grupo 3 ya tiene un primer parcial.»).
+\item Dado que el docente llega al paso de aulas, Cuando se muestra, Entonces puede elegir
+      cualquiera de las aulas importadas, las de los horarios de sus grupos van primero y
+      marcadas «Sugerida», la lista se filtra por edificio, sugeridas, elegidas o texto,
+      el mapa resalta las elegidas, y un aula que ya tiene otro examen a esa hora se
+      marca «Compartida» con el nombre de ese examen sin impedir guardar.
+\item Dado que los datos son válidos, Cuando el docente confirma, Entonces el examen se
+      guarda de una vez, asociado al período vigente, el sistema avisa «Examen
+      registrado», muestra su resumen y el examen aparece en la lista; si quedó sin aulas
+      figura como «Faltan aulas».
+\item Dado que el examen no tiene ingresos, Cuando quien lo registró lo abre y cambia sus
+      datos, Entonces el sistema guarda los cambios y avisa «Examen guardado»; a otro
+      docente, aunque uno de sus grupos esté incluido, el sistema le niega la
+      modificación.
+\item Dado que el examen ya tiene ingresos registrados, Cuando se intenta cambiar su
+      fecha, hora, duración, tipo, grupos o aulas, o eliminarlo, Entonces el sistema lo
+      rechaza indicando que el examen ya tiene ingresos.
+\item Dado que un rol no tiene el permiso de exámenes, Cuando intenta ver, registrar o
+      modificar un examen, Entonces el sistema responde con una negativa explícita.
+\item Dado que se registra, modifica o elimina un examen, o se crea, edita o quita una
+      plantilla de normas, Cuando la operación se completa, Entonces queda asentada en la bitácora con su autor.
+\item Dado que el docente accede desde un dispositivo móvil, Cuando abre la lista o el
+      asistente de registro, Entonces la interfaz se adapta de forma completamente
+      responsiva.}
+
+\def\HUMockupsExtra{%
+\CajaMockup{hu08-registro}{7.8cm} & \CajaMockup{hu08-aulas}{7.8cm}}
+
+\def\HUPruebas{%
+\item \texttt{ListadoExamenesTest}: exámenes propios y los que incluyen un grupo suyo,
+      solo del período vigente, avance de «Faltan aulas» a «Listo», examen de hoy según
+      el reloj del servidor y lista vacía (criterios 1 y 3).
+\item \texttt{RegistroExamenTest}: registro en una sola petición con grupos y aulas,
+      examen sin aulas, asignatura sin grupo propio, tipos de examen, fecha fuera del
+      período y mensajes de validación (criterios 4, 5 y 13).
+\item \texttt{PlantillasDeNormasTest} (por escribir): normas predefinidas y plantillas
+      propias al registrar, texto libre sumado a lo marcado, alta, edición y baja de una
+      plantilla, exámenes ya registrados que no cambian y plantillas que no se ven entre
+      docentes (criterios 6 a 9).
+\item \texttt{RegistroExamenTest} y \texttt{OpcionesDeGruposTest}: grupos propios y de
+      otros docentes, grupo de otra asignatura y un solo examen por tipo
+      (criterios 10 y 11).
+\item Pruebas de las aulas del examen, en el módulo Exámenes: aulas sugeridas por los
+      horarios de los grupos, aviso de aula compartida que no bloquea y aula repetida
+      (criterio 12).
+\item \texttt{RegistroExamenTest}: solo quien registró modifica o elimina, y con ingresos
+      solo cambian las normas (criterios 14 y 15).
+\item \texttt{RegistroExamenTest}: rol sin permiso, sin sesión y asiento de cada
+      escritura en la bitácora (criterios 16 y 17).
+\item \texttt{Examenes.test.jsx} (por escribir): filtros por asignatura y pendientes,
+      examen destacado, despliegue de pasos y estado vacío (criterios 1 a 3 y 18).
+\item \texttt{RegistrarExamen.test.jsx} (por escribir): validación de cada paso, normas
+      marcadas y texto libre, avisos de aula sugerida y compartida, y resumen final
+      (criterios 5, 6, 10, 12, 13 y 18).}
+
+\input{cuerpo}

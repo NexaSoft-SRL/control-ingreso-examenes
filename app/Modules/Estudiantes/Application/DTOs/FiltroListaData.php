@@ -16,5 +16,7 @@ final readonly class FiltroListaData
         public ?string $facultad = null,
         public ?int $carreraId = null,
         public ?string $estado = null,
+        // `con` o `sin`: con foto registrada o sin ella.
+        public ?string $foto = null,
     ) {}
 }

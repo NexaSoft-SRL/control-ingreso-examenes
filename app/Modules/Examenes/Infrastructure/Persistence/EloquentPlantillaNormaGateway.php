@@ -20,9 +20,9 @@ final class EloquentPlantillaNormaGateway implements PlantillaNormaGateway
 
     public function visiblesPara(int $usuarioId): array
     {
-        $plantillas = PlantillaNorma::whereNull('usuario_id')
-            ->orWhere('usuario_id', $usuarioId)
-            ->orderByRaw('case when usuario_id is null then 0 else 1 end')
+        $plantillas = PlantillaNorma::whereNull('user_id')
+            ->orWhere('user_id', $usuarioId)
+            ->orderByRaw('case when user_id is null then 0 else 1 end')
             ->orderBy('id')
             ->get();
 
@@ -46,7 +46,7 @@ final class EloquentPlantillaNormaGateway implements PlantillaNormaGateway
     {
         return DB::transaction(function () use ($usuarioId, $texto): PlantillaNormaData {
             $plantilla = PlantillaNorma::create([
-                'usuario_id' => $usuarioId,
+                'user_id' => $usuarioId,
                 'texto' => $texto,
             ]);
 
@@ -122,7 +122,7 @@ final class EloquentPlantillaNormaGateway implements PlantillaNormaGateway
         return new PlantillaNormaData(
             id: $plantilla->id,
             texto: $plantilla->texto,
-            usuarioId: $plantilla->usuario_id,
+            usuarioId: $plantilla->user_id,
         );
     }
 }

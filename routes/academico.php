@@ -9,12 +9,10 @@ use App\Modules\Academico\Http\Controllers\ImportacionOfertaController;
 use App\Modules\Academico\Http\Controllers\OfertaController;
 use App\Modules\Academico\Http\Controllers\PeriodoController;
 use App\Modules\Academico\Http\Controllers\UbicacionController;
+use App\Modules\Academico\Http\Middleware\ExigirAlgunPermiso;
 use Illuminate\Support\Facades\Route;
 
-// Periodos, oferta, edificios, aulas y docentes (Academico): HU-10, HU-11 y HU-12.
-//
-// Todas van bajo `/api`, con sesion (`auth`) y el permiso de su pantalla
-// (`permiso:<clave>`; `permiso:a|b` cuando alcanza con uno de varios).
+// Periodos, oferta, edificios, aulas y docentes (Academico).
 
 // Catalogos que usan todas las pantallas: basta la sesion.
 Route::prefix('api')->middleware('auth')->group(function (): void {
@@ -41,22 +39,16 @@ Route::prefix('api')->middleware(['auth', 'permiso:periodo_oferta'])->group(func
 
     Route::post('/oferta/importaciones', [ImportacionOfertaController::class, 'store'])
         ->name('oferta.importaciones.store');
-
-    // HU-17: la oferta importada, en modo consulta.
     Route::get('/oferta/asignaturas', [OfertaController::class, 'asignaturas'])
         ->name('oferta.asignaturas');
-
-    Route::get('/oferta/niveles', [OfertaController::class, 'niveles'])
-        ->name('oferta.niveles');
-
     Route::get('/oferta/asignaturas/{asignatura}/grupos', [OfertaController::class, 'grupos'])
         ->whereNumber('asignatura')
         ->name('oferta.asignaturas.grupos');
 });
 
-// Las carreras las usan Periodo y el Padron, que tienen permisos distintos.
+// Las carreras las usan la Oferta y el Padron, que tienen permisos distintos.
 Route::get('/api/oferta/carreras', [OfertaController::class, 'carreras'])
-    ->middleware(['auth', 'permiso:periodo_oferta|padron_estudiantes'])
+    ->middleware(['auth', ExigirAlgunPermiso::class.':periodo_oferta,padron_estudiantes'])
     ->name('oferta.carreras');
 
 Route::prefix('api')->middleware(['auth', 'permiso:aulas_docentes'])->group(function (): void {

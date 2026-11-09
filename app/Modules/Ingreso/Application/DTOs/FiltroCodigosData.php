@@ -6,13 +6,11 @@ namespace App\Modules\Ingreso\Application\DTOs;
 
 /**
  * Los filtros de la lista de codigos QR: los mismos sirven para la lista,
- * el envio por correo, los avisos y la hoja imprimible. `envio` filtra por
- * el estado del codigo: `sin_emitir`, `sin_enviar`, `enviado` o `fallido`.
+ * el envio por correo y la hoja imprimible. `envio` filtra por el estado
+ * del envio: `sin_emitir`, `sin_enviar`, `enviado` o `fallido`.
  */
 final readonly class FiltroCodigosData
 {
-    public const ENVIOS = ['sin_emitir', 'sin_enviar', 'enviado', 'fallido'];
-
     public function __construct(
         public ?int $grupo = null,
         public ?int $aula = null,

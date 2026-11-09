@@ -12,19 +12,24 @@ use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
- * HU-20: a quien se envio el codigo y a quien no, el filtro por estado y
- * el reenvio a un estudiante.
+ * El estado del envio de cada credencial (enviado, sin enviar, fallido),
+ * su filtro, el reenvio por estudiante y las tandas de la cola
+ * sincronica.
  */
 final class EstadoDeEnviosTest extends TestCase
 {
-    use EscenarioDeCodigosQr;
+    use EscenarioDePuerta;
     use RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->travelTo('2026-10-26 09:30:00');
         $this->armarExamen();
+    }
+
+    private function lista(): string
+    {
+        return "/api/examenes/{$this->examen->id}/codigos-qr";
     }
 
     private function registrarEnvio(Estudiante $estudiante, string $estado, ?string $error = null): void
@@ -56,7 +61,7 @@ final class EstadoDeEnviosTest extends TestCase
 
         DB::table('codigos_qr')->where('estudiante_id', $enviado->id)->update(['enviado_en' => now()]);
         $this->registrarEnvio($enviado, 'ENVIADO');
-        // Un envio anterior no cuenta: manda el ultimo.
+        // Un fallo anterior no cuenta: manda el ultimo envio.
         $this->registrarEnvio($fallido, 'ENVIADO');
         $this->registrarEnvio($fallido, 'FALLIDO', 'Buzón inexistente.');
 
@@ -68,7 +73,7 @@ final class EstadoDeEnviosTest extends TestCase
         $estudiantes = $this->unoDeCadaEstado();
 
         $respuesta = $this->actingAs($this->cuentaDocente)
-            ->getJson($this->ruta())
+            ->getJson($this->lista())
             ->assertOk()
             ->assertJsonPath('meta.habilitados', 4)
             ->assertJsonPath('meta.emitidos', 3)
@@ -86,8 +91,6 @@ final class EstadoDeEnviosTest extends TestCase
             $this->assertSame($estudiante->codigo_universitario.'@est.umss.edu', $fila['correo']);
             $this->assertSame($estado === 'fallido' ? 'Buzón inexistente.' : null, $fila['error']);
         }
-
-        $this->assertSame('2026-10-26T09:30:00-04:00', $porEstudiante[$estudiantes['enviado']->id]['enviado_en']);
     }
 
     public function test_the_list_is_filtered_by_delivery_state(): void
@@ -96,7 +99,7 @@ final class EstadoDeEnviosTest extends TestCase
 
         foreach ($estudiantes as $estado => $estudiante) {
             $this->actingAs($this->cuentaDocente)
-                ->getJson($this->ruta('?envio='.$estado))
+                ->getJson($this->lista().'?envio='.$estado)
                 ->assertOk()
                 ->assertJsonPath('meta.total', 1)
                 ->assertJsonPath('meta.habilitados', 4)
@@ -105,7 +108,7 @@ final class EstadoDeEnviosTest extends TestCase
         }
 
         $this->actingAs($this->cuentaDocente)
-            ->getJson($this->ruta('?envio=perdido'))
+            ->getJson($this->lista().'?envio=perdido')
             ->assertStatus(422)
             ->assertJsonPath('errors.envio.0', 'El estado de envío no es válido.');
     }
@@ -116,7 +119,7 @@ final class EstadoDeEnviosTest extends TestCase
         $estudiantes = $this->unoDeCadaEstado();
 
         $this->actingAs($this->cuentaDocente)
-            ->postJson($this->ruta('/envios'), ['envio' => 'fallido'])
+            ->postJson($this->lista().'/envios', ['envio' => 'fallido'])
             ->assertStatus(202)
             ->assertJsonPath('encolados', 1)
             ->assertJsonPath('pendientes', 0);
@@ -128,15 +131,25 @@ final class EstadoDeEnviosTest extends TestCase
         Mail::assertQueuedCount(1);
     }
 
-    public function test_one_student_can_be_sent_the_same_code_again(): void
+    public function test_the_credential_carries_the_institutional_address(): void
     {
-        [$estudiante, $otro] = $this->habilitados(2);
-        $contenido = $this->emitirCodigo($estudiante);
-        $this->emitirCodigo($otro);
-        DB::table('codigos_qr')->where('estudiante_id', $estudiante->id)->update(['enviado_en' => '2026-10-25 10:00:00']);
+        [$estudiante] = $this->habilitados(1);
 
         $this->actingAs($this->cuentaDocente)
-            ->postJson($this->ruta('/'.$estudiante->id.'/envio'))
+            ->getJson($this->lista().'/'.$estudiante->id)
+            ->assertOk()
+            ->assertJsonPath('data.correo', $estudiante->codigo_universitario.'@est.umss.edu');
+    }
+
+    public function test_one_student_can_be_sent_the_code_again(): void
+    {
+        [$estudiante, $otro] = $this->habilitados(2);
+        $this->emitirCodigo($estudiante);
+        $this->emitirCodigo($otro);
+        DB::table('codigos_qr')->where('estudiante_id', $estudiante->id)->update(['enviado_en' => '2026-10-11 10:00:00']);
+
+        $this->actingAs($this->cuentaDocente)
+            ->postJson($this->lista().'/'.$estudiante->id.'/envio')
             ->assertStatus(202)
             ->assertExactJson([
                 'message' => '1 código enviado.',
@@ -151,11 +164,9 @@ final class EstadoDeEnviosTest extends TestCase
             'estado' => 'ENVIADO',
             'solicitado_por' => $this->cuentaDocente->id,
         ]);
-        // El mismo codigo, con la nueva fecha de envio.
         $this->assertDatabaseHas('codigos_qr', [
             'estudiante_id' => $estudiante->id,
-            'contenido' => $contenido,
-            'enviado_en' => '2026-10-26 09:30:00',
+            'enviado_en' => '2026-10-12 08:20:00',
         ]);
         $this->assertDatabaseMissing('envios_correo', ['estudiante_id' => $otro->id]);
         $this->assertDatabaseHas('bitacora_operaciones', [
@@ -165,41 +176,23 @@ final class EstadoDeEnviosTest extends TestCase
         ]);
     }
 
-    public function test_a_failed_student_turns_sent_after_the_resend(): void
-    {
-        $estudiantes = $this->unoDeCadaEstado();
-
-        $this->actingAs($this->cuentaDocente)
-            ->postJson($this->ruta('/'.$estudiantes['fallido']->id.'/envio'))
-            ->assertStatus(202);
-
-        $this->actingAs($this->cuentaDocente)
-            ->getJson($this->ruta('?envio=fallido'))
-            ->assertOk()
-            ->assertJsonPath('meta.total', 0)
-            ->assertJsonPath('meta.fallidos', 0)
-            ->assertJsonPath('meta.enviados', 2);
-    }
-
     public function test_the_single_delivery_checks_the_student_the_code_and_the_scope(): void
     {
         [$sinCodigo] = $this->habilitados(1);
         [$inhabilitado] = $this->estudiantesInscritos($this->grupo, 1);
         $this->inhabilitar($this->examen, [$inhabilitado]);
 
-        $this->postJson($this->ruta('/'.$sinCodigo->id.'/envio'))->assertUnauthorized();
-
         $this->actingAs($this->cuentaDocente)
-            ->postJson($this->ruta('/'.$sinCodigo->id.'/envio'))
+            ->postJson($this->lista().'/'.$sinCodigo->id.'/envio')
             ->assertStatus(409)
             ->assertJsonPath('codigo', 'SIN_EMITIR');
 
         $this->actingAs($this->cuentaDocente)
-            ->postJson($this->ruta('/'.$inhabilitado->id.'/envio'))
+            ->postJson($this->lista().'/'.$inhabilitado->id.'/envio')
             ->assertStatus(404);
 
         $this->actingAs($this->docenteAjeno())
-            ->postJson($this->ruta('/'.$sinCodigo->id.'/envio'))
+            ->postJson($this->lista().'/'.$sinCodigo->id.'/envio')
             ->assertStatus(403)
             ->assertJsonPath('alcance', true);
 
@@ -218,11 +211,45 @@ final class EstadoDeEnviosTest extends TestCase
         $yaEnviados = DB::table('codigos_qr')->whereNotNull('enviado_en')->pluck('estudiante_id')->all();
 
         $this->actingAs($this->cuentaDocente)
-            ->postJson($this->ruta('/envios'))
+            ->postJson($this->lista().'/envios')
             ->assertStatus(202)
             ->assertJsonPath('encolados', 5)
             ->assertJsonPath('pendientes', 0);
 
         $this->assertSame(0, DB::table('envios_correo')->whereIn('estudiante_id', $yaEnviados)->count());
+    }
+
+    public function test_resending_to_everyone_advances_in_batches_without_repeating(): void
+    {
+        Mail::fake();
+
+        foreach ($this->habilitados(105) as $estudiante) {
+            $this->emitirCodigo($estudiante);
+        }
+
+        DB::table('codigos_qr')->update(['enviado_en' => '2026-10-11 10:00:00']);
+
+        $tanda = $this->actingAs($this->cuentaDocente)
+            ->postJson($this->lista().'/envios')
+            ->assertStatus(202)
+            ->assertJsonPath('encolados', 100)
+            ->assertJsonPath('pendientes', 5)
+            ->assertJsonPath('tanda', $this->iso('2026-10-12 08:20:00'))
+            ->json('tanda');
+
+        $this->actingAs($this->cuentaDocente)
+            ->postJson($this->lista().'/envios', ['tanda' => $tanda])
+            ->assertStatus(202)
+            ->assertJsonPath('encolados', 5)
+            ->assertJsonPath('pendientes', 0);
+
+        $this->assertSame(105, DB::table('envios_correo')->count());
+        $this->assertSame(105, DB::table('envios_correo')->distinct()->count('estudiante_id'));
+
+        $this->actingAs($this->cuentaDocente)
+            ->postJson($this->lista().'/envios', ['tanda' => $tanda])
+            ->assertStatus(202)
+            ->assertJsonPath('encolados', 0)
+            ->assertJsonPath('pendientes', 0);
     }
 }

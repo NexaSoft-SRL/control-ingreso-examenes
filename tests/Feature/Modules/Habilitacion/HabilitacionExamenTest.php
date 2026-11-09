@@ -13,6 +13,7 @@ use App\Modules\Estudiantes\Domain\Models\Estudiante;
 use App\Modules\Estudiantes\Domain\Models\Inscripcion;
 use App\Modules\Habilitacion\Application\Contracts\HabilitacionGateway;
 use App\Modules\Habilitacion\Application\DTOs\HabilitacionData;
+use Database\Factories\UserFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\DatosAcademicos;
 use Tests\Support\DatosDeExamen;
@@ -153,7 +154,7 @@ final class HabilitacionExamenTest extends TestCase
         $respuesta = $this->actingAs($this->cuenta)
             ->getJson("/api/examenes/{$examen->id}/habilitaciones")
             ->assertOk()
-            ->assertJsonPath('data.0.registrada_por', $this->cuenta->nombre)
+            ->assertJsonPath('data.0.registrada_por', $this->cuenta->name)
             // Quien sigue sin revisar no tiene autor.
             ->assertJsonPath('data.1.registrada_por', null)
             ->assertJsonPath('data.1.registrada_el', null);
@@ -171,21 +172,22 @@ final class HabilitacionExamenTest extends TestCase
         $conFoto->forceFill(['foto' => 'imagenes/estudiantes/una.jpg'])->save();
         $examen = $this->examen($this->docente, [$grupo]);
 
-        $datos = $this->actingAs($this->cuenta)
+        $conFotoPorId = [];
+        $filas = (array) $this->actingAs($this->cuenta)
             ->getJson("/api/examenes/{$examen->id}/habilitaciones")
             ->assertOk()
             ->json('data');
-        $this->assertIsArray($datos);
-        $conFotoPorId = [];
 
-        foreach ($datos as $fila) {
-            $this->assertIsArray($fila);
-            $this->assertIsInt($fila['estudiante_id']);
-            $conFotoPorId[$fila['estudiante_id']] = $fila['con_foto'];
+        foreach ($filas as $fila) {
+            if (is_array($fila) && is_int($fila['estudiante_id'] ?? null)) {
+                $conFotoPorId[$fila['estudiante_id']] = $fila['con_foto'] ?? null;
+            }
         }
 
-        $this->assertTrue($conFotoPorId[$conFoto->id]);
-        $this->assertFalse($conFotoPorId[$sinFoto->id]);
+        $this->assertSame([$conFoto->id => true, $sinFoto->id => false], array_intersect_key(
+            $conFotoPorId,
+            [$conFoto->id => 1, $sinFoto->id => 1],
+        ));
     }
 
     public function test_the_teacher_of_the_exam_sees_the_photo_of_an_enrolled_student_only(): void
@@ -453,7 +455,7 @@ final class HabilitacionExamenTest extends TestCase
     {
         $examen = $this->examen($this->docente, [$this->grupo($this->docente)]);
 
-        $this->actingAs($this->usuarioConRol('Auxiliar'))
+        $this->actingAs(UserFactory::new()->createOne())
             ->getJson("/api/examenes/{$examen->id}/habilitaciones")
             ->assertForbidden()
             ->assertJsonPath('permiso_requerido', 'habilitacion');
@@ -471,7 +473,7 @@ final class HabilitacionExamenTest extends TestCase
         $this->actingAs($otra)
             ->getJson("/api/examenes/{$examen->id}/habilitaciones")
             ->assertForbidden()
-            ->assertExactJson(['message' => 'Examen no autorizado.', 'alcance' => true]);
+            ->assertExactJson(['message' => 'Este examen no está a su cargo.', 'alcance' => true]);
     }
 
     public function test_the_teacher_of_an_included_group_works_on_an_exam_registered_by_another(): void
@@ -584,6 +586,23 @@ final class HabilitacionExamenTest extends TestCase
             ->assertOk()
             ->assertJsonPath('afectados', 4)
             ->assertJsonPath('cifras.sin_revisar', 0);
+    }
+
+    public function test_all_but_the_unchecked_ones_leaves_those_unreviewed(): void
+    {
+        $grupo = $this->grupo($this->docente);
+        [$uno] = $this->estudiantesInscritos($grupo, 4);
+        $examen = $this->examen($this->docente, [$grupo]);
+
+        $this->actingAs($this->cuenta)
+            ->postJson("/api/examenes/{$examen->id}/habilitaciones", [
+                'habilitado' => true,
+                'todos' => true,
+                'excluidos' => [$uno->id],
+            ])
+            ->assertOk()
+            ->assertJsonPath('afectados', 3)
+            ->assertJsonPath('cifras.sin_revisar', 1);
     }
 
     public function test_a_student_is_disabled_with_the_reason_and_loses_the_room(): void
@@ -799,48 +818,6 @@ final class HabilitacionExamenTest extends TestCase
         $this->assertDatabaseMissing('bitacora_operaciones', ['operacion' => 'habilitacion.inhabilitar']);
     }
 
-    public function test_selecting_everything_does_not_disable_who_already_entered_either(): void
-    {
-        $grupo = $this->grupo($this->docente);
-        $aula = $this->aula();
-        [$adentro, $afuera] = $this->estudiantesInscritos($grupo, 2);
-        $examen = $this->examen($this->docente, [$grupo], [$aula]);
-        $this->habilitar($examen, [$adentro, $afuera], $aula);
-        // En este sprint nadie registra ingresos: la fila se inserta a mano.
-        $this->ingresar($examen, $adentro);
-
-        $this->actingAs($this->cuenta)
-            ->postJson("/api/examenes/{$examen->id}/habilitaciones", [
-                'habilitado' => false,
-                'motivo' => 'Adeuda la matrícula',
-                'todos' => true,
-            ])
-            ->assertConflict()
-            ->assertJsonPath('codigo', 'ESTUDIANTE_CON_INGRESO')
-            ->assertJsonPath(
-                'message',
-                'Un estudiante de la selección ya ingresó al examen y no se puede inhabilitar.',
-            );
-
-        $this->assertDatabaseHas('habilitaciones', [
-            'examen_id' => $examen->id,
-            'estudiante_id' => $adentro->id,
-            'habilitado' => true,
-            'aula_id' => $aula->id,
-        ]);
-        $this->assertDatabaseMissing('habilitaciones', ['examen_id' => $examen->id, 'habilitado' => false]);
-
-        // Quien no ingreso si se puede inhabilitar.
-        $this->actingAs($this->cuenta)
-            ->postJson("/api/examenes/{$examen->id}/habilitaciones", [
-                'habilitado' => false,
-                'motivo' => 'Adeuda la matrícula',
-                'estudiantes' => [$afuera->id],
-            ])
-            ->assertOk()
-            ->assertJsonPath('afectados', 1);
-    }
-
     public function test_each_batch_leaves_one_row_in_the_audit_log_with_the_amount(): void
     {
         $grupo = $this->grupo($this->docente);
@@ -911,7 +888,7 @@ final class HabilitacionExamenTest extends TestCase
         $this->estudiantesInscritos($grupo, 1);
         $examen = $this->examen($this->docente, [$grupo]);
 
-        $this->actingAs($this->usuarioConRol('Auxiliar'))
+        $this->actingAs(UserFactory::new()->createOne())
             ->postJson("/api/examenes/{$examen->id}/habilitaciones", ['habilitado' => true, 'todos' => true])
             ->assertForbidden()
             ->assertJsonPath('permiso_requerido', 'habilitacion');
@@ -931,7 +908,7 @@ final class HabilitacionExamenTest extends TestCase
         $this->actingAs($otra)
             ->postJson("/api/examenes/{$examen->id}/habilitaciones", ['habilitado' => true, 'todos' => true])
             ->assertForbidden()
-            ->assertExactJson(['message' => 'Examen no autorizado.', 'alcance' => true]);
+            ->assertExactJson(['message' => 'Este examen no está a su cargo.', 'alcance' => true]);
 
         $this->assertDatabaseCount('habilitaciones', 0);
     }

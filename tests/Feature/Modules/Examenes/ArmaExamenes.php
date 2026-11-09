@@ -33,6 +33,11 @@ trait ArmaExamenes
         return User::findOrFail($docente->user_id);
     }
 
+    protected function auxiliarConRol(): User
+    {
+        return $this->usuarioConRol('Auxiliar');
+    }
+
     /**
      * @param  list<Grupo>  $grupos
      * @param  list<Aula>  $aulas
@@ -49,7 +54,10 @@ trait ArmaExamenes
             'duracion_minutos' => 90,
             'normas' => 'Sin celular.',
             'grupos' => array_map(static fn (Grupo $grupo): int => $grupo->id, $grupos),
-            'aulas' => array_map(static fn (Aula $aula): int => $aula->id, $aulas),
+            'aulas' => array_map(
+                static fn (Aula $aula): array => ['aula_id' => $aula->id],
+                $aulas,
+            ),
         ], $cambios);
     }
 }

@@ -1,0 +1,82 @@
+% Ficha HU-08. Criterios tomados del backlog de la iteracion 2. El examen
+% cuelga del grupo de asignatura, que es quien tiene al docente responsable.
+\def\HUNro{08}
+\def\HUSprint{2}
+\def\HUTitulo{Exámenes > Registro > Registrar examen}
+\def\HUModulo{M2}
+\def\HUReq{2}
+\def\HUPuntos{5}
+
+\def\HUComo{docente}
+\def\HUQuiero{registrar un examen con sus datos}
+\def\HUPara{que el sistema sepa qué evaluación se está controlando}
+
+\def\HUDescripcion{%
+El examen es la unidad que el sistema controla: todo lo que viene después ---normas,
+ambientes, habilitación e ingreso--- cuelga de él.
+
+Cada examen pertenece a un grupo de asignatura, que es quien tiene al docente
+responsable, y guarda su fecha, su hora de inicio, su duración en minutos y su tipo:
+primer parcial, segundo parcial, final, segunda instancia o práctico. Un grupo no puede
+tener dos exámenes en la misma fecha y hora, y el sistema lo impide tanto en la
+validación como en la propia base de datos.
+
+El examen se edita mientras no tenga ingresos registrados. Una vez que un estudiante
+entró por la puerta, cambiar la fecha o la duración dejaría sin sentido lo ya ocurrido:
+desde entonces el examen queda fijo y el sistema responde explicando el motivo. Los
+ingresos llegan en la iteración 3 (HU-21); la comprobación ya está en su lugar.
+
+La pantalla comparte permiso con las normas del examen (HU-09), porque son la misma vista
+del menú. Cada alta, edición y eliminación queda asentada en la bitácora (HU-07).}
+
+\def\HUCriterios{%
+\item Dado que el docente abre Exámenes, Cuando se carga la pantalla, Entonces el sistema
+      lista los exámenes con su asignatura, grupo, tipo, fecha, hora, duración y docente
+      responsable.
+\item Dado que se registra un examen, Cuando se indican grupo, fecha, hora de inicio,
+      duración y tipo, Entonces el sistema lo guarda y lo muestra en la lista.
+\item Dado que el grupo ya tiene un examen en esa fecha y a esa hora, Cuando se intenta
+      guardar otro, Entonces el sistema lo rechaza indicando el motivo.
+\item Dado que el mismo grupo tiene un examen a otra hora del mismo día, Cuando se
+      registra, Entonces el sistema lo acepta.
+\item Dado que el tipo de examen no es uno de los conocidos, Cuando se intenta guardar,
+      Entonces el sistema lo rechaza.
+\item Dado que la duración es menor a quince minutos o mayor a ocho horas, Cuando se
+      intenta guardar, Entonces el sistema la rechaza.
+\item Dado que el grupo de asignatura no existe, Cuando se intenta guardar, Entonces el
+      sistema lo rechaza.
+\item Dado que un examen no tiene ingresos registrados, Cuando se editan sus datos,
+      Entonces el sistema los actualiza.
+\item Dado que un examen ya tiene ingresos registrados, Cuando se intenta editarlo o
+      eliminarlo, Entonces el sistema lo impide y explica el motivo.
+\item Dado que un examen no tiene ingresos registrados, Cuando se lo elimina, Entonces el
+      sistema lo borra de la lista.
+\item Dado que un rol no tiene el permiso de exámenes y normas, Cuando intenta abrir la
+      pantalla, Entonces el sistema responde con una negativa explícita que nombra el
+      permiso.
+\item Dado que se registra, edita o elimina un examen, Cuando la operación se completa,
+      Entonces queda asentada en la bitácora con su autor.
+\item Dado que el docente accede desde un dispositivo móvil, Cuando abre la pantalla,
+      Entonces la interfaz se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{RegistroExamenTest}: alta con los campos del backlog, listado con su
+      asignatura y su docente, y catálogo de tipos (criterios 1 y 2).
+\item \texttt{RegistroExamenTest::two\_exams\_of\_the\_same\_group\_cannot\_share\_date\_and\_time}
+      y \texttt{the\_same\_group\_can\_have\_two\_exams\_at\_different\_times}: la regla de
+      unicidad y su contraparte (criterios 3 y 4).
+\item \texttt{RegistroExamenTest::the\_exam\_needs\_a\_known\_type\_and\_a\_sensible\_duration}
+      y \texttt{the\_exam\_needs\_an\_existing\_group}: validaciones (criterios 5 a 7).
+\item \texttt{RegistroExamenTest}: edición y eliminación de un examen sin ingresos
+      (criterios 8 y 10).
+\item \texttt{RegistroExamenTest::an\_exam\_with\_entries\_cannot\_be\_edited} y
+      \texttt{an\_exam\_with\_entries\_cannot\_be\_deleted}: con ingresos registrados el
+      examen queda fijo (criterios 8 y 10).
+\item \texttt{RegistroExamenTest}: sin el permiso responde 403 y sin sesión 401
+      (criterio 11).
+\item \texttt{RegistroExamenTest::every\_movement\_is\_recorded\_in\_the\_audit\_log}: alta,
+      edición y eliminación asentadas (criterio 12).
+\item \texttt{Examenes.test.jsx}: listado, alta con grupo y hora, edición y mensaje del
+      backend cuando el examen no se puede eliminar (criterios 1, 2, 8 y 9).}
+
+\input{cuerpo}

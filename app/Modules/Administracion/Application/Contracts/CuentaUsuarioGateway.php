@@ -9,26 +9,26 @@ use App\Modules\Administracion\Application\DTOs\NuevaCuentaData;
 
 /**
  * Cuentas de acceso. Es el contrato que usan los demas modulos para dar
- * una cuenta a un docente (Academico).
+ * una cuenta a un docente (Academico) o a un auxiliar (Examenes).
  */
 interface CuentaUsuarioGateway
 {
     /**
-     * Crea la cuenta con una contrasena temporal y la fecha en que vence
-     * (el vencimiento y el cambio obligatorio se aplican desde HU-16). La
-     * cuenta y su asiento `usuario.registrar` se escriben en una misma
-     * transaccion: o quedan los dos o ninguno. Si la cuenta tiene correo,
-     * la contrasena ademas viaja ahi. El usuario y el correo se guardan
-     * en minusculas.
+     * Crea la cuenta con una contrasena temporal que vence y obliga a
+     * definir una propia en el primer ingreso. La cuenta y su asiento
+     * `usuario.crear` se escriben en una misma transaccion: o quedan los
+     * dos o ninguno. Si la cuenta tiene correo de contacto, la contrasena
+     * ademas viaja ahi. El usuario se guarda en minusculas.
      *
      * Quien llama valida antes que el usuario y el correo esten libres y
-     * que el rol exista.
+     * que el rol exista (de inicio o creado).
      */
     public function crear(NuevaCuentaData $datos, ?int $autorId): CuentaCreadaData;
 
     /**
      * Emite una contrasena temporal nueva para una cuenta que ya existe:
-     * la deja otra vez como temporal y levanta el bloqueo por intentos. Asienta `usuario.restablecer_temporal` en la misma
+     * vuelve a exigir el cambio en el proximo ingreso y levanta el bloqueo
+     * por intentos. Asienta `usuario.restablecer_temporal` en la misma
      * transaccion. Devuelve null si la cuenta no existe.
      */
     public function emitirTemporal(int $usuarioId, ?int $autorId): ?CuentaCreadaData;

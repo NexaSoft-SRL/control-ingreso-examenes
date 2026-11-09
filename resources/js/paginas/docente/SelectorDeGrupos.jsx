@@ -5,7 +5,8 @@ import Chips from '../../componentes/Chips';
 import { PuntoFacultad } from '../../componentes/FiltroFacultad';
 import Insignia from '../../componentes/Insignia';
 import Tarjeta from '../../componentes/Tarjeta';
-import { colorDeAsignatura, normalizar } from '../../utiles/texto';
+import { colorDeAsignatura, normalizar, plural } from '../../utiles/texto';
+import IconoAsignatura from '../../componentes/IconoAsignatura';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
@@ -39,13 +40,30 @@ export function horariosDe(grupo) {
 
 function EstadoDeLista({ grupo }) {
     return grupo.con_lista ? (
-        <Insignia tono="exito">Lista cargada · {grupo.inscritos}</Insignia>
+        <Insignia tono="exito">{plural(grupo.inscritos ?? 0, 'inscrito')}</Insignia>
     ) : (
         <Insignia tono="advertencia">Sin lista</Insignia>
     );
 }
 
 EstadoDeLista.propTypes = { grupo: FORMA_GRUPO.isRequired };
+
+// En la lista densa el estado no compite con la asignatura: texto chico,
+// con un punto ámbar solo cuando falta la lista.
+function EstadoSutil({ grupo }) {
+    return grupo.con_lista ? (
+        <span className="shrink-0 text-xs text-slate-500">
+            {plural(grupo.inscritos ?? 0, 'inscrito')}
+        </span>
+    ) : (
+        <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-warning-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-warning-600" aria-hidden="true" />
+            Sin lista
+        </span>
+    );
+}
+
+EstadoSutil.propTypes = { grupo: FORMA_GRUPO.isRequired };
 
 // Con pocos grupos, una tarjeta por grupo.
 export function TarjetasDeGrupos({ grupos, elegido, onElegir }) {
@@ -138,19 +156,29 @@ export default function SelectorDeGrupos({ grupos, elegido, onElegir }) {
                 role="group"
                 aria-label="Grupos"
             >
-                {asignaturas.map((a) => (
-                    <div key={a}>
-                        <h2 className="sticky top-0 flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700">
-                            <span
-                                className="h-2 w-2 shrink-0 rounded-full"
-                                style={{ backgroundColor: colorDeAsignatura(a) }}
-                            />
-                            <span className="min-w-0 truncate">{a}</span>
-                        </h2>
-                        <ul className="divide-y divide-slate-100">
-                            {filtrados
-                                .filter((g) => g.asignatura.nombre === a)
-                                .map((g) => {
+                {asignaturas.map((a, i) => {
+                    const delaAsignatura = filtrados.filter((g) => g.asignatura.nombre === a);
+                    const codigo = delaAsignatura[0]?.asignatura.codigo;
+                    return (
+                        <section
+                            key={a}
+                            className={`px-2 pb-2 pt-3 ${i > 0 ? 'border-t border-slate-200' : ''}`}
+                        >
+                            <h2 className="flex items-start gap-2.5 px-1.5 pb-1.5">
+                                <IconoAsignatura nombre={a} color={colorDeAsignatura(a)} />
+                                <span className="min-w-0">
+                                    <span className="block text-sm font-semibold leading-snug text-slate-900">
+                                        {a}
+                                    </span>
+                                    {codigo && (
+                                        <span className="block text-xs font-normal text-slate-500">
+                                            {codigo}
+                                        </span>
+                                    )}
+                                </span>
+                            </h2>
+                            <ul className="space-y-0.5">
+                                {delaAsignatura.map((g) => {
                                     const activo = elegido === g.id;
                                     return (
                                         <li key={g.id}>
@@ -158,17 +186,21 @@ export default function SelectorDeGrupos({ grupos, elegido, onElegir }) {
                                                 type="button"
                                                 aria-pressed={activo}
                                                 onClick={() => onElegir(g.id)}
-                                                className={`flex min-h-12 w-full items-center gap-2 px-3 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600 ${
+                                                className={`flex min-h-11 w-full items-center gap-2 rounded-lg py-1.5 pl-[2.6rem] pr-2.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600 ${
                                                     activo
-                                                        ? 'bg-primary-50 shadow-[inset_3px_0_0_var(--color-primary-600)]'
+                                                        ? 'bg-primary-100/70 shadow-[inset_3px_0_0_var(--color-primary-600)] ring-1 ring-primary-200'
                                                         : 'hover:bg-slate-50'
                                                 }`}
                                             >
                                                 <span className="min-w-0 flex-1">
-                                                    <span className="block text-sm font-medium text-slate-900">
+                                                    <span
+                                                        className={`block text-sm ${activo ? 'font-semibold text-primary-800' : 'font-medium text-slate-700'}`}
+                                                    >
                                                         Grupo {g.codigo}
                                                     </span>
-                                                    <span className="block truncate text-xs text-slate-600">
+                                                    <span
+                                                        className={`block truncate text-xs ${activo ? 'text-primary-700' : 'text-slate-500'}`}
+                                                    >
                                                         {(g.horarios ?? [])
                                                             .map(
                                                                 (h) =>
@@ -177,16 +209,15 @@ export default function SelectorDeGrupos({ grupos, elegido, onElegir }) {
                                                             .join(' · ')}
                                                     </span>
                                                 </span>
-                                                <span className="shrink-0">
-                                                    <EstadoDeLista grupo={g} />
-                                                </span>
+                                                <EstadoSutil grupo={g} />
                                             </button>
                                         </li>
                                     );
                                 })}
-                        </ul>
-                    </div>
-                ))}
+                            </ul>
+                        </section>
+                    );
+                })}
                 {filtrados.length === 0 && (
                     <p className="py-8 text-center text-sm text-slate-600">Sin resultados</p>
                 )}

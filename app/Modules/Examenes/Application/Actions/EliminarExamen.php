@@ -10,8 +10,8 @@ use App\Modules\Examenes\Domain\Exceptions\ExamenAjenoException;
 use App\Modules\Examenes\Domain\Exceptions\ExamenConIngresosException;
 
 /**
- * Solo quien registro el examen lo elimina, y solo mientras no tenga
- * ingresos registrados.
+ * Solo quien registro el examen lo elimina, y solo mientras la puerta no
+ * haya dejado historia (ingresos o incidencias).
  */
 final readonly class EliminarExamen
 {
@@ -34,7 +34,7 @@ final readonly class EliminarExamen
             throw new ExamenAjenoException;
         }
 
-        if ($this->examenes->tieneIngresos($examenId)) {
+        if ($this->examenes->tieneIngresos($examenId) || $this->examenes->tieneIncidencias($examenId)) {
             throw new ExamenConIngresosException;
         }
 

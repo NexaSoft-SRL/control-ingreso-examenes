@@ -40,6 +40,9 @@ trait UsuarioConPermisos
             DB::table('permission_role')->updateOrInsert([
                 'role_id' => $rol->id,
                 'permission_id' => $registro->id,
+            ], [
+                'vigente_desde' => null,
+                'vigente_hasta' => null,
             ]);
         }
 
@@ -49,7 +52,7 @@ trait UsuarioConPermisos
     }
 
     /**
-     * Cuenta con uno de los tres roles de inicio (`Administrador`,
+     * Cuenta con uno de los tres roles del sistema (`Administrador`,
      * `Docente`, `Auxiliar`) y su reparto real de permisos, el que deja
      * `RolePermissionSeeder`.
      *

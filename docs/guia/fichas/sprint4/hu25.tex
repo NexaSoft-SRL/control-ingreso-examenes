@@ -1,0 +1,148 @@
+% Ficha HU-25 del sprint 4. Una historia = una vista completa: el respaldo
+% de los datos, a demanda y programado, con su historial, la descarga y la
+% restauracion con confirmacion.
+% Tipo: propia del sprint.
+% Mockups: el principal es la captura «respaldos» (hu25-escritorio.png
+% y hu25-movil.png); las demas, en mockups/hu25-<nombre>.png.
+\def\HUNro{25}
+\def\HUSprint{4}
+\def\HUTitulo{Administración > Respaldo > Respaldar los datos y restaurarlos desde el
+historial}
+\def\HUModulo{M7}
+\def\HUReq{contexto}
+\def\HUPuntos{5}
+
+\def\HUComo{administrador}
+\def\HUQuiero{respaldar la base de datos y restaurarla}
+\def\HUPara{recuperar los registros ante una falla sin perder lo ocurrido en los
+exámenes}
+
+\def\HUDescripcion{%
+El pliego no lo pide como requerimiento, pero lo exige entre los aspectos de contexto:
+los ingresos de un examen no se pueden volver a tomar. El servidor de despliegue no da
+consola remota, así que el sistema respalda sus propios datos y los restaura desde la
+pantalla, sin \texttt{pg\_dump}.
+
+Arriba va «Respaldo», con la programación del respaldo diario y la fecha del último
+correcto, y el botón «Respaldar ahora». Debajo, fichas para ver todos los respaldos, los
+programados, los puntuales o los fallidos, cada una con su conteo, y el «Historial»:
+fecha, tipo, tamaño y estado de cada respaldo, con «Descargar» y «Restaurar».
+
+Reglas: cada respaldo es un guion SQL de datos, \texttt{respaldo-AAAAMMDD-HHMMSS.sql},
+con todas las tablas del sistema salvo el propio historial de respaldos y las tablas de
+trabajo (sesiones, caché, colas, migraciones, restablecimiento de contraseñas y
+presencias en la puerta); el esquema lo crean las migraciones. El intento que falla
+también queda en el historial, con su error. Restaurar sobrescribe los datos actuales:
+pide confirmación, va en una sola transacción, no borra el historial ni cierra la sesión
+de quien la ordena, y rechaza el respaldo de un esquema anterior al replanteamiento.
+
+El respaldo programado está hecho pero depende del servidor: la tarea
+\texttt{respaldo:generar} queda registrada en el planificador para las 03:00, y el
+planificador solo corre si el alojamiento ejecuta cada minuto la tarea cron que indica
+el manual de despliegue. El servidor actual no tiene tareas programadas ni consola, así
+que hoy no se genera ningún respaldo automático y la pantalla muestra «Diario, 03:00»
+como programación, no como una ejecución comprobada. El respaldo a demanda no depende de
+eso. La restauración desde el panel del alojamiento, para cuando el sistema no arranca,
+está en el manual de despliegue.
+
+La vista la abre quien tiene el permiso «Respaldo», que de inicio es el administrador
+(HU-15). Generar, fallar y restaurar quedan en la bitácora (HU-07); descargar no se
+asienta.}
+
+\def\HUCriterios{%
+\item Dado que hay respaldos, Cuando el administrador abre «Respaldo», Entonces el
+      sistema muestra «Diario, 03:00 · último:» con la fecha del último correcto, el
+      botón «Respaldar ahora» y el «Historial», del más reciente al más antiguo y de a
+      quince por página, con «Fecha», «Tipo» («Programado» o «Puntual»), «Tamaño» en B,
+      KB, MB o GB y «Estado» («Correcto», «Fallido» o «Restaurado»); sin respaldos
+      muestra «Sin respaldos» y no dice «último».
+\item Dado que la vista muestra el historial, Cuando el administrador pulsa «Todos»,
+      «Programados», «Puntuales» o «Fallidos», Entonces la lista se filtra y pagina en
+      el servidor, cada ficha muestra su conteo y sin coincidencias aparece «Sin
+      resultados»; un filtro inexistente se rechaza con «El filtro no existe.».
+\item Dado que el administrador pulsa «Respaldar ahora», Cuando el respaldo termina,
+      Entonces el botón dice «Respaldando» mientras dura, el archivo queda guardado en
+      el servidor como «Puntual» con su autor, la vista avisa «Respaldo generado» y lo
+      muestra primero, saliendo de un filtro que lo ocultaría; dos respaldos en el mismo
+      segundo no comparten archivo.
+\item Dado que el servidor ejecuta el planificador, Cuando llegan las 03:00, Entonces la
+      tarea \texttt{respaldo:generar} crea un respaldo «Programado», sin usuario, con la
+      misma acción que el puntual; en el servidor de despliegue actual, que no tiene
+      tareas programadas, no se genera hasta que el alojamiento habilite la tarea cron
+      del manual, y el respaldo a demanda sigue disponible.
+\item Dado que la generación falla, Cuando termina el intento, Entonces queda en el
+      historial como «Fallido», con su error, sin tamaño («---») y sin acciones, no
+      cuenta como el último, la vista avisa «No se pudo generar el respaldo» y vuelve a
+      leer el historial.
+\item Dado que un respaldo es correcto, Cuando el administrador pulsa «Descargar»,
+      Entonces baja el guion SQL con su nombre y la vista avisa «\ldots{} descargado»;
+      un respaldo fallido responde «Ese respaldo falló: no hay archivo que descargar.»,
+      uno que no existe «Respaldo no encontrado.» y uno cuyo archivo ya no está «El
+      archivo de ese respaldo ya no está en disco.», y un archivo solo se alcanza por su
+      respaldo del historial, no por su nombre.
+\item Dado que un respaldo es correcto, Cuando el administrador pulsa «Restaurar»,
+      Entonces la fila pide confirmación con «Sobrescribe los datos actuales»,
+      «Cancelar» y «Restaurar»; «Cancelar» la cierra sin tocar nada y, mientras se
+      restaura, el botón dice «Restaurando» y «Respaldar ahora» y los demás «Restaurar»
+      quedan deshabilitados.
+\item Dado que el administrador confirma la restauración, Cuando termina, Entonces el
+      sistema vuelve a los datos del respaldo en una sola transacción, responde cuántas
+      tablas repuso, la vista avisa «Restaurado al» con la fecha del respaldo y marca la
+      fila «Restaurado», solo la del último restaurado; después el sistema sigue
+      aceptando registros nuevos.
+\item Dado que se restaura un respaldo, Cuando se reponen los datos, Entonces el
+      historial de respaldos se conserva completo y la sesión de quien la ordenó sigue
+      abierta; si su cuenta no existía en el respaldo, la restauración queda asentada
+      igual, sin autor, y el asiento lo dice.
+\item Dado que el respaldo es de una versión anterior del sistema, Cuando se intenta
+      restaurar, Entonces el sistema lo rechaza con «Ese respaldo es de una versión
+      anterior del sistema y no se puede restaurar.» sin tocar los datos, la vista avisa
+      «Respaldo incompatible», marca la fila «Incompatible» y deja de ofrecer
+      «Restaurar», aunque conserva «Descargar»; un respaldo fallido tampoco se restaura
+      («Ese respaldo falló: no hay nada que restaurar.»).
+\item Dado que se genera, falla o restaura un respaldo, Cuando la operación termina,
+      Entonces queda asentada en la bitácora con su autor, o como del sistema si fue la
+      tarea programada; tras restaurar, la bitácora vuelve a la del respaldo más la
+      constancia «Restauración desde» con el archivo. El manual de despliegue documenta
+      la generación, la tarea cron, la restauración desde el sistema y la importación
+      desde el panel cuando el sistema no arranca.
+\item Dado que no hay sesión o el rol no tiene el permiso «Respaldo», Cuando se intenta
+      abrir la vista, listar, generar, descargar o restaurar, Entonces la vista muestra
+      «Sin permiso» sin consultar nada y el servidor responde con una negativa
+      explícita. Si el historial no carga, la vista muestra «No se pudo cargar» con
+      «Reintentar». En un dispositivo móvil el historial pasa a una lista con la fecha,
+      el tipo y el tamaño, el estado y las mismas acciones, de forma completamente
+      responsiva.}
+
+\def\HUMockupsPares{%
+\CajaMockup{hu25-confirmar-restauracion}{10.6cm} & \CajaMockup{hu25-confirmar-restauracion-movil}{3.2cm} \\[4pt]
+\hline}
+
+
+\def\HUPruebas{%
+\item \texttt{RespaldoHistorialTest}: historial del más reciente al más antiguo con sus
+      cifras, filtros y paginación, validación de filtros e historial vacío sin último
+      (criterios 1 y 2).
+\item \texttt{RespaldoTest}: respaldo a demanda, dos en el mismo segundo, respaldo
+      programado, tarea nocturna registrada y tablas de trabajo e historial fuera del
+      volcado (criterios 3 y 4).
+\item \texttt{ComandosTest}: la tarea \texttt{respaldo:generar} queda programada a las
+      03:00 (criterio 4).
+\item \texttt{RespaldoHistorialTest}: respaldo fallido con su error, su filtro, fuera
+      del último, y sin descarga ni restauración (criterios 5, 6 y 10).
+\item \texttt{RespaldoTest}: descarga para importar a mano, respaldo inexistente,
+      archivo ausente y nombre que ya no alcanza un archivo (criterio 6).
+\item \texttt{RespaldoTest}: restauración que repone los datos, cuenta las tablas y deja
+      el sistema aceptando registros nuevos (criterio 8).
+\item \texttt{RespaldoHistorialTest}: solo el último restaurado marcado, historial
+      conservado, sesión abierta, cuenta posterior al respaldo y respaldo anterior al
+      replanteamiento rechazado (criterios 8 a 10).
+\item \texttt{RespaldoTest}: generación y restauración en la bitácora, invitado y rol
+      sin permiso rechazados (criterios 11 y 12).
+\item \texttt{Respaldo.test.jsx}: programación, último e historial de a quince, filtros
+      con conteo, paginación, «Respaldar ahora», fallo de la generación, descarga y su
+      rechazo, confirmación y cancelación, restauración, respaldo incompatible, «Sin
+      respaldos», «Reintentar», «Sin permiso», vista móvil y tamaño legible (criterios 1
+      a 3, 5 a 8, 10 y 12).}
+
+\input{cuerpo}

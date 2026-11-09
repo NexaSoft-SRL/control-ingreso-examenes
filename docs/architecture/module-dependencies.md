@@ -10,29 +10,32 @@ Las dependencias no indicadas están prohibidas.
 
 ## Matriz
 
-| Origen | Administracion | Estudiantes | Examenes | Habilitacion | Ingreso | Monitoreo | Reportes |
-|---|---|---|---|---|---|---|---|
-| Administracion | — | No | No | No | No | No | No |
-| Estudiantes | Sí | — | No | No | No | No | No |
-| Examenes | Sí | Sí | — | No | No | No | No |
-| Habilitacion | Sí | Sí | Sí | — | No | No | No |
-| Ingreso | Sí | Sí | Sí | Sí | — | No | No |
-| Monitoreo | Sí | Sí | Sí | Sí | Sí | — | No |
-| Reportes | Sí | Sí | Sí | Sí | Sí | No | — |
+| Origen | Administracion | Academico | Estudiantes | Examenes | Habilitacion | Ingreso | Monitoreo | Reportes |
+|---|---|---|---|---|---|---|---|---|
+| Administracion | — | No | No | No | No | No | No | No |
+| Academico | Sí | — | No | No | No | No | No | No |
+| Estudiantes | Sí | Sí | — | No | No | No | No | No |
+| Examenes | Sí | Sí | Sí | — | No | No | No | No |
+| Habilitacion | Sí | Sí | Sí | Sí | — | No | No | No |
+| Ingreso | Sí | Sí | Sí | Sí | Sí | — | No | No |
+| Monitoreo | Sí | Sí | Sí | Sí | Sí | Sí | — | No |
+| Reportes | Sí | Sí | Sí | Sí | Sí | Sí | No | — |
 
 ## Justificación
 
-Administracion concentra autenticación, autorización, usuarios, roles, permisos y auditoría.
+Administracion concentra autenticación, autorización, usuarios, roles, permisos, auditoría, respaldo y el registro de los correos enviados.
 
-Estudiantes mantiene el padrón y la carga masiva.
+Academico mantiene la oferta importada: períodos, facultades, carreras, asignaturas, grupos, horarios, docentes, edificios y aulas (ADR-0002). Usa de Administracion la bitácora y las cuentas.
 
-Examenes utiliza información académica y de estudiantes cuando una regla o asignación lo requiere.
+Estudiantes mantiene el padrón, las inscripciones en grupos, las cargas de inscritos y sus conflictos.
 
-Habilitacion relaciona estudiantes con exámenes y conserva su condición y motivo de inhabilitación.
+Examenes arma el examen de una asignatura con sus grupos, sus aulas, quién atiende cada una y los auxiliares.
 
-Ingreso constituye el núcleo operacional: identifica al estudiante, verifica habilitación y ambiente, registra el ingreso y las incidencias.
+Habilitacion relaciona a los inscritos con un examen: conserva su condición, el motivo de inhabilitación y el aula que les toca.
 
-Monitoreo explota los datos de ingreso y habilitación para mostrar ingresados, faltantes y avance por ambiente.
+Ingreso constituye el núcleo operacional: emite los códigos QR, identifica al estudiante en la puerta, verifica habilitación y aula, registra el ingreso y las incidencias.
+
+Monitoreo explota los datos de ingreso y habilitación para mostrar los exámenes en curso y la asistencia por aula.
 
 Reportes explota los datos transaccionales de examen, habilitación e ingreso para producir asistencia, ausentes, horarios e intentos no autorizados.
 

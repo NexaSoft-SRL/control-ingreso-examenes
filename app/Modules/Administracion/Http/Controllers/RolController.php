@@ -82,9 +82,6 @@ final class RolController
         ]);
     }
 
-    /**
-     * Devuelve a Administrador, Docente y Auxiliar su reparto de fabrica.
-     */
     public function restablecer(RestablecerRolesDeInicio $restablecer): JsonResponse
     {
         $cambiados = $restablecer->execute($this->usuarioId());

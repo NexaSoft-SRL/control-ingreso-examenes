@@ -19,7 +19,7 @@ final readonly class SesionData
         public ?string $correo,
         public ?string $rol,
         public array $permisos,
-        public ?int $docenteId,
         public bool $debeCambiarContrasena,
+        public ?int $docenteId,
     ) {}
 }

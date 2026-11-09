@@ -4,52 +4,52 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Http\Controllers;
 
+use App\Modules\Administracion\Application\Contracts\AlmacenImagenes;
 use App\Modules\Ingreso\Application\Actions\AtenderIncidencia;
 use App\Modules\Ingreso\Application\Actions\CorregirIncidencia;
 use App\Modules\Ingreso\Application\Actions\ReportarIncidencia;
-use App\Modules\Ingreso\Application\Authorization\AlcancePuerta;
-use App\Modules\Ingreso\Application\Contracts\AlmacenEvidencias;
+use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaGateway;
+use App\Modules\Ingreso\Application\Contracts\PuertaGateway;
+use App\Modules\Ingreso\Application\DTOs\OperadorData;
 use App\Modules\Ingreso\Application\Queries\ListarIncidencias;
 use App\Modules\Ingreso\Domain\Enums\TipoIncidencia;
-use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
 use App\Modules\Ingreso\Domain\Exceptions\DatoNoValidoException;
+use App\Modules\Ingreso\Domain\Exceptions\FueraDeAlcanceException;
+use App\Modules\Ingreso\Domain\Exceptions\FueraDeFechaException;
 use App\Modules\Ingreso\Domain\Exceptions\IncidenciaYaAtendidaException;
-use App\Modules\Ingreso\Http\Middleware\ExigirPuesto;
 use App\Modules\Ingreso\Http\Requests\CorregirIncidenciaRequest;
 use App\Modules\Ingreso\Http\Requests\ListarIncidenciasRequest;
 use App\Modules\Ingreso\Http\Requests\ReportarIncidenciaRequest;
-use DomainException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Auth;
 
-/**
- * Las incidencias de un examen en un solo modelo: las reporta quien esta
- * en el aula (tambien con codigo de aula), las lista el docente o quien
- * atiende el aula, y el docente las atiende y las corrige.
- */
 final class IncidenciaController
 {
+    use Responde;
+
     public function index(
         int $examen,
         ListarIncidenciasRequest $request,
         ListarIncidencias $listar,
-        IncidenciaGateway $incidencias,
+        PuertaGateway $puerta,
     ): JsonResponse {
-        if ($incidencias->fechaDelExamen($examen) === null) {
-            return $this->error('Examen no encontrado.', Response::HTTP_NOT_FOUND);
+        $datos = $puerta->examen($examen);
+        $usuarioId = $this->usuarioId();
+
+        if ($datos === null || $usuarioId === null) {
+            return $this->noEncontrado('Examen no encontrado.');
         }
 
         try {
-            return response()->json($listar->ejecutar(
-                $examen,
-                $this->usuarioId(),
+            return response()->json($listar->execute(
+                $datos,
+                $usuarioId,
                 $request->aulaId(),
                 $request->soloSinAtender(),
             ));
-        } catch (AccesoPuntoDenegado $error) {
-            return $this->error($error->getMessage(), Response::HTTP_FORBIDDEN);
+        } catch (FueraDeAlcanceException $error) {
+            return $this->fueraDeAlcance($error);
         } catch (DatoNoValidoException $error) {
             return $this->noValido($error);
         }
@@ -59,28 +59,30 @@ final class IncidenciaController
         int $examen,
         ReportarIncidenciaRequest $request,
         ReportarIncidencia $reportar,
-        IncidenciaGateway $incidencias,
+        PuertaGateway $puerta,
     ): JsonResponse {
-        if ($incidencias->fechaDelExamen($examen) === null) {
-            return $this->error('Examen no encontrado.', Response::HTTP_NOT_FOUND);
+        $datos = $puerta->examen($examen);
+
+        if ($datos === null) {
+            return $this->noEncontrado('Examen no encontrado.');
         }
 
         try {
-            $incidencia = $reportar->ejecutar(
-                $examen,
+            $incidencia = $reportar->execute(
+                $datos,
                 $request->aulaId(),
                 $request->tipo(),
                 $request->estudiante(),
                 $request->detalle(),
-                ExigirPuesto::operador($request),
+                $this->operador($request),
                 $request->evidencias(),
             );
-        } catch (AccesoPuntoDenegado $error) {
-            return $this->error($error->getMessage(), Response::HTTP_FORBIDDEN);
+        } catch (FueraDeAlcanceException $error) {
+            return $this->fueraDeAlcance($error);
         } catch (DatoNoValidoException $error) {
             return $this->noValido($error);
-        } catch (DomainException $error) {
-            return $this->error($error->getMessage(), Response::HTTP_CONFLICT);
+        } catch (FueraDeFechaException $error) {
+            return $this->conflicto($error->getMessage(), 'FUERA_DE_FECHA');
         }
 
         return response()->json([
@@ -94,24 +96,23 @@ final class IncidenciaController
         AtenderIncidencia $atender,
         IncidenciaGateway $incidencias,
     ): JsonResponse {
-        $examenId = $incidencias->reportada($incidencia)['examen_id'] ?? null;
+        $datos = $incidencias->reportada($incidencia);
+        $usuarioId = $this->usuarioId();
+        $examenId = $datos['examen_id'] ?? null;
 
-        if (! is_int($examenId)) {
-            return $this->error('Incidencia no encontrada.', Response::HTTP_NOT_FOUND);
+        if ($datos === null || $usuarioId === null || ! is_int($examenId)) {
+            return $this->noEncontrado('Incidencia no encontrada.');
         }
 
         try {
-            $atender->ejecutar($incidencia, $examenId, $this->usuarioId());
-        } catch (AccesoPuntoDenegado $error) {
-            return $this->error($error->getMessage(), Response::HTTP_FORBIDDEN);
+            $atender->execute($incidencia, $examenId, $usuarioId);
+        } catch (FueraDeAlcanceException $error) {
+            return $this->fueraDeAlcance($error);
         } catch (IncidenciaYaAtendidaException $error) {
-            return $this->error($error->getMessage(), Response::HTTP_CONFLICT);
+            return $this->conflicto($error->getMessage(), 'YA_ATENDIDA');
         }
 
-        $fila = $incidencias->reportada($incidencia);
-        unset($fila['examen_id']);
-
-        return response()->json(['data' => $fila, 'message' => 'Incidencia atendida.']);
+        return response()->json(['message' => 'Incidencia atendida.']);
     }
 
     public function corregir(
@@ -121,28 +122,29 @@ final class IncidenciaController
         IncidenciaGateway $incidencias,
     ): JsonResponse {
         $datos = $incidencias->reportada($incidencia);
+        $usuarioId = $this->usuarioId();
         $examenId = $datos['examen_id'] ?? null;
         $actual = TipoIncidencia::tryFrom(is_string($datos['tipo'] ?? null) ? $datos['tipo'] : '');
 
-        if (! is_int($examenId) || $actual === null) {
-            return $this->error('Incidencia no encontrada.', Response::HTTP_NOT_FOUND);
+        if ($datos === null || $usuarioId === null || ! is_int($examenId) || $actual === null) {
+            return $this->noEncontrado('Incidencia no encontrada.');
         }
 
         try {
-            $corregir->ejecutar(
+            $corregir->execute(
                 $incidencia,
                 $examenId,
                 $actual,
                 $request->tipo(),
                 $request->detalle(),
                 $request->evidencias(),
-                $this->usuarioId(),
+                $usuarioId,
                 $request->cambiaEstudiante(),
                 $request->estudiante(),
                 is_string($datos['detalle'] ?? null) ? $datos['detalle'] : null,
             );
-        } catch (AccesoPuntoDenegado $error) {
-            return $this->error($error->getMessage(), Response::HTTP_FORBIDDEN);
+        } catch (FueraDeAlcanceException $error) {
+            return $this->fueraDeAlcance($error);
         } catch (DatoNoValidoException $error) {
             return $this->noValido($error);
         }
@@ -154,59 +156,44 @@ final class IncidenciaController
     }
 
     /**
-     * Una foto de la evidencia (la primera, o la `$numero`), para el docente
-     * del examen o quien atiende su aula.
+     * Una foto de la evidencia (la primera, o la `$numero`), para quien puede
+     * ver la incidencia: el docente del examen o quien atiende su aula.
      */
     public function evidencia(
         int $incidencia,
         IncidenciaGateway $incidencias,
-        AlcancePuerta $alcance,
-        AlmacenEvidencias $almacen,
+        PuertaGateway $puerta,
+        AlcancePuesto $alcance,
+        AlmacenImagenes $imagenes,
         int $numero = 1,
     ): JsonResponse|Response {
         $datos = $incidencias->reportada($incidencia);
+        $usuarioId = $this->usuarioId();
         $examenId = $datos['examen_id'] ?? null;
         $aulaId = $datos['aula_id'] ?? null;
+        $examen = is_int($examenId) ? $puerta->examen($examenId) : null;
 
-        if (! is_int($examenId)) {
-            return $this->error('Incidencia no encontrada.', Response::HTTP_NOT_FOUND);
+        if ($datos === null || $usuarioId === null || $examen === null) {
+            return $this->noEncontrado('Incidencia no encontrada.');
         }
 
-        $usuarioId = $this->usuarioId();
+        $puedeVer = $alcance->esDocente($usuarioId, $examen->id)
+            || (is_int($aulaId) && $alcance->actuaEnExamen(new OperadorData($usuarioId), $examen, $aulaId));
 
-        if (! $alcance->esDocente($usuarioId, $examenId)
-            && ! (is_int($aulaId) && $alcance->atiendeAula($usuarioId, $examenId, $aulaId))) {
-            return $this->error('Sin asignación en esta aula.', Response::HTTP_FORBIDDEN);
+        if (! $puedeVer) {
+            return $this->fueraDeAlcance(FueraDeAlcanceException::aula());
         }
 
         $ruta = $incidencias->evidencia($incidencia, $numero);
-        $jpeg = $ruta === null ? null : $almacen->leer($ruta);
+        $jpeg = $ruta === null ? null : $imagenes->leer($ruta);
 
         if ($jpeg === null) {
-            return $this->error('Sin evidencia.', Response::HTTP_NOT_FOUND);
+            return $this->noEncontrado('Sin evidencia.');
         }
 
         return response($jpeg, Response::HTTP_OK, [
             'Content-Type' => 'image/jpeg',
             'Cache-Control' => 'private, max-age=300',
         ]);
-    }
-
-    private function usuarioId(): int
-    {
-        return (int) Auth::id();
-    }
-
-    private function noValido(DatoNoValidoException $error): JsonResponse
-    {
-        return response()->json([
-            'message' => $error->getMessage(),
-            'errors' => [$error->campo => [$error->getMessage()]],
-        ], Response::HTTP_UNPROCESSABLE_ENTITY);
-    }
-
-    private function error(string $mensaje, int $estado): JsonResponse
-    {
-        return response()->json(['message' => $mensaje], $estado);
     }
 }

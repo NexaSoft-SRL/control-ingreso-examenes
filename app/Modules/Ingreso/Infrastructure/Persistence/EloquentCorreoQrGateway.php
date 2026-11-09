@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Infrastructure\Persistence;
 
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
-use App\Modules\Administracion\Application\Contracts\RegistroCorreoGateway;
-use App\Modules\Administracion\Application\DTOs\RegistroCorreoData;
 use App\Modules\Ingreso\Application\Contracts\CorreoQrGateway;
 use App\Modules\Ingreso\Application\DTOs\AvisoData;
 use App\Modules\Ingreso\Application\DTOs\CredencialData;
@@ -18,20 +16,18 @@ use Illuminate\Support\Facades\Mail;
 use Throwable;
 
 /**
- * Cada correo queda registrado en `envios_correo` (Administracion) antes
- * de salir; el propio correo cierra su registro al enviarse o al fallar.
+ * `envios_correo` es de Administracion: se escribe por nombre de tabla,
+ * con los valores de sus enumeraciones (`CODIGO_QR`, `PENDIENTE`). El
+ * aviso usa un tipo propio, `AVISO`.
  */
 final class EloquentCorreoQrGateway implements CorreoQrGateway
 {
-    /**
-     * Con la cola sincronica cada correo sale dentro de la peticion: se
-     * envian por tandas para no agotar el tiempo del servidor.
-     */
+    use LeeFilas;
+
     private const LOTE_SINCRONICO = 100;
 
     public function __construct(
         private readonly BitacoraGateway $bitacora,
-        private readonly RegistroCorreoGateway $registro,
     ) {}
 
     public function tamanoDeLote(): ?int
@@ -39,33 +35,30 @@ final class EloquentCorreoQrGateway implements CorreoQrGateway
         return config('queue.default') === 'sync' ? self::LOTE_SINCRONICO : null;
     }
 
-    public function ahora(): string
-    {
-        return now()->toIso8601String();
-    }
-
-    public function encolar(int $examenId, array $credenciales, int $usuarioId): int
+    public function encolar(int $examenId, array $credenciales, ?int $usuarioId): int
     {
         return $this->despachar(
             $examenId,
             $credenciales,
             $usuarioId,
-            RegistroCorreoData::TIPO_CODIGO_QR,
+            'CODIGO_QR',
             'qr.enviar',
+            'codigos_qr',
             '%d código(s) QR enviado(s) por correo para el examen %d.',
             static fn (CredencialData $credencial, int $envioId): Mailable => new CodigoQrMail($credencial, $envioId),
         );
     }
 
-    public function avisar(int $examenId, array $destinatarios, AvisoData $aviso, int $usuarioId): int
+    public function avisar(int $examenId, array $destinatarios, AvisoData $aviso, ?int $usuarioId): int
     {
         return $this->despachar(
             $examenId,
             $destinatarios,
             $usuarioId,
-            RegistroCorreoData::TIPO_AVISO,
+            'AVISO',
             'aviso.enviar',
-            '%d aviso(s) del examen %d enviado(s) por correo.',
+            'examenes',
+            '%d aviso(s) enviado(s) por correo para el examen %d.',
             static fn (CredencialData $credencial, int $envioId): Mailable => new AvisoExamenMail($credencial, $aviso, $envioId),
         );
     }
@@ -77,25 +70,33 @@ final class EloquentCorreoQrGateway implements CorreoQrGateway
     private function despachar(
         int $examenId,
         array $credenciales,
-        int $usuarioId,
+        ?int $usuarioId,
         string $tipo,
         string $operacion,
+        string $tabla,
         string $descripcion,
         callable $correoDe,
     ): int {
-        /** @var list<array{envio: int, credencial: CredencialData}> $envios */
-        $envios = DB::transaction(function () use ($examenId, $credenciales, $usuarioId, $tipo, $operacion, $descripcion): array {
+        /** @var list<array{envio: int, destinatario: string, credencial: CredencialData}> $envios */
+        $envios = DB::transaction(function () use ($examenId, $credenciales, $usuarioId, $tipo, $operacion, $tabla, $descripcion): array {
+            $ahora = now();
             $envios = [];
 
             foreach ($credenciales as $credencial) {
+                $destinatario = $credencial->correo ?? $this->correoInstitucional($credencial->codigo);
+
                 $envios[] = [
-                    'envio' => $this->registro->registrar(new RegistroCorreoData(
-                        tipo: $tipo,
-                        destinatario: $credencial->correo,
-                        examenId: $examenId,
-                        estudianteId: $credencial->estudianteId,
-                        solicitadoPor: $usuarioId,
-                    )),
+                    'envio' => DB::table('envios_correo')->insertGetId([
+                        'tipo' => $tipo,
+                        'destinatario' => $destinatario,
+                        'examen_id' => $examenId,
+                        'estudiante_id' => $credencial->estudianteId,
+                        'estado' => 'PENDIENTE',
+                        'solicitado_por' => $usuarioId,
+                        'created_at' => $ahora,
+                        'updated_at' => $ahora,
+                    ]),
+                    'destinatario' => $destinatario,
                     'credencial' => $credencial,
                 ];
             }
@@ -103,7 +104,7 @@ final class EloquentCorreoQrGateway implements CorreoQrGateway
             $this->bitacora->registrar(
                 $usuarioId,
                 $operacion,
-                'examenes',
+                $tabla,
                 $examenId,
                 sprintf($descripcion, count($envios), $examenId),
             );
@@ -111,15 +112,16 @@ final class EloquentCorreoQrGateway implements CorreoQrGateway
             return $envios;
         }, 3);
 
-        // Fuera de la transaccion: el registro queda aunque un correo
-        // falle. Con la cola sincronica el envio ocurre aqui mismo y su
-        // fallo no debe tumbar la peticion.
+        // Fuera de la transaccion: las filas de envio quedan aunque un
+        // correo falle. Con la cola sincronica el envio ocurre aqui mismo
+        // y su fallo no debe tumbar la peticion; el propio correo ya dejo
+        // su fila como fallida.
         foreach ($envios as $envio) {
             try {
-                Mail::to($envio['credencial']->correo)
+                Mail::to($envio['destinatario'])
                     ->queue($correoDe($envio['credencial'], $envio['envio']));
             } catch (Throwable $error) {
-                $this->registro->marcarFallido($envio['envio'], $error->getMessage());
+                CodigoQrMail::marcarFallido($envio['envio'], $error->getMessage());
             }
         }
 

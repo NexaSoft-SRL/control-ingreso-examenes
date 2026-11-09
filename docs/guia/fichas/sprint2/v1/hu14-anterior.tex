@@ -1,0 +1,76 @@
+% Ficha HU-14, version 2. Ajustada tras la retroalimentacion de la octava
+% revision: el reparto ya no tiene tope por capacidad. La asignacion vive en
+% la habilitacion: eso garantiza un unico ambiente por estudiante y examen.
+% La version anterior queda en sprint2/v1/hu14.pdf.
+\def\HUNro{14}
+\def\HUSprint{2}
+\def\HUTitulo{Habilitación > Distribución > Asignar estudiantes a ambiente}
+\def\HUModulo{M2}
+\def\HUReq{10}
+\def\HUPuntos{5}
+
+\def\HUComo{docente}
+\def\HUQuiero{distribuir a los estudiantes habilitados entre los ambientes}
+\def\HUPara{que cada uno sepa dónde le corresponde rendir}
+
+\def\HUDescripcion{%
+Saber quién puede rendir no alcanza: hay que decirle dónde. Esta historia reparte a los
+habilitados entre los ambientes que el examen tiene asignados (HU-10).
+
+El reparto automático distribuye a todos los habilitados entre esos ambientes y ordena a
+los estudiantes por apellido para que la lista de cada aula sea legible. Los ambientes no
+llevan capacidad (HU-10), así que el reparto no tiene tope y nadie queda sin ambiente
+mientras el examen tenga al menos uno.
+
+El reparto se ajusta a mano estudiante por estudiante. Al moverlo a un ambiente que no
+pertenece al examen, el sistema lo impide. Un estudiante pertenece a un único ambiente
+por examen: la asignación vive en su habilitación, así que por construcción no puede
+estar en dos aulas.
+
+Redistribuir parte de cero: primero borra el reparto anterior y vuelve a repartir. Un
+reparto a medias dejaría a unos en el aula vieja y a otros en la nueva. El ambiente
+asignado es lo que el personal de control ve cuando identifica al estudiante en la
+puerta.}
+
+\def\HUCriterios{%
+\item Dado que el examen tiene ambientes asignados y estudiantes habilitados, Cuando se
+      distribuye automáticamente, Entonces el sistema reparte a todos los habilitados
+      entre esos ambientes.
+\item Dado que el docente ajusta el reparto, Cuando mueve a un estudiante a otro ambiente,
+      Entonces el sistema actualiza su asignación.
+\item Dado que el ambiente elegido no pertenece al examen, Cuando se intenta mover a un
+      estudiante allí, Entonces el sistema lo impide.
+\item Dado que un estudiante cambia de ambiente, Cuando se guarda, Entonces queda asociado
+      a un único ambiente para ese examen.
+\item Dado que un estudiante debe quedar sin ambiente, Cuando se lo desasigna, Entonces el
+      sistema lo deja sin ninguno.
+\item Dado que un estudiante no está habilitado, Cuando se intenta asignarle un ambiente,
+      Entonces el sistema lo rechaza.
+\item Dado que el reparto se rehace, Cuando se vuelve a distribuir, Entonces el sistema
+      parte de cero y no conserva asignaciones anteriores.
+\item Dado que se consulta la distribución, Cuando se muestra, Entonces se ve cuántos
+      estudiantes tiene cada ambiente.
+\item Dado que se distribuye o se mueve a un estudiante, Cuando la operación se completa,
+      Entonces queda asentada en la bitácora con su autor.
+\item Dado que el docente accede desde un dispositivo móvil, Cuando distribuye, Entonces
+      la interfaz se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{DistribucionExamenTest}, en la prueba del reparto automático: todos los
+      habilitados quedan con ambiente (criterio 1).
+\item \texttt{DistribucionExamenTest::a\_student\_belongs\_to\_a\_single\_environment}: un
+      único ambiente por estudiante (criterios 2 y 4).
+\item \texttt{DistribucionExamenTest::an\_environment\_outside\_the\_exam\_is\_rejected}: el
+      rechazo del ajuste manual (criterio 3).
+\item \texttt{DistribucionExamenTest}: desasignación, estudiante no habilitado y reparto
+      desde cero (criterios 5 a 7).
+\item \texttt{DistribucionExamenTest::the\_summary\_reports\_the\_occupation\_of\_each\_environment}
+      y \texttt{the\_enabled\_list\_shows\_the\_assigned\_environment}: ocupación por
+      ambiente (criterio 8).
+\item \texttt{DistribucionExamenTest::every\_movement\_is\_recorded\_in\_the\_audit\_log}:
+      asientos del reparto y del ajuste (criterio 9).
+\item \texttt{Habilitacion.test.jsx}: botón de distribución, ocupación por ambiente,
+      cambio manual y selector deshabilitado para quien no está habilitado
+      (criterios 1, 2, 6 y 8).}
+
+\input{cuerpo}

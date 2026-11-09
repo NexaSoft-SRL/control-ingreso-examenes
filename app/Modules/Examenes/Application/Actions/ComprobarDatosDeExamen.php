@@ -7,10 +7,10 @@ namespace App\Modules\Examenes\Application\Actions;
 use App\Modules\Academico\Application\Contracts\PeriodoGateway;
 use App\Modules\Examenes\Application\Contracts\ConsultaExamenGateway;
 use App\Modules\Examenes\Application\Contracts\PlantillaNormaGateway;
+use App\Modules\Examenes\Application\DTOs\AulaDeExamenData;
 use App\Modules\Examenes\Application\DTOs\ExamenActualData;
 use App\Modules\Examenes\Application\DTOs\GrupoDeExamenData;
 use App\Modules\Examenes\Application\DTOs\GuardarExamenData;
-use App\Modules\Examenes\Application\DTOs\PersonalAulaData;
 use App\Modules\Examenes\Domain\Enums\TipoExamen;
 use App\Modules\Examenes\Domain\Exceptions\DatoInvalidoException;
 use App\Modules\Examenes\Domain\Exceptions\GrupoYaTieneExamenException;
@@ -18,11 +18,26 @@ use App\Modules\Examenes\Domain\Rules\AvanceDeExamen;
 
 /**
  * Las reglas del examen que dependen de lo ya registrado: la asignatura y
- * sus grupos, el periodo, el tipo por grupo y las normas que se pueden
- * marcar. No comprueba el solape de aulas: el aula compartida es un aviso.
+ * sus grupos, el periodo, el tipo por grupo, las normas que se pueden
+ * marcar y quien puede atender un aula.
+ * No comprueba capacidad ni solape de aulas: el aula compartida es un aviso.
  */
 final readonly class ComprobarDatosDeExamen
 {
+    // Horario en que puede empezar un examen, en minutos del dia.
+    private const DESDE = 6 * 60;
+
+    private const HASTA = 22 * 60;
+
+    // La ventana del calendario academico que corresponde a cada tipo.
+    private const VENTANA_DE_TIPO = [
+        'PRIMER_PARCIAL' => 'primeros_parciales',
+        'SEGUNDO_PARCIAL' => 'segundos_parciales',
+        'FINAL' => 'finales_y_segunda_instancia',
+        'SEGUNDA_INSTANCIA' => 'finales_y_segunda_instancia',
+        'MESA' => 'examenes_de_mesa',
+    ];
+
     public function __construct(
         private ConsultaExamenGateway $consulta,
         private PeriodoGateway $periodos,
@@ -30,9 +45,9 @@ final readonly class ComprobarDatosDeExamen
     ) {}
 
     /**
-     * Devuelve los datos listos para guardar, con el periodo resuelto. Con
-     * `$soloNormas` (examen con ingresos) lo demas no cambia y no se vuelve
-     * a comprobar.
+     * Devuelve los datos listos para guardar: con el periodo resuelto y un
+     * encargado en cada aula. Con `$soloPersonal` (examen con ingresos) lo
+     * demas no cambia y no se vuelve a comprobar.
      *
      * @throws DatoInvalidoException
      */
@@ -40,17 +55,13 @@ final readonly class ComprobarDatosDeExamen
         GuardarExamenData $datos,
         int $usuarioId,
         ?ExamenActualData $actual = null,
-        bool $soloNormas = false,
+        bool $soloPersonal = false,
     ): GuardarExamenData {
-        $periodoId = $actual !== null && $soloNormas
+        $periodoId = $actual !== null && $soloPersonal
             ? $actual->periodoId
             : $this->periodoDeLosGrupos($datos, $usuarioId, $actual);
 
         $this->comprobarNormasMarcadas($datos->normasMarcadas, $usuarioId);
-
-        $aulas = $actual !== null && $soloNormas ? $actual->aulas : $datos->aulas;
-        $grupos = $actual !== null && $soloNormas ? $actual->grupos : $datos->grupos;
-        $personal = $this->comprobarPersonal($datos->personal, $aulas, $grupos, $usuarioId);
 
         return new GuardarExamenData(
             asignaturaId: $datos->asignaturaId,
@@ -60,11 +71,10 @@ final readonly class ComprobarDatosDeExamen
             duracionMinutos: $datos->duracionMinutos,
             normas: $datos->normas,
             grupos: $datos->grupos,
-            aulas: $datos->aulas,
+            aulas: $this->aulasConPersonal($datos->aulas, $usuarioId),
+            periodoId: $periodoId,
             normasMarcadas: $datos->normasMarcadas,
             normasConservadas: $datos->normasConservadas,
-            periodoId: $periodoId,
-            personal: $personal,
         );
     }
 
@@ -101,9 +111,11 @@ final readonly class ComprobarDatosDeExamen
         ?ExamenActualData $actual,
     ): int {
         $vigentes = [];
+        $ventanas = [];
 
         foreach ($this->periodos->vigentes() as $periodo) {
             $vigentes[] = $periodo->id;
+            $ventanas[$periodo->id] = $periodo->ventanas;
         }
 
         $periodoIds = $vigentes;
@@ -130,7 +142,7 @@ final readonly class ComprobarDatosDeExamen
         if (! $tieneGrupoPropio && ! $mismaAsignatura) {
             throw new DatoInvalidoException(
                 'asignatura_id',
-                'Sin grupos de esta asignatura en un período vigente.',
+                'Sin grupos propios de esta asignatura en un período vigente.',
             );
         }
 
@@ -169,6 +181,8 @@ final readonly class ComprobarDatosDeExamen
             );
         }
 
+        $this->comprobarFechaYHora($datos, $actual, $ventanas[$primero->periodoId] ?? []);
+
         $ocupados = $this->consulta->gruposConExamenDeTipo($datos->grupos, $datos->tipo, $actual?->id);
 
         if ($ocupados !== []) {
@@ -182,100 +196,133 @@ final readonly class ComprobarDatosDeExamen
     }
 
     /**
-     * @param  list<PersonalAulaData>  $personal
-     * @param  list<int>  $aulaIds
-     * @param  list<int>  $grupoIds
-     * @return list<PersonalAulaData>
+     * Un examen nuevo (o al que se le cambia la fecha o la hora) no queda
+     * en el pasado; empieza en horario de clases y termina el mismo dia; y,
+     * si el calendario del periodo trae la ventana de su tipo, cae dentro.
+     *
+     * @param  array<string, mixed>  $ventanas
      *
      * @throws DatoInvalidoException
      */
-    private function comprobarPersonal(
-        array $personal,
-        array $aulaIds,
-        array $grupoIds,
-        int $creadorId,
-    ): array {
-        if ($aulaIds === []) {
-            return [];
+    private function comprobarFechaYHora(GuardarExamenData $datos, ?ExamenActualData $actual, array $ventanas): void
+    {
+        $cambiaCuando = $actual === null
+            || substr($actual->fecha, 0, 10) !== substr($datos->fecha, 0, 10)
+            || substr($actual->horaInicio, 0, 5) !== substr($datos->horaInicio, 0, 5);
+
+        if (! $cambiaCuando) {
+            return;
         }
 
-        $porAula = [];
-        foreach ($personal as $item) {
-            $porAula[$item->aulaId] = $item;
+        $hoy = now()->toDateString();
+
+        if ($datos->fecha < $hoy) {
+            throw new DatoInvalidoException('fecha', 'La fecha ya pasó.');
         }
 
-        $docentesDeGrupos = $this->consulta->docentesDeGrupos($grupoIds);
-        $docentesMap = array_flip(array_unique(array_merge([$creadorId], $docentesDeGrupos)));
-        $todosDocentes = array_flip($this->consulta->todosLosDocentesConCuenta());
+        $inicio = $this->minutos($datos->horaInicio);
 
-        $candidatos = [];
-        foreach ($aulaIds as $aulaId) {
-            if (isset($porAula[$aulaId])) {
-                $candidatos[] = $porAula[$aulaId]->aCargo;
-                foreach ($porAula[$aulaId]->apoyo as $ap) {
-                    $candidatos[] = $ap;
+        if ($inicio < self::DESDE || $inicio > self::HASTA) {
+            throw new DatoInvalidoException('hora_inicio', 'Entre 06:00 y 22:00.');
+        }
+
+        if ($datos->fecha === $hoy && $inicio < $this->minutos(now()->format('H:i'))) {
+            throw new DatoInvalidoException('hora_inicio', 'La hora ya pasó.');
+        }
+
+        if ($inicio + $datos->duracionMinutos > 24 * 60) {
+            throw new DatoInvalidoException('duracion_minutos', 'El examen terminaría después de medianoche.');
+        }
+
+        $ventana = $ventanas[self::VENTANA_DE_TIPO[$datos->tipo] ?? ''] ?? null;
+
+        if (
+            is_array($ventana) && count($ventana) === 2
+            && is_string($ventana[0]) && is_string($ventana[1])
+            && ($datos->fecha < $ventana[0] || $datos->fecha > $ventana[1])
+        ) {
+            throw new DatoInvalidoException('fecha', sprintf(
+                'Fuera del calendario: %s del %s al %s.',
+                mb_strtolower(TipoExamen::from($datos->tipo)->etiqueta()),
+                $this->diaMes($ventana[0]),
+                $this->diaMes($ventana[1]),
+            ));
+        }
+    }
+
+    private function minutos(string $hora): int
+    {
+        [$h, $m] = array_map(intval(...), array_pad(explode(':', $hora), 2, '0'));
+
+        return $h * 60 + $m;
+    }
+
+    private function diaMes(string $fecha): string
+    {
+        $meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+        return (int) substr($fecha, 8, 2).' '.($meses[(int) substr($fecha, 5, 2) - 1] ?? '');
+    }
+
+    /**
+     * Encargado: un docente o un auxiliar (por defecto, quien registra).
+     * Apoyo: auxiliares, distintos del encargado.
+     *
+     * @param  list<AulaDeExamenData>  $aulas
+     * @return list<AulaDeExamenData>
+     */
+    private function aulasConPersonal(array $aulas, int $usuarioId): array
+    {
+        $ids = [];
+
+        foreach ($aulas as $aula) {
+            if ($aula->encargadoId !== null) {
+                $ids[] = $aula->encargadoId;
+            }
+
+            foreach ($aula->apoyo as $apoyoId) {
+                $ids[] = $apoyoId;
+            }
+        }
+
+        $personas = $this->consulta->personas(array_values(array_unique($ids)));
+        $resueltas = [];
+
+        foreach ($aulas as $indice => $aula) {
+            $encargadoId = $aula->encargadoId ?? $usuarioId;
+
+            if ($encargadoId !== $usuarioId) {
+                $encargado = $personas[$encargadoId] ?? null;
+
+                if ($encargado === null || (! $encargado->esDocente && ! $encargado->esAuxiliar)) {
+                    throw new DatoInvalidoException(
+                        "aulas.{$indice}.encargado_id",
+                        'El encargado debe ser una cuenta de docente o de auxiliar.',
+                    );
                 }
             }
-        }
 
-        $auxiliaresValidos = array_flip($this->consulta->usuariosConRolAuxiliar(array_values(array_unique($candidatos))));
-        $inactivos = array_flip($this->consulta->cuentasInactivas(array_values(array_unique($candidatos))));
-
-        $resultado = [];
-        foreach ($aulaIds as $aulaId) {
-            if (! isset($porAula[$aulaId])) {
-                $resultado[] = new PersonalAulaData(
-                    aulaId: $aulaId,
-                    aCargo: $creadorId,
-                    apoyo: [],
-                );
-
-                continue;
-            }
-
-            $item = $porAula[$aulaId];
-            $aCargo = $item->aCargo > 0 ? $item->aCargo : $creadorId;
-
-            // Una cuenta bloqueada no puede quedar a cargo de un aula.
-            if (isset($inactivos[$aCargo])) {
-                throw new DatoInvalidoException(
-                    "personal.{$aulaId}.a_cargo",
-                    'La cuenta de quien está a cargo está inactiva.',
-                );
-            }
-            $esDocenteDeGrupo = isset($docentesMap[$aCargo]);
-            $esAuxiliar = isset($auxiliaresValidos[$aCargo]);
-            $esDocenteDeOtro = isset($todosDocentes[$aCargo]);
-
-            if ($esDocenteDeOtro && ! $esDocenteDeGrupo) {
-                // Criterio 2: si quitó ese grupo del examen, las aulas que tenía su docente vuelven a quien registra
-                $aCargo = $creadorId;
-            } elseif (! $esDocenteDeGrupo && ! $esAuxiliar) {
-                // Criterio 9: si alguien a cargo no es docente ni auxiliar, el sistema lo rechaza
-                throw new DatoInvalidoException(
-                    "personal.{$aulaId}.a_cargo",
-                    'Debe ser docente o auxiliar.',
-                );
-            }
-
-            // Criterio 3: apoyo ofrece solo auxiliares que no estén ya en esa aula, y quien pasa a estar a cargo sale del apoyo
-            $apoyoLimpio = [];
-            foreach ($item->apoyo as $apId) {
-                if ($apId === $aCargo) {
-                    continue;
+            foreach ($aula->apoyo as $apoyoId) {
+                if ($apoyoId === $encargadoId) {
+                    throw new DatoInvalidoException(
+                        "aulas.{$indice}.apoyo",
+                        'El apoyo no puede ser el encargado del aula.',
+                    );
                 }
-                if (isset($auxiliaresValidos[$apId]) && ! in_array($apId, $apoyoLimpio, true)) {
-                    $apoyoLimpio[] = $apId;
+
+                $apoyo = $personas[$apoyoId] ?? null;
+
+                if ($apoyo === null || ! $apoyo->esAuxiliar) {
+                    throw new DatoInvalidoException(
+                        "aulas.{$indice}.apoyo",
+                        'El apoyo debe ser una cuenta de auxiliar.',
+                    );
                 }
             }
 
-            $resultado[] = new PersonalAulaData(
-                aulaId: $aulaId,
-                aCargo: $aCargo,
-                apoyo: $apoyoLimpio,
-            );
+            $resueltas[] = new AulaDeExamenData($aula->aulaId, $encargadoId, $aula->apoyo);
         }
 
-        return $resultado;
+        return $resueltas;
     }
 }

@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Database\Seeders;
 
 use App\Modules\Administracion\Domain\Models\Permission;
@@ -10,9 +8,8 @@ use App\Modules\Administracion\Domain\Rules\PermisosDeInicio;
 use Illuminate\Database\Seeder;
 
 /**
- * Los tres roles de inicio y el permiso de cada pantalla. Se puede correr
- * mas de una vez: no duplica y deja cada rol de inicio con su reparto
- * exacto. Los roles creados desde la pantalla no se tocan.
+ * Los tres roles del sistema y el permiso de cada pantalla. Se puede correr
+ * mas de una vez: no duplica y deja cada rol con su reparto exacto.
  */
 class RolePermissionSeeder extends Seeder
 {
@@ -39,9 +36,6 @@ class RolePermissionSeeder extends Seeder
     ];
 
     /**
-     * El reparto de fabrica vive en el dominio: «Restablecer roles base»
-     * usa el mismo.
-     *
      * @var array<string, list<string>>
      */
     public const POR_ROL = PermisosDeInicio::POR_ROL;
@@ -69,7 +63,6 @@ class RolePermissionSeeder extends Seeder
                 continue;
             }
 
-            /** @var list<int> $identificadores */
             $identificadores = Permission::whereIn('name', $permisos)
                 ->pluck('id')
                 ->all();

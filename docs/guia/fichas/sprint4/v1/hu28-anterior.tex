@@ -1,0 +1,60 @@
+% Ficha HU-28. Criterios del backlog de la iteracion 4. La consulta es de
+% solo lectura, y eso se sostiene en las rutas, no en la pantalla.
+\def\HUNro{28}
+\def\HUSprint{4}
+\def\HUTitulo{Monitoreo > Presentes y ausentes en línea}
+\def\HUModulo{M5}
+\def\HUReq{11}
+\def\HUPuntos{5}
+
+\def\HUComo{responsable académico}
+\def\HUQuiero{consultar quiénes ingresaron y quiénes no}
+\def\HUPara{tomar decisiones durante el examen}
+
+\def\HUDescripcion{%
+El tablero (HU-27) dice cuántos faltan; esta pantalla dice quiénes. Es la lista nominal de
+los habilitados del examen, y a cada uno le pone una de tres situaciones: ingresado, no
+presentado o expulsado. La distinción importa: un expulsado estuvo en el aula y un no
+presentado nunca llegó, y confundirlos falsea el acta.
+
+Cada fila trae la hora que corresponde ---la del ingreso o la de la expulsión--- y, en el
+caso del expulsado, el motivo. Un ingreso anulado (HU-21) devuelve al estudiante a la
+situación de no presentado: la anulación existe justamente para deshacer un registro
+equivocado.
+
+La lista se filtra por examen y por ambiente, que es como se la usa: el responsable mira
+un aula a la vez.
+
+La consulta es de solo lectura, y eso no depende de que la pantalla no muestre botones: el
+módulo de monitoreo declara únicamente rutas \texttt{GET}. Cualquier intento de escribir
+sobre ellas se rechaza.}
+
+\def\HUCriterios{%
+\item Dado un examen en curso, Cuando se consulta la lista, Entonces cada habilitado
+      figura como ingresado, no presentado o expulsado.
+\item Dado que un estudiante fue expulsado, Cuando se lo ve en la lista, Entonces consta
+      el motivo y la hora de la expulsión.
+\item Dado que el examen se rinde en varios ambientes, Cuando se filtra por uno, Entonces
+      se ven solo los estudiantes de ese ambiente.
+\item Dado que un ingreso fue anulado, Cuando se consulta la lista, Entonces el estudiante
+      vuelve a figurar como no presentado.
+\item Dado que se consulta la lista, Cuando se la lee, Entonces el resumen cuenta
+      ingresados, no presentados y expulsados.
+\item Dado que la consulta es de solo lectura, Cuando se intenta escribir sobre sus
+      rutas, Entonces el sistema no lo permite.
+\item Dado que un rol no tiene el permiso de monitoreo, Cuando abre la lista, Entonces el
+      sistema responde con una negativa explícita.}
+
+\def\HUPruebas{%
+\item \texttt{TableroTest::the\_list\_separates\_present\_absent\_and\_expelled}
+      (criterios 1, 2 y 5).
+\item \texttt{TableroTest::the\_list\_is\_filtered\_by\_room} (criterio 3).
+\item \texttt{TableroTest::an\_annulled\_entry\_leaves\_the\_student\_as\_not\_present}
+      (criterio 4).
+\item \texttt{TableroTest::the\_monitoring\_screens\_are\_read\_only}: las rutas de
+      monitoreo no aceptan escritura (criterio 6).
+\item \texttt{TableroTest::the\_monitoring\_permission\_is\_required} (criterio 7).
+\item \texttt{Asistencia.test.jsx}: la pantalla distingue las tres situaciones, filtra por
+      ambiente y no ofrece ningún control que escriba (criterios 1, 3 y 6).}
+
+\input{cuerpo}

@@ -31,7 +31,7 @@ return new class extends Migration
 
             $table->foreignId('subida_por')
                 ->nullable()
-                ->constrained('usuarios')
+                ->constrained('users')
                 ->nullOnDelete()
                 ->cascadeOnUpdate();
 

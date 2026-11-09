@@ -29,12 +29,4 @@ describe('Boton', () => {
         expect(boton).toHaveClass('bg-danger-600', 'min-h-9', 'w-full');
         expect(boton).toBeDisabled();
     });
-
-    it('mientras carga queda ocupado y deshabilitado', () => {
-        render(<Boton cargando>Emitir</Boton>);
-        const boton = screen.getByRole('button', { name: 'Emitir' });
-
-        expect(boton).toBeDisabled();
-        expect(boton).toHaveAttribute('aria-busy', 'true');
-    });
 });

@@ -315,7 +315,7 @@ final class ConflictosTest extends TestCase
             'operacion' => 'padron.resolver_conflicto',
             'tabla_afectada' => 'conflictos_padron',
             'registro_id' => $conflicto->id,
-            'descripcion' => 'Conflicto de 202104821 resuelto: se usa la carga nueva.',
+            'descripcion' => 'Conflicto de 202104821 (C.I. 7928194 → 7928149; nombre Alvarado Claros Kevin René → Alvarado Kevin) resuelto: se usa la carga nueva.',
         ]);
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Database\Seeders\DemoSeeder;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -36,19 +37,31 @@ final class DatosDemoTest extends TestCase
         $this->assertSame(56, $antes['edificios']);
         $this->assertSame(23, $antes['examenes']);
         $this->assertSame(3, $antes['conflictos_padron']);
-        $this->assertSame(847, $antes['docentes']);
-        $this->assertSame(281, $antes['aulas']);
-        $this->assertSame(8, $antes['plantillas_norma']);
-        $this->assertSame(0, $antes['ingresos']);
+        $this->assertSame(4, $antes['auxiliares']);
 
         $this->seed(DemoSeeder::class);
 
         $this->assertSame($antes, $this->conteos());
-        // La fuente no cambió: la segunda pasada no vuelve a importar.
+        // La fuente no cambio: la segunda corrida no vuelve a importar.
         $this->assertSame(4, DB::table('importaciones_oferta')->where('estado', 'IMPORTADA')->count());
     }
 
-    public function test_the_demo_seeder_leaves_accounts_and_exams_in_every_state(): void
+    public function test_no_student_without_subjects_and_no_teacher_account_with_an_empty_group(): void
+    {
+        $this->seed(DemoSeeder::class);
+
+        $this->assertSame(0, DB::table('estudiantes')
+            ->whereNotExists(static fn (Builder $q) => $q->from('inscripciones')->whereColumn('inscripciones.estudiante_id', 'estudiantes.id'))
+            ->count());
+
+        $this->assertSame(0, DB::table('grupos')
+            ->join('docentes', 'docentes.id', '=', 'grupos.docente_id')
+            ->whereNotNull('docentes.user_id')
+            ->whereNotExists(static fn (Builder $q) => $q->from('inscripciones')->whereColumn('inscripciones.grupo_id', 'grupos.id'))
+            ->count());
+    }
+
+    public function test_the_demo_seeder_leaves_accounts_and_an_exam_open_right_now(): void
     {
         // Sembrar tarda segundos: sin congelar el reloj, un cambio de minuto
         // a mitad de la prueba corre la cuenta de «hace seis minutos».
@@ -56,26 +69,24 @@ final class DatosDemoTest extends TestCase
 
         $this->seed(DemoSeeder::class);
 
-        // Cuentas documentadas: se entra con el usuario.
+        // Cuentas de los tres roles, con su contrasena documentada.
         $cuentas = [
-            'admin@umss.edu.bo' => ['admin', 'Administrador', DemoSeeder::CLAVE_ADMINISTRADOR],
-            'leticiablanco@umss.edu.bo' => ['leticia blanco', 'Docente', DemoSeeder::CLAVE_DOCENTE],
-            'auxiliar@umss.edu.bo' => ['diego mamani', 'Auxiliar', DemoSeeder::CLAVE_AUXILIAR],
-            'coordinacion@umss.edu.bo' => ['coordinacion', DemoSeeder::ROL_CREADO, DemoSeeder::CLAVE_COORDINADOR],
-            'corinaflores@umss.edu.bo' => ['corina flores', 'Docente', DemoSeeder::TEMPORAL],
+            'admin' => ['Administrador', DemoSeeder::CLAVE_ADMINISTRADOR],
+            'leticia blanco' => ['Docente', DemoSeeder::CLAVE_DOCENTE],
+            'diego mamani' => ['Auxiliar', DemoSeeder::CLAVE_AUXILIAR],
+            'corina flores' => ['Docente', DemoSeeder::TEMPORAL_PRIMER_INGRESO],
         ];
 
-        foreach ($cuentas as $correo => [$usuario, $rol, $clave]) {
+        foreach ($cuentas as $usuario => [$rol, $clave]) {
             $cuenta = $this->fila(
-                DB::table('usuarios')
-                    ->join('roles', 'roles.id', '=', 'usuarios.role_id')
-                    ->where('usuarios.correo', $correo)
-                    ->first(['usuarios.usuario', 'usuarios.password', 'usuarios.password_changed_at', 'usuarios.password_temporal_expira_en', 'roles.name'])
+                DB::table('users')
+                    ->join('roles', 'roles.id', '=', 'users.role_id')
+                    ->where('usuario', $usuario)
+                    ->first(['users.password', 'users.password_changed_at', 'users.password_temporal_expira_en', 'roles.name'])
             );
 
-            $this->assertSame($usuario, $cuenta->usuario);
             $this->assertSame($rol, $cuenta->name);
-            $this->assertTrue(Hash::check($clave, $this->texto($cuenta->password)), $correo);
+            $this->assertTrue(Hash::check($clave, $this->texto($cuenta->password)), $usuario);
 
             if ($usuario === 'corina flores') {
                 $this->assertNull($cuenta->password_changed_at);
@@ -85,30 +96,7 @@ final class DatosDemoTest extends TestCase
             }
         }
 
-        $this->assertDatabaseHas('usuarios', ['usuario' => 'victor montano', 'is_active' => false]);
-
-        // La cuenta de demostracion entra por HTTP y recibe su sesion.
-        $this->postJson('/api/auth/login', [
-            // Sin el espacio tambien entra.
-            'usuario' => 'leticiablanco',
-            'password' => DemoSeeder::CLAVE_DOCENTE,
-        ])
-            ->assertOk()
-            ->assertJsonPath('user.nombre', 'Blanco Coca Leticia')
-            ->assertJsonPath('user.rol', 'Docente');
-
-        // El rol creado tiene solo sus dos pantallas.
-        $this->assertSame(
-            ['aulas_docentes', 'periodo_oferta'],
-            DB::table('permission_role')
-                ->join('roles', 'roles.id', '=', 'permission_role.role_id')
-                ->join('permissions', 'permissions.id', '=', 'permission_role.permission_id')
-                ->where('roles.name', DemoSeeder::ROL_CREADO)
-                ->where('roles.es_sistema', false)
-                ->orderBy('permissions.name')
-                ->pluck('permissions.name')
-                ->all()
-        );
+        $this->assertDatabaseHas('users', ['usuario' => 'victor montano', 'is_active' => false]);
 
         // El periodo de la oferta contiene el dia de hoy.
         $ahora = DemoSeeder::ahoraLocal();
@@ -125,9 +113,9 @@ final class DatosDemoTest extends TestCase
         // no termino.
         $fila = $this->fila(
             DB::table('examenes')
-                ->join('usuarios', 'usuarios.id', '=', 'examenes.creado_por')
+                ->join('users', 'users.id', '=', 'examenes.creado_por')
                 ->join('asignaturas', 'asignaturas.id', '=', 'examenes.asignatura_id')
-                ->where('usuarios.usuario', 'leticia blanco')
+                ->where('users.usuario', 'leticia blanco')
                 ->where('asignaturas.codigo', '2010010')
                 ->where('examenes.tipo', 'PRIMER_PARCIAL')
                 ->first(['examenes.id', 'examenes.fecha', 'examenes.hora_inicio', 'examenes.duracion_minutos'])
@@ -144,31 +132,44 @@ final class DatosDemoTest extends TestCase
         $this->assertTrue($fin->greaterThan($ahora));
         $this->assertSame(6, (int) round($inicio->diffInMinutes($ahora->copy()->startOfMinute())));
 
-        // Cuatro grupos (tres de otros docentes), cinco aulas y sus normas:
-        // tres plantillas marcadas y texto libre.
-        $this->assertSame(4, DB::table('examen_grupo')->where('examen_id', $examenId)->count());
+        // Cinco aulas con quien las atiende, apoyo y un codigo de aula.
         $this->assertSame(5, DB::table('examen_aula')->where('examen_id', $examenId)->count());
-        $this->assertSame(3, DB::table('examen_norma')->where('examen_id', $examenId)->whereNotNull('plantilla_id')->count());
-        $this->assertNotNull(DB::table('examenes')->where('id', $examenId)->value('normas'));
+        $this->assertSame(4, DB::table('examen_aula')->where('examen_id', $examenId)->distinct()->count('encargado_id'));
+        $this->assertDatabaseHas('examen_aula', ['examen_id' => $examenId, 'codigo_acceso' => DemoSeeder::CODIGO_AULA_624]);
         $this->assertSame(
-            count(DemoSeeder::PLANTILLAS_DE_LETICIA),
-            DB::table('plantillas_norma')
-                ->join('usuarios', 'usuarios.id', '=', 'plantillas_norma.usuario_id')
-                ->where('usuarios.usuario', 'leticia blanco')
+            2,
+            DB::table('examen_aula_apoyo')
+                ->join('examen_aula', 'examen_aula.id', '=', 'examen_aula_apoyo.examen_aula_id')
+                ->where('examen_aula.examen_id', $examenId)
                 ->count()
         );
 
-        // Habilitacion completa y repartida, con nueve no habilitados y su
-        // motivo.
+        // Habilitacion completa y repartida, QR emitidos, parte adentro.
         $inscritos = DB::table('inscripciones')
             ->whereIn('grupo_id', DB::table('examen_grupo')->where('examen_id', $examenId)->select('grupo_id'))
             ->count();
         $habilitados = DB::table('habilitaciones')->where('examen_id', $examenId)->where('habilitado', true)->count();
+        $ingresos = DB::table('ingresos')->where('examen_id', $examenId)->count();
 
         $this->assertSame($inscritos, DB::table('habilitaciones')->where('examen_id', $examenId)->count());
         $this->assertSame(9, $inscritos - $habilitados);
-        $this->assertSame(9, DB::table('habilitaciones')->where('examen_id', $examenId)->where('habilitado', false)->whereNotNull('motivo')->count());
         $this->assertSame(0, DB::table('habilitaciones')->where('examen_id', $examenId)->where('habilitado', true)->whereNull('aula_id')->count());
+        $this->assertSame($habilitados, DB::table('codigos_qr')->where('examen_id', $examenId)->count());
+        $this->assertGreaterThan($habilitados * 0.3, $ingresos);
+        $this->assertLessThan($habilitados * 0.5, $ingresos);
+
+        // Incidencias atendidas y sin atender, una expulsion y los
+        // intentos que rechazo la puerta.
+        $incidencias = DB::table('incidencias')->where('examen_id', $examenId);
+
+        $this->assertSame(5, (clone $incidencias)->where('origen', 'SISTEMA')->count());
+        $this->assertSame(1, (clone $incidencias)->where('tipo', 'INGRESO_REPETIDO')->whereNotNull('ingreso_id')->count());
+        $this->assertSame(1, (clone $incidencias)->whereExists(
+            static fn (Builder $foto) => $foto->from('evidencias_incidencia')->whereColumn('evidencias_incidencia.incidencia_id', 'incidencias.id')
+        )->count());
+        $this->assertSame(1, (clone $incidencias)->where('tipo', 'EXPULSION')->whereNotNull('ingreso_id')->count());
+        $this->assertSame(3, (clone $incidencias)->where('origen', 'PERSONA')->whereNull('atendida_en')->count());
+        $this->assertGreaterThanOrEqual(1, (clone $incidencias)->where('origen', 'PERSONA')->whereNotNull('atendida_en')->count());
 
         // Un aula compartida por dos examenes a la misma hora.
         $compartidas = DB::table('examen_aula as propia')
@@ -186,33 +187,17 @@ final class DatosDemoTest extends TestCase
         // habilitar; y la carga alta con sus 18 examenes.
         $cargaAlta = $this->fila(
             DB::table('examenes')
-                ->join('usuarios', 'usuarios.id', '=', 'examenes.creado_por')
-                ->groupBy('usuarios.id', 'usuarios.usuario', 'usuarios.password')
+                ->join('users', 'users.id', '=', 'examenes.creado_por')
+                ->groupBy('users.id', 'users.usuario', 'users.password')
                 ->orderByRaw('count(*) desc')
-                ->selectRaw('usuarios.usuario, usuarios.password, count(*) as examenes')
+                ->selectRaw('users.usuario, users.password, count(*) as examenes')
                 ->first()
         );
         $this->assertSame(18, (int) $this->texto($cargaAlta->examenes));
         // Su usuario es nombre y apellido, como el de cualquier cuenta.
         $this->assertMatchesRegularExpression('/^[a-z]+ [a-z]+$/', $this->texto($cargaAlta->usuario));
+        $this->assertNotSame('cargaalta', $cargaAlta->usuario);
         $this->assertTrue(Hash::check(DemoSeeder::CLAVE_DOCENTE, $this->texto($cargaAlta->password)));
-
-        // A medio habilitar: con estudiantes revisados y otros sin revisar.
-        $conjunto = (int) $this->texto(
-            DB::table('examenes')
-                ->join('usuarios', 'usuarios.id', '=', 'examenes.creado_por')
-                ->where('usuarios.usuario', 'erika rodriguez')
-                ->value('examenes.id')
-        );
-        $revisados = DB::table('habilitaciones')->where('examen_id', $conjunto)->count();
-
-        $this->assertGreaterThan(0, $revisados);
-        $this->assertLessThan(
-            DB::table('inscripciones')
-                ->whereIn('grupo_id', DB::table('examen_grupo')->where('examen_id', $conjunto)->select('grupo_id'))
-                ->count(),
-            $revisados,
-        );
         $this->assertGreaterThan(0, DB::table('examenes')->whereNotIn('id', DB::table('examen_aula')->select('examen_id'))->count());
         $this->assertGreaterThan(
             0,

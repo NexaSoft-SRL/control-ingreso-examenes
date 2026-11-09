@@ -11,6 +11,7 @@ export const api = {
 };
 
 export const SIN_SESION = 'sin_sesion';
+export const CAMBIAR_CONTRASENA = 'cambiar_contrasena';
 export const suscribirSesion = vi.fn(() => () => {});
 export const interpretarError = (error) => Promise.reject(error);
 

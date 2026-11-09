@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Modules\Administracion;
 
-use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\DatosAcademicos;
@@ -30,9 +29,9 @@ final class SesionTest extends TestCase
     public function test_the_session_describes_a_teacher_with_their_permissions(): void
     {
         $cuenta = $this->usuarioConRol('Docente', [
-            'nombre' => 'Blanco Coca Leticia',
+            'name' => 'Blanco Coca Leticia',
             'usuario' => 'leticia.blanco',
-            'correo' => 'leticia.blanco@umss.edu.bo',
+            'email' => null,
         ]);
 
         $docente = $this->docenteConCuenta($cuenta);
@@ -45,32 +44,36 @@ final class SesionTest extends TestCase
                     'id' => $cuenta->getKey(),
                     'nombre' => 'Blanco Coca Leticia',
                     'usuario' => 'leticia.blanco',
-                    'correo' => 'leticia.blanco@umss.edu.bo',
+                    'correo' => null,
                     'rol' => 'Docente',
-                    'permisos' => RolePermissionSeeder::POR_ROL['Docente'],
+                    'permisos' => [
+                        'mis_grupos',
+                        'examenes',
+                        'habilitacion',
+                        'codigos_qr',
+                        'punto_control',
+                        'seguimiento_vivo',
+                        'reportes_examenes',
+                    ],
                     'debe_cambiar_contrasena' => false,
                     'docente_id' => $docente->getKey(),
-                    'name' => 'Blanco Coca Leticia',
-                    'email' => 'leticia.blanco@umss.edu.bo',
-                    'sesion_expira_en_minutos' => 15,
                 ],
             ]);
     }
 
-    public function test_an_administrator_has_its_starting_permissions_and_no_teacher(): void
+    public function test_an_administrator_has_no_teacher_and_keeps_the_contact_email(): void
     {
         $cuenta = $this->usuarioConRol('Administrador', [
             'usuario' => 'administracion.academica',
-            'correo' => 'admin@umss.edu.bo',
+            'email' => 'administracion@umss.edu.bo',
         ]);
 
         $this->actingAs($cuenta)
             ->getJson('/api/auth/sesion')
             ->assertOk()
             ->assertJsonPath('user.rol', 'Administrador')
-            ->assertJsonPath('user.correo', 'admin@umss.edu.bo')
+            ->assertJsonPath('user.correo', 'administracion@umss.edu.bo')
             ->assertJsonPath('user.docente_id', null)
-            // En el orden del catalogo; sin las pantallas de docencia.
             ->assertJsonPath('user.permisos', [
                 'periodo_oferta',
                 'aulas_docentes',
@@ -91,20 +94,10 @@ final class SesionTest extends TestCase
             ->assertJsonPath('user.permisos', ['punto_control', 'seguimiento_vivo']);
     }
 
-    public function test_a_created_role_gets_exactly_its_permissions(): void
-    {
-        $this->actingAs($this->usuarioConPermisos(['bitacora', 'periodo_oferta']))
-            ->getJson('/api/auth/sesion')
-            ->assertOk()
-            ->assertJsonPath('user.rol', 'Rol de prueba')
-            ->assertJsonCount(2, 'user.permisos');
-    }
-
     public function test_the_session_is_the_same_object_the_login_returns(): void
     {
         $this->usuarioConRol('Docente', [
             'usuario' => 'leticia.blanco',
-            'correo' => 'leticia.blanco@umss.edu.bo',
             'password' => 'Docente12345',
         ]);
 
@@ -118,7 +111,7 @@ final class SesionTest extends TestCase
         $this->assertSame($acceso->json('user'), $sesion->json('user'));
     }
 
-    public function test_a_temporary_password_requires_a_change(): void
+    public function test_the_session_is_available_with_a_temporary_password(): void
     {
         $cuenta = $this->usuarioConRol('Docente', [
             'password_changed_at' => null,

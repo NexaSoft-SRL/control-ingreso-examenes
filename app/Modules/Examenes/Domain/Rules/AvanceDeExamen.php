@@ -7,13 +7,11 @@ namespace App\Modules\Examenes\Domain\Rules;
 use App\Modules\Examenes\Domain\Enums\TipoExamen;
 
 /**
- * Los cinco pasos de un examen (grupos, aulas, quien atiende, habilitacion y
- * codigos QR), su estado y el paso que sigue. Esta «Listo» cuando cada
- * habilitado tiene su codigo QR (HU-20).
+ * Los cinco pasos de un examen (grupos, aulas, quien atiende, habilitacion
+ * y codigos QR), su estado y el paso que sigue.
  */
 final class AvanceDeExamen
 {
-    // Una misma persona no atiende mas de dos aulas a la vez.
     public const AULAS_POR_PERSONA = 2;
 
     public const OK = 'ok';
@@ -38,20 +36,22 @@ final class AvanceDeExamen
         int $aulas,
         int $habilitados,
         int $sinRevisar,
-        int $conCodigoQr = 0,
+        int $conCodigoQr,
         int $aulasPorPersona = 1,
+        int $sinAula = 0,
     ): array {
         $hayAulas = $aulas > 0;
-        $atendido = $aulasPorPersona <= self::AULAS_POR_PERSONA;
         $habilitado = $sinRevisar === 0 && $habilitados > 0;
-        $conCodigos = $habilitado && $conCodigoQr >= $habilitados;
+        // Habilitado y con aula: la credencial y la puerta la necesitan.
+        $repartido = $habilitado && $sinAula === 0;
+        $atendido = $aulasPorPersona <= self::AULAS_POR_PERSONA;
+        $conCodigos = $repartido && $conCodigoQr >= $habilitados;
 
         [$estado, $accion, $paso] = match (true) {
             ! $hayAulas => ['Faltan aulas', 'elegir_aulas', 2],
-            // Con alguien a cargo de mas de dos aulas, el paso de quien
-            // atiende queda pendiente aunque cada aula tenga encargado.
             ! $atendido => ['Falta quién atiende', 'quien_atiende', 3],
             ! $habilitado => ['Falta habilitar', 'habilitar', null],
+            ! $repartido => ['Falta repartir', 'repartir', null],
             ! $conCodigos => ['Faltan códigos QR', 'emitir_qr', null],
             default => ['Listo', 'ver_qr', null],
         };
@@ -59,19 +59,23 @@ final class AvanceDeExamen
         return [
             'grupos' => self::OK,
             'aulas' => $hayAulas ? self::OK : self::AHORA,
+            // Una misma persona no atiende mas de dos aulas a la vez: con mas,
+            // el paso queda pendiente aunque haya un encargado en cada una.
             'auxiliares' => match (true) {
                 ! $hayAulas => self::FALTA,
-                $atendido => self::OK,
-                default => self::AHORA,
+                ! $atendido => self::AHORA,
+                default => self::OK,
             },
+            // Sin aulas, ni la habilitacion ni los codigos estan completos:
+            // el habilitado todavia no tiene donde rendir.
             'habilitacion' => match (true) {
-                $habilitado => self::OK,
+                $repartido && $hayAulas => self::OK,
                 $hayAulas => self::AHORA,
                 default => self::FALTA,
             },
             'qr' => match (true) {
                 $conCodigos && $hayAulas => self::OK,
-                $habilitado && $hayAulas => self::AHORA,
+                $repartido && $hayAulas => self::AHORA,
                 default => self::FALTA,
             },
             'estado' => $estado,

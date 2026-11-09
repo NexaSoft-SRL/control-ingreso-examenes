@@ -63,6 +63,7 @@ La incorporación de otro directorio estructural requiere un ADR aprobado.
 
 Dentro de app/Modules solamente pueden existir:
 
+- Academico
 - Estudiantes
 - Examenes
 - Habilitacion
@@ -107,6 +108,7 @@ Entre las categorías previstas por los requerimientos del proyecto se encuentra
 - Import
 - Export
 - Files
+- Mail
 - Persistence
 - QR
 - Providers
@@ -216,8 +218,26 @@ Actualmente se permiten únicamente las siguientes dependencias de Laravel para 
 - `Illuminate\Foundation\Auth\User`
 - `Illuminate\Notifications\Notifiable`
 
+y las siguientes para los modelos persistentes:
+
+- `Illuminate\Database\Eloquent\Model`
+- `Illuminate\Database\Eloquent\Relations\HasMany`, `BelongsTo` y `BelongsToMany`
+- `Illuminate\Support\Carbon`
+
 Esta excepción es deliberadamente mínima. No autoriza el namespace `Illuminate` completo ni el paquete `laravel/framework` de forma general.
 
 Por ejemplo, dependencias de transporte HTTP como `Illuminate\Http\Request` no están permitidas dentro de Domain.
 
 Deptrac debe ejecutarse con `--fail-on-uncovered` para impedir que una nueva dependencia externa entre al dominio sin una decisión arquitectónica explícita.
+
+## Dependencias externas permitidas en Infrastructure y Http
+
+Las clases del marco que puede usar cada capa están enumeradas en `deptrac.php`. Una clase que no figure ahí hace fallar `composer quality:layers`.
+
+Infrastructure: `Illuminate\Support\Facades\{DB, Hash, Schema, Storage, Mail}`, `Illuminate\Support\Str`, `Illuminate\Database\QueryException`, `Illuminate\Database\Query\{Builder, JoinClause}`, `Illuminate\Mail\Mailable` y `Mailables\*`, `Illuminate\Bus\Queueable`, `Illuminate\Queue\SerializesModels`, `Illuminate\Contracts\Queue\ShouldQueue`, `Illuminate\Support\ServiceProvider`, Endroid QR, Dompdf y PhpSpreadsheet.
+
+Http: `Illuminate\Http\{JsonResponse, Request, Response, UploadedFile}`, `Illuminate\Foundation\Http\FormRequest`, `Illuminate\Validation\Rule`, `Illuminate\Validation\Rules\Password`, `Illuminate\Support\Facades\Auth`, `Illuminate\Database\Query\Builder` y la respuesta base de Symfony.
+
+## Proveedores de servicios
+
+Cada módulo registra sus enlaces contrato -> implementación en `Infrastructure/Providers/<Módulo>ServiceProvider.php`, declarado en `bootstrap/providers.php`. `app/Providers/AppServiceProvider.php` no contiene enlaces de módulos.

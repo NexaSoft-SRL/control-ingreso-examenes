@@ -12,11 +12,10 @@ final readonly class GuardarExamenData
 {
     /**
      * @param  list<int>  $grupos
-     * @param  list<int>  $aulas  ids de aulas
+     * @param  list<AulaDeExamenData>  $aulas
      * @param  list<int>  $normasMarcadas  ids de plantillas, en el orden en que se muestran
      * @param  list<int>|null  $normasConservadas  ids de `examen_norma` cuya plantilla ya no
      *                                             existe y que siguen en el examen; nulo = todas
-     * @param  list<PersonalAulaData>  $personal  personal asignado por aula ('a_cargo' y 'apoyo')
      */
     public function __construct(
         public int $asignaturaId,
@@ -27,9 +26,8 @@ final readonly class GuardarExamenData
         public ?string $normas,
         public array $grupos,
         public array $aulas,
+        public ?int $periodoId = null,
         public array $normasMarcadas = [],
         public ?array $normasConservadas = null,
-        public ?int $periodoId = null,
-        public array $personal = [],
     ) {}
 }

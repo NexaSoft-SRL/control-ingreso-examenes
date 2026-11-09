@@ -34,7 +34,7 @@ final readonly class CambiarEstadoCuenta
         ?int $administradorId,
     ): bool {
         if (! $activo && $usuarioId === $administradorId) {
-            throw new BloqueoPropioException('No puede bloquear su propia cuenta.');
+            throw new BloqueoPropioException('No se puede bloquear la propia cuenta.');
         }
 
         $cuenta = $this->consulta->buscar($usuarioId);
@@ -56,11 +56,9 @@ final readonly class CambiarEstadoCuenta
             $this->bitacora->registrar(
                 $administradorId,
                 $activo ? 'usuario.desbloquear' : 'usuario.bloquear',
-                'usuarios',
+                'users',
                 $usuarioId,
-                $activo
-                    ? "Cuenta {$cuenta->usuario} desbloqueada."
-                    : "Cuenta {$cuenta->usuario} bloqueada.",
+                "Usuario #{$usuarioId} · {$cuenta->nombre}",
             );
 
             return true;

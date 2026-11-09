@@ -17,6 +17,20 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 final class PlantillaInscritosXlsx implements GeneradorPlantilla
 {
     /**
+     * La nota de cada encabezado: que va y con que forma. Se lee al pasar
+     * sobre la celda, sin agregar filas que la carga tomaria por datos.
+     */
+    private const NOTAS = [
+        'codigo_universitario' => 'Código SIS: 5 a 10 dígitos. Ej.: 202104821',
+        'documento_identidad' => 'C.I. con su complemento si tiene. Ej.: 7928194 o 5003748-1A',
+        'nombres' => 'Solo letras. Ej.: Kevin René',
+        'apellidos' => 'Solo letras. Ej.: Alvarado Claros',
+        'codigo_asignatura' => 'Código de la asignatura en la oferta. Ej.: 2008019',
+        'grupo' => 'Código del grupo, como en la oferta. Ej.: 1 o A1',
+        'carrera' => 'Opcional: código o nombre de la carrera. Ej.: 411702',
+    ];
+
+    /**
      * @param  list<string>  $encabezados
      */
     public function generar(array $encabezados): string
@@ -29,6 +43,12 @@ final class PlantillaInscritosXlsx implements GeneradorPlantilla
             $columna = $indice + 1;
 
             $hoja->setCellValue([$columna, 1], $encabezado);
+
+            if (isset(self::NOTAS[$encabezado])) {
+                $nota = $hoja->getComment([$columna, 1]);
+                $nota->getText()->createText(self::NOTAS[$encabezado]);
+                $nota->setWidth('220pt');
+            }
             $hoja->getColumnDimensionByColumn($columna)->setWidth(24);
             $hoja->getStyle([$columna, 1, $columna, 2000])
                 ->getNumberFormat()

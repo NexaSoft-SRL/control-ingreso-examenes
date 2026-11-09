@@ -1,0 +1,49 @@
+% Ficha HU-30. Criterios del backlog de la iteracion 5. El inhabilitado no
+% es un ausente: no se lo esperaba.
+\def\HUNro{30}
+\def\HUSprint{5}
+\def\HUTitulo{Reportes > Estudiantes ausentes}
+\def\HUModulo{M6}
+\def\HUReq{12}
+\def\HUPuntos{3}
+
+\def\HUComo{docente}
+\def\HUQuiero{obtener la lista de ausentes}
+\def\HUPara{identificar a quienes no se presentaron}
+
+\def\HUDescripcion{%
+El reverso del reporte de asistencia. Lista a los estudiantes que estaban habilitados
+para rendir y no registraron ingreso: los que faltaron.
+
+La distinción que hace falta cuidar es con el inhabilitado. Un estudiante al que se le
+negó la habilitación por una deuda (HU-12) no es un ausente: no se lo esperaba, y ponerlo
+en la misma lista que a quien faltó sin aviso mezcla dos situaciones que se resuelven de
+maneras distintas. El reporte cuenta solo a los habilitados sin ingreso.
+
+Cada fila trae el código, el nombre, la carrera y el ambiente que se le había asignado
+(HU-14), que es lo que permite ir a buscar por qué el aula quedó con lugares libres.
+
+Como el de asistencia, se genera por examen y se puede acotar a un ambiente, y se exporta
+a PDF y a hoja de cálculo (HU-34).}
+
+\def\HUCriterios{%
+\item Dado un examen terminado, Cuando se pide el reporte, Entonces lista a los
+      habilitados que no registraron ingreso.
+\item Dado que un estudiante está inhabilitado, Cuando se pide el reporte, Entonces no
+      figura como ausente.
+\item Dado que un estudiante ingresó, Cuando se pide el reporte, Entonces no figura.
+\item Dado que el examen se rindió en varias aulas, Cuando se acota el reporte a una,
+      Entonces solo figuran los ausentes de esa aula.
+\item Dado que se lee el reporte, Cuando se mira el pie, Entonces consta cuántos
+      habilitados no se presentaron.}
+
+\def\HUPruebas{%
+\item \texttt{ReportesTest::the\_absent\_report\_lists\_enabled\_students\_without\_entry}:
+      el habilitado sin ingreso figura, el inhabilitado no, el que ingresó tampoco, y el
+      pie cuenta (criterios 1, 2, 3 y 5).
+\item \texttt{ReportesTest::the\_teacher\_reaches\_the\_reports\_of\_the\_subject\_only}: el
+      reporte es del docente.
+\item \texttt{Reportes.test.jsx}, caso de la pestaña de ausentes: la lista, su total y
+      el filtro por ambiente (criterio 4).}
+
+\input{cuerpo}

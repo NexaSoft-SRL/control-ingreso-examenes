@@ -1,336 +1,127 @@
-import React from 'react';
-import { api } from '../../api/cliente';
-import { estadoDe } from '../../api/errores';
-import { plural } from '../../utiles/texto';
+import { useState } from 'react';
+import { Activity, History, Search, ShieldCheck } from 'lucide-react';
+import { erroresDe, estadoDe } from '../../api/errores';
+import usarConsulta from '../../api/usarConsulta';
+import usarPaginaServidor from '../../api/usarPaginaServidor';
+import Campo from '../../componentes/Campo';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
+import Insignia from '../../componentes/Insignia';
+import Paginacion from '../../componentes/Paginacion';
+import Seleccion from '../../componentes/Seleccion';
+import Tarjeta from '../../componentes/Tarjeta';
+import { usarSesion } from '../../sesion/SesionContexto';
+import { fechaCorta } from '../../utiles/texto';
 
-/**
- * Bitacora (HU-07). Consume GET /api/bitacora, que filtra por usuario_id,
- * rango de fechas (desde, hasta; Y-m-d) y operacion. El menu, la cuenta y el
- * cierre de sesion son del armazon (EsquemaApp); una sesion vencida la
- * resuelve el cliente de la API.
- */
-const etiquetaOperacion = {
-    'sesion.iniciar': 'Inicio de sesión',
-    'sesion.cerrar': 'Cierre de sesión',
-    'sesion.fallida': 'Intento de sesión fallido',
-    'usuario.registrar': 'Creación de cuenta',
-    'usuario.actualizar': 'Edición de cuenta',
-    'usuario.bloquear': 'Bloqueo de cuenta',
-    'usuario.desbloquear': 'Desbloqueo de cuenta',
-    'usuario.restablecer_temporal': 'Restablecimiento de contraseña',
-    'contrasena.cambiar': 'Cambio de contraseña',
-    'contrasena.solicitar_restablecimiento': 'Solicitud de enlace de recuperación',
-    'contrasena.restablecer_por_enlace': 'Restablecimiento de contraseña',
-    'contrasena.restablecimiento': 'Restablecimiento de contraseña',
-    'rol.crear': 'Creación de rol',
-    'rol.modificar': 'Edición de rol',
-    'rol.eliminar': 'Eliminación de rol',
-    'rol.restablecer': 'Restablecimiento de roles base',
-    'norma.plantilla_crear': 'Creación de plantilla de norma',
-    'norma.plantilla_editar': 'Edición de plantilla de norma',
-    'norma.plantilla_quitar': 'Retiro de plantilla de norma',
-    'periodo.ajustar': 'Ajuste del período',
-    'oferta.importar': 'Importación de la oferta',
-    'docente.activar_cuenta': 'Activación de cuenta de docente',
-    'inscritos.cargar': 'Carga de inscritos',
-    'padron.resolver_conflicto': 'Resolución de conflicto del padrón',
-    'examen.registrar': 'Registro de examen',
-    'examen.modificar': 'Edición de examen',
-    'examen.eliminar': 'Eliminación de examen',
-    'examen.finalizar': 'Finalización de examen',
-    'habilitacion.habilitar': 'Habilitación de estudiantes',
-    'habilitacion.inhabilitar': 'Inhabilitación de estudiantes',
-    'habilitacion.repartir': 'Reparto por aula',
-    'habilitacion.sin_foto': 'Inhabilitación por no subir la foto',
-    'grupo.plazo_foto': 'Plazo de fotos del grupo',
-    'qr.emitir': 'Emitió los códigos QR',
-    'qr.enviar': 'Envío de códigos QR por correo',
-    'aviso.enviar': 'Aviso de examen por correo',
-    'estudiante.registrar': 'Registro de estudiante',
-    'estudiante.actualizar': 'Edición de estudiante',
-    'estudiante.baja': 'Baja de estudiante',
-    'estudiante.reactivar': 'Reactivación de estudiante',
-    'padron.importar': 'Carga masiva del padrón',
-    'docente.registrar': 'Alta de docente',
-    'asignatura.registrar': 'Registro de asignatura',
-    'asignatura.eliminar': 'Eliminación de asignatura',
-    'auxiliar.agregar': 'Alta de auxiliar',
-    'auxiliar.quitar': 'Baja de auxiliar',
-    'examen_aula_codigo.generar': 'Código de aula generado',
-    'examen_aula_codigo.regenerar': 'Código de aula regenerado',
-    'acceso_codigo_aula.ingreso': 'Entrada con código de aula',
-    'acceso_aula.autorizar': 'Acceso con código autorizado',
-    'acceso_aula.rechazar': 'Acceso con código rechazado',
-    'acceso_aula.cortar': 'Acceso con código cortado',
-    'acceso_aula.trasladar': 'Acceso con código movido de aula',
-    'examen.mover_personal': 'Cambio de aula del personal',
-    'habilitacion.mover_aula': 'Cambio de aula de estudiantes',
-    INCIDENCIA_AULA_ATENDIDA: 'Atención de incidencia',
-    INGRESO_ADMITIDO: 'Ingreso al examen',
-    'puerta.expulsion': 'Expulsión de estudiante',
-    'puerta.excepcion': 'Situación excepcional',
-    'incidencia.registrar': 'Registro de incidencia',
-    'incidencia.atender': 'Incidencia atendida',
-    'incidencia.corregir': 'Corrección de incidencia',
-};
+const POR_PAGINA = 25;
+const ROLES_DE_INICIO = ['Administrador', 'Docente', 'Auxiliar'];
 
-const etiquetaTabla = {
-    asignaturas: 'Asignatura',
-    cargas_inscritos: 'Carga de inscritos',
-    conflictos_padron: 'Conflicto del padrón',
-    habilitaciones: 'Habilitación',
-    importaciones_oferta: 'Importación de la oferta',
-    plantillas_norma: 'Plantilla de norma',
-    aulas: 'Aula',
-    docentes: 'Docente',
-    estudiantes: 'Estudiante',
-    students: 'Estudiante',
-    examenes: 'Examen',
-    grupos: 'Grupo',
-    periodos: 'Período',
-    roles: 'Rol',
-    usuarios: 'Usuario',
-    docente_auxiliares: 'Auxiliar',
-    accesos_codigo_aula: 'Acceso con código',
-    examen_aula_codigos: 'Código de aula',
-    incidencias: 'Incidencia',
-    incidencias_aula: 'Incidencia de aula',
-    ingresos: 'Ingreso',
-};
-
-const CAMPO =
-    'min-h-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/40';
-
-// La API da `name`; el contrato nuevo de cuentas, `nombre`.
-const nombreDe = (usuario) => usuario?.nombre ?? usuario?.name ?? '';
-
-// El restablecimiento (por el administrador o con el enlace) es una sola
-// opción del filtro; la solicitud del enlace tiene la suya.
-const categoriaOperacion = (codigo) =>
-    ['usuario.restablecer_temporal', 'contrasena.restablecer_por_enlace'].includes(codigo)
-        ? 'contrasena.restablecimiento'
-        : codigo;
-
-const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-
-// Se parsea el texto tal cual llega para no correr la hora por la zona horaria del navegador.
-function formatearFechaHora(fecha) {
-    const partes = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(fecha ?? '');
-
-    if (!partes) {
-        return fecha ?? '';
-    }
-
-    const [, anio, mes, dia, horas, minutos] = partes;
-
-    return `${dia}/${meses[Number(mes) - 1]}/${anio} ${horas}:${minutos}`;
+function hoy() {
+    const d = new Date();
+    const dos = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
 }
 
-function describirEntidad(operacion) {
-    if (operacion.descripcion) {
-        return operacion.descripcion;
-    }
+// Bitácora de operaciones (HU-07): de solo lectura, nadie la edita ni la
+// borra. Se filtra por usuario, rol, tipo de operación y rango de fechas; el
+// servidor pagina y entrega el texto de cada operación ya resuelto.
+export default function Bitacora() {
+    const { puede } = usarSesion();
+    const lista = usarPaginaServidor({
+        porPagina: POR_PAGINA,
+        filtros: { rol: '', operacion: '', desde: '', hasta: '' },
+    });
+    const { datos, meta, cargando, error, recargar } = usarConsulta('/bitacora', {
+        parametros: lista.parametros,
+    });
+    // Los roles creados solo los puede listar quien administra los roles.
+    const roles = usarConsulta('/roles', { activa: puede('usuarios_roles') });
 
-    if (!operacion.tabla_afectada) {
-        return '—';
-    }
+    // Las opciones de los filtros sobreviven a una consulta rechazada.
+    const [catalogo, setCatalogo] = useState(null);
+    if (meta && meta !== catalogo) setCatalogo(meta);
 
-    const tabla = etiquetaTabla[operacion.tabla_afectada] ?? operacion.tabla_afectada;
+    const { rol, operacion, desde, hasta } = lista.filtros;
+    const nombresDeRol = roles.datos?.map((r) => r.nombre) ?? ROLES_DE_INICIO;
+    const opcionesDeRol =
+        rol && !nombresDeRol.includes(rol) ? [...nombresDeRol, rol] : nombresDeRol;
+    const operaciones = catalogo?.operaciones ?? [];
+    const primera = catalogo?.fecha_minima ?? undefined;
+    const ultima = hoy();
 
-    // Una cuenta se muestra por su usuario, no por su id.
-    if (operacion.registro_etiqueta) {
-        return `${tabla} ${operacion.registro_etiqueta}`;
-    }
-
-    return operacion.registro_id === null ? tabla : `${tabla} #${operacion.registro_id}`;
-}
-
-function Bitacora() {
-    const [operaciones, setOperaciones] = React.useState([]);
-    const [cargando, setCargando] = React.useState(true);
-    const [error, setError] = React.useState(null);
-    const [usuariosConocidos, setUsuariosConocidos] = React.useState([]);
-    const [operacionesConocidas, setOperacionesConocidas] = React.useState(
-        Object.keys(etiquetaOperacion)
-    );
-    const opcionesOperacion = React.useMemo(
-        () => [...new Set(operacionesConocidas.map(categoriaOperacion))],
-        [operacionesConocidas]
-    );
-
-    const [usuarioFiltro, setUsuarioFiltro] = React.useState('');
-    const [fechaFiltro, setFechaFiltro] = React.useState('');
-    const [operacionFiltro, setOperacionFiltro] = React.useState('');
-    const [hastaFiltro, setHastaFiltro] = React.useState('');
-    const [vigentes, setVigentes] = React.useState({});
-
-    const ultimaConsulta = React.useRef(0);
-
-    const consultar = React.useCallback(async (filtros) => {
-        const numeroConsulta = ++ultimaConsulta.current;
-        const params = {};
-
-        if (filtros.usuario) params.usuario_id = filtros.usuario;
-        // El backlog pide rango de fechas: "desde" solo ya acota, y
-        // "hasta" solo lista todo lo anterior a esa fecha.
-        if (filtros.desde) params.desde = filtros.desde;
-        if (filtros.hasta) params.hasta = filtros.hasta;
-        if (filtros.operacion) params.operacion = filtros.operacion;
-
-        setVigentes(filtros);
-        setCargando(true);
-        setError(null);
-
-        try {
-            const respuesta = await api.get('/bitacora', { params });
-
-            if (numeroConsulta !== ultimaConsulta.current) {
-                return;
-            }
-
-            const datos = respuesta.data?.data ?? [];
-            setOperaciones(datos);
-
-            setUsuariosConocidos((anteriores) => {
-                const porId = new Map(anteriores.map((usuario) => [usuario.id, usuario]));
-                datos.forEach((operacion) => {
-                    if (operacion.usuario) {
-                        porId.set(operacion.usuario.id, operacion.usuario);
-                    }
-                });
-                return [...porId.values()].sort((a, b) => nombreDe(a).localeCompare(nombreDe(b)));
-            });
-
-            setOperacionesConocidas((anteriores) => [
-                ...new Set([...anteriores, ...datos.map((operacion) => operacion.operacion)]),
-            ]);
-        } catch (excepcion) {
-            if (numeroConsulta !== ultimaConsulta.current) {
-                return;
-            }
-
-            setOperaciones([]);
-            setError(estadoDe(excepcion) === 422 ? 'filtros' : 'carga');
-        } finally {
-            if (numeroConsulta === ultimaConsulta.current) {
-                setCargando(false);
-            }
-        }
-    }, []);
-
-    React.useEffect(() => {
-        consultar({});
-    }, [consultar]);
-
-    function manejarFiltrar(evento) {
-        evento.preventDefault();
-        consultar({
-            usuario: usuarioFiltro,
-            desde: fechaFiltro,
-            hasta: hastaFiltro,
-            operacion: operacionFiltro,
-        });
-    }
+    const rechazo = estadoDe(error) === 422;
+    const deCampo = rechazo ? erroresDe(error) : {};
 
     return (
-        <div className="space-y-5">
-            <Encabezado titulo="Bitácora" />
+        <div className="space-y-6">
+            <Encabezado titulo="Bitácora">
+                <Insignia tono="neutro">Solo lectura</Insignia>
+            </Encabezado>
 
-            <form
-                className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:flex-wrap sm:items-end"
-                onSubmit={manejarFiltrar}
-            >
-                <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:min-w-[220px]">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="usuario-filtro">
-                        Usuario
-                    </label>
-
-                    <select
-                        id="usuario-filtro"
-                        className={CAMPO}
-                        value={usuarioFiltro}
-                        onChange={(e) => setUsuarioFiltro(e.target.value)}
-                    >
-                        <option value="">Todos los usuarios</option>
-                        {usuariosConocidos.map((usuario) => (
-                            <option key={usuario.id} value={usuario.id}>
-                                {nombreDe(usuario)}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                <div className="flex min-w-0 flex-col gap-1.5">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="fecha-filtro">
-                        Desde
-                    </label>
-
-                    <input
-                        id="fecha-filtro"
-                        type="date"
-                        className={CAMPO}
-                        value={fechaFiltro}
-                        onChange={(e) => setFechaFiltro(e.target.value)}
-                    />
-                </div>
-
-                <div className="flex min-w-0 flex-col gap-1.5">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="hasta-filtro">
-                        Hasta
-                    </label>
-
-                    <input
-                        id="hasta-filtro"
-                        type="date"
-                        className={CAMPO}
-                        value={hastaFiltro}
-                        onChange={(e) => setHastaFiltro(e.target.value)}
-                    />
-                </div>
-
-                <div className="flex min-w-0 flex-col gap-1.5 sm:min-w-[200px]">
-                    <label
-                        className="text-sm font-medium text-slate-700"
-                        htmlFor="operacion-filtro"
-                    >
-                        Operación
-                    </label>
-
-                    <select
-                        id="operacion-filtro"
-                        className={CAMPO}
-                        value={operacionFiltro}
-                        onChange={(e) => setOperacionFiltro(e.target.value)}
-                    >
-                        <option value="">Todas las operaciones</option>
-                        {opcionesOperacion.map((codigo) => (
-                            <option key={codigo} value={codigo}>
-                                {etiquetaOperacion[codigo] ?? codigo}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                <button
-                    type="submit"
-                    className="min-h-11 rounded-lg bg-primary-600 px-5 py-2 text-sm font-medium text-white hover:bg-primary-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={cargando}
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-[minmax(0,1.4fr)_9.5rem_minmax(0,1fr)_10rem_10rem]">
+                <Campo
+                    etiqueta="Buscar"
+                    icono={Search}
+                    type="search"
+                    className="col-span-2 min-w-0 lg:col-span-1"
+                    placeholder="Usuario o registro"
+                    maxLength={100}
+                    value={lista.buscar}
+                    error={deCampo.buscar}
+                    onChange={(e) => lista.ponerBuscar(e.target.value)}
+                />
+                <Seleccion
+                    etiqueta="Rol"
+                    icono={ShieldCheck}
+                    className="min-w-0"
+                    value={rol}
+                    onChange={(e) => lista.ponerFiltro('rol', e.target.value)}
                 >
-                    Filtrar
-                </button>
-            </form>
+                    <option value="">Todos</option>
+                    {opcionesDeRol.map((nombre) => (
+                        <option key={nombre} value={nombre}>
+                            {nombre}
+                        </option>
+                    ))}
+                </Seleccion>
+                <Seleccion
+                    etiqueta="Operación"
+                    icono={Activity}
+                    className="min-w-0"
+                    value={operacion}
+                    onChange={(e) => lista.ponerFiltro('operacion', e.target.value)}
+                >
+                    <option value="">Todas</option>
+                    {operaciones.map((op) => (
+                        <option key={op.clave} value={op.clave}>
+                            {op.texto}
+                        </option>
+                    ))}
+                </Seleccion>
+                <Campo
+                    etiqueta="Desde"
+                    type="date"
+                    className="min-w-0"
+                    min={primera}
+                    max={hasta || ultima}
+                    value={desde}
+                    error={deCampo.desde}
+                    onChange={(e) => lista.ponerFiltro('desde', e.target.value)}
+                />
+                <Campo
+                    etiqueta="Hasta"
+                    type="date"
+                    className="min-w-0"
+                    min={desde || primera}
+                    max={ultima}
+                    value={hasta}
+                    error={deCampo.hasta}
+                    onChange={(e) => lista.ponerFiltro('hasta', e.target.value)}
+                />
+            </div>
 
-            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-                <div className="grid min-w-[760px] grid-cols-[1fr_1.3fr_1.2fr_1.6fr] items-center gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 text-xs font-semibold tracking-wide text-slate-500">
-                    <div>FECHA Y HORA</div>
-                    <div>USUARIO</div>
-                    <div>ACCIÓN</div>
-                    <div>ENTIDAD AFECTADA</div>
-                </div>
-
-                {error === 'filtros' ? (
+            <Tarjeta sinRelleno titulo="Operaciones">
+                {rechazo ? (
                     <p role="alert" className="px-4 py-8 text-center text-sm text-danger-600">
                         Filtros no válidos
                     </p>
@@ -338,46 +129,57 @@ function Bitacora() {
                     <EstadoCarga
                         cargando={cargando}
                         error={error}
-                        vacio={operaciones.length === 0}
-                        textoVacio="Sin eventos"
-                        onReintentar={() => consultar(vigentes)}
+                        vacio={datos?.length === 0}
+                        textoVacio="Sin resultados"
+                        onReintentar={recargar}
+                        filas={8}
                     >
-                        {operaciones.map((operacion) => (
-                            <div
-                                key={operacion.id}
-                                className="grid min-w-[760px] grid-cols-[1fr_1.3fr_1.2fr_1.6fr] items-center gap-3 border-b border-slate-100 px-4 py-3.5 text-sm last:border-b-0"
-                            >
-                                <div className="font-mono text-xs text-slate-500">
-                                    {formatearFechaHora(operacion.fecha_operacion)}
-                                </div>
-                                <div className="font-semibold text-slate-800">
-                                    {operacion.usuario ? (
-                                        nombreDe(operacion.usuario)
-                                    ) : operacion.actor ? (
-                                        operacion.actor
-                                    ) : (
-                                        <span className="font-normal text-slate-500 italic">
-                                            {operacion.operacion === 'sesion.fallida'
-                                                ? 'Sin identificar'
-                                                : 'Usuario eliminado'}
-                                        </span>
-                                    )}
-                                </div>
-                                <div>
-                                    {etiquetaOperacion[operacion.operacion] ?? operacion.operacion}
-                                </div>
-                                <div className="text-slate-600">{describirEntidad(operacion)}</div>
-                            </div>
-                        ))}
+                        <ul className="divide-y divide-slate-200">
+                            {(datos ?? []).map((b) => (
+                                <li
+                                    key={b.id}
+                                    className="flex min-h-11 items-start gap-3 px-4 py-2.5 hover:bg-slate-50"
+                                >
+                                    <History
+                                        className="mt-0.5 h-4 w-4 shrink-0 text-slate-500"
+                                        strokeWidth={1.75}
+                                        aria-hidden="true"
+                                    />
+                                    <div className="min-w-0 flex-1 sm:flex sm:items-baseline sm:gap-4">
+                                        <div className="min-w-0 flex-1">
+                                            <p
+                                                className="truncate text-sm text-slate-800"
+                                                title={`${b.usuario} · ${b.operacion_texto}`}
+                                            >
+                                                <span className="font-medium">{b.usuario}</span> ·{' '}
+                                                {b.operacion_texto}
+                                            </p>
+                                            {b.entidad && (
+                                                <p
+                                                    className="truncate text-xs text-slate-600"
+                                                    title={b.entidad}
+                                                >
+                                                    {b.entidad}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <p className="mt-0.5 shrink-0 text-xs tabular-nums text-slate-600 sm:mt-0">
+                                            {[b.rol, fechaCorta(b.fecha)]
+                                                .filter(Boolean)
+                                                .join(' · ')}
+                                        </p>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                        <Paginacion
+                            {...lista.paginacion(meta)}
+                            unidad={['operación', 'operaciones']}
+                            className="border-t border-slate-200"
+                        />
                     </EstadoCarga>
                 )}
-            </div>
-
-            {!cargando && !error && operaciones.length > 0 && (
-                <p className="text-sm text-slate-600">{plural(operaciones.length, 'evento')}</p>
-            )}
+            </Tarjeta>
         </div>
     );
 }
-
-export default Bitacora;

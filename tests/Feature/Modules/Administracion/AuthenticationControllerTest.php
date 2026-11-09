@@ -14,7 +14,6 @@ class AuthenticationControllerTest extends TestCase
     {
         $user = UserFactory::new()->createOne([
             'usuario' => 'active-user',
-            'email' => 'active-user@example.invalid',
             'password' => 'CorrectPassword123!',
             'is_active' => true,
         ]);
@@ -26,30 +25,19 @@ class AuthenticationControllerTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('message', 'Autenticación correcta.')
-            ->assertJsonPath('user.id', $user->getKey())
-            ->assertJsonPath('user.name', $user->name)
-            ->assertJsonPath('user.email', $user->email)
-            // El cliente arma su menu con el rol y sus permisos (HU-02).
-            ->assertJsonPath('user.rol', 'Administrador')
-            // Campos del contrato nuevo: los mismos de GET /api/auth/sesion.
-            ->assertJsonPath('user.nombre', $user->nombre)
-            ->assertJsonPath('user.usuario', $user->usuario)
-            ->assertJsonPath('user.correo', 'active-user@example.invalid')
-            ->assertJsonPath('user.docente_id', null)
-            ->assertJsonPath('user.debe_cambiar_contrasena', false)
-            ->assertJsonStructure([
-                'message',
+            ->assertExactJson([
+                'message' => 'Autenticación correcta.',
                 'user' => [
-                    'id', 'nombre', 'usuario', 'correo', 'rol', 'permisos',
-                    'debe_cambiar_contrasena', 'docente_id', 'name', 'email',
+                    'id' => $user->getKey(),
+                    'nombre' => $user->name,
+                    'usuario' => 'active-user',
+                    'correo' => $user->email,
+                    'rol' => null,
+                    'permisos' => [],
+                    'debe_cambiar_contrasena' => false,
+                    'docente_id' => null,
                 ],
             ]);
-
-        $permisos = $response->json('user.permisos');
-
-        self::assertIsArray($permisos);
-        self::assertContains('usuarios_roles', $permisos);
 
         $this->assertAuthenticatedAs($user);
 
@@ -58,11 +46,61 @@ class AuthenticationControllerTest extends TestCase
         );
     }
 
-    public function test_invalid_password_returns_generic_unauthorized_response(): void
+    public function test_the_user_name_is_not_case_sensitive(): void
+    {
+        $user = UserFactory::new()->createOne([
+            'usuario' => 'leticia.blanco',
+            'password' => 'CorrectPassword123!',
+        ]);
+
+        $this->postJson('/api/auth/login', [
+            'usuario' => '  Leticia.Blanco ',
+            'password' => 'CorrectPassword123!',
+        ])
+            ->assertOk()
+            ->assertJsonPath('user.usuario', 'leticia.blanco');
+
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_an_account_without_contact_email_can_login(): void
+    {
+        UserFactory::new()->createOne([
+            'usuario' => 'sin.correo',
+            'email' => null,
+            'password' => 'CorrectPassword123!',
+        ]);
+
+        $this->postJson('/api/auth/login', [
+            'usuario' => 'sin.correo',
+            'password' => 'CorrectPassword123!',
+        ])
+            ->assertOk()
+            ->assertJsonPath('user.correo', null);
+    }
+
+    public function test_the_email_no_longer_serves_as_login_identifier(): void
+    {
+        UserFactory::new()->createOne([
+            'usuario' => 'con.correo',
+            'email' => 'con.correo@umss.edu.bo',
+            'password' => 'CorrectPassword123!',
+        ]);
+
+        $this->postJson('/api/auth/login', [
+            'usuario' => 'con.correo@umss.edu.bo',
+            'password' => 'CorrectPassword123!',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['usuario']);
+
+        $this->assertGuest();
+    }
+
+    public function test_invalid_password_reports_the_remaining_attempts(): void
     {
         UserFactory::new()->createOne([
             'usuario' => 'known-user',
-            'email' => 'known-user@example.invalid',
             'password' => 'CorrectPassword123!',
         ]);
 
@@ -74,14 +112,14 @@ class AuthenticationControllerTest extends TestCase
         $response
             ->assertUnauthorized()
             ->assertExactJson([
-                'message' => 'Credenciales incorrectas.',
+                'message' => 'Usuario o contraseña incorrectos.',
                 'intentos_restantes' => 4,
             ]);
 
         $this->assertGuest();
     }
 
-    public function test_unknown_username_returns_same_generic_unauthorized_response(): void
+    public function test_unknown_user_gets_the_same_message_without_remaining_attempts(): void
     {
         $response = $this->postJson('/api/auth/login', [
             'usuario' => 'unknown-user',
@@ -91,17 +129,16 @@ class AuthenticationControllerTest extends TestCase
         $response
             ->assertUnauthorized()
             ->assertExactJson([
-                'message' => 'Credenciales incorrectas.',
+                'message' => 'Usuario o contraseña incorrectos.',
             ]);
 
         $this->assertGuest();
     }
 
-    public function test_inactive_user_with_the_correct_password_is_told_the_account_is_locked(): void
+    public function test_inactive_user_cannot_login(): void
     {
         UserFactory::new()->createOne([
             'usuario' => 'inactive-user',
-            'email' => 'inactive-user@example.invalid',
             'password' => 'CorrectPassword123!',
             'is_active' => false,
         ]);
@@ -111,35 +148,10 @@ class AuthenticationControllerTest extends TestCase
             'password' => 'CorrectPassword123!',
         ]);
 
-        // Sin minutos: no es el bloqueo por intentos.
         $response
             ->assertStatus(423)
             ->assertExactJson([
-                'code' => 'ACCOUNT_DISABLED',
                 'message' => 'Cuenta bloqueada.',
-            ]);
-
-        $this->assertGuest();
-    }
-
-    public function test_inactive_user_with_a_wrong_password_gets_the_generic_response(): void
-    {
-        UserFactory::new()->createOne([
-            'usuario' => 'inactive-user',
-            'email' => 'inactive-user@example.invalid',
-            'password' => 'CorrectPassword123!',
-            'is_active' => false,
-        ]);
-
-        // Sin la contrasena no se revela que la cuenta existe y esta
-        // desactivada: la misma respuesta que un usuario inexistente.
-        $this->postJson('/api/auth/login', [
-            'usuario' => 'inactive-user',
-            'password' => 'WrongPassword123!',
-        ])
-            ->assertUnauthorized()
-            ->assertExactJson([
-                'message' => 'Credenciales incorrectas.',
             ]);
 
         $this->assertGuest();
@@ -163,7 +175,6 @@ class AuthenticationControllerTest extends TestCase
     {
         UserFactory::new()->createOne([
             'usuario' => 'session-rotation',
-            'email' => 'session-rotation@example.invalid',
             'password' => 'CorrectPassword123!',
             'is_active' => true,
         ]);

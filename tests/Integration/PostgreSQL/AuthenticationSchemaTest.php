@@ -13,14 +13,14 @@ class AuthenticationSchemaTest extends TestCase
 
     public function test_user_security_fields_have_safe_defaults(): void
     {
-        $userId = DB::table('usuarios')->insertGetId([
+        $userId = DB::table('users')->insertGetId([
             'name' => 'Auth Schema Test',
-            'email' => 'auth-schema@example.invalid',
             'usuario' => 'auth-schema',
+            'email' => 'auth-schema@example.invalid',
             'password' => 'not-used-in-schema-test',
         ]);
 
-        $userQuery = DB::table('usuarios')
+        $userQuery = DB::table('users')
             ->where('id', $userId);
 
         $this->assertTrue($userQuery->exists());
@@ -47,10 +47,10 @@ class AuthenticationSchemaTest extends TestCase
     {
         $this->expectException(QueryException::class);
 
-        DB::table('usuarios')->insert([
+        DB::table('users')->insert([
             'name' => 'Invalid Counter Test',
-            'email' => 'negative-counter@example.invalid',
             'usuario' => 'negative-counter',
+            'email' => 'negative-counter@example.invalid',
             'password' => 'not-used-in-schema-test',
             'failed_login_attempts' => -1,
         ]);
@@ -60,7 +60,7 @@ class AuthenticationSchemaTest extends TestCase
     {
         $attemptId = DB::table('login_attempts')->insertGetId([
             'user_id' => null,
-            'identifier' => 'unknown-user@example.invalid',
+            'identifier' => 'unknown-user',
             'ip_address' => '192.0.2.10',
             'user_agent' => 'HU-01 integration test',
         ]);
@@ -75,7 +75,7 @@ class AuthenticationSchemaTest extends TestCase
         );
 
         $this->assertSame(
-            'unknown-user@example.invalid',
+            'unknown-user',
             $attemptQuery->value('identifier')
         );
 
@@ -90,16 +90,16 @@ class AuthenticationSchemaTest extends TestCase
 
     public function test_login_attempt_accepts_existing_user_reference(): void
     {
-        $userId = DB::table('usuarios')->insertGetId([
+        $userId = DB::table('users')->insertGetId([
             'name' => 'Known User Test',
-            'email' => 'known-user@example.invalid',
             'usuario' => 'known-user',
+            'email' => 'known-user@example.invalid',
             'password' => 'not-used-in-schema-test',
         ]);
 
         $attemptId = DB::table('login_attempts')->insertGetId([
             'user_id' => $userId,
-            'identifier' => 'known-user@example.invalid',
+            'identifier' => 'known-user',
             'successful' => true,
         ]);
 
@@ -124,26 +124,26 @@ class AuthenticationSchemaTest extends TestCase
 
         DB::table('login_attempts')->insert([
             'user_id' => 999999999,
-            'identifier' => 'invalid-reference@example.invalid',
+            'identifier' => 'invalid-reference',
         ]);
     }
 
     public function test_deleting_user_preserves_login_attempt_and_nulls_reference(): void
     {
-        $userId = DB::table('usuarios')->insertGetId([
+        $userId = DB::table('users')->insertGetId([
             'name' => 'Deleted User Test',
-            'email' => 'deleted-user@example.invalid',
             'usuario' => 'deleted-user',
+            'email' => 'deleted-user@example.invalid',
             'password' => 'not-used-in-schema-test',
         ]);
 
         $attemptId = DB::table('login_attempts')->insertGetId([
             'user_id' => $userId,
-            'identifier' => 'deleted-user@example.invalid',
+            'identifier' => 'deleted-user',
             'successful' => false,
         ]);
 
-        DB::table('usuarios')
+        DB::table('users')
             ->where('id', $userId)
             ->delete();
 
@@ -157,7 +157,7 @@ class AuthenticationSchemaTest extends TestCase
         );
 
         $this->assertSame(
-            'deleted-user@example.invalid',
+            'deleted-user',
             $attemptQuery->value('identifier')
         );
     }

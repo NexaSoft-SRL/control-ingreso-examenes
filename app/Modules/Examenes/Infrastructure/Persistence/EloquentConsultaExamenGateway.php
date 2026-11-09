@@ -11,6 +11,7 @@ use App\Modules\Examenes\Application\DTOs\ExamenDetalleData;
 use App\Modules\Examenes\Application\DTOs\ExamenResumenData;
 use App\Modules\Examenes\Application\DTOs\GrupoDeExamenData;
 use App\Modules\Examenes\Application\DTOs\NormaMarcadaData;
+use App\Modules\Examenes\Application\DTOs\PersonaData;
 use App\Modules\Examenes\Domain\Enums\TipoExamen;
 use App\Modules\Examenes\Domain\Rules\AvanceDeExamen;
 use Illuminate\Database\Query\Builder;
@@ -19,16 +20,24 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Todo lo que el examen muestra de otros modulos (asignatura, grupos,
- * docentes, aulas, inscritos, habilitaciones) se lee por nombre de tabla.
+ * docentes, aulas, inscritos, habilitaciones, codigos QR) se lee por nombre
+ * de tabla.
  */
 final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
 {
     use ConvierteFilas;
 
     /**
+     * Zona en que se informan los instantes al cliente.
+     */
+    private const ROL_DOCENTE = 'Docente';
+
+    /**
      * Los dias del horario, de lunes a sabado.
      */
     private const DIAS = ['LU', 'MA', 'MI', 'JU', 'VI', 'SA'];
+
+    private const ROL_AUXILIAR = 'Auxiliar';
 
     public function listar(int $usuarioId, ?array $periodoIds): array
     {
@@ -104,6 +113,45 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         }
 
         return $codigos;
+    }
+
+    public function personas(array $usuarioIds): array
+    {
+        if ($usuarioIds === []) {
+            return [];
+        }
+
+        $filas = DB::table('users as cuenta')
+            ->leftJoin('roles as rol', 'rol.id', '=', 'cuenta.role_id')
+            ->leftJoin('docentes as docente', 'docente.user_id', '=', 'cuenta.id')
+            ->leftJoin('auxiliares as auxiliar', 'auxiliar.user_id', '=', 'cuenta.id')
+            ->whereIn('cuenta.id', $usuarioIds)
+            ->select([
+                'cuenta.id',
+                'cuenta.name',
+                'rol.name as rol',
+                'docente.id as docente_id',
+                'docente.nombre_completo as docente_nombre',
+                'auxiliar.id as auxiliar_id',
+            ])
+            ->get();
+
+        $personas = [];
+
+        foreach ($filas as $fila) {
+            $columnas = $this->columnas($fila);
+            $id = $this->entero($columnas['id'] ?? null);
+            $rol = $this->texto($columnas['rol'] ?? null);
+
+            $personas[$id] = new PersonaData(
+                id: $id,
+                nombre: $this->texto($columnas['docente_nombre'] ?? null) ?? $this->cadena($columnas['name'] ?? null),
+                esDocente: $rol === self::ROL_DOCENTE || ($columnas['docente_id'] ?? null) !== null,
+                esAuxiliar: $rol === self::ROL_AUXILIAR || ($columnas['auxiliar_id'] ?? null) !== null,
+            );
+        }
+
+        return $personas;
     }
 
     public function aulasSugeridas(array $grupoIds): array
@@ -190,7 +238,8 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         return $clases;
     }
 
-    public function aulasCompartidas(
+    public function examenesALaHora(
+        array $grupoIds,
         string $fecha,
         string $horaInicio,
         int $duracionMinutos,
@@ -199,40 +248,51 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         $inicio = $this->minutos($horaInicio);
         $fin = $inicio + $duracionMinutos;
 
-        $consulta = DB::table('examen_aula as asignada')
-            ->join('examenes as examen', 'examen.id', '=', 'asignada.examen_id')
-            ->join('asignaturas as asignatura', 'asignatura.id', '=', 'examen.asignatura_id')
+        $consulta = $this->base()
+            ->join('examen_aula as asignada', 'asignada.examen_id', '=', 'examen.id')
             ->whereDate('examen.fecha', $fecha)
             ->orderBy('examen.hora_inicio')
             ->orderBy('examen.id')
-            ->select([
-                'asignada.aula_id',
-                'examen.tipo',
-                'examen.hora_inicio',
-                'examen.duracion_minutos',
-                'asignatura.nombre as asignatura',
-            ]);
+            ->addSelect('asignada.aula_id');
 
         if ($exceptoExamenId !== null) {
             $consulta->where('examen.id', '<>', $exceptoExamenId);
         }
 
-        $compartidas = [];
+        $filas = $consulta->get();
+        $conGrupo = $grupoIds === []
+            ? []
+            : DB::table('examen_grupo')
+                ->whereIn('grupo_id', $grupoIds)
+                ->distinct()
+                ->pluck('examen_id')
+                ->map(fn (mixed $id): int => $this->entero($id))
+                ->all();
 
-        foreach ($consulta->get() as $fila) {
+        $examenes = [];
+
+        foreach ($filas as $fila) {
             $columnas = $this->columnas($fila);
-            $inicioOtro = $this->minutos($this->hora($columnas['hora_inicio'] ?? null));
+            $desde = $this->hora($columnas['hora_inicio'] ?? null);
+            $inicioOtro = $this->minutos($desde);
             $finOtro = $inicioOtro + $this->entero($columnas['duracion_minutos'] ?? null);
 
-            // Se solapan si cada uno empieza antes de que el otro termine.
-            if ($inicio < $finOtro && $inicioOtro < $fin) {
-                $compartidas[$this->entero($columnas['aula_id'] ?? null)][] =
-                    $this->cadena($columnas['asignatura'] ?? null)
-                    .' · '.$this->tipoTexto($this->cadena($columnas['tipo'] ?? null));
+            if (! ($inicio < $finOtro && $inicioOtro < $fin)) {
+                continue;
             }
+
+            $examenes[$this->entero($columnas['aula_id'] ?? null)][] = [
+                'examen' => $this->cadena($columnas['asignatura_nombre'] ?? null)
+                    .' · '.$this->tipoTexto($this->cadena($columnas['tipo'] ?? null)),
+                'docente' => $this->texto($columnas['creador_docente'] ?? null)
+                    ?? $this->texto($columnas['creador_nombre'] ?? null),
+                'inicio' => $desde,
+                'fin' => sprintf('%02d:%02d', intdiv($finOtro, 60) % 24, $finOtro % 60),
+                'mismo_grupo' => in_array($this->entero($columnas['id'] ?? null), $conGrupo, true),
+            ];
         }
 
-        return $compartidas;
+        return $examenes;
     }
 
     public function periodo(string $idOCodigo): ?array
@@ -273,7 +333,7 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
     {
         return DB::table('examenes as examen')
             ->join('asignaturas as asignatura', 'asignatura.id', '=', 'examen.asignatura_id')
-            ->join('usuarios as creador', 'creador.id', '=', 'examen.creado_por')
+            ->join('users as creador', 'creador.id', '=', 'examen.creado_por')
             ->leftJoin('docentes as docente_creador', 'docente_creador.user_id', '=', 'creador.id')
             ->select([
                 'examen.id',
@@ -287,7 +347,7 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
                 'examen.finalizado_en',
                 'asignatura.codigo as asignatura_codigo',
                 'asignatura.nombre as asignatura_nombre',
-                'creador.nombre as creador_nombre',
+                'creador.name as creador_nombre',
                 'docente_creador.nombre_completo as creador_docente',
             ]);
     }
@@ -331,14 +391,13 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         $aulas = $this->aulasPorExamen($ids);
         $inscritos = $this->inscritosPorExamen($ids);
         $condiciones = $this->condicionesPorExamen($ids);
-        $codigosQr = $this->codigosQrPorExamen($ids);
-        $normas = $this->normasPorExamen($ids);
         $juntos = $this->juntosPorExamen($ids, $usuarioId);
+        $normas = $this->normasPorExamen($ids);
         $conIngresos = $this->conFilas('ingresos', $ids);
         $conIncidencias = $this->conFilas('incidencias', $ids);
         $ahora = now();
         $hoy = $ahora->toDateString();
-        $instante = $ahora->format('Y-m-d H:i:s');
+        $instante = $ahora->format('Y-m-d H:i');
 
         $examenes = [];
 
@@ -349,11 +408,10 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
             $fecha = $this->fecha($columnas['fecha'] ?? null);
             $hora = $this->hora($columnas['hora_inicio'] ?? null);
             $duracion = $this->entero($columnas['duracion_minutos'] ?? null);
-            $finalizado = $this->texto($columnas['finalizado_en'] ?? null);
-            $finalizado = $finalizado === null ? null : substr($finalizado, 0, 19);
             $total = $inscritos[$id] ?? 0;
             $habilitados = $condiciones[$id]['habilitados'] ?? 0;
             $noHabilitados = $condiciones[$id]['no_habilitados'] ?? 0;
+            $conCodigo = $condiciones[$id]['con_codigo'] ?? 0;
             $sinRevisar = max(0, $total - $habilitados - $noHabilitados);
 
             $resumen = new ExamenResumenData(
@@ -375,33 +433,35 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
                     static fn (AulaDetalleData $aula): string => $aula->nombre,
                     $aulasDelExamen,
                 ),
+                auxiliares: $this->contarAuxiliares($aulasDelExamen),
                 habilitados: $habilitados,
                 noHabilitados: $noHabilitados,
                 sinRevisar: $sinRevisar,
-                qrEmitidos: $codigosQr[$id] ?? 0,
+                qrEmitidos: $conCodigo,
                 avance: $this->avance(
                     count($aulasDelExamen),
                     $habilitados,
                     $sinRevisar,
-                    $codigosQr[$id] ?? 0,
-                    self::aulasPorPersona($aulasDelExamen),
+                    $conCodigo,
+                    $this->maximoDeAulasPorPersona($aulasDelExamen),
+                    $condiciones[$id]['sin_aula'] ?? 0,
                 ),
                 propio: $this->entero($columnas['creado_por'] ?? null) === $usuarioId,
                 registradoPor: $this->texto($columnas['creador_docente'] ?? null)
                     ?? $this->cadena($columnas['creador_nombre'] ?? null),
                 juntoCon: $juntos[$id] ?? 0,
                 esHoy: $fecha === $hoy,
-                // Rendido cuando un docente lo finalizo; si nadie lo hizo, al
+                // Rendido cuando el docente lo finalizo; si nadie lo hizo, al
                 // terminar su dia (puede pasarse de la duracion prevista).
-                rendido: $finalizado !== null ? $finalizado <= $instante : $fecha < $hoy,
-                finalizadoEn: $finalizado,
+                rendido: ($finalizado = $this->cadena($columnas['finalizado_en'] ?? null)) !== ''
+                    ? substr($finalizado, 0, 16) <= $instante
+                    : $fecha < $hoy,
                 conIngresos: isset($conIngresos[$id]),
                 conIncidencias: isset($conIncidencias[$id]),
-                codigosAula: count(array_filter(
+                codigosDeAula: count(array_filter(
                     $aulasDelExamen,
-                    static fn (AulaDetalleData $aula): bool => $aula->codigo !== null,
+                    static fn (AulaDetalleData $aula): bool => $aula->usaCodigo,
                 )),
-                atienden: self::atienden($aulasDelExamen),
             );
 
             $examenes[] = new ExamenDetalleData(
@@ -416,78 +476,56 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         return $examenes;
     }
 
-    /**
-     * Cuantas aulas del examen tiene a cargo quien mas tiene.
-     *
-     * @param  list<AulaDetalleData>  $aulas
-     */
-    private static function aulasPorPersona(array $aulas): int
+    private function avance(int $aulas, int $habilitados, int $sinRevisar, int $conCodigo, int $porPersona, int $sinAula): AvanceData
     {
-        $cuenta = [];
-
-        foreach ($aulas as $aula) {
-            if ($aula->aCargo !== null) {
-                $cuenta[$aula->aCargo['id']] = ($cuenta[$aula->aCargo['id']] ?? 0) + 1;
-            }
-        }
-
-        return $cuenta === [] ? 1 : max($cuenta);
-    }
-
-    /**
-     * Personas distintas que atienden las aulas del examen, a cargo o de
-     * apoyo.
-     *
-     * @param  list<AulaDetalleData>  $aulas
-     */
-    private static function atienden(array $aulas): int
-    {
-        $personas = [];
-
-        foreach ($aulas as $aula) {
-            if ($aula->aCargo !== null) {
-                $personas[$aula->aCargo['id']] = true;
-            }
-
-            foreach ($aula->apoyo as $apoyo) {
-                $personas[$apoyo['id']] = true;
-            }
-        }
-
-        return count($personas);
-    }
-
-    /**
-     * Los examenes que tienen alguna fila en esa tabla (por `examen_id`).
-     *
-     * @param  list<int>  $examenIds
-     * @return array<int, true>
-     */
-    private function conFilas(string $tabla, array $examenIds): array
-    {
-        $con = [];
-
-        foreach (DB::table($tabla)->whereIn('examen_id', $examenIds)->distinct()->pluck('examen_id') as $id) {
-            $con[$this->entero($id)] = true;
-        }
-
-        return $con;
-    }
-
-    private function avance(int $aulas, int $habilitados, int $sinRevisar, int $conCodigoQr, int $aulasPorPersona = 1): AvanceData
-    {
-        $avance = AvanceDeExamen::calcular($aulas, $habilitados, $sinRevisar, $conCodigoQr, $aulasPorPersona);
+        $avance = AvanceDeExamen::calcular($aulas, $habilitados, $sinRevisar, $conCodigo, $porPersona, $sinAula);
 
         return new AvanceData(
             grupos: $avance['grupos'],
             aulas: $avance['aulas'],
+            auxiliares: $avance['auxiliares'],
             habilitacion: $avance['habilitacion'],
             qr: $avance['qr'],
             estado: $avance['estado'],
             accion: $avance['accion'],
             paso: $avance['paso'],
-            auxiliares: $avance['auxiliares'],
         );
+    }
+
+    /**
+     * Cuantas aulas tiene a su cargo la persona que mas tiene.
+     *
+     * @param  list<AulaDetalleData>  $aulas
+     */
+    private function maximoDeAulasPorPersona(array $aulas): int
+    {
+        $porPersona = [];
+
+        foreach ($aulas as $aula) {
+            $porPersona[$aula->encargado->id] = ($porPersona[$aula->encargado->id] ?? 0) + 1;
+        }
+
+        return $porPersona === [] ? 0 : max($porPersona);
+    }
+
+    /**
+     * Personas distintas con rol Auxiliar entre encargados y apoyo.
+     *
+     * @param  list<AulaDetalleData>  $aulas
+     */
+    private function contarAuxiliares(array $aulas): int
+    {
+        $auxiliares = [];
+
+        foreach ($aulas as $aula) {
+            foreach ([$aula->encargado, ...$aula->apoyo] as $persona) {
+                if ($persona->esAuxiliar) {
+                    $auxiliares[$persona->id] = true;
+                }
+            }
+        }
+
+        return count($auxiliares);
     }
 
     /**
@@ -550,7 +588,11 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         $filas = $consulta
             ->join('periodos as periodo', 'periodo.id', '=', 'grupo.periodo_id')
             ->leftJoin('docentes as docente', 'docente.id', '=', 'grupo.docente_id')
-            ->leftJoin('usuarios as cuenta_docente', 'cuenta_docente.id', '=', 'docente.user_id')
+            ->leftJoin('users as cuenta_docente', function (JoinClause $cuenta): void {
+                $cuenta
+                    ->on('cuenta_docente.id', '=', 'docente.user_id')
+                    ->where('cuenta_docente.is_active', true);
+            })
             ->select([
                 'grupo.id',
                 'grupo.codigo',
@@ -560,12 +602,13 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
                 'periodo.fecha_fin',
                 'docente.nombre_completo as docente',
                 'docente.user_id as docente_cuenta',
-                'cuenta_docente.is_active as docente_activo',
+                'cuenta_docente.id as docente_cuenta_activa',
             ])
             ->selectSub(
                 DB::table('inscripciones as inscripcion')
                     ->selectRaw('count(*)')
-                    ->whereColumn('inscripcion.grupo_id', 'grupo.id'),
+                    ->whereColumn('inscripcion.grupo_id', 'grupo.id')
+                    ->whereNull('inscripcion.baja_en'),
                 'inscritos',
             )
             ->get();
@@ -587,10 +630,7 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
                 periodoCodigo: $this->cadena($columnas['periodo_codigo'] ?? null),
                 periodoInicio: $inicio === null ? null : $this->fecha($inicio),
                 periodoFin: $fin === null ? null : $this->fecha($fin),
-                // Una cuenta bloqueada no se ofrece para estar a cargo.
-                docenteCuentaId: ($columnas['docente_activo'] ?? false) === true
-                    ? $this->enteroONulo($columnas['docente_cuenta'] ?? null)
-                    : null,
+                docenteUsuarioId: $this->enteroONulo($columnas['docente_cuenta_activa'] ?? null),
             );
         }
 
@@ -609,114 +649,66 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
             ->whereIn('asignada.examen_id', $examenIds)
             ->orderBy('asignada.id')
             ->get([
+                'asignada.id',
                 'asignada.examen_id',
                 'asignada.aula_id',
+                'asignada.encargado_id',
+                'asignada.codigo_acceso',
                 'aula.nombre',
                 'aula.piso',
                 'aula.edificio_id',
                 'edificio.nombre as edificio',
             ]);
 
-        $personalFilas = DB::table('examen_aula_personal as p')
-            ->join('usuarios as u', 'u.id', '=', 'p.usuario_id')
-            ->leftJoin('docentes as d', 'd.user_id', '=', 'u.id')
-            ->join('roles as r', 'r.id', '=', 'u.role_id')
-            ->whereIn('p.examen_id', $examenIds)
-            ->get([
-                'p.examen_id',
-                'p.aula_id',
-                'p.usuario_id',
-                'p.rol as personal_rol',
-                'u.nombre as usuario_nombre',
-                'd.nombre_completo as docente_nombre',
-                'r.name as rol_nombre',
-            ]);
+        $apoyos = [];
+        $cuentas = [];
 
-        $personalPorExamenYAula = [];
-        foreach ($personalFilas as $pFila) {
-            $pCols = $this->columnas($pFila);
-            $exId = $this->entero($pCols['examen_id'] ?? null);
-            $auId = $this->entero($pCols['aula_id'] ?? null);
-            $uId = $this->entero($pCols['usuario_id'] ?? null);
-            $pRol = $this->cadena($pCols['personal_rol'] ?? null);
-            $nombre = $this->texto($pCols['docente_nombre'] ?? null) ?? $this->cadena($pCols['usuario_nombre'] ?? null);
-            $rol = strtolower($this->cadena($pCols['rol_nombre'] ?? null));
+        if ($filas->isNotEmpty()) {
+            $filasDeApoyo = DB::table('examen_aula_apoyo as apoyo')
+                ->join('examen_aula as asignada', 'asignada.id', '=', 'apoyo.examen_aula_id')
+                ->whereIn('asignada.examen_id', $examenIds)
+                ->orderBy('apoyo.id')
+                ->get(['apoyo.examen_aula_id', 'apoyo.user_id']);
 
-            $info = [
-                'id' => $uId,
-                'nombre' => $nombre,
-                'rol' => $rol,
-            ];
+            foreach ($filasDeApoyo as $fila) {
+                $columnas = $this->columnas($fila);
+                $cuenta = $this->entero($columnas['user_id'] ?? null);
 
-            if ($pRol === 'a_cargo') {
-                $personalPorExamenYAula[$exId][$auId]['a_cargo'] = $info;
-            } elseif ($pRol === 'apoyo') {
-                $personalPorExamenYAula[$exId][$auId]['apoyo'][] = $info;
+                $apoyos[$this->entero($columnas['examen_aula_id'] ?? null)][] = $cuenta;
+                $cuentas[] = $cuenta;
             }
         }
 
-        // Sin personal guardado, el aula queda a cargo de quien registró el
-        // examen (la misma regla con que se guarda).
-        $creadores = [];
-        $creadorFilas = DB::table('examenes as examen')
-            ->join('usuarios as u', 'u.id', '=', 'examen.creado_por')
-            ->leftJoin('docentes as d', 'd.user_id', '=', 'u.id')
-            ->join('roles as r', 'r.id', '=', 'u.role_id')
-            ->whereIn('examen.id', $examenIds)
-            ->get([
-                'examen.id as examen_id',
-                'u.id as usuario_id',
-                'u.nombre as usuario_nombre',
-                'd.nombre_completo as docente_nombre',
-                'r.name as rol_nombre',
-            ]);
-
-        foreach ($creadorFilas as $cFila) {
-            $cCols = $this->columnas($cFila);
-            $creadores[$this->entero($cCols['examen_id'] ?? null)] = [
-                'id' => $this->entero($cCols['usuario_id'] ?? null),
-                'nombre' => $this->texto($cCols['docente_nombre'] ?? null) ?? $this->cadena($cCols['usuario_nombre'] ?? null),
-                'rol' => strtolower($this->cadena($cCols['rol_nombre'] ?? null)),
-            ];
+        foreach ($filas as $fila) {
+            $cuentas[] = $this->entero($this->columnas($fila)['encargado_id'] ?? null);
         }
 
-        $codigosFilas = DB::table('examen_aula_codigos')
-            ->whereIn('examen_id', $examenIds)
-            ->get(['examen_id', 'aula_id', 'codigo']);
-
-        $codigosPorExamenYAula = [];
-        foreach ($codigosFilas as $cFila) {
-            $cCols = $this->columnas($cFila);
-            $codigosPorExamenYAula[$this->entero($cCols['examen_id'] ?? null)][$this->entero($cCols['aula_id'] ?? null)] = $this->cadena($cCols['codigo'] ?? null);
-        }
-
+        $personas = $this->personas(array_values(array_unique($cuentas)));
         $porExamen = [];
 
         foreach ($filas as $fila) {
             $columnas = $this->columnas($fila);
+            $encargadoId = $this->entero($columnas['encargado_id'] ?? null);
             $edificio = $this->texto($columnas['edificio'] ?? null);
             $piso = $this->texto($columnas['piso'] ?? null);
-            $exId = $this->entero($columnas['examen_id'] ?? null);
-            $auId = $this->entero($columnas['aula_id'] ?? null);
+            $apoyo = [];
 
-            /** @var array{id: int, nombre: string, rol?: string}|null $aCargo */
-            $aCargo = $personalPorExamenYAula[$exId][$auId]['a_cargo'] ?? $creadores[$exId] ?? null;
+            foreach ($apoyos[$this->entero($columnas['id'] ?? null)] ?? [] as $cuenta) {
+                if (isset($personas[$cuenta])) {
+                    $apoyo[] = $personas[$cuenta];
+                }
+            }
 
-            /** @var list<array{id: int, nombre: string, rol?: string}> $apoyo */
-            $apoyo = array_values($personalPorExamenYAula[$exId][$auId]['apoyo'] ?? []);
-
-            $codigo = $codigosPorExamenYAula[$exId][$auId] ?? null;
-
-            $porExamen[$exId][] = new AulaDetalleData(
-                aulaId: $auId,
+            $porExamen[$this->entero($columnas['examen_id'] ?? null)][] = new AulaDetalleData(
+                aulaId: $this->entero($columnas['aula_id'] ?? null),
                 nombre: $this->cadena($columnas['nombre'] ?? null),
                 ubicacion: $edificio === null
                     ? null
                     : $edificio.($piso === null || $piso === '' ? '' : ' · '.$piso),
                 edificioId: $this->enteroONulo($columnas['edificio_id'] ?? null),
-                aCargo: $aCargo,
+                encargado: $personas[$encargadoId] ?? new PersonaData($encargadoId, '', false, false),
                 apoyo: $apoyo,
-                codigo: $codigo,
+                usaCodigo: ($columnas['codigo_acceso'] ?? null) !== null,
             );
         }
 
@@ -730,6 +722,33 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         }
 
         return $porExamen;
+    }
+
+    /**
+     * Estudiantes distintos inscritos en los grupos de cada examen: quien
+     * esta en dos grupos cuenta una vez.
+     *
+     * @param  list<int>  $examenIds
+     * @return array<int, int>
+     */
+    private function inscritosPorExamen(array $examenIds): array
+    {
+        $filas = DB::table('examen_grupo as incluido')
+            ->join('inscripciones as inscripcion', 'inscripcion.grupo_id', '=', 'incluido.grupo_id')
+            ->whereIn('incluido.examen_id', $examenIds)
+            ->whereNull('inscripcion.baja_en')
+            ->groupBy('incluido.examen_id')
+            ->selectRaw('incluido.examen_id, count(distinct inscripcion.estudiante_id) as total')
+            ->get();
+
+        $inscritos = [];
+
+        foreach ($filas as $fila) {
+            $columnas = $this->columnas($fila);
+            $inscritos[$this->entero($columnas['examen_id'] ?? null)] = $this->entero($columnas['total'] ?? null);
+        }
+
+        return $inscritos;
     }
 
     /**
@@ -763,54 +782,53 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
     }
 
     /**
-     * Estudiantes distintos inscritos en los grupos de cada examen: quien
-     * esta en dos grupos cuenta una vez.
+     * Los examenes de la lista que tienen alguna fila en `$tabla`.
      *
      * @param  list<int>  $examenIds
-     * @return array<int, int>
+     * @return array<int, true>
      */
-    private function inscritosPorExamen(array $examenIds): array
+    private function conFilas(string $tabla, array $examenIds): array
     {
-        $filas = DB::table('examen_grupo as incluido')
-            ->join('inscripciones as inscripcion', 'inscripcion.grupo_id', '=', 'incluido.grupo_id')
-            ->whereIn('incluido.examen_id', $examenIds)
-            ->groupBy('incluido.examen_id')
-            ->selectRaw('incluido.examen_id, count(distinct inscripcion.estudiante_id) as total')
-            ->get();
+        $con = [];
 
-        $inscritos = [];
-
-        foreach ($filas as $fila) {
-            $columnas = $this->columnas($fila);
-            $inscritos[$this->entero($columnas['examen_id'] ?? null)] = $this->entero($columnas['total'] ?? null);
+        foreach (DB::table($tabla)->whereIn('examen_id', $examenIds)->distinct()->pluck('examen_id') as $id) {
+            $con[$this->entero($id)] = true;
         }
 
-        return $inscritos;
+        return $con;
     }
 
     /**
-     * Habilitados y no habilitados, contando solo a quienes siguen
-     * inscritos en algun grupo del examen.
+     * Habilitados, no habilitados y habilitados con codigo QR, contando
+     * solo a quienes siguen inscritos en algun grupo del examen.
      *
      * @param  list<int>  $examenIds
-     * @return array<int, array{habilitados: int, no_habilitados: int}>
+     * @return array<int, array{habilitados: int, no_habilitados: int, con_codigo: int, sin_aula: int}>
      */
     private function condicionesPorExamen(array $examenIds): array
     {
         $filas = DB::table('habilitaciones as habilitacion')
+            ->leftJoin('codigos_qr as codigo', function (JoinClause $codigo): void {
+                $codigo
+                    ->on('codigo.examen_id', '=', 'habilitacion.examen_id')
+                    ->on('codigo.estudiante_id', '=', 'habilitacion.estudiante_id');
+            })
             ->whereIn('habilitacion.examen_id', $examenIds)
             ->whereExists(function (Builder $inscrito): void {
                 $inscrito->selectRaw('1')
                     ->from('examen_grupo as incluido')
                     ->join('inscripciones as inscripcion', 'inscripcion.grupo_id', '=', 'incluido.grupo_id')
                     ->whereColumn('incluido.examen_id', 'habilitacion.examen_id')
-                    ->whereColumn('inscripcion.estudiante_id', 'habilitacion.estudiante_id');
+                    ->whereColumn('inscripcion.estudiante_id', 'habilitacion.estudiante_id')
+                    ->whereNull('inscripcion.baja_en');
             })
             ->groupBy('habilitacion.examen_id')
             ->selectRaw(
                 'habilitacion.examen_id,
                  sum(case when habilitacion.habilitado then 1 else 0 end) as habilitados,
-                 sum(case when habilitacion.habilitado then 0 else 1 end) as no_habilitados'
+                 sum(case when habilitacion.habilitado then 0 else 1 end) as no_habilitados,
+                 sum(case when habilitacion.habilitado and codigo.id is not null then 1 else 0 end) as con_codigo,
+                 sum(case when habilitacion.habilitado and habilitacion.aula_id is null then 1 else 0 end) as sin_aula'
             )
             ->get();
 
@@ -822,40 +840,12 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
             $condiciones[$this->entero($columnas['examen_id'] ?? null)] = [
                 'habilitados' => $this->entero($columnas['habilitados'] ?? null),
                 'no_habilitados' => $this->entero($columnas['no_habilitados'] ?? null),
+                'con_codigo' => $this->entero($columnas['con_codigo'] ?? null),
+                'sin_aula' => $this->entero($columnas['sin_aula'] ?? null),
             ];
         }
 
         return $condiciones;
-    }
-
-    /**
-     * Cuantos habilitados de cada examen tienen su codigo QR (HU-20). Los
-     * codigos son del modulo Ingreso: se leen por nombre de tabla.
-     *
-     * @param  list<int>  $examenIds
-     * @return array<int, int>
-     */
-    private function codigosQrPorExamen(array $examenIds): array
-    {
-        $filas = DB::table('codigos_qr as codigo')
-            ->join('habilitaciones as habilitacion', function (JoinClause $union): void {
-                $union->on('habilitacion.examen_id', '=', 'codigo.examen_id')
-                    ->on('habilitacion.estudiante_id', '=', 'codigo.estudiante_id');
-            })
-            ->whereIn('codigo.examen_id', $examenIds)
-            ->where('habilitacion.habilitado', true)
-            ->groupBy('codigo.examen_id')
-            ->selectRaw('codigo.examen_id, count(*) as emitidos')
-            ->get();
-
-        $codigos = [];
-
-        foreach ($filas as $fila) {
-            $columnas = $this->columnas($fila);
-            $codigos[$this->entero($columnas['examen_id'] ?? null)] = $this->entero($columnas['emitidos'] ?? null);
-        }
-
-        return $codigos;
     }
 
     /**
@@ -907,80 +897,5 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
     private function minutos(string $hora): int
     {
         return ((int) substr($hora, 0, 2)) * 60 + (int) substr($hora, 3, 2);
-    }
-
-    public function docentesDeGrupos(array $grupoIds): array
-    {
-        if ($grupoIds === []) {
-            return [];
-        }
-
-        $userIds = [];
-        $filas = DB::table('grupos as g')
-            ->join('docentes as d', 'd.id', '=', 'g.docente_id')
-            ->join('usuarios as u', 'u.id', '=', 'd.user_id')
-            ->whereIn('g.id', $grupoIds)
-            ->where('u.is_active', true)
-            ->pluck('d.user_id');
-
-        foreach ($filas as $id) {
-            $userIds[] = $this->entero($id);
-        }
-
-        return array_values(array_unique($userIds));
-    }
-
-    public function usuariosConRolAuxiliar(array $usuarioIds): array
-    {
-        if ($usuarioIds === []) {
-            return [];
-        }
-
-        $userIds = [];
-        $filas = DB::table('usuarios as u')
-            ->join('roles as r', 'r.id', '=', 'u.role_id')
-            ->whereIn('u.id', $usuarioIds)
-            ->where('r.name', 'Auxiliar')
-            ->where('u.is_active', true)
-            ->pluck('u.id');
-
-        foreach ($filas as $id) {
-            $userIds[] = $this->entero($id);
-        }
-
-        return array_values(array_unique($userIds));
-    }
-
-    public function cuentasInactivas(array $usuarioIds): array
-    {
-        if ($usuarioIds === []) {
-            return [];
-        }
-
-        $userIds = [];
-        $filas = DB::table('usuarios')
-            ->whereIn('id', $usuarioIds)
-            ->where('is_active', false)
-            ->pluck('id');
-
-        foreach ($filas as $id) {
-            $userIds[] = $this->entero($id);
-        }
-
-        return array_values(array_unique($userIds));
-    }
-
-    public function todosLosDocentesConCuenta(): array
-    {
-        $userIds = [];
-        $filas = DB::table('docentes')
-            ->whereNotNull('user_id')
-            ->pluck('user_id');
-
-        foreach ($filas as $id) {
-            $userIds[] = $this->entero($id);
-        }
-
-        return array_values(array_unique($userIds));
     }
 }

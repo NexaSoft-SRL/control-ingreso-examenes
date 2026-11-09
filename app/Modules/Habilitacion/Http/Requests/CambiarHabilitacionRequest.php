@@ -11,7 +11,8 @@ use Illuminate\Validation\Rule;
 
 /**
  * «Habilitar» / «Inhabilitar»: sobre una lista de estudiantes o, con
- * `todos`, sobre todo lo que dejan los filtros de la lista.
+ * `todos`, sobre todo lo que dejan los filtros de la lista menos los
+ * `excluidos`.
  */
 final class CambiarHabilitacionRequest extends FormRequest
 {
@@ -42,6 +43,8 @@ final class CambiarHabilitacionRequest extends FormRequest
                 'filtros.aula' => ['nullable', 'integer', 'min:1'],
                 'filtros.condicion' => ['nullable', 'string', Rule::in(FiltroHabilitacionData::CONDICIONES)],
                 'filtros.buscar' => ['nullable', 'string', 'max:100'],
+                'excluidos' => ['sometimes', 'array', 'max:5000'],
+                'excluidos.*' => ['integer', 'min:1'],
             ];
         }
 
@@ -57,8 +60,8 @@ final class CambiarHabilitacionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'habilitado.required' => 'Indica si se habilita o se inhabilita.',
-            'habilitado.boolean' => 'Indica si se habilita o se inhabilita.',
+            'habilitado.required' => 'Falta indicar si se habilita o se inhabilita.',
+            'habilitado.boolean' => 'Falta indicar si se habilita o se inhabilita.',
             'todos.boolean' => 'El indicador «todos» no es válido.',
             'motivo.required' => 'Mínimo 5 caracteres',
             'motivo.string' => 'Mínimo 5 caracteres',
@@ -71,6 +74,10 @@ final class CambiarHabilitacionRequest extends FormRequest
             'estudiantes.*.integer' => 'La selección tiene un estudiante que no es válido.',
             'estudiantes.*.min' => 'La selección tiene un estudiante que no es válido.',
             'filtros.array' => 'Los filtros no son válidos.',
+            'excluidos.array' => 'La selección no es válida.',
+            'excluidos.max' => 'La selección no es válida.',
+            'excluidos.*.integer' => 'La selección no es válida.',
+            'excluidos.*.min' => 'La selección no es válida.',
             'filtros.grupo.integer' => 'El grupo no es válido.',
             'filtros.grupo.min' => 'El grupo no es válido.',
             'filtros.aula.integer' => 'El aula no es válida.',
@@ -91,17 +98,7 @@ final class CambiarHabilitacionRequest extends FormRequest
         $condicion = $this->validated('filtros.condicion');
         $buscar = $this->validated('filtros.buscar');
 
-        $estudiantes = [];
-
-        if (! $todos) {
-            $recibidos = $this->validated('estudiantes');
-
-            foreach (is_array($recibidos) ? $recibidos : [] as $id) {
-                if (is_numeric($id)) {
-                    $estudiantes[] = (int) $id;
-                }
-            }
-        }
+        $estudiantes = $todos ? [] : $this->ids('estudiantes');
 
         return new CambioHabilitacionData(
             habilitado: $habilitado,
@@ -116,6 +113,24 @@ final class CambiarHabilitacionRequest extends FormRequest
                     buscar: is_string($buscar) && trim($buscar) !== '' ? trim($buscar) : null,
                 )
                 : new FiltroHabilitacionData,
+            excluidos: $todos ? $this->ids('excluidos') : [],
         );
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function ids(string $campo): array
+    {
+        $recibidos = $this->validated($campo);
+        $ids = [];
+
+        foreach (is_array($recibidos) ? $recibidos : [] as $id) {
+            if (is_numeric($id)) {
+                $ids[] = (int) $id;
+            }
+        }
+
+        return $ids;
     }
 }

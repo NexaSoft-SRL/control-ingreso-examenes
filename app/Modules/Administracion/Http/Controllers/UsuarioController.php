@@ -118,7 +118,6 @@ final class UsuarioController
             'usuario' => $cuenta->usuario,
             'correo' => $cuenta->correo,
             'rol' => $cuenta->rol,
-            // Los mismos estados que en Docentes.
             'estado' => match (true) {
                 ! $cuenta->activo => 'bloqueado',
                 $cuenta->temporal => 'temporal',

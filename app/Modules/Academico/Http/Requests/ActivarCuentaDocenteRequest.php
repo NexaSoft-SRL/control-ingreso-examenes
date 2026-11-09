@@ -22,9 +22,23 @@ final class ActivarCuentaDocenteRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Empieza y termina con letra o numero, sin separadores seguidos.
+            // Nombre y apellido con un espacio; sin separadores seguidos.
             'usuario' => ['required', 'string', 'max:60', 'regex:'.ProponedorUsuario::FORMATO],
             'correo' => ['sometimes', 'nullable', 'string', 'email', 'max:255'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'usuario.required' => 'Obligatorio',
+            'usuario.regex' => 'Nombre y apellido, separados por un espacio',
+            'usuario.max' => 'Máximo 60 caracteres',
+            'correo.email' => 'Correo no válido',
+            'correo.max' => 'Máximo 255 caracteres',
         ];
     }
 

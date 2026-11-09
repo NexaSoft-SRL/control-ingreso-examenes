@@ -33,7 +33,7 @@ const enlaces = (menu) =>
         .map((e) => e.textContent);
 
 describe('EsquemaApp', () => {
-    it('muestra el nombre, el rol y cerrar sesión arriba y en el menú lateral', () => {
+    it('muestra el nombre, el rol y cerrar sesión arriba, en el teléfono y en escritorio', () => {
         montar('Docente', '/examenes');
 
         expect(screen.getAllByText('Blanco Coca Leticia')).toHaveLength(2);
@@ -45,12 +45,7 @@ describe('EsquemaApp', () => {
         expect(screen.getByText('Estoy en /examenes')).toBeInTheDocument();
     });
 
-    it('la pestaña dice la pantalla, con el mismo título del menú', () => {
-        montar('Docente', '/examenes/nuevo');
-        expect(document.title).toBe('Registrar examen · Control de exámenes');
-    });
-
-    it('el administrador ve las secciones permitidas y tres vistas en la barra', () => {
+    it('el administrador ve sus dos secciones, cuatro vistas en la barra y el resto en «Más»', () => {
         montar('Administrador', '/periodo');
 
         expect(enlaces(menus()[lateral])).toEqual([
@@ -59,16 +54,14 @@ describe('EsquemaApp', () => {
             'Aulas y mapa',
             'Docentes',
             'Padrón',
-            'Reportes de la universidad',
-            'Bitácora de exámenes',
+            'Reportes',
             'Usuarios y roles',
             'Bitácora',
             'Respaldo',
         ]);
         expect(within(menus()[lateral]).getByText('Preparación')).toBeInTheDocument();
-        expect(within(menus()[lateral]).getByText('Docencia')).toBeInTheDocument();
         expect(within(menus()[lateral]).getByText('Sistema')).toBeInTheDocument();
-        expect(enlaces(menus()[inferior])).toEqual(['Período', 'Oferta', 'Docentes', 'Padrón']);
+        expect(enlaces(menus()[inferior])).toEqual(['Período', 'Docentes', 'Padrón', 'Reportes']);
 
         const mas = within(menus()[inferior]).getByRole('button', { name: 'Más' });
         expect(mas).toHaveAttribute('aria-expanded', 'false');
@@ -79,50 +72,54 @@ describe('EsquemaApp', () => {
                 .getAllByRole('link')
                 .map((e) => e.textContent)
         ).toEqual([
+            'OfertaPreparación',
             'Aulas y mapaPreparación',
-            'Reportes de la universidadDocencia',
-            'Bitácora de exámenesDocencia',
             'Usuarios y rolesSistema',
             'BitácoraSistema',
             'RespaldoSistema',
         ]);
 
-        const enlaceBitacora = within(hoja)
-            .getAllByRole('link')
-            .find((enlace) => enlace.getAttribute('href') === '/bitacora');
-        expect(enlaceBitacora).toBeInTheDocument();
-        fireEvent.click(enlaceBitacora);
+        fireEvent.click(within(hoja).getByRole('link', { name: /Bitácora/ }));
         expect(screen.getByText('Estoy en /bitacora')).toBeInTheDocument();
         expect(screen.queryByText('Más', { selector: 'p' })).not.toBeInTheDocument();
     });
 
-    it('el docente ve Reportes en la barra y las vistas restantes en «Más»', () => {
+    it('el docente tiene sus cinco vistas en la barra, sin «Más» ni las ocultas', () => {
         montar('Docente', '/examenes');
 
         expect(enlaces(menus()[lateral])).toEqual([
             'Exámenes',
-            'Reportes',
-            'Bitácora de exámenes',
-            'Mis grupos',
             'En curso',
             'Punto de control',
-            'Mi aula',
+            'Mis grupos',
+            'Reportes',
         ]);
         expect(enlaces(menus()[inferior])).toEqual([
             'Exámenes',
-            'Reportes',
             'En curso',
-            'Punto de control',
+            'Control',
+            'Mis grupos',
+            'Reportes',
         ]);
-        fireEvent.click(within(menus()[inferior]).getByRole('button', { name: 'Más' }));
-        const hoja = screen.getByText('Más', { selector: 'p' }).closest('div').parentElement;
-        expect(
-            within(hoja)
-                .getAllByRole('link')
-                .map((enlace) => enlace.textContent)
-        ).toEqual(['Bitácora de exámenesDocencia', 'Mi aulaExámenes', 'Mis gruposDocencia']);
+        expect(screen.queryByRole('button', { name: 'Más' })).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Habilitación' })).not.toBeInTheDocument();
-        expect(screen.queryByRole('link', { name: 'Registrar examen' })).not.toBeInTheDocument();
+    });
+
+    it('el auxiliar ve Control y Mi aula', () => {
+        montar('Auxiliar', '/ingreso');
+
+        expect(enlaces(menus()[inferior])).toEqual(['Control', 'Mi aula']);
+        expect(screen.getAllByText('Auxiliar')).toHaveLength(2);
+    });
+
+    it('las secciones solo se rotulan cuando la cuenta tiene más de una', () => {
+        const { unmount } = montar('Docente', '/examenes');
+        expect(within(menus()[lateral]).queryByText('Docencia')).not.toBeInTheDocument();
+        unmount();
+
+        montar('Docente', '/periodo', { permisos: ['examenes', 'periodo_oferta'] });
+        expect(within(menus()[lateral]).getByText('Preparación')).toBeInTheDocument();
+        expect(within(menus()[lateral]).getByText('Docencia')).toBeInTheDocument();
     });
 
     it('un rol creado ve las vistas de sus permisos y su nombre de rol tal cual', () => {
@@ -131,7 +128,7 @@ describe('EsquemaApp', () => {
             permisos: ['examenes', 'periodo_oferta'],
         });
 
-        expect(enlaces(menus()[lateral])).toEqual(['Período', 'Oferta', 'Exámenes', 'En curso']);
+        expect(enlaces(menus()[lateral])).toEqual(['Período', 'Oferta', 'Exámenes']);
         expect(screen.getAllByText('Coordinación')).toHaveLength(2);
     });
 
@@ -142,12 +139,18 @@ describe('EsquemaApp', () => {
         expect(enlaces(menus()[lateral])).toEqual(['Bitácora']);
     });
 
+    it('lleva el logo y el nombre de la aplicación', () => {
+        montar('Docente', '/examenes');
+        expect(screen.getAllByRole('img', { name: 'Escudo de la UMSS' })).toHaveLength(2);
+        expect(screen.getByText('Control de exámenes')).toBeInTheDocument();
+    });
+
     it('marca la vista actual y, en una vista oculta, la de la que se viene', () => {
-        const { unmount } = montar('Docente', '/examenes/nuevo?examen=1');
+        const { unmount } = montar('Docente', '/en-curso/aula?examen=1&aula=31');
         within(menus()[lateral])
             .getAllByRole('link')
             .forEach((enlace) => {
-                const actual = enlace.textContent === 'Exámenes';
+                const actual = enlace.textContent === 'En curso';
                 expect(enlace.getAttribute('aria-current')).toBe(actual ? 'page' : null);
             });
         unmount();
@@ -160,18 +163,12 @@ describe('EsquemaApp', () => {
     });
 
     it('solo ofrece las vistas para las que la cuenta tiene permiso', () => {
-        montar('Administrador', '/bitacora', { permisos: ['bitacora', 'usuarios_roles'] });
-        expect(enlaces(menus()[lateral])).toEqual(['Usuarios y roles', 'Bitácora']);
-    });
-
-    it('lleva el logo y el nombre de la aplicación', () => {
-        montar('Docente', '/examenes');
-        expect(screen.getAllByRole('img', { name: 'Escudo de la UMSS' })).toHaveLength(2);
-        expect(screen.getByText('Control de exámenes')).toBeInTheDocument();
+        montar('Administrador', '/bitacora', { permisos: ['bitacora', 'respaldo_restauracion'] });
+        expect(enlaces(menus()[lateral])).toEqual(['Bitácora', 'Respaldo']);
     });
 
     it('cerrar sesión llama a salir y lleva al acceso', async () => {
-        const { sesion } = montar('Docente', '/examenes');
+        const { sesion } = montar('Auxiliar', '/ingreso');
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Cerrar sesión' })[0]);
         await waitFor(() => expect(screen.getByText('Estoy en /login')).toBeInTheDocument());

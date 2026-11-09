@@ -40,7 +40,10 @@ final readonly class CambiarHabilitacion
         $this->habilitaciones->aplicarPlazosDeFoto($examenId, now()->toDateString());
 
         if ($cambio->todos) {
-            $estudiantes = $this->habilitaciones->estudiantesFiltrados($examenId, $cambio->filtros);
+            $estudiantes = array_values(array_diff(
+                $this->habilitaciones->estudiantesFiltrados($examenId, $cambio->filtros),
+                $cambio->excluidos,
+            ));
         } else {
             $estudiantes = array_values(array_unique($cambio->estudiantes));
 

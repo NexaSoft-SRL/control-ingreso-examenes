@@ -13,7 +13,7 @@ use Illuminate\Support\Carbon;
  * y nadie mas la ve.
  *
  * @property int $id
- * @property int|null $usuario_id
+ * @property int|null $user_id
  * @property string $texto
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -26,7 +26,7 @@ final class PlantillaNorma extends Model
      * @var list<string>
      */
     protected $fillable = [
-        'usuario_id',
+        'user_id',
         'texto',
     ];
 
@@ -36,12 +36,12 @@ final class PlantillaNorma extends Model
     protected function casts(): array
     {
         return [
-            'usuario_id' => 'integer',
+            'user_id' => 'integer',
         ];
     }
 
     public function esPredefinida(): bool
     {
-        return $this->usuario_id === null;
+        return $this->user_id === null;
     }
 }

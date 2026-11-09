@@ -95,26 +95,28 @@ final class ValidacionDeArchivoTest extends TestCase
 
     // --- Criterio 9: columnas en otro orden ---
 
-    public function test_a_header_in_another_order_is_rejected_with_the_expected_order(): void
+    public function test_a_header_in_another_order_is_read_by_the_column_names(): void
     {
-        $respuesta = $this->cargar([
+        $this->cargar([
             'apellidos,nombres,codigo_universitario,documento_identidad',
             'Alvarado Claros,Kevin René,202104821,7928194',
-        ]);
+        ])->assertOk();
 
-        $this->assertRechazado($respuesta, 'ORDEN_DE_COLUMNAS')
-            ->assertJsonPath('orden_esperado', self::COLUMNAS)
-            ->assertJsonMissingPath('columnas');
+        $this->assertDatabaseHas('estudiantes', [
+            'codigo_universitario' => '202104821',
+            'documento_identidad' => '7928194',
+            'apellidos' => 'Alvarado Claros',
+        ]);
     }
 
     public function test_the_header_is_recognized_with_accents_capitals_and_short_names(): void
     {
-        $respuesta = $this->cargar([
+        $this->cargar([
             'CI;Código SIS;Nombres;Apellidos',
             '7928194;202104821;Kevin René;Alvarado Claros',
-        ]);
+        ])->assertOk();
 
-        $this->assertRechazado($respuesta, 'ORDEN_DE_COLUMNAS');
+        $this->assertDatabaseHas('estudiantes', ['codigo_universitario' => '202104821', 'documento_identidad' => '7928194']);
     }
 
     public function test_without_header_a_code_out_of_the_first_column_is_another_order(): void
@@ -138,16 +140,17 @@ final class ValidacionDeArchivoTest extends TestCase
         $this->assertRechazado($respuesta, 'ORDEN_DE_COLUMNAS');
     }
 
-    public function test_the_faculty_load_checks_the_order_of_its_columns(): void
+    public function test_the_faculty_load_reads_its_columns_by_name(): void
     {
         $this->ofertaDeFacultad();
+        $this->grupo(null, $this->asignatura('Álgebra I', '2008019'), '1');
 
-        $respuesta = $this->cargarFacultad([
+        $this->cargarFacultad([
             'codigo_universitario,documento_identidad,nombres,apellidos,grupo,codigo_asignatura',
             '202104821,7928194,Kevin René,Alvarado Claros,1,2008019',
-        ]);
-
-        $this->assertRechazado($respuesta, 'ORDEN_DE_COLUMNAS');
+        ])
+            ->assertOk()
+            ->assertJsonPath('resumen.rechazados', 0);
     }
 
     public function test_the_expected_order_with_other_header_names_and_extra_columns_loads(): void

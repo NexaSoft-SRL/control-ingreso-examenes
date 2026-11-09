@@ -1,0 +1,104 @@
+% Ficha HU-11 del sprint 2 rehecho. Una historia = una vista completa: las
+% aulas y los edificios importados, en lista y en mapa.
+% Tipo: mejora de HU-06. La ficha anterior queda en sprint2/v1/.
+\def\HUNro{11}
+\def\HUSprint{2}
+\def\HUTitulo{Administración > Aulas y mapa > Consultar aulas y edificios}
+\def\HUModulo{M2}
+\def\HUReq{2, 10}
+\def\HUPuntos{5}
+
+\def\HUComo{administrador}
+\def\HUQuiero{consultar las aulas y los edificios importados, por facultad, en una lista
+y en el mapa del campus}
+\def\HUPara{comprobar que cada aula quedó con su edificio y su piso antes de que los
+docentes las elijan para sus exámenes, y poder indicar dónde queda cualquiera de ellas}
+
+\def\HUDescripcion{%
+El sistema le dice a cada estudiante a qué aula va. Para que eso sirva, el aula tiene
+que estar bien ubicada: en qué edificio, en qué piso y en qué parte del campus. Esta
+vista le permite al administrador revisar lo que trajo la importación antes de que los
+docentes lo usen.
+
+La vista muestra el campus completo o una sola facultad, y cada facultad conserva su
+color. A un lado va el mapa, con los edificios dibujados; al otro, la lista, que alterna
+entre edificios y aulas y se busca por el nombre de cualquiera de los dos. Elegir un
+edificio ---en el mapa o en la lista, también con el teclado--- lo resalta y abre su
+detalle, con las aulas agrupadas por piso. Elegir un aula en la lista lleva a su edificio
+y la deja marcada.
+
+Reglas: el aula es un dato de ubicación y no lleva capacidad, porque ninguna fuente la
+publica y el reparto de estudiantes no la usa. La vista es de consulta: no se crean,
+editan ni eliminan aulas desde aquí; lo que cambia, cambia al reimportar. Las aulas que
+la fuente no ubica en ningún edificio no se dibujan en el mapa.
+
+La vista depende de la importación de la oferta (HU-10), que es la que trae edificios y
+aulas. El mismo mapa lo reutilizan el registro de exámenes (HU-08), para elegir aulas, y
+el punto de control (HU-19), para indicarle a un estudiante dónde queda la suya.
+
+Esta historia mejora la gestión de aulas del sprint 1 (HU-06). Allí cada aula se
+registraba a mano, una por una, en un formulario. Ahora las aulas llegan por importación
+con su edificio, su piso y su ubicación, se consultan también en el mapa y no llevan
+capacidad.}
+
+\def\HUCriterios{%
+\item Dado que el administrador abre Aulas y mapa, Cuando se carga la vista, Entonces el
+      sistema muestra el campus completo: el mapa con los edificios en el color de su
+      facultad, la leyenda de facultades y el total de edificios y de aulas.
+\item Dado que el administrador elige una facultad, Cuando se aplica el filtro, Entonces
+      el mapa, las listas y los totales se limitan a esa facultad, y cada opción del
+      filtro muestra cuántas aulas tiene.
+\item Dado que está activa la pestaña «Edificios», Cuando se muestra la lista, Entonces
+      cada edificio aparece con su facultad y su cantidad de aulas, de a 12 por página.
+\item Dado que está activa la pestaña «Aulas», Cuando se muestra la lista, Entonces cada
+      aula aparece con su edificio, su facultad y su piso, en orden natural por nombre
+      y de a 12 por página.
+\item Dado que el administrador escribe en el buscador el nombre de un edificio o de un
+      aula, Cuando se aplica, Entonces las dos listas muestran solo las coincidencias,
+      cada edificio indica cuáles de sus aulas coinciden y, si no hay ninguna, se muestra
+      «Sin resultados».
+\item Dado que el administrador elige un edificio en la lista o en el mapa, Cuando lo
+      hace, Entonces el edificio queda resaltado en el mapa y se abre su detalle con el
+      nombre, la facultad y la cantidad de aulas.
+\item Dado que el edificio elegido tiene pisos conocidos, Cuando se muestra su detalle,
+      Entonces las aulas aparecen agrupadas por piso; si no se conocen los pisos, aparecen
+      en un solo grupo, y si no tiene aulas, «Sin aulas».
+\item Dado que el administrador elige un aula en la lista, Cuando lo hace, Entonces se
+      selecciona su edificio y el aula queda marcada dentro del detalle.
+\item Dado que hay un edificio elegido, Cuando el administrador pulsa «Quitar selección»,
+      vuelve a pulsar el edificio o cambia de facultad, Entonces el detalle se cierra y
+      el mapa deja de resaltarlo.
+\item Dado que se muestra un aula en cualquier parte de la vista, Cuando se lee su fila,
+      Entonces figuran su nombre, edificio, piso y facultad, y no existe ningún dato de
+      capacidad.
+\item Dado que las aulas provienen de la importación, Cuando el administrador recorre la
+      vista, Entonces no encuentra acciones para crear, editar ni eliminar aulas, y tras
+      reimportar la oferta ve los datos actualizados.
+\item Dado que el administrador navega solo con el teclado, Cuando recorre la lista de
+      edificios y elige uno, Entonces obtiene lo mismo que al pulsarlo en el mapa.
+\item Dado que un rol no tiene el permiso de aulas y docentes, Cuando intenta abrir la
+      vista, Entonces recibe una negativa explícita; y sin sesión iniciada la consulta se
+      rechaza.
+\item Dado que el administrador accede desde un dispositivo móvil, Cuando elige un
+      edificio, Entonces la pantalla se desplaza hasta su detalle, y el mapa y las listas
+      se adaptan de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{AulasEdificiosTest}: edificios completos con su polígono, sus aulas y sus
+      pisos, filtro por facultad y facultad desconocida (criterios 1, 2, 3 y 7).
+\item \texttt{AulasEdificiosTest}: aulas en orden natural con edificio y piso, filtro por
+      facultad y por estar ubicadas (criterios 4 y 10).
+\item \texttt{PeriodosTest}: las facultades llegan en orden de catálogo con su cantidad
+      de edificios y de aulas (criterio 2).
+\item \texttt{ImportarUbicacionesTest}: edificios y aulas guardados con su ubicación, y
+      volver a importar no duplica (criterio 11).
+\item \texttt{AulasEdificiosTest} y \texttt{RolesDelSistemaTest}: consulta sin sesión y
+      rol sin acceso a una pantalla de administración (criterio 13).
+\item \texttt{MapaCampus.test.jsx}, \texttt{FiltroFacultad.test.jsx} y
+      \texttt{usarEdificios.test.jsx}: componentes compartidos del mapa, del filtro por
+      facultad y de la carga de edificios (criterios 1, 2 y 6).
+\item \texttt{Aulas.test.jsx} (por escribir): pestañas, búsqueda, detalle por piso, aula
+      marcada, quitar selección, uso con teclado y ausencia de acciones de edición
+      (criterios 3 a 9, 11, 12 y 14).}
+
+\input{cuerpo}

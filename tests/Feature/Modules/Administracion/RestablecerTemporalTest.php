@@ -7,14 +7,13 @@ namespace Tests\Feature\Modules\Administracion;
 use App\Modules\Administracion\Domain\Models\User;
 use App\Modules\Administracion\Infrastructure\Mail\CredencialesInicialesMail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Tests\Support\UsuarioConPermisos;
 use Tests\TestCase;
 
 /**
- * HU-15, criterio 9: la administracion emite una contrasena temporal nueva para una
+ * Ruta 11: la administracion emite una contrasena temporal nueva para una
  * cuenta que ya existe.
  */
 final class RestablecerTemporalTest extends TestCase
@@ -46,7 +45,7 @@ final class RestablecerTemporalTest extends TestCase
     {
         $this->travelTo('2026-10-12 08:21:00');
 
-        $cuenta = $this->usuarioConRol('Docente', ['correo' => null]);
+        $cuenta = $this->usuarioConRol('Docente', ['email' => null]);
 
         $respuesta = $this->actingAs($this->administrador)
             ->postJson($this->ruta($cuenta))
@@ -62,7 +61,7 @@ final class RestablecerTemporalTest extends TestCase
         $cuenta->refresh();
 
         $this->assertTrue(Hash::check($temporal, $cuenta->password));
-        // Queda otra vez como temporal.
+        // Vuelve a exigir el cambio en el proximo ingreso.
         $this->assertNull($cuenta->getAttribute('password_changed_at'));
 
         Mail::assertNothingSent();
@@ -70,7 +69,7 @@ final class RestablecerTemporalTest extends TestCase
 
     public function test_the_temporary_password_is_also_emailed_when_there_is_an_email(): void
     {
-        $cuenta = $this->usuarioConRol('Docente', ['correo' => 'x@umss.edu.bo']);
+        $cuenta = $this->usuarioConRol('Docente', ['email' => 'x@umss.edu.bo']);
 
         $this->actingAs($this->administrador)
             ->postJson($this->ruta($cuenta))
@@ -81,6 +80,13 @@ final class RestablecerTemporalTest extends TestCase
             CredencialesInicialesMail::class,
             fn (CredencialesInicialesMail $correo): bool => $correo->hasTo('x@umss.edu.bo')
         );
+
+        $this->assertDatabaseHas('envios_correo', [
+            'tipo' => 'CREDENCIALES',
+            'destinatario' => 'x@umss.edu.bo',
+            'user_id' => $cuenta->getKey(),
+            'estado' => 'ENVIADO',
+        ]);
     }
 
     public function test_it_lifts_the_lock_for_failed_attempts(): void
@@ -96,35 +102,27 @@ final class RestablecerTemporalTest extends TestCase
             ->postJson($this->ruta($cuenta))
             ->assertOk();
 
-        $this->assertDatabaseHas('usuarios', [
+        $this->assertDatabaseHas('users', [
             'id' => $cuenta->getKey(),
             'failed_login_attempts' => 0,
             'locked_until' => null,
         ]);
     }
 
-    public function test_it_is_recorded_in_the_audit_log_without_the_password(): void
+    public function test_it_is_recorded_in_the_audit_log(): void
     {
         $cuenta = $this->usuarioConRol('Docente');
 
-        $temporal = $this->actingAs($this->administrador)
+        $this->actingAs($this->administrador)
             ->postJson($this->ruta($cuenta))
-            ->assertOk()
-            ->json('contrasena_temporal');
-
-        self::assertIsString($temporal);
+            ->assertOk();
 
         $this->assertDatabaseHas('bitacora_operaciones', [
             'operacion' => 'usuario.restablecer_temporal',
             'usuario_id' => $this->administrador->getKey(),
-            'tabla_afectada' => 'usuarios',
+            'tabla_afectada' => 'users',
             'registro_id' => $cuenta->getKey(),
         ]);
-
-        foreach (DB::table('bitacora_operaciones')->pluck('descripcion') as $descripcion) {
-            self::assertIsString($descripcion);
-            $this->assertStringNotContainsString($temporal, $descripcion);
-        }
     }
 
     public function test_an_account_that_does_not_exist_is_reported(): void

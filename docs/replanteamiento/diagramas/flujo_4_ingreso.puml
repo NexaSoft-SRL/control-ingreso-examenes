@@ -1,0 +1,67 @@
+' Flujo 4: ingreso en la puerta.
+@startuml flujo_4_ingreso
+skinparam shadowing false
+skinparam defaultFontName "Helvetica Neue"
+skinparam ActivityBackgroundColor White
+skinparam ActivityBorderColor #1168BD
+skinparam ActivityBorderThickness 1.5
+skinparam ArrowColor #444444
+skinparam SwimlaneBorderColor #BBBBBB
+skinparam NoteBackgroundColor #FFF6E5
+skinparam NoteBorderColor #E8820C
+title Flujo 4 · Ingreso en la puerta
+
+|Estudiante|
+start
+:Llega al aula y presenta su QR,\nsu código o su documento;
+
+|Personal de control|
+:Lee el QR con la cámara\no teclea el código o documento;
+
+|Sistema|
+if (¿Reconoce al estudiante?) then (no)
+  :Avisa «no está en el padrón»;
+  |Personal de control|
+  :Registra la situación excepcional;
+  stop
+else (sí)
+endif
+|Sistema|
+if (¿Está inscrito en un grupo\nde este examen?) then (no)
+  :Registra el intento de ingreso\nque no corresponde;
+  :Indica qué examen le corresponde,\nsi tiene uno a esa hora;
+  stop
+else (sí)
+endif
+if (¿Está habilitado?) then (no)
+  :Rechaza y muestra el motivo\ny quién lo registró;
+  stop
+else (sí)
+endif
+if (¿Ya ingresó?) then (sí)
+  :Rechaza y muestra la hora\ndel ingreso original;
+  stop
+else (no)
+endif
+if (¿Es su aula?) then (no)
+  :Advierte y muestra su aula:\nedificio, piso y mapa;
+  |Personal de control|
+  if (¿Lo deja pasar aquí?) then (sí, con motivo)
+    :Registra el cambio de aula\ncomo situación excepcional;
+  else (no)
+    :Lo envía a su aula;
+    stop
+  endif
+else (sí)
+endif
+|Sistema|
+:Registra el ingreso con la hora del servidor;
+:Actualiza el monitoreo en tiempo real;
+
+|Personal de control|
+:Ve la confirmación y las normas del examen;
+
+|Estudiante|
+:Ingresa;
+stop
+@enduml

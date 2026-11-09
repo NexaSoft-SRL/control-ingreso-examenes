@@ -41,45 +41,18 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
 
     public function condicionDe(int $examenId, int $estudianteId): ?HabilitacionData
     {
-        // Sin foto y con el plazo de su grupo vencido no pasa, aunque la
-        // lista no se haya vuelto a abrir desde que vencio.
-        $sinFoto = $this->sinFotoVencida($examenId, now()->toDateString())
-            ->where('inscripcion.estudiante_id', $estudianteId)
-            ->leftJoin('usuarios as autor', 'autor.id', '=', 'plazo.fijado_por')
-            ->orderBy('plazo.hasta')
-            ->first(['plazo.fijado_por', 'autor.nombre as autor_nombre', 'plazo.hasta']);
-
-        if ($sinFoto !== null) {
-            $columnas = $this->columnas($sinFoto);
-
-            return new HabilitacionData(
-                examenId: $examenId,
-                estudianteId: $estudianteId,
-                habilitado: false,
-                aulaId: null,
-                aulaNombre: null,
-                motivo: self::MOTIVO_SIN_FOTO,
-                registradaPorId: $this->enteroONulo($columnas['fijado_por'] ?? null),
-                registradaPor: $this->texto($columnas['autor_nombre'] ?? null),
-                registradaEn: null,
-            );
-        }
-
-        // La que puso el sistema por la foto ya no vale: la subio o se
-        // movio el plazo.
         $fila = DB::table('habilitaciones as habilitacion')
             ->leftJoin('aulas as aula', 'aula.id', '=', 'habilitacion.aula_id')
-            ->leftJoin('usuarios as autor', 'autor.id', '=', 'habilitacion.registrada_por')
+            ->leftJoin('users as autor', 'autor.id', '=', 'habilitacion.registrada_por')
             ->where('habilitacion.examen_id', $examenId)
             ->where('habilitacion.estudiante_id', $estudianteId)
-            ->where('habilitacion.por_foto', false)
             ->select([
                 'habilitacion.habilitado',
                 'habilitacion.aula_id',
                 'aula.nombre as aula_nombre',
                 'habilitacion.motivo',
                 'habilitacion.registrada_por',
-                'autor.nombre as autor_nombre',
+                'autor.name as autor_nombre',
                 'habilitacion.updated_at',
                 'habilitacion.created_at',
             ])
@@ -123,9 +96,9 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
     ): array {
         $filas = $this->filtrada($examenId, $filtros)
             ->leftJoin('aulas as aula', 'aula.id', '=', 'habilitacion.aula_id')
-            ->leftJoin('usuarios as autor', 'autor.id', '=', 'habilitacion.registrada_por')
-            ->orderBy('estudiante.apellidos')
-            ->orderBy('estudiante.nombres')
+            ->leftJoin('users as autor', 'autor.id', '=', 'habilitacion.registrada_por')
+            ->orderByRaw("translate(lower(estudiante.apellidos), 'áéíóúüñ', 'aeiouun')")
+            ->orderByRaw("translate(lower(estudiante.nombres), 'áéíóúüñ', 'aeiouun')")
             ->orderBy('estudiante.id')
             ->forPage($pagina, $porPagina)
             ->select([
@@ -140,7 +113,7 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                 'habilitacion.habilitado',
                 'habilitacion.motivo',
                 'habilitacion.updated_at as registrada_el',
-                'autor.nombre as autor_nombre',
+                'autor.name as autor_nombre',
                 'aula.nombre as aula_nombre',
             ])
             ->get();
@@ -283,6 +256,7 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                 ->join('inscripciones as inscripcion', 'inscripcion.grupo_id', '=', 'incluido.grupo_id')
                 ->where('incluido.examen_id', $examenId)
                 ->whereIn('inscripcion.estudiante_id', $lote)
+                ->whereNull('inscripcion.baja_en')
                 ->distinct()
                 ->count('inscripcion.estudiante_id');
         }
@@ -316,16 +290,32 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
             return;
         }
 
-        DB::transaction(function () use ($examenId, $hoy): void {
-            // Las que puso el sistema y ya no corresponden: subio la foto o
-            // el docente movio el plazo. Vuelven a «sin revisar».
-            DB::table('habilitaciones')
-                ->where('examen_id', $examenId)
-                ->where('por_foto', true)
-                ->whereNotIn('estudiante_id', $this->sinFotoVencida($examenId, $hoy)->select('inscripcion.estudiante_id'))
-                ->delete();
+        // El plazo general de fotos que fijo la administracion (el ultimo):
+        // vencido, nadie sin foto pasa.
+        $plazo = DB::table('plazos_foto')->orderByDesc('id')->first(['hasta', 'fijado_por']);
+        $columnasPlazo = $plazo === null ? [] : $this->columnas($plazo);
+        $hasta = $this->texto($columnasPlazo['hasta'] ?? null);
+        $vencido = $hasta !== null && substr($hasta, 0, 10) < $hoy;
+        $fijadoPor = $this->enteroONulo($columnasPlazo['fijado_por'] ?? null);
 
-            $faltan = $this->sinFotoVencida($examenId, $hoy)
+        DB::transaction(function () use ($examenId, $vencido, $fijadoPor): void {
+            // Las que puso el sistema y ya no corresponden: subio la foto o
+            // la administracion movio el plazo. Vuelven a «sin revisar».
+            $yaNo = DB::table('habilitaciones')
+                ->where('examen_id', $examenId)
+                ->where('por_foto', true);
+
+            if ($vencido) {
+                $yaNo->whereNotIn('estudiante_id', $this->sinFoto($examenId)->select('inscripcion.estudiante_id'));
+            }
+
+            $yaNo->delete();
+
+            if (! $vencido) {
+                return;
+            }
+
+            $faltan = $this->sinFoto($examenId)
                 ->whereNotExists(function (Builder $condicion) use ($examenId): void {
                     // Ni las que ya puso, ni las que puso un docente a mano.
                     $condicion->from('habilitaciones as habilitacion')
@@ -333,15 +323,8 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                         ->where('habilitacion.examen_id', $examenId)
                         ->where('habilitacion.habilitado', false);
                 })
-                ->whereNotExists(function (Builder $ingreso) use ($examenId): void {
-                    // Quien ya entro queda como estaba.
-                    $ingreso->from('ingresos')
-                        ->whereColumn('ingresos.estudiante_id', 'inscripcion.estudiante_id')
-                        ->where('ingresos.examen_id', $examenId);
-                })
-                ->selectRaw('distinct on (inscripcion.estudiante_id) inscripcion.estudiante_id, coalesce(plazo.fijado_por, general.fijado_por) as fijado_por')
-                ->orderBy('inscripcion.estudiante_id')
-                ->orderByRaw('coalesce(plazo.hasta, general.hasta)')
+                ->select('inscripcion.estudiante_id')
+                ->distinct()
                 ->get();
 
             if ($faltan->isEmpty()) {
@@ -352,7 +335,7 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
 
             foreach ($faltan->chunk(self::LOTE) as $lote) {
                 DB::table('habilitaciones')->upsert(
-                    $lote->map(function (object $fila) use ($examenId, $ahora): array {
+                    $lote->map(function (object $fila) use ($examenId, $ahora, $fijadoPor): array {
                         $columnas = $this->columnas($fila);
 
                         return [
@@ -362,7 +345,7 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                             'aula_id' => null,
                             'motivo' => self::MOTIVO_SIN_FOTO,
                             'por_foto' => true,
-                            'registrada_por' => $this->enteroONulo($columnas['fijado_por'] ?? null),
+                            'registrada_por' => $fijadoPor,
                             'created_at' => $ahora,
                             'updated_at' => $ahora,
                         ];
@@ -377,11 +360,7 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                 'habilitacion.sin_foto',
                 'habilitaciones',
                 $examenId,
-                sprintf(
-                    '%d estudiante(s) inhabilitado(s) en el examen %d por no subir su foto a tiempo.',
-                    $faltan->count(),
-                    $examenId,
-                ),
+                sprintf('%d estudiante(s) inhabilitado(s) en el examen %d por no subir su foto hasta el plazo general.', $faltan->count(), $examenId),
             );
         }, 3);
     }
@@ -398,6 +377,8 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
         return $this->entero(DB::transaction(function () use ($examenId, $estudianteIds, $usuarioId): int {
             $yaHabilitados = [];
 
+            // Tampoco a quien el sistema inhabilito por la foto: lo habilita
+            // subirla.
             foreach (array_chunk($estudianteIds, self::LOTE) as $lote) {
                 $yaHabilitados = [
                     ...$yaHabilitados,
@@ -405,8 +386,6 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                         DB::table('habilitaciones')
                             ->where('examen_id', $examenId)
                             ->where(function (Builder $fila): void {
-                                // Tampoco a quien inhabilito el sistema por
-                                // la foto: lo habilita subirla.
                                 $fila->where('habilitado', true)->orWhere('por_foto', true);
                             })
                             ->whereIn('estudiante_id', $lote)
@@ -523,6 +502,7 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
             ->join('inscripciones as inscripcion', 'inscripcion.grupo_id', '=', 'incluido.grupo_id')
             ->join('grupos as grupo', 'grupo.id', '=', 'incluido.grupo_id')
             ->where('incluido.examen_id', $examenId)
+            ->whereNull('inscripcion.baja_en')
             ->selectRaw(
                 'distinct on (inscripcion.estudiante_id) '
                 .'inscripcion.estudiante_id, grupo.id as grupo_id, grupo.codigo as grupo'
@@ -542,27 +522,23 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
     }
 
     /**
-     * Los inscritos sin foto de los grupos del examen cuyo plazo de fotos ya
-     * vencio. Los plazos los fija solo la administracion: el del grupo
-     * (`plazos_foto_grupo`) si le puso uno, y si no el general (`plazos_foto`,
-     * el ultimo).
+     * Los inscritos sin foto de los grupos del examen, sin ingreso al
+     * examen.
      */
-    private function sinFotoVencida(int $examenId, string $hoy): Builder
+    private function sinFoto(int $examenId): Builder
     {
-        $general = DB::table('plazos_foto')
-            ->orderByDesc('id')
-            ->limit(1)
-            ->select(['hasta', 'fijado_por']);
-
         return DB::table('examen_grupo as incluido')
-            ->leftJoin('plazos_foto_grupo as plazo', 'plazo.grupo_id', '=', 'incluido.grupo_id')
-            ->leftJoinSub($general, 'general', static fn (JoinClause $union) => $union->on(DB::raw('1'), '=', DB::raw('1')))
             ->join('inscripciones as inscripcion', 'inscripcion.grupo_id', '=', 'incluido.grupo_id')
             ->join('estudiantes as estudiante', 'estudiante.id', '=', 'inscripcion.estudiante_id')
             ->where('incluido.examen_id', $examenId)
-            ->whereRaw('coalesce(plazo.hasta, general.hasta) < ?', [$hoy])
+            ->whereNull('inscripcion.baja_en')
             ->where(function (Builder $sinFoto): void {
                 $sinFoto->whereNull('estudiante.foto')->orWhere('estudiante.foto', '');
+            })
+            ->whereNotExists(function (Builder $ingreso) use ($examenId): void {
+                $ingreso->from('ingresos')
+                    ->whereColumn('ingresos.estudiante_id', 'inscripcion.estudiante_id')
+                    ->where('ingresos.examen_id', $examenId);
             });
     }
 

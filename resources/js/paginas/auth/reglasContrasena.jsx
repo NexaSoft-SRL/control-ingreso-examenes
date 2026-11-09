@@ -1,8 +1,8 @@
 import PropTypes from 'prop-types';
 import { Check, X } from 'lucide-react';
 
-// La regla de la contraseña propia, la misma del servidor (ReglasContrasena):
-// 10 caracteres, mayúscula, minúscula y número.
+// La regla de la contraseña propia (ruta 4 del contrato): 10 caracteres,
+// mayúscula, minúscula y número.
 export const REGLAS = [
     ['10 caracteres o más', (v) => v.length >= 10],
     ['Mayúscula y minúscula', (v) => /[a-z]/.test(v) && /[A-Z]/.test(v)],

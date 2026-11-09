@@ -7,17 +7,13 @@ namespace App\Modules\Ingreso\Infrastructure\Persistence;
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaGateway;
 use App\Modules\Ingreso\Application\DTOs\NuevaIncidenciaData;
+use App\Modules\Ingreso\Domain\Enums\CausaIntento;
 use App\Modules\Ingreso\Domain\Enums\OrigenIncidencia;
 use App\Modules\Ingreso\Domain\Enums\TipoIncidencia;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
-/**
- * Las incidencias en un solo modelo (`incidencias`). Las del sistema son
- * los intentos que rechaza la puerta: solo el ingreso repetido se lista y
- * se atiende; el resto alimenta los informes de intentos.
- */
 final class EloquentIncidenciaGateway implements IncidenciaGateway
 {
     use LeeFilas;
@@ -31,7 +27,8 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
     public function registrar(NuevaIncidenciaData $datos, ?string $operacion = null): ?int
     {
         try {
-            return DB::transaction(function () use ($datos, $operacion): int {
+            /** @var int $id */
+            $id = DB::transaction(function () use ($datos, $operacion): int {
                 $ahora = now();
 
                 $id = DB::table('incidencias')->insertGetId([
@@ -43,10 +40,11 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
                     'tipo' => $datos->tipo->value,
                     'origen' => $datos->origen->value,
                     'causa' => $datos->causa?->value,
-                    'detalle' => trim($datos->detalle),
+                    'examen_correspondiente_id' => $datos->examenCorrespondienteId,
+                    'detalle' => $datos->detalle,
                     'ocurrida_en' => $ahora,
                     'reportada_por' => $datos->operador->usuarioId,
-                    'acceso_codigo_aula_id' => $datos->operador->accesoId,
+                    'acceso_aula_id' => $datos->operador->accesoAulaId,
                     'created_at' => $ahora,
                     'updated_at' => $ahora,
                 ]);
@@ -64,11 +62,10 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
                             $datos->tipo->etiqueta(),
                             $this->dondeOcurrio($datos->examenId, $datos->aulaId),
                             $datos->estudianteTexto === null ? '' : ' · '.$datos->estudianteTexto,
-                            $datos->operador->esAcceso()
-                                ? sprintf(', con código de aula (%s)', $datos->operador->nombre ?? '—')
-                                : '',
-                            trim($datos->detalle),
+                            $datos->operador->esAcceso() ? ', con código de aula' : '',
+                            $datos->detalle,
                         ),
+                        $datos->operador->esAcceso() ? ($datos->operador->nombre ?? 'Código de aula') : null,
                     );
                 }
 
@@ -76,7 +73,7 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
             }, 3);
         } catch (QueryException $error) {
             if (
-                ($error->errorInfo[0] ?? null) === '23505'
+                $error->getCode() === '23505'
                 && str_contains($error->getMessage(), self::UNICO_EXPULSION)
             ) {
                 return null;
@@ -84,14 +81,19 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
 
             throw $error;
         }
+
+        return $id;
     }
 
-    public function listar(int $examenId, ?array $aulas, bool $soloSinAtender): array
+    /**
+     * @return array{data: list<array<string, mixed>>, sin_atender: int, todas: int}
+     */
+    public function listar(int $examenId, ?int $aulaId, bool $soloSinAtender): array
     {
         $base = $this->consulta()->where('incidencia.examen_id', $examenId);
 
-        if ($aulas !== null) {
-            $base->whereIn('incidencia.aula_id', $aulas === [] ? [0] : $aulas);
+        if ($aulaId !== null) {
+            $base->where('incidencia.aula_id', $aulaId);
         }
 
         $todas = (clone $base)->count();
@@ -112,6 +114,9 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
         return ['data' => $data, 'sin_atender' => $sinAtender, 'todas' => $todas];
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function reportada(int $incidenciaId): ?array
     {
         $fila = $this->consulta()->where('incidencia.id', $incidenciaId)->first();
@@ -121,7 +126,8 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
 
     public function atender(int $incidenciaId, int $usuarioId): bool
     {
-        return DB::transaction(function () use ($incidenciaId, $usuarioId): bool {
+        /** @var bool $atendida */
+        $atendida = DB::transaction(function () use ($incidenciaId, $usuarioId): bool {
             $ahora = now();
 
             // Atomico: de dos que atienden a la vez, uno solo la cambia.
@@ -138,26 +144,18 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
                 return false;
             }
 
-            $fila = DB::table('incidencias')->where('id', $incidenciaId)->first(['tipo', 'examen_id', 'aula_id']);
-            $columnas = $fila === null ? [] : $this->columnas($fila);
-
             $this->bitacora->registrar(
                 $usuarioId,
                 'incidencia.atender',
                 'incidencias',
                 $incidenciaId,
-                sprintf(
-                    'Atendió: %s%s.',
-                    TipoIncidencia::tryFrom($this->texto($columnas['tipo'] ?? null) ?? '')?->etiqueta() ?? 'Incidencia',
-                    $this->dondeOcurrio(
-                        $this->enteroONulo($columnas['examen_id'] ?? null),
-                        $this->enteroONulo($columnas['aula_id'] ?? null),
-                    ),
-                ),
+                sprintf('Incidencia %d atendida.', $incidenciaId),
             );
 
             return true;
         }, 3);
+
+        return $atendida;
     }
 
     public function corregir(
@@ -174,7 +172,7 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
 
             $cambios = [
                 'tipo' => $tipo->value,
-                'detalle' => trim($detalle),
+                'detalle' => $detalle,
                 'corregida_en' => $ahora,
                 'corregida_por' => $usuarioId,
                 'updated_at' => $ahora,
@@ -194,9 +192,10 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
                 'incidencias',
                 $incidenciaId,
                 sprintf(
-                    'Corrigió: %s · %s%s',
+                    'Incidencia %d corregida: %s. %s%s',
+                    $incidenciaId,
                     $tipo->etiqueta(),
-                    trim($detalle),
+                    $detalle,
                     $evidencias === [] ? '' : sprintf(' (%d %s de evidencia)', count($evidencias), count($evidencias) === 1 ? 'foto' : 'fotos'),
                 ),
             );
@@ -228,55 +227,17 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
         }
     }
 
-    public function evidencia(int $incidenciaId, int $numero = 1): ?string
+    public function repetidoReciente(int $ingresoId, int $aulaId, int $minutos): bool
     {
-        $ruta = DB::table('evidencias_incidencia')
-            ->where('incidencia_id', $incidenciaId)
-            ->where('orden', $numero)
-            ->value('ruta');
-
-        return is_string($ruta) && $ruta !== '' ? $ruta : null;
-    }
-
-    public function estudianteDelExamen(int $examenId, string $identificador): ?int
-    {
-        $valor = trim($identificador);
-        $normalizado = mb_strtoupper(str_replace([' ', '-'], '', $valor));
-
-        $id = DB::table('estudiantes as e')
-            ->where(static function (Builder $donde) use ($valor, $normalizado): void {
-                $donde->where('e.codigo_universitario', $valor)
-                    ->orWhereRaw("upper(replace(replace(e.documento_identidad, ' ', ''), '-', '')) = ?", [$normalizado]);
-            })
-            ->whereExists(static function (Builder $inscrito) use ($examenId): void {
-                $inscrito->selectRaw('1')
-                    ->from('inscripciones as i')
-                    ->join('examen_grupo as eg', 'eg.grupo_id', '=', 'i.grupo_id')
-                    ->whereColumn('i.estudiante_id', 'e.id')
-                    ->where('eg.examen_id', $examenId);
-            })
-            ->orderBy('e.id')
-            ->value('e.id');
-
-        return is_numeric($id) ? (int) $id : null;
-    }
-
-    public function examenTieneAula(int $examenId, int $aulaId): bool
-    {
-        return DB::table('examen_aula')
-            ->where('examen_id', $examenId)
+        return DB::table('incidencias')
+            ->where('tipo', TipoIncidencia::IngresoRepetido->value)
+            ->where('ingreso_id', $ingresoId)
             ->where('aula_id', $aulaId)
+            ->where('ocurrida_en', '>=', now()->subMinutes($minutos))
             ->exists();
     }
 
-    public function fechaDelExamen(int $examenId): ?string
-    {
-        $fecha = DB::table('examenes')->where('id', $examenId)->value('fecha');
-
-        return is_string($fecha) ? substr($fecha, 0, 10) : null;
-    }
-
-    // ' en Cálculo I, aula 691A'; vacio si no hay examen ni aula.
+    // ' en Calculo I, aula 691A'; vacio si no hay examen ni aula.
     private function dondeOcurrio(?int $examenId, ?int $aulaId): string
     {
         $asignatura = $examenId === null ? null : $this->texto(DB::table('examenes')
@@ -291,20 +252,42 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
         ]));
     }
 
+    public function intentoReciente(int $estudianteId, int $aulaId, CausaIntento $causa, int $minutos): bool
+    {
+        return DB::table('incidencias')
+            ->where('origen', OrigenIncidencia::Sistema->value)
+            ->where('estudiante_id', $estudianteId)
+            ->where('aula_id', $aulaId)
+            ->where('causa', $causa->value)
+            ->where('ocurrida_en', '>=', now()->subMinutes($minutos))
+            ->exists();
+    }
+
+    public function evidencia(int $incidenciaId, int $numero = 1): ?string
+    {
+        $ruta = DB::table('evidencias_incidencia')
+            ->where('incidencia_id', $incidenciaId)
+            ->where('orden', $numero)
+            ->value('ruta');
+
+        return is_string($ruta) && $ruta !== '' ? $ruta : null;
+    }
+
     /**
      * Las que reporto una persona y los ingresos repetidos que asienta la
-     * puerta.
+     * puerta: el resto de las del sistema alimenta el reporte de intentos
+     * y no se muestra ni se atiende.
      */
     private function consulta(): Builder
     {
         return DB::table('incidencias as incidencia')
             ->leftJoin('aulas as aula', 'aula.id', '=', 'incidencia.aula_id')
             ->leftJoin('estudiantes as estudiante', 'estudiante.id', '=', 'incidencia.estudiante_id')
-            ->leftJoin('usuarios as autor', 'autor.id', '=', 'incidencia.reportada_por')
+            ->leftJoin('users as autor', 'autor.id', '=', 'incidencia.reportada_por')
             ->leftJoin('roles as rol', 'rol.id', '=', 'autor.role_id')
-            ->leftJoin('accesos_codigo_aula as acceso', 'acceso.id', '=', 'incidencia.acceso_codigo_aula_id')
-            ->leftJoin('usuarios as atendio', 'atendio.id', '=', 'incidencia.atendida_por')
-            ->leftJoin('usuarios as corrigio', 'corrigio.id', '=', 'incidencia.corregida_por')
+            ->leftJoin('accesos_aula as acceso', 'acceso.id', '=', 'incidencia.acceso_aula_id')
+            ->leftJoin('users as atendio', 'atendio.id', '=', 'incidencia.atendida_por')
+            ->leftJoin('users as corrigio', 'corrigio.id', '=', 'incidencia.corregida_por')
             ->where(static function (Builder $donde): void {
                 $donde->where('incidencia.origen', OrigenIncidencia::Persona->value)
                     ->orWhere('incidencia.tipo', TipoIncidencia::IngresoRepetido->value);
@@ -323,11 +306,11 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
                 'estudiante.codigo_universitario',
                 'estudiante.nombres',
                 'estudiante.apellidos',
-                'autor.nombre as autor',
+                'autor.name as autor',
                 'rol.name as rol',
-                'acceso.nombre_colaborador as acceso',
-                'atendio.nombre as atendio',
-                'corrigio.nombre as corrigio',
+                'acceso.nombre as acceso',
+                'atendio.name as atendio',
+                'corrigio.name as corrigio',
             ])
             ->selectRaw('(select count(*) from evidencias_incidencia as foto where foto.incidencia_id = incidencia.id) as evidencias');
     }
@@ -343,14 +326,13 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
         $acceso = $this->texto($columnas['acceso'] ?? null);
         $autor = $this->texto($columnas['autor'] ?? null);
         $atendidaEn = $this->texto($columnas['atendida_en'] ?? null);
-        $corregidaEn = $this->texto($columnas['corregida_en'] ?? null);
-        $fotos = is_numeric($columnas['evidencias'] ?? null) ? (int) $columnas['evidencias'] : 0;
-        $gravedad = TipoIncidencia::tryFrom($tipo)?->gravedad();
 
-        // «Apellidos Nombres · código», o lo que escribio quien reporto.
         $estudiante = $codigo === null
             ? $this->texto($columnas['estudiante_texto'] ?? null)
-            : trim(($this->texto($columnas['apellidos'] ?? null) ?? '').' '.($this->texto($columnas['nombres'] ?? null) ?? '')).' · '.$codigo;
+            : $this->nombreDe($columnas['apellidos'] ?? null, $columnas['nombres'] ?? null).' · '.$codigo;
+
+        $gravedad = TipoIncidencia::tryFrom($tipo)?->gravedad();
+        $corregidaEn = $this->texto($columnas['corregida_en'] ?? null);
 
         return [
             'id' => $this->entero($columnas['id'] ?? null),
@@ -363,8 +345,7 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
             'aula' => $this->texto($columnas['aula'] ?? null),
             'estudiante' => $estudiante,
             'detalle' => $this->texto($columnas['detalle'] ?? null),
-            'hora' => substr($this->texto($columnas['ocurrida_en'] ?? null) ?? '', 11, 5),
-            'ocurrida_en' => $this->iso($this->texto($columnas['ocurrida_en'] ?? null)),
+            'hora' => $this->hora($this->texto($columnas['ocurrida_en'] ?? null), false),
             'por' => $autor ?? $acceso,
             'rol' => $autor === null && $acceso !== null
                 ? 'Código de aula'
@@ -372,9 +353,9 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
             'atendida' => $atendidaEn !== null,
             'atendida_por' => $atendidaEn === null ? null : $this->texto($columnas['atendio'] ?? null),
             'atendida_en' => $this->iso($atendidaEn),
-            'evidencia' => $fotos > 0,
+            'evidencia' => $this->entero($columnas['evidencias'] ?? 0) > 0,
             // Cuantas fotos: se piden de a una, por su numero.
-            'evidencias' => $fotos,
+            'evidencias' => $this->entero($columnas['evidencias'] ?? 0),
             'corregida' => $corregidaEn !== null,
             'corregida_por' => $corregidaEn === null ? null : $this->texto($columnas['corrigio'] ?? null),
         ];

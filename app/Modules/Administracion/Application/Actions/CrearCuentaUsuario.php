@@ -17,8 +17,8 @@ final readonly class CrearCuentaUsuario
     /**
      * Devuelve la cuenta creada con su contrasena temporal, que se muestra
      * esta unica vez y no se registra en la bitacora. El asiento
-     * `usuario.registrar` lo escribe el gateway dentro de la misma
-     * transaccion que la cuenta.
+     * `usuario.crear` lo escribe el gateway dentro de la misma transaccion
+     * que la cuenta.
      */
     public function execute(
         NuevaCuentaData $datos,

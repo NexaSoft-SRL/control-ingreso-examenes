@@ -1,0 +1,124 @@
+% Ficha HU-13 del sprint 2 rehecho. Una historia = una vista completa: el
+% padron unico, la carga de inscripciones por facultad, los conflictos de
+% carga y la ficha del estudiante con sus materias.
+% Tipo: mejora de HU-03. La ficha anterior queda en sprint2/v1/.
+\def\HUNro{13}
+\def\HUSprint{2}
+\def\HUTitulo{Administración > Padrón > Consultar el padrón y cargar inscripciones}
+\def\HUModulo{M1}
+\def\HUReq{1}
+\def\HUPuntos{8}
+
+\def\HUComo{administrador}
+\def\HUQuiero{consultar el padrón único de estudiantes, cargar las inscripciones de una
+facultad desde un archivo, resolver las diferencias entre cargas y ver qué materias
+lleva cada estudiante}
+\def\HUPara{que cada estudiante exista una sola vez con datos confiables, aunque lo
+carguen varios docentes, y poder seguir a un mismo estudiante en todas sus materias
+cuando hay sospecha de fraude}
+
+\def\HUDescripcion{%
+El mismo estudiante lleva varias materias, con docentes distintos. Si cada docente lo
+cargara por su cuenta habría tantas copias como materias, con datos que no coinciden.
+Esta vista sostiene la regla contraria: un solo padrón para toda la universidad, donde
+cada estudiante existe una vez y la inscripción lo une a sus grupos.
+
+La vista muestra las cifras del padrón (estudiantes, inscripciones, cargados por
+docentes y conflictos pendientes) y la lista, que se busca por nombre, código o documento
+y se filtra por facultad y por carrera. Cada fila indica el origen del dato: «Verificado»
+si lo cargó la administración, «Docente» si llegó en la lista de un grupo. Desde la fila
+se abre la ficha del estudiante, con las materias que lleva en el período, el grupo y el
+docente de cada una: es lo que permite ver si la misma persona aparece en incidentes de
+más de una materia.
+
+«Cargar inscripciones» recibe un archivo de una facultad, con una fila por inscripción.
+Un estudiante nuevo se crea como verificado; uno que ya existe se reutiliza. Las filas
+con error se rechazan con su número y su motivo, y el resto sigue. Cuando una carga trae para un código un documento o un nombre distinto del guardado, no
+se modifica nada: queda un conflicto y la inscripción en espera. Solo la administración
+lo resuelve, eligiendo «Mantener padrón» o «Usar carga nueva». Los datos de un
+estudiante no se editan a mano. El estudiante no tiene cuenta en el sistema.
+
+La vista depende de la oferta importada (HU-10), porque cada inscripción apunta a un
+grupo, y recibe los conflictos que dejan las cargas de los docentes (HU-14). La carga y
+cada resolución quedan en la bitácora (HU-07).
+
+Esta historia mejora el registro de estudiantes del sprint 1 (HU-03). Allí el padrón era
+una lista suelta que se mantenía estudiante por estudiante y no decía qué materias
+llevaba cada uno. Ahora el padrón se alimenta de las cargas, guarda el origen de cada
+dato, une al estudiante con sus grupos, atiende los conflictos y suma la ficha con sus
+materias.}
+
+\def\HUCriterios{%
+\item Dado que el administrador abre Padrón, Cuando se carga la vista, Entonces el
+      sistema muestra las cifras (estudiantes, inscripciones, cargados por docentes y
+      conflictos pendientes) y la lista ordenada por apellidos, de a 25 por página, con
+      código, nombre, documento, facultad, carrera, cantidad de grupos y origen.
+\item Dado que el administrador escribe un nombre, un código o un documento, Cuando se
+      aplica la búsqueda, Entonces la lista muestra solo las coincidencias, sin
+      distinguir mayúsculas ni tildes, y si no hay ninguna muestra «Sin resultados».
+\item Dado que el administrador elige una facultad, Cuando se aplica el filtro, Entonces
+      la lista muestra solo a sus estudiantes y cada opción muestra su conteo.
+\item Dado que el administrador elige una carrera, Cuando se aplica el filtro, Entonces
+      la lista muestra solo a los de esa carrera; el selector ofrece las carreras de la
+      facultad elegida y se limpia al cambiar de facultad.
+\item Dado que el administrador pulsa una fila, Cuando se abre la ficha del estudiante,
+      Entonces ve sus datos, su origen y las materias que lleva en el período, con el
+      grupo y el docente de cada una; si no tiene inscripciones, «Sin materias».
+\item Dado que el administrador pulsa «Cargar inscripciones», Cuando no elige archivo o
+      elige uno que no es .csv ni .xlsx, Entonces el sistema no carga nada y señala el
+      campo con «Obligatorio» o «Solo .csv o .xlsx».
+\item Dado que el administrador elige la facultad y un archivo válido, Cuando lo carga,
+      Entonces cada fila inscribe al estudiante en el grupo de su asignatura: el que no
+      existía se crea como verificado y el que ya existía se reutiliza sin duplicarlo.
+\item Dado que la carga terminó, Cuando se muestra el resultado, Entonces el sistema
+      informa cuántas filas leyó y cuántos estudiantes fueron nuevos, reutilizados, ya
+      inscritos, rechazados y en conflicto.
+\item Dado que una fila no tiene un dato obligatorio, trae un código no válido, se repite
+      o nombra un grupo que no existe en la oferta, Cuando se procesa, Entonces el
+      sistema la rechaza con su número de fila y su motivo y continúa con el resto.
+\item Dado que una fila trae para un código existente un documento o un nombre distinto
+      del guardado, Cuando se procesa, Entonces el estudiante no se modifica, la
+      inscripción queda en espera y se abre un conflicto.
+\item Dado que hay conflictos pendientes, Cuando el administrador abre la pestaña
+      «Conflictos», Entonces cada uno muestra su tipo («Documento distinto» o «Nombre
+      distinto»), lo guardado y lo nuevo con la diferencia resaltada, y quién cargó cada
+      dato, de a cinco por página; si no hay ninguno, «Sin conflictos».
+\item Dado que el administrador pulsa «Mantener padrón», Cuando se resuelve, Entonces el
+      estudiante queda como estaba, se crea la inscripción en espera y el conflicto sale
+      de la lista.
+\item Dado que el administrador pulsa «Usar carga nueva», Cuando se resuelve, Entonces el
+      documento y el nombre se reemplazan por los de la carga, el estudiante queda
+      verificado y se crea la inscripción; si ese documento pertenece a otro estudiante,
+      el sistema lo rechaza.
+\item Dado que un rol no tiene el permiso del padrón, Cuando intenta ver la lista, cargar
+      un archivo o resolver un conflicto, Entonces el sistema responde con una negativa
+      explícita.
+\item Dado que se carga un archivo o se resuelve un conflicto, Cuando la operación se
+      completa, Entonces queda asentada en la bitácora con su autor.
+\item Dado que el administrador accede desde un dispositivo móvil, Cuando abre el padrón,
+      Entonces la tabla pasa a una lista de tarjetas y la interfaz se adapta de forma
+      completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{PadronTest}: lista con facultad, carrera, grupos y origen, orden y
+      paginación, búsqueda por nombre, código y documento, filtros por facultad y
+      carrera, y cifras del resumen (criterios 1 a 4).
+\item \texttt{FichaEstudianteTest} (por escribir): materias del período con su grupo y su
+      docente, y estudiante sin inscripciones (criterio 5).
+\item \texttt{CargaDeFacultadTest}: cada fila inscribe en el grupo de su asignatura, los
+      nuevos quedan verificados, facultad obligatoria, grupo fuera de la oferta y fila
+      sin asignatura o grupo (criterios 6, 7 y 9).
+\item \texttt{CargaInscritosTest}: reglas comunes a toda carga: tipo de archivo, filas
+      rechazadas con su número y motivo, reutilización sin duplicar y conteos de la carga
+      (criterios 6 a 9).
+\item \texttt{CargaInscritosTest} y \texttt{CargaDeFacultadTest}: documento o nombre
+      distinto abre un conflicto y deja la inscripción en espera (criterio 10).
+\item \texttt{ConflictosTest}: lista con lo guardado y lo que trajo la carga, mantener el
+      padrón, usar la carga, conflicto ya resuelto y documento que pertenece a otro
+      estudiante (criterios 11 a 13).
+\item \texttt{PadronTest}, \texttt{CargaDeFacultadTest} y \texttt{ConflictosTest}: sin
+      sesión, docente sin acceso y asiento en la bitácora (criterios 14 y 15).
+\item \texttt{Padron.test.jsx} (por escribir): filtros, pestañas, diálogo de carga con
+      sus errores, diferencia resaltada y estados vacíos (criterios 2 a 6, 11 y 16).}
+
+\input{cuerpo}

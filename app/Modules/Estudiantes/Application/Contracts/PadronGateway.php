@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Estudiantes\Application\Contracts;
 
+use App\Modules\Estudiantes\Application\DTOs\EdicionDeEstudianteData;
 use App\Modules\Estudiantes\Application\DTOs\EstudianteData;
 use App\Modules\Estudiantes\Application\DTOs\FiltroListaData;
 use App\Modules\Estudiantes\Application\DTOs\PaginaData;
@@ -48,18 +49,6 @@ interface PadronGateway
     public function ficha(int $estudianteId, string $dominioCorreo): ?array;
 
     /**
-     * Corrige los datos identificativos y registra el cambio en la bitácora.
-     * Devuelve false cuando no existe el estudiante.
-     */
-    public function corregirDatos(
-        int $usuarioId,
-        int $estudianteId,
-        string $nombres,
-        string $apellidos,
-        ?string $documento,
-    ): bool;
-
-    /**
      * @return array{estudiantes: int, inscripciones: int, cargados_por_docentes: int, conflictos_pendientes: int}
      */
     public function resumen(): array;
@@ -79,4 +68,17 @@ interface PadronGateway
      * @return array<string, string>
      */
     public function codigosPorDocumento(array $documentos): array;
+
+    public function existe(int $estudianteId): bool;
+
+    /**
+     * Si el documento (sin distinguir mayusculas) ya es de otro estudiante.
+     */
+    public function documentoDeOtro(string $documento, int $estudianteId): bool;
+
+    /**
+     * Guarda los datos corregidos y, si algo cambio, asienta
+     * `estudiante.editar` con el dato anterior y el nuevo.
+     */
+    public function editar(EdicionDeEstudianteData $edicion): void;
 }

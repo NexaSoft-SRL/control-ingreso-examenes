@@ -1,0 +1,81 @@
+% Ficha HU-07. Criterios tomados del backlog del sprint 1. El filtro por
+% rango de fechas es el que pide el backlog: "por rango de fechas", no por
+% un solo dia.
+\def\HUNro{07}
+\def\HUSprint{1}
+\def\HUTitulo{Administración > Bitácora > Consultar operaciones}
+\def\HUModulo{M7}
+\def\HUReq{16}
+\def\HUPuntos{5}
+
+\def\HUComo{administrador}
+\def\HUQuiero{consultar el historial de las operaciones realizadas}
+\def\HUPara{poder auditar quién hizo qué y cuándo}
+
+\def\HUDescripcion{%
+La bitácora es el registro de todo lo que pasa en el sistema. No la escribe nadie a mano:
+cada historia asienta sus operaciones al completarlas, y esta pantalla solo las consulta.
+
+De cada operación se guardan el usuario que la hizo, la fecha y la hora, el tipo de
+operación y la entidad afectada. Las operaciones que se asientan hoy cubren las siete
+historias del \emph{sprint}: inicios, cierres e intentos fallidos de sesión; altas,
+ediciones y bajas de estudiantes; cargas masivas del padrón; altas de docentes y de
+cuentas; cambios de rol y de permisos; y el alta y la eliminación de asignaturas y
+ambientes.
+
+La consulta filtra por usuario, por rango de fechas y por tipo de operación, y los
+filtros se combinan entre sí. Una operación que falla o que es rechazada por validación no
+deja rastro: solo se asienta lo que llegó a completarse.
+
+La bitácora es de solo lectura. No existe ruta para crear, modificar ni borrar un asiento,
+y el intento devuelve un error del método, no una pantalla en blanco. Si el usuario que
+hizo la operación se elimina, el asiento se conserva igual.}
+
+\def\HUCriterios{%
+\item Dado que el administrador entra a la pantalla de Bitácora, Cuando se carga, Entonces
+      el sistema lista las operaciones con fecha y hora, usuario, operación y entidad
+      afectada, de la más reciente a la más antigua.
+\item Dado que un usuario realiza una operación relevante, Cuando se completa, Entonces el
+      sistema la registra automáticamente, sin intervención del usuario.
+\item Dado que una operación falla o es rechazada por validación, Cuando no llega a
+      completarse, Entonces el sistema no genera ningún asiento.
+\item Dado que el administrador selecciona un usuario en el filtro, Cuando filtra,
+      Entonces el sistema muestra solo las operaciones de ese usuario.
+\item Dado que el administrador indica una fecha desde y una fecha hasta, Cuando filtra,
+      Entonces el sistema muestra solo las operaciones dentro de ese rango, incluidos
+      ambos extremos.
+\item Dado que la fecha hasta es anterior a la fecha desde, Cuando se envía la consulta,
+      Entonces el sistema la rechaza indicando el error.
+\item Dado que el administrador selecciona un tipo de operación, Cuando filtra, Entonces
+      el sistema muestra solo las operaciones de ese tipo.
+\item Dado que el administrador combina varios filtros, Cuando filtra, Entonces el sistema
+      muestra solo las operaciones que cumplen todos a la vez.
+\item Dado que los filtros no coinciden con ninguna operación, Cuando se aplica la
+      búsqueda, Entonces el sistema lo informa en pantalla.
+\item Dado que un usuario intenta crear, modificar o eliminar un asiento, Cuando envía la
+      petición, Entonces el sistema la rechaza: la bitácora es de solo lectura.
+\item Dado que el usuario que realizó una operación fue eliminado, Cuando se consulta la
+      bitácora, Entonces el asiento se conserva y se muestra sin su nombre.
+\item Dado que un rol no tiene el permiso de bitácora, Cuando intenta consultarla,
+      Entonces el sistema responde con una negativa explícita que nombra el permiso.
+\item Dado que el administrador accede desde un dispositivo móvil, Cuando abre la
+      bitácora, Entonces la interfaz se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{BitacoraConsultaControllerTest}: listado ordenado, filtros por usuario, por
+      fecha, por rango, por tipo de operación y todos combinados (criterios 1, 4, 5, 7
+      y 8).
+\item \texttt{BitacoraConsultaControllerTest::audit\_filters\_are\_validated}: rechazo de
+      un rango incoherente y de filtros mal formados (criterio 6).
+\item \texttt{BitacoraConsultaControllerTest::deleted\_user\_does\_not\_hide\_audit\_record}:
+      el asiento sobrevive a la eliminación de su autor (criterio 11).
+\item \texttt{BitacoraRegistroAutomaticoTest}: asiento automático al completar una
+      operación y ausencia de asiento cuando la operación falla (criterios 2 y 3).
+\item \texttt{BitacoraSesionTest}: inicios, cierres e intentos fallidos de sesión
+      (criterio 2).
+\item \texttt{BitacoraSoloLecturaTest}: la bitácora expone solo la ruta de lectura y
+      rechaza crear, modificar y eliminar asientos (criterio 10).
+\item \texttt{Bitacora.test.jsx}: carga de la pantalla, envío de los filtros, aviso cuando
+      no hay resultados y mensaje cuando falta el permiso (criterios 1, 8, 9 y 12).}
+
+\input{cuerpo}

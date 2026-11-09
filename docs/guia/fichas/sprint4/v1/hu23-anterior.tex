@@ -1,0 +1,52 @@
+% Ficha HU-23. Criterios del backlog de la iteracion 4. La distincion entre
+% no estar registrado y no estar habilitado alimenta el reporte del req. 13.
+\def\HUNro{23}
+\def\HUSprint{4}
+\def\HUTitulo{Punto de control > Ingreso > Intento no autorizado}
+\def\HUModulo{M4}
+\def\HUReq{9}
+\def\HUPuntos{5}
+
+\def\HUComo{personal de control}
+\def\HUQuiero{registrar cuando alguien intenta entrar a un examen que no le corresponde}
+\def\HUPara{dejar constancia para el reporte posterior}
+
+\def\HUDescripcion{%
+No todo lo que se rechaza en la puerta es lo mismo. Un estudiante puede no figurar en la
+lista del examen ---se equivocó de aula, de materia o de día--- o figurar pero estar
+inhabilitado por una deuda. Para la persona que atiende son dos conversaciones distintas,
+y para el reporte del requerimiento 13 son dos números distintos.
+
+El sistema separa los dos casos. Si el estudiante no tiene condición registrada para ese
+examen, la incidencia queda como \textsc{no\_registrado}; si la tiene y es negativa,
+queda como \textsc{no\_habilitado} y arrastra el motivo que se escribió al inhabilitarlo
+(HU-12). La pantalla muestra el mensaje que corresponde a cada caso.
+
+Toda incidencia guarda el estudiante, el examen al que intentó entrar, la hora y quién
+estaba atendiendo. Con eso, el reporte de intentos no correspondientes (HU-33) no tiene
+que reconstruir nada: los datos ya están.}
+
+\def\HUCriterios{%
+\item Dado que alguien intenta ingresar, Cuando se lo rechaza, Entonces la incidencia
+      guarda el estudiante, el examen y la hora.
+\item Dado que el estudiante no figura en la lista del examen, Cuando intenta ingresar,
+      Entonces la incidencia es de tipo \textsc{no\_registrado}.
+\item Dado que el estudiante figura pero está inhabilitado, Cuando intenta ingresar,
+      Entonces la incidencia es de tipo \textsc{no\_habilitado} y conserva el motivo.
+\item Dado que se rechaza un intento, Cuando se consulta el examen, Entonces la
+      incidencia aparece en la lista del punto de control.
+\item Dado que el rechazo quedó registrado, Cuando se elabore el reporte del
+      requerimiento 13, Entonces los dos tipos se cuentan por separado.}
+
+\def\HUPruebas{%
+\item \texttt{DobleIngresoTest}, caso del estudiante ajeno al examen frente al
+      inhabilitado: los dos tipos de incidencia (criterios 2 y 3).
+\item \texttt{DobleIngresoTest::the\_unauthorized\_attempt\_records\_student\_exam\_and\_time}:
+      estudiante, examen y hora del intento (criterio 1).
+\item \texttt{RegistroIngresoTest::a\_student\_that\_is\_not\_enabled\_cannot\_enter} y
+      \texttt{RegistroIngresoTest::the\_rejection\_is\_recorded\_as\_an\_incident}: el rechazo
+      con su motivo, asentado como incidencia (criterio 3).
+\item \texttt{PuntoControl.test.jsx}: la pantalla muestra el motivo del rechazo y la
+      lista de incidencias (criterio 4).}
+
+\input{cuerpo}

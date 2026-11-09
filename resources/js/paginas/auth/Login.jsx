@@ -1,21 +1,22 @@
-import { useId, useState } from 'react';
-import { Eye, EyeOff, GraduationCap, KeyRound, Lock, ShieldCheck } from 'lucide-react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { GraduationCap, KeyRound, Lock, LogIn, Mail, ShieldCheck, User } from 'lucide-react';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api/cliente';
-import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
+import { erroresDe, estadoDe } from '../../api/errores';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { destinoDe } from '../../navegacion/vistas';
 import { plural } from '../../utiles/texto';
 import Campo from '../../componentes/Campo';
 import Boton from '../../componentes/Boton';
 import Dialogo from '../../componentes/Dialogo';
-import FondoAcceso, { CabeceraAcceso, TARJETA_ACCESO } from '../../componentes/FondoAcceso';
 import { useAviso } from '../../componentes/Aviso';
-import SugerenciaInstalar from '../../componentes/SugerenciaInstalar';
 import usarTituloPestana from '../../utiles/usarTituloPestana';
-import { normalizarUsuario, PISTA_SIN_CORREO, usuarioValido } from '../../utiles/usuario';
+import FondoAcceso, { CabeceraAcceso, TARJETA_ACCESO } from '../../componentes/FondoAcceso';
+import SugerenciaInstalar from '../../componentes/SugerenciaInstalar';
+import { normalizarUsuario, usuarioValido } from '../../utiles/usuario';
 
-// Acceso por nombre de usuario; el correo solo se utiliza como contacto.
+// Acceso por usuario y contraseña (el correo no es el identificador). Tras
+// cinco intentos fallidos la cuenta se bloquea 15 minutos. Sin registro público.
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
 
@@ -23,28 +24,23 @@ const FOCO =
 const SOLO_USUARIO = (v) =>
     usuarioValido(v) ? null : 'Solo letras y números, separados por un espacio';
 
-// Las otras dos puertas de entrada: el estudiante y quien controla con el
-// código de un aula.
-const ENTRADAS = [
-    ['/estudiante/ingreso', 'Soy estudiante', GraduationCap, 'bg-primary-100 text-primary-700'],
-    ['/acceso-aula', 'Código de aula', KeyRound, 'bg-warning-100 text-warning-800'],
-];
+// Para quien no tiene correo registrado o no recibe el enlace.
+const PISTA_SIN_CORREO = 'Si no llega, pida una contraseña temporal a la administración.';
 
-// El texto de cada rechazo del inicio de sesión.
+// El texto de cada rechazo del inicio de sesión (ruta 1 del contrato).
 function leerRechazo(error) {
     const estado = estadoDe(error);
     const datos = error?.response?.data ?? {};
 
-    if (datos.code === 'TEMPORARY_PASSWORD_EXPIRED') {
-        return { fallo: 'Contraseña temporal vencida' };
-    }
-    // También la cuenta desactivada (sin minutos), solo con la contraseña correcta.
     if (estado === 423) {
         return {
             bloqueo: datos.minutos
                 ? `Cuenta bloqueada · ${plural(datos.minutos, 'minuto')}`
                 : 'Cuenta bloqueada',
         };
+    }
+    if (estado === 401 && datos.codigo === 'TEMPORAL_VENCIDA') {
+        return { fallo: 'Contraseña temporal vencida' };
     }
     if (estado === 401) {
         const restantes = datos.intentos_restantes;
@@ -57,10 +53,7 @@ function leerRechazo(error) {
     }
     if (estado === 422) {
         const campos = erroresDe(error);
-        return {
-            falloUsuario: campos.usuario ? 'No válido' : undefined,
-            fallo: campos.password ? 'Obligatorio' : undefined,
-        };
+        return { falloUsuario: campos.usuario, fallo: campos.password };
     }
     if (estado === 429) return { fallo: 'Demasiados intentos' };
     return { fallo: 'No se pudo iniciar sesión' };
@@ -68,12 +61,11 @@ function leerRechazo(error) {
 
 export default function Login() {
     usarTituloPestana('Iniciar sesión');
+    const { state } = useLocation();
     const navegar = useNavigate();
     const { usuario: cuenta, entrar } = usarSesion();
-    const idClave = useId();
     const [usuario, setUsuario] = useState('');
     const [clave, setClave] = useState('');
-    const [verClave, setVerClave] = useState(false);
     const [fallo, setFallo] = useState(null);
     const [falloUsuario, setFalloUsuario] = useState(null);
     const [bloqueo, setBloqueo] = useState(null);
@@ -82,18 +74,15 @@ export default function Login() {
     // «Obligatorio» aparece al intentar enviar, no apenas se abre el diálogo.
     const [intentoEnlace, setIntentoEnlace] = useState(false);
     const [usuarioRecuperar, setUsuarioRecuperar] = useState('');
-    const [errorRecuperar, setErrorRecuperar] = useState(null);
     const [enviandoEnlace, setEnviandoEnlace] = useState(false);
     const [aviso, avisar] = useAviso();
+    const avisoInicial = state?.aviso;
 
-    if (cuenta && !enviando) {
-        return (
-            <Navigate
-                to={cuenta.debe_cambiar_contrasena ? '/cambiar-contrasena' : destinoDe(cuenta)}
-                replace
-            />
-        );
-    }
+    useEffect(() => {
+        if (avisoInicial) avisar(avisoInicial);
+    }, [avisoInicial, avisar]);
+
+    if (cuenta && !enviando) return <Navigate to={destinoDe(cuenta)} replace />;
 
     const limpiar = () => {
         setFallo(null);
@@ -104,19 +93,16 @@ export default function Login() {
     async function iniciar(e) {
         e.preventDefault();
         if (enviando) return;
-        const nombreUsuario = normalizarUsuario(usuario);
-        if (!nombreUsuario) return setFalloUsuario('Obligatorio');
-        if (SOLO_USUARIO(nombreUsuario)) return setFalloUsuario(SOLO_USUARIO(nombreUsuario));
+        const nombre = normalizarUsuario(usuario);
+        if (!nombre) return setFalloUsuario('Obligatorio');
+        if (SOLO_USUARIO(nombre)) return setFalloUsuario(SOLO_USUARIO(nombre));
         if (!clave) return setFallo('Obligatorio');
 
         limpiar();
         setEnviando(true);
         try {
-            const entrante = await entrar(nombreUsuario, clave);
-            return navegar(
-                entrante?.debe_cambiar_contrasena ? '/cambiar-contrasena' : destinoDe(entrante),
-                { replace: true }
-            );
+            const entrante = await entrar(nombre, clave);
+            return navegar(destinoDe(entrante), { replace: true });
         } catch (error) {
             const rechazo = leerRechazo(error);
             setFallo(rechazo.fallo ?? null);
@@ -132,21 +118,15 @@ export default function Login() {
         const nombre = normalizarUsuario(usuarioRecuperar);
         if (!nombre || SOLO_USUARIO(nombre) || enviandoEnlace) return;
         setEnviandoEnlace(true);
-        setErrorRecuperar(null);
         try {
-            const respuesta = await api.post('/auth/recuperar-contrasena', { usuario: nombre });
+            await api.post('/auth/contrasena/olvide', { usuario: nombre });
             setRecuperando(false);
             // No dice si la cuenta existe ni si tiene correo: el servidor tampoco.
             avisar(
-                `${String(
-                    respuesta.data?.message ??
-                        `Si ${nombre} tiene correo registrado, le llegará el enlace`
-                ).replace(/\.$/, '')}. ${PISTA_SIN_CORREO.replace(/\.$/, '')}`
+                `Si ${nombre} tiene correo registrado, le llegará el enlace. ${PISTA_SIN_CORREO}`
             );
-        } catch (error) {
-            const campos = erroresDe(error);
-            if (campos.usuario) setErrorRecuperar(campos.usuario);
-            else avisar(mensajeDe(error, 'No se pudo enviar el enlace'), 'error');
+        } catch {
+            avisar('No se pudo enviar el enlace', 'error');
         } finally {
             setEnviandoEnlace(false);
         }
@@ -165,73 +145,35 @@ export default function Login() {
                     <form className="space-y-4" onSubmit={iniciar} noValidate>
                         <Campo
                             etiqueta="Usuario"
+                            iconoEtiqueta={User}
                             requerido
-                            type="text"
                             placeholder="nombre apellido"
-                            autoFocus
-                            validar={SOLO_USUARIO}
                             value={usuario}
+                            autoFocus
                             autoComplete="username"
                             autoCapitalize="none"
                             spellCheck={false}
+                            validar={SOLO_USUARIO}
                             error={falloUsuario ?? undefined}
                             onChange={(e) => {
                                 setUsuario(e.target.value);
                                 limpiar();
                             }}
                         />
-
-                        <div>
-                            <label
-                                htmlFor={idClave}
-                                className="mb-1.5 block text-sm font-medium text-slate-700"
-                            >
-                                Contraseña
-                                <span className="ml-0.5 text-danger-600" aria-hidden="true">
-                                    *
-                                </span>
-                            </label>
-                            <div
-                                className={`flex overflow-hidden rounded-lg border bg-white focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/40 ${
-                                    fallo ? 'border-danger-600' : 'border-slate-300'
-                                }`}
-                            >
-                                <input
-                                    id={idClave}
-                                    type={verClave ? 'text' : 'password'}
-                                    className="min-h-11 min-w-0 flex-1 bg-transparent px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-500 focus:outline-none"
-                                    placeholder="••••••••"
-                                    value={clave}
-                                    autoComplete="current-password"
-                                    aria-required="true"
-                                    aria-invalid={fallo ? 'true' : undefined}
-                                    onChange={(e) => {
-                                        setClave(e.target.value);
-                                        limpiar();
-                                    }}
-                                />
-                                <button
-                                    type="button"
-                                    className={`flex h-11 w-11 shrink-0 items-center justify-center text-slate-500 hover:text-slate-700 ${FOCO}`}
-                                    onClick={() => setVerClave((v) => !v)}
-                                    aria-label={
-                                        verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'
-                                    }
-                                    aria-pressed={verClave}
-                                >
-                                    {verClave ? (
-                                        <EyeOff className="h-4 w-4" strokeWidth={2} />
-                                    ) : (
-                                        <Eye className="h-4 w-4" strokeWidth={2} />
-                                    )}
-                                </button>
-                            </div>
-                            {fallo && (
-                                <p role="alert" className="mt-1.5 text-sm text-danger-600">
-                                    {fallo}
-                                </p>
-                            )}
-                        </div>
+                        <Campo
+                            etiqueta="Contraseña"
+                            iconoEtiqueta={Lock}
+                            requerido
+                            type="password"
+                            placeholder="••••••••"
+                            value={clave}
+                            autoComplete="current-password"
+                            error={fallo ?? undefined}
+                            onChange={(e) => {
+                                setClave(e.target.value);
+                                limpiar();
+                            }}
+                        />
 
                         {bloqueo && (
                             <div
@@ -244,30 +186,44 @@ export default function Login() {
                         )}
 
                         <Boton type="submit" className="w-full" cargando={enviando}>
+                            {!enviando && <LogIn className="h-4 w-4" aria-hidden="true" />}
                             Iniciar sesión
                         </Boton>
 
                         <button
                             type="button"
-                            className={`min-h-11 w-full rounded-lg text-center text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
+                            className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-lg text-center text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
                             onClick={() => {
                                 setUsuarioRecuperar(usuario);
                                 setIntentoEnlace(false);
-                                setErrorRecuperar(null);
                                 setRecuperando(true);
                             }}
                         >
+                            <Mail className="h-4 w-4" aria-hidden="true" />
                             Recuperar contraseña
                         </button>
                     </form>
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-2">
-                    {ENTRADAS.map(([a, texto, Icono, tono]) => (
+                    {[
+                        [
+                            '/estudiante/ingreso',
+                            'Soy estudiante',
+                            GraduationCap,
+                            'bg-primary-100 text-primary-700',
+                        ],
+                        [
+                            '/acceso-aula',
+                            'Código de aula',
+                            KeyRound,
+                            'bg-primary-100 text-primary-700',
+                        ],
+                    ].map(([a, texto, Icono, tono]) => (
                         <Link
                             key={a}
                             to={a}
-                            className={`group flex min-h-14 items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white/95 px-3 text-left text-sm font-medium text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md ${FOCO}`}
+                            className={`group flex min-h-14 items-center justify-center gap-2.5 rounded-xl border border-slate-200/70 bg-white px-3 text-left text-sm font-medium text-umss-marino shadow-sm transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md ${FOCO}`}
                         >
                             <span
                                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tono}`}
@@ -284,7 +240,6 @@ export default function Login() {
             {recuperando && (
                 <Dialogo
                     titulo="Recuperar contraseña"
-                    abierto
                     onCerrar={() => setRecuperando(false)}
                     acciones={
                         <>
@@ -317,15 +272,11 @@ export default function Login() {
                             ayuda={PISTA_SIN_CORREO}
                             autoFocus
                             error={
-                                errorRecuperar ??
-                                (intentoEnlace && !usuarioRecuperar.trim()
+                                intentoEnlace && !usuarioRecuperar.trim()
                                     ? 'Obligatorio'
-                                    : undefined)
+                                    : undefined
                             }
-                            onChange={(e) => {
-                                setUsuarioRecuperar(e.target.value);
-                                setErrorRecuperar(null);
-                            }}
+                            onChange={(e) => setUsuarioRecuperar(e.target.value)}
                         />
                     </form>
                 </Dialogo>

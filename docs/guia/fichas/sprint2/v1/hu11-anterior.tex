@@ -1,0 +1,87 @@
+% Ficha HU-11. Criterios tomados del backlog de la iteracion 2. El listado
+% incluye al no habilitado: es el criterio 2, y lo que HU-12 completa con su
+% motivo.
+\def\HUNro{11}
+\def\HUSprint{2}
+\def\HUTitulo{Habilitación > Estudiantes > Habilitar para el examen}
+\def\HUModulo{M3}
+\def\HUReq{3}
+\def\HUPuntos{5}
+
+\def\HUComo{docente}
+\def\HUQuiero{marcar qué estudiantes están habilitados para un examen}
+\def\HUPara{que solo ellos puedan ingresar al ambiente}
+
+\def\HUDescripcion{%
+La habilitación es la lista con la que trabaja el punto de control: quien no está en ella
+no entra al examen.
+
+La pantalla muestra el padrón completo de estudiantes activos con la condición de cada uno
+frente al examen elegido. La habilitación se hace de a uno o de forma masiva sobre toda la
+lista, marcando las casillas y aplicando la acción a la selección. Un estudiante tiene una
+sola condición por examen: volver a registrarla la reemplaza, no la duplica.
+
+El estudiante no habilitado no desaparece del listado. Queda registrado como tal, con su
+motivo (HU-12) y con el nombre de quien lo registró: eso es lo que el personal de control
+responde en la puerta cuando el estudiante pregunta por qué no puede entrar.
+
+El listado se consulta y se exporta a un archivo de valores separados por comas, con el
+código, el documento, el nombre, la carrera, la condición y el motivo de cada estudiante.
+Cada habilitación e inhabilitación queda asentada en la bitácora (HU-07).}
+
+\def\HUCriterios{%
+\item Dado que el docente elige un examen, Cuando se carga la pantalla, Entonces el
+      sistema lista a todos los estudiantes activos del padrón con su condición frente a
+      ese examen.
+\item Dado que un estudiante todavía no tiene condición registrada, Cuando se lo consulta,
+      Entonces figura como no habilitado.
+\item Dado que se selecciona a un estudiante, Cuando se lo habilita, Entonces el sistema
+      registra su condición y la muestra en el listado.
+\item Dado que se seleccionan varios estudiantes a la vez, Cuando se aplica la
+      habilitación, Entonces el sistema la registra para todos ellos en una sola
+      operación.
+\item Dado que un estudiante ya tiene condición registrada, Cuando se la vuelve a
+      registrar, Entonces el sistema la reemplaza en lugar de duplicarla.
+\item Dado que un estudiante queda inhabilitado, Cuando se consulta el listado, Entonces
+      figura en él con su condición, no ausente.
+\item Dado que se registra una condición, Cuando se consulta el listado, Entonces se ve
+      quién la registró.
+\item Dado que se consulta el listado, Cuando se muestra, Entonces el sistema informa
+      cuántos están habilitados y cuántos no.
+\item Dado que el docente necesita el listado fuera del sistema, Cuando lo exporta,
+      Entonces obtiene un archivo con el código, el documento, el nombre, la carrera, la
+      condición y el motivo de cada estudiante.
+\item Dado que el estudiante indicado no existe en el padrón, Cuando se intenta registrar
+      su condición, Entonces el sistema lo rechaza.
+\item Dado que el examen no existe, Cuando se consulta su listado, Entonces el sistema
+      responde que no lo encontró.
+\item Dado que un rol no tiene el permiso de habilitación, Cuando intenta abrir la
+      pantalla, Entonces el sistema responde con una negativa explícita que nombra el
+      permiso.
+\item Dado que se habilita o se inhabilita a un estudiante, Cuando la operación se
+      completa, Entonces queda asentada en la bitácora con su autor.
+\item Dado que el docente accede desde un dispositivo móvil, Cuando abre la habilitación,
+      Entonces la interfaz se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{HabilitacionExamenTest::the\_roll\_of\_the\_exam\_lists\_every\_active\_student}:
+      el listado parte del padrón completo (criterios 1, 2 y 8).
+\item \texttt{HabilitacionExamenTest::a\_student\_is\_enabled\_individually} y
+      \texttt{the\_whole\_list\_is\_enabled\_at\_once}: habilitación individual y masiva
+      (criterios 3 y 4).
+\item \texttt{HabilitacionExamenTest::the\_condition\_of\_a\_student\_is\_replaced\_not\_duplicated}:
+      una sola condición por estudiante (criterio 5).
+\item \texttt{HabilitacionExamenTest::a\_disabled\_student\_stays\_in\_the\_list\_with\_its\_reason}:
+      el inhabilitado figura en el listado (criterio 6).
+\item \texttt{HabilitacionExamenTest::the\_record\_keeps\_who\_registered\_it}: autor de la
+      condición (criterio 7).
+\item \texttt{HabilitacionExamenTest}: estudiante inexistente, examen inexistente, rol sin
+      permiso y sin sesión (criterios 10 a 12).
+\item \texttt{HabilitacionExamenTest::every\_movement\_is\_recorded\_in\_the\_audit\_log}:
+      asientos de habilitación e inhabilitación (criterio 13).
+\item \texttt{Habilitacion.test.jsx}, caso de la exportación: el archivo sale con
+      código, documento, nombre, carrera, condición, motivo y ambiente (criterio 9).
+\item \texttt{Habilitacion.test.jsx}: listado con su resumen, habilitación individual y
+      masiva, y aviso cuando no hay selección (criterios 1, 3, 4 y 8).}
+
+\input{cuerpo}
