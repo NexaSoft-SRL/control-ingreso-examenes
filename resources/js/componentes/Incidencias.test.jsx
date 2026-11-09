@@ -47,10 +47,10 @@ describe('BotonIncidencia', () => {
         );
         expect(tipos.map((o) => o.textContent)).toEqual([
             'Elegir',
-            'Intento rechazado · Media',
-            'Suplantación de identidad · Grave',
-            'Material no permitido · Media',
-            'Dispositivo no permitido · Media',
+            'Intento rechazado · Grave',
+            'Suplantación de identidad · Muy grave',
+            'Material no permitido · Grave',
+            'Dispositivo no permitido · Grave',
             'Cambio de aula · Leve',
             'Otra · Leve',
         ]);
@@ -120,7 +120,7 @@ describe('BotonIncidencia', () => {
         expect(alRegistrar).toHaveBeenCalledTimes(1);
     });
 
-    it('con foto envía un formulario con la evidencia', async () => {
+    it('con fotos envía un formulario con la evidencia; hasta tres', async () => {
         const registrar = vi.fn(() => Promise.resolve());
         render(<BotonIncidencia aula={AULAS[0]} registrar={registrar} />);
         const dialogo = abrir();
@@ -129,8 +129,18 @@ describe('BotonIncidencia', () => {
         fireEvent.change(dialogo.getByRole('textbox', { name: /Detalle/ }), {
             target: { value: 'Hoja con fórmulas' },
         });
+        const otra = new File(['jpeg2'], 'otra.jpg', { type: 'image/jpeg' });
         fireEvent.change(dialogo.getByLabelText('Evidencia'), { target: { files: [FOTO] } });
-        expect(await dialogo.findByRole('img', { name: 'Evidencia' })).toBeInTheDocument();
+        expect(await dialogo.findByRole('img', { name: 'Foto 1' })).toBeInTheDocument();
+        fireEvent.change(dialogo.getByLabelText('Evidencia'), { target: { files: [otra] } });
+        expect(await dialogo.findByRole('img', { name: 'Foto 2' })).toBeInTheDocument();
+        expect(dialogo.getByText('2/3')).toBeInTheDocument();
+
+        // Se quita una con su equis.
+        fireEvent.click(dialogo.getByRole('button', { name: 'Quitar la foto 2' }));
+        expect(dialogo.queryByRole('img', { name: 'Foto 2' })).not.toBeInTheDocument();
+        fireEvent.change(dialogo.getByLabelText('Evidencia'), { target: { files: [otra] } });
+        await dialogo.findByRole('img', { name: 'Foto 2' });
         fireEvent.click(dialogo.getByRole('button', { name: 'Registrar' }));
 
         await waitFor(() => expect(registrar).toHaveBeenCalledTimes(1));
@@ -138,7 +148,7 @@ describe('BotonIncidencia', () => {
         expect(cuerpo).toBeInstanceOf(FormData);
         expect(cuerpo.get('aula_id')).toBe('30');
         expect(cuerpo.get('detalle')).toBe('Hoja con fórmulas');
-        expect(cuerpo.get('evidencia')).toBe(FOTO);
+        expect(cuerpo.getAll('evidencias[]')).toEqual([FOTO, otra]);
         expect(cuerpo.has('estudiante')).toBe(false);
     });
 
@@ -259,9 +269,9 @@ describe('ListaIncidencias', () => {
                     {
                         ...ITEMS[0],
                         id: 41,
-                        tipo: 'INGRESO_REPETIDO',
-                        tipo_texto: 'Ingreso repetido',
-                        gravedad: 'GRAVE',
+                        tipo: 'SUPLANTACION',
+                        tipo_texto: 'Suplantación de identidad',
+                        gravedad: 'MUY_GRAVE',
                     },
                     ITEMS[0],
                     ITEMS[1],
@@ -269,8 +279,8 @@ describe('ListaIncidencias', () => {
             />
         );
 
-        expect(screen.getByText('Grave')).toHaveClass('text-danger-700');
-        expect(screen.getByText('Media')).toHaveClass('text-warning-700');
+        expect(screen.getByText('Muy grave')).toHaveClass('text-danger-700');
+        expect(screen.getByText('Grave')).toHaveClass('text-warning-700');
         // Sin `gravedad` la toma del tipo; atendida, en gris.
         expect(screen.getByText('Leve')).toHaveClass('text-slate-500');
     });
@@ -312,17 +322,40 @@ describe('ListaIncidencias', () => {
     });
 
     it('abre la foto de la evidencia', async () => {
-        simularApi(api, { 'GET /incidencias/40/evidencia': new Blob(['jpeg']) });
-        render(<ListaIncidencias items={[{ ...ITEMS[0], evidencia: true }]} />);
+        simularApi(api, { 'GET /incidencias/40/evidencias/1': new Blob(['jpeg']) });
+        render(<ListaIncidencias items={[{ ...ITEMS[0], evidencia: true, evidencias: 1 }]} />);
 
         fireEvent.click(screen.getByRole('button', { name: 'Evidencia' }));
 
         const dialogo = within(screen.getByRole('dialog', { name: 'Evidencia' }));
-        expect(await dialogo.findByRole('img', { name: 'Evidencia' })).toHaveAttribute(
+        expect(await dialogo.findByRole('img', { name: 'Evidencia 1' })).toHaveAttribute(
             'src',
             'blob:foto'
         );
-        expect(api.get).toHaveBeenCalledWith('/incidencias/40/evidencia', { responseType: 'blob' });
+        expect(api.get).toHaveBeenCalledWith('/incidencias/40/evidencias/1', {
+            responseType: 'blob',
+        });
+    });
+
+    it('con varias fotos las muestra todas y se pasa de una a otra', async () => {
+        simularApi(api, {
+            'GET /incidencias/40/evidencias/1': new Blob(['uno']),
+            'GET /incidencias/40/evidencias/2': new Blob(['dos']),
+            'GET /incidencias/40/evidencias/3': new Blob(['tres']),
+        });
+        render(<ListaIncidencias items={[{ ...ITEMS[0], evidencia: true, evidencias: 3 }]} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Evidencia · 3' }));
+
+        const dialogo = within(screen.getByRole('dialog', { name: 'Evidencia' }));
+        await dialogo.findByRole('img', { name: 'Evidencia 1' });
+        expect(dialogo.getByText(/3 fotos/)).toBeInTheDocument();
+        fireEvent.click(dialogo.getByRole('button', { name: 'Ver la foto 3' }));
+        expect(dialogo.getByRole('img', { name: 'Evidencia 3' })).toBeInTheDocument();
+        expect(dialogo.getByRole('button', { name: 'Ver la foto 3' })).toHaveAttribute(
+            'aria-pressed',
+            'true'
+        );
     });
 
     it('al corregir, el estudiante solo viaja si se cambió', async () => {

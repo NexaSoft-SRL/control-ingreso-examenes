@@ -538,23 +538,20 @@ describe('RegistrarExamen · paso 3, aulas', () => {
         await irAAulas();
 
         const filas = within(screen.getByRole('list', { name: 'Aulas' })).getAllByRole('listitem');
-        // Sugeridas, después las de la facultad de la asignatura, después el resto.
+        // Las de los grupos primero y después las de la facultad de la
+        // asignatura; las de otras facultades no se ofrecen. Sin rótulos.
         expect(filas.map((f) => f.textContent.slice(0, 4).trim())).toEqual([
             '691A',
             '691B',
             '606D',
-            '004B',
-            '003S',
         ]);
-        expect(filas[0]).toHaveTextContent('Sugerida');
         expect(filas[0]).toHaveTextContent('Compartida · Cálculo I · Primer parcial');
-        expect(filas[1]).toHaveTextContent('Sugerida');
         expect(filas[1]).not.toHaveTextContent('Compartida');
-        expect(filas[2]).not.toHaveTextContent('Sugerida');
         expect(filas[2]).toHaveTextContent('Compartida · Análisis Numérico · Primer parcial');
-        expect(filas[3]).toHaveTextContent('Bloque Posgrado · FHCE');
-        expect(filas[4]).toHaveTextContent('Sin edificio · FHCE');
-        expect(screen.getByText('5 aulas')).toBeInTheDocument();
+        expect(screen.queryByText(/Sugerida/)).not.toBeInTheDocument();
+        expect(screen.queryByRole('checkbox', { name: 'Aula 004' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('checkbox', { name: 'Aula 003' })).not.toBeInTheDocument();
+        expect(screen.getByText('3 aulas')).toBeInTheDocument();
 
         const pedido = api.get.mock.calls.find(([url]) => url === '/examenes/opciones/aulas');
         expect(pedido[1].params).toEqual({
@@ -573,44 +570,65 @@ describe('RegistrarExamen · paso 3, aulas', () => {
         expect(screen.getByRole('button', { name: 'Registrar examen' })).toBeEnabled();
     });
 
-    it('filtra por edificio, sugeridas, elegidas y texto', async () => {
+    it('filtra por edificio, elegidas y texto con su lista desplegable', async () => {
         montar();
         await irAAulas();
-        const filtro = screen.getByLabelText('Edificio');
+        const filtro = () => screen.getByRole('button', { name: /^Edificio:/ });
+        const elegir = (nombre) => {
+            fireEvent.click(filtro());
+            fireEvent.click(screen.getByRole('option', { name: new RegExp(`^${nombre}`) }));
+        };
         const visibles = () =>
             within(screen.getByRole('list', { name: 'Aulas' }))
                 .getAllByRole('checkbox')
                 .map((c) => c.getAttribute('aria-label'));
 
+        expect(filtro()).toHaveAccessibleName('Edificio: Todos los edificios');
+        fireEvent.click(filtro());
         expect(
-            within(filtro)
+            within(screen.getByRole('listbox', { name: 'Edificio' }))
                 .getAllByRole('option')
                 .map((o) => o.textContent)
         ).toEqual([
-            'Todos los edificios (5)',
-            'Sugeridas · aulas de los grupos (2)',
-            'Elegidas (0)',
-            'Departamento de Biología (1)',
-            'Edificio Académico 2 (2)',
-            'Bloque Posgrado · FHCE (1)',
+            'Todos los edificios3',
+            'Elegidas0',
+            'Departamento de Biología1',
+            'Edificio Académico 22',
         ]);
+        fireEvent.keyDown(filtro(), { key: 'Escape' });
 
-        cambiar(filtro, 'sugeridas');
-        expect(visibles()).toEqual(['Aula 691A', 'Aula 691B']);
-
-        cambiar(filtro, '18');
+        elegir('Departamento de Biología');
         expect(visibles()).toEqual(['Aula 606']);
         fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 606' }));
 
-        cambiar(filtro, 'elegidas');
+        elegir('Elegidas');
         expect(visibles()).toEqual(['Aula 606']);
         pulsar('Quitar el aula 606');
         expect(screen.getByText('Sin resultados')).toBeInTheDocument();
 
-        cambiar(filtro, '');
-        cambiar(screen.getByLabelText('Buscar aula'), 'posgrado');
-        expect(visibles()).toEqual(['Aula 004']);
+        elegir('Todos los edificios');
+        cambiar(screen.getByLabelText('Buscar aula'), 'biolog');
+        expect(visibles()).toEqual(['Aula 606']);
         expect(screen.getByText('1 aula')).toBeInTheDocument();
+    });
+
+    it('al tocar un edificio en el mapa muestra solo sus aulas; otra vez, todas', async () => {
+        montar();
+        await irAAulas();
+        const filtro = () => screen.getByRole('button', { name: /^Edificio:/ });
+        const edificio = (nombre) => screen.getByText(`${nombre} · FCyT`).closest('g');
+        const visibles = () =>
+            within(screen.getByRole('list', { name: 'Aulas' }))
+                .getAllByRole('checkbox')
+                .map((c) => c.getAttribute('aria-label'));
+
+        fireEvent.click(edificio('Departamento de Biología'));
+        expect(filtro()).toHaveAccessibleName('Edificio: Departamento de Biología');
+        expect(visibles()).toEqual(['Aula 606']);
+
+        fireEvent.click(edificio('Departamento de Biología'));
+        expect(filtro()).toHaveAccessibleName('Edificio: Todos los edificios');
+        expect(visibles()).toHaveLength(3);
     });
 
     it('el mapa resalta los edificios de las aulas elegidas', async () => {
@@ -625,7 +643,7 @@ describe('RegistrarExamen · paso 3, aulas', () => {
         fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
         expect(resaltados()).toBe(1);
 
-        fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 004' }));
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 606' }));
         expect(resaltados()).toBe(2);
     });
 });

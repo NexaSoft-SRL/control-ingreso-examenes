@@ -18,7 +18,7 @@
 </head>
 <body>
     <h1>{{ $tabla->titulo }}</h1>
-    <div class="institucion">Universidad Mayor de San Simón · Control de ingreso a exámenes</div>
+    <div class="institucion">Universidad Mayor de San Simón · Control de exámenes</div>
 
     @foreach ($tabla->filtros as $filtro)
         <div class="filtro">{{ $filtro }}</div>

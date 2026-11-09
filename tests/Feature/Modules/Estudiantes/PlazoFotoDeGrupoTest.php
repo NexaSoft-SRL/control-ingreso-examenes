@@ -18,10 +18,10 @@ use Tests\Support\UsuarioConPermisos;
 use Tests\TestCase;
 
 /**
- * El docente fija hasta que dia sube su foto su grupo (en el mismo plazo
- * de grupo que fija la administracion). Vencido, quien no la subio queda
- * inhabilitado en los examenes del grupo: en la lista de habilitacion y en
- * la puerta. Al subirla vuelve a «sin revisar».
+ * El plazo de fotos lo fija solo la administracion (decimotercera
+ * revision): el general o, si lo necesita, el de un grupo. Vencido, quien no
+ * la subio queda inhabilitado en los examenes del grupo: en la lista de
+ * habilitacion y en la puerta. Al subirla vuelve a «sin revisar».
  */
 final class PlazoFotoDeGrupoTest extends TestCase
 {
@@ -31,6 +31,8 @@ final class PlazoFotoDeGrupoTest extends TestCase
     use UsuarioConPermisos;
 
     private User $cuenta;
+
+    private User $administracion;
 
     private Docente $docente;
 
@@ -44,15 +46,28 @@ final class PlazoFotoDeGrupoTest extends TestCase
         $this->cuenta = $this->usuarioConPermisos(['mis_grupos', 'habilitacion', 'punto_control', 'reportes_examenes']);
         $this->docente = $this->docenteConCuenta($this->cuenta, 'Blanco Coca Leticia');
         $this->grupo = $this->grupo($this->docente, $this->asignatura('Introducción a la Programación'), '2');
+        $this->administracion = $this->usuarioConPermisos(['padron_estudiantes']);
     }
 
     /**
      * @return TestResponse<Response>
      */
-    private function fijar(?string $hasta, ?User $cuenta = null): TestResponse
+    private function fijar(string $hasta, ?Grupo $grupo = null): TestResponse
     {
-        return $this->actingAs($cuenta ?? $this->cuenta)
-            ->putJson("/api/docente/grupos/{$this->grupo->id}/plazo-foto", ['hasta' => $hasta]);
+        return $this->actingAs($this->administracion)
+            ->putJson('/api/estudiantes/plazo-fotos/grupos/'.($grupo ?? $this->grupo)->id, [
+                'desde' => now()->toDateString(),
+                'hasta' => $hasta,
+            ]);
+    }
+
+    /**
+     * @return TestResponse<Response>
+     */
+    private function fijarGeneral(string $hasta): TestResponse
+    {
+        return $this->actingAs($this->administracion)
+            ->putJson('/api/estudiantes/plazo-fotos', ['desde' => now()->toDateString(), 'hasta' => $hasta]);
     }
 
     private function conFoto(Estudiante $estudiante): void
@@ -82,80 +97,42 @@ final class PlazoFotoDeGrupoTest extends TestCase
         return $estados;
     }
 
-    public function test_the_teacher_sets_moves_and_removes_the_deadline_of_the_group(): void
+    public function test_the_teacher_no_longer_sets_the_deadline_of_its_group(): void
     {
-        $materia = DB::table('asignaturas')->where('id', $this->grupo->asignatura_id)->value('codigo');
-        $this->assertIsString($materia);
-        [$conFoto] = $this->estudiantesInscritos($this->grupo, 3);
-        $this->conFoto($conFoto);
-
         $this->actingAs($this->cuenta)
             ->getJson("/api/docente/grupos/{$this->grupo->id}/plazo-foto")
-            ->assertOk()
-            ->assertExactJson(['data' => ['hasta' => null, 'fijado_por' => null, 'inscritos' => 3, 'sin_foto' => 2, 'vencido' => false]]);
+            ->assertNotFound();
+        $this->actingAs($this->cuenta)
+            ->putJson("/api/docente/grupos/{$this->grupo->id}/plazo-foto", ['hasta' => '2026-10-20'])
+            ->assertNotFound();
 
-        $this->fijar('2026-10-20')
-            ->assertOk()
-            ->assertJsonPath('data.hasta', '2026-10-20')
-            ->assertJsonPath('data.fijado_por', $this->cuenta->nombre);
-        // Queda en el plazo del grupo, abierto desde hoy.
-        $this->assertDatabaseHas('plazos_foto_grupo', [
-            'grupo_id' => $this->grupo->id,
-            'desde' => '2026-10-10',
-            'hasta' => '2026-10-20',
-            'fijado_por' => $this->cuenta->id,
-        ]);
-        $this->fijar('2026-10-25')->assertOk();
-        $this->fijar(null)->assertOk()->assertJsonPath('data.hasta', null);
-        $this->assertDatabaseMissing('plazos_foto_grupo', ['grupo_id' => $this->grupo->id]);
-
-        $this->assertSame(
-            [
-                'Plazo de fotos del grupo '.$materia.' 2: — → 20 oct 2026.',
-                'Plazo de fotos del grupo '.$materia.' 2: 20 oct 2026 → 25 oct 2026.',
-                'Plazo de fotos del grupo '.$materia.' 2: 25 oct 2026 → —.',
-            ],
-            DB::table('bitacora_operaciones')->where('operacion', 'grupo.plazo_foto')->orderBy('id')->pluck('descripcion')->all(),
-        );
+        $this->assertDatabaseCount('plazos_foto_grupo', 0);
     }
 
-    public function test_the_teacher_moves_a_deadline_set_by_the_administration_keeping_its_start(): void
+    public function test_the_general_deadline_disables_who_has_no_photo_in_groups_without_their_own(): void
     {
-        DB::table('plazos_foto_grupo')->insert([
-            'grupo_id' => $this->grupo->id,
-            'desde' => '2026-10-01',
-            'hasta' => '2026-10-15',
-            'created_at' => now(),
-            'updated_at' => now(),
+        $propio = $this->grupo($this->docente, $this->asignatura('Física'), '1');
+        [$sinPlazoPropio] = $this->estudiantesInscritos($this->grupo, 1);
+        [$conPlazoPropio] = $this->estudiantesInscritos($propio, 1);
+        $this->fijarGeneral('2026-10-11')->assertOk();
+        // El grupo con plazo propio manda sobre el general.
+        $this->fijar('2026-10-20', $propio)->assertOk();
+
+        $this->travelTo('2026-10-12 08:20:00');
+        $this->flushSession();
+        $aula = $this->aula('691A');
+        $examen = $this->examen($this->docente, [$this->grupo, $propio], [$aula]);
+        $lista = $this->lista($examen->id);
+
+        $this->assertSame(['estado' => 'no', 'motivo' => 'No subió su foto'], $lista[$sinPlazoPropio->codigo_universitario]);
+        $this->assertSame('pendiente', $lista[$conPlazoPropio->codigo_universitario]['estado']);
+        // Como autor, quien fijo el plazo general.
+        $this->assertDatabaseHas('habilitaciones', [
+            'examen_id' => $examen->id,
+            'estudiante_id' => $sinPlazoPropio->id,
+            'por_foto' => true,
+            'registrada_por' => $this->administracion->id,
         ]);
-
-        $this->actingAs($this->cuenta)
-            ->getJson("/api/docente/grupos/{$this->grupo->id}/plazo-foto")
-            ->assertJsonPath('data.hasta', '2026-10-15');
-        $this->fijar('2026-10-30')->assertOk()->assertJsonPath('data.hasta', '2026-10-30');
-
-        $this->assertDatabaseHas('plazos_foto_grupo', [
-            'grupo_id' => $this->grupo->id,
-            'desde' => '2026-10-01',
-            'hasta' => '2026-10-30',
-        ]);
-    }
-
-    public function test_the_deadline_is_from_today_up_to_a_semester_and_only_for_the_teacher_of_the_group(): void
-    {
-        $this->fijar('2026-10-09')->assertUnprocessable()->assertJsonPath('errors.hasta.0', 'No puede ser antes de hoy');
-        $this->fijar('2027-04-09')->assertUnprocessable()->assertJsonPath('errors.hasta.0', 'Máximo 180 días');
-        $this->actingAs($this->cuenta)
-            ->putJson("/api/docente/grupos/{$this->grupo->id}/plazo-foto", [])
-            ->assertUnprocessable();
-
-        $ajena = $this->usuarioConPermisos(['mis_grupos']);
-        $this->docenteConCuenta($ajena);
-        $this->fijar('2026-10-20', $ajena)->assertForbidden()->assertJsonPath('alcance', true);
-        $this->actingAs($ajena)
-            ->getJson("/api/docente/grupos/{$this->grupo->id}/plazo-foto")
-            ->assertForbidden();
-        $this->actingAs($this->cuenta)->putJson('/api/docente/grupos/999999/plazo-foto', ['hasta' => '2026-10-20'])->assertNotFound();
     }
 
     public function test_after_the_deadline_who_has_no_photo_is_disabled_until_uploading_it(): void
@@ -178,12 +155,12 @@ final class PlazoFotoDeGrupoTest extends TestCase
             ],
             array_intersect_key($this->lista($examen->id), [$puntual->codigo_universitario => 0, $tarde->codigo_universitario => 0]),
         );
-        // Como autor, quien fijo el plazo.
+        // Como autor, quien fijo el plazo: la administracion.
         $this->assertDatabaseHas('habilitaciones', [
             'examen_id' => $examen->id,
             'estudiante_id' => $tarde->id,
             'por_foto' => true,
-            'registrada_por' => $this->cuenta->id,
+            'registrada_por' => $this->administracion->id,
         ]);
 
         // Habilitarlo a mano no sirve: lo habilita subir la foto.
@@ -257,6 +234,7 @@ final class PlazoFotoDeGrupoTest extends TestCase
         $this->assertSame('no', $this->lista($hoy->id)[$estudiante->codigo_universitario]['estado']);
         $this->assertSame('habilitado', $this->lista($ayer->id)[$estudiante->codigo_universitario]['estado']);
 
+        // La administracion lo corre (el plazo nuevo empieza hoy).
         $this->fijar('2026-10-15')->assertOk();
         $this->assertSame('pendiente', $this->lista($hoy->id)[$estudiante->codigo_universitario]['estado']);
     }

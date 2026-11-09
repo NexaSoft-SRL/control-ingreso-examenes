@@ -8,8 +8,20 @@
  */
 import { createRoot } from 'react-dom/client';
 import Aplicacion from './navegacion/Aplicacion';
+import { escucharInstalacion } from './utiles/instalacion';
+
+// El aviso de instalación llega apenas carga la página: se escucha antes de
+// dibujar.
+escucharInstalacion();
 
 const contenedor = document.getElementById('app');
 if (contenedor) {
     createRoot(contenedor).render(<Aplicacion />);
+}
+
+// Aplicación instalable: el service worker solo guarda los estáticos.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    });
 }

@@ -142,7 +142,16 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
             ->exists();
     }
 
-    public function incidencias(int $examenId, int $pagina): array
+    /**
+     * La gravedad de cada tipo de incidencia (decimotercera revision).
+     */
+    private const TIPOS_POR_GRAVEDAD = [
+        'MUY_GRAVE' => ['SUPLANTACION', 'EXPULSION'],
+        'GRAVE' => ['INGRESO_REPETIDO', 'INTENTO_NO_AUTORIZADO', 'MATERIAL_NO_PERMITIDO', 'DISPOSITIVO_NO_PERMITIDO'],
+        'LEVE' => ['CAMBIO_AULA', 'OTRA'],
+    ];
+
+    public function incidencias(int $examenId, int $pagina, ?string $gravedad = null): array
     {
         $examen = DB::table('examenes')
             ->where('id', $examenId)
@@ -151,7 +160,7 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
         if ($examen === null) {
             return [
                 'data' => [],
-                'meta' => ['total' => 0, 'pagina' => 1, 'por_pagina' => 8, 'paginas' => 1],
+                'meta' => ['total' => 0, 'pagina' => 1, 'por_pagina' => 8, 'paginas' => 1, 'gravedades' => ['MUY_GRAVE' => 0, 'GRAVE' => 0, 'LEVE' => 0]],
             ];
         }
 
@@ -161,6 +170,16 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
             $this->inicio($examen['fecha'], $examen['hora_inicio']),
             $this->cierre($examen['fecha'], $examen['finalizado_en']),
         );
+        $gravedades = [];
+
+        foreach (self::TIPOS_POR_GRAVEDAD as $clave => $tipos) {
+            $gravedades[$clave] = (clone $consulta)->whereIn('incidencia.tipo', $tipos)->count('incidencia.id');
+        }
+
+        if ($gravedad !== null && array_key_exists($gravedad, self::TIPOS_POR_GRAVEDAD)) {
+            $consulta->whereIn('incidencia.tipo', self::TIPOS_POR_GRAVEDAD[$gravedad]);
+        }
+
         $total = (clone $consulta)->count('incidencia.id');
         $porPagina = 8;
         $ultima = max(1, (int) ceil($total / $porPagina));
@@ -177,6 +196,7 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
                 'pagina' => $pagina,
                 'por_pagina' => $porPagina,
                 'paginas' => $ultima,
+                'gravedades' => $gravedades,
             ],
         ];
     }
@@ -235,8 +255,22 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
             static fn (array $a, array $b): int => strcmp($a['registrado_en'] ?? '', $b['registrado_en'] ?? ''),
         );
 
+        // Los grupos del examen con su docente, para el encabezado del archivo.
+        $grupos = [];
+
+        foreach (DB::table('examen_grupo as incluido')
+            ->join('grupos as grupo', 'grupo.id', '=', 'incluido.grupo_id')
+            ->leftJoin('docentes as docente', 'docente.id', '=', 'grupo.docente_id')
+            ->where('incluido.examen_id', (int) $examen['id'])
+            ->orderBy('grupo.codigo')
+            ->get(['grupo.codigo', 'docente.nombre_completo as docente']) as $grupo) {
+            $grupo = $this->campos($grupo);
+            $grupos[] = sprintf('%s · %s', (string) $grupo['codigo'], $grupo['docente'] === null ? 'Sin docente' : (string) $grupo['docente']);
+        }
+
         return [
             'id' => (int) $examen['id'],
+            'grupos' => implode('; ', $grupos),
             'periodo' => (string) $examen['periodo'],
             'fecha' => substr((string) $examen['fecha'], 0, 10),
             'hora' => substr((string) $examen['hora_inicio'], 0, 5),
@@ -366,6 +400,7 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
      *     nombres: string,
      *     carrera: string,
      *     grupo: string,
+     *     docente: string,
      *     habilitado: bool|null,
      *     aula: string,
      *     ingreso_id: int|null,
@@ -381,6 +416,7 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
     {
         $filas = DB::table('examen_grupo as incluido')
             ->join('grupos as grupo', 'grupo.id', '=', 'incluido.grupo_id')
+            ->leftJoin('docentes as docente', 'docente.id', '=', 'grupo.docente_id')
             ->join('inscripciones as inscripcion', 'inscripcion.grupo_id', '=', 'grupo.id')
             ->join('estudiantes as estudiante', 'estudiante.id', '=', 'inscripcion.estudiante_id')
             ->leftJoin('carreras as carrera', 'carrera.id', '=', 'estudiante.carrera_id')
@@ -407,6 +443,7 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
                 'estudiante.apellidos',
                 'carrera.nombre as carrera',
                 'grupo.codigo as grupo',
+                'docente.nombre_completo as docente',
                 'habilitacion.habilitado',
                 'aula.nombre as aula',
                 'ingreso.id as ingreso_id',
@@ -418,6 +455,7 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
 
         $estudiantes = [];
         $gruposPorEstudiante = [];
+        $docentesPorEstudiante = [];
 
         foreach ($filas as $fila) {
             $fila = $this->campos($fila);
@@ -439,6 +477,8 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
             ];
 
             $gruposPorEstudiante[$id][(string) $fila['grupo']] = true;
+            // El docente del grupo por el que figura (en uno conjunto, cada grupo tiene el suyo).
+            $docentesPorEstudiante[$id][$fila['docente'] === null ? 'Sin docente' : (string) $fila['docente']] = true;
             $estudiantes[$id]['expulsado'] = $estudiantes[$id]['expulsado'] || $fila['expulsion_id'] !== null;
         }
 
@@ -446,6 +486,7 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
 
         foreach ($estudiantes as $id => $estudiante) {
             $estudiante['grupo'] = implode(', ', array_keys($gruposPorEstudiante[$id]));
+            $estudiante['docente'] = implode(', ', array_keys($docentesPorEstudiante[$id]));
             $estudiante['situacion'] = $estudiante['expulsado']
                 ? 'Expulsado'
                 : ($estudiante['excepcion'] ? 'Excepción' : 'Rindió');
@@ -565,8 +606,8 @@ final class EloquentConsultaReportesGateway implements ConsultaReportesGateway
                 : trim((string) $fila['apellidos'].' '.(string) $fila['nombres']);
 
             $gravedad = match ($tipo) {
-                'SUPLANTACION', 'INGRESO_REPETIDO', 'EXPULSION' => 'Grave',
-                'INTENTO_NO_AUTORIZADO', 'MATERIAL_NO_PERMITIDO', 'DISPOSITIVO_NO_PERMITIDO' => 'Media',
+                'SUPLANTACION', 'EXPULSION' => 'Muy grave',
+                'INGRESO_REPETIDO', 'INTENTO_NO_AUTORIZADO', 'MATERIAL_NO_PERMITIDO', 'DISPOSITIVO_NO_PERMITIDO' => 'Grave',
                 default => 'Leve',
             };
             $registradoPor = (string) ($fila['usuario'] ?: $fila['colaborador'] ?: 'Sistema');

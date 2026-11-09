@@ -45,6 +45,7 @@ const inscritos = () =>
         motivo: i === 0 ? 'No presentó el proyecto' : null,
         registrada_por: i === 0 ? 'Blanco Coca Leticia' : null,
         registrada_el: i === 0 ? '2026-10-09 14:05' : null,
+        con_foto: i === 1,
     }));
 
 // La lista como la devuelve la API (plan, 9 · B3), filtrada y paginada aquí.
@@ -160,6 +161,29 @@ describe('Habilitacion', () => {
         expect(screen.getByText('Primer parcial · Introducción a la Programación')).toBeVisible();
         expect(screen.getByRole('link', { name: 'Exámenes' })).toHaveAttribute('href', '/examenes');
         expect(screen.queryByText(/códigos QR/i)).not.toBeInTheDocument();
+    });
+
+    it('muestra la foto de cada inscrito y la amplía; sin foto, sus iniciales', async () => {
+        montar();
+        await cargada();
+        const tabla = screen.getByRole('table');
+
+        const sinFoto = within(tabla).getByText('Apellido01 Nombre').closest('tr');
+        expect(
+            within(sinFoto).getByRole('img', { name: 'Apellido01 Nombre sin foto' })
+        ).toHaveTextContent('AN');
+
+        const conFoto = within(tabla).getByText('Apellido02 Nombre').closest('tr');
+        fireEvent.click(
+            within(conFoto).getByRole('button', { name: 'Ver la foto de Apellido02 Nombre' })
+        );
+
+        const dialogo = screen.getByRole('dialog');
+        expect(
+            within(dialogo).getByRole('img', { name: 'Foto de Apellido02 Nombre' })
+        ).toHaveAttribute('src', '/api/examenes/1/habilitaciones/2/foto');
+        expect(dialogo).toHaveTextContent('202100002');
+        expect(dialogo).toHaveTextContent('Habilitado');
     });
 
     it('muestra las cifras del examen y la distribución por aula', async () => {
@@ -367,14 +391,14 @@ describe('Habilitacion', () => {
         ]);
     });
 
-    it('«Quitar» vacía la selección', async () => {
+    it('«Deseleccionar» vacía la selección', async () => {
         montar();
         await cargada();
         fireEvent.click(casillaPagina());
         fireEvent.click(screen.getAllByRole('button', { name: 'Seleccionar los 60' })[0]);
         expect(screen.getAllByText('60 seleccionados')).not.toHaveLength(0);
 
-        fireEvent.click(screen.getAllByRole('button', { name: 'Quitar' })[0]);
+        fireEvent.click(screen.getAllByRole('button', { name: 'Deseleccionar' })[0]);
 
         expect(screen.queryByText(/seleccionado/)).not.toBeInTheDocument();
         expect(screen.queryByLabelText(/Motivo de la inhabilitación/)).not.toBeInTheDocument();

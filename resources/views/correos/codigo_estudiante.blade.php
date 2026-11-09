@@ -3,7 +3,7 @@
 
 {{ $nombre }}:
 
-Su código para entrar al sistema de control de ingreso a exámenes es:
+Su código para entrar al sistema de control de exámenes es:
 
 @component('mail::panel')
 **{{ $codigo }}**

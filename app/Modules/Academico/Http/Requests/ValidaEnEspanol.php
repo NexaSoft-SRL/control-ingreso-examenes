@@ -28,7 +28,7 @@ trait ValidaEnEspanol
             'date_format' => 'El campo :attribute debe ser una fecha con el formato AAAA-MM-DD.',
             'after' => 'La fecha de fin debe ser posterior a la fecha de inicio.',
             'email' => 'El correo no tiene un formato válido.',
-            'regex' => 'Letras o números, separados por punto o guion',
+            'regex' => 'Nombre y apellido, separados por un espacio',
         ];
     }
 

@@ -224,14 +224,14 @@ final class DocentesTest extends TestCase
             ->assertJsonPath('data.cuenta', null)
             ->assertJsonPath('data.grupos', 0)
             ->assertJsonPath('data.facultades', [])
-            ->assertJsonPath('data.usuario_sugerido', 'leticiablanco');
+            ->assertJsonPath('data.usuario_sugerido', 'leticia blanco');
 
-        // Si ya esta tomado, lleva sufijo.
+        // Si ya esta tomado, aunque sea sin el espacio, lleva sufijo.
         UserFactory::new()->createOne(['usuario' => 'leticiablanco']);
 
         $sesion->getJson("/api/docentes/{$docente->id}")
             ->assertOk()
-            ->assertJsonPath('data.usuario_sugerido', 'leticiablanco2');
+            ->assertJsonPath('data.usuario_sugerido', 'leticia blanco2');
     }
 
     public function test_teacher_detail_tells_a_temporary_password_apart(): void
@@ -403,11 +403,11 @@ final class DocentesTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonPath('errors.usuario.0', 'El campo usuario es obligatorio.');
 
-        $sesion->postJson("/api/docentes/{$docente->id}/cuenta", ['usuario' => 'leticia blanco', 'correo' => 'no-es-correo'])
+        $sesion->postJson("/api/docentes/{$docente->id}/cuenta", ['usuario' => 'leticia..blanco', 'correo' => 'no-es-correo'])
             ->assertUnprocessable()
             ->assertJsonPath(
                 'errors.usuario.0',
-                'Letras o números, separados por punto o guion',
+                'Nombre y apellido, separados por un espacio',
             )
             ->assertJsonPath('errors.correo.0', 'El correo no tiene un formato válido.');
 

@@ -11,12 +11,22 @@ import CampoImagen from '../../componentes/CampoImagen';
 import EstadoCarga from '../../componentes/EstadoCarga';
 import IconoAsignatura from '../../componentes/IconoAsignatura';
 import Insignia from '../../componentes/Insignia';
-import Logo from '../../componentes/Logo';
+import Escudo from '../../componentes/Escudo';
 import Tarjeta from '../../componentes/Tarjeta';
 import { PantallaDeCarga } from '../../sesion/SesionContexto';
 import usarTituloPestana from '../../utiles/usarTituloPestana';
-import { colorDeAsignatura, diaMes, fechaCorta, fechaLarga, normalizar } from '../../utiles/texto';
+import {
+    colorDeAsignatura,
+    diaMes,
+    fechaCorta,
+    fechaLarga,
+    iniciales,
+    normalizar,
+} from '../../utiles/texto';
 import { MAXIMO_MB } from '../../utiles/imagen';
+import QrDelExamen from './QrDelExamen';
+import { encuadrarFoto } from '../../utiles/encuadrarFoto';
+import { precargarDetector, revisarFoto } from '../../utiles/revisarFoto';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
@@ -112,6 +122,12 @@ function Examen({ examen, hoy }) {
                 )}
             </div>
             {examen.motivo && <p className="mt-2 text-sm text-danger-700">{examen.motivo}</p>}
+            {examen.qr && !rendido && (
+                <QrDelExamen
+                    examenId={examen.id}
+                    nombre={`qr-${examen.asignatura}-${examen.fecha}.png`}
+                />
+            )}
         </li>
     );
 }
@@ -125,6 +141,8 @@ Examen.propTypes = {
         estado: PropTypes.string,
         motivo: PropTypes.string,
         ingreso: PropTypes.string,
+        id: PropTypes.number,
+        qr: PropTypes.bool,
         normas: PropTypes.arrayOf(PropTypes.string),
         aula: PropTypes.string,
         edificio: PropTypes.string,
@@ -171,6 +189,11 @@ function MiFoto({ sesion, alGuardar }) {
     const [error, setError] = useState(null);
     const [enviando, setEnviando] = useState(false);
     const [aviso, avisar] = useAviso();
+
+    // El detector de rostros tarda en cargar: se pide apenas puede subirla.
+    useEffect(() => {
+        if (puede) precargarDetector();
+    }, [puede]);
 
     useEffect(() => {
         if (!estudiante.con_foto) return undefined;
@@ -305,6 +328,10 @@ function MiFoto({ sesion, alGuardar }) {
                         camara={null}
                         minimo={240}
                         maximoMB={MAXIMO_MB}
+                        revisar={revisarFoto}
+                        preparar={encuadrarFoto}
+                        cuadrada
+                        tomarFoto
                     />
                     {confirmando ? (
                         <div
@@ -424,7 +451,7 @@ export default function PortalEstudiante() {
     if (sinSesion) return <Navigate to="/estudiante/ingreso" replace />;
     if (fallo && !sesion) {
         return (
-            <div className="flex min-h-dvh items-center justify-center bg-slate-100 px-4">
+            <div className="flex min-h-dvh items-center justify-center bg-fondo px-4">
                 <EstadoCarga error={new Error('sin conexión')} onReintentar={cargar} />
             </div>
         );
@@ -451,27 +478,39 @@ export default function PortalEstudiante() {
     }
 
     return (
-        <div className="flex min-h-dvh flex-col bg-slate-100">
-            <header className="sticky top-0 z-10 border-b border-slate-200 bg-white">
-                <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2.5">
-                    <div className="flex min-w-0 items-center gap-3">
-                        <Logo className="h-8 w-8" />
-                        <span className="min-w-0">
-                            <span className="line-clamp-2 break-words text-sm font-medium leading-tight text-slate-800">
-                                {estudiante.nombre}
+        <div className="flex min-h-dvh flex-col bg-fondo">
+            <header className="sticky top-0 z-10 bg-white shadow-sm">
+                <div className="border-b-[3px] border-umss-rojo bg-umss-marino text-white">
+                    <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                            <span
+                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-umss-marino ring-2 ring-white/30"
+                                aria-hidden="true"
+                            >
+                                {iniciales(estudiante.nombre)}
                             </span>
-                            <span className="block truncate text-xs text-slate-600">
-                                Estudiante · {estudiante.codigo}
+                            <span className="min-w-0">
+                                <span className="line-clamp-2 break-words text-sm font-semibold leading-tight">
+                                    {estudiante.nombre}
+                                </span>
+                                <span className="block truncate text-xs text-primary-200">
+                                    Estudiante · {estudiante.codigo}
+                                </span>
                             </span>
-                        </span>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={salir}
+                                className={`flex h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium text-white hover:bg-white/10 ${FOCO}`}
+                            >
+                                <LogOut className="h-[18px] w-[18px]" /> Cerrar sesión
+                            </button>
+                            <span className="hidden rounded-lg bg-white p-1 sm:block">
+                                <Escudo className="h-10" />
+                            </span>
+                        </div>
                     </div>
-                    <button
-                        type="button"
-                        onClick={salir}
-                        className={`flex h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-danger-50 hover:text-danger-700 ${FOCO}`}
-                    >
-                        <LogOut className="h-[18px] w-[18px]" /> Cerrar sesión
-                    </button>
                 </div>
                 <nav aria-label="Estudiante" className="mx-auto flex max-w-5xl gap-1 px-4">
                     {PESTANAS.map(({ ruta, titulo, Icono }) => {
@@ -481,7 +520,7 @@ export default function PortalEstudiante() {
                                 key={ruta}
                                 to={ruta}
                                 aria-current={activa ? 'page' : undefined}
-                                className={`flex min-h-11 items-center gap-2 border-b-2 px-3 text-sm font-medium ${activa ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-600 hover:text-slate-900'} ${FOCO}`}
+                                className={`flex min-h-11 items-center gap-2 border-b-2 px-3 text-sm font-medium ${activa ? 'border-primary-600 font-semibold text-primary-700' : 'border-transparent text-slate-600 hover:text-umss-marino'} ${FOCO}`}
                             >
                                 <Icono className="h-4 w-4" />
                                 {titulo}

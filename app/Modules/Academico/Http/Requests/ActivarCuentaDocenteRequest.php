@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Academico\Http\Requests;
 
+use App\Modules\Administracion\Application\Contracts\ProponedorUsuario;
 use Illuminate\Foundation\Http\FormRequest;
 
 final class ActivarCuentaDocenteRequest extends FormRequest
@@ -22,7 +23,7 @@ final class ActivarCuentaDocenteRequest extends FormRequest
     {
         return [
             // Empieza y termina con letra o numero, sin separadores seguidos.
-            'usuario' => ['required', 'string', 'max:60', 'regex:/^[a-z0-9]+([._-][a-z0-9]+)*$/'],
+            'usuario' => ['required', 'string', 'max:60', 'regex:'.ProponedorUsuario::FORMATO],
             'correo' => ['sometimes', 'nullable', 'string', 'email', 'max:255'],
         ];
     }
@@ -34,7 +35,7 @@ final class ActivarCuentaDocenteRequest extends FormRequest
 
         // El usuario se guarda en minusculas: se valida ya normalizado.
         $this->merge([
-            'usuario' => is_string($usuario) ? mb_strtolower(trim($usuario)) : $usuario,
+            'usuario' => is_string($usuario) ? app(ProponedorUsuario::class)->normalizar($usuario) : $usuario,
             'correo' => is_string($correo) && trim($correo) !== '' ? mb_strtolower(trim($correo)) : null,
         ]);
     }

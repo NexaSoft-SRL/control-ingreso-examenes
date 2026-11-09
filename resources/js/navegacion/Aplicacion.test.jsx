@@ -66,7 +66,7 @@ describe('Aplicacion', () => {
 
     it('sin sesión, la raíz lleva al inicio de sesión por usuario', async () => {
         montar('/', null);
-        expect(await titulo('Control de ingreso a exámenes')).toBeInTheDocument();
+        expect(await titulo('Control de exámenes')).toBeInTheDocument();
         expect(screen.getByLabelText(/Usuario/)).toBeInTheDocument();
     });
 

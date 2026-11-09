@@ -8,6 +8,7 @@ use App\Modules\Administracion\Application\Contracts\AlmacenImagenes;
 use App\Modules\Estudiantes\Application\Actions\EntrarComoEstudiante;
 use App\Modules\Estudiantes\Application\Actions\SolicitarCodigoDeAcceso;
 use App\Modules\Estudiantes\Application\Actions\SubirFotoPropia;
+use App\Modules\Estudiantes\Application\Contracts\CodigosQrDelEstudiante;
 use App\Modules\Estudiantes\Application\Contracts\PortalEstudianteGateway;
 use App\Modules\Estudiantes\Application\DTOs\EstudiantePortalData;
 use App\Modules\Estudiantes\Domain\Exceptions\CodigoDeAccesoInvalidoException;
@@ -155,12 +156,20 @@ final class PortalEstudianteController
         $plazoDeGrupoAbierto = collect($plazosDeGrupo)->contains(
             fn (array $plazoGrupo): bool => $plazoGrupo['desde'] <= $hoy && $hoy <= $plazoGrupo['hasta'],
         );
-        // Las asignaturas en que ya vencio el plazo de su grupo sin que la
-        // suba: ahi queda no habilitado.
-        $vencidoEn = $estudiante->conFoto ? [] : array_values(array_unique(array_map(
+        // Las asignaturas en que ya vencio el plazo sin que la suba: ahi
+        // queda no habilitado. El plazo lo fija la administracion: el del
+        // grupo si le puso uno; si no, el general.
+        $vencidoEn = $estudiante->conFoto ? [] : array_map(
             static fn (array $plazoGrupo): string => $plazoGrupo['asignatura'],
             array_filter($plazosDeGrupo, static fn (array $plazoGrupo): bool => $plazoGrupo['hasta'] < $hoy),
-        )));
+        );
+
+        if (! $estudiante->conFoto && $plazo !== null && $plazo->hasta < $hoy) {
+            $vencidoEn = [...$vencidoEn, ...$portal->asignaturasConPlazoGeneral($estudiante->id)];
+        }
+
+        $vencidoEn = array_values(array_unique($vencidoEn));
+        sort($vencidoEn);
 
         return response()->json([
             'estudiante' => $estudiante->comoArreglo(),
@@ -187,6 +196,25 @@ final class PortalEstudianteController
         return response()->json([
             'data' => $portal->examenes($this->estudiante($request)->id),
             'hoy' => now()->toDateString(),
+        ]);
+    }
+
+    /**
+     * Su propio codigo QR de un examen, el mismo del correo: para
+     * descargarlo o compartirlo desde el portal.
+     */
+    public function qr(Request $request, int $examen, CodigosQrDelEstudiante $codigos): JsonResponse|Response
+    {
+        $imagen = $codigos->png($examen, $this->estudiante($request)->id);
+
+        if ($imagen === null) {
+            return response()->json(['message' => 'Sin código QR.'], Response::HTTP_NOT_FOUND);
+        }
+
+        return response($imagen->png, Response::HTTP_OK, [
+            'Content-Type' => 'image/png',
+            'Content-Disposition' => sprintf('attachment; filename="%s"', $imagen->nombre),
+            'Cache-Control' => 'private, no-store',
         ]);
     }
 

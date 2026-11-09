@@ -12,6 +12,7 @@ namespace App\Modules\Reportes\Application\Contracts;
  *     nombres: string,
  *     carrera: string,
  *     grupo: string,
+ *     docente: string,
  *     habilitado: bool|null,
  *     aula: string,
  *     ingreso_id: int|null,
@@ -37,6 +38,7 @@ namespace App\Modules\Reportes\Application\Contracts;
  * }
  * @phpstan-type ExamenReporte array{
  *     id: int,
+ *     grupos: string,
  *     periodo: string,
  *     fecha: string,
  *     hora: string,
@@ -87,9 +89,12 @@ interface ConsultaReportesGateway
     public function perteneceAlDocente(int $examenId, int $usuarioId): bool;
 
     /**
-     * @return array{data: list<FilaReporteIncidencia>, meta: array{total: int, pagina: int, por_pagina: int, paginas: int}}
+     * Con `$gravedad` (MUY_GRAVE, GRAVE o LEVE), solo las de esa gravedad;
+     * `meta.gravedades` cuenta las de cada una, sin ese filtro.
+     *
+     * @return array{data: list<FilaReporteIncidencia>, meta: array{total: int, pagina: int, por_pagina: int, paginas: int, gravedades: array<string, int>}}
      */
-    public function incidencias(int $examenId, int $pagina): array;
+    public function incidencias(int $examenId, int $pagina, ?string $gravedad = null): array;
 
     /**
      * @return ExamenReporte|null

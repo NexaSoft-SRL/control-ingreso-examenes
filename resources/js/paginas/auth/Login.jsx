@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { Eye, EyeOff, GraduationCap, KeyRound, Lock } from 'lucide-react';
+import { Eye, EyeOff, GraduationCap, KeyRound, Lock, ShieldCheck } from 'lucide-react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
@@ -9,10 +9,11 @@ import { plural } from '../../utiles/texto';
 import Campo from '../../componentes/Campo';
 import Boton from '../../componentes/Boton';
 import Dialogo from '../../componentes/Dialogo';
-import FondoAcceso from '../../componentes/FondoAcceso';
-import Logo from '../../componentes/Logo';
+import FondoAcceso, { CabeceraAcceso, TARJETA_ACCESO } from '../../componentes/FondoAcceso';
 import { useAviso } from '../../componentes/Aviso';
+import SugerenciaInstalar from '../../componentes/SugerenciaInstalar';
 import usarTituloPestana from '../../utiles/usarTituloPestana';
+import { normalizarUsuario, usuarioValido } from '../../utiles/usuario';
 
 // Acceso por nombre de usuario; el correo solo se utiliza como contacto.
 const FOCO =
@@ -20,7 +21,7 @@ const FOCO =
 
 // Se valida lo que se envía: sin los espacios de los extremos.
 const SOLO_USUARIO = (v) =>
-    /^[a-z0-9._-]+$/i.test(String(v).trim()) ? null : 'Solo letras, números, puntos y guiones';
+    usuarioValido(v) ? null : 'Solo letras y números, separados por un espacio';
 
 // Las otras dos puertas de entrada: el estudiante y quien controla con el
 // código de un aula.
@@ -103,7 +104,7 @@ export default function Login() {
     async function iniciar(e) {
         e.preventDefault();
         if (enviando) return;
-        const nombreUsuario = usuario.trim();
+        const nombreUsuario = normalizarUsuario(usuario);
         if (!nombreUsuario) return setFalloUsuario('Obligatorio');
         if (SOLO_USUARIO(nombreUsuario)) return setFalloUsuario(SOLO_USUARIO(nombreUsuario));
         if (!clave) return setFallo('Obligatorio');
@@ -128,7 +129,7 @@ export default function Login() {
     async function enviarEnlace(e) {
         e.preventDefault();
         setIntentoEnlace(true);
-        const nombre = usuarioRecuperar.trim();
+        const nombre = normalizarUsuario(usuarioRecuperar);
         if (!nombre || SOLO_USUARIO(nombre) || enviandoEnlace) return;
         setEnviandoEnlace(true);
         setErrorRecuperar(null);
@@ -153,115 +154,113 @@ export default function Login() {
 
     return (
         <FondoAcceso>
-            <div className="w-full max-w-sm">
-                <div className="mb-8 flex flex-col items-center text-center">
-                    <Logo className="mb-3 h-16 w-16 drop-shadow-sm" />
-                    <h1 className="text-lg font-semibold text-slate-900">
-                        Control de ingreso a exámenes
-                    </h1>
-                    <p className="mt-1 text-sm text-slate-600">Cuenta institucional</p>
-                </div>
-
-                <form
-                    className="space-y-4 rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-lg shadow-primary-900/5 backdrop-blur"
-                    onSubmit={iniciar}
-                    noValidate
-                >
-                    <Campo
-                        etiqueta="Usuario"
-                        requerido
-                        type="text"
-                        placeholder="nombreapellido"
-                        autoFocus
-                        validar={SOLO_USUARIO}
-                        value={usuario}
-                        autoComplete="username"
-                        autoCapitalize="none"
-                        spellCheck={false}
-                        error={falloUsuario ?? undefined}
-                        onChange={(e) => {
-                            setUsuario(e.target.value);
-                            limpiar();
-                        }}
+            <div className="w-full max-w-md">
+                <div className={TARJETA_ACCESO}>
+                    <CabeceraAcceso
+                        icono={ShieldCheck}
+                        titulo="Control de exámenes"
+                        subtitulo="Cuenta institucional"
                     />
 
-                    <div>
-                        <label
-                            htmlFor={idClave}
-                            className="mb-1.5 block text-sm font-medium text-slate-700"
-                        >
-                            Contraseña
-                            <span className="ml-0.5 text-danger-600" aria-hidden="true">
-                                *
-                            </span>
-                        </label>
-                        <div
-                            className={`flex overflow-hidden rounded-lg border bg-white focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/40 ${
-                                fallo ? 'border-danger-600' : 'border-slate-300'
-                            }`}
-                        >
-                            <input
-                                id={idClave}
-                                type={verClave ? 'text' : 'password'}
-                                className="min-h-11 min-w-0 flex-1 bg-transparent px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-500 focus:outline-none"
-                                placeholder="••••••••"
-                                value={clave}
-                                autoComplete="current-password"
-                                aria-required="true"
-                                aria-invalid={fallo ? 'true' : undefined}
-                                onChange={(e) => {
-                                    setClave(e.target.value);
-                                    limpiar();
-                                }}
-                            />
-                            <button
-                                type="button"
-                                className={`flex h-11 w-11 shrink-0 items-center justify-center text-slate-500 hover:text-slate-700 ${FOCO}`}
-                                onClick={() => setVerClave((v) => !v)}
-                                aria-label={verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                                aria-pressed={verClave}
+                    <form className="space-y-4" onSubmit={iniciar} noValidate>
+                        <Campo
+                            etiqueta="Usuario"
+                            requerido
+                            type="text"
+                            placeholder="nombre apellido"
+                            autoFocus
+                            validar={SOLO_USUARIO}
+                            value={usuario}
+                            autoComplete="username"
+                            autoCapitalize="none"
+                            spellCheck={false}
+                            error={falloUsuario ?? undefined}
+                            onChange={(e) => {
+                                setUsuario(e.target.value);
+                                limpiar();
+                            }}
+                        />
+
+                        <div>
+                            <label
+                                htmlFor={idClave}
+                                className="mb-1.5 block text-sm font-medium text-slate-700"
                             >
-                                {verClave ? (
-                                    <EyeOff className="h-4 w-4" strokeWidth={2} />
-                                ) : (
-                                    <Eye className="h-4 w-4" strokeWidth={2} />
-                                )}
-                            </button>
+                                Contraseña
+                                <span className="ml-0.5 text-danger-600" aria-hidden="true">
+                                    *
+                                </span>
+                            </label>
+                            <div
+                                className={`flex overflow-hidden rounded-lg border bg-white focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/40 ${
+                                    fallo ? 'border-danger-600' : 'border-slate-300'
+                                }`}
+                            >
+                                <input
+                                    id={idClave}
+                                    type={verClave ? 'text' : 'password'}
+                                    className="min-h-11 min-w-0 flex-1 bg-transparent px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-500 focus:outline-none"
+                                    placeholder="••••••••"
+                                    value={clave}
+                                    autoComplete="current-password"
+                                    aria-required="true"
+                                    aria-invalid={fallo ? 'true' : undefined}
+                                    onChange={(e) => {
+                                        setClave(e.target.value);
+                                        limpiar();
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    className={`flex h-11 w-11 shrink-0 items-center justify-center text-slate-500 hover:text-slate-700 ${FOCO}`}
+                                    onClick={() => setVerClave((v) => !v)}
+                                    aria-label={
+                                        verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'
+                                    }
+                                    aria-pressed={verClave}
+                                >
+                                    {verClave ? (
+                                        <EyeOff className="h-4 w-4" strokeWidth={2} />
+                                    ) : (
+                                        <Eye className="h-4 w-4" strokeWidth={2} />
+                                    )}
+                                </button>
+                            </div>
+                            {fallo && (
+                                <p role="alert" className="mt-1.5 text-sm text-danger-600">
+                                    {fallo}
+                                </p>
+                            )}
                         </div>
-                        {fallo && (
-                            <p role="alert" className="mt-1.5 text-sm text-danger-600">
-                                {fallo}
-                            </p>
+
+                        {bloqueo && (
+                            <div
+                                role="alert"
+                                className="flex items-start gap-2 rounded-lg bg-danger-50 px-3.5 py-3 text-sm text-danger-700"
+                            >
+                                <Lock className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
+                                <p>{bloqueo}</p>
+                            </div>
                         )}
-                    </div>
 
-                    {bloqueo && (
-                        <div
-                            role="alert"
-                            className="flex items-start gap-2 rounded-lg bg-danger-50 px-3.5 py-3 text-sm text-danger-700"
+                        <Boton type="submit" className="w-full" cargando={enviando}>
+                            Iniciar sesión
+                        </Boton>
+
+                        <button
+                            type="button"
+                            className={`min-h-11 w-full rounded-lg text-center text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
+                            onClick={() => {
+                                setUsuarioRecuperar(usuario);
+                                setIntentoEnlace(false);
+                                setErrorRecuperar(null);
+                                setRecuperando(true);
+                            }}
                         >
-                            <Lock className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
-                            <p>{bloqueo}</p>
-                        </div>
-                    )}
-
-                    <Boton type="submit" className="w-full" cargando={enviando}>
-                        Iniciar sesión
-                    </Boton>
-
-                    <button
-                        type="button"
-                        className={`min-h-11 w-full rounded-lg text-center text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
-                        onClick={() => {
-                            setUsuarioRecuperar(usuario);
-                            setIntentoEnlace(false);
-                            setErrorRecuperar(null);
-                            setRecuperando(true);
-                        }}
-                    >
-                        Recuperar contraseña
-                    </button>
-                </form>
+                            Recuperar contraseña
+                        </button>
+                    </form>
+                </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-2">
                     {ENTRADAS.map(([a, texto, Icono, tono]) => (
@@ -279,6 +278,7 @@ export default function Login() {
                         </Link>
                     ))}
                 </div>
+                <SugerenciaInstalar />
             </div>
 
             {recuperando && (
@@ -309,7 +309,7 @@ export default function Login() {
                         <Campo
                             etiqueta="Usuario"
                             requerido
-                            placeholder="nombreapellido"
+                            placeholder="nombre apellido"
                             value={usuarioRecuperar}
                             autoCapitalize="none"
                             spellCheck={false}

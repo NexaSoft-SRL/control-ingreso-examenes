@@ -5,14 +5,16 @@ import RutaProtegida from '../sesion/RutaProtegida';
 import EsquemaApp from '../componentes/EsquemaApp';
 import EstadoCarga from '../componentes/EstadoCarga';
 import Boton from '../componentes/Boton';
-import Logo from '../componentes/Logo';
+import Escudo from '../componentes/Escudo';
 import { VISTAS, destinoDe, entradaDe } from './vistas';
 import CambiarContrasena from '../paginas/auth/CambiarContrasena';
 import RecuperarContrasena from '../paginas/auth/RecuperarContrasena';
+// Las pantallas de acceso van en el paquete principal: pasar de una a otra
+// no muestra la pantalla de carga.
+import Login from '../paginas/auth/Login';
+import AccesoAula from '../paginas/auth/AccesoAula';
+import AccesoEstudiante from '../paginas/estudiante/AccesoEstudiante';
 
-const Login = lazy(() => import('../paginas/auth/Login'));
-const AccesoAula = lazy(() => import('../paginas/auth/AccesoAula'));
-const AccesoEstudiante = lazy(() => import('../paginas/estudiante/AccesoEstudiante'));
 const PortalEstudiante = lazy(() => import('../paginas/estudiante/PortalEstudiante'));
 
 // Un componente por ruta. Quién ve cada una sale de navegacion/vistas.js.
@@ -83,10 +85,10 @@ function SinAcceso() {
     if (entradaDe(usuario)) return <Navigate to={entradaDe(usuario)} replace />;
 
     return (
-        <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-slate-100 px-4 text-center">
-            <Logo className="h-14 w-14" />
+        <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-fondo px-4 text-center">
+            <Escudo className="h-16" />
             <div className="min-w-0 max-w-full">
-                <h1 className="text-lg font-semibold text-slate-900">Sin pantallas asignadas</h1>
+                <h1 className="text-lg font-bold text-umss-marino">Sin pantallas asignadas</h1>
                 <p className="mt-1 break-words text-sm text-slate-600">
                     {[usuario.nombre, usuario.rol].filter(Boolean).join(' · ')}
                 </p>

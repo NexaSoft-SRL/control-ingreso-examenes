@@ -44,13 +44,14 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
                     'origen' => $datos->origen->value,
                     'causa' => $datos->causa?->value,
                     'detalle' => trim($datos->detalle),
-                    'evidencia' => $datos->evidencia,
                     'ocurrida_en' => $ahora,
                     'reportada_por' => $datos->operador->usuarioId,
                     'acceso_codigo_aula_id' => $datos->operador->accesoId,
                     'created_at' => $ahora,
                     'updated_at' => $ahora,
                 ]);
+
+                $this->agregarEvidencias($id, $datos->evidencias, $datos->operador->usuarioId, 0);
 
                 if ($operacion !== null) {
                     $this->bitacora->registrar(
@@ -163,22 +164,21 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
         int $incidenciaId,
         TipoIncidencia $tipo,
         string $detalle,
-        ?string $evidencia,
+        array $evidencias,
         int $usuarioId,
         ?array $estudiante = null,
-    ): ?string {
-        return DB::transaction(function () use ($incidenciaId, $tipo, $detalle, $evidencia, $usuarioId, $estudiante): ?string {
+    ): void {
+        DB::transaction(function () use ($incidenciaId, $tipo, $detalle, $evidencias, $usuarioId, $estudiante): void {
             $ahora = now();
-            $previa = DB::table('incidencias')->where('id', $incidenciaId)->lockForUpdate()->value('evidencia');
+            DB::table('incidencias')->where('id', $incidenciaId)->lockForUpdate()->value('id');
 
-            $cambios = array_filter([
+            $cambios = [
                 'tipo' => $tipo->value,
                 'detalle' => trim($detalle),
-                'evidencia' => $evidencia,
                 'corregida_en' => $ahora,
                 'corregida_por' => $usuarioId,
                 'updated_at' => $ahora,
-            ], static fn (mixed $valor): bool => $valor !== null);
+            ];
 
             if ($estudiante !== null) {
                 $cambios['estudiante_texto'] = $estudiante['texto'];
@@ -186,22 +186,54 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
             }
 
             DB::table('incidencias')->where('id', $incidenciaId)->update($cambios);
+            $this->agregarEvidencias($incidenciaId, $evidencias, $usuarioId, $this->cuantasEvidencias($incidenciaId));
 
             $this->bitacora->registrar(
                 $usuarioId,
                 'incidencia.corregir',
                 'incidencias',
                 $incidenciaId,
-                sprintf('Corrigió: %s · %s', $tipo->etiqueta(), trim($detalle)),
+                sprintf(
+                    'Corrigió: %s · %s%s',
+                    $tipo->etiqueta(),
+                    trim($detalle),
+                    $evidencias === [] ? '' : sprintf(' (%d %s de evidencia)', count($evidencias), count($evidencias) === 1 ? 'foto' : 'fotos'),
+                ),
             );
-
-            return $evidencia !== null && is_string($previa) ? $previa : null;
         }, 3);
     }
 
-    public function evidencia(int $incidenciaId): ?string
+    public function cuantasEvidencias(int $incidenciaId): int
     {
-        $ruta = DB::table('incidencias')->where('id', $incidenciaId)->value('evidencia');
+        return DB::table('evidencias_incidencia')->where('incidencia_id', $incidenciaId)->count();
+    }
+
+    /**
+     * Las fotos van despues de las `$hay` que ya tenia, en orden.
+     *
+     * @param  list<string>  $rutas
+     */
+    private function agregarEvidencias(int $incidenciaId, array $rutas, ?int $usuarioId, int $hay): void
+    {
+        $ahora = now();
+
+        foreach ($rutas as $i => $ruta) {
+            DB::table('evidencias_incidencia')->insert([
+                'incidencia_id' => $incidenciaId,
+                'ruta' => $ruta,
+                'orden' => $hay + $i + 1,
+                'subida_por' => $usuarioId,
+                'created_at' => $ahora,
+            ]);
+        }
+    }
+
+    public function evidencia(int $incidenciaId, int $numero = 1): ?string
+    {
+        $ruta = DB::table('evidencias_incidencia')
+            ->where('incidencia_id', $incidenciaId)
+            ->where('orden', $numero)
+            ->value('ruta');
 
         return is_string($ruta) && $ruta !== '' ? $ruta : null;
     }
@@ -286,7 +318,6 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
                 'incidencia.estudiante_texto',
                 'incidencia.ocurrida_en',
                 'incidencia.atendida_en',
-                'incidencia.evidencia',
                 'incidencia.corregida_en',
                 'aula.nombre as aula',
                 'estudiante.codigo_universitario',
@@ -297,7 +328,8 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
                 'acceso.nombre_colaborador as acceso',
                 'atendio.nombre as atendio',
                 'corrigio.nombre as corrigio',
-            ]);
+            ])
+            ->selectRaw('(select count(*) from evidencias_incidencia as foto where foto.incidencia_id = incidencia.id) as evidencias');
     }
 
     /**
@@ -312,6 +344,7 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
         $autor = $this->texto($columnas['autor'] ?? null);
         $atendidaEn = $this->texto($columnas['atendida_en'] ?? null);
         $corregidaEn = $this->texto($columnas['corregida_en'] ?? null);
+        $fotos = is_numeric($columnas['evidencias'] ?? null) ? (int) $columnas['evidencias'] : 0;
         $gravedad = TipoIncidencia::tryFrom($tipo)?->gravedad();
 
         // «Apellidos Nombres · código», o lo que escribio quien reporto.
@@ -339,7 +372,9 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
             'atendida' => $atendidaEn !== null,
             'atendida_por' => $atendidaEn === null ? null : $this->texto($columnas['atendio'] ?? null),
             'atendida_en' => $this->iso($atendidaEn),
-            'evidencia' => $this->texto($columnas['evidencia'] ?? null) !== null,
+            'evidencia' => $fotos > 0,
+            // Cuantas fotos: se piden de a una, por su numero.
+            'evidencias' => $fotos,
             'corregida' => $corregidaEn !== null,
             'corregida_por' => $corregidaEn === null ? null : $this->texto($columnas['corrigio'] ?? null),
         ];

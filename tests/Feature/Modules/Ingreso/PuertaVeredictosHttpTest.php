@@ -415,7 +415,7 @@ final class PuertaVeredictosHttpTest extends TestCase
             'detalle' => 'Apuntes sobre la mesa.',
         ])->assertCreated()
             ->assertJsonPath('data.tipo_texto', 'Material no permitido')
-            ->assertJsonPath('data.gravedad', 'MEDIA');
+            ->assertJsonPath('data.gravedad', 'GRAVE');
 
         $this->assertDatabaseHas('bitacora_operaciones', [
             'usuario_id' => $this->usuario->id,

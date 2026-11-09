@@ -68,6 +68,14 @@ interface PortalEstudianteGateway
      */
     public function plazosDeGruposDelEstudiante(int $estudianteId): array;
 
+    /**
+     * Las asignaturas del estudiante cuyo grupo no tiene plazo propio: en
+     * ellas manda el plazo general.
+     *
+     * @return list<string>
+     */
+    public function asignaturasConPlazoGeneral(int $estudianteId): array;
+
     public function fijarPlazoDeGrupo(int $grupoId, PlazoFotoData $plazo, int $usuarioId): void;
 
     public function quitarPlazoDeGrupo(int $grupoId): void;

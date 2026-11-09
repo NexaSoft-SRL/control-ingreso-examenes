@@ -11,6 +11,7 @@ use App\Modules\Administracion\Application\DTOs\CuentaCreadaData;
 use App\Modules\Administracion\Application\DTOs\NuevaCuentaData;
 use App\Modules\Administracion\Domain\Models\Role;
 use App\Modules\Administracion\Domain\Models\User;
+use App\Modules\Administracion\Domain\Rules\NombreDeUsuario;
 use App\Modules\Administracion\Infrastructure\Mail\CredencialesInicialesMail;
 use DateTimeImmutable;
 use DateTimeInterface;
@@ -28,7 +29,7 @@ final class EloquentCuentaUsuarioGateway implements CuentaUsuarioGateway
 
     public function crear(NuevaCuentaData $datos, ?int $autorId): CuentaCreadaData
     {
-        $nombreUsuario = mb_strtolower(trim($datos->usuario));
+        $nombreUsuario = NombreDeUsuario::normalizar($datos->usuario);
         $correo = $this->correo($datos->correo);
         $rolId = $this->rolId($datos->rol);
         $temporal = $this->generador->generar();
@@ -149,7 +150,8 @@ final class EloquentCuentaUsuarioGateway implements CuentaUsuarioGateway
     public function usuarioRegistrado(string $usuario, ?int $exceptoId = null): bool
     {
         $consulta = User::query()
-            ->where('usuario', mb_strtolower(trim($usuario)));
+            // Dos cuentas no pueden diferir solo en el espacio.
+            ->whereRaw("replace(usuario, ' ', '') = ?", [NombreDeUsuario::compacto($usuario)]);
 
         if ($exceptoId !== null) {
             $consulta->whereKeyNot($exceptoId);
@@ -185,7 +187,7 @@ final class EloquentCuentaUsuarioGateway implements CuentaUsuarioGateway
 
         $cuenta->forceFill([
             'nombre' => trim($nombre),
-            'usuario' => mb_strtolower(trim($usuario)),
+            'usuario' => NombreDeUsuario::normalizar($usuario),
             'correo' => $this->correo($correo),
             'role_id' => $this->rolId($rol),
         ])->save();

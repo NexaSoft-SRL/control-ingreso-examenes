@@ -47,7 +47,7 @@ describe('EsquemaApp', () => {
 
     it('la pestaña dice la pantalla, con el mismo título del menú', () => {
         montar('Docente', '/examenes/nuevo');
-        expect(document.title).toBe('Registrar examen · Control de ingreso a exámenes');
+        expect(document.title).toBe('Registrar examen · Control de exámenes');
     });
 
     it('el administrador ve las secciones permitidas y tres vistas en la barra', () => {
@@ -166,8 +166,8 @@ describe('EsquemaApp', () => {
 
     it('lleva el logo y el nombre de la aplicación', () => {
         montar('Docente', '/examenes');
-        expect(screen.getAllByRole('img', { name: 'Control de ingreso' })).toHaveLength(2);
-        expect(screen.getByText('Control de ingreso')).toBeInTheDocument();
+        expect(screen.getAllByRole('img', { name: 'Escudo de la UMSS' })).toHaveLength(2);
+        expect(screen.getByText('Control de exámenes')).toBeInTheDocument();
     });
 
     it('cerrar sesión llama a salir y lleva al acceso', async () => {

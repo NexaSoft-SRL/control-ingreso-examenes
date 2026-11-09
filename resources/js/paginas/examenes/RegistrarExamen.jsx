@@ -2,11 +2,14 @@ import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
 import {
     ArrowRight,
+    Building2,
     Check,
     CheckCircle2,
     Copy,
     DoorOpen,
     KeyRound,
+    LayoutGrid,
+    ListChecks,
     RefreshCw,
     ScrollText,
     Users,
@@ -21,6 +24,7 @@ import { useAviso } from '../../componentes/Aviso';
 import Boton from '../../componentes/Boton';
 import Buscador from '../../componentes/Buscador';
 import Campo from '../../componentes/Campo';
+import Desplegable from '../../componentes/Desplegable';
 import Dialogo from '../../componentes/Dialogo';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
@@ -151,7 +155,7 @@ FilaGrupo.propTypes = {
     onCambiar: PropTypes.func.isRequired,
 };
 
-function FilaAula({ aula, ubicacion, marcado, sugerida, compartida, onCambiar }) {
+function FilaAula({ aula, ubicacion, marcado, compartida, onCambiar }) {
     return (
         <li>
             <label
@@ -168,9 +172,6 @@ function FilaAula({ aula, ubicacion, marcado, sugerida, compartida, onCambiar })
                     {aula.nombre}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-xs text-slate-600">{ubicacion}</span>
-                {sugerida && (
-                    <span className="shrink-0 text-xs font-medium text-primary-700">Sugerida</span>
-                )}
                 {compartida && (
                     <span className="w-full min-w-0 pl-7 text-xs font-medium text-warning-700 sm:w-auto sm:pl-0">
                         Compartida · {compartida}
@@ -186,7 +187,6 @@ FilaAula.propTypes = {
         .isRequired,
     ubicacion: PropTypes.string.isRequired,
     marcado: PropTypes.bool.isRequired,
-    sugerida: PropTypes.bool,
     compartida: PropTypes.string,
     onCambiar: PropTypes.func.isRequired,
 };
@@ -617,8 +617,13 @@ function Asistente({
     });
     const sugeridas = opcionesAulas.datos?.sugeridas ?? [];
     const compartidas = opcionesAulas.datos?.compartidas ?? {};
-    const catalogo = todasLasAulas.datos ?? [];
     const facultad = asignatura?.facultad ?? null;
+    // Solo las aulas de la facultad de la asignatura; las sugeridas y las ya
+    // elegidas se ven aunque sean de otra.
+    const catalogo = (todasLasAulas.datos ?? []).filter(
+        (a) =>
+            !facultad || a.facultad === facultad || sugeridas.includes(a.id) || aulas.includes(a.id)
+    );
     // Una sola lista: las sugeridas primero, después las de la facultad de
     // la asignatura y al final el resto.
     const orden = (a) => (sugeridas.includes(a.id) ? 0 : a.facultad === facultad ? 1 : 2);
@@ -639,13 +644,11 @@ function Asistente({
     );
     const textoAula = normalizar(busqueda.trim());
     const delFiltro = (a) =>
-        edificio === 'sugeridas'
-            ? sugeridas.includes(a.id)
-            : edificio === 'elegidas'
-              ? aulas.includes(a.id)
-              : edificio
-                ? String(a.edificio_id) === edificio
-                : true;
+        edificio === 'elegidas'
+            ? aulas.includes(a.id)
+            : edificio
+              ? String(a.edificio_id) === edificio
+              : true;
     const listaAulas = ordenadas.filter(
         (a) =>
             delFiltro(a) &&
@@ -1110,28 +1113,38 @@ function Asistente({
                                     ))}
                                 </ul>
                             )}
-                            <div className="grid gap-2 sm:grid-cols-2">
-                                <Seleccion
-                                    aria-label="Edificio"
+                            <div className="grid gap-2 sm:grid-cols-[3fr_2fr]">
+                                <Desplegable
+                                    etiqueta="Edificio"
                                     className="min-w-0"
-                                    value={edificio}
-                                    onChange={(e) => setEdificio(e.target.value)}
-                                >
-                                    <option value="">
-                                        Todos los edificios ({catalogo.length})
-                                    </option>
-                                    <option value="sugeridas">
-                                        Sugeridas · aulas de los grupos ({sugeridas.length})
-                                    </option>
-                                    <option value="elegidas">Elegidas ({aulas.length})</option>
-                                    {edificiosConAulas.map((e) => (
-                                        <option key={e.id} value={String(e.id)}>
-                                            {e.nombre}
-                                            {e.facultad !== facultad ? ` · ${e.facultad}` : ''} (
-                                            {catalogo.filter((a) => a.edificio_id === e.id).length})
-                                        </option>
-                                    ))}
-                                </Seleccion>
+                                    valor={edificio}
+                                    onCambiar={setEdificio}
+                                    opciones={[
+                                        {
+                                            valor: '',
+                                            texto: 'Todos los edificios',
+                                            icono: LayoutGrid,
+                                            cuenta: catalogo.length,
+                                        },
+                                        {
+                                            valor: 'elegidas',
+                                            texto: 'Elegidas',
+                                            icono: ListChecks,
+                                            cuenta: aulas.length,
+                                        },
+                                        ...edificiosConAulas.map((e) => ({
+                                            valor: String(e.id),
+                                            texto:
+                                                e.facultad !== facultad
+                                                    ? `${e.nombre} · ${e.facultad}`
+                                                    : e.nombre,
+                                            icono: Building2,
+                                            cuenta: catalogo.filter((a) => a.edificio_id === e.id)
+                                                .length,
+                                            grupo: 'Edificios',
+                                        })),
+                                    ]}
+                                />
                                 <Buscador
                                     valor={busqueda}
                                     onCambiar={setBusqueda}
@@ -1154,7 +1167,6 @@ function Asistente({
                                                 key={a.id}
                                                 aula={a}
                                                 ubicacion={ubicacionDe(a, facultad)}
-                                                sugerida={sugeridas.includes(a.id)}
                                                 compartida={compartidas[a.id]?.join(', ')}
                                                 marcado={aulas.includes(a.id)}
                                                 onCambiar={() =>
@@ -1216,6 +1228,12 @@ function Asistente({
                             caja={caja}
                             facultad={fueraDeLaFacultad ? null : facultad}
                             resaltados={edificiosElegidos}
+                            seleccionado={Number(edificio) || null}
+                            onElegir={(e) =>
+                                setEdificio((previo) =>
+                                    previo === String(e.id) ? '' : String(e.id)
+                                )
+                            }
                             alto="h-56 lg:h-80"
                         />
                     </Tarjeta>

@@ -85,6 +85,7 @@ final class CanonicalUserSchemaTest extends TestCase
                 'docentes.user_id',
                 'envios_correo.solicitado_por',
                 'estudiantes.foto_habilitada_por',
+                'evidencias_incidencia.subida_por',
                 'examen_aula_personal.usuario_id',
                 'examenes.creado_por',
                 'examenes.finalizado_por',

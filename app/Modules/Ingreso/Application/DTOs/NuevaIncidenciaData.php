@@ -10,6 +10,9 @@ use App\Modules\Ingreso\Domain\Enums\TipoIncidencia;
 
 final readonly class NuevaIncidenciaData
 {
+    /**
+     * @param  list<string>  $evidencias  rutas de las fotos ya guardadas, en orden
+     */
     public function __construct(
         public TipoIncidencia $tipo,
         public OrigenIncidencia $origen,
@@ -21,6 +24,6 @@ final readonly class NuevaIncidenciaData
         public ?string $estudianteTexto = null,
         public ?int $ingresoId = null,
         public ?CausaIntento $causa = null,
-        public ?string $evidencia = null,
+        public array $evidencias = [],
     ) {}
 }

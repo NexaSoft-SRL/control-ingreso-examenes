@@ -18,6 +18,7 @@ import Boton from '../../componentes/Boton';
 import Buscador from '../../componentes/Buscador';
 import Chips from '../../componentes/Chips';
 import Dato from '../../componentes/Dato';
+import Dialogo from '../../componentes/Dialogo';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
 import Insignia from '../../componentes/Insignia';
@@ -54,6 +55,58 @@ function Condicion({ estado }) {
 
 Condicion.propTypes = { estado: PropTypes.string };
 
+// «Aguilar Cossío Mariana» → «AM»: el primer apellido y el último nombre.
+const iniciales = (nombre) => {
+    const partes = String(nombre ?? '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+    return `${partes[0]?.[0] ?? ''}${partes.length > 1 ? partes[partes.length - 1][0] : ''}`.toUpperCase();
+};
+
+// La foto del inscrito en círculo, como en el aula virtual; sin foto, sus
+// iniciales. Con foto se toca para verla grande.
+function FotoInscrito({ url, nombre, conFoto, onAmpliar }) {
+    const [fallo, setFallo] = useState(false);
+    const hayFoto = conFoto && !fallo;
+    const circulo =
+        'flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-white';
+    if (!hayFoto)
+        return (
+            <span
+                className={`${circulo} bg-slate-200 text-xs font-semibold text-slate-600`}
+                title="Sin foto"
+                aria-label={`${nombre} sin foto`}
+                role="img"
+            >
+                {iniciales(nombre)}
+            </span>
+        );
+    return (
+        <button
+            type="button"
+            onClick={onAmpliar}
+            className={`${circulo} shadow-sm hover:ring-primary-300 ${FOCO}`}
+            aria-label={`Ver la foto de ${nombre}`}
+        >
+            <img
+                src={url}
+                alt=""
+                loading="lazy"
+                className="h-full w-full object-cover"
+                onError={() => setFallo(true)}
+            />
+        </button>
+    );
+}
+
+FotoInscrito.propTypes = {
+    url: PropTypes.string.isRequired,
+    nombre: PropTypes.string.isRequired,
+    conFoto: PropTypes.bool,
+    onAmpliar: PropTypes.func.isRequired,
+};
+
 // La lista de un examen: cifras, distribución por aula, filtros, selección
 // y lotes. Se monta de nuevo con cada examen (`key`), así el cambio de
 // examen limpia la selección, los filtros, la búsqueda y el motivo.
@@ -70,6 +123,16 @@ export function ListaDelExamen({ examenId }) {
     const [motivo, setMotivo] = useState('');
     const [errorMotivo, setErrorMotivo] = useState(null);
     const [enviando, setEnviando] = useState(false);
+    const [ampliada, setAmpliada] = useState(null);
+    const urlFoto = (e) => `/api${ruta}/${e.estudiante_id}/foto`;
+    const foto = (e) => (
+        <FotoInscrito
+            url={urlFoto(e)}
+            nombre={e.nombre}
+            conFoto={Boolean(e.con_foto)}
+            onAmpliar={() => setAmpliada(e)}
+        />
+    );
     const [aviso, avisar] = useAviso();
 
     const filas = datos ?? [];
@@ -231,7 +294,7 @@ export function ListaDelExamen({ examenId }) {
                 </Boton>
             )}
             <Boton variante="enlace" tamano="chico" onClick={quitar}>
-                Quitar
+                Deseleccionar
             </Boton>
         </>
     );
@@ -447,7 +510,8 @@ export function ListaDelExamen({ examenId }) {
                                         className="flex items-start gap-1 py-2 pr-4"
                                     >
                                         {casilla(e)}
-                                        <div className="min-w-0 flex-1 py-1">
+                                        <span className="py-1">{foto(e)}</span>
+                                        <div className="min-w-0 flex-1 py-1 pl-2">
                                             <div className="flex items-start justify-between gap-2">
                                                 <p className="min-w-0 break-words text-sm font-medium text-slate-800">
                                                     {e.nombre}
@@ -516,7 +580,10 @@ export function ListaDelExamen({ examenId }) {
                                                 {e.codigo}
                                             </td>
                                             <td className="px-3 py-2 font-medium text-slate-800">
-                                                {e.nombre}
+                                                <span className="flex items-center gap-3">
+                                                    {foto(e)}
+                                                    {e.nombre}
+                                                </span>
                                             </td>
                                             <td className="px-3 py-2 text-slate-700">{e.grupo}</td>
                                             <td className="px-3 py-2">
@@ -546,6 +613,35 @@ export function ListaDelExamen({ examenId }) {
                     </>
                 )}
             </Tarjeta>
+            {ampliada && (
+                <Dialogo
+                    titulo={ampliada.nombre}
+                    onCerrar={() => setAmpliada(null)}
+                    ancho="max-w-sm"
+                >
+                    <img
+                        src={urlFoto(ampliada)}
+                        alt={`Foto de ${ampliada.nombre}`}
+                        className="mx-auto aspect-[3/4] w-full max-w-64 rounded-xl object-cover shadow-md"
+                    />
+                    <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <dt className="text-xs text-slate-500">Código SIS</dt>
+                            <dd className="font-mono text-slate-800">{ampliada.codigo}</dd>
+                        </div>
+                        <div>
+                            <dt className="text-xs text-slate-500">Grupo</dt>
+                            <dd className="text-slate-800">{ampliada.grupo}</dd>
+                        </div>
+                        <div className="col-span-2">
+                            <dt className="mb-1 text-xs text-slate-500">Condición</dt>
+                            <dd>
+                                <Condicion estado={ampliada.estado} />
+                            </dd>
+                        </div>
+                    </dl>
+                </Dialogo>
+            )}
             {aviso}
         </div>
     );

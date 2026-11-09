@@ -536,12 +536,12 @@ describe('Usuarios y roles · cuentas', () => {
         expect(within(dialogo).getAllByText('Obligatorio')).toHaveLength(2);
 
         escribir(dialogo, 'Nombre', 'An');
-        escribir(dialogo, 'Usuario', 'ana quispe');
+        escribir(dialogo, 'Usuario', 'ana..quispe');
         escribir(dialogo, 'Correo', 'ana@umss');
         fireEvent.click(crear);
         expect(within(dialogo).getByText('Mínimo 3 caracteres')).toBeInTheDocument();
         expect(
-            within(dialogo).getByText('Letras o números, separados por punto o guion')
+            within(dialogo).getByText('Nombre y apellido, separados por un espacio')
         ).toBeInTheDocument();
         expect(within(dialogo).getByText('Correo no válido')).toBeInTheDocument();
         expect(api.post).not.toHaveBeenCalled();

@@ -78,7 +78,7 @@ final class IncidenciasTest extends TestCase
             ], ['Accept' => 'application/json'])
             ->assertCreated()
             ->assertJsonPath('data.tipo_texto', 'Suplantación de identidad')
-            ->assertJsonPath('data.gravedad', 'GRAVE')
+            ->assertJsonPath('data.gravedad', 'MUY_GRAVE')
             ->assertJsonPath('data.aula', '691A')
             ->assertJsonPath('data.evidencia', true)
             ->assertJsonPath('data.por', 'Mamani Quispe Diego')
@@ -91,7 +91,8 @@ final class IncidenciasTest extends TestCase
             $estudiante->apellidos.' '.$estudiante->nombres.' · '.$estudiante->codigo_universitario,
         );
 
-        $ruta = DB::table('incidencias')->value('evidencia');
+        $respuesta->assertJsonPath('data.evidencias', 1);
+        $ruta = DB::table('evidencias_incidencia')->where('orden', 1)->value('ruta');
         self::assertIsString($ruta);
         Storage::disk('local')->assertExists($ruta);
         [$ancho] = (array) getimagesizefromstring((string) Storage::disk('local')->get($ruta));
@@ -228,6 +229,92 @@ final class IncidenciasTest extends TestCase
 
         $ajeno = $this->usuarioConRol('Auxiliar');
         $this->actingAs($ajeno)->getJson("/api/incidencias/{$id}/evidencia")->assertForbidden();
+    }
+
+    public function test_hasta_tres_fotos_respaldan_la_incidencia_y_cada_una_se_abre_por_su_numero(): void
+    {
+        $respuesta = $this->actingAs($this->auxiliar)
+            ->post("/api/examenes/{$this->examen->id}/incidencias", [
+                'aula_id' => $this->aula->id,
+                'tipo' => 'DISPOSITIVO_NO_PERMITIDO',
+                'detalle' => 'Celular bajo la hoja.',
+                'evidencias' => [
+                    UploadedFile::fake()->image('uno.jpg', 800, 600),
+                    UploadedFile::fake()->image('dos.jpg', 800, 600),
+                    UploadedFile::fake()->image('tres.jpg', 800, 600),
+                ],
+            ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.evidencias', 3);
+        $id = $respuesta->json('data.id');
+        self::assertIsInt($id);
+
+        $this->assertSame(
+            [1, 2, 3],
+            DB::table('evidencias_incidencia')->where('incidencia_id', $id)->orderBy('orden')->pluck('orden')->all(),
+        );
+
+        foreach ([1, 2, 3] as $numero) {
+            $this->actingAs($this->docente)
+                ->get("/api/incidencias/{$id}/evidencias/{$numero}")
+                ->assertOk()
+                ->assertHeader('Content-Type', 'image/jpeg');
+        }
+
+        $this->actingAs($this->docente)->getJson("/api/incidencias/{$id}/evidencias/4")->assertNotFound();
+        $this->actingAs($this->usuarioConRol('Auxiliar'))->getJson("/api/incidencias/{$id}/evidencias/2")->assertForbidden();
+    }
+
+    public function test_mas_de_tres_fotos_se_rechazan(): void
+    {
+        $this->actingAs($this->auxiliar)
+            ->post("/api/examenes/{$this->examen->id}/incidencias", [
+                'aula_id' => $this->aula->id,
+                'tipo' => 'OTRA',
+                'detalle' => 'Demasiadas fotos.',
+                'evidencias' => array_map(static fn (int $i) => UploadedFile::fake()->image("{$i}.jpg"), [1, 2, 3, 4]),
+            ], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['evidencias' => 'Máximo 3 fotos']);
+
+        $this->assertDatabaseCount('incidencias', 0);
+    }
+
+    public function test_corregir_agrega_fotos_sin_quitar_las_anteriores(): void
+    {
+        $id = $this->reportada('MATERIAL_NO_PERMITIDO', 'Calculadora.');
+
+        $this->actingAs($this->docente)
+            ->post("/api/incidencias/{$id}/correccion", [
+                'tipo' => 'MATERIAL_NO_PERMITIDO',
+                'detalle' => 'Calculadora.',
+                'evidencia' => UploadedFile::fake()->image('a.jpg'),
+            ], ['Accept' => 'application/json'])
+            ->assertOk();
+        $primera = DB::table('evidencias_incidencia')->where('incidencia_id', $id)->value('ruta');
+        self::assertIsString($primera);
+
+        $this->actingAs($this->docente)
+            ->post("/api/incidencias/{$id}/correccion", [
+                'tipo' => 'MATERIAL_NO_PERMITIDO',
+                'detalle' => 'Calculadora.',
+                'evidencias' => [UploadedFile::fake()->image('b.jpg'), UploadedFile::fake()->image('c.jpg')],
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.evidencias', 3);
+
+        // Es evidencia: la primera sigue ahi.
+        Storage::disk('local')->assertExists($primera);
+
+        // Con tres, no entra otra.
+        $this->actingAs($this->docente)
+            ->post("/api/incidencias/{$id}/correccion", [
+                'tipo' => 'MATERIAL_NO_PERMITIDO',
+                'detalle' => 'Calculadora.',
+                'evidencias' => [UploadedFile::fake()->image('d.jpg')],
+            ], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['evidencias' => 'Ya tiene 3 fotos']);
     }
 
     public function test_el_ingreso_repetido_y_la_expulsion_conservan_su_tipo(): void

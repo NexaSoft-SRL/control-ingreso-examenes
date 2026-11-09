@@ -36,7 +36,19 @@ final class EloquentConsultaBitacoraExamenGateway implements ConsultaBitacoraExa
         'CODIGO_QR' => 'Códigos QR',
         'ACCESO_AULA' => 'Acceso a aula',
         'ADMINISTRACION' => 'Operaciones administrativas',
+        'CIERRE' => 'Cierre',
+        'AUSENTE' => 'No se presentaron',
     ];
+
+    /**
+     * El examen ya termino: se finalizo a mano o paso su dia.
+     */
+    private const CERRADO = '(examen.finalizado_en is not null or examen.fecha < current_date)';
+
+    /**
+     * El instante del cierre: la finalizacion o el fin de su dia.
+     */
+    private const INSTANTE_CIERRE = "coalesce(examen.finalizado_en, examen.fecha + time '23:59:59')";
 
     public function examen(int $examenId): ?array
     {
@@ -250,9 +262,66 @@ final class EloquentConsultaBitacoraExamenGateway implements ConsultaBitacoraExa
         $union = $this->ingresos($examenId)
             ->unionAll($this->incidencias($examenId))
             ->unionAll($this->accesosCodigoAula($examenId))
-            ->unionAll($this->operaciones($examenId));
+            ->unionAll($this->operaciones($examenId))
+            ->unionAll($this->cierre($examenId))
+            ->unionAll($this->ausentes($examenId));
 
         return DB::query()->fromSub($union, 'evento');
+    }
+
+    /**
+     * Al cerrar: cuantos ingresaron de los habilitados, cuantos no se
+     * presentaron y cuantas incidencias e intentos rechazados hubo.
+     */
+    private function cierre(int $examenId): Builder
+    {
+        $habilitados = '(select count(*) from habilitaciones as h where h.examen_id = examen.id and h.habilitado)';
+        $ingresaron = '(select count(distinct i.estudiante_id) from ingresos as i where i.examen_id = examen.id)';
+        $ausentes = '(select count(*) from habilitaciones as h where h.examen_id = examen.id and h.habilitado'
+            .' and not exists (select 1 from ingresos as i where i.examen_id = h.examen_id and i.estudiante_id = h.estudiante_id))';
+        $incidencias = "(select count(*) from incidencias as n where n.examen_id = examen.id and n.origen <> 'SISTEMA')";
+        $rechazos = "(select count(*) from incidencias as n where n.examen_id = examen.id and n.origen = 'SISTEMA')";
+
+        return DB::table('examenes as examen')
+            ->where('examen.id', $examenId)
+            ->whereRaw(self::CERRADO)
+            ->selectRaw(
+                "concat('cierre-', examen.id) as id, ".self::INSTANTE_CIERRE.' as ocurrida_en, '
+                ."'CIERRE' as categoria, 'Cierre del examen' as suceso, '' as estudiante, "
+                .'null as codigo, null::bigint as aula_id, null as aula, '
+                ."concat('Ingresaron ', {$ingresaron}, ' de ', {$habilitados}, ' habilitados · ', "
+                ."{$ausentes}, ' no se presentaron · ', {$incidencias}, ' incidencias · ', "
+                ."{$rechazos}, ' intentos rechazados') as detalle, "
+                ."'Sistema' as actor",
+            );
+    }
+
+    /**
+     * Al cerrar, cada habilitado que no entro, con el aula que tenia: buscar
+     * al estudiante responde un reclamo tambien cuando no vino.
+     */
+    private function ausentes(int $examenId): Builder
+    {
+        return DB::table('habilitaciones as habilitacion')
+            ->join('examenes as examen', 'examen.id', '=', 'habilitacion.examen_id')
+            ->join('estudiantes as estudiante', 'estudiante.id', '=', 'habilitacion.estudiante_id')
+            ->leftJoin('aulas as aula', 'aula.id', '=', 'habilitacion.aula_id')
+            ->where('habilitacion.examen_id', $examenId)
+            ->where('habilitacion.habilitado', true)
+            ->whereRaw(self::CERRADO)
+            ->whereNotExists(static function (Builder $ingreso): void {
+                $ingreso->selectRaw('1')
+                    ->from('ingresos')
+                    ->whereColumn('ingresos.examen_id', 'habilitacion.examen_id')
+                    ->whereColumn('ingresos.estudiante_id', 'habilitacion.estudiante_id');
+            })
+            ->selectRaw(
+                "concat('ausente-', habilitacion.id) as id, ".self::INSTANTE_CIERRE.' as ocurrida_en, '
+                ."'AUSENTE' as categoria, 'No se presentó' as suceso, "
+                ."trim(concat_ws(' ', estudiante.apellidos, estudiante.nombres)) as estudiante, "
+                .'estudiante.codigo_universitario as codigo, aula.id as aula_id, aula.nombre as aula, '
+                ."'Habilitado' as detalle, 'Sistema' as actor",
+            );
     }
 
     private function ingresos(int $examenId): Builder

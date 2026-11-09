@@ -3,13 +3,13 @@ import { ArrowLeft, DoorOpen, Hourglass, LogOut } from 'lucide-react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe } from '../../api/errores';
-import { usarSesion, PantallaDeCarga } from '../../sesion/SesionContexto';
+import { usarSesion } from '../../sesion/SesionContexto';
 import { destinoDe } from '../../navegacion/vistas';
 import Campo from '../../componentes/Campo';
 import Boton from '../../componentes/Boton';
 import EstadoCarga from '../../componentes/EstadoCarga';
-import FondoAcceso from '../../componentes/FondoAcceso';
-import Logo from '../../componentes/Logo';
+import FondoAcceso, { CabeceraAcceso, TARJETA_ACCESO } from '../../componentes/FondoAcceso';
+import Escudo from '../../componentes/Escudo';
 
 const PuntoControl = lazy(() => import('../ingreso/PuntoControl'));
 
@@ -130,7 +130,16 @@ export default function AccesoAula() {
     }, [estado, consultar]);
 
     if (usuario) return <Navigate to={destinoDe(usuario)} replace />;
-    if (comprobando) return <PantallaDeCarga />;
+    // Mientras pregunta, el mismo fondo sin tarjeta: así no parpadea al
+    // llegar desde el login.
+    if (comprobando)
+        return (
+            <FondoAcceso>
+                <span className="sr-only" role="status">
+                    Cargando
+                </span>
+            </FondoAcceso>
+        );
 
     async function entrar(e) {
         e.preventDefault();
@@ -185,8 +194,8 @@ export default function AccesoAula() {
     if (acceso?.estado === 'pendiente') {
         return (
             <FondoAcceso>
-                <div className="w-full max-w-sm" role="status">
-                    <div className="space-y-4 rounded-2xl border border-slate-200 bg-white/95 p-6 text-center shadow-lg shadow-primary-900/5 backdrop-blur">
+                <div className="w-full max-w-md" role="status">
+                    <div className={`space-y-4 text-center ${TARJETA_ACCESO}`}>
                         <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-warning-100 text-warning-800">
                             <Hourglass className="h-6 w-6 animate-pulse" aria-hidden="true" />
                         </span>
@@ -222,10 +231,10 @@ export default function AccesoAula() {
 
     if (acceso) {
         return (
-            <div className="flex min-h-dvh flex-col bg-slate-100">
+            <div className="flex min-h-dvh flex-col bg-fondo">
                 <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2.5">
                     <div className="flex min-w-0 items-center gap-3">
-                        <Logo className="h-8 w-8" />
+                        <Escudo className="h-9" />
                         <span className="min-w-0">
                             <span className="line-clamp-2 block break-words text-sm font-medium leading-tight text-slate-800">
                                 {acceso.nombre_colaborador}
@@ -253,52 +262,48 @@ export default function AccesoAula() {
 
     return (
         <FondoAcceso>
-            <div className="w-full max-w-sm">
-                <div className="mb-6 flex flex-col items-center text-center">
-                    <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-600 text-white">
-                        <DoorOpen className="h-6 w-6" />
-                    </div>
-                    <h1 className="text-lg font-semibold text-slate-900">Punto de control</h1>
-                    <p className="mt-1 text-sm text-slate-600">Código de aula</p>
-                </div>
+            <div className="w-full max-w-md">
+                <div className={TARJETA_ACCESO}>
+                    <CabeceraAcceso
+                        icono={DoorOpen}
+                        titulo="Punto de control"
+                        subtitulo="Código de aula"
+                    />
 
-                <form
-                    className="space-y-4 rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-lg shadow-primary-900/5 backdrop-blur"
-                    noValidate
-                    onSubmit={entrar}
-                >
-                    <Campo
-                        etiqueta="Código"
-                        requerido
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                        maxLength={6}
-                        placeholder="000000"
-                        value={codigo}
-                        validar={SEIS_DIGITOS}
-                        error={errores.codigo}
-                        onChange={(e) => {
-                            setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6));
-                            setErrores({});
-                        }}
-                    />
-                    <Campo
-                        etiqueta="Nombre"
-                        requerido
-                        autoComplete="name"
-                        placeholder="Apellidos y nombres"
-                        value={nombre}
-                        validar={NOMBRE}
-                        error={errores.nombre}
-                        onChange={(e) => {
-                            setNombre(e.target.value);
-                            setErrores({});
-                        }}
-                    />
-                    <Boton type="submit" className="w-full" cargando={enviando}>
-                        Iniciar sesión
-                    </Boton>
-                </form>
+                    <form className="space-y-4" noValidate onSubmit={entrar}>
+                        <Campo
+                            etiqueta="Código"
+                            requerido
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            maxLength={6}
+                            placeholder="000000"
+                            value={codigo}
+                            validar={SEIS_DIGITOS}
+                            error={errores.codigo}
+                            onChange={(e) => {
+                                setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6));
+                                setErrores({});
+                            }}
+                        />
+                        <Campo
+                            etiqueta="Nombre"
+                            requerido
+                            autoComplete="name"
+                            placeholder="Apellidos y nombres"
+                            value={nombre}
+                            validar={NOMBRE}
+                            error={errores.nombre}
+                            onChange={(e) => {
+                                setNombre(e.target.value);
+                                setErrores({});
+                            }}
+                        />
+                        <Boton type="submit" className="w-full" cargando={enviando}>
+                            Iniciar sesión
+                        </Boton>
+                    </form>
+                </div>
 
                 <Link
                     to="/login"

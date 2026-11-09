@@ -10,6 +10,7 @@ use App\Modules\Habilitacion\Application\DTOs\AulaRepartoData;
 use App\Modules\Habilitacion\Application\DTOs\CifrasHabilitacionData;
 use App\Modules\Habilitacion\Application\DTOs\GrupoDeExamenData;
 use App\Modules\Habilitacion\Application\DTOs\InscritoData;
+use App\Modules\Habilitacion\Application\Queries\FotoDelInscrito;
 use App\Modules\Habilitacion\Application\Queries\ListarHabilitacion;
 use App\Modules\Habilitacion\Domain\Exceptions\EstudianteConIngresoException;
 use App\Modules\Habilitacion\Domain\Exceptions\EstudianteNoInscritoException;
@@ -63,6 +64,7 @@ final class HabilitacionController
                     'motivo' => $inscrito->motivo,
                     'registrada_por' => $inscrito->registradaPor,
                     'registrada_el' => $inscrito->registradaEl,
+                    'con_foto' => $inscrito->conFoto,
                 ],
                 $listado->filas,
             ),
@@ -149,6 +151,46 @@ final class HabilitacionController
             'sin_revisar' => $cifras->sinRevisar,
             'sin_aula' => $cifras->sinAula,
         ];
+    }
+
+    /**
+     * La foto de un inscrito, para la lista: el docente compara caras antes
+     * de habilitar.
+     */
+    public function foto(
+        int $examen,
+        int $estudiante,
+        FotoDelInscrito $foto,
+        HabilitacionGateway $habilitaciones,
+    ): JsonResponse|Response {
+        $usuarioId = Auth::id();
+
+        if (! is_int($usuarioId)) {
+            return $this->sinSesion();
+        }
+
+        if (! $habilitaciones->existeExamen($examen)) {
+            return $this->noEncontrado();
+        }
+
+        try {
+            $jpeg = $foto->execute($examen, $estudiante, $usuarioId);
+        } catch (ExamenAjenoException $excepcion) {
+            return $this->ajeno($excepcion);
+        } catch (EstudianteNoInscritoException) {
+            return response()->json(['message' => 'Estudiante no encontrado.'], Response::HTTP_NOT_FOUND);
+        }
+
+        if ($jpeg === null) {
+            return response()->json(['message' => 'Sin foto.'], Response::HTTP_NOT_FOUND);
+        }
+
+        return response($jpeg, Response::HTTP_OK, [
+            'Content-Type' => 'image/jpeg',
+            // En el navegador de quien la pidio y por poco tiempo: al volver a
+            // la lista no se descargan todas otra vez.
+            'Cache-Control' => 'private, max-age=300',
+        ]);
     }
 
     private function sinSesion(): JsonResponse

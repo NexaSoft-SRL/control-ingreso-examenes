@@ -9,6 +9,8 @@
         "lint:fix": "eslint resources/js --fix",
         "format": "prettier --write resources/js resources/css vitest.config.js",
         "format:check": "prettier --check resources/js resources/css vitest.config.js",
+        "mediapipe:copiar": "node scripts/setup/copiar-mediapipe.mjs",
+        "postinstall": "node scripts/setup/copiar-mediapipe.mjs",
         "quality": "npm run lint && npm run format:check && npm run test:run && npm run build",
         "test": "vitest",
         "test:run": "vitest run"
@@ -30,9 +32,11 @@
         "prettier": "^3.9.6",
         "tailwindcss": "^4.0.0",
         "vite": "^7.0.7",
+        "vite-plugin-pwa": "^2.0.0",
         "vitest": "^4.1.11"
     },
     "dependencies": {
+        "@mediapipe/tasks-vision": "1.1.1",
         "lucide-react": "^1.47.0",
         "maplibre-gl": "^5.24.0",
         "prop-types": "^15.8.1",

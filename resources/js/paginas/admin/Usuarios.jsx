@@ -29,13 +29,13 @@ import Seleccion from '../../componentes/Seleccion';
 import Tarjeta from '../../componentes/Tarjeta';
 import { usarSesion } from '../../sesion/SesionContexto';
 import PermisosPorRol from './PermisosPorRol';
+import { ERROR_USUARIO, normalizarUsuario, usuarioValido } from '../../utiles/usuario';
 
 const POR_PAGINA = 20;
 const TH = 'px-4 py-3 font-medium';
 const CABECERA = 'bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-600';
 const FICHA =
     'inline-flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
-const USUARIO = /^[a-z0-9]+([._-][a-z0-9]+)*$/i;
 const CORREO = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 const miles = (n) => Number(n ?? 0).toLocaleString('es-BO');
 
@@ -141,8 +141,8 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
           : null;
     const errorUsuario = !usuario.trim()
         ? 'Obligatorio'
-        : !USUARIO.test(usuario.trim())
-          ? 'Letras o números, separados por punto o guion'
+        : !usuarioValido(usuario)
+          ? ERROR_USUARIO
           : null;
     const errorCorreo = correo.trim() && !CORREO.test(correo.trim()) ? 'Correo no válido' : null;
     const errorRol = !rol ? 'Obligatorio' : null;
@@ -161,7 +161,7 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
         const escrito = correo.trim().toLowerCase();
         const cuerpo = {
             nombre: nombre.trim(),
-            usuario: usuario.trim().toLowerCase(),
+            usuario: normalizarUsuario(usuario),
             correo: escrito === '' ? null : escrito,
             rol,
         };

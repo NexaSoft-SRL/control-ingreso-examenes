@@ -8,6 +8,7 @@ use App\Modules\Academico\Application\Actions\DetectarPeriodos;
 use App\Modules\Academico\Application\Actions\ImportarOferta;
 use App\Modules\Academico\Application\Contracts\FuenteOfertaGateway;
 use App\Modules\Academico\Domain\Models\Periodo;
+use App\Modules\Administracion\Application\Actions\ProponerUsuario;
 use App\Modules\Administracion\Application\Contracts\ProponedorUsuario;
 use App\Modules\Administracion\Domain\Models\Role;
 use App\Modules\Administracion\Domain\Models\User;
@@ -35,26 +36,28 @@ use stdClass;
  * Cuentas (usuario / contrasena):
  *
  *   admin                        / Admin12345        Administrador (preparación y sistema).
- *   leticiablanco                / Docente12345      Docente, carga normal: Blanco Coca Leticia.
+ *   leticia blanco               / Docente12345      Docente, carga normal: Blanco Coca Leticia.
  *                                                    Sus datos de ejemplo estan en 2 asignaturas
  *                                                    (Introduccion a la Programacion y Taller de
  *                                                    Ingenieria de Software); sus otros grupos
  *                                                    reales quedan sin lista.
- *   cargaalta                    / Docente12345      Docente, carga alta: el docente real de FCyT
+ *   (nombre apellido)            / Docente12345      Docente, carga alta: el docente real de FCyT
  *                                                    con mas asignaturas; 18 examenes en 6 de ellas.
- *   carlasalazar                 / Docente12345      Docente de los grupos 1 y 6 de Introduccion.
- *   erikarodriguez               / Docente12345      Docente que registro el parcial conjunto de Taller.
- *   americofiorilo               / Docente12345      Docente del parcial de Calculo I que comparte
+ *                                                    Su usuario sale de su nombre como el de
+ *                                                    cualquier cuenta.
+ *   carla salazar                / Docente12345      Docente de los grupos 1 y 6 de Introduccion.
+ *   erika rodriguez              / Docente12345      Docente que registro el parcial conjunto de Taller.
+ *   americo fiorilo              / Docente12345      Docente del parcial de Calculo I que comparte
  *                                                    el aula 691A con el examen de hoy.
- *   corinaflores                 / Fa7-Kmq4-Ru9      Docente con contrasena temporal («Temporal»
+ *   corina flores                / Fa7-Kmq4-Ru9      Docente con contrasena temporal («Temporal»
  *                                                    en Docentes; entra igual, el cambio obligatorio
  *                                                    llega con HU-16).
- *   diegomamani                  / Auxiliar12345     Auxiliar: entra y no tiene pantallas todavia.
+ *   diego mamani                 / Auxiliar12345     Auxiliar: entra y no tiene pantallas todavia.
  *   coordinacion                 / Coordinador12345  Rol creado «Coordinador» (Periodo, Aulas y
  *                                                    Docentes).
- *   victormontano                (sin acceso)        Cuenta bloqueada.
+ *   victor montano               (sin acceso)        Cuenta bloqueada.
  *
- * Examenes de leticiablanco: (a) primer parcial de Introduccion, hoy, 4
+ * Examenes de leticia blanco: (a) primer parcial de Introduccion, hoy, 4
  * grupos y 5 aulas (la 691A compartida con Calculo I), habilitado con 9 no
  * habilitados y repartido; (b) parcial conjunto de Taller en dos dias,
  * registrado por otra docente, a medio habilitar; (c) segundo parcial de
@@ -289,7 +292,19 @@ class DemoSeeder extends Seeder
             throw new RuntimeException('No hay docentes de FCyT en la oferta importada.');
         }
 
-        $this->cuentaDeDocente('cargaalta', $cargaAlta, self::CLAVE_DOCENTE);
+        // Su usuario, nombre y apellido como el de cualquier cuenta; si ya
+        // tiene cuenta (segunda vez), la misma.
+        $usuarioCargaAlta = DB::table('docentes')
+            ->join('usuarios', 'usuarios.id', '=', 'docentes.user_id')
+            ->where('docentes.nombre_normalizado', $cargaAlta)
+            ->value('usuarios.usuario');
+
+        if (! is_string($usuarioCargaAlta)) {
+            $nombreCargaAlta = DB::table('docentes')->where('nombre_normalizado', $cargaAlta)->value('nombre_completo');
+            $usuarioCargaAlta = app(ProponedorUsuario::class)->proponer(is_string($nombreCargaAlta) ? $nombreCargaAlta : '');
+        }
+
+        $this->cuentas['cargaalta'] = $this->cuentaDeDocente($usuarioCargaAlta, $cargaAlta, self::CLAVE_DOCENTE);
 
         // Contrasena temporal vigente: la pantalla Docentes la muestra
         // como «Temporal».
@@ -307,7 +322,7 @@ class DemoSeeder extends Seeder
 
         // Entra y ve «Sin pantallas asignadas»: sus dos permisos todavia no
         // tienen vista.
-        $this->cuenta('diegomamani', 'auxiliar', 'Diego Mamani Quispe', 'Auxiliar', self::CLAVE_AUXILIAR);
+        $this->cuenta('diegomamani', 'auxiliar', 'Mamani Quispe Diego', 'Auxiliar', self::CLAVE_AUXILIAR);
 
         // Un rol creado desde la pantalla, para verlo en la matriz.
         $this->rolCreado(self::ROL_CREADO, ['periodo_oferta', 'aulas_docentes']);
@@ -321,11 +336,11 @@ class DemoSeeder extends Seeder
      */
     protected function cuenta(string $usuario, string $buzon, string $nombre, string $rol, string $clave): int
     {
-        $cuenta = User::firstOrNew(['usuario' => $usuario]);
+        $cuenta = User::firstOrNew(['usuario' => $this->usuarioDe($usuario, $nombre)]);
 
         $cuenta->forceFill([
             'nombre' => $nombre,
-            'correo' => $buzon.'@'.self::DOMINIO,
+            'correo' => str_replace(' ', '', $buzon).'@'.self::DOMINIO,
             'password' => $clave,
             'password_changed_at' => now(),
             'password_temporal_expira_en' => null,
@@ -336,6 +351,18 @@ class DemoSeeder extends Seeder
         ])->save();
 
         return $this->cuentas[$usuario] = $this->entero($cuenta->getKey());
+    }
+
+    /**
+     * El usuario con que se entra: nombre y apellido separados («leticia
+     * blanco») cuando la clave es justo eso, junto; si no («admin»), la
+     * clave tal cual. La clave sigue siendo la de `$this->cuentas`.
+     */
+    private function usuarioDe(string $clave, string $nombre): string
+    {
+        $separado = ProponerUsuario::formar($nombre);
+
+        return str_replace(' ', '', $separado) === $clave ? $separado : $clave;
     }
 
     private function cuentaDeDocente(string $usuario, string $normalizado, string $clave): int
@@ -393,7 +420,7 @@ class DemoSeeder extends Seeder
             $id = DB::table('usuarios')->insertGetId([
                 'nombre' => $nombre,
                 'usuario' => $usuario,
-                'correo' => $usuario.'@'.self::DOMINIO,
+                'correo' => str_replace(' ', '', $usuario).'@'.self::DOMINIO,
                 'password' => $clave,
                 'password_changed_at' => $temporal ? null : now(),
                 'password_temporal_expira_en' => $temporal ? now()->addHours(72) : null,
@@ -1044,7 +1071,7 @@ class DemoSeeder extends Seeder
 
         $asientos = [
             [$administrador, 'sesion.iniciar', 'usuarios', $administrador, null, 9 * 1440],
-            [$administrador, 'usuario.registrar', 'usuarios', $leticia, 'Cuenta leticiablanco creada con el rol Docente.', 9 * 1440 - 20],
+            [$administrador, 'usuario.registrar', 'usuarios', $leticia, 'Cuenta leticia blanco creada con el rol Docente.', 9 * 1440 - 20],
             [$administrador, 'docente.activar_cuenta', 'docentes', null, 'Cuenta «leticiablanco» activada para Blanco Coca Leticia', 9 * 1440 - 20],
             [$administrador, 'rol.crear', 'roles', null, 'Rol Coordinador creado con 2 permisos.', 8 * 1440],
             [$leticia, 'sesion.iniciar', 'usuarios', $leticia, null, 6 * 1440 + 30],
