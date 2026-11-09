@@ -273,7 +273,8 @@ function MiFoto({ sesion, alGuardar }) {
                     <ul className="list-inside list-disc text-sm text-slate-700">
                         <li>Rostro de frente</li>
                         <li>Sin lentes ni gorra</li>
-                        <li>Fondo claro</li>
+                        <li>Sin filtros</li>
+                        <li>Fondo claro y liso</li>
                     </ul>
                     <CampoImagen
                         etiqueta="Foto"
