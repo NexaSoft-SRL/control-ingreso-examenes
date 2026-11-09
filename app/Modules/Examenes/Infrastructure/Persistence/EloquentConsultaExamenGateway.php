@@ -25,6 +25,11 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
 {
     use ConvierteFilas;
 
+    /**
+     * Los dias del horario, de lunes a sabado.
+     */
+    private const DIAS = ['LU', 'MA', 'MI', 'JU', 'VI', 'SA'];
+
     public function listar(int $usuarioId, ?array $periodoIds): array
     {
         $consulta = $this->base()
@@ -122,6 +127,67 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         }
 
         return $sugeridas;
+    }
+
+    public function clasesALaHora(array $grupoIds, string $fecha, string $horaInicio, int $duracionMinutos): array
+    {
+        // 1 (lunes) a 7 (domingo); el domingo no hay clases.
+        $dia = self::DIAS[(int) date('N', (int) strtotime($fecha)) - 1] ?? null;
+        $periodos = $grupoIds === []
+            ? []
+            : DB::table('grupos')->whereIn('id', $grupoIds)->distinct()->pluck('periodo_id')->all();
+
+        if ($dia === null || $periodos === []) {
+            return [];
+        }
+
+        $inicio = $this->minutos($horaInicio);
+        $fin = $inicio + $duracionMinutos;
+
+        $filas = DB::table('horarios as horario')
+            ->join('grupos as grupo', 'grupo.id', '=', 'horario.grupo_id')
+            ->join('asignaturas as asignatura', 'asignatura.id', '=', 'grupo.asignatura_id')
+            ->leftJoin('docentes as docente', 'docente.id', '=', 'grupo.docente_id')
+            ->whereIn('grupo.periodo_id', $periodos)
+            ->where('horario.dia', $dia)
+            ->orderBy('horario.hora_inicio')
+            ->orderBy('asignatura.nombre')
+            ->select([
+                'horario.aula_id',
+                'horario.grupo_id',
+                'horario.hora_inicio',
+                'horario.hora_fin',
+                'horario.es_auxiliatura',
+                'grupo.codigo',
+                'asignatura.nombre as asignatura',
+                'docente.nombre_completo as docente',
+            ])
+            ->get();
+
+        $clases = [];
+
+        foreach ($filas as $fila) {
+            $columnas = $this->columnas($fila);
+            $desde = $this->hora($columnas['hora_inicio'] ?? null);
+            $hasta = $this->hora($columnas['hora_fin'] ?? null);
+
+            // Se solapan si cada uno empieza antes de que el otro termine.
+            if (! ($inicio < $this->minutos($hasta) && $this->minutos($desde) < $fin)) {
+                continue;
+            }
+
+            $clases[$this->entero($columnas['aula_id'] ?? null)][] = [
+                'asignatura' => $this->cadena($columnas['asignatura'] ?? null),
+                'grupo' => $this->cadena($columnas['codigo'] ?? null),
+                'docente' => $this->texto($columnas['docente'] ?? null),
+                'inicio' => $desde,
+                'fin' => $hasta,
+                'propio' => in_array($this->entero($columnas['grupo_id'] ?? null), $grupoIds, true),
+                'auxiliatura' => $this->booleano($columnas['es_auxiliatura'] ?? null),
+            ];
+        }
+
+        return $clases;
     }
 
     public function aulasCompartidas(

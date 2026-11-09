@@ -111,6 +111,10 @@ Route::prefix('api')->group(function (): void {
             ->whereNumber(['grupo', 'estudiante'])
             ->name('docente.grupos.inscritos.foto.ver');
 
+        Route::post('/docente/grupos/{grupo}/inscritos', [CargaInscritosController::class, 'agregar'])
+            ->whereNumber('grupo')
+            ->name('docente.grupos.inscritos.agregar');
+
         Route::post('/docente/grupos/{grupo}/inscritos/carga', [CargaInscritosController::class, 'grupo'])
             ->whereNumber('grupo')
             ->name('docente.grupos.inscritos.carga');

@@ -617,6 +617,11 @@ function Asistente({
     });
     const sugeridas = opcionesAulas.datos?.sugeridas ?? [];
     const compartidas = opcionesAulas.datos?.compartidas ?? {};
+    const clasesALaHora = opcionesAulas.datos?.clases ?? {};
+    // Libre: sin clases de otros grupos ni otros exámenes a esa hora.
+    const libre = (id) =>
+        !(clasesALaHora[id] ?? []).some((c) => !c.propio) && !(compartidas[id] ?? []).length;
+    const conHora = Boolean(opcionesAulas.datos);
     const facultad = asignatura?.facultad ?? null;
     // Solo las aulas de la facultad de la asignatura; las sugeridas y las ya
     // elegidas se ven aunque sean de otra.
@@ -646,9 +651,11 @@ function Asistente({
     const delFiltro = (a) =>
         edificio === 'elegidas'
             ? aulas.includes(a.id)
-            : edificio
-              ? String(a.edificio_id) === edificio
-              : true;
+            : edificio === 'libres'
+              ? libre(a.id)
+              : edificio
+                ? String(a.edificio_id) === edificio
+                : true;
     const listaAulas = ordenadas.filter(
         (a) =>
             delFiltro(a) &&
@@ -1132,6 +1139,17 @@ function Asistente({
                                             icono: ListChecks,
                                             cuenta: aulas.length,
                                         },
+                                        ...(conHora
+                                            ? [
+                                                  {
+                                                      valor: 'libres',
+                                                      texto: 'Libres a esa hora',
+                                                      icono: CheckCircle2,
+                                                      cuenta: catalogo.filter((a) => libre(a.id))
+                                                          .length,
+                                                  },
+                                              ]
+                                            : []),
                                         ...edificiosConAulas.map((e) => ({
                                             valor: String(e.id),
                                             texto:

@@ -87,13 +87,17 @@ final readonly class CargarInscritos
     ) {}
 
     /**
+     * Con `$aMano` (codigo, documento, nombres y apellidos) no se lee
+     * archivo: es una lista de esa sola fila, con las mismas reglas.
+     *
+     * @param  list<string>|null  $aMano
      * @return ResultadoCargaData|null null si el grupo o la facultad no existen
      *
      * @throws GrupoAjenoException
      * @throws PeriodoCerradoException
      * @throws ArchivoRechazadoException si el archivo se rechaza entero; no se guarda nada
      */
-    public function execute(SolicitudCargaData $solicitud): ?ResultadoCargaData
+    public function execute(SolicitudCargaData $solicitud, ?array $aMano = null): ?ResultadoCargaData
     {
         $grupoId = null;
         $gruposPorClave = [];
@@ -142,11 +146,13 @@ final readonly class CargarInscritos
         $obligatorias = self::obligatorias($solicitud->alcance);
 
         try {
-            $filas = FormatoDeLista::revisar(
-                $this->lector->leer($solicitud->rutaArchivo, $solicitud->extension),
-                $obligatorias,
-                self::opcionales($solicitud->alcance),
-            );
+            $filas = $aMano !== null
+                ? [1 => array_map(trim(...), $aMano)]
+                : FormatoDeLista::revisar(
+                    $this->lector->leer($solicitud->rutaArchivo, $solicitud->extension),
+                    $obligatorias,
+                    self::opcionales($solicitud->alcance),
+                );
         } catch (ArchivoRechazadoException $rechazo) {
             throw $rechazo->conOrdenEsperado($obligatorias);
         }

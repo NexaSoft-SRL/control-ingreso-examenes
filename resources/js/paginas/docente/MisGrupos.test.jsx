@@ -378,6 +378,83 @@ describe('Mis grupos · grupo sin lista', () => {
         await screen.findByText('Sin lista cargada');
     }
 
+    it('sin lista también agrega un estudiante suelto, sin archivo', async () => {
+        const unaFila = {
+            message: 'Carga procesada.',
+            archivo: 'Agregado a mano',
+            resumen: {
+                filas: 1,
+                nuevos: 1,
+                reutilizados: 0,
+                ya_inscritos: 0,
+                rechazados: 0,
+                conflictos: 0,
+            },
+            rechazos: [],
+            conflictos: [],
+        };
+        await abrirSinLista({ rutas: { 'POST /docente/grupos/*/inscritos': unaFila } });
+
+        fireEvent.click(screen.getByRole('button', { name: /Agregar estudiante/ }));
+        const dialogo = within(screen.getByRole('dialog', { name: 'Agregar estudiante' }));
+        fireEvent.click(dialogo.getByRole('button', { name: 'Agregar' }));
+        expect(dialogo.getAllByText('Obligatorio')).toHaveLength(4);
+
+        fireEvent.change(dialogo.getByLabelText(/Código SIS/), { target: { value: '202104821' } });
+        fireEvent.change(dialogo.getByLabelText(/C\.I\./), { target: { value: '7928194' } });
+        fireEvent.change(dialogo.getByLabelText(/Nombres/), { target: { value: 'Kevin René' } });
+        fireEvent.change(dialogo.getByLabelText(/Apellidos/), {
+            target: { value: 'Alvarado Claros' },
+        });
+        fireEvent.click(dialogo.getByRole('button', { name: 'Agregar' }));
+
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        expect(api.post).toHaveBeenCalledWith('/docente/grupos/66/inscritos', {
+            codigo_universitario: '202104821',
+            documento_identidad: '7928194',
+            nombres: 'Kevin René',
+            apellidos: 'Alvarado Claros',
+        });
+        expect(await screen.findByText('Estudiante agregado')).toBeInTheDocument();
+    });
+
+    it('si la fila se rechaza, el motivo queda en el formulario', async () => {
+        await abrirSinLista({
+            rutas: {
+                'POST /docente/grupos/*/inscritos': {
+                    message: 'Carga procesada.',
+                    archivo: 'Agregado a mano',
+                    resumen: {
+                        filas: 1,
+                        nuevos: 0,
+                        reutilizados: 0,
+                        ya_inscritos: 0,
+                        rechazados: 1,
+                        conflictos: 0,
+                    },
+                    rechazos: [{ fila: 1, motivo: 'Código universitario no válido' }],
+                    conflictos: [],
+                },
+            },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /Agregar estudiante/ }));
+        const dialogo = within(screen.getByRole('dialog', { name: 'Agregar estudiante' }));
+        for (const [etiqueta, valor] of [
+            [/Código SIS/, 'abc'],
+            [/C\.I\./, '7928194'],
+            [/Nombres/, 'Kevin'],
+            [/Apellidos/, 'Alvarado'],
+        ]) {
+            fireEvent.change(dialogo.getByLabelText(etiqueta), { target: { value: valor } });
+        }
+        fireEvent.click(dialogo.getByRole('button', { name: 'Agregar' }));
+
+        expect(await dialogo.findByRole('alert')).toHaveTextContent(
+            'Código universitario no válido'
+        );
+    });
+
     it('dice «Sin lista cargada», ofrece la carga con su formato y deshabilita el reporte', async () => {
         await abrirSinLista();
 
