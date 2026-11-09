@@ -35,10 +35,10 @@ La foto se sube una sola vez y dentro del plazo que fija la administración desd
 padrón (HU-27). Se toma en el momento con la cámara del dispositivo o se elige un
 archivo JPG, PNG o WebP; el navegador la recorta cuadrada alrededor del rostro, la reduce
 y la revisa antes de enviarla, y el servidor la guarda en JPEG de 480 píxeles de lado.
-La revisión busca un solo rostro, grande, centrado y de frente: si no lo encuentra, la
-foto no se acepta; la luz, el fondo (claro y liso) y la nitidez solo dan avisos y la
-foto se puede guardar igual. Se pide «Rostro de frente · Sin lentes ni gorra · Fondo
-claro», y antes de guardar se confirma, porque después no se puede cambiar.
+La revisión busca un solo rostro, grande, centrado y de frente, sin lentes ni filtros
+(como la nariz o las orejas de perrito), con buena luz, nitidez y fondo claro y liso: si
+algo falla, la foto no se acepta y no hay revisión manual. Se pide «Rostro de frente ·
+Sin lentes ni gorra · Sin filtros · Fondo claro y liso», y antes de guardar se confirma, porque después no se puede cambiar.
 
 Si venció el plazo y no subió la foto, el portal se lo dice: «Mi foto» avisa que quedó
 no habilitado y «Mis exámenes» muestra el motivo.
@@ -99,7 +99,7 @@ estudiante; el pedido de código y la entrada del estudiante no.}
       desde el celular; solo baja el suyo, y sin código emitido no se muestra.
 \item Dado que el estudiante no tiene foto y está abierto el plazo, Cuando abre «Mi
       foto», Entonces ve «Plazo ·» con las fechas, las indicaciones «Rostro de frente»,
-      «Sin lentes ni gorra» y «Fondo claro», «Tomar foto», «Elegir archivo», «Guardar
+      «Sin lentes ni gorra», «Sin filtros» y «Fondo claro y liso», «Tomar foto», «Elegir archivo», «Guardar
       foto» y «Una sola vez»; sin plazo abierto ni habilitación muestra «Plazo cerrado ·»
       con las fechas o «Sin plazo de fotos», y no ofrece subirla.
 \item Dado que el estudiante pulsa «Tomar foto», Cuando se abre la cámara frontal,
@@ -109,9 +109,11 @@ estudiante; el pedido de código y la entrada del estudiante no.}
 \item Dado que el estudiante toma o elige una foto, Cuando el navegador la revisa,
       Entonces la recorta cuadrada alrededor del rostro y la rechaza con «No se detecta
       un rostro», «Debe aparecer solo usted», «Acérquese: el rostro se ve pequeño»,
-      «Centre el rostro» o «Mire de frente a la cámara»; con «Foto oscura», «Use un fondo
-      claro», «Use un fondo liso» o «Foto borrosa» solo avisa y la deja guardar. Si el
-      detector no carga, la revisión sigue solo con la luz y la nitidez.
+      «Centre el rostro», «Mire de frente a la cámara», «Quítese los lentes», «Sin
+      filtros ni accesorios en el rostro», «Foto oscura», «Use un fondo claro», «Use un
+      fondo liso» o «Foto borrosa», y no deja guardarla. Si el detector no carga, la
+      revisión sigue solo con la luz y la nitidez; si no carga el de los rasgos, sin
+      lentes ni filtros.
 \item Dado que el estudiante elige una imagen, Cuando se procesa, Entonces el navegador
       acepta JPG, PNG o WebP y la reduce antes de enviarla; rechaza con «Solo JPG, PNG o
       WebP», «HEIC no compatible aquí · use JPG o PNG», «Máximo 8 MB», «Resolución
@@ -170,8 +172,9 @@ estudiante; el pedido de código y la entrada del estudiante no.}
       compartir (criterio 8).
 \item \texttt{CampoImagen.test.jsx}, \texttt{revisarFoto.test.js} y
       \texttt{encuadrarFoto.test.js}: cámara y archivo, recorte cuadrado alrededor del
-      rostro, rechazo sin rostro, con varios, pequeño, descentrado o de perfil, y avisos
-      de luz, fondo claro y liso y nitidez sin bloquear (criterios 10 y 11).
+      rostro, rechazo sin rostro, con varios, pequeño, descentrado o de perfil, y rechazo
+      por luz, fondo claro y liso y nitidez; \texttt{rasgos.test.js}: lentes (de ver, de
+      metal y de sol) y filtros sobre los puntos del rostro (criterios 10 y 11).
 \item \texttt{AccesoEstudiante.test.jsx}: código SIS obligatorio antes de enviar, envío
       y entrada, código de prueba, código vencido bajo el campo, código SIS pegado con
       espacios o guiones, reenvío y demasiados pedidos, y sesión abierta que lleva al

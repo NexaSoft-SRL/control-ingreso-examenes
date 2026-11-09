@@ -1,16 +1,25 @@
 // Revisión de la foto del estudiante en el navegador, antes de subirla.
-// Con MediaPipe Face Detector (BlazeFace de corto alcance) se exige un solo
-// rostro, grande, centrado y de frente: eso da `errores`, que bloquean. La
-// luz, el fondo (claro y liso) y la nitidez solo dan `avisos`. El detector se carga la
-// primera vez que hace falta (import dinámico) y se reutiliza; el
-// WebAssembly y el modelo se sirven desde /vendor/mediapipe/. Si no carga
-// (sin WebAssembly, sin red), la revisión sigue solo con luz y nitidez.
+// Todo lo que encuentra es un error que bloquea la foto:
+// - con MediaPipe Face Detector (BlazeFace de corto alcance), un solo
+//   rostro, grande, centrado y de frente;
+// - con MediaPipe Face Landmarker (478 puntos del rostro), sin lentes ni
+//   filtros (ver rasgos.js);
+// - luz suficiente, fondo claro y liso, y foto nítida.
+// Los modelos se cargan la primera vez que hacen falta (import dinámico) y
+// se reutilizan; el WebAssembly y los modelos se sirven desde
+// /vendor/mediapipe/. Si el detector no carga (sin WebAssembly, sin red), la
+// revisión sigue solo con luz y nitidez; si el que no carga es el Face
+// Landmarker, sin lentes ni filtros.
+
+import { aPlanos, medirRasgos } from './rasgos';
 
 const RUTA = '/vendor/mediapipe';
 // Lado mayor de la copia que se analiza: misma escala para toda foto.
 const LADO_ANALISIS = 320;
 // Si el detector tarda más (red lenta), esta foto se revisa sin él.
 const ESPERA_DETECTOR_MS = 15000;
+// Lado mayor de la copia en la que se buscan lentes y filtros.
+const LADO_RASGOS = 640;
 
 export const UMBRALES = {
     // Puntaje mínimo para contar un rostro.
@@ -35,8 +44,37 @@ export const UMBRALES = {
     // costado), fondos con dibujo desde 0.18.
     bordeFondo: 30,
     texturaMaxima: 0.15,
-    // Varianza del laplaciano sobre el rostro (o la foto) en gris.
-    nitidezMinima: 60,
+    // Parte mínima de la foto que debe quedar como fondo para juzgarlo: en
+    // una foto muy cerrada lo que queda es pelo, no pared.
+    fondoMedible: 0.03,
+    // Nitidez (ver nitidezDe) sobre el rostro o, sin rostro, la foto:
+    // caras nítidas desde 56; desenfocadas 1 px, hasta 31; 1.5 px, hasta 13.
+    nitidezMinima: 30,
+    // Lentes (ver rasgos.js). Línea horizontal en el puente, entre los
+    // ojos, en luz (0 a 255) o en color (Cr): caras sin lentes hasta 3.6 y
+    // 2.2; con lentes desde 8.8 (armazón fino transparente, foto real) y
+    // 4.0 (metal claro sobre piel clara, que casi no cambia la luz).
+    lentesPuente: 6,
+    lentesPuenteColor: 3.5,
+    // Línea bajo los ojos (aro inferior): sin lentes hasta 36, armazón
+    // oscuro desde 120.
+    lentesAros: 60,
+    // Luz de la zona de los ojos sobre la de las mejillas: sin lentes desde
+    // 0.42, lentes de sol hasta 0.19.
+    ojosOscuros: 0.3,
+    // Filtros. Punta de la nariz contra las mejillas: sin filtro, luz desde
+    // 0.67 y color hasta 4.8; nariz de perrito, luz hasta 0.24 y color
+    // desde 19.
+    narizOscura: 0.45,
+    narizColor: 12,
+    // Frente: un píxel es ajeno a la piel si su color (Cb, Cr) se aparta
+    // más de `colorAjeno` y tiene color propio (no es gris, negro ni
+    // blanco, como el pelo canoso o muy oscuro) de al menos `colorVivo`; con
+    // más de `frenteAjena` de ellos hay algo encima (sin filtro, 0; con
+    // flores, desde 0.08).
+    colorAjeno: 45,
+    colorVivo: 20,
+    frenteAjena: 0.04,
 };
 
 export const MENSAJES = {
@@ -45,6 +83,8 @@ export const MENSAJES = {
     pequeno: 'Acérquese: el rostro se ve pequeño',
     descentrado: 'Centre el rostro',
     deLado: 'Mire de frente a la cámara',
+    lentes: 'Quítese los lentes',
+    filtros: 'Sin filtros ni accesorios en el rostro',
     oscura: 'Foto oscura',
     fondoOscuro: 'Use un fondo claro',
     fondoConDibujo: 'Use un fondo liso',
@@ -80,32 +120,19 @@ export function brilloMedio(gris, ancho, alto, caja = null) {
 }
 
 // El fondo: lo que queda a los lados y encima del rostro (ensanchado para
-// dejar fuera las orejas), hasta la altura del mentón; sin rostro, las dos
-// esquinas superiores. Devuelve los índices de esos píxeles.
-export function zonaDeFondo(ancho, alto, caja = null) {
-    let indices = [];
-    if (caja) {
-        const margenX = caja.ancho * 0.3;
-        const izq = caja.x - margenX;
-        const der = caja.x + caja.ancho + margenX;
-        const arriba = caja.y - caja.alto * 0.5;
-        const hasta = Math.min(alto, Math.round(caja.y + caja.alto));
-        for (let y = 0; y < hasta; y++) {
-            for (let x = 0; x < ancho; x++) {
-                if (x >= izq && x <= der && y >= arriba) continue;
-                indices.push(y * ancho + x);
-            }
-        }
-    }
-    if (indices.length < ancho * alto * 0.03) {
-        indices = [];
-        const lado = Math.max(1, Math.round(ancho * 0.2));
-        const hasta = Math.max(1, Math.round(alto / 3));
-        for (let y = 0; y < hasta; y++) {
-            for (let x = 0; x < ancho; x++) {
-                if (x >= lado && x < ancho - lado) continue;
-                indices.push(y * ancho + x);
-            }
+// dejar fuera las orejas), hasta la altura del mentón. Devuelve los índices
+// de esos píxeles: pocos o ninguno si la foto es muy cerrada.
+export function zonaDeFondo(ancho, alto, caja) {
+    const indices = [];
+    const margenX = caja.ancho * 0.3;
+    const izq = caja.x - margenX;
+    const der = caja.x + caja.ancho + margenX;
+    const arriba = caja.y - caja.alto * 0.5;
+    const hasta = Math.min(alto, Math.round(caja.y + caja.alto));
+    for (let y = 0; y < hasta; y++) {
+        for (let x = 0; x < ancho; x++) {
+            if (x >= izq && x <= der && y >= arriba) continue;
+            indices.push(y * ancho + x);
         }
     }
     return indices;
@@ -113,7 +140,7 @@ export function zonaDeFondo(ancho, alto, caja = null) {
 
 // Luminancia del fondo. Se toma un percentil alto y no la media para que el
 // pelo oscuro no cuente como fondo.
-export function brilloDeFondo(gris, ancho, alto, caja = null, percentil = 0.75) {
+export function brilloDeFondo(gris, ancho, alto, caja, percentil = 0.75) {
     const valores = zonaDeFondo(ancho, alto, caja).map((i) => gris[i]);
     valores.sort((a, b) => a - b);
     return valores[Math.min(valores.length - 1, Math.floor(valores.length * percentil))];
@@ -123,7 +150,7 @@ export function brilloDeFondo(gris, ancho, alto, caja = null, percentil = 0.75) 
 // marcado (laplaciano fuerte). Una pared lisa da casi cero; repisas,
 // cortinas o afiches, bastante más. El pelo que asoma junto al rostro
 // suma poco porque es una parte chica del fondo.
-export function texturaDeFondo(gris, ancho, alto, caja = null, borde = UMBRALES.bordeFondo) {
+export function texturaDeFondo(gris, ancho, alto, caja, borde = UMBRALES.bordeFondo) {
     let fuertes = 0;
     let n = 0;
     for (const i of zonaDeFondo(ancho, alto, caja)) {
@@ -160,6 +187,14 @@ export function varianzaLaplaciano(gris, ancho, alto, caja = null) {
     if (n === 0) return 0;
     const media = suma / n;
     return cuadrados / n - media * media;
+}
+
+// Nitidez: la varianza del laplaciano llevada a un brillo medio de 128. La
+// varianza crece con el cuadrado del brillo, así que sin llevarla una foto
+// nítida pero algo oscura pasaría por borrosa.
+export function nitidezDe(gris, ancho, alto, caja = null) {
+    const brillo = Math.max(1, brilloMedio(gris, ancho, alto, caja));
+    return varianzaLaplaciano(gris, ancho, alto, caja) * (128 / brillo) ** 2;
 }
 
 // Rostros con puntaje suficiente, en el formato de MediaPipe: caja en
@@ -214,39 +249,76 @@ export function deFrente(deteccion, ancho, umbrales = UMBRALES) {
     return Math.abs(nariz.x - (izq + der) / 2) / entreOjos <= umbrales.narizMaxima;
 }
 
-// Avisos de luz, fondo y nitidez a partir de las medidas. Solo avisan: la
-// foto se puede subir igual.
-export function revisarLuz({ brillo, fondo, textura = 0, nitidez }, umbrales = UMBRALES) {
-    const avisos = [];
-    if (brillo < umbrales.brilloMinimo) avisos.push(MENSAJES.oscura);
-    else if (fondo < umbrales.fondoMinimo) avisos.push(MENSAJES.fondoOscuro);
-    if (textura > umbrales.texturaMaxima) avisos.push(MENSAJES.fondoConDibujo);
-    if (nitidez < umbrales.nitidezMinima) avisos.push(MENSAJES.borrosa);
-    return avisos;
+// Errores de luz, fondo y nitidez a partir de las medidas. Sin fondo
+// medible (`fondo` y `textura` nulos), solo luz y nitidez.
+export function revisarLuz({ brillo, fondo = null, textura = null, nitidez }, umbrales = UMBRALES) {
+    const errores = [];
+    if (brillo < umbrales.brilloMinimo) errores.push(MENSAJES.oscura);
+    else if (fondo !== null && fondo < umbrales.fondoMinimo) errores.push(MENSAJES.fondoOscuro);
+    if (textura !== null && textura > umbrales.texturaMaxima) errores.push(MENSAJES.fondoConDibujo);
+    if (nitidez < umbrales.nitidezMinima) errores.push(MENSAJES.borrosa);
+    return errores;
+}
+
+// Errores de lentes y filtros a partir de las medidas de rasgos.js. Sin
+// medidas (el Face Landmarker no cargó), ninguno; si cargó pero no halló
+// los puntos de un rostro que el detector sí vio, algo lo tapa o lo
+// deforma: un filtro.
+export function revisarRasgos(rasgos, umbrales = UMBRALES) {
+    if (!rasgos) return [];
+    if (!rasgos.puntos) return [MENSAJES.filtros];
+    const errores = [];
+    if (
+        rasgos.puente > umbrales.lentesPuente ||
+        rasgos.puenteColor > umbrales.lentesPuenteColor ||
+        rasgos.aros > umbrales.lentesAros ||
+        rasgos.ojos < umbrales.ojosOscuros
+    ) {
+        errores.push(MENSAJES.lentes);
+    }
+    if (
+        rasgos.luzNariz < umbrales.narizOscura ||
+        rasgos.colorNariz > umbrales.narizColor ||
+        rasgos.frenteAjena > umbrales.frenteAjena
+    ) {
+        errores.push(MENSAJES.filtros);
+    }
+    return errores;
 }
 
 // Medidas de una imagen ya dibujada en gris, con las detecciones (o
-// `null` si no hubo detector).
-export function medir(gris, ancho, alto, detecciones) {
-    const rostros = detecciones ? rostrosValidos(detecciones) : [];
+// `null` si no hubo detector). El fondo se mide solo con un rostro y si
+// queda bastante fuera de él; si no, `fondo` y `textura` son nulos.
+export function medir(gris, ancho, alto, detecciones, umbrales = UMBRALES) {
+    const rostros = detecciones ? rostrosValidos(detecciones, umbrales) : [];
     const caja = rostros.length === 1 ? cajaDe(rostros[0]) : null;
+    const conFondo =
+        caja !== null &&
+        zonaDeFondo(ancho, alto, caja).length >= ancho * alto * umbrales.fondoMedible;
     return {
         ancho,
         alto,
         detecciones,
         brillo: brilloMedio(gris, ancho, alto, caja),
-        fondo: brilloDeFondo(gris, ancho, alto, caja),
-        textura: texturaDeFondo(gris, ancho, alto, caja),
-        nitidez: varianzaLaplaciano(gris, ancho, alto, caja),
+        fondo: conFondo ? brilloDeFondo(gris, ancho, alto, caja) : null,
+        textura: conFondo ? texturaDeFondo(gris, ancho, alto, caja) : null,
+        nitidez: nitidezDe(gris, ancho, alto, caja),
     };
 }
 
+// Todo bloquea: `avisos` queda vacío (CampoImagen los admite para otros
+// usos).
 export function evaluar(medidas, umbrales = UMBRALES) {
+    const rostro = medidas.detecciones
+        ? revisarRostros(medidas.detecciones, medidas.ancho, medidas.alto, umbrales)
+        : [];
     return {
-        errores: medidas.detecciones
-            ? revisarRostros(medidas.detecciones, medidas.ancho, medidas.alto, umbrales)
-            : [],
-        avisos: revisarLuz(medidas, umbrales),
+        errores: [
+            ...rostro,
+            ...revisarRasgos(medidas.rasgos, umbrales),
+            ...revisarLuz(medidas, umbrales),
+        ],
+        avisos: [],
     };
 }
 
@@ -272,10 +344,30 @@ export function cargarDetector() {
     return detector;
 }
 
-// Empieza a cargar el detector sin esperarlo (al abrir la pantalla).
+let marcador = null;
+
+// El Face Landmarker (478 puntos del rostro), cargado una sola vez.
+export function cargarMarcador() {
+    marcador ??= (async () => {
+        const { FaceLandmarker, FilesetResolver } = await import('@mediapipe/tasks-vision');
+        const archivos = await FilesetResolver.forVisionTasks(`${RUTA}/wasm`);
+        return FaceLandmarker.createFromOptions(archivos, {
+            baseOptions: { modelAssetPath: `${RUTA}/face_landmarker.task`, delegate: 'CPU' },
+            runningMode: 'IMAGE',
+            numFaces: 1,
+        });
+    })().catch((fallo) => {
+        marcador = null;
+        throw fallo;
+    });
+    return marcador;
+}
+
+// Empieza a cargar los modelos sin esperarlos (al abrir la pantalla).
 export function precargarDetector() {
     if (typeof WebAssembly === 'undefined' || typeof createImageBitmap !== 'function') return;
     cargarDetector().catch(() => {});
+    cargarMarcador().catch(() => {});
 }
 
 async function conEspera(promesa, ms) {
@@ -292,7 +384,10 @@ async function conEspera(promesa, ms) {
 
 // Dibuja la foto a escala de análisis y la mide. Devuelve null si el
 // navegador no puede leerla (sin createImageBitmap o sin canvas).
-export async function medirFoto(archivo, { obtenerDetector = cargarDetector } = {}) {
+export async function medirFoto(
+    archivo,
+    { obtenerDetector = cargarDetector, obtenerMarcador = cargarMarcador } = {}
+) {
     if (typeof createImageBitmap !== 'function') return null;
     let mapa;
     try {
@@ -329,10 +424,39 @@ export async function medirFoto(archivo, { obtenerDetector = cargarDetector } = 
         }
     } catch {
         detecciones = null;
+    }
+    // Lentes y filtros, solo con un rostro: si no, ya hay un error.
+    let rasgos = null;
+    try {
+        if (obtenerMarcador && rostrosValidos(detecciones).length === 1) {
+            rasgos = await rasgosDe(mapa, obtenerMarcador);
+        }
+    } catch {
+        rasgos = null;
     } finally {
         mapa.close?.();
     }
-    return medir(gris, ancho, alto, detecciones);
+    return { ...medir(gris, ancho, alto, detecciones), rasgos };
+}
+
+// Los puntos del rostro y sus medidas, sobre una copia más grande que la de
+// análisis (el aro fino de unos lentes mide pocos píxeles). Devuelve
+// `{ puntos: null }` si el Face Landmarker cargó pero no halló el rostro, y
+// null si no cargó a tiempo.
+async function rasgosDe(mapa, obtenerMarcador) {
+    const listo = await conEspera(obtenerMarcador(), ESPERA_DETECTOR_MS);
+    if (!listo) return null;
+    const escala = Math.min(1, LADO_RASGOS / Math.max(mapa.width, mapa.height));
+    const lienzo = document.createElement('canvas');
+    lienzo.width = Math.max(1, Math.round(mapa.width * escala));
+    lienzo.height = Math.max(1, Math.round(mapa.height * escala));
+    const contexto = lienzo.getContext('2d', { willReadFrequently: true });
+    contexto.drawImage(mapa, 0, 0, lienzo.width, lienzo.height);
+    const puntos = listo.detect(lienzo).faceLandmarks?.[0] ?? null;
+    if (!puntos) return { puntos: null };
+    const { width: ancho, height: alto } = lienzo;
+    const planos = aPlanos(contexto.getImageData(0, 0, ancho, alto).data, ancho, alto);
+    return { puntos, ...medirRasgos(planos, puntos, UMBRALES) };
 }
 
 // Lleva las detecciones hechas sobre la mitad central ampliada al doble a

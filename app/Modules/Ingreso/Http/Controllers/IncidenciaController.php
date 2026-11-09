@@ -76,6 +76,9 @@ final class IncidenciaController
                 $request->detalle(),
                 $this->operador($request),
                 $request->evidencias(),
+                $request->gravedad(),
+                $request->tipoTexto(),
+                $request->guardarComun(),
             );
         } catch (FueraDeAlcanceException $error) {
             return $this->fueraDeAlcance($error);
@@ -142,6 +145,8 @@ final class IncidenciaController
                 $request->cambiaEstudiante(),
                 $request->estudiante(),
                 is_string($datos['detalle'] ?? null) ? $datos['detalle'] : null,
+                $request->gravedad(),
+                $request->tipoTexto(),
             );
         } catch (FueraDeAlcanceException $error) {
             return $this->fueraDeAlcance($error);

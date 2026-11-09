@@ -41,7 +41,13 @@ atención y su corrección, los pedidos de acceso con código de aula y cómo se
 resolvieron, las operaciones del examen ---registro, modificación, personal de aulas,
 habilitación, inhabilitación por foto, reparto en aulas, códigos QR, avisos y
 finalización---, el inicio programado y, al cerrarse, un resumen del cierre y cada
-habilitado que no se presentó. Una incidencia puede llevar hasta tres fotos de
+habilitado que no se presentó. La gravedad no está atada al tipo: quien registra la
+elige con tres etiquetas («Leve», «Grave», «Muy grave») y el tipo solo la sugiere. Cada
+docente tiene su lista de incidencias comunes, con la gravedad que prefiere para cada
+tipo y las incidencias propias que fue guardando; al registrar en un examen se ofrece la
+lista del docente del examen, también al auxiliar. Una incidencia no prevista se
+registra con su propio nombre y su gravedad, y se puede guardar en la lista. Una
+incidencia puede llevar hasta tres fotos de
 evidencia, tomadas con la cámara de atrás al reportarla o al corregirla; se agregan y
 no se reemplazan. Un intento sin examen cuenta si ocurrió en un
 aula del examen mientras estaba abierto. El docente lee la de los exámenes que registró
@@ -69,9 +75,8 @@ exámenes» o «Reportes de la universidad» (HU-15).}
       inscrito en el examen», «no habilitado» o «código no válido») y su detalle, y la
       incidencia lleva su tipo («Suplantación de identidad», «Material no permitido»,
       «Dispositivo no permitido», «Intento de ingreso repetido», «Expulsión», «Cambio de
-      aula» o «Incidencia») y su gravedad: «Muy grave» la suplantación y la expulsión,
-      «Grave» el ingreso repetido, el intento no autorizado, el material y el
-      dispositivo, y «Leve» el cambio de aula y otras; su atención y su corrección
+      aula» o el nombre propio de una no prevista) y la gravedad con que se registró;
+      su atención y su corrección
       figuran aparte, a su hora, con
       «: atendida» y «: corregida» y quién lo hizo. El intento sin examen ocurrido en un
       aula del examen mientras estaba abierto también figura.
@@ -91,6 +96,20 @@ exámenes» o «Reportes de la universidad» (HU-15).}
       suceso «No se presentó» por cada habilitado sin ingreso, con su aula. Arriba, cada
       aula dice «controló:» con quién la atendió, cuántos ingresos registró y de qué
       hora a qué hora.
+\item Dado que se reporta una incidencia (HU-21), Cuando se elige el «Tipo», Entonces
+      la lista ofrece los tipos del sistema y, bajo «Mis incidencias», las propias del
+      docente del examen; la «Gravedad» se marca sola con la sugerida ---la del docente
+      o, si no eligió otra, «Muy grave» la suplantación, «Grave» el intento rechazado,
+      el material y el dispositivo, y «Leve» el cambio de aula--- y se cambia con un
+      toque. «Otra no prevista…» pide «Qué pasó» (de 3 a 80 caracteres) y la gravedad, y
+      ofrece «Guardar en mis incidencias comunes»; sin gravedad, «Registrar» no se
+      habilita. Al corregir, el docente cambia el tipo, el nombre de la no prevista y la
+      gravedad.
+\item Dado que el docente pulsa «Mis incidencias» en «En curso», Cuando se abre «Mis
+      incidencias comunes», Entonces cada tipo y cada incidencia propia lleva su
+      gravedad, que se cambia con un toque y queda guardada; «Nueva incidencia» con su
+      gravedad y «Agregar» suma una propia, y la papelera la quita. Volver a la gravedad
+      del tipo quita la preferencia, y cada cuenta solo ve y cambia su lista.
 \item Dado que se reporta o se corrige una incidencia (HU-21), Cuando se adjunta
       evidencia, Entonces se toman o eligen hasta tres fotos, que se ven en miniatura y
       se quitan con la equis antes de enviar; al corregir se agregan a las que ya tenía,
@@ -126,26 +145,40 @@ exámenes» o «Reportes de la universidad» (HU-15).}
       dispositivo móvil los filtros van uno bajo otro y la línea de tiempo ocupa una
       sola columna, con «PDF» y «Hoja», de forma completamente responsiva.}
 
+\def\HUMockupsPares{%
+\CajaMockup{hu29-registrar-incidencia}{10.6cm} & \CajaMockup{hu29-registrar-incidencia-movil}{3.2cm} \\[4pt]
+\hline
+\CajaMockup{hu29-incidencia-no-prevista}{10.6cm} & \CajaMockup{hu29-incidencia-no-prevista-movil}{3.2cm} \\[4pt]
+\hline
+\CajaMockup{hu29-mis-incidencias}{10.6cm} & \CajaMockup{hu29-mis-incidencias-movil}{3.2cm} \\[4pt]
+\hline}
+
 \def\HUPruebas{%
 \item \texttt{BitacoraExamenTest}: todo lo ocurrido en el examen en orden ---ingreso con
       su medio y su autor, ingreso por otra aula y después del inicio, intento rechazado
       con su causa y finalización del examen---; inicio, cierre con sus cifras, los que
       no se presentaron y quién controló cada aula (criterios 1 a 5).
 \item \texttt{IncidenciasTest}: hasta tres fotos al reportar, cada una por su número,
-      más de tres rechazadas y la corrección que agrega sin quitar; gravedad de cada tipo
-      (criterios 3 y 6).
-\item \texttt{Incidencias.test.jsx}: fotos en miniatura con su equis, hasta tres, y
-      el visor de evidencia con sus miniaturas (criterio 6).
+      más de tres rechazadas y la corrección que agrega sin quitar
+      (criterios 3 y 8).
+\item \texttt{IncidenciasComunesTest}: lista con la gravedad sugerida, gravedad
+      elegida, preferencia del docente, no prevista con su nombre guardada en la lista y
+      en la bitácora, lista del docente ofrecida al auxiliar, corrección de la gravedad y
+      del nombre, y cada cuenta con su lista (criterios 3, 6 y 7).
+\item \texttt{Incidencias.test.jsx}: gravedad marcada por el tipo y cambiada, lista del
+      docente, no prevista con su nombre y «Guardar», corrección de la gravedad y «Mis
+      incidencias comunes» (criterios 6 y 7); fotos en miniatura con su equis, hasta tres, y
+      el visor de evidencia con sus miniaturas (criterio 8).
 \item \texttt{BitacoraExamenTest}: lectura solo para un docente del examen, sin sesión y
-      examen inexistente (criterio 11).
+      examen inexistente (criterio 13).
 \item \texttt{BitacoraExamenTest}: el administrador lee y descarga la bitácora de
       cualquier examen, con el nombre del archivo, y el docente no usa esa ruta
-      (criterios 9 a 11).
+      (criterios 11 a 13).
 \item \texttt{BitacoraDelExamen.test.jsx}: sucesos por día con hora, aula, estudiante y
       autor, filtros por tipo, gravedad, aula y estudiante con su cuenta, y bitácora
-      vacía sin descarga (criterios 1, 7 y 9).
+      vacía sin descarga (criterios 1, 9 y 11).
 \item \texttt{Reportes.test.jsx}: el botón «Bitácora» solo con un examen elegido y la
-      bitácora de ese examen en un diálogo (criterio 10); \texttt{ReportesDocente.test.jsx}:
+      bitácora de ese examen en un diálogo (criterio 12); \texttt{ReportesDocente.test.jsx}:
       la pestaña «Bitácora» en los reportes del docente (criterio 1).}
 
 \input{cuerpo}

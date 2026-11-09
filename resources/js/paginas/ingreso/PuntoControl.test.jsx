@@ -590,6 +590,9 @@ describe('Punto de control', () => {
         expect(llamadas[1][1]).toEqual({
             aula_id: 31,
             tipo: 'MATERIAL_NO_PERMITIDO',
+            tipo_texto: null,
+            gravedad: 'GRAVE',
+            guardar_comun: null,
             estudiante: null,
             detalle: 'Calculadora programable',
         });
@@ -742,7 +745,7 @@ describe('Punto de control', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /Siguiente/ }));
         fireEvent.click(screen.getByRole('button', { name: /Incidencia/ }));
-        fireEvent.change(screen.getByLabelText(/Tipo/), { target: { value: 'OTRA' } });
+        fireEvent.change(screen.getByLabelText(/Tipo/), { target: { value: 'CAMBIO_AULA' } });
         fireEvent.change(screen.getByLabelText(/Detalle/), {
             target: { value: 'Ruido en el pasillo' },
         });

@@ -467,6 +467,9 @@ describe('EnCurso', () => {
         expect(api.post).toHaveBeenCalledWith('/examenes/1/incidencias', {
             aula_id: 35,
             tipo: 'INTENTO_NO_AUTORIZADO',
+            tipo_texto: null,
+            gravedad: 'GRAVE',
+            guardar_comun: null,
             estudiante: null,
             detalle: 'Corte de luz en el aula',
         });

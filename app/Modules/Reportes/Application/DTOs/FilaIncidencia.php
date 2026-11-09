@@ -27,5 +27,8 @@ final readonly class FilaIncidencia
         public string $detalle,
         public ?string $registradoPor,
         public bool $conCodigoDeAula,
+        // La guardada en la incidencia y el nombre de una no prevista.
+        public ?string $gravedad = null,
+        public ?string $tipoTexto = null,
     ) {}
 }

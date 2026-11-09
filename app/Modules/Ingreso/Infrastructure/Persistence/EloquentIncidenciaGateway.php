@@ -8,6 +8,7 @@ use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaGateway;
 use App\Modules\Ingreso\Application\DTOs\NuevaIncidenciaData;
 use App\Modules\Ingreso\Domain\Enums\CausaIntento;
+use App\Modules\Ingreso\Domain\Enums\Gravedad;
 use App\Modules\Ingreso\Domain\Enums\OrigenIncidencia;
 use App\Modules\Ingreso\Domain\Enums\TipoIncidencia;
 use Illuminate\Database\Query\Builder;
@@ -38,6 +39,8 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
                     'estudiante_texto' => $datos->estudianteTexto,
                     'ingreso_id' => $datos->ingresoId,
                     'tipo' => $datos->tipo->value,
+                    'gravedad' => ($datos->gravedad ?? $datos->tipo->gravedad())->value,
+                    'tipo_texto' => $datos->tipoTexto === null || trim($datos->tipoTexto) === '' ? null : trim($datos->tipoTexto),
                     'origen' => $datos->origen->value,
                     'causa' => $datos->causa?->value,
                     'examen_correspondiente_id' => $datos->examenCorrespondienteId,
@@ -58,8 +61,9 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
                         'incidencias',
                         $id,
                         sprintf(
-                            '%s%s%s%s: %s',
-                            $datos->tipo->etiqueta(),
+                            '%s (%s)%s%s%s: %s',
+                            $datos->tipoTexto !== null && trim($datos->tipoTexto) !== '' ? trim($datos->tipoTexto) : $datos->tipo->etiqueta(),
+                            mb_strtolower(($datos->gravedad ?? $datos->tipo->gravedad())->etiqueta()),
                             $this->dondeOcurrio($datos->examenId, $datos->aulaId),
                             $datos->estudianteTexto === null ? '' : ' · '.$datos->estudianteTexto,
                             $datos->operador->esAcceso() ? ', con código de aula' : '',
@@ -165,8 +169,10 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
         array $evidencias,
         int $usuarioId,
         ?array $estudiante = null,
+        ?Gravedad $gravedad = null,
+        ?string $tipoTexto = null,
     ): void {
-        DB::transaction(function () use ($incidenciaId, $tipo, $detalle, $evidencias, $usuarioId, $estudiante): void {
+        DB::transaction(function () use ($incidenciaId, $tipo, $detalle, $evidencias, $usuarioId, $estudiante, $gravedad, $tipoTexto): void {
             $ahora = now();
             DB::table('incidencias')->where('id', $incidenciaId)->lockForUpdate()->value('id');
 
@@ -177,6 +183,17 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
                 'corregida_por' => $usuarioId,
                 'updated_at' => $ahora,
             ];
+
+            if ($gravedad !== null) {
+                $cambios['gravedad'] = $gravedad->value;
+            }
+
+            // Un tipo del sistema no lleva nombre propio; una no prevista, el suyo.
+            if ($tipo !== TipoIncidencia::Otra) {
+                $cambios['tipo_texto'] = null;
+            } elseif ($tipoTexto !== null) {
+                $cambios['tipo_texto'] = trim($tipoTexto) === '' ? null : trim($tipoTexto);
+            }
 
             if ($estudiante !== null) {
                 $cambios['estudiante_texto'] = $estudiante['texto'];
@@ -192,9 +209,10 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
                 'incidencias',
                 $incidenciaId,
                 sprintf(
-                    'Incidencia %d corregida: %s. %s%s',
+                    'Incidencia %d corregida: %s%s. %s%s',
                     $incidenciaId,
-                    $tipo->etiqueta(),
+                    $tipo === TipoIncidencia::Otra && $tipoTexto !== null && trim($tipoTexto) !== '' ? trim($tipoTexto) : $tipo->etiqueta(),
+                    $gravedad === null ? '' : ' ('.mb_strtolower($gravedad->etiqueta()).')',
                     $detalle,
                     $evidencias === [] ? '' : sprintf(' (%d %s de evidencia)', count($evidencias), count($evidencias) === 1 ? 'foto' : 'fotos'),
                 ),
@@ -297,6 +315,8 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
                 'incidencia.examen_id',
                 'incidencia.aula_id',
                 'incidencia.tipo',
+                'incidencia.gravedad',
+                'incidencia.tipo_texto',
                 'incidencia.detalle',
                 'incidencia.estudiante_texto',
                 'incidencia.ocurrida_en',
@@ -331,14 +351,17 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
             ? $this->texto($columnas['estudiante_texto'] ?? null)
             : $this->nombreDe($columnas['apellidos'] ?? null, $columnas['nombres'] ?? null).' · '.$codigo;
 
-        $gravedad = TipoIncidencia::tryFrom($tipo)?->gravedad();
+        $gravedad = Gravedad::tryFrom($this->texto($columnas['gravedad'] ?? null) ?? '') ?? TipoIncidencia::tryFrom($tipo)?->gravedad();
+        $propio = $this->texto($columnas['tipo_texto'] ?? null);
         $corregidaEn = $this->texto($columnas['corregida_en'] ?? null);
 
         return [
             'id' => $this->entero($columnas['id'] ?? null),
             'examen_id' => $this->enteroONulo($columnas['examen_id'] ?? null),
             'tipo' => $tipo,
-            'tipo_texto' => TipoIncidencia::tryFrom($tipo)?->etiqueta() ?? $tipo,
+            'tipo_texto' => $propio ?? TipoIncidencia::tryFrom($tipo)?->etiqueta() ?? $tipo,
+            // El nombre de una incidencia no prevista, tal como se escribio.
+            'nombre_propio' => $propio,
             'gravedad' => $gravedad?->value,
             'gravedad_texto' => $gravedad?->etiqueta(),
             'aula_id' => $this->enteroONulo($columnas['aula_id'] ?? null),

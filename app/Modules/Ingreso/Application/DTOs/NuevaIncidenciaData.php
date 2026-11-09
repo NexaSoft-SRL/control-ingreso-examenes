@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Application\DTOs;
 
 use App\Modules\Ingreso\Domain\Enums\CausaIntento;
+use App\Modules\Ingreso\Domain\Enums\Gravedad;
 use App\Modules\Ingreso\Domain\Enums\OrigenIncidencia;
 use App\Modules\Ingreso\Domain\Enums\TipoIncidencia;
 
@@ -26,5 +27,8 @@ final readonly class NuevaIncidenciaData
         public ?CausaIntento $causa = null,
         public ?int $examenCorrespondienteId = null,
         public array $evidencias = [],
+        // Sin gravedad, la del tipo. `tipoTexto`: el nombre de una no prevista.
+        public ?Gravedad $gravedad = null,
+        public ?string $tipoTexto = null,
     ) {}
 }

@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-import { TriangleAlert, Check, Image as IconoImagen, Pencil } from 'lucide-react';
+import {
+    TriangleAlert,
+    Check,
+    Image as IconoImagen,
+    ListChecks,
+    Pencil,
+    Trash2,
+} from 'lucide-react';
 import { api } from '../api/cliente';
 import Boton from './Boton';
 import Campo from './Campo';
@@ -26,8 +33,8 @@ export const TIPOS_INCIDENCIA = {
     OTRA: 'Otra',
 };
 
-// La gravedad sale del tipo y se lee por el color y por el texto: leve,
-// grave o muy grave.
+// La gravedad la elige quien registra (el tipo o la lista del docente solo la
+// sugieren) y se lee por el color y por el texto: leve, grave o muy grave.
 export const GRAVEDADES = {
     MUY_GRAVE: { texto: 'Muy grave', tono: 'peligro' },
     GRAVE: { texto: 'Grave', tono: 'advertencia' },
@@ -45,14 +52,112 @@ export const GRAVEDAD_DE_TIPO = {
     OTRA: 'LEVE',
 };
 
+// La gravedad que sugiere cada tipo cuando no hay otra elegida.
 // Los que asienta otra operación: no se eligen ni se cambian.
 const FIJOS = ['EXPULSION', 'INGRESO_REPETIDO'];
 
-const opcionDe = (clave) =>
-    `${TIPOS_INCIDENCIA[clave]} · ${GRAVEDADES[GRAVEDAD_DE_TIPO[clave]].texto}`;
-
 // Hasta tres fotos de evidencia por incidencia.
 const MAXIMO_FOTOS = 3;
+
+const FOCO =
+    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
+const NIVELES = ['LEVE', 'GRAVE', 'MUY_GRAVE'];
+const NIVEL_ACTIVO = {
+    LEVE: 'border-info-600 bg-info-50 text-info-700 ring-2 ring-info-600/20',
+    GRAVE: 'border-warning-600 bg-warning-50 text-warning-800 ring-2 ring-warning-600/20',
+    MUY_GRAVE: 'border-danger-600 bg-danger-50 text-danger-700 ring-2 ring-danger-600/20',
+};
+
+// La gravedad como tres etiquetas que se eligen con un toque.
+export function SelectorGravedad({
+    valor,
+    onCambiar,
+    error,
+    etiqueta = 'Gravedad',
+    compacto = false,
+}) {
+    return (
+        <div>
+            {etiqueta && !compacto && (
+                <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                    {etiqueta} <span className="text-danger-600">*</span>
+                </span>
+            )}
+            <div
+                role="radiogroup"
+                aria-label={etiqueta}
+                className={`grid grid-cols-3 gap-2 ${compacto ? 'w-full sm:w-72' : ''}`}
+            >
+                {NIVELES.map((nivel) => {
+                    const activo = valor === nivel;
+                    return (
+                        <button
+                            key={nivel}
+                            type="button"
+                            role="radio"
+                            aria-checked={activo}
+                            onClick={() => onCambiar(nivel)}
+                            className={`rounded-lg border px-2 text-sm font-semibold transition-colors ${compacto ? 'min-h-9' : 'min-h-11'} ${activo ? NIVEL_ACTIVO[nivel] : 'border-slate-200 text-slate-600 hover:bg-slate-50'} ${FOCO}`}
+                        >
+                            {GRAVEDADES[nivel].texto}
+                        </button>
+                    );
+                })}
+            </div>
+            {error && (
+                <p role="alert" className="mt-1.5 text-sm text-danger-700">
+                    {error}
+                </p>
+            )}
+        </div>
+    );
+}
+
+SelectorGravedad.propTypes = {
+    valor: PropTypes.string,
+    onCambiar: PropTypes.func.isRequired,
+    error: PropTypes.string,
+    etiqueta: PropTypes.string,
+    compacto: PropTypes.bool,
+};
+
+// «Otra no prevista»: se escribe su nombre y se elige su gravedad.
+const NUEVA = '__nueva';
+const claveDe = (item) => (item.propia ? `p:${item.nombre}` : item.tipo);
+
+// Lo que se ofrece al registrar (GET /api/examenes/{id}/incidencias/catalogo):
+// los tipos del sistema con la gravedad que prefiere el docente y sus
+// incidencias propias. Si no llega, los tipos con su gravedad de siempre.
+function useCatalogo(ruta, abierto) {
+    const [estado, setEstado] = useState({ lista: null, puedeGuardar: false });
+    useEffect(() => {
+        if (!abierto || !ruta) return undefined;
+        let vigente = true;
+        Promise.resolve()
+            .then(() => api.get(ruta))
+            .then((respuesta) => {
+                if (!vigente) return;
+                const lista = respuesta?.data?.data;
+                setEstado({
+                    lista: Array.isArray(lista) ? lista : null,
+                    puedeGuardar: Boolean(respuesta?.data?.puede_guardar),
+                });
+            })
+            .catch(() => vigente && setEstado({ lista: null, puedeGuardar: false }));
+        return () => {
+            vigente = false;
+        };
+    }, [ruta, abierto]);
+    const lista =
+        estado.lista ??
+        REPORTABLES.filter((clave) => clave !== 'OTRA').map((clave) => ({
+            tipo: clave,
+            nombre: TIPOS_INCIDENCIA[clave],
+            gravedad: GRAVEDAD_DE_TIPO[clave],
+            propia: false,
+        }));
+    return { lista, puedeGuardar: estado.puedeGuardar };
+}
 
 // Con fotos, el cuerpo va como formulario multipart (`evidencias[]`).
 function cuerpoCon(datos, fotos) {
@@ -100,9 +205,10 @@ const formaAula = PropTypes.shape({
 
 // Botón «Incidencia» y su formulario. Con `aulas` (el docente, que pasa por
 // varias) se elige el aula; con `aula` queda fija (el auxiliar en la suya).
-// `registrar({ aula_id, tipo, estudiante, detalle })` hace la llamada
-// (POST /api/examenes/{examen}/incidencias) y devuelve su promesa;
-// `alRegistrar` se llama cuando terminó bien.
+// `registrar({ aula_id, tipo, tipo_texto, gravedad, estudiante, detalle })`
+// hace la llamada (POST /api/examenes/{examen}/incidencias) y devuelve su
+// promesa; `alRegistrar` se llama cuando terminó bien. `catalogo` es la ruta
+// de lo que se ofrece en ese examen.
 export function BotonIncidencia({
     aula,
     aulas,
@@ -110,12 +216,16 @@ export function BotonIncidencia({
     hora,
     registrar,
     alRegistrar,
+    catalogo,
     variante = 'secundario',
     className = '',
 }) {
     const [aviso, avisar] = useAviso();
     const [abierto, setAbierto] = useState(false);
     const [tipo, setTipo] = useState('');
+    const [gravedad, setGravedad] = useState('');
+    const [nueva, setNueva] = useState('');
+    const [guardarComun, setGuardarComun] = useState(false);
     const [donde, setDonde] = useState(aula?.id ?? aulas?.[0]?.id ?? '');
     const [estudiante, setEstudiante] = useState('');
     const [detalle, setDetalle] = useState('');
@@ -125,10 +235,27 @@ export function BotonIncidencia({
     const [errores, setErrores] = useState({});
     const corto = detalle.trim().length < DETALLE_MINIMO;
     const aulaId = aula?.id ?? (donde === '' ? aulas?.[0]?.id : Number(donde));
+    const { lista, puedeGuardar } = useCatalogo(catalogo, abierto);
+    const sistema = lista.filter((i) => !i.propia);
+    const propias = lista.filter((i) => i.propia);
+    const elegida = lista.find((i) => claveDe(i) === tipo) ?? null;
+    const esNueva = tipo === NUEVA;
+    const faltaNombre = esNueva && nueva.trim().length < 3;
+    const listo = Boolean(tipo) && Boolean(gravedad) && !corto && !faltaNombre;
+
+    const elegir = (clave) => {
+        setTipo(clave);
+        const item = lista.find((i) => claveDe(i) === clave);
+        // La gravedad sugerida se marca sola y se puede cambiar.
+        setGravedad(item?.gravedad ?? '');
+    };
 
     const cerrar = () => {
         setAbierto(false);
         setTipo('');
+        setGravedad('');
+        setNueva('');
+        setGuardarComun(false);
         setEstudiante('');
         setDetalle('');
         setFotos([]);
@@ -137,7 +264,7 @@ export function BotonIncidencia({
     };
     const enviar = async () => {
         setIntento(true);
-        if (!tipo || corto || enviando) return;
+        if (!listo || enviando) return;
         const errorEstudiante = errorDeEstudiante(estudiante);
         if (errorEstudiante) {
             setErrores({ estudiante: errorEstudiante });
@@ -150,7 +277,14 @@ export function BotonIncidencia({
                 cuerpoCon(
                     {
                         aula_id: aulaId,
-                        tipo,
+                        tipo: esNueva || elegida?.propia ? 'OTRA' : tipo,
+                        tipo_texto: esNueva
+                            ? nueva.trim()
+                            : elegida?.propia
+                              ? elegida.nombre
+                              : null,
+                        gravedad,
+                        guardar_comun: esNueva && guardarComun ? 1 : null,
                         estudiante: estudiante.trim() || null,
                         detalle: detalle.trim(),
                     },
@@ -194,7 +328,7 @@ export function BotonIncidencia({
                         <Boton
                             type="button"
                             onClick={enviar}
-                            disabled={!tipo || corto || enviando}
+                            disabled={!listo || enviando}
                             cargando={enviando}
                         >
                             Registrar
@@ -222,17 +356,68 @@ export function BotonIncidencia({
                         etiqueta="Tipo"
                         requerido
                         value={tipo}
-                        onChange={(e) => setTipo(e.target.value)}
+                        onChange={(e) => elegir(e.target.value)}
                     >
                         <option value="" disabled>
                             Elegir
                         </option>
-                        {REPORTABLES.map((clave) => (
-                            <option key={clave} value={clave}>
-                                {opcionDe(clave)}
-                            </option>
-                        ))}
+                        <optgroup label="Tipos">
+                            {sistema.map((i) => (
+                                <option key={claveDe(i)} value={claveDe(i)}>
+                                    {i.nombre}
+                                </option>
+                            ))}
+                        </optgroup>
+                        {propias.length > 0 && (
+                            <optgroup label="Mis incidencias">
+                                {propias.map((i) => (
+                                    <option key={claveDe(i)} value={claveDe(i)}>
+                                        {i.nombre}
+                                    </option>
+                                ))}
+                            </optgroup>
+                        )}
+                        <option value={NUEVA}>Otra no prevista…</option>
                     </Seleccion>
+                    {esNueva && (
+                        <div className="space-y-2">
+                            <Campo
+                                etiqueta="Qué pasó"
+                                requerido
+                                maxLength={80}
+                                placeholder="Ej.: Se comunicó por señas"
+                                value={nueva}
+                                error={
+                                    intento && faltaNombre
+                                        ? 'Mínimo 3 caracteres'
+                                        : errores.tipo_texto
+                                }
+                                onChange={(e) => setNueva(e.target.value)}
+                            />
+                            {puedeGuardar && (
+                                <label className="flex items-center gap-2 text-sm text-slate-700">
+                                    <input
+                                        type="checkbox"
+                                        className="h-4 w-4 rounded border-slate-300"
+                                        checked={guardarComun}
+                                        onChange={(e) => setGuardarComun(e.target.checked)}
+                                    />
+                                    Guardar en mis incidencias comunes
+                                </label>
+                            )}
+                        </div>
+                    )}
+                    {tipo && (
+                        <SelectorGravedad
+                            valor={gravedad}
+                            onCambiar={setGravedad}
+                            error={
+                                intento && !gravedad
+                                    ? 'Elija leve, grave o muy grave'
+                                    : errores.gravedad
+                            }
+                        />
+                    )}
                     <Campo
                         etiqueta="Estudiante"
                         placeholder="Código SIS o nombre"
@@ -279,6 +464,7 @@ BotonIncidencia.propTypes = {
     hora: PropTypes.string,
     registrar: PropTypes.func.isRequired,
     alRegistrar: PropTypes.func,
+    catalogo: PropTypes.string,
     variante: PropTypes.string,
     className: PropTypes.string,
 };
@@ -582,6 +768,10 @@ function CorregirIncidencia({ incidencia, corregir, onCerrar }) {
     // El texto del ingreso repetido lo escribe la puerta: no se reescribe.
     const delSistema = incidencia.tipo === 'INGRESO_REPETIDO';
     const [tipo, setTipo] = useState(incidencia.tipo);
+    const [gravedad, setGravedad] = useState(
+        incidencia.gravedad ?? GRAVEDAD_DE_TIPO[incidencia.tipo] ?? 'LEVE'
+    );
+    const [nombre, setNombre] = useState(incidencia.nombre_propio ?? '');
     const [detalle, setDetalle] = useState(incidencia.detalle ?? '');
     const [estudiante, setEstudiante] = useState(incidencia.estudiante ?? '');
     const [tocoEstudiante, setTocoEstudiante] = useState(false);
@@ -596,13 +786,17 @@ function CorregirIncidencia({ incidencia, corregir, onCerrar }) {
 
     const guardar = async () => {
         if (corto) return setErrores({ detalle: `Mínimo ${DETALLE_MINIMO} caracteres` });
+        if (tipo === 'OTRA' && nombre.trim() && nombre.trim().length < 3) {
+            return setErrores({ tipo_texto: 'Mínimo 3 caracteres' });
+        }
         const errorEstudiante = tocoEstudiante ? errorDeEstudiante(estudiante) : null;
         if (errorEstudiante) return setErrores({ estudiante: errorEstudiante });
         if (enviando) return undefined;
         setEnviando(true);
         setErrores({});
         try {
-            const datos = { tipo, detalle: detalle.trim() };
+            const datos = { tipo, gravedad, detalle: detalle.trim() };
+            if (tipo === 'OTRA') datos.tipo_texto = nombre.trim();
             // Solo viaja si se cambió: el texto mostrado no es el guardado.
             if (tocoEstudiante) datos.estudiante = estudiante.trim();
             await corregir(incidencia.id, cuerpoCon(datos, fotos));
@@ -654,10 +848,27 @@ function CorregirIncidencia({ incidencia, corregir, onCerrar }) {
                     >
                         {REPORTABLES.map((clave) => (
                             <option key={clave} value={clave}>
-                                {opcionDe(clave)}
+                                {clave === 'OTRA' ? 'Otra no prevista' : TIPOS_INCIDENCIA[clave]}
                             </option>
                         ))}
                     </Seleccion>
+                )}
+                {!fijo && tipo === 'OTRA' && (
+                    <Campo
+                        etiqueta="Qué pasó"
+                        maxLength={80}
+                        placeholder="Ej.: Se comunicó por señas"
+                        value={nombre}
+                        error={errores.tipo_texto}
+                        onChange={(e) => setNombre(e.target.value)}
+                    />
+                )}
+                {!delSistema && (
+                    <SelectorGravedad
+                        valor={gravedad}
+                        onCambiar={setGravedad}
+                        error={errores.gravedad}
+                    />
                 )}
                 {!delSistema && (
                     <Campo
@@ -711,6 +922,8 @@ CorregirIncidencia.propTypes = {
         tipo: PropTypes.string,
         detalle: PropTypes.string,
         estudiante: PropTypes.string,
+        gravedad: PropTypes.string,
+        nombre_propio: PropTypes.string,
         evidencia: PropTypes.bool,
         evidencias: PropTypes.number,
     }).isRequired,
@@ -744,3 +957,156 @@ ListaIncidencias.propTypes = {
     conAula: PropTypes.bool,
     limite: PropTypes.number,
 };
+
+// La lista de incidencias comunes de la cuenta (GET/PUT/DELETE
+// /api/incidencias-comunes): la gravedad con que se sugiere cada tipo y las
+// incidencias propias, que se agregan y se quitan.
+function IncidenciasComunes({ onCerrar }) {
+    const [lista, setLista] = useState(null);
+    const [nombre, setNombre] = useState('');
+    const [gravedad, setGravedad] = useState('');
+    const [errores, setErrores] = useState({});
+    const [enviando, setEnviando] = useState(false);
+    const [aviso, avisar] = useAviso();
+
+    useEffect(() => {
+        let vigente = true;
+        api.get('/incidencias-comunes')
+            .then((r) => vigente && setLista(r.data?.data ?? []))
+            .catch(() => vigente && setLista([]));
+        return () => {
+            vigente = false;
+        };
+    }, []);
+
+    const guardar = async (cuerpo) => {
+        try {
+            const r = await api.put('/incidencias-comunes', cuerpo);
+            setLista(r.data?.data ?? lista);
+            setErrores({});
+            return true;
+        } catch (error) {
+            const campos = erroresDe(error);
+            setErrores(campos);
+            if (Object.keys(campos).length === 0)
+                avisar(mensajeDe(error, 'No se pudo guardar'), 'error');
+            return false;
+        }
+    };
+    const agregar = async () => {
+        if (nombre.trim().length < 3) return setErrores({ nombre: 'Mínimo 3 caracteres' });
+        if (!gravedad) return setErrores({ gravedad: 'Elija leve, grave o muy grave' });
+        setEnviando(true);
+        if (await guardar({ nombre: nombre.trim(), gravedad })) {
+            setNombre('');
+            setGravedad('');
+            avisar('Incidencia agregada');
+        }
+        setEnviando(false);
+        return undefined;
+    };
+    const quitar = async (item) => {
+        try {
+            const r = await api.delete(`/incidencias-comunes/${item.id}`);
+            setLista(r.data?.data ?? lista);
+            avisar(`${item.nombre} quitada`);
+        } catch (error) {
+            avisar(mensajeDe(error, 'No se pudo quitar'), 'error');
+        }
+    };
+
+    return (
+        <Dialogo titulo="Mis incidencias comunes" abierto onCerrar={onCerrar} ancho="max-w-2xl">
+            <div className="space-y-5">
+                {lista === null ? (
+                    <p className="text-sm text-slate-600">Cargando…</p>
+                ) : (
+                    <ul className="divide-y divide-slate-100" aria-label="Mis incidencias comunes">
+                        {lista.map((item) => (
+                            <li
+                                key={item.propia ? `p${item.id}` : item.tipo}
+                                className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                                <span className="min-w-0 text-sm font-medium text-slate-800">
+                                    {item.nombre}
+                                    {item.propia && (
+                                        <span className="ml-2 text-xs font-normal text-slate-500">
+                                            propia
+                                        </span>
+                                    )}
+                                </span>
+                                <span className="flex items-center gap-2">
+                                    <SelectorGravedad
+                                        compacto
+                                        etiqueta={`Gravedad de ${item.nombre}`}
+                                        valor={item.gravedad}
+                                        onCambiar={(nivel) =>
+                                            guardar(
+                                                item.propia
+                                                    ? { nombre: item.nombre, gravedad: nivel }
+                                                    : { tipo: item.tipo, gravedad: nivel }
+                                            )
+                                        }
+                                    />
+                                    {item.propia ? (
+                                        <button
+                                            type="button"
+                                            aria-label={`Quitar ${item.nombre}`}
+                                            onClick={() => quitar(item)}
+                                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-danger-50 hover:text-danger-700 ${FOCO}`}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    ) : (
+                                        <span className="h-9 w-9 shrink-0" aria-hidden="true" />
+                                    )}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+                <div className="space-y-3 rounded-xl border border-dashed border-slate-300 p-4">
+                    <Campo
+                        etiqueta="Nueva incidencia"
+                        maxLength={80}
+                        placeholder="Ej.: Uso de corrector"
+                        value={nombre}
+                        error={errores.nombre}
+                        onChange={(e) => setNombre(e.target.value)}
+                    />
+                    <SelectorGravedad
+                        valor={gravedad}
+                        onCambiar={setGravedad}
+                        error={errores.gravedad}
+                    />
+                    <Boton type="button" onClick={agregar} cargando={enviando}>
+                        Agregar
+                    </Boton>
+                </div>
+            </div>
+            {aviso}
+        </Dialogo>
+    );
+}
+
+IncidenciasComunes.propTypes = { onCerrar: PropTypes.func.isRequired };
+
+// El botón que abre la lista propia de incidencias comunes.
+export function BotonIncidenciasComunes({ className = '' }) {
+    const [abierto, setAbierto] = useState(false);
+    return (
+        <>
+            <Boton
+                type="button"
+                variante="secundario"
+                className={className}
+                onClick={() => setAbierto(true)}
+            >
+                <ListChecks className="h-4 w-4" /> Mis incidencias
+            </Boton>
+            {abierto && <IncidenciasComunes onCerrar={() => setAbierto(false)} />}
+        </>
+    );
+}
+
+BotonIncidenciasComunes.propTypes = { className: PropTypes.string };

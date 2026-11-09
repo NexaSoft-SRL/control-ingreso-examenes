@@ -7,9 +7,12 @@ import {
     desdeElCentro,
     evaluar,
     MENSAJES,
+    medir,
     medirFoto,
+    nitidezDe,
     revisarFoto,
     revisarLuz,
+    revisarRasgos,
     revisarRostros,
     texturaDeFondo,
     UMBRALES,
@@ -59,8 +62,16 @@ describe('luz y nitidez', () => {
         const caja = { x: 35, y: 30, ancho: 30, alto: 40 };
         expect(brilloDeFondo(gris, 100, 100, caja)).toBe(220);
         expect(brilloDeFondo(plano(100, 100, 30), 100, 100, caja)).toBe(30);
-        // Sin rostro: las esquinas superiores.
-        expect(brilloDeFondo(plano(100, 100, 180), 100, 100)).toBe(180);
+    });
+
+    it('en una foto muy cerrada no queda fondo que medir', () => {
+        const rostros = [rostro({ x: 20, y: 10, ancho: 260, alto: 380 })];
+        const m = medir(plano(300, 400, 200), 300, 400, rostros);
+        expect(m.fondo).toBeNull();
+        expect(m.textura).toBeNull();
+        expect(medir(plano(300, 400, 200), 300, 400, [rostro()]).fondo).toBe(200);
+        // Sin detector tampoco: no se sabe dónde está el rostro.
+        expect(medir(plano(300, 400, 200), 300, 400, null).fondo).toBeNull();
     });
 
     it('la varianza del laplaciano baja al desenfocar', () => {
@@ -73,7 +84,18 @@ describe('luz y nitidez', () => {
         expect(varianzaLaplaciano(borrosa, 32, 32)).toBeLessThan(UMBRALES.nitidezMinima);
     });
 
-    it('revisarLuz avisa foto oscura, fondo oscuro y foto borrosa', () => {
+    it('la nitidez no depende de lo clara u oscura que salga la foto', () => {
+        const nitida = new Float32Array(32 * 32).map((_, i) =>
+            (i % 32) % 2 === Math.floor(i / 32) % 2 ? 200 : 40
+        );
+        const oscura = nitida.map((v) => v / 2);
+        expect(nitidezDe(oscura, 32, 32)).toBeCloseTo(nitidezDe(nitida, 32, 32));
+        expect(varianzaLaplaciano(oscura, 32, 32)).toBeCloseTo(
+            varianzaLaplaciano(nitida, 32, 32) / 4
+        );
+    });
+
+    it('revisarLuz da error con foto oscura, fondo oscuro y foto borrosa', () => {
         expect(revisarLuz({ brillo: 130, fondo: 200, nitidez: 200 })).toEqual([]);
         expect(revisarLuz({ brillo: 40, fondo: 30, nitidez: 200 })).toEqual([MENSAJES.oscura]);
         expect(revisarLuz({ brillo: 130, fondo: 40, nitidez: 200 })).toEqual([
@@ -97,10 +119,17 @@ describe('luz y nitidez', () => {
         expect(texturaDeFondo(cuadros, 100, 100, caja)).toBeGreaterThan(UMBRALES.texturaMaxima);
     });
 
-    it('revisarLuz avisa un fondo con dibujo, sin bloquear', () => {
+    it('revisarLuz da error con un fondo con dibujo', () => {
         expect(revisarLuz({ brillo: 130, fondo: 200, textura: 0.05, nitidez: 200 })).toEqual([]);
         expect(revisarLuz({ brillo: 130, fondo: 200, textura: 0.4, nitidez: 200 })).toEqual([
             MENSAJES.fondoConDibujo,
+        ]);
+    });
+
+    it('sin fondo medible, revisarLuz mira solo la luz y la nitidez', () => {
+        expect(revisarLuz({ brillo: 130, fondo: null, textura: null, nitidez: 200 })).toEqual([]);
+        expect(revisarLuz({ brillo: 130, fondo: null, textura: null, nitidez: 5 })).toEqual([
+            MENSAJES.borrosa,
         ]);
     });
 });
@@ -150,20 +179,65 @@ describe('rostros', () => {
     });
 });
 
+describe('lentes y filtros', () => {
+    const limpio = {
+        puntos: [],
+        puente: 2,
+        puenteColor: 1,
+        aros: 10,
+        ojos: 0.55,
+        luzNariz: 0.9,
+        colorNariz: 2,
+        frenteAjena: 0,
+    };
+
+    it('un rostro limpio pasa; sin Face Landmarker no se revisa', () => {
+        expect(revisarRasgos(limpio)).toEqual([]);
+        expect(revisarRasgos(null)).toEqual([]);
+    });
+
+    it('lentes: línea en el puente (luz o color), aro bajo los ojos u ojos oscuros', () => {
+        for (const cambio of [{ puente: 9 }, { puenteColor: 4 }, { aros: 120 }, { ojos: 0.17 }]) {
+            expect(revisarRasgos({ ...limpio, ...cambio })).toEqual([MENSAJES.lentes]);
+        }
+    });
+
+    it('filtros: nariz oscura o de otro color, o color vivo en la frente', () => {
+        for (const cambio of [{ luzNariz: 0.2 }, { colorNariz: 30 }, { frenteAjena: 0.1 }]) {
+            expect(revisarRasgos({ ...limpio, ...cambio })).toEqual([MENSAJES.filtros]);
+        }
+    });
+
+    it('si el Face Landmarker no halla el rostro que vio el detector, es un filtro', () => {
+        expect(revisarRasgos({ puntos: null })).toEqual([MENSAJES.filtros]);
+    });
+});
+
 describe('evaluar', () => {
     const luz = { ancho: 300, alto: 400, brillo: 130, fondo: 200, nitidez: 200 };
 
-    it('junta errores de rostro y avisos de luz', () => {
-        expect(evaluar({ ...luz, detecciones: [], fondo: 40 })).toEqual({
+    it('junta, en orden, los errores de rostro, de rasgos y de luz; nada es aviso', () => {
+        expect(
+            evaluar({
+                ...luz,
+                detecciones: [rostro()],
+                rasgos: { puntos: [], puente: 50, ojos: 0.6, luzNariz: 1, frenteAjena: 0 },
+                fondo: 40,
+            })
+        ).toEqual({ errores: [MENSAJES.lentes, MENSAJES.fondoOscuro], avisos: [] });
+        expect(evaluar({ ...luz, detecciones: [], fondo: null })).toEqual({
             errores: [MENSAJES.sinRostro],
-            avisos: [MENSAJES.fondoOscuro],
+            avisos: [],
         });
     });
 
-    it('sin detector no hay errores, solo avisos', () => {
-        expect(evaluar({ ...luz, detecciones: null, brillo: 30 })).toEqual({
+    it('sin detector bloquea solo por luz y nitidez', () => {
+        expect(
+            evaluar({ ...luz, detecciones: null, fondo: null, textura: null, brillo: 30 })
+        ).toEqual({ errores: [MENSAJES.oscura], avisos: [] });
+        expect(evaluar({ ...luz, detecciones: null, fondo: null, textura: null })).toEqual({
             errores: [],
-            avisos: [MENSAJES.oscura],
+            avisos: [],
         });
     });
 });
@@ -202,9 +276,53 @@ describe('medirFoto y revisarFoto', () => {
     it('con detector usa sus rostros', async () => {
         simularNavegador();
         const detect = vi.fn(() => ({ detections: [rostro(), rostro({ x: 10 })] }));
-        const r = await revisarFoto(foto, { obtenerDetector: async () => ({ detect }) });
-        expect(r.errores).toEqual([MENSAJES.variosRostros]);
+        const marcador = vi.fn();
+        const r = await revisarFoto(foto, {
+            obtenerDetector: async () => ({ detect }),
+            obtenerMarcador: marcador,
+        });
+        expect(r.errores).toEqual([MENSAJES.variosRostros, MENSAJES.borrosa]);
         expect(detect).toHaveBeenCalledTimes(1);
+        // Con dos rostros no se buscan lentes ni filtros.
+        expect(marcador).not.toHaveBeenCalled();
+    });
+
+    // Un detector que ve un rostro. La foto simulada es plana (borrosa): se
+    // mira solo lo que agregan los puntos del rostro.
+    const conRostro = {
+        obtenerDetector: async () => ({ detect: () => ({ detections: [rostro()] }) }),
+    };
+    const puntos = Array.from({ length: 478 }, (_, i) => ({ x: 0.3 + (i % 20) / 50, y: 0.5 }));
+
+    it('con un rostro mide sus rasgos con el Face Landmarker', async () => {
+        simularNavegador();
+        const detect = vi.fn(() => ({ faceLandmarks: [puntos] }));
+        const medidas = await medirFoto(foto, {
+            ...conRostro,
+            obtenerMarcador: async () => ({ detect }),
+        });
+        expect(detect).toHaveBeenCalledTimes(1);
+        expect(medidas.rasgos.puntos).toBe(puntos);
+        expect(revisarRasgos(medidas.rasgos)).toEqual([]);
+    });
+
+    it('si el Face Landmarker no halla el rostro, es un filtro', async () => {
+        simularNavegador();
+        const r = await revisarFoto(foto, {
+            ...conRostro,
+            obtenerMarcador: async () => ({ detect: () => ({ faceLandmarks: [] }) }),
+        });
+        expect(r.errores).toContain(MENSAJES.filtros);
+    });
+
+    it('si el Face Landmarker no carga, no bloquea por lentes ni filtros', async () => {
+        simularNavegador();
+        const medidas = await medirFoto(foto, {
+            ...conRostro,
+            obtenerMarcador: () => Promise.reject(new Error('sin red')),
+        });
+        expect(medidas.rasgos).toBeNull();
+        expect(evaluar(medidas).errores).not.toContain(MENSAJES.filtros);
     });
 
     it('sin rostro lo busca otra vez en el centro ampliado', async () => {
@@ -213,17 +331,22 @@ describe('medirFoto y revisarFoto', () => {
             .fn()
             .mockReturnValueOnce({ detections: [] })
             .mockReturnValueOnce({ detections: [rostro({ x: 80, y: 120, ancho: 80, alto: 80 })] });
-        const medidas = await medirFoto(foto, { obtenerDetector: async () => ({ detect }) });
+        const medidas = await medirFoto(foto, {
+            obtenerDetector: async () => ({ detect }),
+            obtenerMarcador: null,
+        });
         expect(detect).toHaveBeenCalledTimes(2);
-        expect(evaluar(medidas).errores).toEqual([MENSAJES.pequeno]);
+        expect(evaluar(medidas).errores).toEqual([MENSAJES.pequeno, MENSAJES.borrosa]);
     });
 
-    it('si el detector no carga, no bloquea: solo luz y nitidez', async () => {
+    it('si el detector no carga, bloquea solo por luz y nitidez', async () => {
         simularNavegador(20);
+        const marcador = vi.fn();
         const r = await revisarFoto(foto, {
             obtenerDetector: () => Promise.reject(new Error('sin red')),
+            obtenerMarcador: marcador,
         });
-        expect(r.errores).toEqual([]);
-        expect(r.avisos).toEqual([MENSAJES.oscura, MENSAJES.borrosa]);
+        expect(r).toEqual({ errores: [MENSAJES.oscura, MENSAJES.borrosa], avisos: [] });
+        expect(marcador).not.toHaveBeenCalled();
     });
 });

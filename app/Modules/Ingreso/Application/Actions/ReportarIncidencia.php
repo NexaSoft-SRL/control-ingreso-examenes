@@ -7,10 +7,12 @@ namespace App\Modules\Ingreso\Application\Actions;
 use App\Modules\Administracion\Application\Contracts\AlmacenImagenes;
 use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaGateway;
+use App\Modules\Ingreso\Application\Contracts\IncidenciasComunesGateway;
 use App\Modules\Ingreso\Application\Contracts\PuertaGateway;
 use App\Modules\Ingreso\Application\DTOs\ExamenData;
 use App\Modules\Ingreso\Application\DTOs\NuevaIncidenciaData;
 use App\Modules\Ingreso\Application\DTOs\OperadorData;
+use App\Modules\Ingreso\Domain\Enums\Gravedad;
 use App\Modules\Ingreso\Domain\Enums\OrigenIncidencia;
 use App\Modules\Ingreso\Domain\Enums\TipoIncidencia;
 use App\Modules\Ingreso\Domain\Exceptions\DatoNoValidoException;
@@ -30,9 +32,15 @@ final readonly class ReportarIncidencia
         private AlcancePuesto $alcance,
         private AlmacenImagenes $imagenes,
         private EstudianteDeIncidencia $estudiantes,
+        private IncidenciasComunesGateway $comunes,
     ) {}
 
     /**
+     * La gravedad la elige quien registra; si no la elige, se propone la de
+     * la lista de incidencias comunes del docente (o la del tipo). Una no
+     * prevista va con tipo OTRA y su nombre en `$tipoTexto`; con
+     * `$guardarComun` queda en la lista de quien la registra.
+     *
      * @param  list<string>  $imagenes  hasta tres fotos de evidencia
      * @return array<string, mixed>
      */
@@ -44,6 +52,9 @@ final readonly class ReportarIncidencia
         string $detalle,
         OperadorData $operador,
         array $imagenes = [],
+        ?Gravedad $gravedad = null,
+        ?string $tipoTexto = null,
+        bool $guardarComun = false,
     ): array {
         if (! $this->puerta->examenTieneAula($examen->id, $aulaId)) {
             throw new DatoNoValidoException('aula_id', 'El aula no es de este examen.');
@@ -84,6 +95,19 @@ final readonly class ReportarIncidencia
             $evidencias[] = $ruta;
         }
 
+        $nombre = $tipo === TipoIncidencia::Otra && $tipoTexto !== null && trim($tipoTexto) !== '' ? trim($tipoTexto) : null;
+        $dueno = $this->comunes->duenoParaExamen($examen->id, $operador->usuarioId);
+        $gravedad ??= ($nombre === null ? null : $this->comunes->gravedadDeNombre($dueno, $nombre))
+            ?? $this->comunes->gravedadDeTipo($dueno, $tipo);
+
+        if ($guardarComun && $operador->usuarioId !== null) {
+            if ($nombre !== null) {
+                $this->comunes->guardarPropia($operador->usuarioId, $nombre, $gravedad);
+            } elseif ($tipo !== TipoIncidencia::Otra) {
+                $this->comunes->guardarTipo($operador->usuarioId, $tipo, $gravedad);
+            }
+        }
+
         $incidenciaId = $this->incidencias->registrar(new NuevaIncidenciaData(
             tipo: $tipo,
             origen: OrigenIncidencia::Persona,
@@ -94,6 +118,8 @@ final readonly class ReportarIncidencia
             estudianteId: $identificado,
             estudianteTexto: $texto === '' ? null : $texto,
             evidencias: $evidencias,
+            gravedad: $gravedad,
+            tipoTexto: $nombre,
         ), 'incidencia.registrar');
 
         $fila = $incidenciaId === null ? null : $this->incidencias->reportada($incidenciaId);
