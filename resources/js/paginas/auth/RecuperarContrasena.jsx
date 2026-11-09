@@ -8,7 +8,7 @@ import { api } from '../../api/cliente';
 import { erroresDe } from '../../api/errores';
 import { ListaReglas, cumpleReglas } from './reglasContrasena';
 import usarTituloPestana from '../../utiles/usarTituloPestana';
-import { normalizarUsuario, usuarioValido } from '../../utiles/usuario';
+import { normalizarUsuario, PISTA_SIN_CORREO, usuarioValido } from '../../utiles/usuario';
 
 // Se valida lo que se envía: sin los espacios de los extremos.
 const SOLO_USUARIO = (valor) => (usuarioValido(valor) ? null : 'Usuario no válido');
@@ -48,8 +48,10 @@ export default function RecuperarContrasena() {
         try {
             const respuesta = await api.post('/auth/recuperar-contrasena', { usuario: nombre });
             setMensaje(
-                respuesta.data?.message ??
+                `${
+                    respuesta.data?.message ??
                     'Si la cuenta tiene correo registrado, recibirá el enlace de recuperación.'
+                } ${PISTA_SIN_CORREO}`
             );
         } catch (fallo) {
             const campos = erroresDe(fallo);
@@ -102,6 +104,7 @@ export default function RecuperarContrasena() {
                         spellCheck={false}
                         value={usuario}
                         validar={SOLO_USUARIO}
+                        ayuda={PISTA_SIN_CORREO}
                         error={error || undefined}
                         onChange={(evento) => {
                             setUsuario(evento.target.value);

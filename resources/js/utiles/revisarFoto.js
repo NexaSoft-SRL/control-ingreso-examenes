@@ -1,7 +1,7 @@
 // Revisión de la foto del estudiante en el navegador, antes de subirla.
 // Con MediaPipe Face Detector (BlazeFace de corto alcance) se exige un solo
 // rostro, grande, centrado y de frente: eso da `errores`, que bloquean. La
-// luz, el fondo y la nitidez solo dan `avisos`. El detector se carga la
+// luz, el fondo (claro y liso) y la nitidez solo dan `avisos`. El detector se carga la
 // primera vez que hace falta (import dinámico) y se reutiliza; el
 // WebAssembly y el modelo se sirven desde /vendor/mediapipe/. Si no carga
 // (sin WebAssembly, sin red), la revisión sigue solo con luz y nitidez.
@@ -29,6 +29,12 @@ export const UMBRALES = {
     brilloMinimo: 65,
     // Luminancia del fondo a los lados y encima del rostro (percentil 75).
     fondoMinimo: 85,
+    // Fondo liso: un píxel es borde si su laplaciano pasa `bordeFondo`, y
+    // el fondo deja de ser liso si los bordes pasan de `texturaMaxima`.
+    // Calibrado con fotos reales: paredes lisas hasta 0.13 (con pelo al
+    // costado), fondos con dibujo desde 0.18.
+    bordeFondo: 30,
+    texturaMaxima: 0.15,
     // Varianza del laplaciano sobre el rostro (o la foto) en gris.
     nitidezMinima: 60,
 };
@@ -41,6 +47,7 @@ export const MENSAJES = {
     deLado: 'Mire de frente a la cámara',
     oscura: 'Foto oscura',
     fondoOscuro: 'Use un fondo claro',
+    fondoConDibujo: 'Use un fondo liso',
     borrosa: 'Foto borrosa',
 };
 
@@ -72,12 +79,11 @@ export function brilloMedio(gris, ancho, alto, caja = null) {
     return suma / ((zona.x1 - zona.x0) * (zona.y1 - zona.y0));
 }
 
-// Luminancia del fondo: lo que queda a los lados y encima del rostro
-// (ensanchado para dejar fuera las orejas), hasta la altura del mentón; sin
-// rostro, las dos esquinas superiores. Se toma un percentil alto y no la
-// media para que el pelo oscuro no cuente como fondo.
-export function brilloDeFondo(gris, ancho, alto, caja = null, percentil = 0.75) {
-    let valores = [];
+// El fondo: lo que queda a los lados y encima del rostro (ensanchado para
+// dejar fuera las orejas), hasta la altura del mentón; sin rostro, las dos
+// esquinas superiores. Devuelve los índices de esos píxeles.
+export function zonaDeFondo(ancho, alto, caja = null) {
+    let indices = [];
     if (caja) {
         const margenX = caja.ancho * 0.3;
         const izq = caja.x - margenX;
@@ -87,23 +93,48 @@ export function brilloDeFondo(gris, ancho, alto, caja = null, percentil = 0.75) 
         for (let y = 0; y < hasta; y++) {
             for (let x = 0; x < ancho; x++) {
                 if (x >= izq && x <= der && y >= arriba) continue;
-                valores.push(gris[y * ancho + x]);
+                indices.push(y * ancho + x);
             }
         }
     }
-    if (valores.length < ancho * alto * 0.03) {
-        valores = [];
+    if (indices.length < ancho * alto * 0.03) {
+        indices = [];
         const lado = Math.max(1, Math.round(ancho * 0.2));
         const hasta = Math.max(1, Math.round(alto / 3));
         for (let y = 0; y < hasta; y++) {
             for (let x = 0; x < ancho; x++) {
                 if (x >= lado && x < ancho - lado) continue;
-                valores.push(gris[y * ancho + x]);
+                indices.push(y * ancho + x);
             }
         }
     }
+    return indices;
+}
+
+// Luminancia del fondo. Se toma un percentil alto y no la media para que el
+// pelo oscuro no cuente como fondo.
+export function brilloDeFondo(gris, ancho, alto, caja = null, percentil = 0.75) {
+    const valores = zonaDeFondo(ancho, alto, caja).map((i) => gris[i]);
     valores.sort((a, b) => a - b);
     return valores[Math.min(valores.length - 1, Math.floor(valores.length * percentil))];
+}
+
+// Cuánto dibujo tiene el fondo: la parte de sus píxeles con un borde
+// marcado (laplaciano fuerte). Una pared lisa da casi cero; repisas,
+// cortinas o afiches, bastante más. El pelo que asoma junto al rostro
+// suma poco porque es una parte chica del fondo.
+export function texturaDeFondo(gris, ancho, alto, caja = null, borde = UMBRALES.bordeFondo) {
+    let fuertes = 0;
+    let n = 0;
+    for (const i of zonaDeFondo(ancho, alto, caja)) {
+        const x = i % ancho;
+        const y = (i - x) / ancho;
+        if (x === 0 || y === 0 || x === ancho - 1 || y === alto - 1) continue;
+        const l = gris[i - 1] + gris[i + 1] + gris[i - ancho] + gris[i + ancho] - 4 * gris[i];
+        if (Math.abs(l) > borde) fuertes++;
+        n++;
+    }
+    return n === 0 ? 0 : fuertes / n;
 }
 
 // Varianza del laplaciano (núcleo de 4 vecinos): baja en fotos borrosas.
@@ -183,11 +214,13 @@ export function deFrente(deteccion, ancho, umbrales = UMBRALES) {
     return Math.abs(nariz.x - (izq + der) / 2) / entreOjos <= umbrales.narizMaxima;
 }
 
-// Avisos de luz y nitidez a partir de las medidas.
-export function revisarLuz({ brillo, fondo, nitidez }, umbrales = UMBRALES) {
+// Avisos de luz, fondo y nitidez a partir de las medidas. Solo avisan: la
+// foto se puede subir igual.
+export function revisarLuz({ brillo, fondo, textura = 0, nitidez }, umbrales = UMBRALES) {
     const avisos = [];
     if (brillo < umbrales.brilloMinimo) avisos.push(MENSAJES.oscura);
     else if (fondo < umbrales.fondoMinimo) avisos.push(MENSAJES.fondoOscuro);
+    if (textura > umbrales.texturaMaxima) avisos.push(MENSAJES.fondoConDibujo);
     if (nitidez < umbrales.nitidezMinima) avisos.push(MENSAJES.borrosa);
     return avisos;
 }
@@ -203,6 +236,7 @@ export function medir(gris, ancho, alto, detecciones) {
         detecciones,
         brillo: brilloMedio(gris, ancho, alto, caja),
         fondo: brilloDeFondo(gris, ancho, alto, caja),
+        textura: texturaDeFondo(gris, ancho, alto, caja),
         nitidez: varianzaLaplaciano(gris, ancho, alto, caja),
     };
 }
