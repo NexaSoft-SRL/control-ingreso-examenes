@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Actions;
 
-use App\Modules\Ingreso\Application\Contracts\IncidenciaGateway;
+use App\Modules\Ingreso\Application\Contracts\PuertaGateway;
 use App\Modules\Ingreso\Domain\Exceptions\DatoNoValidoException;
 
 /**
@@ -18,14 +18,11 @@ final readonly class EstudianteDeIncidencia
     // o un guion, sin dos signos seguidos y con al menos dos letras.
     private const NOMBRE = "/^(?=(?:.*\\p{L}){2})\\p{L}+(?:(?:\\.\\s*|\\s+|['-])\\p{L}+)*\\.?$/u";
 
-    // Codigo SIS, o C.I. con su complemento («5003748-1A»).
-    private const IDENTIFICADOR = '/^\d{5,10}([\s-][0-9A-Za-z]{1,3}|[A-Za-z][0-9A-Za-z]{0,2})?$/';
-
-    public function __construct(private IncidenciaGateway $incidencias) {}
+    public function __construct(private PuertaGateway $puerta) {}
 
     /**
-     * El id del estudiante si el texto es su codigo o C.I.; nulo si es un
-     * nombre o esta vacio.
+     * El id del estudiante si el texto es su codigo; nulo si es un nombre
+     * o esta vacio.
      *
      * @throws DatoNoValidoException
      */
@@ -35,12 +32,10 @@ final readonly class EstudianteDeIncidencia
             return null;
         }
 
-        if (preg_match('/^\d/', $texto) === 1) {
-            $id = preg_match(self::IDENTIFICADOR, $texto) === 1
-                ? $this->incidencias->estudianteDelExamen($examenId, $texto)
-                : null;
+        if (preg_match('/^\d+$/', $texto) === 1) {
+            $id = $this->puerta->estudiantePorIdentificador($texto)['estudiante']->id ?? null;
 
-            if ($id === null) {
+            if ($id === null || $this->puerta->examenesDondeEstaInscrito($id, [$examenId]) === []) {
                 throw new DatoNoValidoException('estudiante', 'No inscrito en el examen.');
             }
 

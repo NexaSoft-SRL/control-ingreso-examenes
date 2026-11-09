@@ -7,8 +7,10 @@ namespace App\Modules\Administracion\Infrastructure\Persistence;
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Application\Contracts\CuentaUsuarioGateway;
 use App\Modules\Administracion\Application\Contracts\GeneradorContrasenaTemporal;
+use App\Modules\Administracion\Application\Contracts\RegistroCorreoGateway;
 use App\Modules\Administracion\Application\DTOs\CuentaCreadaData;
 use App\Modules\Administracion\Application\DTOs\NuevaCuentaData;
+use App\Modules\Administracion\Application\DTOs\RegistroCorreoData;
 use App\Modules\Administracion\Domain\Models\Role;
 use App\Modules\Administracion\Domain\Models\User;
 use App\Modules\Administracion\Domain\Rules\NombreDeUsuario;
@@ -22,26 +24,28 @@ use Throwable;
 
 final class EloquentCuentaUsuarioGateway implements CuentaUsuarioGateway
 {
+    /**
+     * Zona en que se informan los instantes al cliente.
+     */
     public function __construct(
         private readonly BitacoraGateway $bitacora,
         private readonly GeneradorContrasenaTemporal $generador,
+        private readonly RegistroCorreoGateway $correos,
     ) {}
 
     public function crear(NuevaCuentaData $datos, ?int $autorId): CuentaCreadaData
     {
-        $nombreUsuario = NombreDeUsuario::normalizar($datos->usuario);
-        $correo = $this->correo($datos->correo);
+        $nombreUsuario = mb_strtolower(trim($datos->usuario));
         $rolId = $this->rolId($datos->rol);
         $temporal = $this->generador->generar();
         $expira = $this->vencimiento();
 
-        // password_changed_at queda nulo: la contrasena es temporal hasta
-        // que la cuenta defina la suya.
+        // password_changed_at queda nulo: el sistema le exigira definir la
+        // suya en el primer ingreso.
         $id = DB::transaction(function () use (
             $datos,
             $autorId,
             $nombreUsuario,
-            $correo,
             $rolId,
             $temporal,
             $expira,
@@ -49,9 +53,9 @@ final class EloquentCuentaUsuarioGateway implements CuentaUsuarioGateway
             $usuario = new User;
 
             $usuario->forceFill([
-                'nombre' => trim($datos->nombre),
+                'name' => $datos->nombre,
                 'usuario' => $nombreUsuario,
-                'correo' => $correo,
+                'email' => $datos->correo,
                 'password' => $temporal,
                 'password_changed_at' => null,
                 'password_temporal_expira_en' => $expira,
@@ -66,8 +70,8 @@ final class EloquentCuentaUsuarioGateway implements CuentaUsuarioGateway
 
             $this->bitacora->registrar(
                 $autorId,
-                'usuario.registrar',
-                'usuarios',
+                'usuario.crear',
+                'users',
                 $id,
                 "Cuenta {$nombreUsuario} creada con el rol {$datos->rol}.",
             );
@@ -77,13 +81,13 @@ final class EloquentCuentaUsuarioGateway implements CuentaUsuarioGateway
 
         // El correo sale con la cuenta ya confirmada: una cuenta que no
         // llego a existir no debe recibir credenciales.
-        $enviadaA = $this->enviar(trim($datos->nombre), $nombreUsuario, $correo, $temporal);
+        $this->enviar($id, $autorId, $datos->nombre, $nombreUsuario, $datos->correo, $temporal);
 
         return new CuentaCreadaData(
             id: $id,
             usuario: $nombreUsuario,
             contrasenaTemporal: $temporal,
-            enviadaA: $enviadaA,
+            enviadaA: $datos->correo,
             caducaEn: $this->instante($expira),
         );
     }
@@ -119,7 +123,7 @@ final class EloquentCuentaUsuarioGateway implements CuentaUsuarioGateway
             $this->bitacora->registrar(
                 $autorId,
                 'usuario.restablecer_temporal',
-                'usuarios',
+                'users',
                 $usuarioId,
                 "Contraseña temporal nueva para la cuenta {$usuario->usuario}.",
             );
@@ -131,18 +135,15 @@ final class EloquentCuentaUsuarioGateway implements CuentaUsuarioGateway
             return null;
         }
 
-        $enviadaA = $this->enviar(
-            $usuario->name,
-            $usuario->usuario,
-            $this->correo($usuario->getAttribute('correo')),
-            $temporal,
-        );
+        $correo = $this->texto($usuario->getAttribute('email'));
+
+        $this->enviar($usuarioId, $autorId, $usuario->name, $usuario->usuario, $correo, $temporal);
 
         return new CuentaCreadaData(
             id: $usuarioId,
             usuario: $usuario->usuario,
             contrasenaTemporal: $temporal,
-            enviadaA: $enviadaA,
+            enviadaA: $correo,
             caducaEn: $this->instante($expira),
         );
     }
@@ -163,7 +164,7 @@ final class EloquentCuentaUsuarioGateway implements CuentaUsuarioGateway
     public function correoRegistrado(string $correo, ?int $exceptoId = null): bool
     {
         $consulta = User::query()
-            ->whereRaw('lower(correo) = ?', [mb_strtolower(trim($correo))]);
+            ->whereRaw('lower(email) = ?', [mb_strtolower(trim($correo))]);
 
         if ($exceptoId !== null) {
             $consulta->whereKeyNot($exceptoId);
@@ -186,9 +187,9 @@ final class EloquentCuentaUsuarioGateway implements CuentaUsuarioGateway
         }
 
         $cuenta->forceFill([
-            'nombre' => trim($nombre),
-            'usuario' => NombreDeUsuario::normalizar($usuario),
-            'correo' => $this->correo($correo),
+            'name' => $nombre,
+            'usuario' => mb_strtolower(trim($usuario)),
+            'email' => $correo,
             'role_id' => $this->rolId($rol),
         ])->save();
 
@@ -203,14 +204,15 @@ final class EloquentCuentaUsuarioGateway implements CuentaUsuarioGateway
             return false;
         }
 
+        // is_active no es asignable en masa a proposito: se toca aqui.
         $usuario->forceFill(['is_active' => $activo])->save();
 
         return true;
     }
 
     /**
-     * El rol es el nombre de uno existente (de inicio o creado): no se crea
-     * una cuenta sin permisos.
+     * Los tres roles los deja `RolePermissionSeeder`: sin ellos el sistema
+     * no esta instalado y no se crea una cuenta sin permisos.
      */
     private function rolId(string $rol): int
     {
@@ -218,7 +220,7 @@ final class EloquentCuentaUsuarioGateway implements CuentaUsuarioGateway
 
         if (! is_int($id)) {
             throw new RuntimeException(
-                "El rol {$rol} no existe."
+                "El rol {$rol} no existe. Falta ejecutar RolePermissionSeeder."
             );
         }
 
@@ -238,49 +240,50 @@ final class EloquentCuentaUsuarioGateway implements CuentaUsuarioGateway
     }
 
     /**
-     * Envia las credenciales al correo de la cuenta y devuelve la direccion,
-     * o null si la cuenta no tiene correo o el envio fallo. Un fallo del
-     * servidor de correo no deshace la cuenta ni la contrasena ya emitida
-     * (se muestran en pantalla): queda en el registro de errores.
+     * El correo de credenciales queda anotado en `envios_correo` antes de
+     * salir y se cierra con su resultado. Si el envio falla, el fallo se
+     * anota y sigue su curso como antes.
      */
     private function enviar(
+        int $usuarioId,
+        ?int $autorId,
         string $nombre,
         string $usuario,
         ?string $correo,
         string $temporal,
-    ): ?string {
+    ): void {
         if ($correo === null) {
-            return null;
+            return;
         }
 
         $horas = config('auth_security.horas_temporal', 72);
+
+        $envioId = $this->correos->registrar(new RegistroCorreoData(
+            tipo: RegistroCorreoData::TIPO_CREDENCIALES,
+            destinatario: $correo,
+            usuarioId: $usuarioId,
+            solicitadoPor: $autorId,
+        ));
 
         try {
             Mail::to($correo)->send(new CredencialesInicialesMail(
                 $nombre,
                 $usuario,
-                $correo,
                 $temporal,
                 url('/login'),
                 is_int($horas) && $horas > 0 ? $horas : 72,
             ));
         } catch (Throwable $fallo) {
-            report($fallo);
+            $this->correos->marcarFallido($envioId, $fallo->getMessage());
 
-            return null;
+            throw $fallo;
         }
 
-        return $correo;
+        $this->correos->marcarEnviado($envioId);
     }
 
-    private function correo(mixed $valor): ?string
+    private function texto(mixed $valor): ?string
     {
-        if (! is_string($valor)) {
-            return null;
-        }
-
-        $correo = mb_strtolower(trim($valor));
-
-        return $correo !== '' ? $correo : null;
+        return is_string($valor) && $valor !== '' ? $valor : null;
     }
 }

@@ -1,0 +1,70 @@
+' =====================================================================
+'  C4 - Nivel 3: componentes de la aplicacion web, replanteado
+'  Aparecen la oferta academica, las inscripciones y el mapa de aulas.
+'  R1..R16 son los requerimientos del punto 2.3 del pliego.
+' =====================================================================
+@startuml c4_3_componentes
+!include <C4/C4_Component>
+!include estilo.puml
+
+Boundary(sistema, "Sistema de control de ingreso", "Sistema de software") {
+
+  Container(spa, "Interfaz de usuario\n<size:11>[Contenedor: React]</size>", "Aplicación de página única.", $sprite="&browser", $tags="sistema")
+  Container(importador, "Importador de la\noferta académica\n<size:11>[Contenedor: comando]</size>", "Lee la copia de datos de GENDA.", $sprite="&terminal", $tags="sistema")
+
+  Boundary(app, "Aplicación web", "PHP 8.2 · Laravel 11") {
+
+    Component(acceso, "Control de\nacceso", "Módulo Administración", "Cuentas, roles y permisos. Activa la cuenta del docente con contraseña temporal. **R16**", $sprite="&layers", $tags="sistema")
+    Component(alcance, "Alcance por\nrol", "Servicio transversal", "Limita al docente a sus grupos y al auxiliar al aula donde lo asignaron.", $sprite="&layers", $tags="sistema")
+
+    Component(oferta, "Oferta\nacadémica", "Módulo Académico", "Períodos, carreras, asignaturas, grupos, docentes y horarios. **R2**", $sprite="&layers", $tags="sistema")
+    Component(aulas, "Aulas y\nmapa", "Módulo Académico", "Edificios, pisos, aulas y su ubicación. **R2 · R10**", $sprite="&layers", $tags="sistema")
+    Component(padron, "Padrón e\ninscripciones", "Módulo Padrón", "Estudiante único por código. Carga de la lista del grupo sin duplicar y con conflictos a revisión. **R1 · R9**", $sprite="&layers", $tags="sistema")
+
+    Component(examenes, "Exámenes", "Módulo Exámenes", "Examen de una asignatura que abarca varios grupos, con sus normas y sus aulas. **R2**", $sprite="&layers", $tags="sistema")
+    Component(habilit, "Habilitación y\ndistribución", "Módulo Exámenes", "Habilita sobre los inscritos, guarda el motivo y reparte entre las aulas elegidas. **R3 · R6 · R10**", $sprite="&layers", $tags="sistema")
+    Component(qr, "Códigos QR", "Módulo Ingreso", "Emite un código opaco por estudiante y examen. **R4**", $sprite="&layers", $tags="sistema")
+
+    Component(ingreso, "Registro de\ningreso", "Módulo Ingreso", "Identifica, verifica habilitación y aula, impide el doble ingreso y asienta la hora. **R4 · R5 · R6 · R7 · R8 · R10**", $sprite="&layers", $tags="sistema")
+    Component(incid, "Incidencias", "Módulo Ingreso", "Intentos que no corresponden, expulsiones y situaciones excepcionales. **R9 · R14 · R15**", $sprite="&layers", $tags="sistema")
+
+    Component(monitor, "Monitoreo", "Módulo Monitoreo", "Presentes y ausentes por aula, en tiempo real. **R11**", $sprite="&layers", $tags="sistema")
+    Component(reportes, "Reportes", "Módulo Reportes", "Asistencia, ausentes, horarios e intentos, filtrados por período. **R12 · R13**", $sprite="&layers", $tags="sistema")
+    Component(bitacora, "Bitácora", "Servicio transversal", "Asienta quién hizo qué y cuándo, incluida cada carga de lista.", $sprite="&layers", $tags="sistema")
+  }
+
+  ContainerDb(db, "Base de datos\n<size:11>[Contenedor: PostgreSQL 15.10]</size>", "Un estudiante, una fila. Una inscripción por estudiante y grupo. Un ingreso por estudiante y examen.", $tags="sistema")
+}
+
+Rel(spa, acceso, "Inicia sesión en", "JSON sobre HTTPS", $tags="rel")
+Rel(acceso, alcance, "Entrega el rol y la cuenta a", $tags="rel")
+
+Rel(importador, oferta, "Crea el período y sus grupos en", $tags="rel")
+Rel(importador, aulas, "Crea edificios y aulas en", $tags="rel")
+
+Rel(padron, oferta, "Inscribe en los grupos de", $tags="rel")
+Rel(padron, alcance, "Comprueba que el grupo sea del docente con", $tags="rel")
+Rel(examenes, oferta, "Toma la asignatura y sus grupos de", $tags="rel")
+Rel(examenes, aulas, "Elige las aulas de", $tags="rel")
+Rel(habilit, padron, "Lista los inscritos de los grupos con", $tags="rel")
+Rel(habilit, examenes, "Reparte entre las aulas de", $tags="rel")
+Rel(qr, habilit, "Emite para los habilitados de", $tags="rel")
+
+Rel(ingreso, qr, "Resuelve el código con", $tags="rel")
+Rel(ingreso, habilit, "Consulta habilitación y aula en", $tags="rel")
+Rel(ingreso, incid, "Registra el intento fallido en", $tags="rel")
+Rel(monitor, ingreso, "Lee los ingresos de", $tags="rel")
+Rel(reportes, ingreso, "Lee los ingresos de", $tags="rel")
+Rel(reportes, oferta, "Filtra por período con", $tags="rel")
+
+Rel(padron, bitacora, "Deja constancia en", $tags="rel")
+Rel(ingreso, bitacora, "Deja constancia en", $tags="rel")
+Rel(oferta, db, "Lee y escribe en", $tags="rel")
+Rel(padron, db, "Lee y escribe en", $tags="rel")
+Rel(ingreso, db, "Lee y escribe en", $tags="rel")
+
+legend left
+<font size=17 color=#444444><b>Vista de componentes: Aplicación web (replanteo)</b></font>
+<font size=11 color=#666666>En negrita, los requerimientos del pliego que atiende cada componente.</font>
+endlegend
+@enduml

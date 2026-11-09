@@ -10,9 +10,9 @@ use App\Modules\Examenes\Domain\Exceptions\ExamenAjenoException;
 use App\Modules\Examenes\Domain\Exceptions\ExamenNoAbiertoException;
 
 /**
- * Un docente del examen lo finaliza (HU-28): la duracion registrada es la
- * prevista, pero el examen puede pasarse, asi que la puerta, el seguimiento
- * y el acceso con codigo de aula se cierran recien aqui. Sin finalizar, el
+ * Un docente del examen lo finaliza: la duracion registrada es la prevista,
+ * pero el examen puede pasarse, asi que la puerta, el seguimiento y el
+ * acceso con codigo de aula se cierran recien aqui. Sin finalizar, el
  * examen se cierra solo al terminar su dia. No se deshace.
  */
 final readonly class FinalizarExamen

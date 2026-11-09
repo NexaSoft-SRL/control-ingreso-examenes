@@ -96,14 +96,37 @@ final class CargaDeFacultadTest extends TestCase
             'regimen' => RegimenCarrera::Semestral,
         ]);
 
+        // Por codigo o por nombre (sin importar tildes); una carrera que no
+        // es de la facultad se rechaza en su fila en vez de ignorarse.
         $this->cargarFacultad([
             self::ENCABEZADO,
             '202104821,7928194,Kevin René,Alvarado Claros,2008019,1,411702',
+            '202104822,7928195,Ana María,Rojas Vela,2008019,1,licenciatura en ingenieria de sistemas',
             '201901349,6492819,Diego Andrés,Camacho Zeballos,2008019,1,999999',
-        ])->assertOk()->assertJsonPath('resumen.nuevos', 2);
+        ])->assertOk()
+            ->assertJsonPath('resumen.nuevos', 2)
+            ->assertJsonPath('resumen.rechazados', 1)
+            ->assertJsonPath('rechazos.0.motivo', 'La carrera no existe en la facultad');
 
         $this->assertDatabaseHas('estudiantes', ['codigo_universitario' => '202104821', 'carrera_id' => $carrera->id]);
-        $this->assertDatabaseHas('estudiantes', ['codigo_universitario' => '201901349', 'carrera_id' => null]);
+        $this->assertDatabaseHas('estudiantes', ['codigo_universitario' => '202104822', 'carrera_id' => $carrera->id]);
+        $this->assertDatabaseMissing('estudiantes', ['codigo_universitario' => '201901349']);
+    }
+
+    public function test_documents_and_names_that_are_not_such_are_rejected(): void
+    {
+        $this->oferta();
+
+        $this->cargarFacultad([
+            self::ENCABEZADO,
+            '202104821,ABC-!!@#,Kevin,Alvarado,2008019,1,',
+            '202104822,7928195,12345,<b>6789</b>,2008019,1,',
+            '202104823,5003748-1A,Ana,Rojas Vela,2008019,1,',
+        ])->assertOk()
+            ->assertJsonPath('resumen.nuevos', 1)
+            ->assertJsonPath('resumen.rechazados', 2)
+            ->assertJsonPath('rechazos.0.motivo', 'Documento de identidad no válido')
+            ->assertJsonPath('rechazos.1.motivo', 'Nombres o apellidos no válidos');
     }
 
     public function test_a_group_that_is_not_in_the_offer_is_rejected(): void
@@ -146,7 +169,21 @@ final class CargaDeFacultadTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('resumen.rechazados', 2)
-            ->assertJsonPath('rechazos.1.motivo', 'El grupo no existe en la oferta');
+            ->assertJsonPath('rechazos.1.motivo', 'La asignatura no existe en la oferta');
+    }
+
+    public function test_a_subject_of_the_offer_with_another_group_says_the_group_is_missing(): void
+    {
+        $this->grupo(null, $this->asignatura('Álgebra I', '2008019'), '1');
+        $this->periodoVigente();
+
+        $this->cargarFacultad([
+            '202104821,7928194,Kevin René,Alvarado Claros,2008019,9',
+            '201901349,6492819,Diego Andrés,Camacho Zeballos,9999999,1',
+        ])
+            ->assertOk()
+            ->assertJsonPath('rechazos.0.motivo', 'El grupo no existe en la oferta')
+            ->assertJsonPath('rechazos.1.motivo', 'La asignatura no existe en la oferta');
     }
 
     public function test_a_row_without_subject_or_group_is_rejected(): void
@@ -306,12 +343,12 @@ final class CargaDeFacultadTest extends TestCase
         )->assertOk();
 
         $this->assertDatabaseHas('bitacora_operaciones', [
-            'operacion' => 'inscritos.cargar',
+            'operacion' => 'inscripciones.cargar',
             'usuario_id' => $administrador->id,
             'tabla_afectada' => 'cargas_inscritos',
         ]);
 
-        $descripcion = DB::table('bitacora_operaciones')->where('operacion', 'inscritos.cargar')->value('descripcion');
+        $descripcion = DB::table('bitacora_operaciones')->where('operacion', 'inscripciones.cargar')->value('descripcion');
 
         $this->assertIsString($descripcion);
         $this->assertStringContainsString('inscripciones_fcyt.csv', $descripcion);

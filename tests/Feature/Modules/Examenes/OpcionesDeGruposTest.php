@@ -36,14 +36,33 @@ final class OpcionesDeGruposTest extends TestCase
             ->assertOk()
             ->assertExactJson([
                 'propios' => [
-                    ['id' => $dos->id, 'codigo' => '2', 'docente' => 'Blanco Coca Leticia', 'docente_id' => $this->cuenta($docente)->id, 'inscritos' => 3, 'periodo' => $this->periodoVigente()->codigo],
-                    ['id' => $diez->id, 'codigo' => '10', 'docente' => 'Blanco Coca Leticia', 'docente_id' => $this->cuenta($docente)->id, 'inscritos' => 0, 'periodo' => $this->periodoVigente()->codigo],
+                    ['id' => $dos->id, 'codigo' => '2', 'docente' => 'Blanco Coca Leticia', 'docente_usuario_id' => $docente->user_id, 'inscritos' => 3, 'periodo' => $this->periodoVigente()->codigo],
+                    ['id' => $diez->id, 'codigo' => '10', 'docente' => 'Blanco Coca Leticia', 'docente_usuario_id' => $docente->user_id, 'inscritos' => 0, 'periodo' => $this->periodoVigente()->codigo],
                 ],
                 'otros' => [
-                    ['id' => $tres->id, 'codigo' => '3', 'docente' => null, 'docente_id' => null, 'inscritos' => 1, 'periodo' => $this->periodoVigente()->codigo],
-                    ['id' => $cinco->id, 'codigo' => '5', 'docente' => 'Taborga Acha Fidel', 'docente_id' => $this->cuenta($otro)->id, 'inscritos' => 0, 'periodo' => $this->periodoVigente()->codigo],
+                    ['id' => $tres->id, 'codigo' => '3', 'docente' => null, 'docente_usuario_id' => null, 'inscritos' => 1, 'periodo' => $this->periodoVigente()->codigo],
+                    ['id' => $cinco->id, 'codigo' => '5', 'docente' => 'Taborga Acha Fidel', 'docente_usuario_id' => $otro->user_id, 'inscritos' => 0, 'periodo' => $this->periodoVigente()->codigo],
                 ],
             ]);
+    }
+
+    public function test_the_teacher_account_of_a_group_is_null_without_an_active_account(): void
+    {
+        $docente = $this->docente();
+        $bloqueado = $this->docente('Taborga Acha Fidel');
+        $sinCuenta = $this->docenteSinCuenta();
+        $asignatura = $this->asignatura();
+        $this->grupo($docente, $asignatura, '1');
+        $this->grupo($bloqueado, $asignatura, '2');
+        $this->grupo($sinCuenta, $asignatura, '3');
+        $this->cuenta($bloqueado)->forceFill(['is_active' => false])->save();
+
+        $this->actingAs($this->cuenta($docente))
+            ->getJson("/api/examenes/opciones/grupos?asignatura_id={$asignatura->id}")
+            ->assertOk()
+            ->assertJsonPath('propios.0.docente_usuario_id', $docente->user_id)
+            ->assertJsonPath('otros.*.docente', ['Taborga Acha Fidel', $sinCuenta->nombre_completo])
+            ->assertJsonPath('otros.*.docente_usuario_id', [null, null]);
     }
 
     public function test_groups_of_closed_periods_are_not_offered(): void

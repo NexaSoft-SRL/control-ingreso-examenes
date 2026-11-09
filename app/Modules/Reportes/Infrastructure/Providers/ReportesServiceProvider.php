@@ -4,38 +4,39 @@ declare(strict_types=1);
 
 namespace App\Modules\Reportes\Infrastructure\Providers;
 
-use App\Modules\Reportes\Application\Contracts\ConsultaBitacoraExamenGateway;
-use App\Modules\Reportes\Application\Contracts\ConsultaReportesGateway;
-use App\Modules\Reportes\Application\Contracts\GeneradorArchivoBitacora;
-use App\Modules\Reportes\Application\Contracts\GeneradorArchivoReporte;
-use App\Modules\Reportes\Application\Contracts\GeneradorTablaReporte;
+use App\Modules\Reportes\Application\Contracts\BitacoraExamenGateway;
+use App\Modules\Reportes\Application\Contracts\ExportadorReporte;
 use App\Modules\Reportes\Application\Contracts\ReporteGateway;
-use App\Modules\Reportes\Infrastructure\Export\GeneradorArchivoBitacoraDompdfPhpSpreadsheet;
-use App\Modules\Reportes\Infrastructure\Export\GeneradorArchivoReporteDompdfPhpSpreadsheet;
-use App\Modules\Reportes\Infrastructure\Export\GeneradorTablaReporteDompdfPhpSpreadsheet;
-use App\Modules\Reportes\Infrastructure\Persistence\EloquentConsultaBitacoraExamenGateway;
-use App\Modules\Reportes\Infrastructure\Persistence\EloquentConsultaReportesGateway;
+use App\Modules\Reportes\Application\Queries\ArmarListaDeGrupo;
+use App\Modules\Reportes\Infrastructure\Export\ExportadorReporteArchivo;
+use App\Modules\Reportes\Infrastructure\Persistence\EloquentBitacoraExamenGateway;
 use App\Modules\Reportes\Infrastructure\Persistence\EloquentReporteGateway;
 use Illuminate\Support\ServiceProvider;
 
+/**
+ * Enlaces contrato -> implementacion del modulo Reportes.
+ */
 final class ReportesServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->bind(GeneradorTablaReporte::class, GeneradorTablaReporteDompdfPhpSpreadsheet::class);
-        $this->app->bind(ReporteGateway::class, EloquentReporteGateway::class);
         $this->app->bind(
-            ConsultaBitacoraExamenGateway::class,
-            EloquentConsultaBitacoraExamenGateway::class,
+            ExportadorReporte::class,
+            ExportadorReporteArchivo::class,
         );
-        $this->app->bind(ConsultaReportesGateway::class, EloquentConsultaReportesGateway::class);
+
         $this->app->bind(
-            GeneradorArchivoBitacora::class,
-            GeneradorArchivoBitacoraDompdfPhpSpreadsheet::class,
+            ReporteGateway::class,
+            EloquentReporteGateway::class,
         );
+
         $this->app->bind(
-            GeneradorArchivoReporte::class,
-            GeneradorArchivoReporteDompdfPhpSpreadsheet::class,
+            BitacoraExamenGateway::class,
+            EloquentBitacoraExamenGateway::class,
         );
+
+        $this->app->when(ArmarListaDeGrupo::class)
+            ->needs('$dominioCorreo')
+            ->giveConfig('umss.dominio_correo_estudiantes', 'est.umss.edu');
     }
 }

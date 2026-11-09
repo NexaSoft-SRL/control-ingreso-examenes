@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Queries;
 
-use App\Modules\Examenes\Application\Contracts\AccesoCodigoAulaGateway;
-use App\Modules\Ingreso\Application\Authorization\AlcancePuerta;
+use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
+use App\Modules\Ingreso\Application\Contracts\AccesoAulaGateway;
 use App\Modules\Ingreso\Application\Contracts\ControlPuertaGateway;
 
 /**
- * Quien controla cada aula del examen, en vivo: el personal asignado (y si
- * esta en la puerta), quien mas la esta usando y los accesos con codigo,
- * pendientes de autorizar o ya autorizados. Lo ve el docente.
+ * Quien controla cada aula del examen, en vivo: el personal asignado (y
+ * si esta en la puerta), quien mas la esta usando y los accesos con
+ * codigo, pendientes de autorizar o ya autorizados. Lo ve el docente.
  */
 final readonly class ConsultarControlDelExamen
 {
@@ -19,21 +19,21 @@ final readonly class ConsultarControlDelExamen
     public const MINUTOS_EN_LINEA = 2;
 
     public function __construct(
-        private AlcancePuerta $alcance,
+        private AlcancePuesto $alcance,
         private ControlPuertaGateway $control,
-        private AccesoCodigoAulaGateway $accesos,
+        private AccesoAulaGateway $accesos,
     ) {}
 
     /**
-     * @return array{data: list<array<string, mixed>>, meta: array{pendientes: int, minutos_en_linea: int}}
+     * @return array<string, mixed>
      */
-    public function ejecutar(int $examenId, int $usuarioId): array
+    public function execute(int $examenId, int $usuarioId): array
     {
         $this->alcance->exigirDocente($usuarioId, $examenId);
 
         $presentes = [];
 
-        foreach ($this->control->presentes($examenId, self::MINUTOS_EN_LINEA) as $presente) {
+        foreach ($this->accesos->presentes($examenId, self::MINUTOS_EN_LINEA) as $presente) {
             $presentes[$presente['aula_id']][$presente['usuario_id']] = $presente;
         }
 

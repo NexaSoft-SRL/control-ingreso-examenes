@@ -138,7 +138,7 @@ final class PostgreSqlTransactionIsolationTest extends TestCase
         }
 
         $this->assertSame(
-            $this->baseDePruebas(),
+            'control_ingreso_testing',
             $actualDatabase
         );
 
@@ -152,18 +152,18 @@ final class PostgreSqlTransactionIsolationTest extends TestCase
     ): void {
         $statement = $connection->prepare(
             <<<'SQL'
-            INSERT INTO usuarios (
+            INSERT INTO users (
                 name,
-                email,
                 usuario,
+                email,
                 password,
                 created_at,
                 updated_at
             )
             VALUES (
                 :name,
-                :email,
                 :usuario,
+                :email,
                 :password,
                 CURRENT_TIMESTAMP,
                 CURRENT_TIMESTAMP
@@ -179,8 +179,9 @@ final class PostgreSqlTransactionIsolationTest extends TestCase
 
         if (! $statement->execute([
             'name' => $name,
+            // El usuario es obligatorio y unico: se deriva del correo.
+            'usuario' => strstr($email, '@', true),
             'email' => $email,
-            'usuario' => explode('@', $email, 2)[0],
             'password' => 'not-used-in-test',
         ])) {
             throw new RuntimeException(
@@ -194,7 +195,7 @@ final class PostgreSqlTransactionIsolationTest extends TestCase
         string $email
     ): int {
         $statement = $connection->prepare(
-            'SELECT COUNT(*) FROM usuarios WHERE email = :email'
+            'SELECT COUNT(*) FROM users WHERE email = :email'
         );
 
         if ($statement === false) {
@@ -233,16 +234,5 @@ final class PostgreSqlTransactionIsolationTest extends TestCase
         }
 
         return $value;
-    }
-
-    /**
-     * La base que valido el arranque de la suite: la de `.env.testing` o la
-     * indicada con `PRUEBAS_DB_DATABASE` (siempre `control_ingreso*_testing`).
-     */
-    private function baseDePruebas(): string
-    {
-        $base = getenv('PRUEBAS_DB_DATABASE');
-
-        return is_string($base) && $base !== '' ? $base : 'control_ingreso_testing';
     }
 }

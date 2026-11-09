@@ -1,9 +1,10 @@
-import { render } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { vi } from 'vitest';
 import { FacultadesContexto, SesionContexto } from '../sesion/SesionContexto';
 
-// Las 14 claves del catálogo de permisos.
+// Las 14 claves del catálogo de permisos (sección 3.1 del contrato). Una
+// cuenta con todo: `usuarioDePrueba('Administrador', { permisos: CATALOGO_PERMISOS })`.
 export const CATALOGO_PERMISOS = [
     'periodo_oferta',
     'aulas_docentes',
@@ -22,7 +23,8 @@ export const CATALOGO_PERMISOS = [
 ];
 
 // Permisos de los tres roles de inicio. El Administrador no tiene las
-// pantallas de docencia; un rol creado se prueba con `usuarioDePrueba(rol, { rol: '…', permisos: [...] })`.
+// pantallas de docencia; un rol creado se prueba con
+// `usuarioDePrueba('Docente', { rol: '…', permisos: [...] })`.
 export const PERMISOS = {
     Administrador: [
         'periodo_oferta',
@@ -46,26 +48,19 @@ export const PERMISOS = {
 };
 
 const NOMBRES = {
-    Administrador: ['Administración académica', 'administracion.academica', 'admin@umss.edu.bo'],
-    Docente: ['Blanco Coca Leticia', 'leticia.blanco', 'leticia.blanco@umss.edu.bo'],
-    Auxiliar: ['Mamani Torrez Diego', 'diego.mamani', 'auxiliar@umss.edu.bo'],
+    Administrador: ['Administración académica', 'administracion.academica'],
+    Docente: ['Blanco Coca Leticia', 'leticia.blanco'],
+    Auxiliar: ['Mamani Torrez Diego', 'diego.mamani'],
 };
 
-// El objeto `user` de la sesión, como lo devuelve la API (4.1): trae también
-// `name` y `email`, que el backend conserva por compatibilidad.
+// El objeto `user` de la sesión, como lo devuelve la API.
 export function usuarioDePrueba(rol = 'Docente', cambios = {}) {
-    const [nombre, usuario, correo] = NOMBRES[rol] ?? [
-        'Cuenta de prueba',
-        'cuenta.prueba',
-        'cuenta.prueba@umss.edu.bo',
-    ];
+    const [nombre, usuario] = NOMBRES[rol] ?? ['Cuenta de prueba', 'cuenta.prueba'];
     return {
         id: 7,
         nombre,
-        name: nombre,
         usuario,
-        correo,
-        email: correo,
+        correo: null,
         rol,
         permisos: PERMISOS[rol] ?? [],
         debe_cambiar_contrasena: false,
@@ -181,7 +176,7 @@ function patron(ruta) {
 //   simularApi(api, {
 //       'GET /examenes': { data: [], meta: {} },
 //       'GET /examenes/*/habilitaciones': (config) => ({ data: [], meta: { total: 0 } }),
-//       'POST /auth/login': errorHttp(401, { message: 'Credenciales incorrectas.' }),
+//       'POST /auth/login': errorHttp(401, { message: 'Usuario o contraseña incorrectos.' }),
 //   });
 //
 // El valor es el cuerpo (se envuelve en `{ data, status: 200 }`), un
@@ -218,4 +213,17 @@ export function simularApi(api, rutas = {}) {
     });
 
     return api;
+}
+
+// Elige un examen en SelectorExamen: abre la lista y pulsa la opción que
+// contiene `texto` («Examen final · Base de Datos I», o una expresión).
+export function elegirExamen(texto) {
+    fireEvent.click(screen.getByRole('button', { name: /^Examen:/ }));
+    const opcion = screen
+        .getAllByRole('option')
+        .find((o) =>
+            texto instanceof RegExp ? texto.test(o.textContent) : o.textContent.includes(texto)
+        );
+    if (!opcion) throw new Error(`No hay un examen «${texto}» en el selector`);
+    fireEvent.click(opcion);
 }

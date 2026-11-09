@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Modules\Administracion;
 
+use App\Modules\Administracion\Application\Actions\CrearCuentaUsuario;
 use App\Modules\Administracion\Application\Contracts\CuentaUsuarioGateway;
 use App\Modules\Administracion\Application\Contracts\GeneradorContrasenaTemporal;
 use App\Modules\Administracion\Application\DTOs\CuentaCreadaData;
 use App\Modules\Administracion\Application\DTOs\NuevaCuentaData;
 use App\Modules\Administracion\Domain\Models\User;
+use App\Modules\Administracion\Infrastructure\Mail\CredencialesInicialesMail;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -19,8 +21,8 @@ use Tests\Support\UsuarioConPermisos;
 use Tests\TestCase;
 
 /**
- * La contrasena temporal: su formato y su emision, al crear la cuenta y al
- * restablecerla, exigir su cambio inicial y aplicar el vencimiento.
+ * La contrasena temporal: su formato, su vencimiento a 72 horas y el
+ * cambio obligatorio en el primer ingreso, sin pedir la actual.
  */
 final class ContrasenaTemporalTest extends TestCase
 {
@@ -68,11 +70,11 @@ final class ContrasenaTemporalTest extends TestCase
         $usuario = User::findOrFail($cuenta->id);
 
         $this->assertSame('leticia.blanco', $usuario->usuario);
-        $this->assertNull($usuario->correo);
+        $this->assertNull($usuario->email);
         $this->assertNull($usuario->password_changed_at);
         $this->assertSame('Docente', $usuario->role?->name);
         $this->assertTrue(Hash::check($cuenta->contrasenaTemporal, $usuario->getAuthPassword()));
-        $this->assertDatabaseHas('usuarios', [
+        $this->assertDatabaseHas('users', [
             'id' => $cuenta->id,
             'password_temporal_expira_en' => '2026-10-15 08:21:00',
         ]);
@@ -80,28 +82,49 @@ final class ContrasenaTemporalTest extends TestCase
         Mail::assertNothingSent();
     }
 
-    public function test_the_role_can_be_one_created_after_the_installation(): void
+    public function test_the_temporary_password_also_travels_to_the_contact_email(): void
     {
-        $this->usuarioConPermisos(['periodo_oferta']);
+        $cuenta = $this->crear('Mamani Torrez Diego', 'diego.mamani', 'diego@est.umss.edu', 'Auxiliar');
 
-        $cuenta = $this->crear('Rojas Vargas Ana', 'ana.rojas', 'ana@umss.edu.bo', 'Rol de prueba');
+        $this->assertSame('diego@est.umss.edu', $cuenta->enviadaA);
 
-        $this->assertSame('Rol de prueba', User::findOrFail($cuenta->id)->role?->name);
+        Mail::assertSent(
+            CredencialesInicialesMail::class,
+            static fn (CredencialesInicialesMail $correo): bool => $correo->hasTo('diego@est.umss.edu')
+                && $correo->usuario === 'diego.mamani'
+                && $correo->contrasenaTemporal === $cuenta->contrasenaTemporal
+                && $correo->horasVigencia === 72,
+        );
+    }
+
+    public function test_the_email_shows_the_user_name_the_password_and_the_expiry(): void
+    {
+        $html = (new CredencialesInicialesMail(
+            'Mamani Torrez Diego',
+            'diego.mamani',
+            'Fa7-Kmq4-Ru9',
+            'https://ejemplo.test/login',
+            72,
+        ))->render();
+
+        $this->assertStringContainsString('diego.mamani', $html);
+        $this->assertStringContainsString('Fa7-Kmq4-Ru9', $html);
+        $this->assertStringContainsString('72 horas', $html);
     }
 
     public function test_the_creation_is_recorded_without_the_password(): void
     {
         $administrador = $this->usuarioConRol('Administrador');
 
-        $cuenta = $this->app->make(CuentaUsuarioGateway::class)->crear(
+        $cuenta = $this->app->make(CrearCuentaUsuario::class)->execute(
             new NuevaCuentaData('Flores Villarroel Corina', 'corina.flores', null, 'Docente'),
             $this->entero($administrador->getKey()),
         );
 
         $this->assertDatabaseHas('bitacora_operaciones', [
             'usuario_id' => $administrador->getKey(),
-            'operacion' => 'usuario.registrar',
-            'tabla_afectada' => 'usuarios',
+            'operacion' => 'usuario.crear',
+            'tabla_afectada' => 'users',
             'registro_id' => $cuenta->id,
         ]);
 
@@ -111,35 +134,145 @@ final class ContrasenaTemporalTest extends TestCase
         );
     }
 
-    public function test_the_account_enters_by_username_and_must_change_the_temporary_password(): void
+    public function test_the_first_login_enters_and_demands_the_change(): void
     {
-        $cuenta = $this->crear('Flores Villarroel Corina', 'corina.flores', 'corina.flores@umss.edu.bo', 'Docente');
+        $cuenta = $this->crear('Flores Villarroel Corina', 'corina.flores', null, 'Docente');
 
         $this->postJson('/api/auth/login', [
             'usuario' => 'corina.flores',
             'password' => $cuenta->contrasenaTemporal,
         ])
             ->assertOk()
-            ->assertJsonPath('user.usuario', 'corina.flores')
-            ->assertJsonPath('user.rol', 'Docente')
-            ->assertJsonPath('user.debe_cambiar_contrasena', true);
+            ->assertJsonPath('user.debe_cambiar_contrasena', true)
+            ->assertJsonPath('user.rol', 'Docente');
+
+        $this->getJson('/api/bitacora')
+            ->assertStatus(409)
+            ->assertJsonPath('debe_cambiar_contrasena', true);
     }
 
-    public function test_the_temporary_password_is_rejected_after_72_hours(): void
+    public function test_with_a_temporary_password_the_current_one_is_not_asked(): void
     {
-        $cuenta = $this->crear('Flores Villarroel Corina', 'corina.flores', 'corina.flores@umss.edu.bo', 'Docente');
+        $cuenta = $this->crear('Flores Villarroel Corina', 'corina.flores', null, 'Docente');
+        $usuario = User::findOrFail($cuenta->id);
 
-        $this->travel(80)->hours();
+        $this->actingAs($usuario)
+            ->postJson('/api/auth/contrasena', [
+                'contrasena_nueva' => 'Clave-Propia-2',
+                'contrasena_nueva_confirmation' => 'Clave-Propia-2',
+            ])
+            ->assertOk()
+            ->assertExactJson(['message' => 'Contraseña actualizada.']);
+
+        $usuario->refresh();
+
+        $this->assertTrue(Hash::check('Clave-Propia-2', $usuario->getAuthPassword()));
+        $this->assertNotNull($usuario->password_changed_at);
+        $this->assertNull($usuario->getAttribute('password_temporal_expira_en'));
+
+        $this->actingAs($usuario)
+            ->getJson('/api/auth/sesion')
+            ->assertOk()
+            ->assertJsonPath('user.debe_cambiar_contrasena', false);
+    }
+
+    public function test_the_own_password_cannot_repeat_the_temporary_one(): void
+    {
+        $cuenta = $this->crear('Flores Villarroel Corina', 'corina.flores', null, 'Docente');
+        $usuario = User::findOrFail($cuenta->id);
+
+        $this->actingAs($usuario)
+            ->postJson('/api/auth/contrasena', [
+                'contrasena_nueva' => $cuenta->contrasenaTemporal,
+                'contrasena_nueva_confirmation' => $cuenta->contrasenaTemporal,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'La contraseña nueva debe ser distinta de la actual.')
+            ->assertJsonValidationErrors('contrasena_nueva');
+
+        $this->assertNull($usuario->refresh()->password_changed_at);
+    }
+
+    public function test_the_temporary_password_still_works_just_before_72_hours(): void
+    {
+        $cuenta = $this->crear('Flores Villarroel Corina', 'corina.flores', null, 'Docente');
+
+        $this->travel(71)->hours();
+        $this->travel(59)->minutes();
+
+        $this->postJson('/api/auth/login', [
+            'usuario' => 'corina.flores',
+            'password' => $cuenta->contrasenaTemporal,
+        ])->assertOk();
+    }
+
+    public function test_an_expired_temporary_password_does_not_enter(): void
+    {
+        $cuenta = $this->crear('Flores Villarroel Corina', 'corina.flores', null, 'Docente');
+
+        $this->travel(72)->hours();
+        $this->travel(1)->minutes();
 
         $this->postJson('/api/auth/login', [
             'usuario' => 'corina.flores',
             'password' => $cuenta->contrasenaTemporal,
         ])
-            ->assertForbidden()
-            ->assertJsonPath('code', 'TEMPORARY_PASSWORD_EXPIRED');
+            ->assertUnauthorized()
+            ->assertExactJson([
+                'message' => 'La contraseña temporal venció. Pida una nueva a la administración.',
+                'codigo' => 'TEMPORAL_VENCIDA',
+            ]);
+
+        $this->assertGuest();
+
+        // Es la contrasena correcta: no suma para el bloqueo por intentos.
+        $this->assertSame(0, User::findOrFail($cuenta->id)->failed_login_attempts);
+
+        $this->assertDatabaseHas('bitacora_operaciones', [
+            'operacion' => 'sesion.intento_fallido',
+            'registro_id' => $cuenta->id,
+        ]);
     }
 
-    public function test_a_new_temporary_password_replaces_the_previous_one(): void
+    public function test_an_expired_temporary_password_with_a_wrong_password_is_just_a_failed_attempt(): void
+    {
+        $this->crear('Flores Villarroel Corina', 'corina.flores', null, 'Docente');
+
+        $this->travel(80)->hours();
+
+        $this->postJson('/api/auth/login', [
+            'usuario' => 'corina.flores',
+            'password' => 'No-es-la-temporal-1',
+        ])
+            ->assertUnauthorized()
+            ->assertExactJson([
+                'message' => 'Usuario o contraseña incorrectos.',
+                'intentos_restantes' => 4,
+            ]);
+    }
+
+    public function test_the_own_password_never_expires(): void
+    {
+        $cuenta = $this->crear('Flores Villarroel Corina', 'corina.flores', null, 'Docente');
+
+        $this->actingAs(User::findOrFail($cuenta->id))
+            ->postJson('/api/auth/contrasena', [
+                'contrasena_nueva' => 'Clave-Propia-2',
+                'contrasena_nueva_confirmation' => 'Clave-Propia-2',
+            ])
+            ->assertOk();
+
+        $this->postJson('/api/auth/logout')->assertNoContent();
+
+        $this->travel(30)->days();
+
+        $this->postJson('/api/auth/login', [
+            'usuario' => 'corina.flores',
+            'password' => 'Clave-Propia-2',
+        ])->assertOk();
+    }
+
+    public function test_a_new_temporary_password_replaces_the_expired_one(): void
     {
         $cuentas = $this->app->make(CuentaUsuarioGateway::class);
         $administrador = $this->usuarioConRol('Administrador');
@@ -168,16 +301,16 @@ final class ContrasenaTemporalTest extends TestCase
         $usuario = User::findOrFail($primera->id);
 
         $this->assertNull($usuario->password_changed_at);
-        $this->assertNotNull($usuario->password_temporal_expira_en);
         $this->assertNull($usuario->locked_until);
         $this->assertSame(0, $usuario->failed_login_attempts);
 
         $this->assertDatabaseHas('bitacora_operaciones', [
             'usuario_id' => $administrador->getKey(),
             'operacion' => 'usuario.restablecer_temporal',
-            'tabla_afectada' => 'usuarios',
             'registro_id' => $primera->id,
         ]);
+
+        Mail::assertSent(CredencialesInicialesMail::class, 2);
 
         $this->postJson('/api/auth/login', [
             'usuario' => 'corina.flores',
@@ -187,7 +320,9 @@ final class ContrasenaTemporalTest extends TestCase
         $this->postJson('/api/auth/login', [
             'usuario' => 'corina.flores',
             'password' => $segunda->contrasenaTemporal,
-        ])->assertOk();
+        ])
+            ->assertOk()
+            ->assertJsonPath('user.debe_cambiar_contrasena', true);
     }
 
     public function test_a_temporary_password_for_an_unknown_account_is_not_issued(): void
@@ -201,12 +336,18 @@ final class ContrasenaTemporalTest extends TestCase
 
     public function test_the_validity_comes_from_the_configuration(): void
     {
-        Carbon::setTestNow('2026-10-12 08:21:00');
         config()->set('auth_security.horas_temporal', 1);
 
         $cuenta = $this->crear('Flores Villarroel Corina', 'corina.flores', null, 'Docente');
 
-        $this->assertSame('2026-10-12T09:21:00-04:00', $cuenta->caducaEn);
+        $this->travel(61)->minutes();
+
+        $this->postJson('/api/auth/login', [
+            'usuario' => 'corina.flores',
+            'password' => $cuenta->contrasenaTemporal,
+        ])
+            ->assertUnauthorized()
+            ->assertJsonPath('codigo', 'TEMPORAL_VENCIDA');
     }
 
     private function crear(

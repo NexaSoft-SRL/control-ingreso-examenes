@@ -4,7 +4,6 @@
 /storage/framework/cache/*
 /storage/framework/sessions/*
 /storage/framework/views/*
-/storage/framework/testing/*
 /storage/logs/*
 /bootstrap/cache/*
 .phpunit.result.cache
@@ -23,6 +22,8 @@ auth.json
 /public/build/
 /public/hot
 /public/storage
+# WebAssembly de MediaPipe: lo copia `npm run mediapipe:copiar` (postinstall)
+/public/vendor/mediapipe/wasm/
 npm-debug.log*
 yarn-error.log
 
@@ -36,5 +37,10 @@ yarn-error.log
 .DS_Store
 Thumbs.db
 
-# ---- WebAssembly de MediaPipe: lo copia `npm run mediapipe:copiar` (postinstall) ----
-/public/vendor/mediapipe/wasm/
+# ---- Compilacion de las fichas LaTeX ----
+docs/guia/fichas/build/
+
+# Respaldos generados y discos de prueba
+/storage/app/private/respaldos/
+/storage/app/private/imagenes/
+/storage/framework/testing/

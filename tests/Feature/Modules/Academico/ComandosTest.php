@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Modules\Academico;
 
 use Database\Seeders\FacultadSeeder;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\PendingCommand;
@@ -81,6 +82,20 @@ final class ComandosTest extends TestCase
             ->assertExitCode(1);
 
         $this->assertSame(4, DB::table('importaciones_oferta')->where('estado', 'FALLO')->count());
+    }
+
+    public function test_the_backup_runs_at_three_and_the_queue_every_minute(): void
+    {
+        $tareas = [];
+
+        foreach ($this->app->make(Schedule::class)->events() as $tarea) {
+            $tareas[$tarea->expression] = (string) $tarea->command;
+        }
+
+        $this->assertArrayHasKey('0 3 * * *', $tareas);
+        $this->assertStringContainsString('respaldo:generar', $tareas['0 3 * * *']);
+        $this->assertArrayHasKey('* * * * *', $tareas);
+        $this->assertStringContainsString('queue:work --stop-when-empty', $tareas['* * * * *']);
     }
 
     /**

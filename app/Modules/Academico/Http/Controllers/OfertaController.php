@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace App\Modules\Academico\Http\Controllers;
 
-use App\Modules\Academico\Application\Queries\ListarAsignaturasDeOferta;
+use App\Modules\Academico\Application\Queries\ListarAsignaturas;
 use App\Modules\Academico\Application\Queries\ListarCarreras;
-use App\Modules\Academico\Http\Requests\FiltroOfertaRequest;
+use App\Modules\Academico\Application\Queries\ListarGruposDeAsignatura;
 use App\Modules\Academico\Http\Requests\FiltroUbicacionRequest;
-use App\Modules\Academico\Http\Requests\PaginaRequest;
+use App\Modules\Academico\Http\Requests\ListarAsignaturasRequest;
+use App\Modules\Academico\Http\Requests\ListarGruposDeAsignaturaRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 
 /**
- * Carreras y asignaturas de la oferta importada.
+ * Rutas 25 a 27: carreras, asignaturas y grupos de la oferta importada.
  */
 final class OfertaController
 {
@@ -22,43 +23,30 @@ final class OfertaController
         return response()->json(['data' => $listar->execute($request->facultad())]);
     }
 
-    public function asignaturas(
-        FiltroOfertaRequest $request,
-        PaginaRequest $pagina,
-        ListarAsignaturasDeOferta $listar,
-    ): JsonResponse {
-        return response()->json(
-            $listar->execute($request->filtros(), $pagina->pagina(15))
-        );
+    public function asignaturas(ListarAsignaturasRequest $request, ListarAsignaturas $listar): JsonResponse
+    {
+        return response()->json($listar->execute($request->toData(), $request->pagina(15)));
     }
 
     public function grupos(
         int $asignatura,
-        FiltroOfertaRequest $request,
-        PaginaRequest $pagina,
-        ListarAsignaturasDeOferta $listar,
+        ListarGruposDeAsignaturaRequest $request,
+        ListarGruposDeAsignatura $listar,
     ): JsonResponse {
-        if (! $listar->existeAsignatura($asignatura)) {
-            return response()->json(
-                ['message' => 'Asignatura no encontrada.'],
-                Response::HTTP_NOT_FOUND,
-            );
+        $grupos = $listar->execute(
+            $asignatura,
+            $request->periodoId(),
+            $request->facultad(),
+            $request->buscar(),
+            $request->pagina(10),
+        );
+
+        if ($grupos === null) {
+            return response()->json([
+                'message' => 'Asignatura no encontrada.',
+            ], Response::HTTP_NOT_FOUND);
         }
 
-        return response()->json(
-            $listar->grupos(
-                $asignatura,
-                $request->filtros(),
-                $request->buscar(),
-                $pagina->pagina(10),
-            )
-        );
-    }
-
-    public function niveles(
-        FiltroOfertaRequest $request,
-        ListarAsignaturasDeOferta $listar,
-    ): JsonResponse {
-        return response()->json(['data' => $listar->niveles($request->filtros())]);
+        return response()->json($grupos);
     }
 }

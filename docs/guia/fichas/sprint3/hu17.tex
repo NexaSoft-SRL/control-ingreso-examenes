@@ -1,0 +1,139 @@
+% Ficha HU-17 del sprint 3 rehecho. Una historia = una vista completa: la
+% consulta de la oferta academica importada, con sus grupos, docentes,
+% horarios y aulas.
+% Tipo: mejora de HU-05. La ficha anterior queda en sprint3/v1/.
+\def\HUNro{17}
+\def\HUSprint{3}
+\def\HUTitulo{Preparación > Oferta académica > Consultar asignaturas, grupos y docentes}
+\def\HUModulo{M1}
+\def\HUReq{2}
+\def\HUPuntos{5}
+
+\def\HUComo{administrador}
+\def\HUQuiero{consultar la oferta académica importada, por período, facultad, carrera y
+nivel, con los grupos de cada asignatura, su docente, sus horarios y sus aulas}
+\def\HUPara{verificar qué se dicta, quién lo dicta y dónde antes de que los docentes
+registren sus exámenes, y detectar a tiempo un grupo sin docente o una importación
+incompleta}
+
+\def\HUDescripcion{%
+El pliego pide que el sistema conozca las asignaturas sobre las que se toman los
+exámenes. En el primer sprint las asignaturas se cargaban a mano (HU-05); desde el
+segundo llegan importadas, junto con sus grupos, docentes, horarios y aulas (HU-10).
+Esta vista es donde el administrador comprueba el resultado de esa importación: no
+carga nada, muestra lo que quedó.
+
+Arriba van los filtros: «Período», «Facultad», «Carrera», «Nivel» y «Buscar». La vista
+abre en los períodos vigentes y en la primera facultad del catálogo. Debajo, la tarjeta
+«Asignaturas» lista las que tienen al menos un grupo en ese período y esa facultad,
+ordenadas por nombre y de a 15 por página, cada una con su código, su nivel y cuántos
+grupos e inscritos tiene. Al pulsar una asignatura se despliegan sus grupos, de a 10,
+con el docente, los horarios con su aula y los inscritos.
+
+Reglas: la vista es de solo lectura y lo dice con la insignia «Importado · solo
+lectura»; la oferta se corrige volviendo a importar, no editando. Un grupo sin docente
+figura como «Por designar». La búsqueda cubre el nombre y el código de la asignatura y
+el nombre del docente, sin distinguir mayúsculas ni tildes; cuando se busca por docente,
+los grupos que dicta van primero al abrir la asignatura. Los niveles se ofrecen en el
+orden del plan de estudios (años y semestres). Los períodos cerrados siguen en el
+selector, con su estado, y su oferta se consulta igual.
+
+La vista depende del período y de la importación de la oferta (HU-10), de donde salen
+las asignaturas, los grupos, los docentes y los horarios; las aulas que nombra son las
+de HU-11 y los inscritos de cada grupo son los de las listas de HU-14. De lo que aquí
+se comprueba dependen la activación de las cuentas de los docentes (HU-12) y el registro
+de exámenes (HU-08), que ofrece al docente las asignaturas y los grupos de esta oferta.
+La abre quien tiene el permiso de período y oferta, que de inicio es el administrador
+(HU-15). Como solo consulta, no deja asientos en la bitácora.}
+
+\def\HUCriterios{%
+\item Dado que el administrador abre Oferta académica, Cuando se carga, Entonces el
+      sistema muestra las asignaturas de los períodos vigentes en la primera facultad
+      del catálogo, ordenadas por nombre y de a 15 por página, con la insignia
+      «Importado · solo lectura» y sin ninguna acción para crear, editar o eliminar.
+\item Dado que la lista está cargada, Cuando se muestra el encabezado, Entonces el
+      subtítulo indica el período o los períodos consultados, la sigla de la facultad y,
+      si se eligió, la carrera (por ejemplo, «Períodos 2/2026 y 0/2026 · FCyT»), y la
+      tarjeta «Asignaturas» lleva el total de grupos de lo filtrado.
+\item Dado que cada asignatura tiene grupos en el período y la facultad consultados,
+      Cuando se lista, Entonces su fila muestra el nombre, el código, el nivel y cuántos
+      grupos e inscritos tiene, con el singular cuando es uno («1 grupo», «1 inscrito»).
+\item Dado que el administrador elige otra facultad, Cuando se aplica, Entonces la lista
+      muestra la oferta de esa facultad, el selector «Carrera» pasa a ofrecer sus
+      carreras y los filtros de carrera y nivel vuelven a «Todas» y «Todos».
+\item Dado que el administrador elige una carrera, Cuando se aplica, Entonces la lista
+      muestra solo las asignaturas de su plan de estudios y el nivel vuelve a «Todos»;
+      si la carrera es anual el subtítulo nombra el período anual y, si es semestral,
+      los demás vigentes.
+\item Dado que el administrador elige un nivel, Cuando se aplica, Entonces la lista
+      muestra solo las asignaturas de ese nivel; el selector ofrece los niveles que hay
+      en lo filtrado, en el orden del plan (años y semestres) y no en orden alfabético.
+\item Dado que el administrador escribe en «Buscar» el nombre o el código de una
+      asignatura, o el nombre de un docente, Cuando se aplica, Entonces la lista muestra
+      solo las asignaturas que coinciden o que tienen un grupo de ese docente, sin
+      distinguir mayúsculas ni tildes; el campo admite hasta 100 caracteres.
+\item Dado que ningún resultado cumple los filtros, Cuando se muestra la lista, Entonces
+      el sistema presenta «Sin resultados» en lugar de las asignaturas.
+\item Dado que el administrador pulsa una asignatura, Cuando se despliega, Entonces ve
+      sus grupos del período y la facultad consultados, ordenados por código, cada uno
+      con su docente, sus horarios (día, hora y aula) y sus inscritos; al pulsarla otra
+      vez se pliega, y al abrir otra se cierra la anterior.
+\item Dado que un grupo no tiene docente designado, Cuando se muestra, Entonces figura
+      como «Por designar», destacado, en el lugar del nombre.
+\item Dado que hay una búsqueda por docente activa, Cuando se abre una asignatura,
+      Entonces los grupos que dicta ese docente aparecen primero y los demás a
+      continuación.
+\item Dado que una asignatura tiene más de 10 grupos, Cuando se despliega, Entonces sus
+      grupos se paginan de a 10 con su propia paginación; con 10 o menos no se dibuja, y
+      si la asignatura no tiene grupos en ese período se muestra «Sin grupos».
+\item Dado que hay períodos cerrados, Cuando el administrador despliega «Período»,
+      Entonces encuentra «Vigentes» y cada período detectado, los no vigentes con su
+      estado; al elegir uno cerrado ve su oferta y sus grupos tal como quedaron, y el
+      nivel vuelve a «Todos».
+\item Dado que la lista o los grupos no se pueden cargar, Cuando ocurre el fallo,
+      Entonces el sistema lo indica y ofrece «Reintentar»; si fallan solo los grupos, la
+      lista de asignaturas se conserva.
+\item Dado que se pide una facultad que no existe, un período o una carrera que no son
+      números válidos o una asignatura inexistente, Cuando llega la consulta, Entonces
+      el sistema la rechaza señalando el filtro o responde «Asignatura no encontrada.».
+\item Dado que un rol no tiene el permiso de período y oferta, Cuando intenta abrir la
+      vista, Entonces ve «Sin permiso» con su nombre y su rol y el botón «Volver», sin
+      que se consulte nada; y si pide los datos directamente, el sistema responde con
+      una negativa explícita que nombra el permiso requerido. Sin sesión no se accede.
+\item Dado que el administrador accede desde un dispositivo móvil, Cuando abre una
+      asignatura, Entonces los grupos se muestran como fichas apiladas en lugar de la
+      tabla y los filtros se reacomodan en dos columnas, de forma completamente
+      responsiva.}
+
+\def\HUMockupsExtra{%
+\CajaMockup{hu17-grupos}{7.8cm} & \CajaMockup{hu17-grupos-movil}{3.3cm}}
+
+\def\HUPruebas{%
+\item \texttt{OfertaConsultaTest}: asignaturas con su nivel, sus grupos y sus inscritos,
+      paginadas en el servidor y con el total de grupos (criterios 1 a 3).
+\item \texttt{OfertaConsultaTest}: carreras por nombre y por facultad, y filtros por
+      período, facultad, carrera y nivel (criterios 4 a 6 y 13).
+\item \texttt{OfertaConsultaTest}: búsqueda por nombre, código o docente sin distinguir
+      tildes (criterio 7).
+\item \texttt{OfertaConsultaTest}: grupos de una asignatura con docente, horarios, aula
+      e inscritos, grupos del docente buscado primero y filtro por período y facultad
+      (criterios 9, 11 y 12).
+\item \texttt{OfertaConsultaTest}: filtros no válidos, facultad desconocida y asignatura
+      inexistente (criterio 15).
+\item \texttt{OfertaConsultaTest}: sin sesión y rol sin el permiso
+      \texttt{periodo\_oferta}, en las asignaturas y en los grupos, y carreras con el
+      permiso de la oferta o el del padrón (criterio 16).
+\item \texttt{Oferta.test.jsx}: apertura en la primera facultad de a 15, subtítulo con
+      período, facultad y carrera, insignia de solo lectura y carrera anual
+      (criterios 1, 2 y 5).
+\item \texttt{Oferta.test.jsx}: filtros por carrera y nivel, cambio de facultad que
+      suelta carrera y nivel, búsqueda, paginación y orden de los niveles
+      (criterios 4 a 7).
+\item \texttt{Oferta.test.jsx}: despliegue de los grupos con docente, horario, aula e
+      inscritos, grupo «Por designar», búsqueda que viaja a los grupos, paginación que no se dibuja con pocos
+      grupos y período cerrado (criterios 9 a 13).
+\item \texttt{Oferta.test.jsx}: «Sin resultados», esqueleto de carga, «Reintentar» en la
+      lista y en los grupos, y vista que no se abre sin el permiso (criterios 8, 14 y
+      16).}
+
+\input{cuerpo}

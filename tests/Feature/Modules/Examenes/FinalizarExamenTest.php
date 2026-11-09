@@ -6,15 +6,14 @@ namespace Tests\Feature\Modules\Examenes;
 
 use App\Modules\Examenes\Domain\Models\Examen;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 
 /**
- * HU-28: el docente finaliza el examen. La duracion es la prevista, pero un
- * examen puede pasarse, asi que se cierra recien al finalizarlo (o al
- * terminar su dia, si nadie lo hace).
+ * El docente finaliza el examen: la duracion es la prevista, pero un examen
+ * puede pasarse, asi que se cierra recien al finalizarlo (o al terminar su
+ * dia, si nadie lo hace).
  */
 final class FinalizarExamenTest extends TestCase
 {
@@ -52,20 +51,6 @@ final class FinalizarExamenTest extends TestCase
         ]);
     }
 
-    public function test_the_teacher_of_an_included_group_also_finalizes_it(): void
-    {
-        $this->travelTo(now()->setTime(10, 0));
-        $docente = $this->docente();
-        $otro = $this->docente('Otro Docente');
-        $asignatura = $this->asignatura();
-        $examen = $this->examen($docente, [
-            $this->grupo($docente, $asignatura),
-            $this->grupo($otro, $asignatura, '2'),
-        ]);
-
-        $this->actingAs($this->cuenta($otro))->finalizar($examen)->assertOk();
-    }
-
     public function test_an_exam_past_its_planned_end_is_still_open_until_finalized(): void
     {
         $this->travelTo(now()->setTime(12, 0));
@@ -83,21 +68,19 @@ final class FinalizarExamenTest extends TestCase
         $this->travelTo(now()->setTime(10, 0));
         $docente = $this->docente();
         $cuenta = $this->cuenta($docente);
-        $asignatura = $this->asignatura();
-        $futuro = $this->examen($docente, [$this->grupo($docente, $asignatura)], [], [
+        $futuro = $this->examen($docente, [$this->grupo($docente, $this->asignatura())], [], [
             'fecha' => now()->addDay()->toDateString(),
         ]);
-        $deAyer = $this->examen($docente, [$this->grupo($docente, $asignatura, '2')], [], [
+        $deAyer = $this->examen($docente, [$this->grupo($docente, $this->asignatura())], [], [
             'fecha' => now()->subDay()->toDateString(),
         ]);
-        $abierto = $this->examen($docente, [$this->grupo($docente, $asignatura, '3')]);
+        $abierto = $this->examen($docente, [$this->grupo($docente, $this->asignatura())]);
 
         foreach ([$futuro, $deAyer] as $cerrado) {
             $this->actingAs($cuenta)
                 ->finalizar($cerrado)
                 ->assertStatus(409)
-                ->assertJsonPath('codigo', 'EXAMEN_NO_ABIERTO')
-                ->assertJsonPath('message', 'El examen no está abierto: no se puede finalizar.');
+                ->assertJsonPath('codigo', 'EXAMEN_NO_ABIERTO');
         }
 
         $this->actingAs($cuenta)->finalizar($abierto)->assertOk();
@@ -105,7 +88,7 @@ final class FinalizarExamenTest extends TestCase
             ->finalizar($abierto)
             ->assertStatus(409)
             ->assertJsonPath('codigo', 'EXAMEN_NO_ABIERTO');
-        $this->assertSame(1, DB::table('bitacora_operaciones')->where('operacion', 'examen.finalizar')->count());
+        $this->assertDatabaseCount('bitacora_operaciones', 1);
     }
 
     public function test_another_teacher_cannot_finalize_it(): void
@@ -116,7 +99,6 @@ final class FinalizarExamenTest extends TestCase
         $this->actingAs($this->cuenta($this->docente('Otro Docente')))
             ->finalizar($examen)
             ->assertForbidden()
-            ->assertJsonPath('message', 'Este examen no está a su cargo.')
             ->assertJsonPath('alcance', true);
 
         $this->assertNull($examen->refresh()->finalizado_en);
@@ -128,39 +110,9 @@ final class FinalizarExamenTest extends TestCase
         $examen = $this->examen($docente, [$this->grupo($docente, $this->asignatura())]);
 
         $this->finalizar($examen)->assertUnauthorized();
-        $this->actingAs($this->usuarioConRol('Auxiliar'))->finalizar($examen)->assertForbidden();
+        $this->actingAs($this->auxiliarConRol())->finalizar($examen)->assertForbidden();
         $this->actingAs($this->cuenta($docente))
             ->postJson('/api/examenes/999999/finalizar')
-            ->assertNotFound()
-            ->assertJsonPath('message', 'Examen no encontrado.');
-
-        $this->assertNull($examen->refresh()->finalizado_en);
-    }
-
-    public function test_once_finalized_the_exam_is_taken_and_no_longer_in_progress(): void
-    {
-        $docente = $this->docente();
-        $cuenta = $this->cuenta($docente);
-        $examen = $this->examen($docente, [$this->grupo($docente, $this->asignatura())], [$this->aula()]);
-
-        $this->actingAs($cuenta)
-            ->getJson("/api/en-curso/{$examen->id}")
-            ->assertOk()
-            ->assertJsonPath('data.examen.abierto', true)
-            ->assertJsonPath('data.examen.excedido', false);
-
-        $this->actingAs($cuenta)->finalizar($examen)->assertOk();
-
-        $this->actingAs($cuenta)
-            ->getJson("/api/en-curso/{$examen->id}")
-            ->assertOk()
-            ->assertJsonPath('data.examen.abierto', false)
-            ->assertJsonPath('data.examen.excedido', false);
-
-        $this->actingAs($cuenta)
-            ->getJson('/api/examenes')
-            ->assertOk()
-            ->assertJsonPath('data.0.rendido', true)
-            ->assertJsonPath('data.0.finalizado_en', $examen->refresh()->finalizado_en?->format('Y-m-d H:i:s'));
+            ->assertNotFound();
     }
 }

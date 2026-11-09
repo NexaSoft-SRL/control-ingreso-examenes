@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Academico\Infrastructure\Persistence;
 
 use App\Modules\Academico\Application\Contracts\ConsultaOfertaGateway;
+use App\Modules\Academico\Application\DTOs\FiltroAsignaturasData;
 use App\Modules\Academico\Application\DTOs\PaginaData;
 use App\Modules\Academico\Domain\Enums\EstadoImportacion;
 use App\Modules\Academico\Domain\Enums\RegimenCarrera;
@@ -24,10 +25,7 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
         $aulas = $this->conteoPorFacultad('aulas');
         $facultades = [];
 
-        /** @var list<\stdClass> $filas */
-        $filas = DB::table('facultades')->orderBy('orden')->orderBy('id')->get()->all();
-
-        foreach ($filas as $fila) {
+        foreach (DB::table('facultades')->orderBy('orden')->orderBy('id')->get() as $fila) {
             $id = $this->entero($fila->id);
 
             $facultades[] = [
@@ -102,7 +100,8 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
         $sinLista = (clone $grupos)->whereNotExists(function (Builder $inscritos): void {
             $inscritos->selectRaw('1')
                 ->from('inscripciones as i')
-                ->whereColumn('i.grupo_id', 'g.id');
+                ->whereColumn('i.grupo_id', 'g.id')
+                ->whereNull('i.baja_en');
         });
 
         return [
@@ -131,10 +130,7 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
 
         $oferta = [];
 
-        /** @var list<\stdClass> $filas */
-        $filas = DB::table('facultades')->orderBy('orden')->orderBy('id')->get()->all();
-
-        foreach ($filas as $fila) {
+        foreach (DB::table('facultades')->orderBy('orden')->orderBy('id')->get() as $fila) {
             $id = $this->entero($fila->id);
             $importacion = $this->importacionDe($id);
 
@@ -190,291 +186,181 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
         return $carreras;
     }
 
-    /**
-     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null, sin_lista?: bool}  $filtros
-     * @return array{filas: list<array<string, mixed>>, total: int, total_grupos: int}
-     */
-    public function asignaturasDeOferta(array $filtros, PaginaData $pagina): array
+    public function asignaturas(FiltroAsignaturasData $filtro, array $periodoIds, PaginaData $pagina): array
     {
-        $facultadId = $this->facultadId($filtros['facultad']);
-        $texto = $this->normalizar((string) ($filtros['buscar'] ?? ''));
+        $facultadId = $this->hayTexto($filtro->facultad)
+            ? $this->facultadId((string) $filtro->facultad)
+            : null;
+        $carreraId = $filtro->carreraId;
 
-        $consulta = DB::table('grupos as g')
-            ->join('asignaturas as a', 'a.id', '=', 'g.asignatura_id')
-            ->join('facultades as f', 'f.id', '=', 'g.facultad_id')
-            ->when($facultadId > 0, fn (Builder $q) => $q->where('g.facultad_id', $facultadId))
-            ->when(
-                $filtros['carrera_id'] !== null,
-                fn (Builder $q) => $q->whereExists(function (Builder $sub) use ($filtros): void {
-                    $sub->selectRaw('1')
-                        ->from('plan_estudios as pe')
-                        ->whereColumn('pe.asignatura_id', 'g.asignatura_id')
-                        ->where('pe.carrera_id', $filtros['carrera_id']);
-                })
-            )
-            ->when(
-                $filtros['nivel'] !== null,
-                fn (Builder $q) => $q->whereExists(function (Builder $sub) use ($filtros): void {
-                    $sub->selectRaw('1')
-                        ->from('plan_estudios as pe')
-                        ->whereColumn('pe.asignatura_id', 'g.asignatura_id')
-                        ->whereRaw('upper(pe.nivel) = ?', [mb_strtoupper((string) $filtros['nivel'])]);
-                })
-            );
+        // La oferta de ese periodo y esa facultad (y esa carrera): de aqui
+        // salen los niveles que ofrece el filtro.
+        $oferta = DB::table('asignaturas as a')
+            ->whereExists(function (Builder $grupos) use ($periodoIds, $facultadId): void {
+                $this->gruposDeLaAsignatura($grupos, $periodoIds, $facultadId);
+            });
 
-        $this->enPeriodosOVigentes($consulta, $filtros['periodo_ids']);
-
-        $this->conTexto($consulta, $texto);
-
-        // «Con grupos sin lista»: la asignatura tiene en esa facultad algun
-        // grupo sin inscritos cargados; la fila cuenta todos sus grupos.
-        if ($filtros['sin_lista'] ?? false) {
-            $consulta->whereExists(function (Builder $sub) use ($filtros): void {
-                $sub->selectRaw('1')
-                    ->from('grupos as gl')
-                    ->whereColumn('gl.asignatura_id', 'g.asignatura_id')
-                    ->whereColumn('gl.facultad_id', 'g.facultad_id')
-                    ->whereNotExists(function (Builder $inscritos): void {
-                        $inscritos->selectRaw('1')
-                            ->from('inscripciones as il')
-                            ->whereColumn('il.grupo_id', 'gl.id');
-                    });
-                $this->enPeriodosOVigentes($sub, $filtros['periodo_ids'], 'gl.periodo_id');
+        if ($carreraId !== null) {
+            $oferta->whereExists(function (Builder $plan) use ($carreraId): void {
+                $plan->selectRaw('1')
+                    ->from('plan_estudios as pe')
+                    ->whereColumn('pe.asignatura_id', 'a.id')
+                    ->where('pe.carrera_id', $carreraId);
             });
         }
 
-        // Una fila por asignatura y facultad: una asignatura de servicio que
-        // se dicta en dos facultades sale dos veces, cada una con lo suyo.
-        $total = DB::query()
-            ->fromSub((clone $consulta)->select('a.id', 'g.facultad_id')->distinct(), 'filas')
-            ->count();
-        $totalGrupos = (clone $consulta)->distinct()->count('g.id');
+        $niveles = $this->nivelesDe((clone $oferta)->select('a.id'), $facultadId, $carreraId);
 
-        $paginadas = $consulta
-            ->leftJoin('inscripciones as i', 'i.grupo_id', '=', 'g.id')
-            ->groupBy('a.id', 'a.codigo', 'a.nombre', 'g.facultad_id', 'f.clave', 'f.sigla')
-            ->selectRaw('a.id, a.codigo, a.nombre, g.facultad_id, f.clave, f.sigla')
-            ->selectRaw('count(distinct g.id) as grupos, count(i.id) as inscritos')
+        $consulta = clone $oferta;
+
+        if ($this->hayTexto($filtro->nivel)) {
+            $nivel = mb_strtoupper(trim((string) $filtro->nivel));
+
+            $consulta->whereExists(function (Builder $plan) use ($nivel, $facultadId, $carreraId): void {
+                $plan->selectRaw('1')
+                    ->from('plan_estudios as pe')
+                    ->join('carreras as c', 'c.id', '=', 'pe.carrera_id')
+                    ->whereColumn('pe.asignatura_id', 'a.id')
+                    ->whereRaw('upper(pe.nivel) = ?', [$nivel]);
+                $this->delPlan($plan, $facultadId, $carreraId);
+            });
+        }
+
+        if ($filtro->sinLista) {
+            $consulta->whereExists(function (Builder $grupos) use ($periodoIds, $facultadId): void {
+                $this->gruposDeLaAsignatura($grupos, $periodoIds, $facultadId);
+                $grupos->whereNotExists(function (Builder $inscritos): void {
+                    $inscritos->selectRaw('1')
+                        ->from('inscripciones as i')
+                        ->whereColumn('i.grupo_id', 'g.id')
+                        ->whereNull('i.baja_en');
+                });
+            });
+        }
+
+        if ($this->hayTexto($filtro->buscar)) {
+            $patron = $this->patron((string) $filtro->buscar);
+
+            $consulta->where(function (Builder $texto) use ($patron, $periodoIds, $facultadId): void {
+                $texto->whereRaw($this->sinTildes('a.nombre').' like ?', [$patron])
+                    ->orWhereRaw('lower(a.codigo) like ?', [$patron])
+                    ->orWhereExists(function (Builder $grupos) use ($patron, $periodoIds, $facultadId): void {
+                        $this->gruposDeLaAsignatura($grupos, $periodoIds, $facultadId);
+                        $grupos->join('docentes as d', 'd.id', '=', 'g.docente_id')
+                            ->whereRaw($this->sinTildes('d.nombre_completo').' like ?', [$patron]);
+                    });
+            });
+        }
+
+        $total = (clone $consulta)->count();
+
+        $totalGrupos = DB::table('grupos as g')
+            ->whereIn('g.asignatura_id', (clone $consulta)->select('a.id'));
+        $this->enPeriodos($totalGrupos, 'g.periodo_id', $periodoIds);
+
+        if ($facultadId !== null) {
+            $totalGrupos->where('g.facultad_id', $facultadId);
+        }
+
+        $filas = (clone $consulta)
             ->orderByRaw($this->sinTildes('a.nombre'))
             ->orderBy('a.id')
-            ->orderBy('f.sigla')
             ->forPage($pagina->pagina, $pagina->porPagina)
-            ->get();
-
-        $filas = [];
-        foreach ($paginadas as $fila) {
-            $id = $this->entero($fila->id);
-            $nivel = $this->nivelPorAsignatura(
-                [$id],
-                $this->entero($fila->facultad_id),
-                $filtros['carrera_id'],
-            )[$id] ?? null;
-
-            $filas[] = [
-                'id' => $id,
-                'codigo' => $this->cadena($fila->codigo),
-                'nombre' => $this->cadena($fila->nombre),
-                'nivel' => $nivel,
-                'facultad' => $this->cadena($fila->sigla),
-                'facultad_clave' => $this->cadena($fila->clave),
-                'grupos' => $this->entero($fila->grupos),
-                'inscritos' => $this->entero($fila->inscritos),
-            ];
-        }
-
-        return [
-            'filas' => $filas,
-            'total' => $total,
-            'total_grupos' => $totalGrupos,
-        ];
-    }
-
-    /**
-     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null, sin_lista?: bool}  $filtros
-     * @return list<string>
-     */
-    public function nivelesDeOferta(array $filtros): array
-    {
-        $facultadId = $this->facultadId($filtros['facultad']);
-
-        $consulta = DB::table('plan_estudios as pe')
-            ->join('grupos as g', 'g.asignatura_id', '=', 'pe.asignatura_id')
-            ->join('asignaturas as a', 'a.id', '=', 'g.asignatura_id')
-            ->distinct()
-            ->select('pe.nivel');
-
-        if ($facultadId > 0) {
-            $consulta->where('g.facultad_id', $facultadId);
-        }
-
-        if ($filtros['carrera_id'] !== null) {
-            $consulta->where('pe.carrera_id', $filtros['carrera_id']);
-        }
-
-        $this->enPeriodosOVigentes($consulta, $filtros['periodo_ids']);
-
-        $texto = $this->normalizar((string) ($filtros['buscar'] ?? ''));
-        if ($texto !== '') {
-            $consulta->where(function (Builder $q) use ($texto): void {
-                $q->whereRaw($this->sinTildes('a.nombre').' like ?', [$this->patron($texto)])
-                    ->orWhereRaw($this->sinTildes('a.codigo').' like ?', [$this->patron($texto)]);
-            });
-        }
-
-        $niveles = [];
-        foreach ($consulta->get() as $fila) {
-            $niveles[] = $this->nivelLegible($this->cadena($fila->nivel));
-        }
-
-        usort($niveles, static function (string $a, string $b): int {
-            $anios = [
-                'Primer año' => 1,
-                'Segundo año' => 2,
-                'Tercer año' => 3,
-                'Cuarto año' => 4,
-                'Quinto año' => 5,
-            ];
-
-            $valA = $anios[$a] ?? (str_starts_with($a, 'Semestre') ? 100 : 50);
-            $valB = $anios[$b] ?? (str_starts_with($b, 'Semestre') ? 100 : 50);
-
-            if ($valA !== $valB) {
-                return $valA <=> $valB;
-            }
-
-            return strnatcasecmp($a, $b);
-        });
-
-        return array_values(array_unique($niveles));
-    }
-
-    /**
-     * @param  list<int>  $periodoIds
-     * @return array{filas: list<array<string, mixed>>, total: int}
-     */
-    public function gruposDeAsignatura(
-        int $asignaturaId,
-        array $periodoIds,
-        ?string $buscar,
-        ?string $facultadClave,
-        PaginaData $pagina,
-    ): array {
-        $facultadId = $this->facultadId($facultadClave);
-
-        $texto = $this->normalizar((string) ($buscar ?? ''));
-
-        $consulta = DB::table('grupos as g')
-            ->join('asignaturas as a', 'a.id', '=', 'g.asignatura_id')
-            ->join('periodos as p', 'p.id', '=', 'g.periodo_id')
-            ->leftJoin('docentes as d', 'd.id', '=', 'g.docente_id')
-            ->where('g.asignatura_id', $asignaturaId)
-            ->when($facultadId > 0, fn (Builder $q) => $q->where('g.facultad_id', $facultadId));
-
-        $this->enPeriodosOVigentes($consulta, $periodoIds);
-
-        // Los mismos grupos que cuenta la fila de la asignatura: si la
-        // busqueda solo coincide con un docente, solo los de ese docente.
-        $this->conTexto($consulta, $texto);
-
-        $total = (clone $consulta)->count('g.id');
-
-        if ($texto !== '') {
-            $consulta->orderByRaw(
-                'case when '.$this->sinTildes('d.nombre_completo').' like ? then 0 else 1 end',
-                [$this->patron($texto)]
-            );
-        }
-
-        $consulta->orderByRaw("CAST(NULLIF(regexp_replace(g.codigo, '\D', '', 'g'), '') AS INTEGER) ASC NULLS LAST");
-        $consulta->orderByRaw('g.codigo ASC');
-
-        $filas = $consulta
-            ->forPage($pagina->pagina, $pagina->porPagina)
-            ->get([
-                'g.id', 'g.codigo', 'g.docente_id',
-                'd.nombre_completo as docente_nombre',
-                'p.codigo as periodo',
-            ]);
+            ->get(['a.id', 'a.codigo', 'a.nombre']);
 
         $ids = [];
+
         foreach ($filas as $fila) {
             $ids[] = $this->entero($fila->id);
         }
 
-        $horarios = $this->horariosDe($ids);
-        $inscritos = $this->inscritosDe($ids);
+        [$grupos, $inscritos] = $this->cifrasDeAsignaturas($ids, $periodoIds, $facultadId);
+        $nivelDe = $this->nivelPorAsignatura($ids, $facultadId, $carreraId);
+        $asignaturas = [];
 
-        $grupos = [];
         foreach ($filas as $fila) {
-            $docente = $this->texto($fila->docente_nombre);
             $id = $this->entero($fila->id);
-            $grupos[] = [
+
+            $asignaturas[] = [
                 'id' => $id,
                 'codigo' => $this->cadena($fila->codigo),
-                'docente' => $docente,
-                'periodo' => $this->cadena($fila->periodo),
-                'horarios' => $horarios[$id] ?? [],
+                'nombre' => $this->cadena($fila->nombre),
+                'nivel' => $nivelDe[$id] ?? null,
+                'grupos' => $grupos[$id] ?? 0,
                 'inscritos' => $inscritos[$id] ?? 0,
             ];
         }
 
-        return ['filas' => $grupos, 'total' => $total];
-    }
-
-    /**
-     * Los grupos de los periodos pedidos o, sin pedido, de los vigentes hoy.
-     * Si no hay ningun periodo vigente, ninguno.
-     *
-     * @param  list<int>  $periodoIds
-     */
-    private function enPeriodosOVigentes(Builder $consulta, array $periodoIds, string $columna = 'g.periodo_id'): void
-    {
-        if ($periodoIds === []) {
-            $hoy = $this->hoy();
-            /** @var list<int> $periodoIds */
-            $periodoIds = DB::table('periodos')
-                ->where('fecha_inicio', '<=', $hoy)
-                ->where('fecha_fin', '>=', $hoy)
-                ->pluck('id')
-                ->all();
-        }
-
-        if ($periodoIds === []) {
-            $consulta->whereRaw('1 = 0');
-
-            return;
-        }
-
-        $consulta->whereIn($columna, $periodoIds);
-    }
-
-    /**
-     * Los grupos cuya asignatura (nombre o codigo) o cuyo docente coinciden
-     * con la busqueda. Espera los alias `g` (grupos) y `a` (asignaturas).
-     */
-    private function conTexto(Builder $consulta, string $texto): void
-    {
-        if ($texto === '') {
-            return;
-        }
-
-        $patron = $this->patron($texto);
-
-        $consulta->where(function (Builder $q) use ($patron): void {
-            $q->whereRaw($this->sinTildes('a.nombre').' like ?', [$patron])
-                ->orWhereRaw($this->sinTildes('a.codigo').' like ?', [$patron])
-                ->orWhereExists(function (Builder $sub) use ($patron): void {
-                    $sub->selectRaw('1')
-                        ->from('docentes as dc')
-                        ->whereColumn('dc.id', 'g.docente_id')
-                        ->whereRaw($this->sinTildes('dc.nombre_completo').' like ?', [$patron]);
-                });
-        });
+        return [
+            'filas' => $asignaturas,
+            'total' => $total,
+            'grupos' => $totalGrupos->count(),
+            'niveles' => $niveles,
+        ];
     }
 
     public function existeAsignatura(int $asignaturaId): bool
     {
         return DB::table('asignaturas')->where('id', $asignaturaId)->exists();
+    }
+
+    public function gruposDeAsignatura(int $asignaturaId, array $periodoIds, ?string $claveFacultad, ?string $buscar): array
+    {
+        $consulta = DB::table('grupos as g')
+            ->leftJoin('docentes as d', 'd.id', '=', 'g.docente_id')
+            ->where('g.asignatura_id', $asignaturaId);
+        $this->enPeriodos($consulta, 'g.periodo_id', $periodoIds);
+
+        if ($this->hayTexto($claveFacultad)) {
+            $consulta->where('g.facultad_id', $this->facultadId((string) $claveFacultad));
+        }
+
+        $columnas = ['g.id', 'g.codigo', 'd.nombre_completo as docente'];
+
+        if ($this->hayTexto($buscar)) {
+            $consulta->selectRaw(
+                'coalesce('.$this->sinTildes('d.nombre_completo').' like ?, false) as coincide',
+                [$this->patron((string) $buscar)],
+            );
+        } else {
+            $consulta->selectRaw('false as coincide');
+        }
+
+        $filas = [];
+
+        foreach ($consulta->addSelect($columnas)->get() as $fila) {
+            $filas[] = [
+                'id' => $this->entero($fila->id),
+                'codigo' => $this->cadena($fila->codigo),
+                'docente' => $this->texto($fila->docente),
+                'coincide' => $fila->coincide === true || $fila->coincide === 't' || $fila->coincide === 1,
+            ];
+        }
+
+        usort($filas, static function (array $a, array $b): int {
+            if ($a['coincide'] !== $b['coincide']) {
+                return $a['coincide'] ? -1 : 1;
+            }
+
+            return strnatcasecmp($a['codigo'], $b['codigo']) ?: $a['id'] <=> $b['id'];
+        });
+
+        $ids = array_map(static fn (array $fila): int => $fila['id'], $filas);
+        $horarios = $this->horariosDe($ids);
+        $inscritos = $this->inscritosDe($ids);
+        $grupos = [];
+
+        foreach ($filas as $fila) {
+            $grupos[] = [
+                'id' => $fila['id'],
+                'codigo' => $fila['codigo'],
+                'docente' => $fila['docente'],
+                'horarios' => $horarios[$fila['id']] ?? [],
+                'inscritos' => $inscritos[$fila['id']] ?? 0,
+            ];
+        }
+
+        return $grupos;
     }
 
     public function gruposDeDocente(int $docenteId, array $periodoIds): array
@@ -600,6 +486,8 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
                 $grupos[$this->entero($fila->periodo_id)] = $this->entero($fila->total);
             }
 
+            // Las carreras anuales tienen sus grupos en el periodo anual;
+            // las demas, en los otros.
             $conCarrera = DB::table('grupos as g')
                 ->join('periodos as p', 'p.id', '=', 'g.periodo_id')
                 ->join('plan_estudios as pe', 'pe.asignatura_id', '=', 'g.asignatura_id')
@@ -686,6 +574,27 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
         ];
     }
 
+    /**
+     * Subconsulta «la asignatura `a` tiene grupos en ese periodo y esa
+     * facultad».
+     *
+     * @param  list<int>  $periodoIds
+     */
+    private function gruposDeLaAsignatura(Builder $grupos, array $periodoIds, ?int $facultadId): void
+    {
+        $grupos->selectRaw('1')
+            ->from('grupos as g')
+            ->whereColumn('g.asignatura_id', 'a.id');
+        $this->enPeriodos($grupos, 'g.periodo_id', $periodoIds);
+
+        if ($facultadId !== null) {
+            $grupos->where('g.facultad_id', $facultadId);
+        }
+    }
+
+    /**
+     * Acota una consulta sobre `plan_estudios pe` + `carreras c`.
+     */
     private function delPlan(Builder $plan, ?int $facultadId, ?int $carreraId): void
     {
         if ($carreraId !== null) {
@@ -698,6 +607,32 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
     }
 
     /**
+     * @return list<string>
+     */
+    private function nivelesDe(Builder $asignaturaIds, ?int $facultadId, ?int $carreraId): array
+    {
+        $plan = DB::table('plan_estudios as pe')
+            ->join('carreras as c', 'c.id', '=', 'pe.carrera_id')
+            ->whereIn('pe.asignatura_id', $asignaturaIds)
+            ->distinct();
+        $this->delPlan($plan, $facultadId, $carreraId);
+
+        $niveles = [];
+
+        foreach ($plan->pluck('pe.nivel') as $nivel) {
+            $niveles[] = $this->nivelLegible($this->cadena($nivel));
+        }
+
+        $niveles = array_values(array_unique($niveles));
+        usort($niveles, static fn (string $a, string $b): int => strnatcasecmp($a, $b));
+
+        return $niveles;
+    }
+
+    /**
+     * El nivel de cada asignatura en la carrera pedida o, sin carrera, el
+     * primero entre las carreras de la facultad.
+     *
      * @param  list<int>  $asignaturaIds
      * @return array<int, string>
      */
@@ -724,5 +659,43 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
         }
 
         return $niveles;
+    }
+
+    /**
+     * Grupos e inscritos de cada asignatura en ese periodo y facultad.
+     *
+     * @param  list<int>  $asignaturaIds
+     * @param  list<int>  $periodoIds
+     * @return array{array<int, int>, array<int, int>}
+     */
+    private function cifrasDeAsignaturas(array $asignaturaIds, array $periodoIds, ?int $facultadId): array
+    {
+        if ($asignaturaIds === []) {
+            return [[], []];
+        }
+
+        $consulta = DB::table('grupos as g')
+            ->leftJoin('inscripciones as i', function (JoinClause $inscrita): void {
+                $inscrita->on('i.grupo_id', '=', 'g.id')->whereNull('i.baja_en');
+            })
+            ->whereIn('g.asignatura_id', $asignaturaIds)
+            ->groupBy('g.asignatura_id')
+            ->selectRaw('g.asignatura_id, count(distinct g.id) as grupos, count(i.id) as inscritos');
+        $this->enPeriodos($consulta, 'g.periodo_id', $periodoIds);
+
+        if ($facultadId !== null) {
+            $consulta->where('g.facultad_id', $facultadId);
+        }
+
+        $grupos = [];
+        $inscritos = [];
+
+        foreach ($consulta->get() as $fila) {
+            $id = $this->entero($fila->asignatura_id);
+            $grupos[$id] = $this->entero($fila->grupos);
+            $inscritos[$id] = $this->entero($fila->inscritos);
+        }
+
+        return [$grupos, $inscritos];
     }
 }

@@ -1,7 +1,16 @@
 import { fireEvent, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import MapaCampus, { edificioDeAula, pisoDeAula, proyectar } from './MapaCampus';
 import { renderConSesion } from '../test/apoyo';
+
+// El mapa real necesita WebGL: aquí se comprueba solo lo que MapaCampus le entrega.
+const vivo = vi.hoisted(() => ({ props: null }));
+vi.mock('./MapaVivo', () => ({
+    default: (props) => {
+        vivo.props = props;
+        return <div data-testid="mapa-vivo" className={props.alto} />;
+    },
+}));
 
 const CAJA = { lon: [-66.15, -66.14], lat: [-17.4, -17.39] };
 const EDIFICIOS = [
@@ -82,70 +91,6 @@ describe('MapaCampus', () => {
         expect(screen.getByText('Bloque Central')).toBeInTheDocument();
     });
 
-    it('separa rótulos de edificios cercanos para mantenerlos legibles', () => {
-        const edificios = [0, 1, 2, 3].map((indice) => {
-            const desplazamiento = indice * 0.0001;
-            return {
-                ...EDIFICIOS[0],
-                id: indice + 20,
-                poligono: EDIFICIOS[0].poligono.map(([lon, lat]) => [
-                    lon + desplazamiento,
-                    lat + desplazamiento,
-                ]),
-                centro: [
-                    EDIFICIOS[0].centro[0] + desplazamiento,
-                    EDIFICIOS[0].centro[1] + desplazamiento,
-                ],
-            };
-        });
-        const rotulosEdificio = {
-            20: 'Aula 607',
-            21: 'Aula 606, 608, 608A, 608B, 609, 609A',
-            22: 'Aula 612',
-            23: 'Aula 613, 614, 615, 616',
-        };
-        const { container } = renderConSesion(
-            <MapaCampus
-                edificios={edificios}
-                caja={CAJA}
-                resaltados={[20, 21, 22, 23]}
-                rotulosEdificio={rotulosEdificio}
-            />
-        );
-        const etiquetas = [...container.querySelectorAll('svg text')];
-        const cajas = etiquetas.map((etiqueta) => {
-            const fontSize = Number(etiqueta.getAttribute('font-size'));
-            const x = Number(etiqueta.getAttribute('x'));
-            const y = Number(etiqueta.getAttribute('y')) - fontSize * 0.35;
-            const ancho = etiqueta.textContent.length * fontSize * 0.58;
-            const alto = fontSize * 1.5;
-
-            return {
-                izquierda: x - ancho / 2,
-                derecha: x + ancho / 2,
-                arriba: y - alto / 2,
-                abajo: y + alto / 2,
-                margen: fontSize * 0.25,
-            };
-        });
-
-        expect(etiquetas).toHaveLength(4);
-
-        for (let i = 0; i < cajas.length; i += 1) {
-            for (let j = i + 1; j < cajas.length; j += 1) {
-                const a = cajas[i];
-                const b = cajas[j];
-                const separadas =
-                    a.derecha + a.margen <= b.izquierda ||
-                    a.izquierda - a.margen >= b.derecha ||
-                    a.abajo + a.margen <= b.arriba ||
-                    a.arriba - a.margen >= b.abajo;
-
-                expect(separadas).toBe(true);
-            }
-        }
-    });
-
     it('avisa el edificio elegido y no falla sin edificios', () => {
         const onElegir = vi.fn();
         const { container, rerender } = renderConSesion(
@@ -156,5 +101,93 @@ describe('MapaCampus', () => {
 
         rerender(<MapaCampus />);
         expect(container.querySelectorAll('polygon')).toHaveLength(0);
+    });
+
+    describe('con WebGL', () => {
+        afterEach(() => {
+            delete window.WebGLRenderingContext;
+            vivo.props = null;
+        });
+
+        const montarVivo = async (props) => {
+            window.WebGLRenderingContext = function WebGLRenderingContext() {};
+            const vista = renderConSesion(
+                <MapaCampus edificios={EDIFICIOS} caja={CAJA} {...props} />
+            );
+            await screen.findByTestId('mapa-vivo');
+            return vista;
+        };
+
+        it('dibuja el mapa real con el color de cada facultad y sin rótulos', async () => {
+            const { container } = await montarVivo({ alto: 'h-96' });
+            expect(container.querySelector('svg')).toBeNull();
+            expect(screen.getByTestId('mapa-vivo')).toHaveClass('h-96');
+            expect(vivo.props.edificios).toEqual([
+                expect.objectContaining({
+                    id: 3,
+                    color: '#B90813',
+                    marcado: false,
+                    atenuado: false,
+                }),
+                expect.objectContaining({ id: 9, marcado: false, contorno: false }),
+            ]);
+            expect(vivo.props.edificios.every((e) => e.rotulo === undefined)).toBe(true);
+            expect(vivo.props.onElegir).toBeUndefined();
+        });
+
+        it('lleva al mapa real lo marcado, el contorno y sus rótulos', async () => {
+            await montarVivo({
+                resaltados: ['624'],
+                contorno: [9],
+                rotulos: { 624: 'Aula 624' },
+                rotulosEdificio: { 9: 'Aquí' },
+            });
+            const [marcado, partida] = vivo.props.edificios;
+            expect(marcado).toMatchObject({
+                id: 3,
+                marcado: true,
+                contorno: false,
+                atenuado: false,
+                rotulo: 'Aula 624',
+            });
+            expect(partida).toMatchObject({
+                id: 9,
+                marcado: false,
+                contorno: true,
+                atenuado: false,
+                rotulo: 'Aquí',
+            });
+        });
+
+        it('atenúa lo no marcado, limita a la facultad y marca el seleccionado', async () => {
+            const { rerender } = await montarVivo({ resaltados: [9] });
+            expect(vivo.props.edificios.map((e) => [e.id, e.marcado, e.atenuado])).toEqual([
+                [3, false, true],
+                [9, true, false],
+            ]);
+
+            rerender(
+                <MapaCampus edificios={EDIFICIOS} caja={CAJA} facultad="FCyT" seleccionado={3} />
+            );
+            expect(vivo.props.edificios).toEqual([
+                expect.objectContaining({ id: 3, marcado: true, rotulo: 'Edificio Académico 2' }),
+            ]);
+        });
+
+        it('avisa el edificio entero al elegirlo en el mapa real', async () => {
+            const onElegir = vi.fn();
+            await montarVivo({ onElegir });
+            vivo.props.onElegir(vivo.props.edificios[1]);
+            expect(onElegir).toHaveBeenCalledWith(
+                expect.objectContaining({ id: 9, nombre: 'Bloque Central', aulas: ['617'] })
+            );
+        });
+
+        it('sin edificios queda el dibujo vacío', () => {
+            window.WebGLRenderingContext = function WebGLRenderingContext() {};
+            const { container } = renderConSesion(<MapaCampus />);
+            expect(container.querySelector('svg')).not.toBeNull();
+            expect(screen.queryByTestId('mapa-vivo')).not.toBeInTheDocument();
+        });
     });
 });

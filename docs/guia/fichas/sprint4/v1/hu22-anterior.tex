@@ -1,0 +1,56 @@
+% Ficha HU-22. Criterios tomados del backlog de la iteracion 4. El bloqueo
+% no vive solo en el codigo: lo sostiene un indice unico parcial.
+\def\HUNro{22}
+\def\HUSprint{4}
+\def\HUTitulo{Punto de control > Ingreso > Bloqueo del doble ingreso}
+\def\HUModulo{M4}
+\def\HUReq{8}
+\def\HUPuntos{5}
+
+\def\HUComo{personal de control}
+\def\HUQuiero{que el sistema impida registrar dos veces al mismo estudiante}
+\def\HUPara{garantizar que cada uno ingrese una sola vez}
+
+\def\HUDescripcion{%
+En un examen masivo hay varias puertas abiertas a la vez, y el mismo estudiante puede
+presentarse en dos de ellas ---por descuido o a propósito---. Si el sistema aceptara los
+dos ingresos, el reporte de asistencia diría que hubo más presentes que habilitados.
+
+Antes de registrar, el sistema comprueba si el estudiante ya tiene un ingreso vigente en
+ese examen. Si lo tiene, rechaza el segundo intento y dice a qué hora entró la primera
+vez: el personal de la puerta sabe así que no es un error del sistema sino un estudiante
+que ya pasó.
+
+La comprobación en el código no alcanza cuando dos puestos registran en el mismo
+instante: entre la consulta y la escritura cabe el otro ingreso. Por eso la regla vive
+también en la base de datos, como un índice único parcial sobre el examen y el estudiante
+que solo cuenta los ingresos no anulados. La base rechaza el segundo, pase lo que pase.
+
+El intento repetido no se pierde: queda como incidencia del examen, con el estudiante, la
+hora y quién lo atendió.}
+
+\def\HUCriterios{%
+\item Dado que un estudiante ya registró su ingreso, Cuando se intenta registrarlo otra
+      vez, Entonces el sistema lo rechaza e indica la hora del ingreso original.
+\item Dado que dos puntos de control registran al mismo estudiante en el mismo instante,
+      Cuando ambos escriben, Entonces la base de datos acepta uno solo.
+\item Dado que se rechaza un intento repetido, Cuando se consulta el examen, Entonces el
+      intento figura como incidencia con su hora.
+\item Dado que un ingreso fue anulado, Cuando el estudiante vuelve a la puerta, Entonces
+      el sistema le permite ingresar de nuevo.
+\item Dado que el estudiante intenta ingresar por primera vez, Cuando está habilitado,
+      Entonces el ingreso se registra sin estorbos.}
+
+\def\HUPruebas{%
+\item \texttt{DobleIngresoTest::the\_second\_attempt\_says\_the\_time\_of\_the\_original\_entry}:
+      el segundo intento se rechaza con la hora del primero (criterio 1).
+\item \texttt{DobleIngresoTest::the\_database\_refuses\_two\_simultaneous\_entries}: la
+      escritura directa del segundo ingreso choca contra el índice único (criterio 2).
+\item \texttt{DobleIngresoTest::the\_unauthorized\_attempt\_records\_student\_exam\_and\_time}:
+      el intento queda asentado como incidencia (criterio 3).
+\item \texttt{DobleIngresoTest::an\_annulled\_entry\_does\_not\_block\_a\_new\_one}: tras la
+      anulación el estudiante puede ingresar (criterio 4).
+\item \texttt{RegistroIngresoTest}: el ingreso normal del habilitado sigue funcionando
+      (criterio 5).}
+
+\input{cuerpo}

@@ -13,6 +13,7 @@ use App\Modules\Examenes\Application\DTOs\ExamenDetalleData;
 use App\Modules\Examenes\Application\DTOs\ExamenResumenData;
 use App\Modules\Examenes\Application\DTOs\GrupoDeExamenData;
 use App\Modules\Examenes\Application\DTOs\NormaMarcadaData;
+use App\Modules\Examenes\Application\DTOs\PersonaData;
 use App\Modules\Examenes\Application\Queries\ConsultarExamen;
 use App\Modules\Examenes\Application\Queries\ListarExamenesDelDocente;
 use App\Modules\Examenes\Domain\Enums\TipoExamen;
@@ -100,7 +101,7 @@ final class ExamenController
             return $this->ajeno();
         } catch (ExamenConIngresosException) {
             return $this->conIngresos(
-                'El examen ya tiene ingresos registrados: solo se pueden cambiar las normas.',
+                'El examen ya tiene ingresos registrados: solo se pueden cambiar las normas y quién atiende cada aula.',
             );
         } catch (DatoInvalidoException $error) {
             return $this->invalido($error);
@@ -124,26 +125,19 @@ final class ExamenController
             return $this->ajeno();
         } catch (ExamenConIngresosException) {
             return $this->conIngresos(
-                'El examen ya tiene ingresos registrados: no se puede eliminar.',
+                'El examen ya tiene ingresos o incidencias registrados: no se puede eliminar.',
             );
         }
 
         return $eliminado ? response()->noContent() : $this->noEncontrado();
     }
 
-    /**
-     * HU-28: un docente del examen lo finaliza; se cierran la puerta, el
-     * seguimiento y el acceso con codigo de aula.
-     */
     public function finalizar(int $examen, FinalizarExamen $finalizar): JsonResponse
     {
         try {
             $cierre = $finalizar->execute($examen, $this->usuarioId());
         } catch (ExamenAjenoException) {
-            return response()->json([
-                'message' => 'Este examen no está a su cargo.',
-                'alcance' => true,
-            ], Response::HTTP_FORBIDDEN);
+            return $this->ajeno();
         } catch (ExamenNoAbiertoException) {
             return response()->json([
                 'message' => 'El examen no está abierto: no se puede finalizar.',
@@ -181,6 +175,7 @@ final class ExamenController
             'grupos' => $examen->grupos,
             'inscritos' => $examen->inscritos,
             'aulas' => $examen->aulas,
+            'auxiliares' => $examen->auxiliares,
             'habilitados' => $examen->habilitados,
             'no_habilitados' => $examen->noHabilitados,
             'sin_revisar' => $examen->sinRevisar,
@@ -202,11 +197,9 @@ final class ExamenController
             'junto_con' => $examen->juntoCon,
             'es_hoy' => $examen->esHoy,
             'rendido' => $examen->rendido,
-            'finalizado_en' => $examen->finalizadoEn,
             'con_ingresos' => $examen->conIngresos,
             'con_incidencias' => $examen->conIncidencias,
-            'codigos_aula' => $examen->codigosAula,
-            'auxiliares' => $examen->atienden,
+            'codigos_aula' => $examen->codigosDeAula,
         ];
     }
 
@@ -230,7 +223,7 @@ final class ExamenController
                     'id' => $grupo->id,
                     'codigo' => $grupo->codigo,
                     'docente' => $grupo->docente,
-                    'docente_id' => $grupo->docenteCuentaId,
+                    'docente_usuario_id' => $grupo->docenteUsuarioId,
                     'inscritos' => $grupo->inscritos,
                     'propio' => $grupo->propio,
                 ],
@@ -242,9 +235,19 @@ final class ExamenController
                     'nombre' => $aula->nombre,
                     'ubicacion' => $aula->ubicacion,
                     'edificio_id' => $aula->edificioId,
-                    'a_cargo' => $aula->aCargo,
-                    'apoyo' => $aula->apoyo,
-                    'codigo' => $aula->codigo,
+                    'encargado' => [
+                        'id' => $aula->encargado->id,
+                        'nombre' => $aula->encargado->nombre,
+                        'es_docente' => $aula->encargado->esDocente,
+                    ],
+                    'apoyo' => array_map(
+                        static fn (PersonaData $persona): array => [
+                            'id' => $persona->id,
+                            'nombre' => $persona->nombre,
+                        ],
+                        $aula->apoyo,
+                    ),
+                    'usa_codigo' => $aula->usaCodigo,
                 ],
                 $examen->aulas,
             ),

@@ -1,0 +1,63 @@
+' Flujo 1: el administrador prepara el periodo academico.
+@startuml flujo_1_preparar_periodo
+skinparam shadowing false
+skinparam defaultFontName "Helvetica Neue"
+skinparam ActivityBackgroundColor White
+skinparam ActivityBorderColor #1168BD
+skinparam ActivityBorderThickness 1.5
+skinparam ArrowColor #444444
+skinparam SwimlaneBorderColor #BBBBBB
+skinparam NoteBackgroundColor #FFF6E5
+skinparam NoteBorderColor #E8820C
+title Flujo 1 · Preparar el período académico
+
+|Sistema|
+start
+:Lee el cronograma público de la WebSIS:\nperíodo vigente de cada carrera;
+:Lee el calendario académico de la facultad:\ninicio, fin y ventanas de exámenes;
+:Con la fecha de hoy marca\nqué períodos están vigentes;
+note right
+  1 y 2 son los semestres,
+  0 es el período anual,
+  4 el curso de invierno.
+  Pueden estar vigentes dos
+  a la vez: 2/2026 y 0/2026.
+end note
+
+|Administrador|
+:Revisa el período detectado;
+if (¿Falta alguna fecha?) then (sí)
+  :Ajusta las fechas a mano;
+else (no)
+endif
+:Elige las facultades y ejecuta\nla importación de la oferta;
+
+|Sistema|
+:Lee la copia de datos de GENDA\ndel período;
+:Crea o actualiza carreras, asignaturas,\ngrupos, horarios y docentes;
+:Crea edificios y aulas con su ubicación;
+note right
+  Volver a importar no duplica:
+  compara por código.
+  «POR DESIGNAR DOCENTE»
+  deja el grupo sin docente.
+end note
+:Muestra el resumen y lo que quedó\npor completar;
+
+|Administrador|
+repeat
+  :Activa la cuenta de un docente:\ningresa su correo institucional;
+  |Sistema|
+  :Genera una contraseña temporal\ndistinta para esa cuenta;
+  :Marca la cuenta para cambio\nobligatorio en el primer ingreso;
+  |Administrador|
+repeat while (¿Quedan docentes\nque van a usar el sistema?) is (sí)
+->no;
+if (¿Tiene las inscripciones\nde la facultad?) then (sí)
+  :Carga el archivo de inscripciones\n(ver flujo 2);
+else (no)
+  :Deja que cada docente cargue\nla lista de su grupo;
+endif
+:Pone el período en estado activo;
+stop
+@enduml

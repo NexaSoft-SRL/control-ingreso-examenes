@@ -9,6 +9,5 @@ export default defineConfig({
         include: ['resources/js/**/*.test.{js,jsx}'],
         clearMocks: true,
         restoreMocks: true,
-        maxWorkers: 2,
     },
 });

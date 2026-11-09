@@ -10,8 +10,9 @@ La arquitectura interna divide el producto en módulos funcionales con límites 
 
 ## Módulos
 
-El backend contiene siete módulos:
+El backend contiene ocho módulos:
 
+- Academico
 - Estudiantes
 - Examenes
 - Habilitacion

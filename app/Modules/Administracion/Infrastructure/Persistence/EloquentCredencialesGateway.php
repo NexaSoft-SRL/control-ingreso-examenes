@@ -4,204 +4,53 @@ declare(strict_types=1);
 
 namespace App\Modules\Administracion\Infrastructure\Persistence;
 
-use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Application\Contracts\CredencialesGateway;
-use App\Modules\Administracion\Domain\Exceptions\ContrasenaRepetidaException;
 use App\Modules\Administracion\Domain\Models\User;
-use App\Modules\Administracion\Domain\Rules\NombreDeUsuario;
-use App\Modules\Administracion\Infrastructure\Mail\EnlaceRestablecimientoMail;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\URL;
-use Illuminate\Support\Str;
-use LogicException;
 
 final class EloquentCredencialesGateway implements CredencialesGateway
 {
-    public function __construct(private readonly BitacoraGateway $bitacora) {}
+    public function contrasenaCoincide(
+        int $usuarioId,
+        string $contrasena,
+    ): bool {
+        $usuario = User::find($usuarioId);
 
-    public function cambiar(int $usuarioId, ?string $contrasenaActual, string $nuevaContrasena): bool
-    {
-        return DB::transaction(function () use ($usuarioId, $contrasenaActual, $nuevaContrasena): bool {
-            $usuario = User::query()->whereKey($usuarioId)->lockForUpdate()->first();
+        if (! $usuario instanceof User) {
+            return false;
+        }
 
-            if (! $usuario instanceof User) {
-                return false;
-            }
+        $almacenada = $usuario->getAuthPassword();
 
-            $hash = $usuario->getAuthPassword();
-
-            if ($contrasenaActual === null) {
-                // Solo la cuenta con temporal cambia sin la actual.
-                if ($usuario->getAttribute('password_changed_at') !== null) {
-                    return false;
-                }
-            } elseif (! Hash::check($contrasenaActual, $hash)) {
-                return false;
-            }
-
-            if (Hash::check($nuevaContrasena, $hash)) {
-                throw new ContrasenaRepetidaException;
-            }
-
-            $usuario->forceFill([
-                'password' => Hash::make($nuevaContrasena),
-                'password_changed_at' => date('Y-m-d H:i:s'),
-                'password_temporal_expira_en' => null,
-                'failed_login_attempts' => 0,
-                'locked_until' => null,
-            ])->save();
-
-            return true;
-        }, 3);
+        return $almacenada !== '' && Hash::check($contrasena, $almacenada);
     }
 
-    public function solicitarRestablecimiento(string $usuario): void
-    {
-        $usuarioNormalizado = mb_strtolower(trim($usuario));
-        $cuenta = User::query()
-            ->whereRaw("replace(lower(usuario), ' ', '') = ?", [NombreDeUsuario::compacto($usuarioNormalizado)])
-            ->where('is_active', true)
-            ->first();
+    public function cambiarContrasena(
+        int $usuarioId,
+        string $nuevaContrasena,
+    ): void {
+        $usuario = User::find($usuarioId);
 
-        if (! $cuenta instanceof User) {
+        if (! $usuario instanceof User) {
             return;
         }
 
-        $correo = $cuenta->getAttribute('correo');
-
-        // Sin correo no hay a donde enviar el enlace: la respuesta es la
-        // misma que para una cuenta inexistente (la restablece el
-        // administrador con una temporal).
-        if (! is_string($correo) || trim($correo) === '') {
-            return;
-        }
-
-        $correoNormalizado = mb_strtolower(trim($correo));
-        $table = DB::table('password_reset_tokens');
-        /** @var object{email: string, token: string, created_at: string|\DateTimeInterface|null}|null $existente */
-        $existente = (clone $table)->where('email', $correoNormalizado)->first();
-        $cfgThrottle = config('auth.passwords.users.throttle', 60);
-        $throttle = is_numeric($cfgThrottle) ? (int) $cfgThrottle : 60;
-
-        $createdAtTimestamp = null;
-        if ($existente !== null && $existente->created_at !== null) {
-            if (is_string($existente->created_at)) {
-                $createdAtTimestamp = strtotime($existente->created_at);
-            } else {
-                $createdAtTimestamp = $existente->created_at->getTimestamp();
-            }
-        }
-
-        if (
-            $createdAtTimestamp !== null
-            && (time() - $createdAtTimestamp) < $throttle
-        ) {
-            return;
-        }
-
-        $token = Str::random(64);
-        $cfgExpire = config('auth.passwords.users.expire', 60);
-        $expire = is_numeric($cfgExpire) ? (int) $cfgExpire : 60;
-        $enlace = URL::to('/restablecer-contrasena?'.http_build_query([
-            'correo' => $correoNormalizado,
-            'token' => $token,
-        ]));
-
-        DB::table('password_reset_tokens')->updateOrInsert(
-            ['email' => $correoNormalizado],
-            ['token' => Hash::make($token), 'created_at' => date('Y-m-d H:i:s')],
-        );
-
-        Mail::to($correoNormalizado)->send(new EnlaceRestablecimientoMail(
-            nombre: $cuenta->name,
-            enlace: $enlace,
-            minutosVigencia: $expire,
-        ));
-
-        $usuarioId = $cuenta->getKey();
-
-        if (! is_int($usuarioId)) {
-            throw new LogicException('El identificador de la cuenta no es valido.');
-        }
-
-        $this->bitacora->registrar(
-            $usuarioId,
-            'contrasena.solicitar_restablecimiento',
-            'usuarios',
-            $usuarioId,
-            'Se solicitó un enlace de recuperación de contraseña.',
-        );
+        // El modelo cifra la contrasena mediante su cast 'hashed'.
+        $usuario->forceFill([
+            'password' => $nuevaContrasena,
+            'password_changed_at' => now(),
+            'password_temporal_expira_en' => null,
+        ])->save();
     }
 
-    public function restablecer(string $correo, string $token, string $contrasena): bool
+    public function debeCambiarContrasena(int $usuarioId): bool
     {
-        $correoNormalizado = mb_strtolower(trim($correo));
+        $usuario = User::find($usuarioId);
 
-        return DB::transaction(function () use ($correoNormalizado, $token, $contrasena): bool {
-            /** @var object{email: string, token: string, created_at: string|\DateTimeInterface|null}|null $fila */
-            $fila = DB::table('password_reset_tokens')
-                ->where('email', $correoNormalizado)
-                ->lockForUpdate()
-                ->first();
+        if (! $usuario instanceof User) {
+            return false;
+        }
 
-            $cfgExpire = config('auth.passwords.users.expire', 60);
-            $expire = is_numeric($cfgExpire) ? (int) $cfgExpire : 60;
-
-            if (
-                $fila === null
-                || $fila->created_at === null
-                || ! Hash::check($token, $fila->token)
-            ) {
-                return false;
-            }
-
-            $createdAtString = is_string($fila->created_at) ? $fila->created_at : 'now';
-            $expiraEn = new \DateTime($createdAtString);
-            $expiraEn->modify("+{$expire} minutes");
-
-            if (new \DateTime >= $expiraEn) {
-                return false;
-            }
-
-            $usuario = User::query()
-                ->whereRaw('lower(correo) = ?', [$correoNormalizado])
-                ->where('is_active', true)
-                ->lockForUpdate()
-                ->first();
-
-            if (! $usuario instanceof User) {
-                return false;
-            }
-
-            $usuario->forceFill([
-                'password' => Hash::make($contrasena),
-                'password_changed_at' => date('Y-m-d H:i:s'),
-                'password_temporal_expira_en' => null,
-                'failed_login_attempts' => 0,
-                'locked_until' => null,
-            ])->save();
-
-            DB::table('password_reset_tokens')->where('email', $correoNormalizado)->delete();
-            $usuarioId = $usuario->getKey();
-
-            if (! is_int($usuarioId)) {
-                throw new LogicException('El identificador de la cuenta no es valido.');
-            }
-
-            $sesionUserId = (string) $usuarioId;
-            DB::table('sessions')->where('user_id', $sesionUserId)->delete();
-
-            $this->bitacora->registrar(
-                $usuarioId,
-                'contrasena.restablecer_por_enlace',
-                'usuarios',
-                $usuarioId,
-                'Contraseña restablecida mediante enlace de recuperación.',
-            );
-
-            return true;
-        }, 3);
+        return $usuario->getAttribute('password_changed_at') === null;
     }
 }

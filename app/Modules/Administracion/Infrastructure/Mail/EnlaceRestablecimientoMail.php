@@ -23,7 +23,9 @@ final class EnlaceRestablecimientoMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Restablecer contraseña');
+        return new Envelope(
+            subject: 'Restablecimiento de contraseña',
+        );
     }
 
     public function content(): Content

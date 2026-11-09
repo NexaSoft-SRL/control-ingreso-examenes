@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
-import { api, suscribirSesion, SIN_SESION } from '../api/cliente';
+import { api, suscribirSesion, CAMBIAR_CONTRASENA, SIN_SESION } from '../api/cliente';
 import { olvidarEdificios } from '../api/usarEdificios';
 import Escudo from '../componentes/Escudo';
 
@@ -78,11 +78,17 @@ export function ProveedorSesion({ children }) {
         () =>
             suscribirSesion((evento) => {
                 if (evento === SIN_SESION) setUsuario(null);
+                if (evento === CAMBIAR_CONTRASENA) {
+                    setUsuario((previo) =>
+                        previo ? { ...previo, debe_cambiar_contrasena: true } : previo
+                    );
+                }
             }),
         []
     );
 
     const usuarioId = usuario?.id ?? null;
+    const conAcceso = usuario !== null && !usuario.debe_cambiar_contrasena;
 
     useEffect(() => {
         if (usuarioId === null) {
@@ -90,6 +96,7 @@ export function ProveedorSesion({ children }) {
             olvidarEdificios();
             return undefined;
         }
+        if (!conAcceso) return undefined;
         let vigente = true;
         api.get('/facultades')
             .then((respuesta) => vigente && setFacultades(respuesta.data?.data ?? []))
@@ -97,11 +104,11 @@ export function ProveedorSesion({ children }) {
         return () => {
             vigente = false;
         };
-    }, [usuarioId]);
+    }, [usuarioId, conAcceso]);
 
-    const entrar = useCallback(async (nombreUsuario, password) => {
+    const entrar = useCallback(async (nombre, password) => {
         const respuesta = await api.post('/auth/login', {
-            usuario: String(nombreUsuario).trim().toLowerCase(),
+            usuario: String(nombre).trim().toLowerCase(),
             password,
         });
         const cuenta = respuesta.data?.user ?? null;
@@ -109,37 +116,17 @@ export function ProveedorSesion({ children }) {
         return cuenta;
     }, []);
 
+    // Sin respuesta del servidor la sesión sigue abierta allá: se lanza el
+    // error para que la pantalla lo diga. Con cualquier respuesta (401, 419)
+    // la sesión ya no existe y el cliente se cierra.
     const salir = useCallback(async () => {
         try {
             await api.post('/auth/logout');
-        } catch {
-            // La sesión del cliente se cierra igual.
+        } catch (error) {
+            if (!error?.response) throw error;
         }
         setUsuario(null);
     }, []);
-
-    useEffect(() => {
-        if (!usuario) return undefined;
-
-        const minutos = Number(usuario.sesion_expira_en_minutos) || 15;
-        let temporizador;
-        const reiniciar = () => {
-            window.clearTimeout(temporizador);
-            temporizador = window.setTimeout(() => salir(), minutos * 60 * 1000);
-        };
-
-        ['pointerdown', 'keydown', 'touchstart'].forEach((evento) =>
-            window.addEventListener(evento, reiniciar, { passive: true })
-        );
-        reiniciar();
-
-        return () => {
-            window.clearTimeout(temporizador);
-            ['pointerdown', 'keydown', 'touchstart'].forEach((evento) =>
-                window.removeEventListener(evento, reiniciar)
-            );
-        };
-    }, [usuario, salir]);
 
     const valor = useMemo(
         () => ({

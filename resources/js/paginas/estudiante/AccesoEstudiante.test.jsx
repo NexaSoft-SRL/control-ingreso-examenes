@@ -13,7 +13,7 @@ function Donde() {
 
 function montar(rutas = {}) {
     simularApi(api, {
-        'POST /auth/estudiante/codigo': { correo: '2021•••17@est.umss.edu', minutos: 1440 },
+        'POST /auth/estudiante/codigo': { correo: '2021•••17@est.umss.edu', minutos: 10 },
         'POST /auth/estudiante': { estudiante: { id: 7 } },
         ...rutas,
     });
@@ -32,8 +32,8 @@ const escribir = (etiqueta, valor) =>
 describe('AccesoEstudiante', () => {
     it('pide el código SIS antes de enviar', () => {
         montar();
-        escribir(/Código universitario/, '123');
-        fireEvent.click(screen.getByRole('button', { name: 'Enviar código de acceso' }));
+        escribir(/Código SIS/, '123');
+        fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
 
         expect(screen.getByText('Entre 5 y 10 dígitos')).toBeInTheDocument();
         expect(api.post).not.toHaveBeenCalled();
@@ -41,11 +41,10 @@ describe('AccesoEstudiante', () => {
 
     it('envía el código al correo y entra con él', async () => {
         montar();
-        escribir(/Código universitario/, '202100417');
-        fireEvent.click(screen.getByRole('button', { name: 'Enviar código de acceso' }));
+        escribir(/Código SIS/, '202100417');
+        fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
 
         expect(await screen.findByText('2021•••17@est.umss.edu')).toBeInTheDocument();
-        expect(screen.getByText('Vence en 24 h')).toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith('/auth/estudiante/codigo', {
             codigo_universitario: '202100417',
         });
@@ -67,8 +66,8 @@ describe('AccesoEstudiante', () => {
                 codigo_prueba: '135790',
             },
         });
-        escribir(/Código universitario/, '202100417');
-        fireEvent.click(screen.getByRole('button', { name: 'Enviar código de acceso' }));
+        escribir(/Código SIS/, '202100417');
+        fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
 
         expect(await screen.findByText('Modo de prueba · 135790')).toBeInTheDocument();
     });
@@ -79,8 +78,8 @@ describe('AccesoEstudiante', () => {
                 errors: { codigo: ['Código no válido o vencido'] },
             }),
         });
-        escribir(/Código universitario/, '202100417');
-        fireEvent.click(screen.getByRole('button', { name: 'Enviar código de acceso' }));
+        escribir(/Código SIS/, '202100417');
+        fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
         await screen.findByRole('button', { name: 'Iniciar sesión' });
 
         escribir(/^Código/, '111111');
@@ -91,8 +90,8 @@ describe('AccesoEstudiante', () => {
 
     it('al pegar el código SIS con espacios o guiones conserva todos los dígitos', () => {
         montar();
-        escribir(/Código universitario/, '2024 100-07');
-        expect(screen.getByLabelText(/Código universitario/)).toHaveValue('202410007');
+        escribir(/Código SIS/, '2024 100-07');
+        expect(screen.getByLabelText(/Código SIS/)).toHaveValue('202410007');
     });
 
     it('reenviar confirma el envío y, si hay demasiados pedidos, lo dice', async () => {
@@ -103,8 +102,8 @@ describe('AccesoEstudiante', () => {
                     ? { correo: '2021•••17@est.umss.edu' }
                     : errorHttp(429, { message: 'Demasiados pedidos · espere 10 minutos' }),
         });
-        escribir(/Código universitario/, '202100417');
-        fireEvent.click(screen.getByRole('button', { name: 'Enviar código de acceso' }));
+        escribir(/Código SIS/, '202100417');
+        fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
         const reenviar = await screen.findByRole('button', { name: /Reenviar en/ });
         expect(reenviar).toBeDisabled();
     });

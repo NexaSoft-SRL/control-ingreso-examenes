@@ -1,0 +1,129 @@
+% Ficha HU-21 del sprint 3. Una historia = una vista completa: la lista de
+% un aula durante el examen, con quien falta, quien ingreso, quien fue
+% expulsado y las incidencias del aula.
+% Tipo: propia del sprint. La ficha v1 con este numero era otra historia.
+\def\HUNro{21}
+\def\HUSprint{3}
+\def\HUTitulo{Monitoreo > Lista del aula > Ver en vivo quién ingresó y quién falta}
+\def\HUModulo{M5}
+\def\HUReq{11}
+\def\HUPuntos{3}
+
+\def\HUComo{docente o auxiliar}
+\def\HUQuiero{ver en vivo quién entró y quién falta en mi aula}
+\def\HUPara{saber en cualquier momento cuántos faltan y resolver una duda sin revisar
+papeles}
+
+\def\HUDescripcion{%
+Mientras la puerta registra ingresos, quien está en el aula necesita saber quién falta.
+El pliego pide ver la lista de presentes y ausentes durante el examen. Esta vista es esa
+lista, aula por aula. El auxiliar la abre en «Mi aula» y ve el aula que atiende; el
+docente llega desde «En curso» (HU-22) con «Lista» y pasa a cualquier otra aula de su
+examen.
+
+Arriba van el aula, el examen y la hora del servidor, y tres cifras: ingresaron, faltan
+y asignados. Si hay incidencias del aula, van debajo. Luego la lista, en dos fichas:
+«Faltan», los habilitados con esta aula que todavía no ingresaron al examen, marcados
+«Ausente»; e «Ingresaron», los ingresos registrados en esta puerta, del más reciente al
+más antiguo, cada uno «Presente» con su hora o «Expulsado». La lista se pagina y se busca
+en el servidor, y se actualiza sola cada quince segundos.
+
+Reglas: la vista es de consulta y no modifica ningún ingreso. El expulsado sigue contado
+entre los que ingresaron. Quien tenía esta aula y entró por otra con un cambio de aula
+deja de faltar aquí y cuenta en la puerta por donde entró. Lo único que se escribe desde
+esta vista es una incidencia del aula, el día del examen, y su atención, que solo hace el
+docente.
+
+La vista depende de la habilitación y el reparto por aula (HU-09), de quién atiende cada
+aula (HU-18) y de los ingresos, las expulsiones y las incidencias que registra la puerta
+(HU-19). Las incidencias que se reportan o se atienden desde aquí quedan en la bitácora
+(HU-07).}
+
+\def\HUCriterios{%
+\item Dado que el docente pulsa «Lista» en un aula de «En curso», Cuando se abre la
+      vista, Entonces muestra «Aula» con su nombre, el tipo de examen, la asignatura y la
+      hora del servidor, el enlace «En curso» para volver y las cifras «Ingresaron»,
+      «Faltan» y «Asignados» del aula entera.
+\item Dado que el docente sigue un examen con varias aulas, Cuando elige otra en las
+      fichas «Aula», Entonces la lista pasa a esa aula y empieza de nuevo, sin búsqueda y
+      en la primera página.
+\item Dado que el auxiliar abre «Mi aula», Cuando la vista carga, Entonces muestra el
+      aula que atiende, a cargo o de apoyo, sin enlace para volver; si atiende varias
+      elige entre ellas en las fichas «Aula», que dicen el aula, la fecha, la hora y la
+      asignatura cuando son de exámenes distintos; si no atiende ninguna muestra «Lista
+      del aula» y «Sin aula asignada».
+\item Dado que la lista muestra «Faltan», que es la ficha inicial, Cuando carga,
+      Entonces trae a los habilitados con esa aula que no tienen ingreso en el examen,
+      por apellido, con código universitario y grupo, cada uno «Ausente».
+\item Dado que la persona elige «Ingresaron», Cuando carga, Entonces trae los ingresos
+      registrados en esa aula, del más reciente al más antiguo, cada uno «Presente» con la
+      hora de su ingreso o «Expulsado» si se registró su expulsión; el expulsado sigue
+      contado entre los que ingresaron.
+\item Dado que un estudiante con esta aula ingresó por otra con un cambio de aula,
+      Cuando se consulta la lista, Entonces ya no figura entre los que faltan aquí y
+      cuenta entre los que ingresaron en el aula por donde entró.
+\item Dado que la lista tiene más de 25 estudiantes, Cuando se recorre, Entonces se
+      pagina en el servidor de a 25, y las cifras de las fichas siguen siendo las del aula
+      entera.
+\item Dado que la persona escribe en «Nombre, código o documento», Cuando deja de
+      teclear, Entonces la lista se busca en el servidor por nombre, código universitario
+      o documento de identidad, sin distinguir mayúsculas ni tildes, y vuelve a la
+      primera página; si nadie coincide muestra «Sin resultados».
+\item Dado que la vista está abierta, Cuando pasan quince segundos, Entonces vuelve a
+      pedir la lista y las incidencias sin recargar la página; con la pestaña oculta se
+      detiene y al volver se actualiza en el acto. Tras tres fallos seguidos muestra «Sin
+      conexión» y conserva los últimos datos.
+\item Dado que el aula tiene incidencias reportadas por personas, Cuando se muestra la
+      vista, Entonces aparece «Incidencias» con su cantidad y, por cada una, el tipo, la
+      hora, el estudiante si se indicó, el detalle y quién la reportó con su rol; las
+      atendidas dicen «Atendida» con quién y cuándo. Los intentos que registra la puerta
+      por sí sola no se listan.
+\item Dado que una incidencia del aula está sin atender, Cuando la ve el docente,
+      Entonces pulsa «Atender» y el sistema avisa «Incidencia atendida»; el auxiliar la
+      ve como «Sin atender», sin botón.
+\item Dado que es el día del examen, Cuando la persona pulsa «Incidencia», Entonces
+      reporta una incidencia de esta aula con el mismo formulario de la puerta (HU-19), y
+      la lista de incidencias se actualiza.
+\item Dado que el ingreso está abierto y la cuenta tiene el permiso del punto de
+      control, Cuando se muestra la vista, Entonces ofrece «Controlar», que abre la
+      puerta de esa aula (HU-19).
+\item Dado que la vista es de consulta, Cuando se recorre, se filtra o se busca,
+      Entonces no se registra ni se corrige ningún ingreso ni se escribe en la bitácora;
+      las rutas de la lista no admiten otra operación que la consulta.
+\item Dado que el auxiliar intenta seguir un aula que no atiende, o la suya en otro día
+      que el del examen, Cuando se pide la lista, Entonces el sistema lo niega con «Esta
+      aula no es tuya.» o «Solo puedes seguir tu aula el día del examen.», que la vista
+      muestra en lugar de la lista.
+\item Dado que no hay sesión, el rol no tiene el permiso de seguimiento o el docente no
+      es del examen, Cuando se pide la lista, Entonces el sistema responde con una
+      negativa explícita; un aula que no es del examen da «Aula no encontrada.». En un
+      dispositivo móvil la vista va en una sola columna, con las cifras de a tres y la
+      condición de cada estudiante a la derecha, de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{AsistenciaDeAulaTest}: faltantes por apellido, ingresados del más reciente
+      al más antiguo, expulsado entre los ingresados, cambio de aula, paginación en el
+      servidor y estudiante en dos grupos (criterios 4 a 7).
+\item \texttt{AsistenciaDeAulaTest}: búsqueda por nombre y código sin mayúsculas ni
+      tildes, por documento de identidad, y validación de los filtros (criterio 8).
+\item \texttt{AsistenciaDeAulaTest}: auxiliar en su aula a cargo o de apoyo, fuera de su
+      aula, fuera del día del examen, docente de otro examen y aula fuera del examen
+      (criterios 3, 15 y 16).
+\item \texttt{EnCursoListadoTest}: exámenes y aulas que la cuenta puede seguir, auxiliar
+      solo con las aulas que atiende y cuenta sin ninguna (criterios 1 a 3).
+\item \texttt{IncidenciasTest}: listado por aula del más reciente al más antiguo,
+      intentos de la puerta excluidos, auxiliar solo en su aula, quién atendió y cuándo,
+      atención única y auxiliar que no atiende (criterios 10 y 11).
+\item \texttt{IncidenciasTest}: reporte de una incidencia en el aula y solo el día del
+      examen (criterio 12).
+\item \texttt{TableroTest}: rutas del seguimiento solo de lectura, sin escribir ingresos,
+      incidencias ni bitácora (criterio 14).
+\item \texttt{usarSondeo.test.jsx}: consulta periódica, pausa con la pestaña oculta y
+      «sin conexión» tras tres fallos (criterio 9).
+\item \texttt{Asistencia.test.jsx}: aula con sus cifras, condición de cada estudiante,
+      búsqueda, sin coincidencias, actualización cada 15 s, incidencias y su atención,
+      consulta sin escrituras, cambio de aula, reintento, «Mi aula» del auxiliar, sus
+      incidencias sin atender, reporte, sin aula asignada y varias aulas (criterios 1 a 5,
+      8 a 12 y 14).}
+
+\input{cuerpo}

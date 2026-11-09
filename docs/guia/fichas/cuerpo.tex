@@ -1,0 +1,150 @@
+% =====================================================================
+%  FICHA DE HISTORIA DE USUARIO  --  cuerpo comun del proyecto guia
+%
+%  Cada huNN.tex define antes de incluir este cuerpo:
+%    \HUNro, \HUTitulo, \HUModulo, \HUReq, \HUPuntos, \HUSprint,
+%    \HUComo, \HUQuiero, \HUPara, \HUDescripcion, \HUCriterios,
+%    \HUPruebas  y, cuando la interfaz ya existe, los mockups en
+%    mockups/huNN-escritorio.png y mockups/huNN-movil.png
+%
+%  Los criterios se redactan en formato Dado / Cuando / Entonces.
+% =====================================================================
+\documentclass[11pt,letterpaper]{article}
+\input{comun}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\raisebox{-3pt}{\LogoHorizontal{2.5cm}}}
+\fancyhead[R]{\footnotesize Ficha de historia de usuario \,$\cdot$\, \emph{sprint} \HUSprint}
+\fancyfoot[C]{\footnotesize \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\setlength{\arrayrulewidth}{0.8pt}
+\setlength{\tabcolsep}{4pt}
+
+\newcommand{\seccion}[1]{%
+  \vspace{0.6em}\needspace{6\baselineskip}\noindent{\Large\bfseries #1}\par
+  \vspace{0.2em}}
+
+% Caja que puede partirse entre paginas, para listas largas.
+\newtcolorbox{CajaAncha}{breakable, enhanced jigsaw, sharp corners,
+  colback=white, colframe=black, boxrule=0.8pt,
+  width=\dimexpr16.6cm+2\tabcolsep+2\arrayrulewidth+5pt\relax,
+  left=6pt, right=6pt, top=4pt, bottom=4pt}
+
+% Mockup: muestra la captura si existe; si no, deja constancia de que la
+% interfaz todavia no esta construida.
+\newcommand{\CajaMockup}[2]{%
+  \IfFileExists{mockups/#1.png}{%
+    \includegraphics[width=#2]{mockups/#1}}{%
+    \parbox[c][4.5cm][c]{#2}{\centering\itshape
+      Pendiente: se genera al terminar la interfaz\\[2pt]
+      \texttt{mockups/#1.png}}}}
+
+\begin{document}
+
+\noindent{\Large\bfseries Historia de Usuario \HUNro}
+\vspace{0.3em}
+
+\begin{center}
+\begin{tabular}{|C{1.7cm}|L{13.0cm}|C{1.5cm}|}
+\hline
+\rule{0pt}{1.4em}\textbf{HU-\HUNro} &
+\textbf{TÍTULO:} \HUTitulo &
+{\footnotesize\HUModulo\ $\cdot$ Req. \HUReq\ $\cdot$ \HUPuntos\ pts} \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{0.2em}
+\begin{center}
+\begin{tabular}{|L{16.6cm}|}
+\hline
+\rule{0pt}{1.2em}%
+\begin{minipage}[t]{16.0cm}
+\vspace{2pt}
+\textbf{Como} \HUComo\par
+\textbf{Quiero} \HUQuiero\par
+\textbf{Para} \HUPara
+\vspace{4pt}
+\end{minipage} \\
+\hline
+\end{tabular}
+\end{center}
+
+\seccion{Descripción}
+
+\begin{center}
+\begin{CajaAncha}
+\HUDescripcion
+\end{CajaAncha}
+\end{center}
+
+\seccion{Mockups}
+
+\begin{center}
+\begin{tabular}{|C{11.0cm}|C{5.4cm}|}
+\hline
+\rule{0pt}{1.2em}{\footnotesize\bfseries Escritorio} & {\footnotesize\bfseries Móvil} \\
+\CajaMockup{hu\HUNro-escritorio}{10.6cm} &
+\CajaMockup{hu\HUNro-movil}{4.4cm} \\[4pt]
+\hline
+\end{tabular}
+\end{center}
+
+\ifx\HUMockupsExtra\undefined\else
+\vspace{0.3em}
+\begin{center}
+\begin{tabular}{|C{8.2cm}|C{8.2cm}|}
+\hline
+\multicolumn{2}{|C{16.6cm}|}{%
+  \rule{0pt}{1.2em}{\footnotesize\bfseries Otras pantallas de la historia}} \\
+\HUMockupsExtra \\[4pt]
+\hline
+\end{tabular}
+\end{center}
+\fi
+% Las demas pantallas en pareja: cada escritorio con su celular al lado. La
+% tabla sigue en la pagina siguiente si no cabe.
+\ifx\HUMockupsPares\undefined\else
+\vspace{0.3em}
+\begin{longtable}{|C{11.0cm}|C{5.4cm}|}
+\hline
+\multicolumn{2}{|C{16.6cm}|}{%
+  \rule{0pt}{1.2em}{\footnotesize\bfseries Otras pantallas de la historia}} \\
+\hline
+\rule{0pt}{1.2em}{\footnotesize\bfseries Escritorio} & {\footnotesize\bfseries Móvil} \\
+\hline
+\endfirsthead
+\hline
+\rule{0pt}{1.2em}{\footnotesize\bfseries Escritorio} & {\footnotesize\bfseries Móvil} \\
+\hline
+\endhead
+\HUMockupsPares
+\end{longtable}
+\fi
+
+\seccion{Criterios de aceptación}
+
+\begin{center}
+\begin{CajaAncha}
+\begin{enumerate}[leftmargin=1.6em, itemsep=3pt, topsep=0.2em]
+\HUCriterios
+\end{enumerate}
+\end{CajaAncha}
+\end{center}
+
+\seccion{Pruebas automatizadas}
+
+\begin{center}
+\begin{CajaAncha}
+% Los nombres de archivo en monoespaciada no se parten: se prefiere el
+% margen derecho irregular antes que espacios enormes entre palabras.
+\raggedright
+\begin{itemize}[leftmargin=1.4em, itemsep=2pt, topsep=0.2em]
+\HUPruebas
+\end{itemize}
+\end{CajaAncha}
+\end{center}
+
+\end{document}

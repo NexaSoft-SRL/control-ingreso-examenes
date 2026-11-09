@@ -1,0 +1,101 @@
+% Ficha HU-01. Criterios tomados del backlog del sprint 1, de los criterios
+% que el equipo ya habia redactado y de lo observado por la consultora en la
+% sexta y la septima revision: notificacion de credenciales, cambio de
+% contrasena y no dejar cabos sueltos en "Olvidaste tu contrasena".
+\def\HUNro{01}
+\def\HUSprint{1}
+\def\HUTitulo{Login > Autenticación de usuarios > Acceder al sistema}
+\def\HUModulo{M7}
+\def\HUReq{16, 17}
+\def\HUPuntos{3}
+
+\def\HUComo{usuario registrado del sistema (Administrador, Docente, Personal de control)}
+\def\HUQuiero{autenticarme con mis credenciales institucionales}
+\def\HUPara{acceder únicamente a las funciones que corresponden a mi rol}
+
+\def\HUDescripcion{%
+Puerta de entrada del sistema y base de las demás historias: sin sesión iniciada no se
+accede a ninguna pantalla ni a ningún \emph{endpoint}.
+
+No existe registro público. Las cuentas las crea el Administrador y el sistema envía al
+usuario sus credenciales iniciales por correo institucional; en el primer ingreso se le
+exige cambiar la contraseña. Las contraseñas se guardan cifradas y nunca viajan ni se
+almacenan en texto plano.
+
+El acceso está protegido contra intentos por fuerza bruta: tras cinco intentos fallidos
+la cuenta se bloquea temporalmente, y el mensaje de error es siempre genérico, para no
+revelar si el correo existe. La sesión caduca por inactividad y el cierre de sesión es
+explícito.
+
+Quien olvida su contraseña pide un restablecimiento desde la propia pantalla de inicio de
+sesión: el sistema le envía un enlace de un solo uso a su correo, con vigencia limitada.
+Todo ingreso, salida e intento fallido queda asentado en la bitácora de operaciones
+(HU-07).}
+
+\def\HUCriterios{%
+\item Dado que el usuario no ha iniciado sesión y se encuentra en la pantalla de Login,
+      Cuando ingresa credenciales válidas y hace clic en ``Iniciar sesión'', Entonces el
+      sistema lo autentica y lo redirige al panel que corresponde a su rol.
+\item Dado que el usuario ingresa un correo o una contraseña incorrectos, Cuando intenta
+      iniciar sesión, Entonces el sistema muestra un mensaje genérico de credenciales
+      inválidas, sin revelar si la cuenta existe.
+\item Dado que el usuario deja vacío el correo o la contraseña, Cuando intenta iniciar
+      sesión, Entonces el sistema señala los campos requeridos y no envía el formulario.
+\item Dado que la contraseña se escribe en el formulario, Cuando el usuario la teclea,
+      Entonces el sistema la muestra enmascarada, con la opción de revelarla.
+\item Dado que un usuario no autenticado solicita una dirección protegida, Cuando envía la
+      petición, Entonces el sistema lo redirige a la pantalla de Login y, si era una
+      llamada a la API, responde con un código 401.
+\item Dado que el usuario ya autenticado decide salir, Cuando hace clic en ``Cerrar
+      sesión'', Entonces el sistema destruye la sesión y lo devuelve al Login.
+\item Dado que un usuario falla cinco veces seguidas al iniciar sesión, Cuando supera ese
+      límite, Entonces el sistema bloquea temporalmente la cuenta y rechaza incluso la
+      contraseña correcta hasta que venza el bloqueo.
+\item Dado que la sesión del usuario caduca por inactividad, Cuando intenta realizar una
+      acción, Entonces el sistema le exige autenticarse nuevamente.
+\item Dado que la cuenta de un usuario está inactiva, Cuando intenta iniciar sesión con
+      credenciales correctas, Entonces el sistema le niega el acceso.
+\item Dado que el Administrador crea una cuenta, Cuando la guarda, Entonces el sistema
+      envía al usuario sus credenciales iniciales a su correo institucional.
+\item Dado que el usuario ingresa por primera vez con las credenciales que recibió,
+      Cuando entra al sistema, Entonces se le exige definir una contraseña nueva antes de
+      continuar.
+\item Dado que el usuario olvidó su contraseña, Cuando usa ``¿Olvidaste tu contraseña?'' e
+      indica su correo, Entonces el sistema le envía un enlace de restablecimiento de un
+      solo uso y con vigencia limitada, y responde siempre igual exista o no ese correo.
+\item Dado que el usuario abre un enlace de restablecimiento vencido o ya utilizado,
+      Cuando intenta cambiar su contraseña, Entonces el sistema lo rechaza y le ofrece
+      solicitar uno nuevo.
+\item Dado que se produce un inicio de sesión, un cierre de sesión o un intento fallido,
+      Cuando ocurre, Entonces el sistema lo registra en la bitácora de operaciones.
+\item Dado que el usuario accede desde un dispositivo móvil, Cuando abre la pantalla de
+      Login, Entonces la interfaz se adapta de forma completamente responsiva.}
+
+\def\HUMockupsExtra{%
+\CajaMockup{hu01-olvide}{7.8cm} & \CajaMockup{hu01-restablecer}{7.8cm}}
+
+\def\HUPruebas{%
+\item \texttt{AuthenticationControllerTest}: ingreso correcto, mensaje genérico ante
+      credenciales incorrectas y validación de campos vacíos (criterios 1 a 3).
+\item \texttt{LoginSecurityTest} y \texttt{AuthenticationHardeningTest}: bloqueo tras
+      cinco intentos, rechazo de la contraseña correcta durante el bloqueo, cuenta
+      inactiva y metadatos del intento (criterios 7 y 9).
+\item \texttt{SessionInactivityTest}: caducidad de la sesión por inactividad
+      (criterio 8).
+\item \texttt{BitacoraSesionTest}: inicio, cierre e intento fallido asentados en la
+      bitácora, y que la contraseña enviada nunca queda registrada (criterio 14).
+\item \texttt{CambioContrasenaTest}: cambio con la contraseña actual, rechazo si no
+      coincide, confirmación obligatoria y bloqueo del resto de la API mientras siga
+      la contraseña inicial (criterio 11).
+\item \texttt{RestablecimientoContrasenaTest}: envío del enlace, respuesta idéntica
+      para una cuenta inexistente, enlace de un solo uso, vencimiento, token falso y
+      liberación del bloqueo (criterios 12 y 13).
+\item \texttt{CredencialesInicialesTest}: envío de credenciales al crear la cuenta, sin
+      devolver nunca la contraseña generada (criterio 10).
+\item Pruebas de las pantallas (\texttt{Login}, \texttt{OlvideContrasena},
+      \texttt{RestablecerContrasena} y \texttt{CambiarContrasena}): formularios,
+      mensajes de error y enmascarado de la contraseña (criterios 2 a 4).
+\item \texttt{Aplicacion.test.jsx}: redirección al Login sin sesión, cambio obligatorio
+      de contraseña y apertura del enlace del correo (criterios 5 y 11).}
+
+\input{cuerpo}

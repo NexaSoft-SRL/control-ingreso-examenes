@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Actions;
 
-use App\Modules\Ingreso\Application\Authorization\AlcanceCodigosQr;
+use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
+use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\CorreoQrGateway;
-use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
+use App\Modules\Ingreso\Application\Contracts\PuertaGateway;
 use App\Modules\Ingreso\Application\DTOs\AvisoData;
 use App\Modules\Ingreso\Application\DTOs\FiltroCodigosData;
-use App\Modules\Ingreso\Domain\Exceptions\ExamenAjenoException;
 use App\Modules\Ingreso\Domain\Exceptions\SinCodigosException;
 
 /**
@@ -24,22 +24,20 @@ use App\Modules\Ingreso\Domain\Exceptions\SinCodigosException;
 final readonly class EnviarAvisos
 {
     public function __construct(
-        private EmisionQrGateway $codigos,
+        private CodigoQrGateway $codigos,
         private CorreoQrGateway $correo,
-        private AlcanceCodigosQr $alcance,
+        private PuertaGateway $puerta,
+        private AlcancePuesto $alcance,
     ) {}
 
     /**
      * @return array{encolados: int, pendientes: int, tanda: string}
-     *
-     * @throws ExamenAjenoException
-     * @throws SinCodigosException
      */
     public function execute(
         int $examenId,
         FiltroCodigosData $filtro,
         ?string $recomendaciones,
-        int $usuarioId,
+        ?int $usuarioId,
         ?string $tanda = null,
     ): array {
         $this->alcance->exigirDocente($usuarioId, $examenId);
@@ -53,7 +51,7 @@ final readonly class EnviarAvisos
 
         $limite = $this->correo->tamanoDeLote();
         $continua = $tanda !== null;
-        $tanda ??= $this->correo->ahora();
+        $tanda ??= $this->puerta->horaServidor();
 
         $destinatarios = $this->codigos->paraAvisar(
             $examenId,
@@ -74,7 +72,7 @@ final readonly class EnviarAvisos
             ? 0
             : max(0, $this->codigos->porAvisar($examenId, $filtro, $tanda) - count($destinatarios));
 
-        $examen = $this->codigos->examen($examenId);
+        $examen = $this->puerta->examen($examenId);
         $texto = trim((string) $recomendaciones);
 
         return [

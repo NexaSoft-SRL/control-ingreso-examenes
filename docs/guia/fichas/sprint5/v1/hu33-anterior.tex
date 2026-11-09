@@ -1,0 +1,59 @@
+% Ficha HU-33. Criterios del backlog de la iteracion 5. Es el reporte que
+% justifica haber separado los tipos de incidencia en HU-23.
+\def\HUNro{33}
+\def\HUSprint{5}
+\def\HUTitulo{Reportes > Intentos no correspondientes}
+\def\HUModulo{M6}
+\def\HUReq{13}
+\def\HUPuntos{5}
+
+\def\HUComo{responsable académico}
+\def\HUQuiero{obtener los intentos de ingreso a exámenes que no correspondían}
+\def\HUPara{revisar los casos ocurridos}
+
+\def\HUDescripcion{%
+Este es el reporte para el que se registraron las incidencias de la puerta (HU-19 y
+HU-23). Lista los intentos de ingreso que el sistema rechazó porque el estudiante no
+correspondía: no figuraba en la lista del examen, no estaba habilitado, o se presentó en
+un ambiente que no era el suyo.
+
+Cada fila dice la hora, el estudiante, el examen al que intentó entrar y ---el dato que
+convierte un rechazo en información útil--- el examen en el que sí estaba habilitado ese
+mismo día. Con eso se distingue al que se equivocó de aula del que no tenía nada que hacer
+ahí, y se ve si el problema fue del estudiante o de cómo se le comunicó su ambiente.
+
+Cuando el estudiante no pudo identificarse, la fila queda sin nombre: es el caso que
+HU-25 registra aparte como situación excepcional.
+
+Se filtra por fecha y por ambiente ---el de la puerta donde ocurrió el intento---, y se
+exporta como los demás (HU-34).}
+
+\def\HUCriterios{%
+\item Dado un intento rechazado, Cuando se pide el reporte, Entonces lista el estudiante,
+      el examen al que intentó ingresar y la hora.
+\item Dado que el estudiante estaba habilitado en otro examen ese día, Cuando se lo ve en
+      el reporte, Entonces consta cuál era el examen que le correspondía.
+\item Dado que no le correspondía ningún examen ese día, Cuando se lo ve en el reporte,
+      Entonces la columna lo dice en vez de quedar vacía.
+\item Dado que hay intentos en varias puertas, Cuando se filtra por ambiente, Entonces
+      solo figuran los de esa puerta.
+\item Dado que se indica un rango de fechas, Cuando se pide el reporte, Entonces solo
+      figuran los intentos de ese rango.
+\item Dado un ingreso duplicado (HU-22), Cuando se pide el reporte, Entonces no figura:
+      ahí el estudiante sí estaba donde debía.
+\item Dado que un rol no tiene el permiso de reportes consolidados, Cuando pide el
+      reporte, Entonces el sistema responde con una negativa explícita.}
+
+\def\HUPruebas{%
+\item \texttt{ReportesTest::the\_attempts\_report\_says\_which\_exam\_was\_the\_right\_one}
+      (criterios 1, 2 y 3).
+\item \texttt{ReportesTest::the\_attempts\_report\_is\_filtered\_by\_date\_and\_room}
+      (criterios 4 y 5).
+\item \texttt{ReportesTest::the\_academic\_officer\_reaches\_the\_consolidated\_reports\_only}
+      y \texttt{the\_teacher\_reaches\_the\_reports\_of\_the\_subject\_only} (criterio 7).
+\item \texttt{DobleIngresoTest} y \texttt{TipoIntento}: el ingreso duplicado queda fuera
+      de los tipos que cuenta el reporte (criterio 6).
+\item \texttt{Reportes.test.jsx}: la pestaña de intentos, incluida la tabla vacía
+      (criterios 1 y 3).}
+
+\input{cuerpo}

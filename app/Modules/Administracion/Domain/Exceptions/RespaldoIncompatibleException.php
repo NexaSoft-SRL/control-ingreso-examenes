@@ -6,12 +6,8 @@ namespace App\Modules\Administracion\Domain\Exceptions;
 
 use RuntimeException;
 
-final class RespaldoIncompatibleException extends RuntimeException
-{
-    public function __construct(
-        string $message = 'El respaldo corresponde a una versión anterior incompatible.',
-        public readonly ?int $respaldoId = null,
-    ) {
-        parent::__construct($message);
-    }
-}
+/**
+ * El archivo es de un esquema anterior: su guion nombra tablas y columnas
+ * que ya no existen y no puede reponerse sobre el esquema actual.
+ */
+final class RespaldoIncompatibleException extends RuntimeException {}

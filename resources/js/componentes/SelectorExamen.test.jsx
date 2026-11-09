@@ -18,31 +18,35 @@ const EXAMENES = [
 ];
 
 describe('SelectorExamen', () => {
-    it('lista los exámenes con fecha, tipo y asignatura', () => {
+    it('muestra el elegido y lista los exámenes con su tipo, asignatura y fecha', () => {
         const onCambiar = vi.fn();
         render(<SelectorExamen valor={2} onCambiar={onCambiar} examenes={EXAMENES} />);
-        const lista = screen.getByRole('combobox', { name: /Examen/ });
+        const boton = screen.getByRole('button', { name: /^Examen:/ });
 
-        expect(lista).toHaveValue('2');
-        expect(
-            screen.getByRole('option', {
-                name: '12 oct · Primer parcial · Introducción a la Programación',
-            })
-        ).toBeInTheDocument();
-        fireEvent.change(lista, { target: { value: '1' } });
+        expect(boton).toHaveTextContent('Taller de Ingeniería de Software');
+        expect(boton).toHaveTextContent('Primer parcial · 20 oct');
+        fireEvent.click(boton);
+        expect(screen.getByRole('option', { selected: true })).toHaveTextContent(
+            'Taller de Ingeniería de Software'
+        );
+        fireEvent.click(screen.getByRole('option', { name: /^Introducción a la Programación/ }));
         expect(onCambiar).toHaveBeenCalledWith(1);
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     });
 
-    it('ordena por fecha y hora', () => {
-        const desordenados = [
-            { ...examen(1, 'Cálculo I', '2026-10-20'), hora: '08:15' },
-            { ...examen(2, 'Física I', '2026-10-12'), hora: '14:15' },
-            { ...examen(3, 'Álgebra I', '2026-10-12'), hora: '09:45' },
-        ];
-        render(<SelectorExamen valor={1} onCambiar={() => {}} examenes={desordenados} />);
+    it('se maneja con el teclado', () => {
+        const onCambiar = vi.fn();
+        render(<SelectorExamen valor={1} onCambiar={onCambiar} examenes={EXAMENES} />);
+        const boton = screen.getByRole('button', { name: /^Examen:/ });
 
-        expect(screen.getAllByRole('option').map((o) => o.value)).toEqual(['3', '2', '1']);
-        expect(screen.getByRole('combobox', { name: /Examen/ })).toHaveValue('1');
+        fireEvent.keyDown(boton, { key: 'ArrowDown' });
+        fireEvent.keyDown(boton, { key: 'ArrowDown' });
+        fireEvent.keyDown(boton, { key: 'Enter' });
+        expect(onCambiar).toHaveBeenCalledWith(2);
+
+        fireEvent.keyDown(boton, { key: 'Enter' });
+        fireEvent.keyDown(boton, { key: 'Escape' });
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     });
 
     it('con más de seis agrupa por asignatura', () => {
@@ -50,6 +54,7 @@ describe('SelectorExamen', () => {
             examen(i + 1, i < 4 ? 'Cálculo I' : 'Álgebra I')
         );
         render(<SelectorExamen valor={1} onCambiar={() => {}} examenes={muchos} />);
+        fireEvent.click(screen.getByRole('button', { name: /^Examen:/ }));
 
         expect(screen.getByRole('group', { name: 'Cálculo I' })).toBeInTheDocument();
         expect(screen.getByRole('group', { name: 'Álgebra I' })).toBeInTheDocument();

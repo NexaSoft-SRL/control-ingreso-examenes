@@ -12,7 +12,6 @@ use App\Modules\Estudiantes\Application\DTOs\SolicitudCargaData;
 use App\Modules\Estudiantes\Domain\Exceptions\ArchivoRechazadoException;
 use App\Modules\Estudiantes\Domain\Exceptions\GrupoAjenoException;
 use App\Modules\Estudiantes\Domain\Exceptions\PeriodoCerradoException;
-use App\Modules\Estudiantes\Http\Requests\AgregarInscritoRequest;
 use App\Modules\Estudiantes\Http\Requests\CargarInscritosRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
@@ -69,26 +68,10 @@ final class CargaInscritosController
         );
     }
 
-    /**
-     * Un estudiante suelto a la lista del grupo, sin archivo: las mismas
-     * reglas que una fila de la lista (ruta 41).
-     */
-    public function agregar(AgregarInscritoRequest $request, int $grupo): JsonResponse
-    {
-        return $this->procesar(
-            SolicitudCargaData::aMano($grupo, (int) Auth::id()),
-            'Grupo no encontrado.',
-            $request->fila(),
-        );
-    }
-
-    /**
-     * @param  list<string>|null  $aMano
-     */
-    private function procesar(SolicitudCargaData $solicitud, string $noEncontrado, ?array $aMano = null): JsonResponse
+    private function procesar(SolicitudCargaData $solicitud, string $noEncontrado): JsonResponse
     {
         try {
-            $resultado = $this->cargar->execute($solicitud, $aMano);
+            $resultado = $this->cargar->execute($solicitud);
         } catch (GrupoAjenoException $excepcion) {
             return response()->json([
                 'message' => $excepcion->getMessage(),

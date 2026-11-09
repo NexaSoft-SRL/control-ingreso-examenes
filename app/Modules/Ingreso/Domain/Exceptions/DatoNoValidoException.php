@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Domain\Exceptions;
 
-use InvalidArgumentException;
+use RuntimeException;
 
 /**
- * Un dato que no se acepta, con el campo del formulario al que pertenece.
+ * Un dato de la peticion no cuadra con el estado del examen o del aula.
+ * Se responde como un error de validacion del campo.
  */
-final class DatoNoValidoException extends InvalidArgumentException
+final class DatoNoValidoException extends RuntimeException
 {
     public function __construct(
         public readonly string $campo,

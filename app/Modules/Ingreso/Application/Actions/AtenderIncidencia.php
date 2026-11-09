@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Actions;
 
-use App\Modules\Ingreso\Application\Authorization\AlcancePuerta;
+use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaGateway;
 use App\Modules\Ingreso\Domain\Exceptions\IncidenciaYaAtendidaException;
 
@@ -15,10 +15,10 @@ final readonly class AtenderIncidencia
 {
     public function __construct(
         private IncidenciaGateway $incidencias,
-        private AlcancePuerta $alcance,
+        private AlcancePuesto $alcance,
     ) {}
 
-    public function ejecutar(int $incidenciaId, int $examenId, int $usuarioId): void
+    public function execute(int $incidenciaId, int $examenId, int $usuarioId): void
     {
         $this->alcance->exigirDocente($usuarioId, $examenId);
 

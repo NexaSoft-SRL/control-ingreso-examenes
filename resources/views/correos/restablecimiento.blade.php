@@ -1,14 +1,18 @@
-<x-mail::message>
-# Hola, {{ $nombre }}
+@component('mail::message')
+# Restablecimiento de contraseña
 
-Recibimos una solicitud para restablecer la contraseña de su cuenta de Control de exámenes.
+{{ $nombre }}:
 
-<x-mail::button :url="$enlace">
-Restablecer contraseña
-</x-mail::button>
+Recibimos una solicitud para restablecer la contraseña de su cuenta en el sistema de
+control de exámenes.
 
-El enlace vence en {{ $minutosVigencia }} minutos y solo puede utilizarse una vez. Si no solicitó este cambio, ignore este mensaje.
+@component('mail::button', ['url' => $enlace])
+Definir una contraseña nueva
+@endcomponent
 
-Saludos,<br>
-Control de exámenes
-</x-mail::message>
+El enlace sirve una sola vez y vence en {{ $minutosVigencia }} minutos. Si no lo
+solicitó, no hace falta hacer nada: su contraseña sigue igual.
+
+Gracias,
+{{ config('app.name') }}
+@endcomponent

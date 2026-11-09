@@ -1,0 +1,68 @@
+% Ficha HU-18. Criterios tomados del backlog de la iteracion 3. El lector
+% se carga solo cuando se lo usa: en un telefono viejo pesa mas que toda la
+% pantalla.
+\def\HUNro{18}
+\def\HUSprint{3}
+\def\HUTitulo{Punto de control > Identificación > Por lectura de código QR}
+\def\HUModulo{M4}
+\def\HUReq{4}
+\def\HUPuntos{8}
+
+\def\HUComo{personal de control}
+\def\HUQuiero{leer el código QR con la cámara del teléfono}
+\def\HUPara{registrar el ingreso en segundos}
+
+\def\HUDescripcion{%
+La lectura del código QR es el camino rápido de la puerta: apuntar la cámara y tener al
+estudiante identificado antes de que termine de guardar su tarjeta.
+
+Funciona desde el navegador del teléfono, sin instalar ninguna aplicación. El lector se
+descarga solo cuando el personal pulsa el botón de la cámara, para que la pantalla siga
+abriéndose rápido en un equipo modesto.
+
+Un código emitido para otro examen se rechaza diciendo a cuál pertenece, para que el
+personal mande al estudiante al aula correcta en vez de dejarlo dando vueltas. Un código
+adulterado, de otro sistema o ilegible produce un aviso y deja la pantalla lista para la
+identificación manual por código o documento (HU-15 y HU-16): la fila nunca se traba por
+un código roto.
+
+Todo intento con un código desconocido queda registrado como incidencia, junto con los
+demás rechazos de la puerta.}
+
+\def\HUCriterios{%
+\item Dado que el personal de control abre la lectura, Cuando pulsa el botón de la cámara,
+      Entonces el navegador del teléfono activa el lector sin instalar nada.
+\item Dado que se lee un código válido del examen, Cuando el lector lo reconoce, Entonces
+      el sistema muestra al estudiante con su condición y su ambiente.
+\item Dado que el código pertenece a otro examen, Cuando se lo lee, Entonces el sistema lo
+      rechaza indicando a qué examen corresponde.
+\item Dado que el código está adulterado o no fue emitido por el sistema, Cuando se lo
+      lee, Entonces el sistema muestra un aviso y permite seguir por la identificación
+      manual.
+\item Dado que la cámara no se puede abrir, Cuando falla el permiso del navegador,
+      Entonces el sistema lo informa y ofrece la identificación manual.
+\item Dado que se lee un código de un estudiante inhabilitado, Cuando el sistema responde,
+      Entonces muestra su condición y el motivo.
+\item Dado que se lee un código desconocido, Cuando ocurre, Entonces queda registrado como
+      incidencia del examen.
+\item Dado que un rol no tiene el permiso del punto de control, Cuando intenta leer un
+      código, Entonces el sistema responde con una negativa explícita.
+\item Dado que el personal de control usa un teléfono, Cuando abre el lector, Entonces la
+      interfaz se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{LecturaQrTest::reading\_a\_code\_answers\_with\_the\_student\_and\_its\_condition}:
+      lectura válida (criterio 2).
+\item \texttt{LecturaQrTest::a\_code\_of\_another\_exam\_is\_refused\_saying\_which\_one}:
+      código de otro examen (criterio 3).
+\item \texttt{LecturaQrTest::an\_unknown\_code\_lets\_the\_door\_fall\_back\_to\_manual}:
+      código adulterado y vuelta a lo manual (criterio 4).
+\item \texttt{LecturaQrTest::the\_reading\_reports\_a\_student\_that\_is\_not\_enabled}:
+      condición y motivo del inhabilitado (criterio 6).
+\item \texttt{LecturaQrTest::an\_unknown\_code\_is\_recorded\_as\_an\_incident}: la
+      incidencia del código desconocido (criterio 7).
+\item \texttt{LecturaQrTest}: token obligatorio y rol sin el permiso (criterio 8).
+\item \texttt{PuntoControl.test.jsx}: el botón de la cámara y el aviso que devuelve la
+      pantalla a la identificación manual (criterios 1 y 5).}
+
+\input{cuerpo}

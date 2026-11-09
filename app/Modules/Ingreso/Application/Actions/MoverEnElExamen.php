@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Actions;
 
-use App\Modules\Ingreso\Application\Authorization\AlcancePuerta;
+use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
 use App\Modules\Ingreso\Application\Contracts\ControlPuertaGateway;
 use App\Modules\Ingreso\Domain\Exceptions\DatoNoValidoException;
 
@@ -16,7 +16,7 @@ use App\Modules\Ingreso\Domain\Exceptions\DatoNoValidoException;
 final readonly class MoverEnElExamen
 {
     public function __construct(
-        private AlcancePuerta $alcance,
+        private AlcancePuesto $alcance,
         private ControlPuertaGateway $control,
     ) {}
 
@@ -26,7 +26,7 @@ final readonly class MoverEnElExamen
      *
      * @throws DatoNoValidoException
      */
-    public function ejecutar(int $examenId, int $deAulaId, int $aAulaId, int $autorId, ?int $usuarioId = null): int
+    public function execute(int $examenId, int $deAulaId, int $aAulaId, int $autorId, ?int $usuarioId = null): int
     {
         $this->alcance->exigirDocente($autorId, $examenId);
 
@@ -35,7 +35,9 @@ final readonly class MoverEnElExamen
         }
 
         if ($usuarioId !== null) {
-            return match ($this->control->trasladarPersona($examenId, $usuarioId, $deAulaId, $aAulaId, $autorId)) {
+            $resultado = $this->control->trasladarPersona($examenId, $usuarioId, $deAulaId, $aAulaId, $autorId);
+
+            return match ($resultado) {
                 'OK' => 1,
                 'NO_ESTA' => throw new DatoNoValidoException('usuario_id', 'No atiende esa aula.'),
                 default => throw new DatoNoValidoException('a_aula_id', 'El aula no es de este examen.'),

@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, CheckCircle2, GraduationCap } from 'lucide-react';
+import {
+    ArrowLeft,
+    CheckCircle2,
+    GraduationCap,
+    Hash,
+    IdCard,
+    Info,
+    LogIn,
+    Send,
+} from 'lucide-react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
@@ -15,9 +24,6 @@ const ESPERA_REENVIO = 30;
 // Primero se quitan los no dígitos y después se recorta: así un código
 // pegado con espacios o guiones («2024 100 07») no pierde dígitos.
 const soloDigitos = (texto, largo) => texto.replace(/\D/g, '').slice(0, largo);
-
-// Cuánto vale el código: «24 h» o, si no son horas justas, «N min».
-const venceEn = (minutos = 1440) => (minutos % 60 === 0 ? `${minutos / 60} h` : `${minutos} min`);
 
 function errorDeSis(valor) {
     if (valor === '') return 'Obligatorio';
@@ -148,17 +154,23 @@ export default function AccesoEstudiante() {
 
                     {envio ? (
                         <form className="space-y-4" noValidate onSubmit={entrar}>
-                            <div className="text-sm text-slate-700">
-                                <p>
-                                    Código SIS{' '}
-                                    <span className="font-medium text-slate-900">{sis}</span>
-                                </p>
-                                <p>
-                                    Enviado a{' '}
-                                    <span className="break-all font-medium text-slate-900">
-                                        {envio.correo}
-                                    </span>
-                                </p>
+                            <div className="flex gap-3 rounded-lg border border-primary-100 bg-primary-50 px-3.5 py-3 text-sm text-slate-700">
+                                <Info
+                                    className="mt-0.5 h-4 w-4 shrink-0 text-primary-600"
+                                    aria-hidden="true"
+                                />
+                                <div className="min-w-0">
+                                    <p>
+                                        Código SIS{' '}
+                                        <span className="font-medium text-slate-900">{sis}</span>
+                                    </p>
+                                    <p>
+                                        Enviado a{' '}
+                                        <span className="break-all font-medium text-slate-900">
+                                            {envio.correo}
+                                        </span>
+                                    </p>
+                                </div>
                             </div>
                             {reenviado && (
                                 <p
@@ -184,7 +196,8 @@ export default function AccesoEstudiante() {
                             <Campo
                                 ref={campoCodigo}
                                 etiqueta="Código"
-                                ayuda={`Vence en ${venceEn(envio.minutos)}`}
+                                iconoEtiqueta={Hash}
+                                ayuda={`Vence en ${envio.minutos ?? 10} min`}
                                 inputMode="numeric"
                                 autoComplete="one-time-code"
                                 placeholder="000000"
@@ -196,7 +209,8 @@ export default function AccesoEstudiante() {
                                     setErrores({});
                                 }}
                             />
-                            <Boton type="submit" className="w-full" disabled={enviando}>
+                            <Boton type="submit" className="w-full" cargando={enviando}>
+                                {!enviando && <LogIn className="h-4 w-4" aria-hidden="true" />}
                                 Iniciar sesión
                             </Boton>
                             <div className="flex justify-between gap-2">
@@ -222,10 +236,11 @@ export default function AccesoEstudiante() {
                     ) : (
                         <form className="space-y-4" noValidate onSubmit={pedirCodigo}>
                             <Campo
-                                etiqueta="Código universitario"
+                                etiqueta="Código SIS"
+                                iconoEtiqueta={IdCard}
                                 inputMode="numeric"
                                 autoComplete="username"
-                                placeholder="Ej: 20251234"
+                                placeholder="202100417"
                                 autoFocus
                                 value={sis}
                                 error={errores.sis}
@@ -234,12 +249,10 @@ export default function AccesoEstudiante() {
                                     setErrores({});
                                 }}
                             />
-                            <Boton type="submit" className="w-full" disabled={enviando}>
-                                Enviar código de acceso
+                            <Boton type="submit" className="w-full" cargando={enviando}>
+                                {!enviando && <Send className="h-4 w-4" aria-hidden="true" />}
+                                Enviar código al correo
                             </Boton>
-                            <p className="text-center text-sm text-slate-600">
-                                Recibirá el código de acceso en su correo institucional.
-                            </p>
                         </form>
                     )}
                 </div>

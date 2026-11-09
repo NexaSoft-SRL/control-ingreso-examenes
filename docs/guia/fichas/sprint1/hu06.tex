@@ -1,0 +1,77 @@
+% Ficha HU-06. Criterios tomados del backlog del sprint 1. El aforo frente a
+% los habilitados se verifica en HU-10, cuando el examen ya tiene ambientes.
+\def\HUNro{06}
+\def\HUSprint{1}
+\def\HUTitulo{Administración > Ambientes > Registrar ambiente}
+\def\HUModulo{M2}
+\def\HUReq{2, 10}
+\def\HUPuntos{3}
+
+\def\HUComo{administrador}
+\def\HUQuiero{registrar los ambientes con su capacidad}
+\def\HUPara{que cada examen indique en qué ambiente se rinde y el personal de control
+verifique que el estudiante ingresa al que le corresponde}
+
+\def\HUDescripcion{%
+El ambiente es el aula donde se rinde el examen. Sin este catálogo, ni se puede asignar un
+examen a un aula ni el personal de control puede verificar en la puerta que el estudiante
+entró donde le tocaba.
+
+De cada ambiente se registran su identificación ---única---, el edificio donde está, su
+capacidad y su estado. La capacidad es un número positivo: un aula de cero personas no
+sirve para un examen. El estado se limita a tres valores conocidos: disponible, en
+mantenimiento y ocupado.
+
+Un ambiente en mantenimiento o inactivo no puede elegirse para un examen. Esa restricción
+se aplica cuando el examen asigna sus ambientes, en HU-10; aquí queda registrado el estado
+que la hace posible.
+
+La pantalla comparte permiso con la de asignaturas, porque son la misma vista. Cada alta,
+edición y eliminación queda asentada en la bitácora (HU-07).}
+
+\def\HUCriterios{%
+\item Dado que el administrador abre Asignaturas y ambientes, Cuando se carga la pantalla,
+      Entonces el sistema lista los ambientes con su identificación, edificio, capacidad y
+      estado.
+\item Dado que se registra un ambiente, Cuando se indican identificación, edificio,
+      capacidad y estado, Entonces el sistema lo guarda y lo muestra en la lista.
+\item Dado que la identificación ya pertenece a otro ambiente, Cuando se intenta guardar,
+      Entonces el sistema rechaza el registro indicando el campo repetido.
+\item Dado que la capacidad es cero o negativa, Cuando se intenta guardar, Entonces el
+      sistema lo rechaza.
+\item Dado que el estado no es uno de los valores conocidos, Cuando se intenta guardar,
+      Entonces el sistema lo rechaza.
+\item Dado que un ambiente entra en mantenimiento, Cuando se cambia su estado, Entonces el
+      sistema lo actualiza y la lista lo muestra distinguido de los disponibles.
+\item Dado que un ambiente en mantenimiento o inactivo figura en el catálogo, Cuando se
+      arma un examen, Entonces no puede elegirse para él.
+\item Dado que un ambiente ya no se usa, Cuando se lo elimina, Entonces el sistema lo
+      borra del catálogo.
+\item Dado que el ambiente tiene estudiantes asignados en exámenes por rendirse, Cuando
+      se intenta bajarle la capacidad por debajo de esa cantidad, Entonces el sistema lo
+      rechaza indicando cuántos hay asignados.
+\item Dado que un rol no tiene el permiso de asignaturas y ambientes, Cuando intenta
+      administrar ambientes, Entonces el sistema responde con una negativa explícita que
+      nombra el permiso.
+\item Dado que se registra, edita o elimina un ambiente, Cuando la operación se completa,
+      Entonces queda asentada en la bitácora con su autor.
+\item Dado que el administrador accede desde un dispositivo móvil, Cuando abre la
+      pantalla, Entonces la interfaz se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{AmbientesTest}: alta con los cuatro campos, identificación única, capacidad
+      positiva y estado limitado a los valores conocidos (criterios 2 a 5).
+\item \texttt{AmbientesTest}: listado, paso a mantenimiento y eliminación (criterios 1, 6
+      y 8).
+\item \texttt{AmbientesTest}: un rol sin el permiso recibe 403 y sin sesión la respuesta
+      es 401 (criterio 10).
+\item \texttt{AmbientesTest::every\_movement\_is\_recorded\_in\_the\_audit\_log}: alta,
+      edición y eliminación asentadas en la bitácora (criterio 11).
+\item \texttt{CapacidadAmbienteTest}: la capacidad no baja de los estudiantes asignados,
+      sí puede bajar hasta esa cantidad exacta o crecer, y un examen ya rendido o anulado
+      no reserva el aula (criterio 9).
+\item \texttt{AsignaturasAmbientes.test.jsx}: listado de ambientes, formulario con
+      edificio, capacidad y estado, eliminación y el motivo del rechazo por capacidad
+      (criterios 1, 2, 8 y 9).}
+
+\input{cuerpo}

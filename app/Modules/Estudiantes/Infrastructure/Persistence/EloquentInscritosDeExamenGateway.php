@@ -32,10 +32,11 @@ final class EloquentInscritosDeExamenGateway implements InscritosDeExamenGateway
                     ->selectRaw('1')
                     ->from('inscripciones as i')
                     ->whereColumn('i.estudiante_id', 'e.id')
-                    ->whereIn('i.grupo_id', $grupoIds);
+                    ->whereIn('i.grupo_id', $grupoIds)
+                    ->whereNull('i.baja_en');
             })
-            ->orderBy('e.apellidos')
-            ->orderBy('e.nombres')
+            ->orderByRaw("translate(lower(e.apellidos), 'áéíóúüñ', 'aeiouun')")
+            ->orderByRaw("translate(lower(e.nombres), 'áéíóúüñ', 'aeiouun')")
             ->orderBy('e.id')
             ->get(['e.id', 'e.codigo_universitario', 'e.documento_identidad', 'e.nombres', 'e.apellidos', 'e.verificado']);
 

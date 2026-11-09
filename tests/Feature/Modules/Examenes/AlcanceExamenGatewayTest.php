@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Modules\Examenes;
 
 use App\Modules\Examenes\Application\Contracts\AlcanceExamenGateway;
-use App\Modules\Examenes\Domain\Models\ExamenAulaPersonal;
+use Database\Factories\UserFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\DatosAcademicos;
 use Tests\Support\DatosDeExamen;
@@ -51,27 +51,81 @@ final class AlcanceExamenGatewayTest extends TestCase
         $this->assertFalse($this->alcance()->esDocenteDelExamen((int) $registra->user_id, $examen->id + 1));
     }
 
-    public function test_aulas_que_atiende_returns_assigned_rooms_for_user(): void
+    public function test_room_is_attended_by_its_keeper_and_by_its_support_only(): void
     {
         $docente = $this->docenteConCuenta();
-        $aula1 = $this->aula('A1');
-        $aula2 = $this->aula('A2');
-        $examen = $this->examen($docente, [$this->grupo($docente)], [$aula1, $aula2]);
+        $propia = $this->aula();
+        $delegada = $this->aula();
+        $examen = $this->examen($docente, [$this->grupo($docente)], [$propia, $delegada]);
 
-        ExamenAulaPersonal::create([
-            'examen_id' => $examen->id,
-            'aula_id' => $aula1->id,
-            'usuario_id' => $docente->user_id,
-            'rol' => 'a_cargo',
-        ]);
+        $encargado = $this->auxiliar();
+        $apoyo = $this->auxiliar();
+        $ajeno = $this->auxiliar();
+
+        $this->ponerACargo($examen, $delegada, $encargado);
+        $this->ponerDeApoyo($examen, $delegada, $apoyo);
 
         $alcance = $this->alcance();
-        $this->assertSame([$aula1->id], $alcance->aulasQueAtiende((int) $docente->user_id, $examen->id));
-        $this->assertSame([], $alcance->aulasQueAtiende(99999, $examen->id));
+
+        $this->assertTrue($alcance->atiendeAula((int) $docente->user_id, $examen->id, $propia->id));
+        $this->assertFalse($alcance->atiendeAula((int) $docente->user_id, $examen->id, $delegada->id));
+
+        $this->assertTrue($alcance->atiendeAula($this->id($encargado->getKey()), $examen->id, $delegada->id));
+        $this->assertTrue($alcance->atiendeAula($this->id($apoyo->getKey()), $examen->id, $delegada->id));
+        $this->assertFalse($alcance->atiendeAula($this->id($apoyo->getKey()), $examen->id, $propia->id));
+        $this->assertFalse($alcance->atiendeAula($this->id($ajeno->getKey()), $examen->id, $delegada->id));
+    }
+
+    public function test_rooms_attended_are_those_of_the_exams_of_that_day(): void
+    {
+        $docente = $this->docenteConCuenta();
+        $grupo = $this->grupo($docente);
+        $deHoy = $this->aula();
+        $deApoyo = $this->aula();
+        $deManana = $this->aula();
+
+        $hoy = now()->toDateString();
+        $manana = now()->addDay()->toDateString();
+
+        $examenHoy = $this->examen($docente, [$grupo], [$deHoy, $deApoyo]);
+        $examenManana = $this->examen($docente, [$grupo], [$deManana], [
+            'tipo' => 'SEGUNDO_PARCIAL',
+            'fecha' => $manana,
+        ]);
+
+        $auxiliar = $this->auxiliar(UserFactory::new()->createOne());
+        $auxiliarId = $this->id($auxiliar->getKey());
+
+        $this->ponerACargo($examenHoy, $deHoy, $auxiliar);
+        $this->ponerDeApoyo($examenHoy, $deApoyo, $auxiliar);
+        $this->ponerACargo($examenManana, $deManana, $auxiliar);
+
+        $aulas = $this->alcance()->aulasQueAtiende($auxiliarId, $hoy);
+
+        $this->assertCount(2, $aulas);
+        $this->assertSame(
+            [[$examenHoy->id, $deHoy->id, true], [$examenHoy->id, $deApoyo->id, false]],
+            array_map(
+                static fn ($aula): array => [$aula->examenId, $aula->aulaId, $aula->esEncargado],
+                $aulas,
+            ),
+        );
+
+        $this->assertCount(1, $this->alcance()->aulasQueAtiende($auxiliarId, $manana));
+        $this->assertSame([], $this->alcance()->aulasQueAtiende($auxiliarId, now()->subDay()->toDateString()));
     }
 
     private function alcance(): AlcanceExamenGateway
     {
         return $this->app->make(AlcanceExamenGateway::class);
+    }
+
+    private function id(mixed $clave): int
+    {
+        if (! is_int($clave)) {
+            $this->fail('El identificador de la cuenta debía ser entero.');
+        }
+
+        return $clave;
     }
 }

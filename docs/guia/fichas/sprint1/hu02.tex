@@ -1,0 +1,89 @@
+% Ficha HU-02. Criterios del backlog del sprint 1 mas lo que pidio la
+% consultora en la sexta revision: roles y permisos configurables, no
+% estaticos, con vigencia por fechas, y negativa explicita a quien no tiene
+% permiso.
+\def\HUNro{02}
+\def\HUSprint{1}
+\def\HUTitulo{Administración > Usuarios y roles > Gestionar accesos}
+\def\HUModulo{M7}
+\def\HUReq{16, 20}
+\def\HUPuntos{5}
+
+\def\HUComo{administrador}
+\def\HUQuiero{asignar roles a los usuarios y definir qué puede hacer cada rol}
+\def\HUPara{que cada uno opere únicamente dentro de sus atribuciones}
+
+\def\HUDescripcion{%
+El sistema nace con los cuatro roles del pliego: Administrador, Docente, Personal de
+control y Responsable académico. Cada uno agrupa permisos por pantalla, y el
+Administrador decide cuáles tiene.
+
+Los roles no son una lista cerrada. Se crean roles nuevos cuando aparece una necesidad
+---por ejemplo un auxiliar de examen--- y se eliminan mientras no sean del sistema ni
+tengan usuarios asignados. Cada permiso puede además llevar vigencia: una fecha de
+inicio, una de fin, o ninguna. Sirve para un docente que solo controla ingresos durante
+el periodo de exámenes, o para un cargo que rota.
+
+Cuando alguien entra a una sección para la que su rol no tiene permiso vigente, el
+sistema se lo dice y nombra el permiso que le falta. No devuelve una pantalla en blanco
+ni un error genérico.
+
+Todo cambio de roles y permisos queda asentado en la bitácora de operaciones (HU-07).}
+
+\def\HUMockupsExtra{%
+\multicolumn{2}{|C{16.6cm}|}{\CajaMockup{hu02-roles}{15.4cm}}}
+
+\def\HUCriterios{%
+\item Dado que el sistema se instala por primera vez, Cuando se inicializa, Entonces
+      existen los cuatro roles del pliego: Administrador, Docente, Personal de control y
+      Responsable académico.
+\item Dado que el Administrador abre Usuarios y roles, Cuando se carga la pantalla,
+      Entonces ve la lista de usuarios con su rol y su estado, y la lista de roles con
+      sus permisos.
+\item Dado que el Administrador necesita un rol que no existe, Cuando lo crea con un
+      nombre libre, Entonces el rol queda disponible para asignarlo.
+\item Dado que el Administrador intenta crear un rol con un nombre que ya existe, Cuando
+      lo guarda, Entonces el sistema lo rechaza indicando el motivo.
+\item Dado que el Administrador marca o desmarca permisos de un rol, Cuando guarda,
+      Entonces el rol queda exactamente con los permisos indicados.
+\item Dado que un permiso solo rige por un periodo, Cuando el Administrador le fija una
+      fecha de inicio o de fin, Entonces el sistema guarda esa vigencia.
+\item Dado que la fecha de fin es anterior a la de inicio, Cuando se intenta guardar,
+      Entonces el sistema rechaza la vigencia.
+\item Dado que un permiso todavía no empieza o ya venció, Cuando el usuario de ese rol
+      entra a la sección, Entonces el sistema le niega el acceso.
+\item Dado que un permiso no tiene fechas, Cuando el usuario de ese rol entra a la
+      sección, Entonces el acceso está siempre habilitado.
+\item Dado que el rol de un usuario no tiene el permiso de la sección, Cuando la
+      solicita, Entonces el sistema responde con un mensaje que nombra el permiso que le
+      falta, nunca con una pantalla en blanco.
+\item Dado que un usuario no tiene ningún rol asignado, Cuando entra a una sección
+      protegida, Entonces el sistema también le niega el acceso.
+\item Dado que el Administrador asigna un rol a un usuario, Cuando guarda, Entonces el
+      usuario pasa a operar con los permisos de ese rol.
+\item Dado que un usuario deja de necesitar su rol, Cuando el Administrador lo deja sin
+      rol, Entonces el usuario pierde el acceso a las secciones protegidas.
+\item Dado que un rol es de los cuatro del pliego, Cuando se intenta eliminar, Entonces
+      el sistema lo impide.
+\item Dado que un rol tiene usuarios asignados, Cuando se intenta eliminar, Entonces el
+      sistema lo impide e indica el motivo.
+\item Dado que se crea, se elimina o se cambian los permisos de un rol, Cuando ocurre,
+      Entonces el sistema lo registra en la bitácora de operaciones.}
+
+\def\HUPruebas{%
+\item \texttt{RolesHeredadosTest}: los cuatro roles nacen marcados como del sistema,
+      cada uno con su propio conjunto de permisos, y las rutas que antes quedaban sin
+      sesión ya no existen (criterio 1).
+\item \texttt{RolesPermisosTest}: listado de roles con permisos, creación, nombre
+      repetido, reemplazo de permisos con vigencia, rango de fechas incoherente,
+      eliminación de roles del sistema y con usuarios, asignación y retiro del rol, y
+      registro en bitácora (criterios 2 a 7 y 12 a 16).
+\item \texttt{PermisosVigentesTest}: negativa explícita con el permiso que falta,
+      usuario sin rol, permiso que aún no empieza, permiso vencido, permiso vigente hoy
+      y permiso sin fechas (criterios 8 a 11).
+\item \texttt{UsuariosRoles.test.jsx}: listado con rol y estado, asignación y retiro del
+      rol, creación de rol, marcado de permisos, guardado de la vigencia, y el aviso
+      cuando el rol no tiene permiso para la pantalla (criterios 2, 3, 5, 6, 10, 12
+      y 13).}
+
+\input{cuerpo}

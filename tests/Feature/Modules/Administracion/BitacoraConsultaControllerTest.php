@@ -4,398 +4,310 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Modules\Administracion;
 
-use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Model;
+use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
+use App\Modules\Administracion\Domain\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\UsuarioConPermisos;
 use Tests\TestCase;
 
+/**
+ * Ruta 13: la consulta de la bitacora, paginada, con busqueda, filtros y
+ * el texto legible de cada operacion.
+ */
 final class BitacoraConsultaControllerTest extends TestCase
 {
     use RefreshDatabase;
+    use UsuarioConPermisos;
 
-    public function test_authenticated_user_can_list_audit_operations(): void
+    private User $administrador;
+
+    private User $docente;
+
+    protected function setUp(): void
     {
-        $actor = UserFactory::new()->createOne();
-        $authenticatedUser = UserFactory::new()->createOne();
+        parent::setUp();
 
-        $olderId = $this->insertAuditOperation(
-            usuarioId: $this->modelId($actor),
-            operacion: 'asignatura.registrar',
-            fecha: '2026-09-20 10:00:00',
-        );
-
-        $newerId = $this->insertAuditOperation(
-            usuarioId: $this->modelId($actor),
-            operacion: 'asignatura.eliminar',
-            fecha: '2026-09-21 10:00:00',
-        );
-
-        $response = $this
-            ->actingAs($authenticatedUser)
-            ->getJson('/api/bitacora');
-
-        $response
-            ->assertOk()
-            ->assertJsonCount(2, 'data')
-            ->assertJsonPath('data.0.id', $newerId)
-            ->assertJsonPath('data.0.operacion', 'asignatura.eliminar')
-            ->assertJsonPath('data.0.usuario.id', $this->modelId($actor))
-            ->assertJsonPath('data.0.usuario.name', $actor->name)
-            ->assertJsonPath('data.0.usuario.email', $actor->email)
-            ->assertJsonPath('data.1.id', $olderId);
+        $this->administrador = $this->usuarioConRol('Administrador', ['name' => 'Rojas Vargas Ana']);
+        $this->docente = $this->usuarioConRol('Docente', ['name' => 'Blanco Coca Leticia']);
     }
 
-    public function test_guest_cannot_list_audit_operations(): void
-    {
-        $this->getJson('/api/bitacora')
-            ->assertUnauthorized();
-    }
-
-    public function test_can_filter_audit_operations_by_user(): void
-    {
-        $authenticatedUser = UserFactory::new()->createOne();
-        $actorA = UserFactory::new()->createOne();
-        $actorB = UserFactory::new()->createOne();
-
-        $expectedId = $this->insertAuditOperation(
-            usuarioId: $this->modelId($actorA),
-            operacion: 'asignatura.registrar',
-            fecha: '2026-09-21 09:00:00',
-        );
-
-        $this->insertAuditOperation(
-            usuarioId: $this->modelId($actorB),
-            operacion: 'asignatura.registrar',
-            fecha: '2026-09-21 10:00:00',
-        );
-
-        $response = $this
-            ->actingAs($authenticatedUser)
-            ->getJson(
-                '/api/bitacora?usuario_id='.$this->modelId($actorA)
-            );
-
-        $response
-            ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $expectedId)
-            ->assertJsonPath(
-                'data.0.usuario.id',
-                $this->modelId($actorA)
-            );
-    }
-
-    public function test_can_filter_audit_operations_by_date(): void
-    {
-        $authenticatedUser = UserFactory::new()->createOne();
-
-        $this->insertAuditOperation(
-            usuarioId: $this->modelId($authenticatedUser),
-            operacion: 'antes',
-            fecha: '2026-09-20 23:59:59',
-        );
-
-        $firstExpectedId = $this->insertAuditOperation(
-            usuarioId: $this->modelId($authenticatedUser),
-            operacion: 'inicio',
-            fecha: '2026-09-21 00:00:00',
-        );
-
-        $lastExpectedId = $this->insertAuditOperation(
-            usuarioId: $this->modelId($authenticatedUser),
-            operacion: 'fin',
-            fecha: '2026-09-21 23:59:59',
-        );
-
-        $this->insertAuditOperation(
-            usuarioId: $this->modelId($authenticatedUser),
-            operacion: 'despues',
-            fecha: '2026-09-22 00:00:00',
-        );
-
-        $response = $this
-            ->actingAs($authenticatedUser)
-            ->getJson('/api/bitacora?fecha=2026-09-21');
-
-        $response
-            ->assertOk()
-            ->assertJsonCount(2, 'data')
-            ->assertJsonPath('data.0.id', $lastExpectedId)
-            ->assertJsonPath('data.1.id', $firstExpectedId);
-    }
-
-    public function test_can_filter_audit_operations_by_operation(): void
-    {
-        $authenticatedUser = UserFactory::new()->createOne();
-
-        $expectedId = $this->insertAuditOperation(
-            usuarioId: $this->modelId($authenticatedUser),
-            operacion: 'asignatura.registrar',
-            fecha: '2026-09-21 09:00:00',
-        );
-
-        $this->insertAuditOperation(
-            usuarioId: $this->modelId($authenticatedUser),
-            operacion: 'asignatura.eliminar',
-            fecha: '2026-09-21 10:00:00',
-        );
-
-        $response = $this
-            ->actingAs($authenticatedUser)
-            ->getJson(
-                '/api/bitacora?operacion=asignatura.registrar'
-            );
-
-        $response
-            ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $expectedId)
-            ->assertJsonPath(
-                'data.0.operacion',
-                'asignatura.registrar'
-            );
-    }
-
-    public function test_password_reset_filter_includes_link_resets_and_temporary_resets_but_not_link_requests(): void
-    {
-        $authenticatedUser = UserFactory::new()->createOne();
-        $account = UserFactory::new()->createOne();
-
-        foreach ([
-            'contrasena.solicitar_restablecimiento',
-            'contrasena.restablecer_por_enlace',
-            'usuario.restablecer_temporal',
-        ] as $operation) {
-            $this->insertAuditOperation(
-                usuarioId: $this->modelId($account),
-                operacion: $operation,
-                fecha: '2026-09-21 09:00:00',
-            );
-        }
-
-        $this->insertAuditOperation(
-            usuarioId: $this->modelId($account),
-            operacion: 'sesion.iniciar',
-            fecha: '2026-09-21 10:00:00',
-        );
-
-        $this->actingAs($authenticatedUser)
-            ->getJson('/api/bitacora?operacion=contrasena.restablecimiento')
-            ->assertOk()
-            ->assertJsonCount(2, 'data')
-            ->assertJsonPath('data.0.usuario.id', $this->modelId($account))
-            ->assertJsonPath('data.0.operacion', 'usuario.restablecer_temporal')
-            ->assertJsonPath('data.1.operacion', 'contrasena.restablecer_por_enlace');
-
-        // La solicitud del enlace se filtra aparte.
-        $this->actingAs($authenticatedUser)
-            ->getJson('/api/bitacora?operacion=contrasena.solicitar_restablecimiento')
-            ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.operacion', 'contrasena.solicitar_restablecimiento');
-    }
-
-    public function test_an_affected_account_is_shown_by_its_username(): void
-    {
-        $authenticatedUser = UserFactory::new()->createOne();
-        $account = UserFactory::new()->createOne(['usuario' => 'corina.flores']);
-
-        DB::table('bitacora_operaciones')->insert([
-            'usuario_id' => $this->modelId($account),
-            'operacion' => 'contrasena.cambiar',
-            'tabla_afectada' => 'usuarios',
-            'registro_id' => $this->modelId($account),
-            'descripcion' => null,
-            'fecha_operacion' => '2026-09-21 09:00:00',
+    /**
+     * `fecha` va en la hora de la aplicacion (Cochabamba), como la guarda el sistema.
+     */
+    private function asiento(
+        ?User $autor,
+        string $operacion,
+        string $fecha,
+        ?string $descripcion = null,
+    ): int {
+        return (int) DB::table('bitacora_operaciones')->insertGetId([
+            'usuario_id' => $autor?->getKey(),
+            'operacion' => $operacion,
+            'tabla_afectada' => 'examenes',
+            'registro_id' => 1,
+            'descripcion' => $descripcion,
+            'fecha_operacion' => $fecha,
         ]);
+    }
 
-        $this->insertAuditOperation(
-            usuarioId: $this->modelId($account),
-            operacion: 'asignatura.registrar',
-            fecha: '2026-09-21 08:00:00',
-        );
+    public function test_the_operations_are_listed_newest_first_with_a_readable_text(): void
+    {
+        $anterior = $this->asiento($this->docente, 'examen.registrar', '2026-10-09 08:58:00', 'Examen #1 · Introducción a la Programación');
+        $reciente = $this->asiento($this->docente, 'habilitacion.inhabilitar', '2026-10-11 16:40:00', 'Habilitación #19 · Introducción a la Programación');
 
-        $this->actingAs($authenticatedUser)
+        $this->actingAs($this->administrador)
             ->getJson('/api/bitacora')
             ->assertOk()
-            ->assertJsonPath('data.0.operacion', 'contrasena.cambiar')
-            ->assertJsonPath('data.0.registro_etiqueta', 'corina.flores')
-            // Otra tabla con el mismo id no toma el nombre de una cuenta.
-            ->assertJsonPath('data.1.registro_etiqueta', null);
+            ->assertExactJson([
+                'data' => [
+                    [
+                        'id' => $reciente,
+                        'usuario' => 'Blanco Coca Leticia',
+                        'rol' => 'Docente',
+                        'operacion' => 'habilitacion.inhabilitar',
+                        'operacion_texto' => 'Inhabilitó al estudiante',
+                        'entidad' => 'Habilitación #19 · Introducción a la Programación',
+                        'fecha' => '2026-10-11T16:40:00-04:00',
+                    ],
+                    [
+                        'id' => $anterior,
+                        'usuario' => 'Blanco Coca Leticia',
+                        'rol' => 'Docente',
+                        'operacion' => 'examen.registrar',
+                        'operacion_texto' => 'Registró el examen',
+                        'entidad' => 'Examen #1 · Introducción a la Programación',
+                        'fecha' => '2026-10-09T08:58:00-04:00',
+                    ],
+                ],
+                'meta' => [
+                    'total' => 2,
+                    'pagina' => 1,
+                    'por_pagina' => 25,
+                    'operaciones' => [
+                        ['clave' => 'habilitacion.inhabilitar', 'texto' => 'Inhabilitó al estudiante'],
+                        ['clave' => 'examen.registrar', 'texto' => 'Registró el examen'],
+                    ],
+                    'fecha_minima' => '2026-10-09',
+                ],
+            ]);
     }
 
-    public function test_can_combine_all_audit_filters(): void
+    public function test_an_operation_without_user_belongs_to_the_system(): void
     {
-        $authenticatedUser = UserFactory::new()->createOne();
-        $actorA = UserFactory::new()->createOne();
-        $actorB = UserFactory::new()->createOne();
+        $this->asiento(null, 'respaldo.generar', '2026-10-12 07:00:00', 'Respaldo programado');
 
-        $expectedId = $this->insertAuditOperation(
-            usuarioId: $this->modelId($actorA),
-            operacion: 'asignatura.registrar',
-            fecha: '2026-09-21 12:00:00',
-        );
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora')
+            ->assertOk()
+            ->assertJsonPath('data.0.usuario', 'Sistema')
+            ->assertJsonPath('data.0.rol', null)
+            ->assertJsonPath('data.0.operacion_texto', 'Generó el respaldo');
+    }
 
-        $this->insertAuditOperation(
-            usuarioId: $this->modelId($actorA),
-            operacion: 'asignatura.eliminar',
-            fecha: '2026-09-21 12:10:00',
-        );
+    public function test_an_operation_without_account_names_who_did_it(): void
+    {
+        app(BitacoraGateway::class)->registrar(null, 'ingreso.registrar', 'ingresos', 1, 'Ingreso de 202100001.', 'Rojas Vargas Andrea');
 
-        $this->insertAuditOperation(
-            usuarioId: $this->modelId($actorB),
-            operacion: 'asignatura.registrar',
-            fecha: '2026-09-21 12:20:00',
-        );
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora')
+            ->assertJsonPath('data.0.usuario', 'Rojas Vargas Andrea');
+        $this->getJson('/api/bitacora?buscar=rojas')->assertJsonCount(1, 'data');
+    }
 
-        $this->insertAuditOperation(
-            usuarioId: $this->modelId($actorA),
-            operacion: 'asignatura.registrar',
-            fecha: '2026-09-22 12:00:00',
-        );
+    public function test_a_deleted_user_does_not_hide_the_record(): void
+    {
+        $borrada = $this->usuarioConRol('Auxiliar');
+        $id = $this->asiento($borrada, 'ingreso.registrar', '2026-10-12 13:00:00');
 
-        $query = http_build_query([
-            'usuario_id' => $this->modelId($actorA),
-            'fecha' => '2026-09-21',
-            'operacion' => 'asignatura.registrar',
+        $borrada->delete();
+
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $id)
+            ->assertJsonPath('data.0.usuario', 'Sistema');
+    }
+
+    public function test_an_unknown_operation_shows_its_own_key(): void
+    {
+        $this->asiento($this->docente, 'algo.nuevo', '2026-10-12 13:00:00');
+
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora')
+            ->assertOk()
+            ->assertJsonPath('data.0.operacion_texto', 'algo.nuevo')
+            ->assertJsonPath('meta.operaciones.0', ['clave' => 'algo.nuevo', 'texto' => 'algo.nuevo']);
+    }
+
+    public function test_the_search_looks_at_the_user_name_and_the_description(): void
+    {
+        $porNombre = $this->asiento($this->docente, 'examen.registrar', '2026-10-12 13:00:00', 'Examen #1 · Cálculo I');
+        $porDescripcion = $this->asiento($this->administrador, 'usuario.crear', '2026-10-12 14:00:00', 'Usuario #9 · Núñez Peña Óscar');
+
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora?buscar=LETICIA')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $porNombre);
+
+        // Sin tildes ni mayusculas.
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora?buscar='.urlencode('nunez pena'))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $porDescripcion)
+            ->assertJsonPath('meta.total', 1);
+    }
+
+    public function test_the_operations_are_filtered_by_role(): void
+    {
+        $this->asiento($this->docente, 'examen.registrar', '2026-10-12 13:00:00');
+        $delAdministrador = $this->asiento($this->administrador, 'usuario.crear', '2026-10-12 14:00:00');
+        $this->asiento(null, 'respaldo.generar', '2026-10-12 15:00:00');
+
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora?rol=Administrador')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $delAdministrador)
+            ->assertJsonPath('data.0.rol', 'Administrador');
+    }
+
+    public function test_the_role_shown_is_the_one_held_when_operating(): void
+    {
+        app(BitacoraGateway::class)->registrar((int) $this->docente->id, 'examen.registrar', 'examenes', 1, 'Examen #1');
+        $this->docente->forceFill([
+            'role_id' => DB::table('roles')->where('name', 'Administrador')->value('id'),
+        ])->save();
+
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora')
+            ->assertOk()
+            ->assertJsonPath('data.0.rol', 'Docente');
+
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora?rol=Docente')
+            ->assertJsonCount(1, 'data');
+    }
+
+    public function test_the_operations_are_filtered_by_operation(): void
+    {
+        $esperado = $this->asiento($this->docente, 'examen.registrar', '2026-10-12 13:00:00');
+        $this->asiento($this->docente, 'examen.eliminar', '2026-10-12 14:00:00');
+
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora?operacion=examen.registrar')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $esperado)
+            // El desplegable sigue ofreciendo todas las que existen.
+            ->assertJsonCount(2, 'meta.operaciones');
+    }
+
+    public function test_the_date_range_is_inclusive_and_uses_local_days(): void
+    {
+        // El dia 21 va de las 00:00 del 21 a las 00:00 del 22, hora local.
+        $this->asiento($this->docente, 'antes', '2026-09-20 23:59:59');
+        $primero = $this->asiento($this->docente, 'inicio', '2026-09-21 00:00:00');
+        $ultimo = $this->asiento($this->docente, 'fin', '2026-09-21 23:59:59');
+        $this->asiento($this->docente, 'despues', '2026-09-22 00:00:00');
+
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora?desde=2026-09-21&hasta=2026-09-21')
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.id', $ultimo)
+            ->assertJsonPath('data.0.fecha', '2026-09-21T23:59:59-04:00')
+            ->assertJsonPath('data.1.id', $primero)
+            // La fecha minima es la de toda la bitacora, no la del filtro.
+            ->assertJsonPath('meta.fecha_minima', '2026-09-20');
+    }
+
+    public function test_all_the_filters_can_be_combined(): void
+    {
+        $esperado = $this->asiento($this->docente, 'examen.registrar', '2026-09-21 16:00:00', 'Examen #1 · Cálculo I');
+        $this->asiento($this->docente, 'examen.eliminar', '2026-09-21 16:10:00', 'Examen #1 · Cálculo I');
+        $this->asiento($this->administrador, 'examen.registrar', '2026-09-21 16:20:00', 'Examen #2 · Cálculo I');
+        $this->asiento($this->docente, 'examen.registrar', '2026-09-22 16:00:00', 'Examen #3 · Cálculo I');
+        $this->asiento($this->docente, 'examen.registrar', '2026-09-21 16:30:00', 'Examen #4 · Física');
+
+        $consulta = http_build_query([
+            'buscar' => 'calculo',
+            'rol' => 'Docente',
+            'operacion' => 'examen.registrar',
+            'desde' => '2026-09-21',
+            'hasta' => '2026-09-21',
         ]);
 
-        $response = $this
-            ->actingAs($authenticatedUser)
-            ->getJson('/api/bitacora?'.$query);
-
-        $response
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora?'.$consulta)
             ->assertOk()
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $expectedId);
+            ->assertJsonPath('data.0.id', $esperado);
     }
 
-    public function test_deleted_user_does_not_hide_audit_record(): void
+    public function test_the_log_is_paginated_on_the_server(): void
     {
-        $authenticatedUser = UserFactory::new()->createOne();
-        $actor = UserFactory::new()->createOne();
+        $ids = [];
 
-        $auditId = $this->insertAuditOperation(
-            usuarioId: $this->modelId($actor),
-            operacion: 'asignatura.registrar',
-            fecha: '2026-09-21 12:00:00',
-        );
+        foreach (range(1, 5) as $minuto) {
+            $ids[] = $this->asiento($this->docente, 'examen.registrar', sprintf('2026-10-12 13:0%d:00', $minuto));
+        }
 
-        $actor->delete();
-
-        $response = $this
-            ->actingAs($authenticatedUser)
-            ->getJson('/api/bitacora');
-
-        $response
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora?pagina=2&por_pagina=2')
             ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $auditId)
-            ->assertJsonPath('data.0.usuario', null);
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.id', $ids[2])
+            ->assertJsonPath('data.1.id', $ids[1])
+            ->assertJsonPath('meta.total', 5)
+            ->assertJsonPath('meta.pagina', 2)
+            ->assertJsonPath('meta.por_pagina', 2);
     }
 
-    public function test_audit_filters_are_validated(): void
+    public function test_an_empty_log_has_no_minimum_date(): void
     {
-        $user = UserFactory::new()->createOne();
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora')
+            ->assertOk()
+            ->assertJsonCount(0, 'data')
+            ->assertJsonPath('meta.total', 0)
+            ->assertJsonPath('meta.operaciones', [])
+            ->assertJsonPath('meta.fecha_minima', null);
+    }
 
-        $this
-            ->actingAs($user)
+    public function test_the_filters_are_validated(): void
+    {
+        $this->actingAs($this->administrador)
             ->getJson(
-                '/api/bitacora?usuario_id=no-es-entero'
-                .'&fecha=21-09-2026'
+                '/api/bitacora?rol=Responsable&desde=21-09-2026&por_pagina=500'
                 .'&operacion='.str_repeat('x', 101)
             )
             ->assertUnprocessable()
-            ->assertJsonValidationErrors([
-                'usuario_id',
-                'fecha',
-                'operacion',
-            ]);
+            ->assertJsonValidationErrors(['rol', 'desde', 'por_pagina', 'operacion'])
+            ->assertJsonPath('errors.desde.0', 'La fecha inicial no es válida.');
     }
 
-    private function modelId(Model $model): int
+    public function test_the_end_date_cannot_be_before_the_start_date(): void
     {
-        $id = $model->getKey();
-
-        if (! is_int($id)) {
-            throw new \LogicException(
-                'El modelo no tiene un identificador entero válido.'
-            );
-        }
-
-        return $id;
-    }
-
-    private function insertAuditOperation(
-        ?int $usuarioId,
-        string $operacion,
-        string $fecha,
-    ): int {
-        return (int) DB::table('bitacora_operaciones')
-            ->insertGetId([
-                'usuario_id' => $usuarioId,
-                'operacion' => $operacion,
-                'tabla_afectada' => 'asignaturas',
-                'registro_id' => 1,
-                'descripcion' => null,
-                'fecha_operacion' => $fecha,
-            ]);
-    }
-
-    public function test_the_log_can_be_filtered_by_a_date_range(): void
-    {
-        $usuario = UserFactory::new()->createOne();
-
-        DB::table('bitacora_operaciones')->insert([
-            [
-                'usuario_id' => $usuario->getKey(),
-                'operacion' => 'sesion.iniciar',
-                'tabla_afectada' => 'usuarios',
-                'registro_id' => null,
-                'descripcion' => null,
-                'fecha_operacion' => '2026-09-14 08:00:00',
-            ],
-            [
-                'usuario_id' => $usuario->getKey(),
-                'operacion' => 'estudiante.registrar',
-                'tabla_afectada' => 'students',
-                'registro_id' => null,
-                'descripcion' => null,
-                'fecha_operacion' => '2026-09-17 10:00:00',
-            ],
-            [
-                'usuario_id' => $usuario->getKey(),
-                'operacion' => 'ambiente.registrar',
-                'tabla_afectada' => 'ambientes',
-                'registro_id' => null,
-                'descripcion' => null,
-                'fecha_operacion' => '2026-09-25 16:00:00',
-            ],
-        ]);
-
-        // El rango incluye los dos extremos.
-        $response = $this->actingAs($usuario)
-            ->getJson('/api/bitacora?desde=2026-09-14&hasta=2026-09-17')
-            ->assertOk();
-
-        $operaciones = $response->json('data');
-
-        self::assertIsArray($operaciones);
-        self::assertCount(2, $operaciones);
-        $this->assertSame(
-            ['estudiante.registrar', 'sesion.iniciar'],
-            array_column($operaciones, 'operacion'),
-        );
-    }
-
-    public function test_the_range_rejects_an_end_before_its_start(): void
-    {
-        $usuario = UserFactory::new()->createOne();
-
-        $this->actingAs($usuario)
-            ->getJson('/api/bitacora?desde=2026-09-20&hasta=2026-09-14')
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora?desde=2026-10-12&hasta=2026-10-01')
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('hasta');
+            ->assertJsonPath('errors.hasta.0', 'La fecha final no puede ser anterior a la inicial.');
+    }
+
+    public function test_a_guest_cannot_read_the_log(): void
+    {
+        $this->getJson('/api/bitacora')->assertUnauthorized();
+    }
+
+    public function test_the_permission_is_required(): void
+    {
+        $this->actingAs($this->docente)
+            ->getJson('/api/bitacora')
+            ->assertForbidden()
+            ->assertJsonPath('permiso_requerido', 'bitacora');
     }
 }

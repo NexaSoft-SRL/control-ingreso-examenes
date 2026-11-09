@@ -3,19 +3,11 @@
 namespace App\Modules\Administracion\Http\Controllers;
 
 use App\Modules\Administracion\Application\Actions\AuthenticateUser;
-use App\Modules\Administracion\Application\Actions\CambiarContrasena;
+use App\Modules\Administracion\Application\Actions\CerrarSesion;
 use App\Modules\Administracion\Application\Actions\ConsultarSesion;
-use App\Modules\Administracion\Application\Actions\RestablecerContrasena;
-use App\Modules\Administracion\Application\Actions\SolicitarRestablecimientoContrasena;
-use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
+use App\Modules\Administracion\Application\DTOs\ResultadoAccesoData;
 use App\Modules\Administracion\Application\DTOs\SesionData;
-use App\Modules\Administracion\Domain\Exceptions\ContrasenaRepetidaException;
-use App\Modules\Administracion\Domain\Exceptions\ContrasenaTemporalVencidaException;
-use App\Modules\Administracion\Domain\Exceptions\CuentaDesactivadaException;
-use App\Modules\Administracion\Http\Requests\CambiarContrasenaRequest;
 use App\Modules\Administracion\Http\Requests\LoginRequest;
-use App\Modules\Administracion\Http\Requests\RestablecerContrasenaRequest;
-use App\Modules\Administracion\Http\Requests\SolicitarRestablecimientoRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -25,8 +17,8 @@ class AuthenticationController
 {
     public function __construct(
         private readonly AuthenticateUser $authenticateUser,
+        private readonly CerrarSesion $cerrarSesion,
         private readonly ConsultarSesion $consultarSesion,
-        private readonly BitacoraGateway $bitacora,
     ) {}
 
     public function login(LoginRequest $request): JsonResponse
@@ -34,78 +26,24 @@ class AuthenticationController
         /** @var array{usuario: string, password: string} $credentials */
         $credentials = $request->validated();
 
-        try {
-            $user = $this->authenticateUser->execute(
-                $credentials['usuario'],
-                $credentials['password'],
-                $request->ip(),
-                $request->userAgent(),
-            );
-        } catch (ContrasenaTemporalVencidaException) {
-            return response()->json([
-                'code' => 'TEMPORARY_PASSWORD_EXPIRED',
-                'message' => 'Contraseña temporal vencida.',
-            ], Response::HTTP_FORBIDDEN);
-        } catch (CuentaDesactivadaException) {
-            $this->bitacora->registrar(
-                null,
-                'sesion.fallida',
-                'usuarios',
-                null,
-                sprintf('Intento con la cuenta desactivada %s.', $credentials['usuario']),
-            );
-
-            // Sin minutos: el bloqueo es de la administracion, no por intentos.
-            return response()->json([
-                'code' => 'ACCOUNT_DISABLED',
-                'message' => 'Cuenta bloqueada.',
-            ], Response::HTTP_LOCKED);
-        }
-
-        if ($user === null) {
-            $minutos = $this->authenticateUser->minutosDeBloqueo($credentials['usuario']);
-
-            // Sin usuario no hay a quien atribuir el intento: queda
-            // asentado con el identificador que se probo.
-            $this->bitacora->registrar(
-                null,
-                'sesion.fallida',
-                'usuarios',
-                null,
-                sprintf('Intento fallido con el identificador %s.', $credentials['usuario']),
-            );
-
-            if ($minutos !== null) {
-                return response()->json([
-                    'message' => 'La cuenta está bloqueada temporalmente.',
-                    'minutos' => $minutos,
-                ], 423);
-            }
-
-            $intentosRestantes = $this->authenticateUser->intentosRestantes($credentials['usuario']);
-
-            return response()->json([
-                'message' => 'Credenciales incorrectas.',
-                ...($intentosRestantes === null ? [] : ['intentos_restantes' => $intentosRestantes]),
-            ], Response::HTTP_UNAUTHORIZED);
-        }
-
-        Auth::login($user);
-
-        $request->session()->regenerate();
-        $request->session()->put('usuario_ultima_actividad', now()->getTimestamp());
-
-        $id = $user->getKey();
-
-        $this->bitacora->registrar(
-            is_int($id) ? $id : null,
-            'sesion.iniciar',
-            'usuarios',
-            is_int($id) ? $id : null,
-            null,
+        $resultado = $this->authenticateUser->execute(
+            $credentials['usuario'],
+            $credentials['password'],
+            $request->ip(),
+            $request->userAgent(),
         );
 
-        $sesion = is_int($id) ? $this->consultarSesion->execute($id) : null;
+        $usuarioId = $resultado->usuarioId;
+
+        if (! $resultado->esCorrecto() || $usuarioId === null) {
+            return $this->rechazo($resultado);
+        }
+
+        Auth::loginUsingId($usuarioId);
+
+        $request->session()->regenerate();
+
+        $sesion = $this->consultarSesion->execute($usuarioId);
 
         if ($sesion === null) {
             return $this->sinSesion();
@@ -117,10 +55,6 @@ class AuthenticationController
         ]);
     }
 
-    /**
-     * La fuente de verdad de la sesion del cliente. No exige el middleware
-     * `auth`: responde ella misma el 401.
-     */
     public function sesion(Request $request): JsonResponse
     {
         $usuarioId = Auth::id();
@@ -148,20 +82,13 @@ class AuthenticationController
 
     public function logout(Request $request): Response
     {
-        // El identificador se toma antes de cerrar la sesion: despues ya no
-        // hay usuario a quien atribuir la operacion.
-        $user = Auth::guard('web')->user();
-        $id = $user?->getKey();
+        $usuarioId = Auth::id();
+
+        $this->cerrarSesion->execute(
+            is_int($usuarioId) ? $usuarioId : null
+        );
 
         Auth::logout();
-
-        $this->bitacora->registrar(
-            is_int($id) ? $id : null,
-            'sesion.cerrar',
-            'usuarios',
-            is_int($id) ? $id : null,
-            null,
-        );
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
@@ -169,89 +96,36 @@ class AuthenticationController
         return response()->noContent();
     }
 
-    public function cambiarContrasena(
-        CambiarContrasenaRequest $request,
-        CambiarContrasena $cambiar,
-    ): JsonResponse {
-        $usuarioId = Auth::id();
-        // Con la contrasena temporal no se pide la actual: la sesion se
-        // abrio con ella hace un momento.
-        $actual = $request->filled('contrasena_actual')
-            ? $request->string('contrasena_actual')->toString()
-            : null;
-        $nueva = $request->string('password')->toString();
-
-        try {
-            $cambiada = is_int($usuarioId) && $cambiar->execute($usuarioId, $actual, $nueva);
-        } catch (ContrasenaRepetidaException) {
-            $mensaje = $actual === null
-                ? 'La contraseña nueva debe ser distinta de la temporal.'
-                : 'La contraseña nueva debe ser distinta de la actual.';
-
+    private function rechazo(ResultadoAccesoData $resultado): JsonResponse
+    {
+        if ($resultado->estado === ResultadoAccesoData::BLOQUEADA) {
             return response()->json([
-                'message' => $mensaje,
-                'errors' => ['password' => [$mensaje]],
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                'message' => 'Cuenta bloqueada.',
+                'minutos' => $resultado->minutosBloqueo,
+            ], Response::HTTP_LOCKED);
         }
 
-        if (! $cambiada) {
+        if ($resultado->estado === ResultadoAccesoData::INACTIVA) {
             return response()->json([
-                'message' => 'La contraseña actual no es correcta.',
-                'errors' => ['contrasena_actual' => ['La contraseña actual no es correcta.']],
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                'message' => 'Cuenta bloqueada.',
+            ], Response::HTTP_LOCKED);
         }
 
-        $request->session()->put('usuario_ultima_actividad', now()->getTimestamp());
-        $sesion = $this->consultarSesion->execute($usuarioId);
-
-        if ($sesion === null) {
-            return $this->sinSesion();
-        }
-
-        $this->bitacora->registrar(
-            $usuarioId,
-            'contrasena.cambiar',
-            'usuarios',
-            $usuarioId,
-            null,
-        );
-
-        return response()->json([
-            'message' => 'La contraseña se actualizó correctamente.',
-            'user' => $this->usuario($sesion),
-        ]);
-    }
-
-    public function solicitarRestablecimiento(
-        SolicitarRestablecimientoRequest $request,
-        SolicitarRestablecimientoContrasena $solicitar,
-    ): JsonResponse {
-        $solicitar->execute($request->string('usuario')->toString());
-
-        return response()->json([
-            // La misma respuesta exista o no la cuenta, tenga o no correo.
-            'message' => 'Si la cuenta tiene correo registrado, recibirá el enlace de recuperación.',
-        ]);
-    }
-
-    public function restablecerContrasena(
-        RestablecerContrasenaRequest $request,
-        RestablecerContrasena $restablecer,
-    ): JsonResponse {
-        $correo = $request->string('correo')->toString();
-        $token = $request->string('token')->toString();
-        $password = $request->string('password')->toString();
-
-        if (! $restablecer->execute($correo, $token, $password)) {
+        if ($resultado->estado === ResultadoAccesoData::TEMPORAL_VENCIDA) {
             return response()->json([
-                'message' => 'Enlace no válido o vencido.',
-                'errors' => ['token' => ['Enlace no válido o vencido.']],
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                'message' => 'La contraseña temporal venció. Pida una nueva a la administración.',
+                'codigo' => 'TEMPORAL_VENCIDA',
+            ], Response::HTTP_UNAUTHORIZED);
         }
 
-        return response()->json([
-            'message' => 'Contraseña actualizada.',
-        ]);
+        $cuerpo = ['message' => 'Usuario o contraseña incorrectos.'];
+
+        // Solo si la cuenta existe (decision D-18).
+        if ($resultado->intentosRestantes !== null) {
+            $cuerpo['intentos_restantes'] = $resultado->intentosRestantes;
+        }
+
+        return response()->json($cuerpo, Response::HTTP_UNAUTHORIZED);
     }
 
     private function sinSesion(): JsonResponse
@@ -262,30 +136,19 @@ class AuthenticationController
     }
 
     /**
-     * El mismo objeto en el acceso y en la consulta de sesion. `name` y
-     * `email` repiten `nombre` y `correo` para los clientes anteriores.
-     *
      * @return array<string, mixed>
      */
     private function usuario(SesionData $sesion): array
     {
-        $inactividad = config('auth_security.inactividad_minutos', 15);
-
         return [
             'id' => $sesion->id,
             'nombre' => $sesion->nombre,
             'usuario' => $sesion->usuario,
             'correo' => $sesion->correo,
             'rol' => $sesion->rol,
-            // El cliente oculta con esto las vistas que el rol no puede
-            // abrir; quien las fuerce igual recibe un 403.
             'permisos' => $sesion->permisos,
-            // El cambio obligatorio de la temporal llega con HU-16.
             'debe_cambiar_contrasena' => $sesion->debeCambiarContrasena,
-            'sesion_expira_en_minutos' => is_numeric($inactividad) ? (int) $inactividad : 15,
             'docente_id' => $sesion->docenteId,
-            'name' => $sesion->nombre,
-            'email' => $sesion->correo ?? '',
         ];
     }
 }

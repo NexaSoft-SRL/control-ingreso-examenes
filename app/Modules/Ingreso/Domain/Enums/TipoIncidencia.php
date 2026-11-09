@@ -49,12 +49,19 @@ enum TipoIncidencia: string
         };
     }
 
+    /**
+     * Muy grave: alguien rinde por otro o se lo saca del examen. Grave: un
+     * intento de entrar sin derecho o de copiar. Leve: lo que no es falta
+     * (un cambio de aula) o todavia no se sabe (otra).
+     */
     public function gravedad(): Gravedad
     {
         return match ($this) {
-            // La suplantacion de identidad es el ejemplo de muy grave.
             self::Suplantacion, self::Expulsion => Gravedad::MuyGrave,
-            self::IngresoRepetido, self::IntentoNoAutorizado, self::MaterialNoPermitido, self::DispositivoNoPermitido => Gravedad::Grave,
+            self::IngresoRepetido,
+            self::IntentoNoAutorizado,
+            self::MaterialNoPermitido,
+            self::DispositivoNoPermitido => Gravedad::Grave,
             self::CambioAula, self::Otra => Gravedad::Leve,
         };
     }

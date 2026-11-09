@@ -8,14 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
 /**
- * El codigo QR de un estudiante habilitado para un examen. `contenido` es
- * lo que lleva la imagen, en el formato que lee la puerta: cifrado, sin
- * datos personales legibles.
+ * El codigo QR de un estudiante para un examen. El token es opaco.
  *
  * @property int $id
  * @property int $examen_id
  * @property int $estudiante_id
- * @property string $contenido
+ * @property string $token
  * @property Carbon $emitido_en
  * @property int|null $emitido_por
  * @property Carbon|null $enviado_en
@@ -32,17 +30,10 @@ final class CodigoQr extends Model
     protected $fillable = [
         'examen_id',
         'estudiante_id',
-        'contenido',
+        'token',
         'emitido_en',
         'emitido_por',
         'enviado_en',
-    ];
-
-    /**
-     * @var list<string>
-     */
-    protected $hidden = [
-        'contenido',
     ];
 
     /**

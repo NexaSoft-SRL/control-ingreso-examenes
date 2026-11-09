@@ -355,6 +355,8 @@ describe('Periodo', () => {
         await cargada();
 
         fireEvent.click(screen.getByRole('button', { name: 'Importar FCyT' }));
+        // Importa directo, sin confirmar.
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
         const fcyt = fila('Ciencias y Tecnología');
         expect(await within(fcyt).findByText('Falló')).toBeInTheDocument();

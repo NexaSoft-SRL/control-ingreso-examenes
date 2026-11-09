@@ -40,15 +40,6 @@ final readonly class SolicitudCargaData
         );
     }
 
-    /**
-     * Un estudiante suelto que el docente agrega a mano: se trata como una
-     * lista de una sola fila, con las mismas reglas.
-     */
-    public static function aMano(int $grupoId, int $usuarioId): self
-    {
-        return new self(AlcanceCarga::Grupo, $grupoId, null, '', '', 'Agregado a mano', $usuarioId);
-    }
-
     public static function deFacultad(
         string $facultad,
         string $rutaArchivo,

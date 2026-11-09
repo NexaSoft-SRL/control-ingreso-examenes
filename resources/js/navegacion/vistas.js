@@ -1,19 +1,20 @@
 import {
     CalendarRange,
+    BookMarked,
     MapPinned,
     UserCog,
     GraduationCap,
     Settings,
     History,
+    DatabaseBackup,
     UsersRound,
     FileText,
-    UserCheck,
-    ScanLine,
-    Activity,
-    Radio,
+    ListChecks,
     QrCode,
     BarChart3,
-    DatabaseBackup,
+    ScanLine,
+    Radio,
+    UserCheck,
 } from 'lucide-react';
 
 // Fuente única de las pantallas. El menú (EsquemaApp), las rutas
@@ -23,9 +24,18 @@ import {
 // editan, así que nada depende del nombre del rol.
 //
 // `grupo` arma las secciones del menú; `movil` elige lo que entra en la barra
-// inferior del teléfono; `oculta` deja la vista con ruta pero fuera del menú
-// y `padre` es la vista del menú que queda marcada. `permiso` acepta una clave
-// o varias claves alternativas separadas por `|`.
+// inferior del teléfono, donde va `corto` si la vista lo tiene; `oculta` deja la vista con ruta pero fuera del menú
+// y `padre` es la vista del menú que queda marcada. `enVivo` lleva «En vivo»
+// mientras hay un examen abierto (navegacion/usarEnVivo). `permiso` es la clave
+// que exige la API para esa pantalla.
+//
+// El punto de control y el seguimiento tienen dos juegos de pantallas con el
+// mismo permiso: el de quien toma el examen (`con: 'examenes'`: En curso,
+// Asistencia del aula, Control) y el de quien solo atiende un aula
+// (`sin: 'examenes'`: Control, Mi aula). `con` exige además ese otro
+// permiso; `sin` quita la vista a quien lo tiene. `gemela` es la misma
+// pantalla en el otro juego: RutaProtegida lleva a ella a quien abre la que
+// no le toca.
 export const VISTAS = [
     {
         ruta: '/periodo',
@@ -35,16 +45,13 @@ export const VISTAS = [
         movil: true,
         permiso: 'periodo_oferta',
     },
-
     {
         ruta: '/oferta',
         titulo: 'Oferta',
-        Icono: GraduationCap,
+        Icono: BookMarked,
         grupo: 'Preparación',
-        movil: true,
         permiso: 'periodo_oferta',
     },
-
     {
         ruta: '/aulas',
         titulo: 'Aulas y mapa',
@@ -77,30 +84,6 @@ export const VISTAS = [
         permiso: 'examenes',
     },
     {
-        ruta: '/reportes',
-        titulo: 'Reportes',
-        Icono: BarChart3,
-        grupo: 'Docencia',
-        movil: true,
-        permiso: 'reportes_examenes',
-    },
-    {
-        ruta: '/reportes-universidad',
-        titulo: 'Reportes de la universidad',
-        Icono: BarChart3,
-        grupo: 'Docencia',
-        permiso: 'reportes_universidad',
-    },
-    {
-        ruta: '/bitacora-examen',
-        titulo: 'Bitácora de exámenes',
-        Icono: History,
-        grupo: 'Docencia',
-        permiso: 'reportes_examenes|reportes_universidad',
-    },
-    // Registrar examen y Habilitación son de un examen: se llega a ellas
-    // desde la lista de exámenes, no desde el menú (`oculta`).
-    {
         ruta: '/examenes/nuevo',
         titulo: 'Registrar examen',
         Icono: FileText,
@@ -109,8 +92,6 @@ export const VISTAS = [
         padre: '/examenes',
         permiso: 'examenes',
     },
-    // HU-28: la página de cada examen, con su resumen, su habilitación y sus
-    // códigos QR en pestañas.
     {
         ruta: '/examenes/detalle',
         titulo: 'Examen',
@@ -129,8 +110,6 @@ export const VISTAS = [
         padre: '/examenes',
         permiso: 'habilitacion',
     },
-    // HU-20: los códigos QR también son de un examen: se llega desde su
-    // acción «Emitir códigos» o su enlace «Códigos QR» en la lista.
     {
         ruta: '/codigos-qr',
         titulo: 'Códigos QR',
@@ -140,40 +119,62 @@ export const VISTAS = [
         padre: '/examenes',
         permiso: 'codigos_qr',
     },
-    // HU-22: el examen en curso del docente. Es de quien ve sus exámenes.
     {
         ruta: '/en-curso',
         titulo: 'En curso',
+        enVivo: true,
         Icono: Radio,
-        grupo: 'Exámenes',
+        grupo: 'Docencia',
         movil: true,
-        permiso: 'examenes',
+        permiso: 'seguimiento_vivo',
+        con: 'examenes',
+        gemela: '/mi-aula',
     },
-    {
-        ruta: '/punto-control',
-        titulo: 'Punto de control',
-        Icono: ScanLine,
-        grupo: 'Exámenes',
-        movil: true,
-        permiso: 'punto_control',
-    },
-    // HU-21: la lista del aula que sigue el docente desde «En curso».
     {
         ruta: '/en-curso/aula',
-        titulo: 'Lista del aula',
-        Icono: Activity,
-        grupo: 'Exámenes',
+        titulo: 'Asistencia del aula',
+        Icono: ListChecks,
+        grupo: 'Docencia',
         oculta: true,
         padre: '/en-curso',
-        permiso: 'examenes',
+        permiso: 'seguimiento_vivo',
+        con: 'examenes',
+        gemela: '/mi-aula',
+    },
+    {
+        ruta: '/control',
+        titulo: 'Punto de control',
+        enVivo: true,
+        corto: 'Control',
+        Icono: ScanLine,
+        grupo: 'Docencia',
+        movil: true,
+        permiso: 'punto_control',
+        con: 'examenes',
+        gemela: '/ingreso',
+    },
+    {
+        ruta: '/ingreso',
+        titulo: 'Punto de control',
+        enVivo: true,
+        corto: 'Control',
+        Icono: ScanLine,
+        grupo: 'Docencia',
+        movil: true,
+        permiso: 'punto_control',
+        sin: 'examenes',
+        gemela: '/control',
     },
     {
         ruta: '/mi-aula',
         titulo: 'Mi aula',
-        Icono: Activity,
-        grupo: 'Exámenes',
+        enVivo: true,
+        Icono: ListChecks,
+        grupo: 'Docencia',
         movil: true,
         permiso: 'seguimiento_vivo',
+        sin: 'examenes',
+        gemela: '/en-curso',
     },
     {
         ruta: '/mis-grupos',
@@ -182,6 +183,21 @@ export const VISTAS = [
         grupo: 'Docencia',
         movil: true,
         permiso: 'mis_grupos',
+    },
+    {
+        ruta: '/mis-reportes',
+        titulo: 'Reportes',
+        Icono: BarChart3,
+        grupo: 'Docencia',
+        permiso: 'reportes_examenes',
+    },
+    {
+        ruta: '/reportes',
+        titulo: 'Reportes',
+        Icono: BarChart3,
+        grupo: 'Sistema',
+        movil: true,
+        permiso: 'reportes_universidad',
     },
     {
         ruta: '/admin',
@@ -207,15 +223,20 @@ export const VISTAS = [
 ];
 
 function puede(usuario, permiso) {
+    return Array.isArray(usuario?.permisos) && usuario.permisos.includes(permiso);
+}
+
+function leToca(usuario, vista) {
     return (
-        Array.isArray(usuario?.permisos) &&
-        permiso.split('|').some((requerido) => usuario.permisos.includes(requerido))
+        puede(usuario, vista.permiso) &&
+        (!vista.con || puede(usuario, vista.con)) &&
+        (!vista.sin || !puede(usuario, vista.sin))
     );
 }
 
 // Las vistas de la cuenta (con las ocultas): aquellas cuyo permiso tiene.
 export function vistasDe(usuario) {
-    return usuario ? VISTAS.filter((v) => puede(usuario, v.permiso)) : [];
+    return usuario ? VISTAS.filter((v) => leToca(usuario, v)) : [];
 }
 
 // La pantalla de entrada: la primera del menú. Nula si no tiene ninguna.
@@ -223,7 +244,7 @@ export function entradaDe(usuario) {
     return vistasDe(usuario).find((v) => !v.oculta)?.ruta ?? null;
 }
 
-// La vista a la que pertenece una dirección ('/examenes/nuevo' antes que '/examenes').
+// La vista a la que pertenece una dirección ('/en-curso/aula' antes que '/en-curso').
 export function vistaDeRuta(vistas, ruta) {
     return (
         [...vistas]
@@ -232,8 +253,15 @@ export function vistaDeRuta(vistas, ruta) {
     );
 }
 
+// La misma pantalla en el juego que sí le toca a la cuenta, o nulo.
+export function gemelaDe(usuario, ruta) {
+    const gemela = VISTAS.find((v) => v.ruta === ruta)?.gemela;
+    return gemela && vistasDe(usuario).some((v) => v.ruta === gemela) ? gemela : null;
+}
+
 // A dónde va una cuenta recién autenticada.
 export function destinoDe(usuario) {
     if (!usuario) return '/login';
+    if (usuario.debe_cambiar_contrasena) return '/primer-ingreso';
     return entradaDe(usuario) ?? '/sin-acceso';
 }

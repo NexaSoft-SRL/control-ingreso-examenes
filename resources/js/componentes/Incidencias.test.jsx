@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { BotonIncidencia, ListaIncidencias, TIPOS_INCIDENCIA } from './Incidencias';
+import { BotonIncidencia, FiltroGravedad, ListaIncidencias, TIPOS_INCIDENCIA } from './Incidencias';
 import { api } from '../api/cliente';
 import { errorHttp, simularApi } from '../test/apoyo';
 
@@ -283,6 +283,32 @@ describe('ListaIncidencias', () => {
         expect(screen.getByText('Grave')).toHaveClass('text-warning-700');
         // Sin `gravedad` la toma del tipo; atendida, en gris.
         expect(screen.getByText('Leve')).toHaveClass('text-slate-500');
+    });
+
+    it('el filtro por gravedad cuenta cada nivel y elige uno', () => {
+        const onCambiar = vi.fn();
+        render(
+            <FiltroGravedad
+                items={[
+                    { ...ITEMS[0], id: 41, tipo: 'SUPLANTACION', gravedad: 'MUY_GRAVE' },
+                    ITEMS[0],
+                    ITEMS[1],
+                ]}
+                valor={null}
+                onCambiar={onCambiar}
+            />
+        );
+
+        const grupo = within(screen.getByRole('group', { name: 'Gravedad' }));
+        expect(grupo.getByRole('button', { name: /Todas/ })).toHaveTextContent('Todas3');
+        expect(grupo.getByRole('button', { name: /Todas/ })).toHaveAttribute(
+            'aria-pressed',
+            'true'
+        );
+        expect(grupo.getByRole('button', { name: /Muy grave/ })).toHaveTextContent('Muy grave1');
+        expect(grupo.getByRole('button', { name: /^Grave/ })).toHaveTextContent('Grave1');
+        fireEvent.click(grupo.getByRole('button', { name: /Leve/ }));
+        expect(onCambiar).toHaveBeenCalledWith('LEVE');
     });
 
     it('el docente corrige el tipo y el detalle', async () => {

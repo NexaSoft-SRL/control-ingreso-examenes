@@ -5,13 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Application\Contracts;
 
 use App\Modules\Ingreso\Application\DTOs\NuevaIncidenciaData;
+use App\Modules\Ingreso\Domain\Enums\CausaIntento;
 use App\Modules\Ingreso\Domain\Enums\TipoIncidencia;
 
-/**
- * Las incidencias de un examen en un solo modelo: lo que reporta una
- * persona, lo que rechaza la puerta, las expulsiones y las situaciones
- * excepcionales.
- */
 interface IncidenciaGateway
 {
     /**
@@ -22,19 +18,17 @@ interface IncidenciaGateway
     public function registrar(NuevaIncidenciaData $datos, ?string $operacion = null): ?int;
 
     /**
-     * Las incidencias del examen (o de unas aulas), de la mas reciente a la
-     * mas antigua, con los conteos: las reportadas por personas y los
-     * ingresos repetidos que asienta la puerta. Los demas intentos que
-     * rechaza la puerta no se listan ni se atienden.
+     * Incidencias reportadas por personas (y los ingresos repetidos que
+     * asienta la puerta), de la mas reciente a la mas
+     * antigua, con los conteos del examen (o del aula).
      *
-     * @param  list<int>|null  $aulas  nulo: todas las aulas del examen
      * @return array{data: list<array<string, mixed>>, sin_atender: int, todas: int}
      */
-    public function listar(int $examenId, ?array $aulas, bool $soloSinAtender): array;
+    public function listar(int $examenId, ?int $aulaId, bool $soloSinAtender): array;
 
     /**
-     * Una incidencia con la forma del listado mas `examen_id`; nulo si no
-     * existe.
+     * Una incidencia reportada por una persona, con la forma del listado
+     * mas `examen_id`; nulo si no existe o es del sistema.
      *
      * @return array<string, mixed>|null
      */
@@ -48,7 +42,7 @@ interface IncidenciaGateway
     /**
      * Cambia el tipo y el detalle, agrega las fotos nuevas a la evidencia
      * (no reemplaza ni borra las que habia) y el estudiante si viene
-     * `$estudiante`.
+     * `$estudiante` (texto escrito e id del padron, si se encontro).
      *
      * @param  list<string>  $evidencias  rutas de las fotos nuevas, ya guardadas
      * @param  array{texto: string|null, id: int|null}|null  $estudiante
@@ -68,17 +62,20 @@ interface IncidenciaGateway
     public function cuantasEvidencias(int $incidenciaId): int;
 
     /**
+     * Si en los ultimos `$minutos` ya se asento un ingreso repetido de ese
+     * ingreso en esa aula.
+     */
+    public function repetidoReciente(int $ingresoId, int $aulaId, int $minutos): bool;
+
+    /**
+     * Si en los ultimos `$minutos` la puerta ya asento un intento de ese
+     * estudiante en esa aula por esa causa.
+     */
+    public function intentoReciente(int $estudianteId, int $aulaId, CausaIntento $causa, int $minutos): bool;
+
+    /**
      * Donde esta la foto numero `$numero` (1, 2 o 3) de la evidencia, o
      * nulo si no la tiene.
      */
     public function evidencia(int $incidenciaId, int $numero = 1): ?string;
-
-    /**
-     * El estudiante inscrito en el examen con ese codigo SIS o C.I.
-     */
-    public function estudianteDelExamen(int $examenId, string $identificador): ?int;
-
-    public function examenTieneAula(int $examenId, int $aulaId): bool;
-
-    public function fechaDelExamen(int $examenId): ?string;
 }

@@ -51,12 +51,12 @@ describe('Campo', () => {
     });
 
     it('muestra el error del servidor por encima de la ayuda', () => {
-        const { rerender } = render(<Campo etiqueta="Usuario" ayuda="nombreapellido" />);
-        expect(screen.getByText('nombreapellido')).toBeInTheDocument();
+        const { rerender } = render(<Campo etiqueta="Usuario" ayuda="nombre.apellido" />);
+        expect(screen.getByText('nombre.apellido')).toBeInTheDocument();
 
-        rerender(<Campo etiqueta="Usuario" ayuda="nombreapellido" error="En uso" />);
+        rerender(<Campo etiqueta="Usuario" ayuda="nombre.apellido" error="En uso" />);
         expect(screen.getByText('En uso')).toBeInTheDocument();
-        expect(screen.queryByText('nombreapellido')).not.toBeInTheDocument();
+        expect(screen.queryByText('nombre.apellido')).not.toBeInTheDocument();
     });
 
     it('valida el valor controlado y muestra el sufijo', () => {

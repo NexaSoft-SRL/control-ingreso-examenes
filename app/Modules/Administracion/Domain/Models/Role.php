@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Administracion\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -16,21 +18,12 @@ class Role extends Model
     protected $fillable = ['name', 'es_sistema'];
 
     /**
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'es_sistema' => 'boolean',
-        ];
-    }
-
-    /**
      * @return BelongsToMany<Permission, $this>
      */
     public function permissions(): BelongsToMany
     {
-        return $this->belongsToMany(Permission::class);
+        return $this->belongsToMany(Permission::class)
+            ->withPivot(['vigente_desde', 'vigente_hasta']);
     }
 
     /**
@@ -39,5 +32,15 @@ class Role extends Model
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'es_sistema' => 'boolean',
+        ];
     }
 }

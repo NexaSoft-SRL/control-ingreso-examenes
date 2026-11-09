@@ -11,8 +11,8 @@ use App\Modules\Examenes\Application\DTOs\GuardarExamenData;
 use App\Modules\Examenes\Domain\Exceptions\DatoInvalidoException;
 
 /**
- * Registra el examen de una vez, con sus grupos, sus aulas y sus normas.
- * Puede sumar grupos de otros docentes sin pedirles aprobacion:
+ * Registra el examen de una vez, con sus grupos, sus aulas, quien las
+ * atiende y sus normas. Puede sumar grupos de otros docentes sin pedirles aprobacion:
  * queda en la bitacora.
  */
 final readonly class RegistrarExamen

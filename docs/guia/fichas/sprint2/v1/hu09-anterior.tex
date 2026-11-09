@@ -1,0 +1,73 @@
+% Ficha HU-09, version 2. Ajustada tras la retroalimentacion de la octava
+% revision: las normas son las del examen; ya no hay normas particulares
+% por estudiante. La version anterior queda en sprint2/v1/hu09.pdf.
+\def\HUNro{09}
+\def\HUSprint{2}
+\def\HUTitulo{Exámenes > Normas > Definir normas del examen}
+\def\HUModulo{M2}
+\def\HUReq{2}
+\def\HUPuntos{5}
+
+\def\HUComo{docente}
+\def\HUQuiero{definir las normas del examen}
+\def\HUPara{que el personal de control las tenga a la vista en la puerta}
+
+\def\HUDescripcion{%
+Las normas son lo que el personal de control necesita saber en la puerta: qué está
+permitido en ese examen.
+
+Una norma rige para todos los estudiantes del examen: prohibido el celular, prohibida la
+calculadora programable, se ingresa con documento a la vista. No hay normas por
+estudiante: tras la retroalimentación de la octava revisión se retiraron, y los casos
+individuales se atienden como situación excepcional en la puerta.
+
+Las normas cuelgan del examen: si el examen se elimina, se van con él. Al consultarlas
+solo aparecen las de ese examen.
+
+Escribirlas es del docente; leerlas, también del personal de control. Cuando la puerta
+identifica a un estudiante, la pantalla del punto de control muestra las normas del
+examen antes de registrar el ingreso. Es el momento en que hacen falta: después ya entró.
+
+La pantalla del docente comparte permiso con el registro de exámenes (HU-08). Cada alta y
+cada eliminación quedan asentadas en la bitácora (HU-07).}
+
+\def\HUCriterios{%
+\item Dado que el docente abre las normas de un examen, Cuando se cargan, Entonces el
+      sistema las lista.
+\item Dado que se registra una norma, Cuando se guarda, Entonces el sistema la aplica a
+      todos los estudiantes del examen, sin nombrar a ninguno.
+\item Dado que se consultan las normas de un examen, Cuando se muestran, Entonces no
+      aparecen las de otro examen.
+\item Dado que una norma dejó de aplicar, Cuando se la quita, Entonces el sistema la
+      elimina de la lista del examen.
+\item Dado que el examen se elimina, Cuando ocurre, Entonces sus normas se eliminan con
+      él.
+\item Dado que se consultan las normas de un examen que no existe, Cuando se pide,
+      Entonces el sistema responde que no lo encontró.
+\item Dado que un rol no tiene el permiso de exámenes y normas, Cuando intenta ver o
+      registrar normas, Entonces el sistema responde con una negativa explícita.
+\item Dado que se registra o se quita una norma, Cuando la operación se completa,
+      Entonces queda asentada en la bitácora con su autor.
+\item Dado que el docente accede desde un dispositivo móvil, Cuando abre las normas,
+      Entonces la interfaz se adapta de forma completamente responsiva.
+\item Dado que el personal de control identifica a un estudiante en la puerta, Cuando lo
+      consulta, Entonces ve las normas del examen.}
+
+\def\HUPruebas{%
+\item \texttt{NormasExamenTest::a\_general\_rule\_applies\_to\_the\_whole\_exam}: la norma
+      alcanza a todo el examen (criterio 2).
+\item \texttt{NormasExamenTest::the\_rules\_of\_another\_exam\_are\_not\_mixed}: listado y
+      aislamiento por examen (criterios 1 y 3).
+\item \texttt{NormasExamenTest::a\_rule\_can\_be\_removed} y
+      \texttt{deleting\_the\_exam\_takes\_its\_rules}: baja de la norma y arrastre al
+      eliminar el examen (criterios 4 y 5).
+\item \texttt{NormasExamenTest}: examen inexistente, rol sin permiso y sin sesión
+      (criterios 6 y 7).
+\item \texttt{NormasExamenTest::every\_movement\_is\_recorded\_in\_the\_audit\_log}: alta y
+      baja asentadas (criterio 8).
+\item \texttt{Examenes.test.jsx}: apertura del panel, alta y baja de una norma
+      (criterios 1, 2 y 4).
+\item \texttt{PuntoControl.test.jsx}: la pantalla muestra las normas al identificar, y no
+      dibuja el bloque cuando el examen no tiene ninguna (criterio 10).}
+
+\input{cuerpo}

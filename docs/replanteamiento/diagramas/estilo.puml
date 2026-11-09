@@ -1,0 +1,45 @@
+' =====================================================================
+'  Estilo comun de los diagramas C4
+'
+'  Reproduce la apariencia oficial de c4model.com: caja blanca con el
+'  borde y la tipografia del color del elemento, esquinas redondeadas,
+'  el tipo entre corchetes bajo el nombre, la persona con silueta y las
+'  relaciones punteadas en gris.
+'
+'  Se incluye despues de <C4/C4_Context>, <C4/C4_Container> o
+'  <C4/C4_Component>, segun el nivel.
+' =====================================================================
+
+' --- Paleta ---------------------------------------------------------
+!$VERDE   = "#2E7D32"
+!$AZUL    = "#1168BD"
+!$NARANJA = "#E8820C"
+!$ROJO    = "#B01B2E"
+!$GRIS    = "#444444"
+
+HIDE_STEREOTYPE()
+SHOW_PERSON_OUTLINE()
+
+skinparam defaultFontName "Helvetica Neue"
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam rectangleBorderThickness 3
+skinparam rectangleRoundCorner 18
+skinparam personBorderThickness 3
+skinparam ArrowThickness 2
+skinparam nodesep 45
+skinparam ranksep 55
+skinparam legendBackgroundColor transparent
+skinparam legendBorderColor transparent
+
+' --- Elementos: caja blanca, borde y texto del color del tipo -------
+AddElementTag("persona",  $bgColor="#FFFFFF", $fontColor=$VERDE,   $borderColor=$VERDE)
+AddElementTag("sistema",  $bgColor="#FFFFFF", $fontColor=$AZUL,    $borderColor=$AZUL)
+AddElementTag("externo",  $bgColor="#FFFFFF", $fontColor=$NARANJA, $borderColor=$NARANJA)
+AddElementTag("externo2", $bgColor="#FFFFFF", $fontColor=$ROJO,    $borderColor=$ROJO)
+
+' --- Frontera del sistema: linea continua, rotulo del color ---------
+UpdateBoundaryStyle($borderColor=$AZUL, $fontColor=$AZUL, $borderStyle=SolidLine())
+
+' --- Relaciones: punteadas y en gris --------------------------------
+AddRelTag("rel", $lineStyle=DashedLine(), $lineColor=$GRIS, $textColor=$GRIS)

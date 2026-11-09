@@ -8,7 +8,8 @@ use App\Modules\Examenes\Application\DTOs\ExamenActualData;
 use App\Modules\Examenes\Application\DTOs\GuardarExamenData;
 
 /**
- * Escritura del examen con sus grupos, sus aulas y sus normas marcadas.
+ * Escritura del examen con sus grupos, sus aulas, quien las atiende y sus
+ * normas marcadas.
  */
 interface ExamenGateway
 {
@@ -16,21 +17,28 @@ interface ExamenGateway
 
     public function tieneIngresos(int $examenId): bool;
 
+    /**
+     * Incidencias que nombran al examen: son historia y no se borran.
+     */
+    public function tieneIncidencias(int $examenId): bool;
+
     public function actual(int $examenId): ?ExamenActualData;
 
     /**
-     * Guarda el examen completo y asienta `examen.registrar`. De cada
-     * plantilla marcada guarda una copia del texto. `$datos->periodoId`
-     * tiene que venir resuelto.
+     * Guarda el examen completo y asienta `examen.registrar` (y
+     * `examen.asignar_auxiliar` si alguien mas atiende un aula). De cada
+     * plantilla marcada guarda una copia del texto.
+     * `$datos->periodoId` tiene que venir resuelto.
      */
     public function registrar(GuardarExamenData $datos, int $usuarioId): int;
 
     /**
-     * Reemplaza los datos, los grupos, las aulas y las normas marcadas.
-     * Quitar un aula deja sin aula a sus habilitados; quitar un grupo borra
-     * las habilitaciones de quienes ya no estan inscritos en ningun grupo
-     * del examen. Una norma que ya estaba marcada conserva el texto con
-     * que se guardo. Asienta `examen.modificar`.
+     * Reemplaza los datos, los grupos, las aulas, el personal y las normas
+     * marcadas (la que ya estaba conserva el texto con que se guardo). Quitar un
+     * aula deja sin aula a sus habilitados; quitar un grupo borra las
+     * habilitaciones y los codigos QR de quienes ya no estan inscritos en
+     * ningun grupo del examen. Asienta `examen.modificar` y, si cambia el
+     * personal, `examen.asignar_auxiliar`.
      */
     public function actualizar(int $examenId, GuardarExamenData $datos, int $usuarioId): bool;
 

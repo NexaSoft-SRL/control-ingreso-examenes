@@ -1,17 +1,21 @@
 import PropTypes from 'prop-types';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
     ArrowRight,
     Building2,
-    Check,
+    CalendarDays,
     CheckCircle2,
-    Copy,
+    ClipboardList,
+    Clock,
     DoorOpen,
+    Hourglass,
     KeyRound,
     LayoutGrid,
     ListChecks,
-    RefreshCw,
+    MapPin,
     ScrollText,
+    Tag,
+    UserCheck,
     Users,
     X,
 } from 'lucide-react';
@@ -25,56 +29,84 @@ import Boton from '../../componentes/Boton';
 import Buscador from '../../componentes/Buscador';
 import Campo from '../../componentes/Campo';
 import Desplegable from '../../componentes/Desplegable';
-import Dialogo from '../../componentes/Dialogo';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
 import Insignia from '../../componentes/Insignia';
 import MapaCampus from '../../componentes/MapaCampus';
 import Pasos from '../../componentes/Pasos';
 import Seleccion from '../../componentes/Seleccion';
+import SelectorAsignatura from '../../componentes/SelectorAsignatura';
 import Tarjeta from '../../componentes/Tarjeta';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { diaMes, fechaLarga, normalizar, plural } from '../../utiles/texto';
+import CodigoDeAula from './CodigoDeAula';
 import NormasDelExamen from './NormasDelExamen';
-import AtencionAulas from './AtencionAulas';
 import rutaDelExamen from './rutaDelExamen';
+import QuienAtiende from './QuienAtiende';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
 const PASOS = ['Examen', 'Grupos', 'Aulas', 'Quién atiende', 'Listo'];
+const ICONOS_DE_PASO = [ClipboardList, Users, DoorOpen, UserCheck, CheckCircle2];
 // Con más grupos que estos, la lista lleva buscador y desplazamiento propio.
 const MUCHOS_GRUPOS = 8;
 const VACIO = 'rounded-lg border border-slate-200 py-4 text-center text-sm text-slate-600';
 const ERROR = 'mt-1.5 text-sm text-danger-600';
 
-const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
-// La fecha de hoy en el navegador, 'AAAA-MM-DD'.
-const hoyLocal = () => {
-    const ahora = new Date();
-    const dos = (n) => String(n).padStart(2, '0');
-    return `${ahora.getFullYear()}-${dos(ahora.getMonth() + 1)}-${dos(ahora.getDate())}`;
+// La ventana del calendario académico de cada tipo, como la comprueba el servidor.
+const VENTANA_DE_TIPO = {
+    PRIMER_PARCIAL: 'primeros_parciales',
+    SEGUNDO_PARCIAL: 'segundos_parciales',
+    FINAL: 'finales_y_segunda_instancia',
+    SEGUNDA_INSTANCIA: 'finales_y_segunda_instancia',
+    MESA: 'examenes_de_mesa',
 };
-// La primera fecha posible: hoy, salvo que el período empiece después; vacía
-// si el período ya terminó.
-const fechaSugerida = (periodo, hoy) => {
-    const desde = [hoy, periodo?.fecha_inicio].filter(Boolean).sort().at(-1);
-    return periodo?.fecha_fin && desde > periodo.fecha_fin ? '' : desde;
+const ventanaDe = (periodo, tipo) => {
+    const ventana = periodo?.ventanas?.[VENTANA_DE_TIPO[tipo]];
+    return Array.isArray(ventana) && ventana.length === 2 ? ventana : null;
+};
+// La primera fecha posible para el tipo: hoy, salvo que el período o la
+// ventana del calendario empiecen después; vacía si la ventana ya terminó.
+const fechaSugerida = (periodo, tipo, hoy) => {
+    const ventana = ventanaDe(periodo, tipo);
+    const desde = [hoy, periodo?.fecha_inicio, ventana?.[0]].filter(Boolean).sort().at(-1);
+    const hasta = [periodo?.fecha_fin, ventana?.[1]].filter(Boolean).sort()[0];
+    return hasta && desde > hasta ? '' : desde;
 };
 // La hora de la primera franja de la mañana en la UMSS.
 const HORA_SUGERIDA = '08:15';
+// '08:30' → 510.
+const minutosDe = (hora) => {
+    const [h, m] = String(hora).split(':').map(Number);
+    return h * 60 + m;
+};
+
+const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
 const duracionValida = (texto) =>
     /^\d+$/.test(String(texto).trim()) && Number(texto) >= 15 && Number(texto) <= 480;
 const alternar = (lista, valor) =>
     lista.includes(valor) ? lista.filter((v) => v !== valor) : [...lista, valor];
+// Los rechazos de quién atiende un aula: `aulas.N.encargado_id`, `aulas.N.apoyo`.
+const DE_PERSONAL = /^aulas\.\d+\.(encargado_id|apoyo)/;
 // En qué paso se corrige cada campo que rechaza el servidor.
 const pasoDe = (campo) =>
     campo.startsWith('grupos')
         ? 1
-        : campo.startsWith('aulas')
-          ? 2
-          : campo.startsWith('personal')
-            ? 3
+        : DE_PERSONAL.test(campo)
+          ? 3
+          : campo.startsWith('aulas')
+            ? 2
             : 0;
+// Quién atiende cada aula de un examen guardado: `{ [aulaId]: { encargado, apoyo } }`.
+const personalDe = (examen, yo) =>
+    Object.fromEntries(
+        (examen?.aulas_detalle ?? []).map((a) => [
+            a.aula_id,
+            { encargado: a.encargado?.id ?? yo, apoyo: (a.apoyo ?? []).map((p) => p.id) },
+        ])
+    );
+const conCodigoDe = (examen) =>
+    (examen?.aulas_detalle ?? []).filter((a) => a.usa_codigo).map((a) => a.aula_id);
 
 function ubicacionDe(aula, facultad) {
     const lugar = [aula.edificio, aula.piso].filter(Boolean).join(' · ') || 'Sin edificio';
@@ -85,6 +117,7 @@ const FORMA_GRUPO = PropTypes.shape({
     id: PropTypes.number.isRequired,
     codigo: PropTypes.string.isRequired,
     docente: PropTypes.string,
+    docente_usuario_id: PropTypes.number,
     inscritos: PropTypes.number,
 });
 
@@ -117,23 +150,35 @@ const FORMA_DETALLE = PropTypes.shape({
         PropTypes.shape({
             aula_id: PropTypes.number.isRequired,
             nombre: PropTypes.string,
-            a_cargo: PropTypes.shape({ id: PropTypes.number, nombre: PropTypes.string }),
+            ubicacion: PropTypes.string,
+            edificio_id: PropTypes.number,
+            encargado: PropTypes.shape({
+                id: PropTypes.number.isRequired,
+                nombre: PropTypes.string.isRequired,
+                es_docente: PropTypes.bool,
+            }),
             apoyo: PropTypes.arrayOf(
-                PropTypes.shape({ id: PropTypes.number, nombre: PropTypes.string })
+                PropTypes.shape({
+                    id: PropTypes.number.isRequired,
+                    nombre: PropTypes.string.isRequired,
+                })
             ),
-            codigo: PropTypes.string,
+            usa_codigo: PropTypes.bool,
         })
     ),
 });
 
-function FilaGrupo({ g, marcado, onCambiar }) {
+function FilaGrupo({ g, marcado, onCambiar, bloqueado = false }) {
     return (
         <li>
-            <label className="flex min-h-11 cursor-pointer items-center gap-3 px-4 py-2">
+            <label
+                className={`flex min-h-11 items-center gap-3 px-4 py-2 ${bloqueado ? '' : 'cursor-pointer'}`}
+            >
                 <input
                     type="checkbox"
                     className="h-4 w-4 shrink-0"
                     checked={marcado}
+                    disabled={bloqueado}
                     onChange={onCambiar}
                     aria-label={`Grupo ${g.codigo} · ${g.docente ?? 'Sin docente'}`}
                 />
@@ -153,18 +198,21 @@ FilaGrupo.propTypes = {
     g: FORMA_GRUPO.isRequired,
     marcado: PropTypes.bool.isRequired,
     onCambiar: PropTypes.func.isRequired,
+    bloqueado: PropTypes.bool,
 };
 
-function FilaAula({ aula, ubicacion, marcado, compartida, onCambiar }) {
+// `compartida`: otro examen usa el aula a esa hora. Es aviso, no impide.
+function FilaAula({ aula, ubicacion, marcado, compartida, onCambiar, bloqueado = false }) {
     return (
         <li>
             <label
-                className={`flex min-h-11 cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 ${marcado ? 'bg-primary-50' : ''}`}
+                className={`flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 ${bloqueado ? '' : 'cursor-pointer'} ${marcado ? 'bg-primary-50' : ''}`}
             >
                 <input
                     type="checkbox"
                     className="h-4 w-4 shrink-0"
                     checked={marcado}
+                    disabled={bloqueado}
                     onChange={onCambiar}
                     aria-label={`Aula ${aula.nombre}`}
                 />
@@ -189,77 +237,23 @@ FilaAula.propTypes = {
     marcado: PropTypes.bool.isRequired,
     compartida: PropTypes.string,
     onCambiar: PropTypes.func.isRequired,
+    bloqueado: PropTypes.bool,
 };
 
 // El examen tal como quedó guardado: lo que se ve tras registrar y lo que ve
 // el docente de un grupo incluido, que no lo modifica.
-function Resumen({ examen, recien = false }) {
+function Resumen({ examen, recien = false, onAviso, onElegirAulas }) {
     const { puede } = usarSesion();
-    const [aviso, avisar] = useAviso();
+    const [acceso, setAcceso] = useState(null);
+    const [generados, setGenerados] = useState([]);
+    const anotar = useCallback(
+        (id) => setGenerados((previos) => (previos.includes(id) ? previos : [...previos, id])),
+        []
+    );
     const grupos = examen.grupos_detalle ?? [];
     const aulas = examen.aulas_detalle ?? [];
     const marcadas = examen.normas_marcadas ?? [];
     const libres = (examen.normas ?? '').trim();
-    // Sin personal guardado, el aula queda a cargo de quien registró el examen.
-    const encargadoDe = (aula) => aula.a_cargo?.nombre ?? examen.registrado_por ?? '—';
-
-    const [aulaParaCodigo, setAulaParaCodigo] = useState(null);
-    const [codigos, setCodigos] = useState(() =>
-        Object.fromEntries(aulas.map((a) => [a.aula_id, a.codigo]))
-    );
-    const [generandoCodigo, setGenerandoCodigo] = useState(false);
-    const [copiado, setCopiado] = useState(false);
-
-    const copiarCodigo = async (codigo) => {
-        if (!codigo) return;
-        let copiadoExito = false;
-        if (navigator?.clipboard?.writeText) {
-            try {
-                await navigator.clipboard.writeText(codigo);
-                copiadoExito = true;
-            } catch {
-                copiadoExito = false;
-            }
-        }
-
-        if (!copiadoExito) {
-            try {
-                const textarea = document.createElement('textarea');
-                textarea.value = codigo;
-                textarea.style.position = 'fixed';
-                textarea.style.opacity = '0';
-                document.body.appendChild(textarea);
-                textarea.focus();
-                textarea.select();
-                copiadoExito = document.execCommand('copy');
-                document.body.removeChild(textarea);
-            } catch {
-                copiadoExito = false;
-            }
-        }
-
-        if (copiadoExito) {
-            setCopiado(true);
-            avisar('Código copiado');
-            setTimeout(() => setCopiado(false), 2000);
-        } else {
-            avisar('Error al copiar el código', 'error');
-        }
-    };
-
-    const generarCodigoAula = async (aulaId, esRegenerar = false) => {
-        setGenerandoCodigo(true);
-        try {
-            const { data } = await api.post(`/examenes/${examen.id}/aulas/${aulaId}/codigo`);
-            const nuevoCodigo = data?.data?.codigo;
-            setCodigos((prev) => ({ ...prev, [aulaId]: nuevoCodigo }));
-            avisar(esRegenerar ? 'Código regenerado' : 'Código generado');
-        } catch (error) {
-            avisar(mensajeDe(error, 'No se pudo generar el código'), 'error');
-        } finally {
-            setGenerandoCodigo(false);
-        }
-    };
 
     return (
         <Tarjeta>
@@ -271,7 +265,10 @@ function Resumen({ examen, recien = false }) {
                             {examen.tipo_texto ?? examen.tipo} · {examen.asignatura.nombre}
                         </p>
                         {examen.estado && (
-                            <Insignia tono="advertencia" punto>
+                            <Insignia
+                                tono={examen.estado === 'Listo' ? 'exito' : 'advertencia'}
+                                punto
+                            >
                                 {examen.estado}
                             </Insignia>
                         )}
@@ -289,6 +286,38 @@ function Resumen({ examen, recien = false }) {
                                 : 'Sin aulas'}
                         </span>
                     </p>
+                    {aulas.length > 0 && (
+                        <div className="mt-1 flex items-start gap-2 text-sm text-slate-700">
+                            <UserCheck className="mt-2.5 h-4 w-4 shrink-0 text-slate-500" />
+                            <ul aria-label="Quién atiende" className="min-w-0 flex-1">
+                                {aulas.map((a) => (
+                                    <li key={a.aula_id} className="flex min-w-0 items-center gap-2">
+                                        <span className="min-w-0 flex-1 break-words">
+                                            <span className="font-medium">{a.nombre}</span>
+                                            {a.encargado ? ` · ${a.encargado.nombre}` : ''}
+                                            {(a.apoyo ?? []).length > 0 && (
+                                                <span className="text-slate-600">
+                                                    {' '}
+                                                    · {a.apoyo.map((p) => p.nombre).join(', ')}
+                                                </span>
+                                            )}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            aria-label={`Código de acceso del aula ${a.nombre}`}
+                                            title="Código de acceso"
+                                            onClick={() =>
+                                                setAcceso({ id: a.aula_id, nombre: a.nombre })
+                                            }
+                                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-slate-100 ${a.usa_codigo || generados.includes(a.aula_id) ? 'text-primary-700' : 'text-slate-600'} ${FOCO}`}
+                                        >
+                                            <KeyRound className="h-4 w-4" />
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                     <div className="mt-1 flex items-start gap-2 text-sm text-slate-700">
                         <ScrollText className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
                         {marcadas.length > 0 || libres ? (
@@ -315,48 +344,6 @@ function Resumen({ examen, recien = false }) {
                             Registrado por {examen.registrado_por}
                         </p>
                     )}
-                    {aulas.length > 0 && (
-                        <div className="mt-3 space-y-2 border-t border-slate-200 pt-3">
-                            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                                Aulas y atención asignada
-                            </h4>
-                            <div className="grid gap-2 sm:grid-cols-2">
-                                {aulas.map((a) => {
-                                    const codigo = codigos[a.aula_id] ?? a.codigo;
-                                    return (
-                                        <div
-                                            key={a.aula_id}
-                                            className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-700 space-y-1"
-                                        >
-                                            <div className="flex items-center justify-between font-semibold text-slate-900">
-                                                <span>Aula {a.nombre}</span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setAulaParaCodigo(a)}
-                                                    aria-label={`Código de acceso del aula ${a.nombre}`}
-                                                    title="Código de acceso"
-                                                    className={`flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 ${FOCO}`}
-                                                >
-                                                    <KeyRound className="h-3.5 w-3.5" />
-                                                    {codigo ? `Código: ${codigo}` : 'Llave'}
-                                                </button>
-                                            </div>
-                                            <p>
-                                                <span className="text-slate-500">A cargo:</span>{' '}
-                                                {encargadoDe(a)}
-                                            </p>
-                                            <p>
-                                                <span className="text-slate-500">Apoyo:</span>{' '}
-                                                {Array.isArray(a.apoyo) && a.apoyo.length > 0
-                                                    ? a.apoyo.map((aux) => aux.nombre).join(', ')
-                                                    : 'Sin personal de apoyo'}
-                                            </p>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
             <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">
@@ -366,6 +353,11 @@ function Resumen({ examen, recien = false }) {
                 >
                     Ver exámenes
                 </Link>
+                {aulas.length === 0 && onElegirAulas && (
+                    <Boton type="button" onClick={onElegirAulas}>
+                        Elegir aulas <ArrowRight className="h-4 w-4" />
+                    </Boton>
+                )}
                 {aulas.length > 0 && puede('habilitacion') && (
                     <Link
                         to={rutaDelExamen(examen.id, 'habilitacion')}
@@ -375,111 +367,26 @@ function Resumen({ examen, recien = false }) {
                     </Link>
                 )}
             </div>
-
-            {aulaParaCodigo !== null && (
-                <Dialogo
-                    abierto={aulaParaCodigo !== null}
-                    onCerrar={() => {
-                        setAulaParaCodigo(null);
-                        setCopiado(false);
-                    }}
-                    titulo="Código de acceso"
-                >
-                    {(() => {
-                        const aula = aulaParaCodigo;
-                        const codigo = codigos[aula.aula_id] ?? aula.codigo;
-                        return (
-                            <div className="space-y-4">
-                                <div className="rounded-lg bg-slate-50 p-3 text-xs space-y-1.5 border border-slate-200">
-                                    <p>
-                                        <span className="font-semibold text-slate-700">Aula:</span>{' '}
-                                        {aula.nombre}
-                                    </p>
-                                    <p>
-                                        <span className="font-semibold text-slate-700">
-                                            A cargo:
-                                        </span>{' '}
-                                        {encargadoDe(aula)}
-                                    </p>
-                                    <p>
-                                        <span className="font-semibold text-slate-700">
-                                            Fecha del examen:
-                                        </span>{' '}
-                                        {fechaLarga(examen.fecha)}
-                                    </p>
-                                </div>
-
-                                {codigo ? (
-                                    <div className="space-y-3">
-                                        <div className="flex items-center justify-between rounded-lg border border-slate-300 bg-white p-3">
-                                            <span className="font-mono text-xl font-bold tracking-widest text-slate-900">
-                                                {codigo}
-                                            </span>
-                                            <div className="flex gap-2">
-                                                <Boton
-                                                    type="button"
-                                                    tamano="chico"
-                                                    variante="secundario"
-                                                    onClick={() => copiarCodigo(codigo)}
-                                                >
-                                                    {copiado ? (
-                                                        <Check className="h-3.5 w-3.5 text-success-600" />
-                                                    ) : (
-                                                        <Copy className="h-3.5 w-3.5" />
-                                                    )}
-                                                    {copiado ? 'Copiado' : 'Copiar'}
-                                                </Boton>
-                                                <Boton
-                                                    type="button"
-                                                    tamano="chico"
-                                                    variante="secundario"
-                                                    disabled={generandoCodigo}
-                                                    onClick={() =>
-                                                        generarCodigoAula(aula.aula_id, true)
-                                                    }
-                                                >
-                                                    <RefreshCw className="h-3.5 w-3.5" />
-                                                    Regenerar
-                                                </Boton>
-                                            </div>
-                                        </div>
-                                        <p className="text-xs text-slate-500">
-                                            El código anterior dejará de ser válido.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        <p className="text-xs text-slate-600">
-                                            Sin código generado.
-                                        </p>
-                                        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-3">
-                                            <span className="text-xs font-medium text-slate-500">
-                                                Sin código
-                                            </span>
-                                            <Boton
-                                                type="button"
-                                                tamano="chico"
-                                                disabled={generandoCodigo}
-                                                onClick={() =>
-                                                    generarCodigoAula(aula.aula_id, false)
-                                                }
-                                            >
-                                                {generandoCodigo ? 'Generando...' : 'Generar'}
-                                            </Boton>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })()}
-                </Dialogo>
+            {acceso && (
+                <CodigoDeAula
+                    key={acceso.id}
+                    examenId={examen.id}
+                    aula={acceso}
+                    onCerrar={() => setAcceso(null)}
+                    onAviso={onAviso}
+                    onGenerado={anotar}
+                />
             )}
-            {aviso}
         </Tarjeta>
     );
 }
 
-Resumen.propTypes = { examen: FORMA_DETALLE.isRequired, recien: PropTypes.bool };
+Resumen.propTypes = {
+    examen: FORMA_DETALLE.isRequired,
+    recien: PropTypes.bool,
+    onAviso: PropTypes.func.isRequired,
+    onElegirAulas: PropTypes.func,
+};
 
 // Las normas del examen que quedaron sin plantilla (la plantilla se quitó).
 const sueltasDe = (examen) => (examen?.normas_marcadas ?? []).filter((n) => !n.plantilla_id);
@@ -493,8 +400,8 @@ function fuenteDeNormas(examenes, asignaturaId) {
     return propios.find((e) => e.asignatura?.id === asignaturaId) ?? propios[0] ?? null;
 }
 
-// El asistente: examen y normas, grupos, aulas y resumen. Todo se guarda de
-// una vez al final (POST o PUT /examenes).
+// El asistente: examen y normas, grupos, aulas, quién atiende y resumen. Todo
+// se guarda de una vez al final (POST o PUT /examenes).
 function Asistente({
     asignaturas,
     tipos,
@@ -504,19 +411,31 @@ function Asistente({
     onExamen,
     anteriores = [],
 }) {
+    const { usuario } = usarSesion();
+    const yo = { id: usuario.id, nombre: usuario.nombre };
     const [examen, setExamen] = useState(inicial);
     const [paso, setPaso] = useState(pasoInicial);
     const [asignaturaId, setAsignaturaId] = useState(
         inicial?.asignatura.id ?? asignaturas[0]?.id ?? null
     );
+    const hoy = new Date().toLocaleDateString('en-CA');
     const periodoDe = (id) =>
         periodos.find((p) => p.codigo === asignaturas.find((a) => a.id === id)?.periodo) ?? null;
-    const [hoy] = useState(hoyLocal);
-    const [tipo, setTipo] = useState(inicial?.tipo ?? tipos[0]?.valor ?? '');
-    // Un examen nuevo empieza con fecha y hora cargadas: hoy (o la primera
-    // fecha del período) y la primera franja de la mañana.
+    // Un tipo cuya ventana ya terminó no se ofrece para un examen nuevo.
+    const cerrado = (valor, id) => {
+        const ventana = ventanaDe(periodoDe(id), valor);
+        return valor !== inicial?.tipo && ventana !== null && ventana[1] < hoy;
+    };
+    const [tipo, setTipo] = useState(
+        () =>
+            inicial?.tipo ??
+            (tipos.find((t) => !cerrado(t.valor, asignaturas[0]?.id)) ?? tipos[0])?.valor ??
+            ''
+    );
+    // Un examen nuevo empieza con fecha y hora cargadas: el campo vacío de
+    // fecha u hora se ve en Safari como si tuviera la de hoy, y no la tiene.
     const [fecha, setFecha] = useState(
-        () => inicial?.fecha ?? fechaSugerida(periodoDe(asignaturas[0]?.id), hoy)
+        () => inicial?.fecha ?? fechaSugerida(periodoDe(asignaturas[0]?.id), tipo, hoy)
     );
     const [hora, setHora] = useState(inicial?.hora ?? HORA_SUGERIDA);
     const [duracion, setDuracion] = useState(String(inicial?.duracion ?? '90'));
@@ -542,7 +461,7 @@ function Asistente({
                 setMarcadas(
                     (previo.normas_marcadas ?? []).map((n) => n.plantilla_id).filter(Boolean)
                 );
-                // Las que perdieron su plantilla pasan al texto libre.
+                // Las que no tienen plantilla (la borraron) pasan al texto libre.
                 setNormas(
                     [...sueltasDe(previo).map((n) => n.texto), previo.normas]
                         .filter(Boolean)
@@ -555,22 +474,19 @@ function Asistente({
             vigente = false;
         };
     }, [fuenteId]);
-    const copiadas = anteriores.find((e) => copiadasDe !== null && e.id === copiadasDe) ?? null;
+    const copiadas = anteriores.find((e) => e.id === copiadasDe && copiadasDe !== null) ?? null;
     // `null`: todavía no se tocó; valen los grupos propios de la asignatura.
     const [grupos, setGrupos] = useState(() => inicial?.grupos_detalle?.map((g) => g.id) ?? null);
     const [aulas, setAulas] = useState(() => inicial?.aulas_detalle?.map((a) => a.aula_id) ?? []);
-    const [atencion, setAtencion] = useState(() => {
-        const mapa = {};
-        for (const a of inicial?.aulas_detalle ?? []) {
-            mapa[a.aula_id] = {
-                a_cargo: a.a_cargo?.id ?? null,
-                apoyo: Array.isArray(a.apoyo) ? a.apoyo : [],
-                codigo: a.codigo ?? null,
-            };
-        }
-        return mapa;
-    });
-    const { usuario: cuenta } = usarSesion();
+    const [personal, setPersonal] = useState(() => personalDe(inicial, usuario.id));
+    // Auxiliares sumados en esta visita: los buscados y los recién creados.
+    const [sumados, setSumados] = useState([]);
+    const [acceso, setAcceso] = useState(null);
+    const [conCodigo, setConCodigo] = useState(() => conCodigoDe(inicial));
+    const anotarCodigo = useCallback(
+        (id) => setConCodigo((previos) => (previos.includes(id) ? previos : [...previos, id])),
+        []
+    );
     const [buscado, setBuscado] = useState('');
     const [busqueda, setBusqueda] = useState('');
     const [edificio, setEdificio] = useState('');
@@ -579,8 +495,13 @@ function Asistente({
     const [enviando, setEnviando] = useState(false);
     const [aviso, avisar] = useAviso();
 
+    // Con ingresos registrados solo cambian las normas y quién atiende: lo
+    // mismo que acepta el servidor.
+    const bloqueado = Boolean(examen?.con_ingresos);
     const asignatura = asignaturas.find((a) => a.id === asignaturaId) ?? null;
     const periodo = periodos.find((p) => p.codigo === asignatura?.periodo) ?? null;
+    const ventana = ventanaDe(periodo, tipo);
+    const tipoTexto = tipos.find((t) => t.valor === tipo)?.etiqueta ?? '';
 
     const opciones = usarConsulta('/examenes/opciones/grupos', {
         parametros: { asignatura_id: asignaturaId },
@@ -616,11 +537,11 @@ function Asistente({
             enAulas && elegidosIds.length > 0 && Boolean(fecha && hora) && duracionValida(duracion),
     });
     const sugeridas = opcionesAulas.datos?.sugeridas ?? [];
-    const compartidas = opcionesAulas.datos?.compartidas ?? {};
     const clasesALaHora = opcionesAulas.datos?.clases ?? {};
+    const examenesALaHora = opcionesAulas.datos?.examenes ?? {};
     // Libre: sin clases de otros grupos ni otros exámenes a esa hora.
     const libre = (id) =>
-        !(clasesALaHora[id] ?? []).some((c) => !c.propio) && !(compartidas[id] ?? []).length;
+        !(clasesALaHora[id] ?? []).some((c) => !c.propio) && !(examenesALaHora[id] ?? []).length;
     const conHora = Boolean(opcionesAulas.datos);
     const facultad = asignatura?.facultad ?? null;
     // Solo las aulas de la facultad de la asignatura; las sugeridas y las ya
@@ -689,58 +610,129 @@ function Asistente({
     const errorDe = (prefijo) =>
         Object.entries(errores).find(([c]) => c === prefijo || c.startsWith(`${prefijo}.`))?.[1];
 
+    // Al cambiar de asignatura o de tipo, una fecha que queda fuera de la
+    // nueva ventana pasa a la primera posible; la que sigue valiendo se respeta.
+    const ajustarFecha = (periodoNuevo, tipoNuevo) => {
+        const sugerida = fechaSugerida(periodoNuevo, tipoNuevo, hoy);
+        const ventanaNueva = ventanaDe(periodoNuevo, tipoNuevo);
+        const hasta = [periodoNuevo?.fecha_fin, ventanaNueva?.[1]].filter(Boolean).sort()[0];
+        if (!fecha || fecha < sugerida || (hasta && fecha > hasta)) setFecha(sugerida);
+    };
+
     const cambiarAsignatura = (valor) => {
         setAsignaturaId(Number(valor));
-        // Una fecha que queda fuera del período de la nueva asignatura pasa a
-        // la primera posible; la que sigue valiendo se respeta.
-        if (!examen) {
-            const nuevo = periodoDe(Number(valor));
-            const sugerida = fechaSugerida(nuevo, hoy);
-            if (!fecha || fecha < sugerida || (nuevo?.fecha_fin && fecha > nuevo.fecha_fin)) {
-                setFecha(sugerida);
-            }
-        }
+        if (!bloqueado) ajustarFecha(periodoDe(Number(valor)), tipo);
         setGrupos(null);
         setAulas([]);
+        setPersonal({});
         setBuscado('');
         quitarError('asignatura_id', 'grupos', 'aulas', 'fecha');
     };
 
     const cambiarGrupos = (siguiente) => {
         setGrupos(siguiente);
+        // El docente de un grupo que sale deja las aulas que tenía a cargo.
+        const cuentas = (lista) => lista.map((g) => g.docente_usuario_id).filter(Boolean);
+        const siguen = cuentas(todos.filter((g) => siguiente.includes(g.id)));
+        const salen = cuentas(todos).filter((id) => id !== yo.id && !siguen.includes(id));
+        if (salen.length > 0) {
+            setPersonal((previo) =>
+                Object.fromEntries(
+                    Object.entries(previo).map(([aula, p]) => [
+                        aula,
+                        salen.includes(p.encargado) ? { ...p, encargado: yo.id } : p,
+                    ])
+                )
+            );
+        }
         setErrores((previos) =>
             Object.fromEntries(Object.entries(previos).filter(([c]) => !c.startsWith('grupos')))
         );
     };
 
-    const cambiarAulas = (siguiente) => {
-        setAulas(siguiente);
-        setAtencion((prev) => {
-            const nuevo = { ...prev };
-            for (const id of siguiente) {
-                if (!nuevo[id]) {
-                    nuevo[id] = { a_cargo: cuenta?.id ?? null, apoyo: [], codigo: null };
-                }
-            }
-            return nuevo;
-        });
+    const de = (id) => personal[id] ?? { encargado: yo.id, apoyo: [] };
+    const cambiarPersonal = (siguiente) => {
+        setPersonal(siguiente);
         setErrores((previos) =>
+            Object.fromEntries(Object.entries(previos).filter(([c]) => !DE_PERSONAL.test(c)))
+        );
+    };
+    const sumar = (persona) =>
+        setSumados((previos) =>
+            previos.some((p) => p.id === persona.id) ? previos : [...previos, persona]
+        );
+    // El auxiliar que sale de la lista deja también las aulas donde estaba.
+    const quitarAuxiliar = (id) => {
+        setSumados((previos) => previos.filter((p) => p.id !== id));
+        setPersonal((previo) =>
             Object.fromEntries(
-                Object.entries(previos).filter(
-                    ([c]) => !c.startsWith('aulas') && !c.startsWith('personal')
-                )
+                Object.entries(previo).map(([aula, p]) => [
+                    aula,
+                    {
+                        encargado: p.encargado === id ? yo.id : p.encargado,
+                        apoyo: p.apoyo.filter((x) => x !== id),
+                    },
+                ])
             )
         );
     };
+    const guardadas = (examen?.aulas_detalle ?? []).map((a) => a.aula_id);
+    // Quienes pueden atender sin ser de la cuenta: los docentes de los grupos
+    // del examen (con cuenta) y quienes ya atienden el examen guardado.
+    const conocidos = [
+        ...elegidos
+            .filter((g) => g.docente_usuario_id && g.docente_usuario_id !== yo.id)
+            .map((g) => ({ id: g.docente_usuario_id, nombre: g.docente, es_docente: true })),
+        ...(examen?.aulas_detalle ?? []).flatMap((a) => [
+            ...(a.encargado ? [a.encargado] : []),
+            ...(a.apoyo ?? []).map((p) => ({ ...p, es_docente: false })),
+        ]),
+    ];
+    const aulasElegidas = aulas.map((id) => {
+        const aula = catalogo.find((a) => a.id === id);
+        return {
+            id,
+            nombre: nombreAula(id),
+            ubicacion: aula
+                ? ubicacionDe(aula, facultad)
+                : (examen?.aulas_detalle?.find((a) => a.aula_id === id)?.ubicacion ?? ''),
+        };
+    });
+
+    const cambiarAulas = (siguiente) => {
+        setAulas(siguiente);
+        setErrores((previos) =>
+            Object.fromEntries(Object.entries(previos).filter(([c]) => !c.startsWith('aulas')))
+        );
+    };
+
+    // Lo que el servidor también rechaza: un examen nuevo o movido no
+    // queda en el pasado, empieza en horario de clases, termina antes de
+    // medianoche y cae en la ventana de su tipo.
+    const ahora = new Date().toTimeString().slice(0, 5);
+    const mueve = !inicial || inicial.fecha !== fecha || inicial.hora !== hora;
 
     const continuarExamen = () => {
+        if (bloqueado) {
+            setPaso(1);
+            return;
+        }
         const faltas = {};
         if (!fecha) faltas.fecha = 'Obligatorio';
+        else if (mueve && fecha < hoy) faltas.fecha = 'La fecha ya pasó';
         else if (periodo && (fecha < periodo.fecha_inicio || fecha > periodo.fecha_fin)) {
             faltas.fecha = `Fuera del período ${periodo.codigo}`;
+        } else if (ventana && (fecha < ventana[0] || fecha > ventana[1])) {
+            faltas.fecha = `Fuera del calendario: ${tipoTexto.toLowerCase()} del ${diaMes(ventana[0])} al ${diaMes(ventana[1])}`;
         }
         if (!hora) faltas.hora_inicio = 'Obligatorio';
+        else if (mueve && (hora < '06:00' || hora > '22:00')) {
+            faltas.hora_inicio = 'Entre 06:00 y 22:00';
+        } else if (mueve && fecha === hoy && hora < ahora) faltas.hora_inicio = 'La hora ya pasó';
         if (!duracionValida(duracion)) faltas.duracion_minutos = 'Entre 15 y 480';
+        else if (hora && minutosDe(hora) + Number(duracion) > 24 * 60) {
+            faltas.duracion_minutos = 'Terminaría después de medianoche';
+        }
         setErrores(faltas);
         if (Object.keys(faltas).length === 0) setPaso(1);
     };
@@ -749,17 +741,6 @@ function Asistente({
         setEnviando(true);
         setRechazo(null);
         setErrores({});
-        const personalPayload = aulas.map((aulaId) => {
-            const info = atencion[aulaId] ?? { a_cargo: cuenta?.id ?? null, apoyo: [] };
-            return {
-                aula_id: aulaId,
-                a_cargo: info.a_cargo ?? cuenta?.id ?? null,
-                apoyo: (info.apoyo ?? []).map((a) =>
-                    typeof a === 'object' && a !== null ? a.id : Number(a)
-                ),
-            };
-        });
-
         const cuerpo = {
             asignatura_id: asignaturaId,
             tipo,
@@ -769,8 +750,11 @@ function Asistente({
             normas: normas.trim(),
             normas_marcadas: marcadas,
             grupos: elegidosIds,
-            aulas,
-            personal: personalPayload,
+            aulas: aulas.map((id) => ({
+                aula_id: id,
+                encargado_id: de(id).encargado,
+                apoyo: de(id).apoyo,
+            })),
         };
         try {
             const { data } = examen
@@ -787,16 +771,8 @@ function Asistente({
             setConservadas(sueltasDe(guardado).map((n) => n.id));
             setGrupos((guardado.grupos_detalle ?? []).map((g) => g.id));
             setAulas((guardado.aulas_detalle ?? []).map((a) => a.aula_id));
-
-            const nuevoMapa = {};
-            for (const a of guardado.aulas_detalle ?? []) {
-                nuevoMapa[a.aula_id] = {
-                    a_cargo: a.a_cargo?.id ?? null,
-                    apoyo: Array.isArray(a.apoyo) ? a.apoyo : [],
-                    codigo: a.codigo ?? null,
-                };
-            }
-            setAtencion(nuevoMapa);
+            setPersonal(personalDe(guardado, usuario.id));
+            setConCodigo(conCodigoDe(guardado));
             setPaso(4);
             onExamen(guardado);
             avisar(sinPunto(data.message ?? (examen ? 'Examen guardado' : 'Examen registrado')));
@@ -814,7 +790,7 @@ function Asistente({
         }
     };
 
-    const guardadas = Object.fromEntries(
+    const normasGuardadas = Object.fromEntries(
         (examen?.normas_marcadas ?? [])
             .filter((n) => n.plantilla_id)
             .map((n) => [n.plantilla_id, n.texto])
@@ -822,24 +798,37 @@ function Asistente({
 
     return (
         <>
-            <Pasos pasos={PASOS} actual={paso} onIr={setPaso} />
+            <Pasos
+                pasos={PASOS}
+                iconos={ICONOS_DE_PASO}
+                actual={paso}
+                onIr={setPaso}
+                completos={[
+                    Boolean(fecha && hora) && duracionValida(duracion),
+                    elegidosIds.length > 0,
+                    aulas.length > 0,
+                    aulas.length > 0,
+                    Boolean(examen),
+                ]}
+            />
 
             {paso === 0 && (
-                <Tarjeta titulo="1. Examen">
+                <Tarjeta titulo="1. Examen" icono={ClipboardList}>
+                    {bloqueado && (
+                        <p className="mb-4 rounded-lg bg-warning-50 px-3 py-2 text-sm font-medium text-warning-800">
+                            Con ingresos · solo normas y quién atiende
+                        </p>
+                    )}
                     <div className="grid gap-4 sm:grid-cols-2">
                         <div className="min-w-0 sm:col-span-2">
-                            <Seleccion
+                            <SelectorAsignatura
                                 etiqueta="Asignatura"
                                 requerido
-                                value={asignaturaId ?? ''}
-                                onChange={(e) => cambiarAsignatura(e.target.value)}
-                            >
-                                {asignaturas.map((a) => (
-                                    <option key={a.id} value={a.id}>
-                                        {[a.nombre, a.codigo].filter(Boolean).join(' · ')}
-                                    </option>
-                                ))}
-                            </Seleccion>
+                                disabled={bloqueado}
+                                asignaturas={asignaturas}
+                                valor={asignaturaId}
+                                onCambiar={cambiarAsignatura}
+                            />
                             {errores.asignatura_id && (
                                 <p role="alert" className={ERROR}>
                                     {errores.asignatura_id}
@@ -849,16 +838,26 @@ function Asistente({
                         <div className="min-w-0">
                             <Seleccion
                                 etiqueta="Tipo"
+                                icono={Tag}
                                 requerido
+                                disabled={bloqueado}
                                 value={tipo}
                                 onChange={(e) => {
                                     setTipo(e.target.value);
-                                    quitarError('tipo', 'grupos');
+                                    ajustarFecha(periodo, e.target.value);
+                                    quitarError('tipo', 'grupos', 'fecha');
                                 }}
                             >
                                 {tipos.map((t) => (
-                                    <option key={t.valor} value={t.valor}>
+                                    <option
+                                        key={t.valor}
+                                        value={t.valor}
+                                        disabled={cerrado(t.valor, asignaturaId)}
+                                    >
                                         {t.etiqueta}
+                                        {cerrado(t.valor, asignaturaId)
+                                            ? ' · calendario cerrado'
+                                            : ''}
                                     </option>
                                 ))}
                             </Seleccion>
@@ -870,10 +869,20 @@ function Asistente({
                         </div>
                         <Campo
                             etiqueta="Fecha"
+                            icono={CalendarDays}
                             requerido
+                            disabled={bloqueado}
                             type="date"
-                            min={periodo?.fecha_inicio}
-                            max={periodo?.fecha_fin}
+                            min={[hoy, periodo?.fecha_inicio, ventana?.[0]]
+                                .filter(Boolean)
+                                .sort()
+                                .at(-1)}
+                            max={[periodo?.fecha_fin, ventana?.[1]].filter(Boolean).sort()[0]}
+                            ayuda={
+                                ventana
+                                    ? `Calendario: ${diaMes(ventana[0])} – ${diaMes(ventana[1])}`
+                                    : undefined
+                            }
                             className="min-w-0"
                             value={fecha}
                             onChange={(e) => {
@@ -884,19 +893,25 @@ function Asistente({
                         />
                         <Campo
                             etiqueta="Hora de inicio"
+                            icono={Clock}
                             requerido
+                            disabled={bloqueado}
                             type="time"
+                            min="06:00"
+                            max="22:00"
                             className="min-w-0"
                             value={hora}
                             onChange={(e) => {
                                 setHora(e.target.value);
-                                quitarError('hora_inicio');
+                                quitarError('hora_inicio', 'duracion_minutos');
                             }}
                             error={errores.hora_inicio}
                         />
                         <Campo
                             etiqueta="Duración"
+                            icono={Hourglass}
                             requerido
+                            disabled={bloqueado}
                             sufijo="min"
                             inputMode="numeric"
                             className="min-w-0"
@@ -931,7 +946,7 @@ function Asistente({
                             sueltas={sueltasDe(examen)}
                             conservadas={conservadas}
                             onConservadas={setConservadas}
-                            guardadas={guardadas}
+                            guardadas={normasGuardadas}
                             error={errores.normas}
                             errorMarcadas={errorDe('normas_marcadas')}
                             onAviso={avisar}
@@ -948,6 +963,7 @@ function Asistente({
             {paso === 1 && (
                 <Tarjeta
                     titulo="2. Grupos"
+                    icono={Users}
                     acciones={
                         <Insignia tono="primario">
                             <Users className="h-3.5 w-3.5" /> {plural(inscritos, 'inscrito')}
@@ -972,6 +988,7 @@ function Asistente({
                                                 key={g.id}
                                                 g={g}
                                                 marcado={elegidosIds.includes(g.id)}
+                                                bloqueado={bloqueado}
                                                 onCambiar={() =>
                                                     cambiarGrupos(alternar(elegidosIds, g.id))
                                                 }
@@ -992,7 +1009,7 @@ function Asistente({
                                         }{' '}
                                         de {otrosTodos.length}
                                     </h3>
-                                    {otrosTodos.length > 1 && (
+                                    {otrosTodos.length > 1 && !bloqueado && (
                                         <span className="-mr-2 flex">
                                             <Boton
                                                 type="button"
@@ -1051,6 +1068,7 @@ function Asistente({
                                                     key={g.id}
                                                     g={g}
                                                     marcado={elegidosIds.includes(g.id)}
+                                                    bloqueado={bloqueado}
                                                     onCambiar={() =>
                                                         cambiarGrupos(alternar(elegidosIds, g.id))
                                                     }
@@ -1090,6 +1108,7 @@ function Asistente({
                 <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
                     <Tarjeta
                         titulo="3. Aulas"
+                        icono={DoorOpen}
                         acciones={
                             <Insignia tono="primario">
                                 {plural(aulas.length, 'elegida')} · {plural(inscritos, 'inscrito')}
@@ -1108,14 +1127,18 @@ function Asistente({
                                             className="inline-flex items-center rounded-full bg-primary-50 pl-3 text-sm font-medium text-primary-900"
                                         >
                                             {nombreAula(id)}
-                                            <button
-                                                type="button"
-                                                aria-label={`Quitar el aula ${nombreAula(id)}`}
-                                                onClick={() => cambiarAulas(alternar(aulas, id))}
-                                                className={`flex h-9 w-9 items-center justify-center rounded-full text-primary-700 hover:bg-primary-100 ${FOCO}`}
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </button>
+                                            {!bloqueado && (
+                                                <button
+                                                    type="button"
+                                                    aria-label={`Quitar el aula ${nombreAula(id)}`}
+                                                    onClick={() =>
+                                                        cambiarAulas(alternar(aulas, id))
+                                                    }
+                                                    className={`flex h-9 w-9 items-center justify-center rounded-full text-primary-700 hover:bg-primary-100 ${FOCO}`}
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </button>
+                                            )}
                                         </li>
                                     ))}
                                 </ul>
@@ -1185,8 +1208,11 @@ function Asistente({
                                                 key={a.id}
                                                 aula={a}
                                                 ubicacion={ubicacionDe(a, facultad)}
-                                                compartida={compartidas[a.id]?.join(', ')}
+                                                compartida={examenesALaHora[a.id]
+                                                    ?.map((x) => x.examen)
+                                                    .join(', ')}
                                                 marcado={aulas.includes(a.id)}
+                                                bloqueado={bloqueado}
                                                 onCambiar={() =>
                                                     cambiarAulas(alternar(aulas, a.id))
                                                 }
@@ -1208,39 +1234,20 @@ function Asistente({
                                 {errorDe('aulas')}
                             </p>
                         )}
-                        {errorDe('personal') && (
-                            <p role="alert" className={ERROR}>
-                                {errorDe('personal')}
-                            </p>
-                        )}
-                        {rechazo && (
-                            <p role="alert" className={ERROR}>
-                                {rechazo}
-                            </p>
-                        )}
                         <div className="mt-5 flex justify-between gap-2">
                             <Boton type="button" variante="secundario" onClick={() => setPaso(1)}>
                                 Atrás
                             </Boton>
-                            <div className="flex gap-2">
-                                <Boton
-                                    type="button"
-                                    disabled={enviando || elegidosIds.length === 0}
-                                    onClick={guardar}
-                                >
-                                    {examen ? 'Guardar examen' : 'Registrar examen'}
-                                </Boton>
-                                <Boton
-                                    type="button"
-                                    disabled={aulas.length === 0}
-                                    onClick={() => setPaso(3)}
-                                >
-                                    Continuar <ArrowRight className="h-4 w-4" />
-                                </Boton>
-                            </div>
+                            <Boton
+                                type="button"
+                                disabled={elegidosIds.length === 0}
+                                onClick={() => setPaso(3)}
+                            >
+                                Continuar <ArrowRight className="h-4 w-4" />
+                            </Boton>
                         </div>
                     </Tarjeta>
-                    <Tarjeta titulo="Ubicación">
+                    <Tarjeta titulo="Ubicación" icono={MapPin}>
                         <MapaCampus
                             edificios={edificios}
                             caja={caja}
@@ -1259,38 +1266,26 @@ function Asistente({
             )}
 
             {paso === 3 && (
-                <div>
-                    <AtencionAulas
-                        aulas={aulas}
-                        aulasGuardadas={examen?.aulas_detalle?.map((a) => a.aula_id) ?? []}
-                        nombreAula={nombreAula}
-                        ubicacionAula={(id) => {
-                            const a = catalogo.find((item) => item.id === id);
-                            return a ? ubicacionDe(a, facultad) : '';
-                        }}
-                        docentesDisponibles={(() => {
-                            const lista = cuenta?.id
-                                ? [{ id: cuenta.id, nombre: cuenta.nombre }]
-                                : [];
-                            const vistos = new Set(lista.map((d) => d.id));
-                            const fuenteGrupos =
-                                elegidos.length > 0 ? elegidos : (examen?.grupos_detalle ?? []);
-                            for (const g of fuenteGrupos) {
-                                const idDoc = g.docente_id;
-                                if (g.docente && idDoc && !vistos.has(idDoc)) {
-                                    vistos.add(idDoc);
-                                    lista.push({ id: idDoc, nombre: g.docente });
-                                }
-                            }
-                            return lista;
-                        })()}
-                        cuenta={cuenta}
-                        atencion={atencion}
-                        onCambiarAtencion={setAtencion}
-                        examenId={examen?.id}
-                        fechaExamen={fecha}
-                        errores={errores}
-                    />
+                <QuienAtiende
+                    aulas={aulasElegidas}
+                    personal={Object.fromEntries(aulas.map((id) => [id, de(id)]))}
+                    onPersonal={cambiarPersonal}
+                    yo={yo}
+                    conocidos={conocidos}
+                    sumados={sumados}
+                    onSumar={sumar}
+                    onQuitar={quitarAuxiliar}
+                    errores={errores}
+                    conCodigo={examen ? guardadas : []}
+                    usanCodigo={conCodigo}
+                    onCodigo={setAcceso}
+                    onAviso={avisar}
+                >
+                    {rechazo && (
+                        <p role="alert" className={ERROR}>
+                            {rechazo}
+                        </p>
+                    )}
                     <div className="mt-5 flex justify-between gap-2">
                         <Boton type="button" variante="secundario" onClick={() => setPaso(2)}>
                             Atrás
@@ -1298,15 +1293,28 @@ function Asistente({
                         <Boton
                             type="button"
                             disabled={enviando || elegidosIds.length === 0}
+                            cargando={enviando}
                             onClick={guardar}
                         >
                             {examen ? 'Guardar examen' : 'Registrar examen'}
                         </Boton>
                     </div>
-                </div>
+                </QuienAtiende>
             )}
 
-            {paso === 4 && examen && <Resumen examen={examen} recien />}
+            {paso === 4 && examen && (
+                <Resumen examen={examen} recien onAviso={avisar} onElegirAulas={() => setPaso(2)} />
+            )}
+            {acceso && examen && (
+                <CodigoDeAula
+                    key={acceso.id}
+                    examenId={examen.id}
+                    aula={acceso}
+                    onCerrar={() => setAcceso(null)}
+                    onAviso={avisar}
+                    onGenerado={anotarCodigo}
+                />
+            )}
             {aviso}
         </>
     );
@@ -1320,6 +1328,8 @@ Asistente.propTypes = {
             nombre: PropTypes.string.isRequired,
             facultad: PropTypes.string,
             periodo: PropTypes.string,
+            grupos: PropTypes.arrayOf(PropTypes.string),
+            inscritos: PropTypes.number,
         })
     ).isRequired,
     tipos: PropTypes.arrayOf(
@@ -1333,6 +1343,7 @@ Asistente.propTypes = {
             codigo: PropTypes.string.isRequired,
             fecha_inicio: PropTypes.string,
             fecha_fin: PropTypes.string,
+            ventanas: PropTypes.object,
         })
     ).isRequired,
     inicial: FORMA_DETALLE,
@@ -1342,7 +1353,8 @@ Asistente.propTypes = {
 };
 
 // Registro y edición de un examen. Con `?examen=3&paso=2` se abre un examen
-// ya registrado en el paso indicado (0 es «Examen», 2 es «Aulas»).
+// ya registrado en el paso indicado (0 es «Examen», 2 es «Aulas», 3 es «Quién
+// atiende»).
 export default function RegistrarExamen() {
     const [parametros] = useSearchParams();
     const examenId = Number(parametros.get('examen')) || null;
@@ -1356,23 +1368,30 @@ export default function RegistrarExamen() {
     const anteriores = usarConsulta(examenId ? null : '/examenes');
     // El examen recién guardado, para el título.
     const [guardado, setGuardado] = useState(null);
+    const [aviso, avisar] = useAviso();
 
     const previo = detalle.datos ?? null;
     const examen = guardado ?? previo;
-    // Con los períodos cargados, el examen nuevo propone una fecha válida.
     const cargando = misGrupos.cargando || tipos.cargando || periodos.cargando || detalle.cargando;
     const negado = detalle.error && [403, 404].includes(estadoDe(detalle.error));
     const error = misGrupos.error || tipos.error || (negado ? null : detalle.error);
 
-    // Las asignaturas que dicta: una por cada asignatura de sus grupos.
-    const asignaturas = [
-        ...new Map(
-            (misGrupos.datos ?? []).map((g) => [
-                g.asignatura.id,
-                { ...g.asignatura, facultad: g.facultad, periodo: g.periodo },
-            ])
-        ).values(),
-    ];
+    // Las asignaturas que dicta: una por cada asignatura de sus grupos, con
+    // los códigos de esos grupos y la suma de sus inscritos.
+    const porAsignatura = new Map();
+    for (const g of misGrupos.datos ?? []) {
+        const previa = porAsignatura.get(g.asignatura.id) ?? {
+            ...g.asignatura,
+            facultad: g.facultad,
+            periodo: g.periodo,
+            grupos: [],
+            inscritos: 0,
+        };
+        previa.grupos.push(g.codigo);
+        previa.inscritos += g.inscritos ?? 0;
+        porAsignatura.set(g.asignatura.id, previa);
+    }
+    const asignaturas = [...porAsignatura.values()];
     if (previo && !asignaturas.some((a) => a.id === previo.asignatura.id)) {
         asignaturas.push(previo.asignatura);
     }
@@ -1411,7 +1430,7 @@ export default function RegistrarExamen() {
                     }}
                 >
                     {previo && previo.propio === false ? (
-                        <Resumen examen={previo} />
+                        <Resumen examen={previo} onAviso={avisar} />
                     ) : (
                         <Asistente
                             key={previo?.id ?? 'nuevo'}
@@ -1421,11 +1440,22 @@ export default function RegistrarExamen() {
                             inicial={previo}
                             anteriores={anteriores.datos ?? []}
                             pasoInicial={previo ? pasoPedido : 0}
-                            onExamen={setGuardado}
+                            onExamen={(guardadoAhora) => {
+                                setGuardado(guardadoAhora);
+                                // La dirección queda en el examen: recargar no lo pierde.
+                                if (!examenId) {
+                                    window.history.replaceState(
+                                        window.history.state,
+                                        '',
+                                        `${window.location.pathname}?examen=${guardadoAhora.id}`
+                                    );
+                                }
+                            }}
                         />
                     )}
                 </EstadoCarga>
             )}
+            {aviso}
         </div>
     );
 }

@@ -54,9 +54,17 @@ describe('FotoDelInscrito', () => {
     it('con una foto de hace menos de un año dice desde cuándo se puede cambiar', () => {
         montar({ subida_en: '2026-10-12', habilitada_hasta: null });
 
-        expect(screen.getByText('Foto del 12 oct 2026')).toBeInTheDocument();
+        expect(screen.getByText('Con foto · del 12 oct 2026')).toBeInTheDocument();
         expect(screen.getByText('Cambio habilitable desde el 12 oct 2027')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Habilitar/ })).not.toBeInTheDocument();
+    });
+
+    it('con una foto de hace un año ya ofrece habilitar el cambio', () => {
+        montar({ subida_en: '2025-10-01', habilitada_hasta: null });
+
+        expect(screen.getByText('Con foto · del 1 oct 2025')).toBeInTheDocument();
+        expect(screen.getByLabelText(/Puede cambiarla hasta/)).toHaveValue('2026-10-30');
+        expect(screen.getByRole('button', { name: 'Habilitar' })).toBeInTheDocument();
     });
 
     it('ya habilitado cambia el día límite', async () => {

@@ -29,12 +29,12 @@ final class PlantillasDeNormasTest extends TestCase
 
     private function predefinida(string $texto = 'Sin celular'): PlantillaNorma
     {
-        return PlantillaNorma::whereNull('usuario_id')->where('texto', $texto)->firstOrFail();
+        return PlantillaNorma::whereNull('user_id')->where('texto', $texto)->firstOrFail();
     }
 
     private function propia(int $usuarioId, string $texto): PlantillaNorma
     {
-        return PlantillaNorma::create(['usuario_id' => $usuarioId, 'texto' => $texto]);
+        return PlantillaNorma::create(['user_id' => $usuarioId, 'texto' => $texto]);
     }
 
     public function test_the_list_shows_the_predefined_rules_and_the_own_templates_only(): void
@@ -91,7 +91,7 @@ final class PlantillasDeNormasTest extends TestCase
         $this->assertIsInt($id);
         $this->assertDatabaseHas('plantillas_norma', [
             'id' => $id,
-            'usuario_id' => $docente->user_id,
+            'user_id' => $docente->user_id,
             'texto' => 'Hoja de fórmulas A4',
         ]);
         $this->assertDatabaseHas('bitacora_operaciones', [
@@ -128,7 +128,7 @@ final class PlantillasDeNormasTest extends TestCase
             ->postJson(self::RUTA, ['texto' => str_repeat('a', 300)])
             ->assertCreated();
 
-        $this->assertSame(1, PlantillaNorma::whereNotNull('usuario_id')->count());
+        $this->assertSame(1, PlantillaNorma::whereNotNull('user_id')->count());
     }
 
     public function test_a_text_the_teacher_already_has_is_rejected_ignoring_case_and_accents(): void
@@ -145,7 +145,7 @@ final class PlantillasDeNormasTest extends TestCase
                 ->assertJsonPath('errors.texto.0', 'Ya existe');
         }
 
-        $this->assertSame(1, PlantillaNorma::where('usuario_id', $docente->user_id)->count());
+        $this->assertSame(1, PlantillaNorma::where('user_id', $docente->user_id)->count());
         $this->assertDatabaseMissing('bitacora_operaciones', ['operacion' => 'norma.plantilla_crear']);
 
         // El mismo texto sirve a otro docente: las plantillas son de cada uno.
@@ -248,7 +248,7 @@ final class PlantillasDeNormasTest extends TestCase
             ->assertJsonPath('alcance', true);
 
         $this->assertDatabaseHas('plantillas_norma', ['id' => $predefinida->id, 'texto' => 'Sin celular']);
-        $this->assertSame(6, PlantillaNorma::whereNull('usuario_id')->count());
+        $this->assertSame(6, PlantillaNorma::whereNull('user_id')->count());
     }
 
     public function test_the_template_of_another_teacher_is_not_edited_nor_removed(): void
@@ -261,7 +261,7 @@ final class PlantillasDeNormasTest extends TestCase
         $this->actingAs($cuenta)
             ->putJson(self::RUTA."/{$ajena->id}", ['texto' => 'Sin calculadora'])
             ->assertForbidden()
-            ->assertExactJson(['message' => 'Plantilla no autorizada.', 'alcance' => true]);
+            ->assertExactJson(['message' => 'Esta plantilla no es de su cuenta.', 'alcance' => true]);
 
         $this->actingAs($cuenta)
             ->deleteJson(self::RUTA."/{$ajena->id}")

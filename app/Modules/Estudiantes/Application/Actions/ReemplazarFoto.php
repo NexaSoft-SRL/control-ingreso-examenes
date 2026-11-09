@@ -48,7 +48,7 @@ final readonly class ReemplazarFoto
         );
     }
 
-    // 'Foto de Apaza Lima Ana · 202100001,'.
+    // 'Foto de Apaza Lima, Ana · 202100001'.
     private function deQuien(int $estudianteId): string
     {
         $estudiante = $this->portal->estudiante($estudianteId);

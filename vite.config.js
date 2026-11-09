@@ -11,6 +11,7 @@ export default defineConfig({
             refresh: true,
         }),
         react(),
+        tailwindcss(),
         // Aplicación instalable. El service worker solo precachea los estáticos
         // compilados: las navegaciones y toda /api/ van siempre a la red.
         // Vite lo deja en public/build/ y routes/web.php lo sirve desde /sw.js.
@@ -62,7 +63,6 @@ export default defineConfig({
                 ],
             },
         }),
-        tailwindcss(),
     ],
     server: {
         watch: {

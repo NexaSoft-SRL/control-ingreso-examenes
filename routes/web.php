@@ -5,14 +5,14 @@ use Illuminate\Support\Facades\Route;
 require __DIR__.'/auth.php';
 require __DIR__.'/usuarios.php';
 require __DIR__.'/bitacora.php';
+require __DIR__.'/respaldos.php';
 require __DIR__.'/academico.php';
 require __DIR__.'/estudiantes.php';
 require __DIR__.'/examenes.php';
-require __DIR__.'/reportes.php';
 require __DIR__.'/habilitacion.php';
 require __DIR__.'/ingreso.php';
 require __DIR__.'/monitoreo.php';
-require __DIR__.'/respaldo.php';
+require __DIR__.'/reportes.php';
 
 /*
  * Vite deja el service worker y el manifiesto en public/build, pero un

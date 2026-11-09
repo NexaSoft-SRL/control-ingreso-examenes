@@ -4,19 +4,21 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Actions;
 
-use App\Modules\Ingreso\Application\Authorization\AlcancePuerta;
-use App\Modules\Ingreso\Application\Contracts\AlmacenEvidencias;
+use App\Modules\Administracion\Application\Contracts\AlmacenImagenes;
+use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaGateway;
 use App\Modules\Ingreso\Domain\Enums\TipoIncidencia;
 use App\Modules\Ingreso\Domain\Exceptions\DatoNoValidoException;
 
 /**
  * El docente del examen corrige una incidencia: su tipo, su detalle, el
- * estudiante y la foto que la respalda. La expulsion y el ingreso repetido
- * conservan su tipo, porque los asienta otra operacion.
+ * estudiante y la foto que la respalda. La expulsion y el ingreso repetido conservan su
+ * tipo, porque los asienta otra operacion.
  */
 final readonly class CorregirIncidencia
 {
+    public const LADO_EVIDENCIA = 1280;
+
     /**
      * Fotos de evidencia por incidencia, entre el reporte y las correcciones.
      */
@@ -24,15 +26,15 @@ final readonly class CorregirIncidencia
 
     public function __construct(
         private IncidenciaGateway $incidencias,
-        private AlcancePuerta $alcance,
-        private AlmacenEvidencias $evidencias,
+        private AlcancePuesto $alcance,
+        private AlmacenImagenes $imagenes,
         private EstudianteDeIncidencia $estudiantes,
     ) {}
 
     /**
      * @param  list<string>  $imagenes  fotos que se agregan a la evidencia
      */
-    public function ejecutar(
+    public function execute(
         int $incidenciaId,
         int $examenId,
         TipoIncidencia $actual,
@@ -73,11 +75,10 @@ final readonly class CorregirIncidencia
         $rutas = [];
 
         foreach ($imagenes as $imagen) {
-            $ruta = $this->evidencias->guardar($imagen);
+            $ruta = $this->imagenes->guardar('incidencias', bin2hex(random_bytes(16)), $imagen, self::LADO_EVIDENCIA);
 
             if ($ruta === null) {
-                // Las que ya se guardaron no quedan sueltas.
-                array_map(fn (string $guardada) => $this->evidencias->borrar($guardada), $rutas);
+                array_map(fn (string $guardada) => $this->imagenes->borrar($guardada), $rutas);
 
                 throw new DatoNoValidoException('evidencias', 'La imagen no se pudo leer.');
             }
@@ -85,7 +86,6 @@ final readonly class CorregirIncidencia
             $rutas[] = $ruta;
         }
 
-        // Las fotos se agregan: no reemplazan ni borran las que habia.
         $this->incidencias->corregir(
             $incidenciaId,
             $tipo,

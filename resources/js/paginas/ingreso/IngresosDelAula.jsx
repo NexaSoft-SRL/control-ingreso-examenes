@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { UserX } from 'lucide-react';
-import { erroresDe, mensajeDe } from '../../api/errores';
+import { codigoDe, erroresDe, mensajeDe } from '../../api/errores';
 import { useAviso } from '../../componentes/Aviso';
 import Boton from '../../componentes/Boton';
 import Buscador from '../../componentes/Buscador';
@@ -10,18 +10,25 @@ import Dialogo from '../../componentes/Dialogo';
 import Insignia from '../../componentes/Insignia';
 import { colorDeAsignatura } from '../../utiles/texto';
 
-// Cuántos ingresos devuelve la puerta sin pedir `todos`.
+// Cuántos ingresos devuelve la ruta 63 sin pedir `ingresos=todos`.
 const RECIENTES = 5;
 const MOTIVO_MINIMO = 5;
+// Igual que en la puerta: pasados 15 minutos del inicio, el ingreso es tarde.
+const TOLERANCIA_MINUTOS = 15;
+
+// '08:21' → 501.
+const minutosDe = (hora) => {
+    const [h, m] = String(hora ?? '')
+        .split(':')
+        .map(Number);
+    return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : null;
+};
 
 const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
-// «Apellidos Nombres», sin coma.
-const nombreDe = (fila) => [fila.apellidos, fila.nombres].filter(Boolean).join(' ');
 
-// Los ingresos del aula, del más reciente al más antiguo
-// (GET /api/aulas/{aula}/punto-control/ingresos), y la expulsión sobre uno de
-// ellos. `expulsar(ingreso, motivo)` hace la llamada y devuelve su promesa.
-// El servidor marca la llegada tarde (`tarde`, en minutos).
+// Los ingresos del aula, del más reciente al más antiguo (ruta 63), y la
+// expulsión sobre uno de ellos (ruta 66). `expulsar(ingreso, motivo)` hace
+// la llamada y devuelve su promesa.
 export default function IngresosDelAula({
     ingresos,
     total,
@@ -46,6 +53,11 @@ export default function IngresosDelAula({
         const examen = examenes.find((x) => x.id === examenId);
         return examen ? colorDeAsignatura(examen.asignatura) : null;
     };
+    const esTarde = (ingreso) => {
+        const inicio = minutosDe(examenes.find((x) => x.id === ingreso.examen_id)?.hora);
+        const llegada = minutosDe(ingreso.hora);
+        return inicio !== null && llegada !== null && llegada - inicio > TOLERANCIA_MINUTOS;
+    };
 
     const cerrar = () => {
         setElegido(null);
@@ -69,7 +81,12 @@ export default function IngresosDelAula({
                 setErrorMotivo(campo);
             } else {
                 cerrar();
-                avisar(sinPunto(mensajeDe(fallo, 'No se pudo registrar')), 'error');
+                avisar(
+                    codigoDe(fallo) === 'YA_EXPULSADO'
+                        ? 'Ya estaba expulsado'
+                        : sinPunto(mensajeDe(fallo, 'No se pudo registrar')),
+                    'error'
+                );
             }
         } finally {
             setEnviando(false);
@@ -109,7 +126,7 @@ export default function IngresosDelAula({
                 className={`divide-y divide-slate-100 ${todos ? '-mr-2 max-h-80 overflow-y-auto pr-2' : ''}`}
             >
                 {ingresos.map((i) => (
-                    <li key={i.ingreso_id} className="flex min-h-12 items-center gap-2">
+                    <li key={i.id} className="flex min-h-12 items-center gap-2">
                         {conColor && (
                             <span
                                 className="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -117,18 +134,12 @@ export default function IngresosDelAula({
                             />
                         )}
                         <span className="min-w-0 flex-1 break-words py-1.5 text-sm leading-snug text-slate-800">
-                            {nombreDe(i)}
+                            {i.nombre}
                         </span>
                         <span className="flex shrink-0 flex-wrap items-center justify-end gap-1">
-                            {i.expulsado && (
-                                <Insignia tono="peligro">
-                                    {i.expulsado_a ? `Expulsado · ${i.expulsado_a}` : 'Expulsado'}
-                                </Insignia>
-                            )}
-                            {i.es_excepcion && <Insignia tono="advertencia">Excepción</Insignia>}
-                            {i.tarde ? (
-                                <Insignia tono="advertencia">Tarde · {i.tarde} min</Insignia>
-                            ) : null}
+                            {i.expulsado && <Insignia tono="peligro">Expulsado</Insignia>}
+                            {i.excepcion && <Insignia tono="advertencia">Excepción</Insignia>}
+                            {esTarde(i) && <Insignia tono="advertencia">Tarde</Insignia>}
                         </span>
                         <span className="shrink-0 text-sm tabular-nums text-slate-600">
                             {i.hora}
@@ -138,7 +149,7 @@ export default function IngresosDelAula({
                         ) : (
                             <button
                                 type="button"
-                                aria-label={`Registrar expulsión de ${nombreDe(i)}`}
+                                aria-label={`Registrar expulsión de ${i.nombre}`}
                                 onClick={() => setElegido(i)}
                                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-danger-50 hover:text-danger-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600"
                             >
@@ -180,7 +191,7 @@ export default function IngresosDelAula({
                     <div className="space-y-3">
                         <div>
                             <p className="text-base font-semibold text-slate-900">
-                                {nombreDe(elegido)}
+                                {elegido.nombre}
                             </p>
                             <p className="text-sm text-slate-600">
                                 {[
@@ -220,16 +231,13 @@ export default function IngresosDelAula({
 IngresosDelAula.propTypes = {
     ingresos: PropTypes.arrayOf(
         PropTypes.shape({
-            ingreso_id: PropTypes.number.isRequired,
-            nombres: PropTypes.string,
-            apellidos: PropTypes.string,
+            id: PropTypes.number.isRequired,
+            nombre: PropTypes.string,
             codigo: PropTypes.string,
             hora: PropTypes.string,
             examen_id: PropTypes.number,
-            es_excepcion: PropTypes.bool,
+            excepcion: PropTypes.bool,
             expulsado: PropTypes.bool,
-            expulsado_a: PropTypes.string,
-            tarde: PropTypes.number,
         })
     ).isRequired,
     total: PropTypes.number.isRequired,

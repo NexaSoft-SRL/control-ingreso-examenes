@@ -27,12 +27,12 @@ const FICHA =
     'inline-flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
 const fichaClases = (activo) =>
     `${FICHA} ${activo ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`;
+// Como en Usuarios: empieza y termina con letra o número, sin separadores seguidos.
+// Con «Sin cuenta» o «Más de una facultad» no queda marcada ninguna facultad.
+const OTRO_FILTRO = '__otro';
 const CORREO = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 const miles = (n) => (typeof n === 'number' ? n.toLocaleString('es-BO') : undefined);
-
-// Con «Sin cuenta» o «Más de una facultad» no queda marcada ninguna facultad.
-const OTRO_FILTRO = '__otro';
 
 // Los mismos estados que en Usuarios, más «Sin cuenta».
 const CUENTA = {
@@ -122,7 +122,7 @@ FormularioActivar.propTypes = {
 // cuenta, aunque dicte en más de una facultad. La activación funciona como
 // una cola: se filtra «Sin cuenta», se activa y se pasa al siguiente.
 export default function Docentes() {
-    // «Docentes sin cuenta» del período llega con `?sin_cuenta=1`.
+    // «Activar cuentas» del período llega con `?sin_cuenta=1`.
     const [parametrosUrl] = useSearchParams();
     const lista = usarPaginaServidor({
         porPagina: POR_PAGINA,
@@ -135,6 +135,8 @@ export default function Docentes() {
     const { datos, meta, cargando, error, actualizando, recargar } = usarConsulta('/docentes', {
         parametros: lista.parametros,
     });
+    // El período solo rotula el subtítulo: si no llega, se omite.
+    const periodo = usarConsulta('/periodos/vigentes').cuerpo?.principal ?? null;
     const [elegido, setElegido] = useState(null);
     // La contraseña temporal recién emitida: vive solo mientras el detalle
     // del docente activado sigue abierto.
@@ -151,6 +153,24 @@ export default function Docentes() {
     const ficha = usarConsulta(elegido === null ? null : `/docentes/${elegido}`);
     const docente = ficha.datos?.id === elegido ? ficha.datos : null;
     const activada = recien !== null && recien.docenteId === elegido ? recien : null;
+
+    // Una búsqueda o un filtro que deja fuera al docente abierto cambia el
+    // detalle: no queda a la vista uno que la lista ya no muestra. (Pasar
+    // de página no cuenta: «Siguiente sin cuenta» abre uno de otra página.)
+    // Se mira cuando llega una lista nueva, no apenas cambia el criterio.
+    const criterio = JSON.stringify(lista.filtrosVigentes);
+    const [visto, setVisto] = useState({ criterio, datos });
+    if (datos !== visto.datos && !cargando && !actualizando) {
+        setVisto({ criterio, datos });
+        if (
+            criterio !== visto.criterio &&
+            datos &&
+            elegido !== null &&
+            !datos.some((d) => d.id === elegido)
+        ) {
+            setElegido(datos[0]?.id ?? null);
+        }
+    }
 
     // Los que siguen sin cuenta en la lista filtrada, una vez activada una.
     const restantes = usarConsulta('/docentes', {
@@ -248,11 +268,18 @@ export default function Docentes() {
                 titulo="Docentes"
                 subtitulo={
                     meta
-                        ? `${miles(conteos.todas ?? 0)} docentes · ${miles(conteos.varias_facultades ?? 0)} en más de una facultad`
+                        ? [
+                              periodo && `Período ${periodo}`,
+                              `${miles(conteos.todas ?? 0)} docentes`,
+                              `${miles(conteos.varias_facultades ?? 0)} en más de una facultad`,
+                          ]
+                              .filter(Boolean)
+                              .join(' · ')
                         : undefined
                 }
             />
 
+            {/* Un filtro a la vez: elegir uno quita los demás. */}
             <FiltroFacultad
                 campo="clave"
                 valor={soloSinCuenta || soloVarias ? OTRO_FILTRO : facultad}

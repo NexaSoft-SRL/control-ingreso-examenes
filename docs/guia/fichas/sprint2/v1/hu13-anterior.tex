@@ -1,0 +1,84 @@
+% Ficha HU-13, version 2. Tras el ajuste de la octava revision la historia
+% conserva su codigo y cambia de contenido: deja de ser la consulta rapida
+% de habilitacion (que queda cubierta por HU-11 y HU-19) y pasa a ser la
+% deteccion y el ajuste de los periodos academicos.
+\def\HUNro{13}
+\def\HUSprint{2}
+\def\HUTitulo{Período > Períodos > Detectar y ajustar períodos académicos}
+\def\HUModulo{M2}
+\def\HUReq{2}
+\def\HUPuntos{3}
+
+\def\HUComo{administrador}
+\def\HUQuiero{que el sistema detecte el período académico vigente y me permita ajustar
+sus fechas}
+\def\HUPara{que cada examen quede asociado a la gestión en que se toma, sin crear
+períodos a mano}
+
+\def\HUDescripcion{%
+Un examen pertenece a una gestión: el primer parcial de una asignatura en 2/2026 no es el
+mismo hecho que el de 1/2027, y los reportes tienen que poder separarlos. Esta historia
+hace que el sistema sepa en qué período está sin que nadie lo cree a mano.
+
+Los períodos se detectan a partir de lo que publica la universidad: el cronograma indica
+qué gestión corre para cada régimen ---semestral (1 y 2), anual (0) e invierno (4)--- y el
+calendario académico da las fechas de inicio y de fin. Con la fecha del sistema se
+determina cuál está vigente. Volver a detectar no duplica nada: actualiza lo que ya
+existe.
+
+No toda fuente trae fechas. Un período sin fechas publicadas queda «Sin fechas» y el
+administrador las ajusta a mano; ese ajuste manda sobre la detección, de modo que volver
+a detectar no pisa lo que el administrador corrigió.
+
+Cada examen queda asociado al período vigente en el momento de registrarlo (HU-08), y los
+listados se filtran por período. El ajuste de fechas queda asentado en la bitácora
+(HU-07).
+
+En la versión 1 este código correspondía a la consulta rápida de habilitación. Esa
+función queda cubierta por la búsqueda en la lista de habilitación (HU-11) y por la
+verificación en la puerta (HU-19).}
+
+\def\HUCriterios{%
+\item Dado que el administrador abre Período, Cuando se carga la pantalla, Entonces el
+      sistema muestra los períodos detectados con su código, sus fechas y su estado, y
+      señala cuál está vigente.
+\item Dado que la universidad publica el cronograma de la gestión, Cuando se detectan los
+      períodos, Entonces el sistema crea el período de cada régimen con su código (por
+      ejemplo, 2/2026).
+\item Dado que la fecha actual cae dentro de las fechas de un período, Cuando se consulta,
+      Entonces ese período figura como vigente.
+\item Dado que un período no tiene fechas publicadas, Cuando se lo detecta, Entonces queda
+      «Sin fechas» y no figura como vigente.
+\item Dado que un período está sin fechas o con fechas incorrectas, Cuando el
+      administrador las ajusta, Entonces el sistema las guarda y recalcula su estado.
+\item Dado que la fecha de fin es anterior a la de inicio, Cuando se intenta guardar el
+      ajuste, Entonces el sistema lo rechaza señalando el campo.
+\item Dado que un período tiene fechas ajustadas a mano, Cuando se vuelve a detectar,
+      Entonces el sistema conserva las fechas ajustadas.
+\item Dado que los períodos ya fueron detectados, Cuando se vuelve a detectar, Entonces el
+      sistema no los duplica.
+\item Dado que se registra un examen, Cuando se guarda, Entonces queda asociado al período
+      vigente.
+\item Dado que hay exámenes de más de un período, Cuando se filtra por período, Entonces
+      el listado muestra solo los de ese período.
+\item Dado que un rol no tiene el permiso del período, Cuando intenta abrir la pantalla o
+      ajustar fechas, Entonces el sistema responde con una negativa explícita.
+\item Dado que se ajustan las fechas de un período, Cuando la operación se completa,
+      Entonces queda asentada en la bitácora con su autor.
+\item Dado que el administrador accede desde un dispositivo móvil, Cuando abre Período,
+      Entonces la interfaz se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{DetectarPeriodosTest}: detección con y sin fechas publicadas, régimen anual
+      y semestral, y vigencia según la fecha (criterios 2 a 4).
+\item \texttt{DetectarPeriodosTest}: volver a detectar no duplica y no pisa las fechas
+      ajustadas a mano (criterios 7 y 8).
+\item \texttt{PeriodosTest}: listado con el vigente señalado, ajuste de fechas, rechazo de
+      un intervalo inválido, rol sin permiso y asiento en la bitácora (criterios 1, 5, 6,
+      11 y 12).
+\item \texttt{RegistroExamenTest}: el examen queda en el período vigente, y
+      \texttt{ListadoExamenesTest}: filtro por período (criterios 9 y 10).
+\item \texttt{Periodo.test.jsx}: carga, estado vacío, diálogo de ajuste y error de
+      validación a la vista (criterios 1, 5 y 6).}
+
+\input{cuerpo}

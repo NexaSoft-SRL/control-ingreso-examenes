@@ -7,9 +7,9 @@ namespace App\Modules\Administracion\Application\Contracts;
 use App\Modules\Administracion\Application\DTOs\RegistroCorreoData;
 
 /**
- * Registro de los correos que envia el sistema (`envios_correo`): se
- * anota el correo como pendiente antes de enviarlo y se cierra con su
- * resultado. Lo usa `Ingreso` para los codigos QR y los avisos.
+ * Registro de los correos que envia el sistema (`envios_correo`). Lo usan
+ * este modulo (credenciales) e `Ingreso` (codigos QR): se anota el correo
+ * como pendiente antes de enviarlo y se cierra con su resultado.
  */
 interface RegistroCorreoGateway
 {
@@ -24,7 +24,7 @@ interface RegistroCorreoGateway
     public function marcarEnviado(int $envioId): void;
 
     /**
-     * Lo deja FALLIDO con el motivo, salvo que ya haya salido.
+     * Lo deja FALLIDO con el motivo.
      */
     public function marcarFallido(int $envioId, string $error): void;
 }

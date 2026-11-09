@@ -1,0 +1,199 @@
+% Ficha HU-19 del sprint 3. Una historia = una vista completa: el punto de
+% control en la puerta del aula, con la identificacion, el veredicto, el
+% ingreso, la situacion excepcional, la expulsion y las incidencias.
+% Tipo: propia del sprint. La ficha anterior queda en sprint3/v1/.
+\def\HUNro{19}
+\def\HUSprint{3}
+\def\HUTitulo{Punto de control > Puerta del aula > Identificar al estudiante y registrar su ingreso}
+\def\HUModulo{M4}
+\def\HUReq{4, 5, 6, 7, 8, 9, 10, 14, 15}
+\def\HUPuntos{13}
+
+\def\HUComo{docente o auxiliar a cargo de una puerta}
+\def\HUQuiero{identificar a cada estudiante y que el sistema me diga en el acto si entra}
+\def\HUPara{dejar pasar solo a quien corresponde, sin demorar la fila y con constancia de
+todo lo que ocurre en la puerta}
+
+\def\HUDescripcion{%
+Es la vista para la que existe el sistema: la puerta del aula el día del examen. Quien la
+atiende la usa de pie, con un teléfono, y necesita una sola respuesta por estudiante. La
+puerta trabaja por aula y por hora, no por examen: un auditorio puede tener dos exámenes
+a la vez, y al identificar al estudiante el sistema resuelve a cuál pertenece.
+
+Arriba va el aula con su ubicación y los exámenes que tiene a esa hora, cada uno con
+cuántos ingresaron sobre cuántos tiene asignados y con sus normas a un toque. En el
+centro, el visor: el estudiante se identifica leyendo su código QR con la cámara del
+teléfono, desde el navegador, o a mano, por código universitario o documento de
+identidad. El veredicto ocupa el lugar del visor y es uno de seis: «Ingreso admitido»,
+«No habilitado», «Otra aula», «Ya ingresó», «Expulsado» o «No es de esta aula». Abajo
+quedan los ingresos del aula, desde donde se registra una expulsión.
+
+Reglas: la puerta abre sesenta minutos antes del inicio del examen y cierra cuando
+termina. Solo se admite al habilitado que tiene asignada esa aula. El ingreso lleva la
+fecha y la hora del servidor, es uno solo por estudiante y examen aunque dos puestos
+operen a la vez, y no se edita ni se elimina. Todo lo que se sale de la regla deja
+constancia: el intento de quien no está habilitado o no tiene examen en el aula, la
+situación excepcional con su motivo, la expulsión sobre el ingreso previo y la incidencia
+que reporta quien atiende.
+
+Esta historia solo lee el código QR; emitirlo y enviarlo al estudiante es de HU-20, en
+este mismo sprint. Mientras el examen no tenga códigos emitidos, la puerta opera con el
+ingreso manual. La lectura con cámara
+exige que el sitio se sirva por HTTPS: si el navegador no entrega la cámara, la vista lo
+dice y abre el ingreso manual, que está siempre disponible.
+
+La vista depende del examen con sus aulas y normas (HU-08), de la habilitación y el
+reparto por aula (HU-09), del mapa de aulas (HU-11), del padrón (HU-13) y de quién atiende
+cada aula, con cuenta o con código de aula (HU-18). De sus registros dependen la lista
+del aula (HU-21), el examen en curso (HU-22) y los reportes (HU-23 y HU-24). Los ingresos,
+las situaciones excepcionales, las expulsiones y las incidencias quedan en la bitácora
+(HU-07).}
+
+\def\HUCriterios{%
+\item Dado que la persona atiende al menos un aula hoy, Cuando abre el punto de control,
+      Entonces el sistema muestra la primera de sus aulas con un examen abierto, con su
+      ubicación, la fecha y los exámenes del aula ---asignatura, tipo, hora e ingresados
+      sobre asignados---; si hoy no atiende ninguna muestra «Sin aulas hoy».
+\item Dado que la puerta muestra sus exámenes, Cuando la persona pulsa «Normas», Entonces
+      bajo cada examen se despliegan sus normas marcadas, una por línea, y después el
+      texto libre; un examen sin ninguna muestra «Sin normas».
+\item Dado que faltan más de sesenta minutos para el inicio o el examen ya terminó, Cuando
+      se abre la puerta, Entonces el sistema muestra los exámenes de hoy y «Sin examen a
+      esta hora», sin visor; si el examen termina mientras se verifica, avisa lo mismo y
+      no registra nada.
+\item Dado que el aula tiene un examen abierto, Cuando la persona pulsa el recuadro «Leer
+      código QR», Entonces el navegador enciende la cámara trasera y, al leer un código,
+      el sistema la apaga, muestra «Verificando\ldots» y presenta el veredicto; «Siguiente»
+      vuelve al visor con la cámara encendida, y una misma lectura repetida se ignora
+      durante tres segundos.
+\item Dado que el dispositivo no tiene cámara, no se dio el permiso o el sitio no se sirve
+      por HTTPS, Cuando se intenta encender, Entonces la vista muestra «Cámara no
+      disponible» y abre el ingreso manual.
+\item Dado que la persona pulsa «Código o C.I. manual», Cuando escribe el código
+      universitario o el documento de identidad y pulsa «Verificar», Entonces el sistema
+      identifica al estudiante por cualquiera de los dos; vacío señala «Obligatorio», con
+      un dato que no tenga entre 5 y 10 dígitos «Entre 5 y 10 dígitos», y si nadie del
+      padrón coincide «Sin registro», sin registrar nada.
+\item Dado que el estudiante está habilitado y tiene asignada esta aula, Cuando se lo
+      identifica, Entonces el veredicto es «Ingreso admitido», con su nombre, su código,
+      la asignatura y el tipo de examen y «Registrado a las» con la hora; el ingreso
+      queda con la fecha y la hora del servidor, el medio de identificación y quién lo
+      registró.
+\item Dado que el estudiante no está habilitado, Cuando se lo identifica, Entonces el
+      veredicto es «No habilitado» con el motivo y quién lo registró, o «Sin revisar» si
+      nadie revisó su condición; no ingresa y el intento queda registrado como «no
+      habilitado».
+\item Dado que el estudiante está habilitado pero asignado a otra aula, Cuando se lo
+      identifica, Entonces el veredicto es «Otra aula» con el aula que le toca, su
+      edificio, su piso y el mapa, que marca «Aquí» en el edificio de la puerta; si aún
+      no tiene aula repartida dice «Sin aula asignada». No se registra ingreso.
+\item Dado que el estudiante ya ingresó a ese examen, Cuando se lo identifica otra vez, en
+      esta puerta o en otra, Entonces el veredicto es «Ya ingresó» con la hora y el aula
+      de su ingreso, y no se registra un segundo.
+\item Dado que dos puestos identifican al mismo estudiante a la vez, Cuando ambos envían
+      la verificación, Entonces queda un solo ingreso y el otro puesto recibe «Ya
+      ingresó»; un ingreso registrado no se puede editar ni eliminar por ninguna vía.
+\item Dado que el estudiante no tiene examen en esta aula a esta hora, Cuando se lo
+      identifica, Entonces el veredicto es «No es de esta aula», con el examen y el aula
+      que sí le corresponden si los hay, y «Intento registrado»; un código QR que el
+      sistema no reconoce da «Código QR no válido». Cada intento queda registrado y
+      distingue al no inscrito del código no válido y del no habilitado.
+\item Dado que el aula tiene dos exámenes a la misma hora, Cuando se identifica a un
+      estudiante, Entonces el sistema resuelve a cuál pertenece: con código QR, el del
+      código; a mano, aquel en que está inscrito y, si está en los dos, el que puede
+      admitirlo. Cada examen lleva su color y sus propias cifras.
+\item Dado que el veredicto es «No habilitado», «Otra aula» o «No es de esta aula»,
+      Cuando la persona pulsa «Situación excepcional» o «Admitir como excepción»,
+      Entonces elige el tipo (problema de identificación, cambio de aula o estudiante no
+      habilitado) y escribe el motivo; con menos de cinco caracteres se señala «Mínimo 5
+      caracteres», el motivo admite hasta 500 y se muestran quién registra y la hora.
+\item Dado que el tipo es «Cambio de aula» y el estudiante está habilitado, Cuando se
+      pulsa «Registrar», Entonces el sistema lo admite, registra el ingreso marcado
+      «Excepción» y confirma con la hora en que ingresó; los otros dos tipos dejan
+      constancia con motivo, hora y usuario, y no admiten.
+\item Dado que el estudiante no está inscrito en el examen, no está habilitado, ya ingresó
+      o fue expulsado, Cuando se intenta admitirlo por cambio de aula, Entonces el
+      sistema lo rechaza con su mensaje y no queda ni ingreso ni constancia.
+\item Dado que el aula tiene ingresos, Cuando se muestra la puerta, Entonces lista los
+      cinco más recientes con nombre y hora, y las marcas «Excepción» y «Expulsado»; sin
+      ninguno muestra «Sin ingresos». «Ver los N» los lista todos y permite buscar por
+      nombre o código («Sin resultados» si no hay); la lista se actualiza sola cada diez
+      segundos y, si se pierde la red, avisa «Sin conexión».
+\item Dado que un estudiante ingresó, Cuando la persona pulsa la expulsión en su ingreso,
+      escribe un motivo de 5 a 500 caracteres y pulsa «Registrar», Entonces el sistema
+      asienta la expulsión sobre ese ingreso con motivo, hora y usuario, avisa «Expulsión
+      registrada» y lo marca «Expulsado»; el ingreso no se modifica y un segundo intento
+      avisa «Ya estaba expulsado».
+\item Dado que un estudiante fue expulsado de un examen, Cuando se lo identifica de nuevo
+      en cualquier puerta, Entonces el veredicto es «Expulsado» con la hora de la
+      expulsión y no vuelve a ingresar a ese examen.
+\item Dado que ocurre algo en la puerta, Cuando la persona pulsa «Incidencia», elige el
+      tipo (intento de ingreso no autorizado, suplantación de identidad, material no
+      permitido, cambio de aula u otra), indica si quiere al estudiante y escribe un
+      detalle de al menos cinco caracteres, Entonces queda registrada con el aula, la
+      hora y quién la reportó, y se avisa «Incidencia registrada»; solo se reporta el día
+      del examen.
+\item Dado que la persona atiende más de un aula hoy, Cuando pulsa «Cambiar», Entonces
+      elige otra de sus aulas, con «Actual» en la presente y «Sin examen» en las que no
+      tienen uno abierto, y la puerta empieza de nuevo en la elegida; con más de seis
+      aulas hay buscador, y con una sola o con código de aula el botón no aparece.
+\item Dado que no hay sesión ni acceso con código, o que el rol no tiene el permiso del
+      punto de control, Cuando se intenta abrir una puerta, verificar, registrar una
+      situación excepcional o expulsar, Entonces el sistema responde con una negativa
+      explícita.
+\item Dado que la persona tiene el permiso pero no el alcance, Cuando intenta operar una
+      puerta, Entonces el sistema lo niega con «No atiendes esta aula»: el docente opera
+      las aulas de sus exámenes, el auxiliar solo la que atiende y solo el día del examen,
+      y quien entró con código de aula solo la suya.
+\item Dado que se registra un ingreso, una situación excepcional, una expulsión o una
+      incidencia, Cuando la operación se completa, Entonces queda asentada en la bitácora
+      con su autor, sea una cuenta o el nombre declarado con el código de aula. En un
+      dispositivo móvil la puerta va en una sola columna, con el veredicto en el lugar
+      del visor y botones amplios, de forma completamente responsiva.}
+
+\def\HUMockupsExtra{%
+\CajaMockup{hu19-admitido}{7.8cm} & \CajaMockup{hu19-otra-aula}{7.8cm}}
+
+\def\HUPruebas{%
+\item \texttt{PuertaTest} y \texttt{MapaYNormasDePuertaTest}: aulas del día del docente y
+      del auxiliar, puerta con sus exámenes, cifras e ingresos recientes, normas marcadas
+      en su orden y puerta cerrada antes de su ventana (criterios 1 a 3).
+\item \texttt{VerificacionEnPuertaTest}: admisión por código universitario, por documento
+      y por código QR, hora del servidor, apertura sesenta minutos antes y cierre al
+      terminar, dato fuera del padrón y de 5 a 10 dígitos (criterios 3, 4, 6 y 7).
+\item \texttt{VerificacionEnPuertaTest}: no habilitado con motivo y autor, sin revisar,
+      otra aula y sin aula asignada, segundo intento en esta puerta y en otra, expulsado,
+      sin examen en el aula, examen que sí correspondía y código QR desconocido
+      (criterios 8 a 10, 12 y 19).
+\item \texttt{IngresoUnicoTest}: carrera entre dos puestos que termina en un ingreso y un
+      «ya ingresó», y tabla y rutas que no admiten editar ni eliminar un ingreso
+      (criterio 11).
+\item \texttt{PuertaTest}: aula con dos exámenes a la vez, examen resuelto por estudiante,
+      estudiante en los dos y examen del código QR (criterio 13).
+\item \texttt{ExcepcionEnPuertaTest}: cambio de aula que admite, problema de
+      identificación y no habilitado que solo dejan constancia, validación del tipo y del
+      motivo, y cambio de aula que no admite al no habilitado, al que ya ingresó, al
+      expulsado ni al ajeno al examen (criterios 14 a 16).
+\item \texttt{PuertaTest}: ingresos recientes, todos los ingresos y su búsqueda
+      (criterio 17).
+\item \texttt{ExpulsionTest}: expulsión sobre el ingreso sin modificarlo, una sola por
+      ingreso, motivo de 5 a 500 caracteres y alcance de quien expulsa (criterio 18).
+\item \texttt{IncidenciasTest}: reporte por tipo con estudiante opcional, detalle mínimo,
+      aula del examen, solo el día del examen y auxiliar solo en su aula (criterio 20).
+\item \texttt{PuertaTest}, \texttt{VerificacionEnPuertaTest},
+      \texttt{ExcepcionEnPuertaTest}, \texttt{ExpulsionTest} y
+      \texttt{AccesoConCodigoDeAulaTest}: sin sesión, rol sin permiso, docente de otro
+      examen, auxiliar fuera de su aula o de su día y código de aula fuera de la suya
+      (criterios 22 y 23).
+\item \texttt{VerificacionEnPuertaTest}, \texttt{ExcepcionEnPuertaTest},
+      \texttt{ExpulsionTest} e \texttt{IncidenciasTest}: asiento en la bitácora de cada
+      ingreso, situación excepcional, expulsión e incidencia (criterio 24).
+\item \texttt{LectorQr.test.jsx}: cámara trasera, lectura repetida ignorada tres
+      segundos, cámara liberada al apagar y aviso si no hay cámara o no enciende
+      (criterios 4 y 5).
+\item \texttt{PuntoControl.test.jsx}: aula con exámenes y normas, lectura por QR e ingreso
+      manual, cada veredicto con su situación excepcional, expulsión, incidencia, todos
+      los ingresos, cambio de aula, puerta cerrada y estados vacíos (criterios 1 a 6, 9,
+      12, 14 a 18 y 20 a 23).}
+
+\input{cuerpo}

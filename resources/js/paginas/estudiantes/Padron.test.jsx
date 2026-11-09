@@ -183,8 +183,7 @@ function servidor({ estudiantes = ESTUDIANTES, conflictos = CONFLICTOS, rutas = 
     const fichaDe = ({ url }) => {
         const e = estudiantes.find((uno) => uno.id === Number(url.split('/')[2]));
         if (!e) return errorHttp(404, { message: 'Estudiante no encontrado.' });
-        const corte = e.nombre.lastIndexOf(' ');
-        const [apellidos, nombres] = [e.nombre.slice(0, corte), e.nombre.slice(corte + 1)];
+        const [apellidos, nombres] = e.nombre.split(', ');
         return {
             data: {
                 id: e.id,
@@ -221,6 +220,10 @@ function servidor({ estudiantes = ESTUDIANTES, conflictos = CONFLICTOS, rutas = 
                     conteos: { pendientes: pendientes.length, resueltos: 0 },
                 },
             };
+        },
+        'GET /periodos/vigentes': {
+            data: [{ id: 1, codigo: '2/2026', tipo: 'Semestre 2', ventanas: {} }],
+            principal: '2/2026',
         },
         'GET /estudiantes': lista,
         'GET /estudiantes/*': fichaDe,
@@ -278,7 +281,7 @@ function elegirArchivo(dialogo, archivo) {
 
 async function abrirConflictos() {
     fireEvent.click(await screen.findByRole('tab', { name: 'Conflictos 2' }));
-    await screen.findByText('Código 202311988');
+    await screen.findByText('Código SIS 202311988');
 }
 
 beforeEach(() => {
@@ -286,6 +289,37 @@ beforeEach(() => {
 });
 
 describe('Padrón · cifras y lista (criterio 1)', () => {
+    it('pone el período principal de subtítulo y sigue sin él si no hay período', async () => {
+        servidor();
+        const { unmount } = montar({ usuario: usuarioDePrueba('Administrador') });
+        await listaCargada();
+        expect(await screen.findByText('Período 2/2026')).toBeInTheDocument();
+        unmount();
+
+        servidor({ rutas: { 'GET /periodos/vigentes': { data: [], principal: null } } });
+        montar({ usuario: usuarioDePrueba('Administrador') });
+        await listaCargada();
+        expect(screen.getByRole('heading', { name: 'Padrón' })).toBeInTheDocument();
+        expect(screen.queryByText(/^Período/)).not.toBeInTheDocument();
+    });
+
+    it('el plazo de fotos dice si todavía no empieza o ya cerró', async () => {
+        const plazo = (estado) => ({
+            'GET /estudiantes/*': ({ url }) =>
+                url.endsWith('plazo-fotos')
+                    ? { data: { desde: '2026-10-25', hasta: '2026-11-10', abierto: false, estado } }
+                    : { data: null },
+        });
+        servidor({ rutas: plazo('proximo') });
+        const { unmount } = montar({ usuario: usuarioDePrueba('Administrador') });
+        expect(await screen.findByText('Próximo')).toBeInTheDocument();
+        unmount();
+
+        servidor({ rutas: plazo('cerrado') });
+        montar({ usuario: usuarioDePrueba('Administrador') });
+        expect(await screen.findByText('Cerrado')).toBeInTheDocument();
+    });
+
     it('muestra las cuatro cifras y la lista con sus columnas, de a 25', async () => {
         servidor();
         montar({ usuario: usuarioDePrueba('Administrador') });
@@ -305,6 +339,7 @@ describe('Padrón · cifras y lista (criterio 1)', () => {
             'Facultad',
             'Carrera',
             'Grupos',
+            'Foto',
             'Origen',
         ]);
 
@@ -328,7 +363,7 @@ describe('Padrón · cifras y lista (criterio 1)', () => {
             ...ESTUDIANTES[1],
             id: 100 + i,
             codigo: `2025${String(i).padStart(5, '0')}`,
-            nombre: `Apellido ${String(i).padStart(2, '0')} Nombre`,
+            nombre: `Apellido ${String(i).padStart(2, '0')}, Nombre`,
         }));
         servidor({ estudiantes: muchos });
         montar({ usuario: usuarioDePrueba('Administrador') });
@@ -670,9 +705,9 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
         servidor({
             rutas: {
                 'POST /estudiantes/cargas': errorHttp(422, {
-                    message: 'El archivo no puede superar los 7 MB. (y 1 error más)',
+                    message: 'El archivo no puede superar los 8 MB. (y 1 error más)',
                     errors: {
-                        archivo: ['El archivo no puede superar los 7 MB.'],
+                        archivo: ['El archivo no puede superar los 8 MB.'],
                         facultad: ['La facultad no existe.'],
                     },
                 }),
@@ -686,7 +721,7 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
         fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar' }));
 
         expect(
-            await within(dialogo).findByText('El archivo no puede superar los 7 MB')
+            await within(dialogo).findByText('El archivo no puede superar los 8 MB')
         ).toBeInTheDocument();
         expect(within(dialogo).getByText('La facultad no existe')).toBeInTheDocument();
         expect(within(dialogo).queryByRole('alert')).not.toBeInTheDocument();
@@ -719,7 +754,7 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
         await listaCargada();
         const dialogo = await abrirCarga();
 
-        fireEvent.click(within(dialogo).getByRole('button', { name: /Plantilla/ }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Descargar plantilla' }));
 
         expect(descargar).toHaveBeenCalledWith('/inscritos/plantilla', {
             parametros: { alcance: 'facultad' },
@@ -739,7 +774,7 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
             params: { pagina: 1, por_pagina: 5 },
         });
 
-        const documento = screen.getByText('Código 202311988').closest('section');
+        const documento = screen.getByText('Código SIS 202311988').closest('section');
         expect(documento).toHaveTextContent('Documento distinto');
         expect(documento).toHaveTextContent('Inscripción en espera');
         expect([...documento.querySelectorAll('mark')].map((marca) => marca.textContent)).toEqual([
@@ -751,7 +786,7 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
             'Blanco Coca Leticia · Arquitectura de Computadoras I, grupo 2'
         );
 
-        const nombre = screen.getByText('Código 202312058').closest('section');
+        const nombre = screen.getByText('Código SIS 202312058').closest('section');
         expect(nombre).toHaveTextContent('Nombre distinto');
         // Solo se marca lo agregado al nombre.
         expect([...nombre.querySelectorAll('mark')].map((marca) => marca.textContent)).toEqual([
@@ -774,7 +809,7 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
         await listaCargada();
 
         fireEvent.click(screen.getByRole('button', { name: /Conflictos pendientes/ }));
-        expect(await screen.findByText('Código 202311988')).toBeInTheDocument();
+        expect(await screen.findByText('Código SIS 202311988')).toBeInTheDocument();
         expect(screen.queryByRole('table')).not.toBeInTheDocument();
     });
 
@@ -783,11 +818,13 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
         montar({ usuario: usuarioDePrueba('Administrador') });
         await abrirConflictos();
 
-        const tarjeta = screen.getByText('Código 202311988').closest('section');
+        const tarjeta = screen.getByText('Código SIS 202311988').closest('section');
         fireEvent.click(within(tarjeta).getByRole('button', { name: 'Mantener padrón' }));
 
         expect(await screen.findByText('202311988 sin cambios')).toBeInTheDocument();
-        await waitFor(() => expect(screen.queryByText('Código 202311988')).not.toBeInTheDocument());
+        await waitFor(() =>
+            expect(screen.queryByText('Código SIS 202311988')).not.toBeInTheDocument()
+        );
         expect(pedidos.resoluciones).toEqual([{ id: 1, resolucion: 'MANTENER_PADRON' }]);
         expect(await screen.findByRole('tab', { name: 'Conflictos 1' })).toBeInTheDocument();
     });
@@ -797,11 +834,19 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
         montar({ usuario: usuarioDePrueba('Administrador') });
         await abrirConflictos();
 
-        const tarjeta = screen.getByText('Código 202312058').closest('section');
+        const tarjeta = screen.getByText('Código SIS 202312058').closest('section');
         fireEvent.click(within(tarjeta).getByRole('button', { name: 'Usar carga nueva' }));
+        expect(api.post).not.toHaveBeenCalled();
+        // La confirmación dice qué cambia: aquí el nombre, no el C.I.
+        expect(
+            within(tarjeta).getByText('Nombre Torrico Condori Adriana → Torrico Condori Adriana A.')
+        ).toBeInTheDocument();
+        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Reemplazar' }));
 
         expect(await screen.findByText('202312058 actualizado')).toBeInTheDocument();
-        await waitFor(() => expect(screen.queryByText('Código 202312058')).not.toBeInTheDocument());
+        await waitFor(() =>
+            expect(screen.queryByText('Código SIS 202312058')).not.toBeInTheDocument()
+        );
         expect(pedidos.resoluciones).toEqual([{ id: 3, resolucion: 'USAR_CARGA' }]);
     });
 
@@ -817,13 +862,15 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
         montar({ usuario: usuarioDePrueba('Administrador') });
         await abrirConflictos();
 
-        const tarjeta = screen.getByText('Código 202311988').closest('section');
+        const tarjeta = screen.getByText('Código SIS 202311988').closest('section');
         fireEvent.click(within(tarjeta).getByRole('button', { name: 'Usar carga nueva' }));
+        expect(api.post).not.toHaveBeenCalled();
+        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Reemplazar' }));
 
         expect(await within(tarjeta).findByRole('alert')).toHaveTextContent(
             'Ese documento pertenece a otro estudiante'
         );
-        expect(screen.getByText('Código 202311988')).toBeInTheDocument();
+        expect(screen.getByText('Código SIS 202311988')).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: 'Conflictos 2' })).toBeInTheDocument();
     });
 
@@ -834,11 +881,13 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
 
         // Otra sesión lo resolvió antes.
         pendientes.splice(0, 1);
-        const tarjeta = screen.getByText('Código 202311988').closest('section');
+        const tarjeta = screen.getByText('Código SIS 202311988').closest('section');
         fireEvent.click(within(tarjeta).getByRole('button', { name: 'Mantener padrón' }));
 
         expect(await screen.findByText('El conflicto ya fue resuelto')).toBeInTheDocument();
-        await waitFor(() => expect(screen.queryByText('Código 202311988')).not.toBeInTheDocument());
+        await waitFor(() =>
+            expect(screen.queryByText('Código SIS 202311988')).not.toBeInTheDocument()
+        );
     });
 
     it('pagina de a cinco y, si la última página queda vacía, vuelve a la anterior', async () => {
@@ -851,15 +900,30 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
         montar({ usuario: usuarioDePrueba('Administrador') });
 
         fireEvent.click(await screen.findByRole('tab', { name: 'Conflictos 6' }));
-        await screen.findByText('Código 202312000');
+        await screen.findByText('Código SIS 202312000');
         expect(screen.getAllByRole('button', { name: 'Mantener padrón' })).toHaveLength(5);
         expect(screen.getByText('1–5 de 6 conflictos')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }));
-        await screen.findByText('Código 202312005');
+        await screen.findByText('Código SIS 202312005');
         fireEvent.click(screen.getByRole('button', { name: 'Mantener padrón' }));
 
-        await screen.findByText('Código 202312000');
+        await screen.findByText('Código SIS 202312000');
         expect(screen.getByText('5 conflictos')).toBeInTheDocument();
+    });
+
+    it('descarga la plantilla desde el encabezado', async () => {
+        descargar.mockResolvedValue('plantilla_inscritos.xlsx');
+        servidor();
+        montar({ usuario: usuarioDePrueba('Administrador') });
+        await listaCargada();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Plantilla' }));
+
+        expect(descargar).toHaveBeenCalledWith('/inscritos/plantilla', {
+            parametros: { alcance: 'facultad' },
+            nombre: 'plantilla_inscritos.xlsx',
+        });
+        expect(await screen.findByText('plantilla_inscritos.xlsx descargado')).toBeInTheDocument();
     });
 });

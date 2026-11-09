@@ -23,7 +23,7 @@ final class OpcionesExamenController
             'id' => $grupo->id,
             'codigo' => $grupo->codigo,
             'docente' => $grupo->docente,
-            'docente_id' => $grupo->docenteCuentaId,
+            'docente_usuario_id' => $grupo->docenteUsuarioId,
             'inscritos' => $grupo->inscritos,
             'periodo' => $grupo->periodoCodigo,
         ];
@@ -47,9 +47,9 @@ final class OpcionesExamenController
         return response()->json([
             'sugeridas' => $opciones->sugeridas,
             // Un objeto por id de aula, tambien cuando no hay ninguna.
-            'compartidas' => (object) $opciones->compartidas,
-            // Las clases del horario en cada aula a esa hora.
             'clases' => (object) $opciones->clases,
+            'examenes' => (object) $opciones->examenes,
+            'compartidas' => (object) $opciones->compartidas,
         ]);
     }
 }

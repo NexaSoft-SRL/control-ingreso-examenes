@@ -4,9 +4,8 @@ namespace App\Modules\Administracion\Infrastructure\Persistence;
 
 use App\Modules\Administracion\Application\Contracts\AuthenticationSecurityGateway;
 use App\Modules\Administracion\Application\Contracts\RolGateway;
+use App\Modules\Administracion\Application\DTOs\ResultadoAccesoData;
 use App\Modules\Administracion\Application\DTOs\SesionData;
-use App\Modules\Administracion\Domain\Exceptions\ContrasenaTemporalVencidaException;
-use App\Modules\Administracion\Domain\Exceptions\CuentaDesactivadaException;
 use App\Modules\Administracion\Domain\Models\Role;
 use App\Modules\Administracion\Domain\Models\User;
 use App\Modules\Administracion\Domain\Rules\NombreDeUsuario;
@@ -28,7 +27,10 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
         string $password,
         ?string $ipAddress,
         ?string $userAgent,
-    ): ?User {
+    ): ResultadoAccesoData {
+        // El usuario se guarda y se compara en minusculas.
+        $identifier = mb_strtolower(trim($identifier));
+
         $maxFailedAttempts = $this->positiveIntegerConfig(
             'auth_security.max_failed_attempts',
             5,
@@ -40,11 +42,8 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
         );
 
         $dummyPasswordHash = $this->dummyPasswordHash();
-        $contrasenaTemporalVencida = false;
-        $cuentaDesactivada = false;
 
-        /** @var User|null $authenticatedUser */
-        $authenticatedUser = DB::transaction(
+        return DB::transaction(
             function () use (
                 $identifier,
                 $password,
@@ -53,12 +52,10 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                 $maxFailedAttempts,
                 $lockoutMinutes,
                 $dummyPasswordHash,
-                &$contrasenaTemporalVencida,
-                &$cuentaDesactivada,
-            ): ?User {
-                $identificador = mb_strtolower(trim($identifier));
+            ): ResultadoAccesoData {
                 $user = User::query()
-                    ->whereRaw("replace(usuario, ' ', '') = ?", [NombreDeUsuario::compacto($identificador)])
+                    // «josesoruco» encuentra a «jose soruco».
+                    ->whereRaw("replace(usuario, ' ', '') = ?", [NombreDeUsuario::compacto($identifier)])
                     ->lockForUpdate()
                     ->first();
 
@@ -76,30 +73,21 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                         $userAgent,
                     );
 
-                    return null;
+                    return new ResultadoAccesoData(
+                        ResultadoAccesoData::CREDENCIALES,
+                    );
                 }
 
                 $userId = $this->userId($user);
 
-                $passwordHash = $user->getAttribute('password');
-
-                if (! is_string($passwordHash)) {
-                    throw new LogicException(
-                        'La contraseña del usuario no tiene un formato válido.'
-                    );
-                }
-
                 $passwordIsValid = Hash::check(
                     $password,
-                    $passwordHash
+                    (string) $user->password
                 );
 
                 $now = now();
 
-                if (isset($user->is_active) && ! $user->is_active) {
-                    // Solo quien conoce la contrasena se entera de que la
-                    // cuenta esta desactivada.
-                    $cuentaDesactivada = $passwordIsValid;
+                if (! $user->is_active) {
                     $this->recordAttempt(
                         $userId,
                         $identifier,
@@ -108,22 +96,16 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                         $userAgent,
                     );
 
-                    return null;
-                }
-
-                $lockedUntil = $user->getAttribute('locked_until');
-
-                if (
-                    $lockedUntil !== null
-                    && ! $lockedUntil instanceof DateTimeInterface
-                ) {
-                    throw new LogicException(
-                        'locked_until no tiene el tipo de fecha esperado.'
+                    return new ResultadoAccesoData(
+                        ResultadoAccesoData::INACTIVA,
+                        $userId,
                     );
                 }
 
+                $lockedUntil = $this->fecha($user, 'locked_until');
+
                 if (
-                    $lockedUntil instanceof DateTimeInterface
+                    $lockedUntil !== null
                     && $lockedUntil->getTimestamp() > $now->getTimestamp()
                 ) {
                     $this->recordAttempt(
@@ -134,10 +116,16 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                         $userAgent,
                     );
 
-                    return null;
+                    $segundos = $lockedUntil->getTimestamp() - $now->getTimestamp();
+
+                    return new ResultadoAccesoData(
+                        ResultadoAccesoData::BLOQUEADA,
+                        $userId,
+                        minutosBloqueo: max(1, (int) ceil($segundos / 60)),
+                    );
                 }
 
-                if ($lockedUntil instanceof DateTimeInterface) {
+                if ($lockedUntil !== null) {
                     $user->forceFill([
                         'failed_login_attempts' => 0,
                         'locked_until' => null,
@@ -145,21 +133,16 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                 }
 
                 if (! $passwordIsValid) {
-                    $failedLoginAttempts = $user->getAttribute('failed_login_attempts');
-
-                    if (! is_int($failedLoginAttempts)) {
-                        throw new LogicException(
-                            'El contador de intentos fallidos no tiene un formato válido.'
-                        );
-                    }
-
-                    $failedAttempts = $failedLoginAttempts + 1;
+                    $failedAttempts =
+                        $user->failed_login_attempts + 1;
 
                     $attributes = [
                         'failed_login_attempts' => $failedAttempts,
                     ];
 
-                    if ($failedAttempts >= $maxFailedAttempts) {
+                    $locks = $failedAttempts >= $maxFailedAttempts;
+
+                    if ($locks) {
                         $attributes['locked_until'] = $now
                             ->copy()
                             ->addMinutes($lockoutMinutes);
@@ -175,27 +158,43 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                         $userAgent,
                     );
 
-                    return null;
+                    if ($locks) {
+                        return new ResultadoAccesoData(
+                            ResultadoAccesoData::BLOQUEADA,
+                            $userId,
+                            minutosBloqueo: $lockoutMinutes,
+                        );
+                    }
+
+                    return new ResultadoAccesoData(
+                        ResultadoAccesoData::CREDENCIALES,
+                        $userId,
+                        intentosRestantes: $maxFailedAttempts - $failedAttempts,
+                    );
                 }
 
-                if ($user->getAttribute('password_changed_at') === null) {
-                    $expiry = $user->getAttribute('password_temporal_expira_en');
+                // La contrasena es la correcta, pero es la temporal y ya
+                // vencio: no entra hasta que la administracion emita otra.
+                // No cuenta como intento fallido para el bloqueo.
+                $expira = $this->fecha($user, 'password_temporal_expira_en');
 
-                    if (
-                        ! $expiry instanceof DateTimeInterface
-                        || $expiry->getTimestamp() <= $now->getTimestamp()
-                    ) {
-                        $contrasenaTemporalVencida = true;
-                        $this->recordAttempt(
-                            $userId,
-                            $identifier,
-                            false,
-                            $ipAddress,
-                            $userAgent,
-                        );
+                if (
+                    $user->getAttribute('password_changed_at') === null
+                    && $expira !== null
+                    && $expira->getTimestamp() <= $now->getTimestamp()
+                ) {
+                    $this->recordAttempt(
+                        $userId,
+                        $identifier,
+                        false,
+                        $ipAddress,
+                        $userAgent,
+                    );
 
-                        return null;
-                    }
+                    return new ResultadoAccesoData(
+                        ResultadoAccesoData::TEMPORAL_VENCIDA,
+                        $userId,
+                    );
                 }
 
                 $attributes = [
@@ -204,8 +203,8 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                     'last_login_at' => $now,
                 ];
 
-                if (Hash::needsRehash($passwordHash)) {
-                    $user->password = Hash::make($password);
+                if (Hash::needsRehash((string) $user->password)) {
+                    $attributes['password'] = $password;
                 }
 
                 $user->forceFill($attributes)->save();
@@ -218,69 +217,13 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
                     $userAgent,
                 );
 
-                return $user;
+                return new ResultadoAccesoData(
+                    ResultadoAccesoData::CORRECTO,
+                    $userId,
+                );
             },
             3
         );
-
-        if ($contrasenaTemporalVencida) {
-            throw new ContrasenaTemporalVencidaException;
-        }
-
-        if ($cuentaDesactivada) {
-            throw new CuentaDesactivadaException;
-        }
-
-        return $authenticatedUser;
-    }
-
-    public function intentosRestantes(string $usuario): ?int
-    {
-        $identificador = mb_strtolower(trim($usuario));
-        $user = User::query()
-            ->whereRaw("replace(usuario, ' ', '') = ?", [NombreDeUsuario::compacto($identificador)])
-            ->first();
-
-        if (! $user instanceof User || ! $user->is_active) {
-            return null;
-        }
-
-        $maxFailedAttempts = $this->positiveIntegerConfig(
-            'auth_security.max_failed_attempts',
-            5,
-        );
-        $failedAttempts = $user->getAttribute('failed_login_attempts');
-
-        if (! is_int($failedAttempts)) {
-            throw new LogicException(
-                'El contador de intentos fallidos no tiene un formato válido.'
-            );
-        }
-
-        return max(0, $maxFailedAttempts - $failedAttempts);
-    }
-
-    public function minutosDeBloqueo(string $usuario): ?int
-    {
-        $identificador = mb_strtolower(trim($usuario));
-        $user = User::query()
-            ->whereRaw("replace(usuario, ' ', '') = ?", [NombreDeUsuario::compacto($identificador)])
-            ->first();
-
-        if (! $user instanceof User) {
-            return null;
-        }
-
-        $lockedUntil = $user->getAttribute('locked_until');
-
-        if (
-            ! $lockedUntil instanceof DateTimeInterface
-            || $lockedUntil->getTimestamp() <= now()->getTimestamp()
-        ) {
-            return null;
-        }
-
-        return max(1, (int) ceil(($lockedUntil->getTimestamp() - now()->getTimestamp()) / 60));
     }
 
     public function sesionDe(int $usuarioId): ?SesionData
@@ -292,7 +235,7 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
         }
 
         $rol = $user->getRelationValue('role');
-        $correo = $user->getAttribute('correo');
+        $correo = $user->getAttribute('email');
 
         // El docente es de otro modulo: se lee por su tabla, sin su modelo.
         $docenteId = DB::table('docentes')
@@ -305,10 +248,23 @@ final class EloquentAuthenticationSecurityGateway implements AuthenticationSecur
             usuario: $user->usuario,
             correo: is_string($correo) && $correo !== '' ? $correo : null,
             rol: $rol instanceof Role ? $rol->name : null,
-            permisos: $this->roles->permisosDe($usuarioId),
-            docenteId: is_int($docenteId) ? $docenteId : null,
+            permisos: $this->roles->permisosVigentesDe($usuarioId),
             debeCambiarContrasena: $user->getAttribute('password_changed_at') === null,
+            docenteId: is_int($docenteId) ? $docenteId : null,
         );
+    }
+
+    private function fecha(User $user, string $atributo): ?DateTimeInterface
+    {
+        $valor = $user->getAttribute($atributo);
+
+        if ($valor !== null && ! $valor instanceof DateTimeInterface) {
+            throw new LogicException(
+                "{$atributo} no tiene el tipo de fecha esperado."
+            );
+        }
+
+        return $valor;
     }
 
     private function dummyPasswordHash(): string

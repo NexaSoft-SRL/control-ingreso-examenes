@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useEffect, useRef, useState } from 'react';
 import {
+    AlertTriangle,
     ArrowRight,
     CheckCircle2,
     History,
@@ -12,75 +13,81 @@ import {
 } from 'lucide-react';
 import { erroresDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
+import { useAviso } from '../../componentes/Aviso';
 import Boton from '../../componentes/Boton';
 import Campo from '../../componentes/Campo';
-import IconoAsignatura from '../../componentes/IconoAsignatura';
 import Insignia from '../../componentes/Insignia';
 import MapaCampus from '../../componentes/MapaCampus';
 import Seleccion from '../../componentes/Seleccion';
-import { colorDeAsignatura } from '../../utiles/texto';
+import { colorDeAsignatura, ubicacionSin } from '../../utiles/texto';
+import IconoAsignatura from '../../componentes/IconoAsignatura';
 
-// Los veredictos de la puerta (como en el Proyecto Guía). Los intentos sin
-// examen llegan con su `causa` (no inscrito, sin registro, QR no válido).
-// El rechazo firme va en rojo y se distingue por el ícono y el texto.
+// Los veredictos de la puerta (ruta 64), más «No registrado» (nadie con
+// ese código o C.I.) y la excepción ya admitida. El rechazo firme va en
+// rojo y se distingue por el ícono y el texto, no por el color.
 export const VEREDICTOS = {
-    ADMITIDO: { tono: 'exito', Icono: CheckCircle2, titulo: 'Ingreso admitido' },
-    ADMITIDO_EXCEPCION: { tono: 'exito', Icono: CheckCircle2, titulo: 'Admitido como excepción' },
-    NO_HABILITADO: { tono: 'peligro', Icono: XCircle, titulo: 'No habilitado' },
-    YA_INGRESO: { tono: 'peligro', Icono: History, titulo: 'Ya ingresó' },
-    EXPULSADO: { tono: 'peligro', Icono: UserX, titulo: 'Expulsado' },
-    NO_CORRESPONDE: { tono: 'peligro', Icono: ScanSearch, titulo: 'No es de esta aula' },
-    NO_INSCRITO: { tono: 'peligro', Icono: ScanSearch, titulo: 'No inscrito' },
-    NO_REGISTRADO: { tono: 'peligro', Icono: SearchX, titulo: 'No registrado' },
-    QR_NO_VALIDO: { tono: 'peligro', Icono: ScanSearch, titulo: 'Código QR no válido' },
+    admitido_excepcion: {
+        tono: 'exito',
+        Icono: CheckCircle2,
+        titulo: 'Admitido como excepción',
+    },
+    no_registrado: { tono: 'peligro', Icono: SearchX, titulo: 'No registrado' },
+    admitido: { tono: 'exito', Icono: CheckCircle2, titulo: 'Ingreso admitido' },
+    no_habilitado: { tono: 'peligro', Icono: XCircle, titulo: 'No habilitado' },
+    otra_aula: { tono: 'advertencia', Icono: AlertTriangle, titulo: 'Otra aula' },
+    ya_ingreso: { tono: 'peligro', Icono: History, titulo: 'Ya ingresó' },
+    expulsado: { tono: 'peligro', Icono: UserX, titulo: 'Expulsado' },
+    no_corresponde: { tono: 'peligro', Icono: ScanSearch, titulo: 'No es de esta aula' },
 };
 
 const CABECERA = {
     exito: 'bg-success-600',
     peligro: 'bg-danger-600',
     advertencia: 'bg-warning-600',
+    info: 'bg-info-600',
 };
 
 const BORDE = {
     exito: 'border-success-600',
     peligro: 'border-danger-600',
     advertencia: 'border-warning-600',
+    info: 'border-info-600',
 };
 
-// Situaciones excepcionales. Solo el cambio de aula admite.
-export const TIPOS_EXCEPCION = {
-    EXCEPCION_IDENTIFICACION: 'Problema de identificación',
-    EXCEPCION_CAMBIO_AULA: 'Cambio de aula',
-    EXCEPCION_NO_HABILITADO: 'Estudiante no habilitado',
+// Situaciones excepcionales (ruta 65). Solo el cambio de aula admite.
+const TIPOS_EXCEPCION = {
+    PROBLEMA_IDENTIFICACION: 'Problema de identificación',
+    CAMBIO_AULA: 'Cambio de aula',
+    NO_HABILITADO: 'Estudiante no habilitado',
 };
-const SUGERIDO = { NO_HABILITADO: 'EXCEPCION_NO_HABILITADO' };
-const CON_EXCEPCION = ['NO_HABILITADO', 'NO_CORRESPONDE'];
+const SUGERIDO = { otra_aula: 'CAMBIO_AULA', no_habilitado: 'NO_HABILITADO' };
+const CON_EXCEPCION = ['no_habilitado', 'otra_aula', 'no_corresponde'];
 const MOTIVO_MINIMO = 5;
 
 const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
 
-export const ubicacionDe = (aula) => [aula?.edificio, aula?.piso].filter(Boolean).join(' · ');
-
-// Dónde queda el aula que le corresponde, con el edificio de esta puerta
-// como punto de partida. Los edificios salen de la ruta propia de la puerta,
-// que también alcanza quien entró con código de aula (GET /api/edificios
-// exige cuenta).
+// Dónde queda el aula correcta, con «Aquí» en la de esta puerta. Los
+// edificios salen de la ruta propia de la puerta, que también alcanza quien
+// entró con código de aula (GET /api/edificios exige cuenta).
 function MapaDeDestino({ destino, origen, aulaId }) {
-    const { datos, meta } = usarConsulta(`/aulas/${aulaId}/punto-control/edificios`);
-    const edificios = Array.isArray(datos) ? datos : [];
+    const { datos, meta } = usarConsulta(`/puerta/aulas/${aulaId}/edificios`);
+    const edificios = datos ?? [];
     const caja = meta?.caja ?? null;
     if (edificios.length === 0) return null;
+    const facultad = edificios.find((e) => e.id === destino.edificio_id)?.facultad ?? null;
 
     return (
         <MapaCampus
             edificios={edificios}
             caja={caja}
+            facultad={facultad}
             resaltados={[destino.edificio_id]}
             contorno={origen ? [origen] : []}
             rotulosEdificio={{
-                ...(origen && origen !== destino.edificio_id ? { [origen]: 'Aquí' } : {}),
+                ...(origen ? { [origen]: 'Aquí' } : {}),
                 [destino.edificio_id]: `Aula ${destino.nombre}`,
             }}
+            tamanoRotulo={52}
             alto="h-48"
         />
     );
@@ -95,51 +102,45 @@ MapaDeDestino.propTypes = {
     aulaId: PropTypes.number.isRequired,
 };
 
-function claveDe(veredicto) {
-    if (veredicto.causa) return veredicto.causa;
-    return veredicto.veredicto ?? 'NO_CORRESPONDE';
-}
-
-// El veredicto ocupa el lugar del visor; «Siguiente» devuelve al visor.
-// `registrarExcepcion({ tipo, motivo })` hace la llamada y devuelve los datos.
+// El veredicto ocupa el lugar del visor para leerse sin desplazar la
+// pantalla; «Siguiente» devuelve al visor. `registrarExcepcion({ tipo, motivo })`
+// hace la llamada y devuelve su promesa.
 export default function VeredictoPuerta({
     veredicto,
     aula,
-    operador = '',
-    hora = '',
+    conMapa = true,
+    operador,
+    hora,
     registrarExcepcion,
     conExcepciones = true,
     onSiguiente,
 }) {
-    const clave = claveDe(veredicto);
+    const clave = veredicto.veredicto;
     const { estudiante, examen } = veredicto;
     const destino = veredicto.aula_correcta ?? null;
     const otro = veredicto.examen_correspondiente ?? null;
-    const familia = ['NO_INSCRITO', 'NO_REGISTRADO', 'QR_NO_VALIDO'].includes(clave)
-        ? 'NO_CORRESPONDE'
-        : clave;
     // El cambio de aula exige estudiante y examen resueltos, y que esté
     // habilitado: a un no habilitado el servidor se lo rechaza siempre.
     const tipos = Object.keys(TIPOS_EXCEPCION).filter(
-        (t) => t !== 'EXCEPCION_CAMBIO_AULA' || (estudiante && examen && clave !== 'NO_HABILITADO')
+        (t) => t !== 'CAMBIO_AULA' || (estudiante && examen && clave !== 'no_habilitado')
     );
 
     const [abierta, setAbierta] = useState(false);
-    const [tipo, setTipo] = useState(SUGERIDO[clave] ?? 'EXCEPCION_IDENTIFICACION');
+    const [tipo, setTipo] = useState(SUGERIDO[clave] ?? 'PROBLEMA_IDENTIFICACION');
     const [motivo, setMotivo] = useState('');
     const [errorMotivo, setErrorMotivo] = useState(null);
-    const [errorGeneral, setErrorGeneral] = useState(null);
     const [enviando, setEnviando] = useState(false);
     const [confirmacion, setConfirmacion] = useState(null);
     const [admitida, setAdmitida] = useState(false);
+    const [aviso, avisar] = useAviso();
     const caja = useRef(null);
-    const formulario = useRef(null);
-
+    // Una excepción que dejó entrar cambia el veredicto a la vista. Sin
+    // examen que le corresponda, el estudiante no está inscrito en nada.
     const forma = admitida
-        ? VEREDICTOS.ADMITIDO_EXCEPCION
-        : clave === 'NO_INSCRITO' && otro
-          ? VEREDICTOS.NO_CORRESPONDE
-          : (VEREDICTOS[clave] ?? VEREDICTOS.NO_CORRESPONDE);
+        ? VEREDICTOS.admitido_excepcion
+        : clave === 'no_corresponde' && estudiante && !otro
+          ? { ...VEREDICTOS.no_corresponde, titulo: 'No inscrito' }
+          : (VEREDICTOS[clave] ?? VEREDICTOS.no_corresponde);
 
     // Con el veredicto nuevo, o el cambio a admitido, la cabecera vuelve a
     // la vista.
@@ -147,21 +148,11 @@ export default function VeredictoPuerta({
         caja.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
     }, [veredicto, admitida]);
 
-    // N6: al abrir la situación excepcional, el formulario a la vista y el
-    // foco en el motivo (en el teléfono queda bajo el veredicto).
-    useEffect(() => {
-        if (!abierta) return;
-        formulario.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
-        formulario.current?.querySelector('input')?.focus();
-    }, [abierta]);
-
     const cerrar = () => {
         setAbierta(false);
         setMotivo('');
         setErrorMotivo(null);
-        setErrorGeneral(null);
     };
-
     const registrar = async () => {
         if (enviando) return;
         if (motivo.trim().length < MOTIVO_MINIMO) {
@@ -169,16 +160,14 @@ export default function VeredictoPuerta({
             return;
         }
         setEnviando(true);
-        setErrorGeneral(null);
         try {
-            const respuesta = await registrarExcepcion({ tipo, motivo: motivo.trim() });
-            const hora = respuesta?.data?.ingreso?.hora;
-            if (hora) setAdmitida(true);
+            const data = await registrarExcepcion({ tipo, motivo: motivo.trim() });
+            if (data?.ingreso) setAdmitida(true);
             setConfirmacion(
                 [
-                    sinPunto(respuesta?.message) ||
+                    sinPunto(data?.message) ||
                         `Situación excepcional registrada: ${TIPOS_EXCEPCION[tipo].toLowerCase()}`,
-                    hora && `Ingresó a las ${hora}`,
+                    data?.ingreso?.hora && `Ingresó a las ${data.ingreso.hora}`,
                 ]
                     .filter(Boolean)
                     .join(' · ')
@@ -187,7 +176,7 @@ export default function VeredictoPuerta({
         } catch (fallo) {
             const campo = erroresDe(fallo).motivo;
             if (campo) setErrorMotivo(campo);
-            else setErrorGeneral(sinPunto(mensajeDe(fallo, 'No se pudo registrar')));
+            else avisar(sinPunto(mensajeDe(fallo, 'No se pudo registrar')), 'error');
         } finally {
             setEnviando(false);
         }
@@ -220,7 +209,7 @@ export default function VeredictoPuerta({
                             </span>
                         )}
                         <div className="min-w-0">
-                            <p className="break-words text-lg font-semibold leading-snug text-slate-900">
+                            <p className="text-lg font-semibold leading-snug text-slate-900">
                                 {estudiante.nombre}
                             </p>
                             <p className="text-sm text-slate-600">Código SIS {estudiante.codigo}</p>
@@ -265,28 +254,25 @@ export default function VeredictoPuerta({
                 {destino && !admitida && (
                     <div className="mt-3">
                         <p className="text-2xl font-bold text-slate-900">Aula {destino.nombre}</p>
-                        {ubicacionDe(destino) && (
-                            <p className="text-sm text-slate-600">{ubicacionDe(destino)}</p>
-                        )}
+                        <p className="text-sm text-slate-600">
+                            {ubicacionSin(destino.nombre, destino.edificio, destino.piso)}
+                        </p>
                     </div>
                 )}
 
-                {conExcepciones && !abierta && !confirmacion && CON_EXCEPCION.includes(familia) && (
+                {conExcepciones && !abierta && !confirmacion && CON_EXCEPCION.includes(clave) && (
                     <Boton
                         type="button"
                         variante="secundario"
                         className="mt-4 min-h-12 w-full"
                         onClick={() => setAbierta(true)}
                     >
-                        Situación excepcional
+                        {clave === 'otra_aula' ? 'Admitir como excepción' : 'Situación excepcional'}
                     </Boton>
                 )}
 
                 {abierta && (
-                    <div
-                        ref={formulario}
-                        className="mt-4 scroll-mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4"
-                    >
+                    <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <p className="text-sm font-semibold text-slate-800">
                             Situación excepcional
                         </p>
@@ -317,11 +303,6 @@ export default function VeredictoPuerta({
                         <p className="text-xs text-slate-600">
                             {[operador, hora].filter(Boolean).join(' · ')}
                         </p>
-                        {errorGeneral && (
-                            <p role="alert" className="text-sm text-danger-700">
-                                {errorGeneral}
-                            </p>
-                        )}
                         <div className="flex gap-2">
                             <Boton
                                 type="button"
@@ -336,8 +317,9 @@ export default function VeredictoPuerta({
                                 className="min-h-12 flex-1"
                                 onClick={registrar}
                                 disabled={enviando || motivo.trim().length < MOTIVO_MINIMO}
+                                cargando={enviando}
                             >
-                                {enviando ? 'Registrando…' : 'Registrar'}
+                                Registrar
                             </Boton>
                         </div>
                     </div>
@@ -345,7 +327,7 @@ export default function VeredictoPuerta({
 
                 {confirmacion && (
                     <p className="mt-3 flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2.5 text-sm font-medium text-slate-800">
-                        <CheckCircle2 className="h-4 w-4 shrink-0 text-success-600" />
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-success-600" />{' '}
                         {confirmacion}
                     </p>
                 )}
@@ -355,7 +337,7 @@ export default function VeredictoPuerta({
                 </Boton>
 
                 {/* El mapa va después de las acciones: no las empuja fuera de la pantalla. */}
-                {destino?.edificio_id && !admitida && (
+                {destino && !admitida && conMapa && destino.edificio_id && (
                     <div className="mt-4">
                         <MapaDeDestino
                             destino={destino}
@@ -365,14 +347,14 @@ export default function VeredictoPuerta({
                     </div>
                 )}
             </div>
+            {aviso}
         </div>
     );
 }
 
 VeredictoPuerta.propTypes = {
     veredicto: PropTypes.shape({
-        veredicto: PropTypes.string,
-        causa: PropTypes.string,
+        veredicto: PropTypes.string.isRequired,
         estudiante: PropTypes.shape({
             id: PropTypes.number,
             codigo: PropTypes.string,
@@ -400,10 +382,11 @@ VeredictoPuerta.propTypes = {
         }),
     }).isRequired,
     aula: PropTypes.shape({
-        id: PropTypes.number,
+        id: PropTypes.number.isRequired,
         nombre: PropTypes.string,
         edificio_id: PropTypes.number,
     }).isRequired,
+    conMapa: PropTypes.bool,
     operador: PropTypes.string,
     hora: PropTypes.string,
     registrarExcepcion: PropTypes.func.isRequired,

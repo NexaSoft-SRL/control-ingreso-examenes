@@ -4,34 +4,37 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Queries;
 
-use App\Modules\Ingreso\Application\Authorization\AlcanceCodigosQr;
-use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
+use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
+use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use App\Modules\Ingreso\Application\DTOs\FiltroCodigosData;
-use App\Modules\Ingreso\Domain\Exceptions\ExamenAjenoException;
 
 /**
- * Los habilitados del examen con el estado de su codigo QR y las cifras
- * del examen.
+ * Los habilitados del examen con el estado de su codigo QR.
  */
 final readonly class ListarCodigosQr
 {
     public function __construct(
-        private EmisionQrGateway $codigos,
-        private AlcanceCodigosQr $alcance,
+        private CodigoQrGateway $codigos,
+        private AlcancePuesto $alcance,
     ) {}
 
     /**
      * @return array{data: list<array<string, mixed>>, meta: array<string, mixed>}
-     *
-     * @throws ExamenAjenoException
      */
-    public function execute(int $examenId, FiltroCodigosData $filtro, int $usuarioId): array
+    public function execute(int $examenId, FiltroCodigosData $filtro, ?int $usuarioId): array
     {
         $this->alcance->exigirDocente($usuarioId, $examenId);
 
         $pagina = $this->codigos->listar($examenId, $filtro);
         $resumen = $this->codigos->resumen($examenId);
         $opciones = $this->codigos->opciones($examenId);
+
+        $estado = match (true) {
+            $resumen['habilitados'] === 0,
+            $resumen['emitidos'] < $resumen['habilitados'] => 'sin_emitir',
+            $resumen['enviados'] < $resumen['habilitados'] => 'emitido',
+            default => 'enviado',
+        };
 
         return [
             'data' => $pagina['data'],
@@ -44,6 +47,7 @@ final readonly class ListarCodigosQr
                 'enviados' => $resumen['enviados'],
                 'fallidos' => $resumen['fallidos'],
                 'sin_aula' => $resumen['sin_aula'],
+                'estado' => $estado,
                 'grupos' => $opciones['grupos'],
                 'aulas' => $opciones['aulas'],
             ],

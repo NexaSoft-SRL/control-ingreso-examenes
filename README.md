@@ -1,151 +1,169 @@
-# Sistema de control de exámenes
+# Proyecto guía — Sistema de control de exámenes
 
-<!-- Descomentar al crear el repositorio, sustituyendo <repositorio> por su nombre:
-![CI](https://github.com/NexaSoft-SRL/<repositorio>/actions/workflows/ci.yml/badge.svg)
--->
+Copia independiente del repositorio del sistema de **NexaSoft S.R.L.**, donde las **25
+historias de usuario del catálogo vigente están terminadas** de punta a punta: código,
+pruebas, fichas y documentación.
 
-Producto software desarrollado por **NexaSoft S.R.L.** para la empresa TIS, en respuesta
-a la convocatoria pública CPTIS-452026-2026 y al pliego de especificaciones
-PETIS-452026-2026.
-
-El sistema identifica al estudiante en el ambiente de evaluación, verifica su
-habilitación para el examen, comprueba la correspondencia del ambiente asignado y
-registra la hora de ingreso de forma inmutable.
+Sirve de referencia para el equipo. No sustituye al repositorio del proyecto: es una guía
+de cómo resolver cada historia respetando la arquitectura y los criterios de aceptación
+del *backlog*. El avance historia por historia está en
+[`docs/guia/avance.md`](docs/guia/avance.md).
 
 ## Plataforma
 
-PHP 8.2 · Laravel 11 · React · Tailwind CSS · PostgreSQL 15 · Apache 2.4
+PHP 8.2 · Laravel 11 · React 19 · Tailwind CSS 4 · PostgreSQL 15.10 · Vite
 
-Las versiones se corresponden con las disponibles en el servidor de destino. Ver
-`docs/arquitectura.md`.
+Las versiones se corresponden con las del servidor de destino. Ver
+[`docs/arquitectura.md`](docs/arquitectura.md).
 
-## Requisitos previos
-
-PHP 8.2, Composer, Node 20.19 y Docker; en su defecto, PostgreSQL 15 instalado
-localmente.
-
-El procedimiento es válido en macOS, Linux y Windows. En Windows se ejecuta desde
-PowerShell y Docker Desktop requiere WSL 2.
-
-## Instalación
+## Puesta en marcha
 
 ```sh
-composer install
-npm install
+composer install && npm install
 
-php -r "copy('.env.example', '.env');"
+php -r "file_exists('.env') || copy('.env.example', '.env');"
 php artisan key:generate
 
-docker compose up -d          # PostgreSQL 15 en localhost:5432
+docker compose up -d                 # PostgreSQL 15.10 en localhost:5434
 php artisan migrate
-php artisan db:seed --class=DemoSeeder   # datos de demostración (ver abajo)
+composer datos:demo                  # datos de demostración
 
-composer run dev
+php artisan serve --port=8001        # y, en otra terminal, npm run dev
 ```
 
-El último comando inicia el servidor de aplicación, la cola de trabajos, el registro de
-eventos y el compilador de recursos. La aplicación queda disponible en
-`http://localhost:8000`.
+La aplicación queda en `http://localhost:8001`.
 
-El puerto 5173 corresponde al servidor de recursos y no se accede directamente: la
-aplicación se sirve desde el puerto 8000.
+Este proyecto usa **su propia base y su propio puerto** para poder correr a la vez que el
+del equipo:
 
-## Datos de demostración
+| | Proyecto del equipo | Proyecto guía |
+|---|---|---|
+| Base de datos | `control_ingreso`, puerto 5432 | `control_ingreso_guia`, puerto 5434 |
+| Contenedor | `control_ingreso_db` | `control_ingreso_guia_db` |
+| Servidor local | `http://localhost:8000` | `http://localhost:8001` |
 
-`DemoSeeder` deja la base con los mismos datos para todo el equipo: los roles de inicio,
-la oferta real del período 2/2026 (cuatro facultades, 3.169 grupos, 847 docentes y 281
-aulas con su ubicación), un padrón ficticio de 4.218 estudiantes con sus inscripciones y
-23 exámenes en distintos estados de preparación.
+La base de pruebas se crea una sola vez dentro del contenedor:
 
 ```sh
-composer datos:demo   # rehace la base desde cero y la siembra
+docker exec control_ingreso_guia_db \
+  psql -U nexasoft -d control_ingreso_guia -c "CREATE DATABASE control_ingreso_testing;"
 ```
 
-El comando **borra la base** y la deja idéntica a la del resto del equipo.
+## Usuarios de prueba
 
-| Rol           | Usuario                                   | Contraseña         |
-| ------------- | ----------------------------------------- | ------------------ |
-| Administrador | `admin`                                   | `Admin12345`       |
-| Docente       | `leticia blanco`                          | `Docente12345`     |
-| Docente       | nombre y apellido del de más asignaturas  | `Docente12345`     |
-| Auxiliar      | `diego mamani`                            | `Auxiliar12345`    |
-| Coordinador   | `coordinacion`                            | `Coordinador12345` |
+Los carga `composer datos:demo`. Se entra con **usuario** y contraseña; el correo es solo
+un dato de contacto. Cada cuenta ve únicamente las pantallas que su rol tiene habilitadas.
 
-El usuario también se acepta junto, sin el espacio (`leticiablanco`).
+| Rol | Usuario | Contraseña | Para ver |
+|---|---|---|---|
+| Administrador | `administracion.academica` | `Admin12345` | Período, oferta, aulas, docentes, padrón, reportes de la universidad, usuarios y roles, bitácora y respaldo |
+| Docente | `leticia.blanco` | `Docente12345` | Sus exámenes (uno en curso hoy), habilitación, códigos QR, seguimiento, punto de control, sus grupos y sus reportes |
+| Docente | `carga.alta` | `Docente12345` | Un docente con 18 exámenes en 6 asignaturas |
+| Docente | `carla.salazar` | `Docente12345` | A cargo de un aula en el examen de hoy de otra docente |
+| Docente | `erika.rodriguez` | `Docente12345` | Registró un parcial conjunto con grupos de otros docentes |
+| Docente | `corina.flores` | `Fa7-Kmq4-Ru9` | Contraseña temporal: cae en el cambio obligatorio |
+| Auxiliar | `diego.mamani` | `Auxiliar12345` | Punto de control y lista de su aula en el examen de hoy |
 
-Cada cuenta ve únicamente las pantallas que su rol tiene habilitadas. «Coordinador» es un
-rol creado, para mostrar que los roles no son fijos. Los demás docentes de la oferta
-quedan sin cuenta activa hasta que se les activa desde «Docentes».
+Los roles de inicio son tres (Administrador, Docente y Auxiliar) y el administrador puede
+crear otros. El examen «de hoy» se fecha al sembrar: para tener uno en curso hay que
+volver a ejecutar `composer datos:demo` el día de la demostración.
 
-Para probar la carga de listas de inscritos hay tres archivos en `docs/ejemplos/`:
+## Datos de prueba
 
-- `lista_grupo_ejemplo.csv`: cinco estudiantes nuevos para cargar en un grupo desde
-  «Mis grupos».
-- `lista_con_errores.csv`: cinco filas de las que entran dos y se rechazan tres —una sin
-  documento, una repetida y una con el código mal formado—, para ver el resumen con la
-  fila y el motivo de cada rechazo.
-- `lista_columnas_en_otro_orden.csv`: se rechaza entera y muestra el orden esperado.
+Dos sembradores. Los dos **rehacen la base** desde cero.
+
+```sh
+composer datos:demo          # datos de demostración
+composer datos:volumen       # los mismos datos, con más carga
+```
+
+**`DemoSeeder`** importa la oferta real del período 2/2026 de las cuatro facultades
+(3.169 grupos, 847 docentes y 281 aulas con su ubicación) y deja un padrón ficticio de
+4.218 estudiantes con sus inscripciones y 23 exámenes en todos los estados: sin aulas,
+sin habilitar, listos, y uno en curso el día en que se siembra, con ingresos, una
+expulsión, cambios de aula, incidencias atendidas y sin atender, códigos QR emitidos y
+enviados, y un aula compartida con otro examen.
+
+**`VolumenSeeder`** agrega carga sobre esos datos, para ver las pantallas con la cantidad
+de filas del día de un examen masivo. Su cabecera detalla qué añade.
+
+Para probar las cargas hay archivos de ejemplo en `docs/ejemplos/`.
+
+## Comandos
+
+### Controles de calidad
+
+```sh
+composer quality:backend     # composer, estructura, capas, módulos, phpstan, pint y pruebas
+composer test:postgresql     # pruebas que exigen PostgreSQL real
+npm run quality              # eslint, prettier, vitest y compilación
+```
+
+Una historia no se da por terminada si alguno falla. Hoy: **359 pruebas de backend**, 147
+de frontend y 32 contra PostgreSQL.
+
+### Durante el desarrollo
+
+```sh
+php artisan serve --port=8001     # servidor de aplicación
+npm run dev                       # recursos, con recarga en caliente
+php artisan test --filter=NombreDeLaPrueba
+vendor/bin/pint                   # formatea el PHP
+npx prettier --write resources/js # formatea el JavaScript
+```
+
+### Operación
+
+```sh
+php artisan respaldo:generar      # respaldo de datos a demanda (HU-35)
+php artisan schedule:list         # tareas programadas: el respaldo nocturno de las 02:00
+php artisan migrate:fresh --seed
+```
+
+### Fichas de historia de usuario
+
+```sh
+cd docs/guia/fichas
+sh compilar.sh                    # las 35
+sh compilar.sh sprint4            # las de un sprint
+sh compilar.sh hu24 hu27          # algunas sueltas
+```
 
 ## Estructura
 
 ```
-app/Http/Controllers/<módulo>    Controladores por módulo funcional
-app/Models/                      Modelos de dominio
-app/Services/                    Reglas de negocio
-database/migrations/             Definición del esquema
-resources/js/paginas/<módulo>    Vistas de React, un directorio por módulo
-resources/js/componentes/        Componentes reutilizables
-routes/                          Definición de rutas web y de API
-tests/                           Pruebas unitarias y de característica
-docs/                            Documentación técnica
+app/Modules/<Módulo>/Domain           Modelos, enums, excepciones y reglas
+app/Modules/<Módulo>/Application      Acciones, consultas, contratos y DTOs
+app/Modules/<Módulo>/Infrastructure   Persistencia, archivos, correo, QR, exportación
+app/Modules/<Módulo>/Http             Controladores, peticiones y middleware
+resources/js/paginas/<módulo>         Pantallas de React, una carpeta por módulo
+resources/js/componentes              Componentes compartidos
+routes/                               Rutas por módulo, todas bajo /api
+database/migrations/                  Esquema
+tests/                                Pruebas de arquitectura, de característica y de integración
+docs/guia/                            Una explicación por historia y sus fichas
 ```
 
-Los módulos son `estudiantes`, `examenes`, `habilitacion`, `ingreso`, `monitoreo`,
-`reportes` y `admin`. La correspondencia con los requerimientos del pliego consta en
-`docs/arquitectura.md`.
-
-## Verificación previa a la incorporación de cambios
-
-```sh
-composer exec -- pint         # estilo de código PHP
-npm run lint                  # estilo de código JavaScript
-php artisan test              # pruebas
-```
-
-Las tres comprobaciones se ejecutan automáticamente en cada solicitud de incorporación.
-
-## Contribución
-
-El procedimiento de trabajo —denominación de ramas, formato de los mensajes de
-confirmación y requisitos de revisión— consta en `docs/convenciones.md`. Toda
-incorporación a la rama principal requiere la revisión de al menos otro socio.
+Los módulos son `Administracion`, `Estudiantes`, `Examenes`, `Habilitacion`, `Ingreso`,
+`Monitoreo` y `Reportes`. Entre módulos solo es pública `Application/Contracts` y los
+`Application/DTOs` con los que esos contratos hablan; el resto es privado y lo verifica
+Deptrac en cada control de calidad.
 
 ## Documentación
 
 | Documento | Contenido |
 |---|---|
-| `docs/arquitectura.md` | Estructura en capas, versiones, organización del código y decisiones de diseño |
-| `docs/modelo-datos.md` | Entidades, restricciones e índices |
-| `docs/convenciones.md` | Ramas, mensajes de confirmación, solicitudes de incorporación y estilo |
-| `docs/despliegue.md` | Procedimiento de publicación en el servidor de TIS |
-
-## Equipo
-
-| Socio | |
-|---|---|
-| Shawn Brandon Bellido Zeballos | Representante legal |
-| Cristian Encinas Cáceres | |
-| Wilber Lancea Mamani | |
-| Alberto Quispe Ramírez | |
-| Jofre Ticona Plata | |
-| Rodrigo Velasquez Ricaldez | |
-| Neida Zeballos Tejada | |
-
-Cinco iteraciones de dos semanas, del 14 de septiembre al 22 de noviembre de 2026.
-Entrega final: 7 de diciembre de 2026.
+| [`docs/guia/README.md`](docs/guia/README.md) | Cómo se documenta cada historia y cómo se trabaja en esta copia |
+| [`docs/guia/avance.md`](docs/guia/avance.md) | Las 25 historias, su sprint, sus puntos y su ficha |
+| [`docs/guia/v1/`](docs/guia/v1/) | Catálogo anterior (35 historias) y sus notas de desarrollo |
+| [`docs/guia/fichas/sprintN/`](docs/guia/fichas) | Las fichas en LaTeX y PDF, con sus mockups |
+| [`docs/arquitectura.md`](docs/arquitectura.md) | Capas, módulos, versiones y decisiones |
+| [`docs/modelo-datos.md`](docs/modelo-datos.md) | Entidades, decisiones de diseño, restricciones e índices |
+| [`docs/convenciones.md`](docs/convenciones.md) | Ramas, mensajes de confirmación y estilo |
+| [`docs/despliegue.md`](docs/despliegue.md) | Publicación en el servidor de TIS, respaldo y restauración |
 
 ## Condiciones de uso
 
 Desarrollo académico realizado en el marco de la asignatura Taller de Ingeniería de
-Software de la Universidad Mayor de San Simón, gestión 2/2026. Su uso y distribución se
-sujetan a lo establecido en el contrato suscrito con la empresa TIS.
+Software de la Universidad Mayor de San Simón, gestión 2/2026, en respuesta a la
+convocatoria CPTIS-452026-2026.

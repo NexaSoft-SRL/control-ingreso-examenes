@@ -1,0 +1,146 @@
+% Ficha HU-30 del sprint 4. Una historia = una vista completa: la
+% correccion de los datos de un inscrito y Mis grupos rehecho, con horarios,
+% foto y lista completa.
+% Tipo: mejora de HU-13 y HU-14.
+% Mockups: el principal es la captura «mis-grupos» (hu30-escritorio.png
+% y hu30-movil.png); las demas, en mockups/hu30-<nombre>.png.
+\def\HUNro{30}
+\def\HUSprint{4}
+\def\HUTitulo{Docente > Mis grupos > Corregir los datos de un inscrito y consultar cada
+grupo}
+\def\HUModulo{M1}
+\def\HUReq{1}
+\def\HUPuntos{2}
+
+\def\HUComo{docente}
+\def\HUQuiero{corregir el nombre o el C.I. de un inscrito de mis grupos y ver cada grupo
+con sus horarios, sus inscritos y su foto en una sola pantalla}
+\def\HUPara{que en la puerta y en los reportes figure el estudiante con sus datos
+correctos sin esperar a la administración, y encontrar rápido el grupo que busco}
+
+\def\HUDescripcion{%
+En el segundo sprint el padrón lo cargaba la administración (HU-13) y el docente cargaba
+las listas de sus grupos (HU-14), pero un nombre mal escrito o un C.I. que faltaba solo
+se corregía volviendo a cargar. Esta historia mejora las dos: el docente corrige los
+datos de un inscrito de sus grupos y el administrador los de cualquier estudiante desde
+su ficha del padrón; además, «Mis grupos» se rehace para que cada grupo se vea con sus
+horarios y su lista completa.
+
+Se corrigen los nombres, los apellidos y el C.I.; el código SIS no se edita, porque
+identifica al estudiante. El estudiante existe una sola vez en el padrón: el cambio vale
+en todos sus grupos y exámenes, el C.I. no puede ser el de otro estudiante y cada cambio
+queda en la bitácora con el dato anterior y el nuevo. Guardar sin cambios no deja
+asiento.
+
+«Mis grupos» muestra, con hasta cuatro grupos, una tarjeta por grupo; con más, un
+selector con los grupos agrupados por asignatura, la búsqueda «Asignatura o grupo» y el
+filtro «Sin lista». El grupo elegido lleva un encabezado con la asignatura y el grupo,
+el código, el nivel y los inscritos, sus horarios con el aula y los botones «Agregar
+estudiante», «Cargar archivo» y «Descargar lista». «Agregar estudiante» está también en
+un grupo sin lista: el docente puede armarla de a uno, sin archivo, o cargarla entera. La
+lista, de a 25, tiene las columnas «Código SIS», «Estudiante» y «Foto», con el C.I. y el
+origen bajo el nombre, y en cada fila los botones para editar y para quitar.
+
+La vista depende del padrón y las listas (HU-13 y HU-14), de la oferta con sus horarios
+(HU-17) y de la foto (HU-26 y HU-27). La corrección del docente la permite «Padrón e
+inscripciones (sus grupos)»; la del administrador, «Padrón e inscripciones» (HU-15).}
+
+\def\HUCriterios{%
+\item Dado que el docente tiene hasta cuatro grupos en el período, Cuando abre «Mis
+      grupos», Entonces ve una tarjeta por grupo con la facultad, el estado de la lista
+      («N inscritos» o «Sin lista»), la asignatura, «Grupo» con su código, el código de
+      la asignatura y el nivel, y sus horarios con el aula («LU 06:45-08:15 (691C)»); el
+      subtítulo dice el período y cuántos grupos tiene («Período 2/2026 · 2 grupos») y
+      sin grupos muestra «Sin grupos».
+\item Dado que el docente tiene más de cuatro grupos, Cuando abre «Mis grupos», Entonces
+      los grupos se listan agrupados por asignatura, cada uno con sus días y horas de
+      inicio y su estado, con el buscador «Asignatura o grupo» y las fichas «Todos» y
+      «Sin lista» con su conteo; sin coincidencias muestra «Sin resultados», y el
+      subtítulo suma cuántas asignaturas y cuántos grupos siguen sin lista.
+\item Dado que el docente elige un grupo, Cuando se muestra, Entonces el encabezado
+      lleva la asignatura con «Grupo» y su código, el código de la asignatura, el nivel
+      y «N inscritos» o «Sin lista cargada», los horarios con día, hora y aula, y los
+      botones «Agregar estudiante», «Cargar archivo» y «Descargar lista»; sin lista
+      queda «Agregar estudiante» junto a la carga del archivo. En el teléfono la vista
+      baja hasta la lista.
+\item Dado que el grupo tiene lista, Cuando se muestra, Entonces la tabla tiene «Código
+      SIS», «Estudiante» y «Foto»; bajo el nombre van «C.I.» con el número, o «Sin
+      C.I.», y el origen («Padrón verificado» o «Registrado por el docente»); la
+      búsqueda «Nombre, código o documento» filtra en el servidor, la lista se pagina de
+      a 25 y sin coincidencias dice «Sin resultados».
+\item Dado que el docente pulsa «Descargar lista», Cuando llega el archivo, Entonces
+      baja la hoja de cálculo del grupo, con el código de la asignatura y el grupo en el
+      nombre, con «Código», «Estudiante», «Documento», «Correo institucional» y
+      «Origen», y se avisa «\ldots{} descargado»; si falla se muestra el mensaje del
+      servidor o «No se pudo descargar».
+\item Dado que el docente pulsa el botón de editar de un inscrito («Editar nombre y
+      C.I.»), Cuando se abre «Editar estudiante», Entonces ve «Código SIS» con el código
+      y «se corrige en todas sus materias», y los campos «C.I.», «Apellidos» y «Nombres»
+      con los datos actuales, «Cancelar» y «Guardar»; el código SIS no se puede editar.
+\item Dado que el docente corrige los datos, Cuando pulsa «Guardar», Entonces el sistema
+      valida antes de enviar ---vacío «Obligatorio», C.I. «De 4 a 10 dígitos y
+      complemento («5003748-1A»)», nombres y apellidos «Mínimo 2 letras» o «Solo letras,
+      sin signos seguidos»--- y el servidor vuelve a validar como una fila de la lista;
+      con datos válidos los guarda, avisa «Estudiante actualizado» y la lista muestra el
+      cambio.
+\item Dado que el C.I. ya pertenece a otro estudiante, sin distinguir mayúsculas, Cuando
+      se guarda, Entonces el sistema lo rechaza con «Ese documento ya pertenece a otro
+      estudiante.» bajo el campo «C.I.» y no cambia nada.
+\item Dado que el estudiante está inscrito en varios grupos, Cuando un docente corrige
+      sus datos, Entonces el cambio se ve en todos sus grupos y exámenes, porque el
+      estudiante es uno solo en el padrón, y queda en la bitácora a nombre de quien lo
+      hizo, con cada dato antes y después (por ejemplo, «C.I.: «---» $\rightarrow$
+      «5003748-1A»»); guardar sin cambios no deja asiento.
+\item Dado que el estudiante no es de un grupo del docente, Cuando este intenta
+      corregirlo, Entonces el servidor responde «Este grupo no está a su cargo.» para el
+      grupo ajeno o «El estudiante no está inscrito en este grupo.» si no está en el
+      suyo, y no cambia nada.
+\item Dado que el administrador abre la ficha de un estudiante en el padrón, Cuando
+      pulsa «Editar datos», Entonces corrige los mismos datos con el mismo diálogo y las
+      mismas reglas, para cualquier estudiante; uno que no existe responde «Estudiante
+      no encontrado.» y un docente no puede usar esa ruta.
+\item Dado que el docente pulsa «Agregar estudiante», también en un grupo sin lista,
+      Cuando llena «Código SIS», «C.I.», «Apellidos» y «Nombres» y pulsa «Agregar»,
+      Entonces el estudiante queda inscrito con las mismas reglas que una fila de la
+      lista: si no está en el padrón se crea como registrado por el docente, si ya está
+      solo se inscribe, y si sus datos difieren queda como conflicto para la
+      administración; un campo vacío o con formato no válido se señala bajo el campo, y
+      quien ya está en la lista no se repite.
+\item Dado que no hay sesión o el rol no tiene el permiso, Cuando se intenta corregir o
+      descargar, Entonces el servidor responde con una negativa explícita. En un
+      dispositivo móvil la lista de grupos queda sobre la de inscritos, cada inscrito es
+      una ficha con su código, su C.I., su origen y sus botones de foto, editar y
+      quitar, y el diálogo pone los campos uno bajo otro, de forma completamente
+      responsiva.}
+
+\def\HUMockupsPares{%
+\CajaMockup{hu30-agregar-estudiante}{10.6cm} & \CajaMockup{hu30-agregar-estudiante-movil}{3.2cm} \\[4pt]
+\hline
+\CajaMockup{hu30-corregir-datos-del-estudiante}{10.6cm} & \CajaMockup{hu30-corregir-datos-del-estudiante-movil}{3.2cm} \\[4pt]
+\hline}
+
+
+\def\HUPruebas{%
+\item \texttt{EditarEstudianteTest}: el docente corrige a un inscrito de su grupo y
+      queda en la bitácora con el antes y el después, el cambio se ve en todos sus
+      grupos, sin cambios no se asienta, C.I. de otro estudiante, validación como una
+      fila de la lista, solo estudiantes de sus grupos y la administración corrige a
+      cualquiera desde el padrón (criterios 7 a 11 y 13).
+\item \texttt{AgregarInscritoTest}: el docente agrega a un estudiante nuevo o del padrón,
+      también sin lista, con las reglas de una fila, sin repetir a quien ya está, y
+      solo en sus grupos (criterio 12).
+\item \texttt{DescargaDeListaTest}: lista del grupo en hoja de cálculo con sus columnas,
+      nombre del archivo, grupo sin lista, período cerrado, grupo ajeno o inexistente,
+      sesión y permiso (criterios 5 y 13).
+\item \texttt{MisGrupos.test.jsx}: grupos con asignatura, código, nivel, horarios con
+      aula y estado de la lista, «Sin grupos», «Reintentar», grupos por asignatura,
+      búsqueda y filtro «Sin lista», y elección del grupo (criterios 1 a 3).
+\item \texttt{MisGrupos.test.jsx}: lista de a 25 con código, nombre, documento y origen,
+      paginación y búsqueda en el servidor, y «Descargar lista» (criterios 4 y 5).
+\item \texttt{MisGrupos.test.jsx}: edición del C.I. y los nombres de un inscrito con su
+      aviso, y C.I. de otro estudiante bajo su campo (criterios 6 a 8); agregar un
+      estudiante suelto también en un grupo sin lista (criterio 12).
+\item \texttt{FichaEstudiante.test.jsx}: la administración edita los datos desde la
+      ficha (criterio 11).}
+
+\input{cuerpo}

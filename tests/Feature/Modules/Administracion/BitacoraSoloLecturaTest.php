@@ -77,7 +77,7 @@ final class BitacoraSoloLecturaTest extends TestCase
 
         $auditId = $this->insertAuditOperation(
             usuarioId: $this->modelId($user),
-            operacion: 'asignatura.registrar',
+            operacion: 'examen.registrar',
         );
 
         $this
@@ -95,7 +95,7 @@ final class BitacoraSoloLecturaTest extends TestCase
             'bitacora_operaciones',
             [
                 'id' => $auditId,
-                'operacion' => 'asignatura.registrar',
+                'operacion' => 'examen.registrar',
                 'descripcion' => null,
             ]
         );
@@ -107,7 +107,7 @@ final class BitacoraSoloLecturaTest extends TestCase
 
         $auditId = $this->insertAuditOperation(
             usuarioId: $this->modelId($user),
-            operacion: 'asignatura.registrar',
+            operacion: 'examen.registrar',
         );
 
         $this
@@ -124,7 +124,7 @@ final class BitacoraSoloLecturaTest extends TestCase
             'bitacora_operaciones',
             [
                 'id' => $auditId,
-                'operacion' => 'asignatura.registrar',
+                'operacion' => 'examen.registrar',
             ]
         );
     }
@@ -135,7 +135,7 @@ final class BitacoraSoloLecturaTest extends TestCase
 
         $auditId = $this->insertAuditOperation(
             usuarioId: $this->modelId($user),
-            operacion: 'asignatura.registrar',
+            operacion: 'examen.registrar',
         );
 
         $this
@@ -147,7 +147,7 @@ final class BitacoraSoloLecturaTest extends TestCase
             'bitacora_operaciones',
             [
                 'id' => $auditId,
-                'operacion' => 'asignatura.registrar',
+                'operacion' => 'examen.registrar',
             ]
         );
     }
@@ -173,7 +173,7 @@ final class BitacoraSoloLecturaTest extends TestCase
             ->insertGetId([
                 'usuario_id' => $usuarioId,
                 'operacion' => $operacion,
-                'tabla_afectada' => 'asignaturas',
+                'tabla_afectada' => 'examenes',
                 'registro_id' => 1,
                 'descripcion' => null,
                 'fecha_operacion' => '2026-09-21 20:00:00',

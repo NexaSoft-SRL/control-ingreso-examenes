@@ -111,16 +111,6 @@ return static function (DeptracConfig $config): void {
                             '#^Illuminate\\Validation\\(?:Rule|Rules\\Password)$#'
                         )
                     ),
-                BoolConfig::create()
-                    ->must(
-                        ComposerConfig::create()
-                            ->addPackage('laravel/framework')
-                    )
-                    ->must(
-                        ClassNameRegexConfig::create(
-                            '#^Illuminate\\Support\\Facades\\RateLimiter$#'
-                        )
-                    ),
                 // Todo middleware devuelve la respuesta base de Symfony:
                 // es el tipo que exige el contrato de Laravel.
                 BoolConfig::create()
@@ -150,21 +140,6 @@ return static function (DeptracConfig $config): void {
                     ),
             ),
 
-            $laravelCollection = Layer::withName(
-                'LaravelCollection'
-            )->collectors(
-                BoolConfig::create()
-                    ->must(
-                        ComposerConfig::create()
-                            ->addPackage('laravel/framework')
-                    )
-                    ->must(
-                        ClassNameRegexConfig::create(
-                            '#^Illuminate\\Support\\Collection$#'
-                        )
-                    ),
-            ),
-
             $laravelAuthSupport = Layer::withName(
                 'LaravelAuthSupport'
             )->collectors(
@@ -175,7 +150,8 @@ return static function (DeptracConfig $config): void {
                     )
                     ->must(
                         ClassNameRegexConfig::create(
-                            '#^Illuminate\\Support\\Facades\\Auth$#'
+                            // Sesion, limite de intentos y estado efimero del acceso.
+                            '#^Illuminate\\Support\\Facades\\(?:Auth|Cache|RateLimiter)$#'
                         )
                     ),
             ),
@@ -190,7 +166,7 @@ return static function (DeptracConfig $config): void {
                     )
                     ->must(
                         ClassNameRegexConfig::create(
-                            '#^Illuminate\\Support\\Facades\\(?:DB|Hash|Schema|Storage|Crypt)$#'
+                            '#^Illuminate\\Support\\Facades\\(?:DB|Hash|Schema|Storage)$#'
                         )
                     ),
 
@@ -204,18 +180,30 @@ return static function (DeptracConfig $config): void {
                             '#^Illuminate\\Database\\(?:QueryException|Query\\JoinClause)$#'
                         )
                     ),
-                // Descifrado autenticado exclusivo de infraestructura.
+                // El dibujo del codigo QR es infraestructura: la capa de
+                // aplicacion solo conoce el token opaco (HU-17).
                 BoolConfig::create()
                     ->must(
                         ComposerConfig::create()
-                            ->addPackage('laravel/framework')
+                            ->addPackage('endroid/qr-code')
                     )
                     ->must(
                         ClassNameRegexConfig::create(
-                            '#^Illuminate\\Contracts\\Encryption\\DecryptException$#'
+                            '#^Endroid\\QrCode\\.*#'
                         )
                     ),
-
+                // El dibujo del PDF es infraestructura, igual que el del
+                // codigo QR: la capa de aplicacion entrega una tabla (HU-34).
+                BoolConfig::create()
+                    ->must(
+                        ComposerConfig::create()
+                            ->addPackage('dompdf/dompdf')
+                    )
+                    ->must(
+                        ClassNameRegexConfig::create(
+                            '#^Dompdf\\.*#'
+                        )
+                    ),
                 // La lectura de hojas de calculo es infraestructura: la
                 // capa de aplicacion solo recibe filas de texto (HU-04).
                 BoolConfig::create()
@@ -228,30 +216,8 @@ return static function (DeptracConfig $config): void {
                             '#^PhpOffice\\PhpSpreadsheet\\.*#'
                         )
                     ),
-                // La generacion de reportes PDF es un detalle de infraestructura (HU-23).
-                BoolConfig::create()
-                    ->must(
-                        ComposerConfig::create()
-                            ->addPackage('dompdf/dompdf')
-                    )
-                    ->must(
-                        ClassNameRegexConfig::create(
-                            '#^Dompdf\\.*#'
-                        )
-                    ),
-                // La imagen del codigo QR se dibuja en el servidor (HU-20).
-                BoolConfig::create()
-                    ->must(
-                        ComposerConfig::create()
-                            ->addPackage('endroid/qr-code')
-                    )
-                    ->must(
-                        ClassNameRegexConfig::create(
-                            '#^Endroid\\QrCode\\.*#'
-                        )
-                    ),
-                // El correo, la generacion de enlaces externos y las cadenas
-                // aleatorias son detalles de infraestructura.
+                // El envio de correo y la generacion de cadenas aleatorias
+                // son detalles de infraestructura, como la persistencia.
                 BoolConfig::create()
                     ->must(
                         ComposerConfig::create()
@@ -259,7 +225,7 @@ return static function (DeptracConfig $config): void {
                     )
                     ->must(
                         ClassNameRegexConfig::create(
-                            '#^Illuminate\\Support\\(?:Facades\\(?:Mail|URL)|Str)$#'
+                            '#^Illuminate\\Support\\(?:Facades\\Mail|Str)$#'
                         )
                     ),
                 BoolConfig::create()
@@ -308,7 +274,6 @@ return static function (DeptracConfig $config): void {
                     $domain,
                     $laravelPersistenceSupport,
                     $laravelQueryBuilder,
-                    $laravelCollection,
                 ),
 
             Ruleset::forLayer($http)
@@ -325,8 +290,6 @@ return static function (DeptracConfig $config): void {
             Ruleset::forLayer($laravelHttpSupport),
 
             Ruleset::forLayer($laravelQueryBuilder),
-
-            Ruleset::forLayer($laravelCollection),
 
             Ruleset::forLayer($laravelAuthSupport),
 

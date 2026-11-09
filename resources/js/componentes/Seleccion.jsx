@@ -18,17 +18,33 @@ function Etiqueta({ etiqueta, requerido }) {
     );
 }
 
-export default function Seleccion({ etiqueta, requerido, className = '', children, ...props }) {
+// `icono` (un componente de lucide) va al inicio de la lista.
+export default function Seleccion({
+    etiqueta,
+    requerido,
+    icono: Icono = null,
+    className = '',
+    children,
+    ...props
+}) {
     return (
         <label className={`block ${className}`}>
             <Etiqueta etiqueta={etiqueta} requerido={requerido} />
-            <select
-                className={`${BASE} min-h-11`}
-                aria-required={requerido || undefined}
-                {...props}
-            >
-                {children}
-            </select>
+            <span className="relative block">
+                {Icono && (
+                    <Icono
+                        className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
+                        aria-hidden="true"
+                    />
+                )}
+                <select
+                    className={`${BASE} min-h-11 ${Icono ? 'pl-10' : ''}`}
+                    aria-required={requerido || undefined}
+                    {...props}
+                >
+                    {children}
+                </select>
+            </span>
         </label>
     );
 }
@@ -58,6 +74,7 @@ Etiqueta.propTypes = { etiqueta: PropTypes.node, requerido: PropTypes.bool };
 Seleccion.propTypes = {
     etiqueta: PropTypes.node,
     requerido: PropTypes.bool,
+    icono: PropTypes.elementType,
     className: PropTypes.string,
     children: PropTypes.node,
 };

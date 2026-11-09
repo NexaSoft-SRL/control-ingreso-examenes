@@ -1,0 +1,73 @@
+% Ficha HU-10, version 2. Ajustada tras la retroalimentacion de la octava
+% revision: los ambientes no llevan capacidad. La version anterior queda en
+% sprint2/v1/hu10.pdf.
+\def\HUNro{10}
+\def\HUSprint{2}
+\def\HUTitulo{Exámenes > Ambientes > Asignar ambientes al examen}
+\def\HUModulo{M2}
+\def\HUReq{2, 10}
+\def\HUPuntos{5}
+
+\def\HUComo{docente}
+\def\HUQuiero{asignar uno o más ambientes a un examen}
+\def\HUPara{que quede definido dónde se rinde}
+
+\def\HUDescripcion{%
+Un examen no siempre entra en un aula. Esta historia dice en qué ambientes se rinde.
+
+El examen admite varios ambientes. La capacidad dejó de ser un dato del ambiente tras la
+retroalimentación de la octava revisión: no hay una fuente fiable que la publique y en
+la práctica es el docente quien decide cuántas aulas usa. Por eso el sistema ya no
+compara capacidad contra habilitados ni advierte por aforo.
+
+Dos restricciones gobiernan la asignación. Un ambiente en mantenimiento o inactivo no se
+ofrece ni se acepta ---es la regla que quedó anotada en HU-06 y aquí se aplica---, y un
+ambiente no se asigna a dos exámenes que se solapan en el horario: el sistema compara la
+franja de inicio y fin de cada uno, no solo la hora de comienzo. Dos exámenes del mismo
+día en horarios que no se cruzan sí comparten aula.
+
+Quitar un ambiente del examen no lo borra del catálogo, y eliminar el examen libera sus
+aulas. Cada asignación y cada retiro quedan asentados en la bitácora (HU-07).}
+
+\def\HUCriterios{%
+\item Dado que el docente abre los ambientes de un examen, Cuando se cargan, Entonces el
+      sistema lista los asignados con su edificio.
+\item Dado que un examen necesita más de un aula, Cuando se le asignan varios ambientes,
+      Entonces el sistema los acepta.
+\item Dado que un ambiente está en mantenimiento o inactivo, Cuando se intenta asignarlo,
+      Entonces el sistema lo rechaza explicando el motivo.
+\item Dado que un ambiente ya tiene otro examen cuyo horario se cruza, Cuando se intenta
+      asignarlo, Entonces el sistema lo rechaza explicando el motivo.
+\item Dado que dos exámenes del mismo día no se cruzan en el horario, Cuando se les asigna
+      el mismo ambiente, Entonces el sistema lo acepta.
+\item Dado que un ambiente ya está asignado a ese examen, Cuando se intenta asignarlo otra
+      vez, Entonces el sistema lo rechaza.
+\item Dado que un ambiente deja de usarse para ese examen, Cuando se lo quita, Entonces el
+      sistema lo desasigna sin borrarlo del catálogo.
+\item Dado que el examen se elimina, Cuando ocurre, Entonces sus ambientes quedan libres y
+      siguen en el catálogo.
+\item Dado que un rol no tiene el permiso de exámenes y normas, Cuando intenta asignar un
+      ambiente, Entonces el sistema responde con una negativa explícita.
+\item Dado que se asigna o se quita un ambiente, Cuando la operación se completa, Entonces
+      queda asentada en la bitácora con su autor.
+\item Dado que el docente accede desde un dispositivo móvil, Cuando abre los ambientes del
+      examen, Entonces la interfaz se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{AmbientesDelExamenTest::an\_exam\_admits\_several\_environments}: varios
+      ambientes en un mismo examen (criterios 1 y 2).
+\item \texttt{AmbientesDelExamenTest::an\_environment\_under\_maintenance\_cannot\_be\_assigned}:
+      ambiente en mantenimiento (criterio 3).
+\item \texttt{AmbientesDelExamenTest::an\_environment\_is\_not\_shared\_by\_two\_overlapping\_exams}
+      y \texttt{an\_environment\_is\_shared\_by\_two\_exams\_that\_do\_not\_overlap}: la regla
+      de solapamiento y su contraparte (criterios 4 y 5).
+\item \texttt{AmbientesDelExamenTest::the\_same\_environment\_is\_not\_assigned\_twice}:
+      asignación repetida (criterio 6).
+\item \texttt{AmbientesDelExamenTest}: retiro del ambiente, retiro de uno no asignado y
+      eliminación del examen (criterios 7 y 8).
+\item \texttt{AmbientesDelExamenTest}: rol sin permiso y sin sesión (criterio 9), y
+      asientos en la bitácora (criterio 10).
+\item \texttt{Examenes.test.jsx}: panel de ambientes, ambiente en mantenimiento ausente
+      del selector, asignación, motivo del rechazo y retiro (criterios 1 a 4 y 7).}
+
+\input{cuerpo}

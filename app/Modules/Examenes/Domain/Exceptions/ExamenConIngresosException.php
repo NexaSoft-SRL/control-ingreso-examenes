@@ -8,6 +8,6 @@ use RuntimeException;
 
 /**
  * El examen ya tiene ingresos registrados: solo se le pueden cambiar las
- * normas, y no se elimina.
+ * normas y el personal de sus aulas, y no se elimina.
  */
 final class ExamenConIngresosException extends RuntimeException {}

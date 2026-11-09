@@ -1,0 +1,389 @@
+% =====================================================================
+%  Analisis de contexto del replanteo
+%
+%  Reune lo que se sabe del problema antes de redisenar: lo que pide el
+%  pliego, como se toman los examenes en la universidad, de donde salen
+%  los datos, que se decidio y que falta decidir. Es el respaldo de las
+%  decisiones de ../README.md.
+%
+%  Autocontenido: solo depende del logo de ../../guia/fichas/logo.
+%  Compilar con ./compilar.sh desde esta carpeta.
+% =====================================================================
+\documentclass[11pt,letterpaper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noquoting]{babel}
+\usepackage[margin=2.2cm,headheight=24pt,headsep=10pt]{geometry}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\setlength{\emergencystretch}{3em}
+\renewcommand{\arraystretch}{1.25}
+\setlist{itemsep=2pt,topsep=3pt}
+
+\newcommand{\Logo}{%
+  \IfFileExists{../../guia/fichas/logo/nexasoft_horizontal.png}{%
+    \includegraphics[width=2.5cm]{../../guia/fichas/logo/nexasoft_horizontal}}{\textbf{NexaSoft}}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\raisebox{-3pt}{\Logo}}
+\fancyhead[R]{\footnotesize Análisis de contexto del replanteo}
+\fancyfoot[C]{\footnotesize \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% Origen de cada afirmacion: lo verificado contra una fuente, lo relatado
+% por el equipo y lo que es propuesta todavia sin confirmar.
+\newcommand{\relatado}{\textcolor{gray}{\footnotesize\,[relato del equipo]}}
+\newcommand{\propuesto}{\textcolor{gray}{\footnotesize\,[propuesto]}}
+
+\begin{document}
+
+\begin{center}
+{\Large\bfseries Análisis de contexto del replanteo}\\[4pt]
+{\large Sistema de control de ingreso a exámenes masivos}\\[6pt]
+{\small NexaSoft S.R.L. \,$\cdot$\, Proyecto guía \,$\cdot$\, 4 de octubre de 2026}
+\end{center}
+
+\section{Propósito}
+
+Este documento reúne lo que se sabe del problema antes de rediseñar el sistema: qué pide
+el pliego, cómo se toman en la práctica los exámenes en la Universidad Mayor de San Simón,
+de dónde pueden salir los datos y qué se decidió a partir de eso. Es el respaldo de las
+decisiones del replanteo; el diseño resultante está en \texttt{docs/replanteamiento}.
+
+Cada afirmación lleva su origen. Lo que no tiene marca se verificó contra una fuente: el
+pliego, la transcripción de una revisión, los datos de GENDA o una página pública de la
+universidad. La marca \relatado\ señala lo que describió el equipo desde su experiencia
+como estudiantes, sin documento que lo respalde. La marca \propuesto\ señala lo que
+todavía no se confirmó.
+
+\section{De dónde sale el replanteo}
+
+En la octava revisión, del 29 de septiembre de 2026, la consultora probó el sistema como
+administradora y se puso después en el lugar de una docente: con un examen de su materia
+el 8 de octubre, quería la lista de sus estudiantes para generarles el código QR. El
+sistema no podía dársela. Sus observaciones:
+
+\begin{itemize}
+  \item No se sabe de qué materia, grupo ni docente es cada estudiante. El padrón es una
+        lista única y el administrador sube estudiantes sin separarlos.
+  \item Hay que preguntarse para qué sirve cada dato que se guarda y qué consultas se
+        van a necesitar después.
+  \item La autoinscripción con un código de curso publicado deja entrar intrusos. Lo
+        vivió en la virtualidad: un grupo de 180 terminó con más de 300 inscritos.
+  \item El código QR tiene que ser por estudiante y no predecible.
+  \item Usar la oferta académica real, obtenida de las páginas de las facultades, le
+        pareció valioso por ser genérico. Pidió realismo con el tiempo: con dos o tres
+        facultades alcanza para probar.
+  \item La interfaz debe mostrar quién inició sesión y con qué rol, marcar los campos
+        obligatorios, validar mientras se escribe y no hacer teclear el dominio del correo.
+  \item Dudó del rol de responsable académico.
+\end{itemize}
+
+\section{Lo que exige el pliego}
+
+El pliego describe un sistema para la «gestión, validación y control del ingreso de
+estudiantes durante la realización de exámenes masivos» en una institución de educación
+superior. De sus dieciséis requerimientos, estos condicionan el replanteo:
+
+\begin{center}
+\begin{longtable}{@{}C{1.1cm}L{8.2cm}L{6.4cm}@{}}
+\hline
+\textbf{Req.} & \textbf{Qué pide} & \textbf{Qué implica} \\
+\hline
+\endhead
+1 & Registrar los datos de los estudiantes que participarán en los exámenes & Hace falta un padrón \\
+2 & Registrar exámenes con asignatura, fecha, hora, duración y ambiente & El examen es de una asignatura \\
+3 & Asociar los habilitados a un examen y saber por qué alguien no lo está & Habilitación con motivo \\
+4 & Verificar la identidad por código universitario, documento o código QR & El estudiante no opera el sistema: se lo identifica \\
+6 y 7 & Comprobar la habilitación y registrar la hora de ingreso & La verificación ocurre en la puerta \\
+9 & Registrar el intento de ingreso de un estudiante «no registrado en la materia» & El sistema tiene que saber quién está inscrito en cada materia \\
+10 & Verificar el ambiente en el que ingresó & El estudiante tiene un aula asignada \\
+16 & Administrar tipos de usuario: «por ejemplo, administradores, docentes y personal encargado» & Los estudiantes no tienen cuenta. El responsable académico no figura \\
+\hline
+\end{longtable}
+\end{center}
+
+Conclusiones sobre el alcance:
+
+\begin{itemize}
+  \item Se trata de los exámenes de las materias durante la gestión: parciales, finales y
+        segunda instancia. No del examen de ingreso a la universidad, donde no hay
+        materia, grupo ni código universitario.
+  \item «Masivo» se refiere a las materias grandes, en las que un examen junta varios
+        grupos en varias aulas a la vez.
+  \item Un enfoque opcional, al estilo de un aula virtual que cada docente usa si quiere,
+        no cumple el requerimiento 9: sin lista confiable de inscritos no se puede saber
+        quién no corresponde.
+\end{itemize}
+
+\section{Cómo se toman los exámenes en la universidad}
+
+\subsection{Quién atiende el examen}
+
+No existe un cargo de «personal de control». Quien controla el ingreso es el docente o
+los auxiliares que él lleva. Se dan cuatro situaciones: \relatado
+
+\begin{center}
+\begin{tabular}{@{}L{4.6cm}L{11.2cm}@{}}
+\hline
+\textbf{Situación} & \textbf{Qué ocurre} \\
+\hline
+El docente solo & Toma el examen y hace todo el control por su cuenta \\
+El docente con auxiliares & Lo ayudan estudiantes que trae para la ocasión, o el auxiliar que ya tiene asignado a su grupo. Controlan junto con él \\
+Un auxiliar a cargo & El docente no puede asistir y envía a un auxiliar a tomar el examen. Es excepcional \\
+Varias aulas & Los estudiantes son demasiados para un aula. El docente ocupa más de una, asigna un auxiliar a cada una y va pasando por todas \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Exámenes que comparten día, hora y aula}
+
+\begin{itemize}
+  \item \textbf{Docentes de una misma materia.} Los docentes de distintos grupos de una
+        asignatura toman el examen a la vez y pueden compartir un aula. \relatado
+  \item \textbf{Un docente con varias materias.} Un docente que dicta, por ejemplo,
+        Álgebra I, Estadística y Cálculo puede citar a todos sus grupos el mismo día en la
+        misma aula y tomarles el examen de forma simultánea. \relatado
+  \item \textbf{El auditorio.} En la Facultad de Ciencias y Tecnología el auditorio es el
+        aula más grande y es donde suelen rendir varios grupos juntos. \relatado\ En los
+        horarios de la facultad figuran tres: \texttt{AUDCIV}, \texttt{AUDIND} y
+        \texttt{AUDINF}. No están ubicados en el mapa de GENDA. Humanidades tiene los
+        suyos ubicados: \texttt{AUD.1}, \texttt{AUD.2} y \texttt{AUD.P}.
+\end{itemize}
+
+\subsection{El estudiante}
+
+\begin{itemize}
+  \item Cursa unas seis materias por semestre, o por año en las carreras anuales.
+        \relatado\ Si cada docente cargara a sus estudiantes por separado, el mismo
+        estudiante se repetiría seis veces.
+  \item No hay una forma segura de que se dé de alta por su cuenta: es la puerta a
+        perfiles falsos y a inscripciones en materias ajenas.
+  \item Los estudiantes de primer semestre no saben dónde quedan las aulas. Lo comentó la
+        consultora a propósito del mapa: preguntan en la puerta dónde está el auditorio.
+\end{itemize}
+
+\section{Organización académica}
+
+\subsection{Períodos}
+
+La universidad numera sus períodos. Lo que se pudo establecer con el cronograma de la
+WebSIS y el calendario de la Facultad de Ciencias y Tecnología:
+
+\begin{center}
+\begin{tabular}{@{}C{1.6cm}L{4.4cm}L{9.8cm}@{}}
+\hline
+\textbf{Código} & \textbf{Período} & \textbf{Observación} \\
+\hline
+1 & Semestre 1 & En 2026 terminó el 4 de julio (FCyT) \\
+2 & Semestre 2 & 72 carreras lo tienen vigente \\
+0 & Anual & 14 carreras: Arquitectura, Medicina, Odontología, Derecho y otras \\
+4 & Curso de invierno & FCyT, del 9 al 31 de julio de 2026 \\
+\hline
+\end{tabular}
+\end{center}
+
+Al 4 de octubre de 2026 están vigentes a la vez \texttt{2/2026} y \texttt{0/2026}. El
+código del curso de verano no se confirmó.
+
+Fechas de la FCyT para \texttt{2/2026}: inicio el 10 de agosto; primeros parciales del 12
+al 31 de octubre; segundos parciales del 7 al 17 de diciembre; finales y segunda
+instancia del 19 al 24 de diciembre; cierre el 26 de diciembre. También hay exámenes de
+mesa, del 10 al 17 de agosto.
+
+\subsection{Facultades, materias y docentes}
+
+\begin{itemize}
+  \item Una asignatura tiene varios grupos, cada uno con su docente, su horario y sus
+        aulas. Introducción a la Programación tiene ocho grupos en \texttt{2/2026};
+        Física General, treinta.
+  \item Un docente puede dictar en más de una facultad. En la oferta \texttt{2/2026} de
+        las cuatro facultades analizadas hay 849 docentes y 29 están en esa situación;
+        uno dicta en tres.
+  \item Hay grupos sin docente designado al publicarse el horario.
+  \item Los grupos pueden tener auxiliar titular. Figura en el horario publicado, aunque
+        GENDA hoy lo descarta al procesarlo.
+\end{itemize}
+
+\section{De dónde pueden salir los datos}
+
+\subsection{GENDA}
+
+GENDA es un proyecto anterior del equipo que recopila la oferta académica publicada por
+las facultades. Lo que tiene:
+
+\begin{center}
+\begin{tabular}{@{}L{4.2cm}L{11.6cm}@{}}
+\hline
+\textbf{Dato} & \textbf{Qué hay} \\
+\hline
+Horarios & Carrera, nivel, asignatura con código, grupo, docente, días, horas y aula. Cuatro facultades con datos de \texttt{2/2026}: Ciencias y Tecnología, Economía, Humanidades y Arquitectura \\
+Pensum & 18 facultades, 105 carreras y 4.574 materias, con el régimen de cada carrera \\
+Aulas & 237 aulas ubicadas en 56 edificios de esas cuatro facultades, con piso y coordenadas \\
+Docentes & Solo el nombre, tomado de cada grupo. Sin documento ni correo \\
+Colores & Un color por facultad, ya definido \\
+\hline
+\end{tabular}
+\end{center}
+
+Lo que no tiene: estudiantes, inscripciones, capacidad de las aulas y correo de los
+docentes. Los datos de Derecho y Odontología son de \texttt{1/2025}, y Derecho no tiene
+fuente web.
+
+\subsection{Fuentes públicas de la universidad}
+
+\begin{itemize}
+  \item \textbf{Cronograma de inscripciones de la WebSIS.} Una página pública con el
+        período vigente de cada una de las 92 carreras, con su código. Los códigos de
+        carrera coinciden con los de GENDA. La fecha que publica es la de apertura de
+        inscripciones, no la de inicio de clases, y trae planes cerrados con períodos
+        viejos.
+  \item \textbf{Calendario académico de la FCyT.} Un PDF con texto, una fila por día, con
+        el inicio, el fin y las ventanas de exámenes.
+  \item \textbf{Calendario de Economía.} Publicado como PDF e imagen; no se comprobó si
+        se puede leer. De las demás facultades no se encontró calendario.
+\end{itemize}
+
+Los enlaces y la forma de leer cada fuente están en \texttt{database/umss/fuentes.json}.
+
+\subsection{Listas de inscritos}
+
+No son públicas. El docente descarga la lista de su grupo desde su área de la WebSIS.
+\relatado\ No se sabe a qué información tiene acceso la administración: se asume que
+puede obtener las inscripciones de una facultad, sin haberlo confirmado. Falta conseguir
+un archivo de ejemplo para conocer su formato.
+
+\section{Actores}
+
+\begin{center}
+\begin{tabular}{@{}L{3.4cm}L{12.4cm}@{}}
+\hline
+\textbf{Actor} & \textbf{Papel} \\
+\hline
+Administrador & Prepara cada período: importa la oferta, activa las cuentas de los docentes y verifica el padrón. Ve toda la universidad, por facultad. Se encarga de los datos del sistema: no controla ni sigue los exámenes \\
+Docente & Ve solo sus grupos. Carga la lista de inscritos, registra el examen, habilita, elige aulas, asigna auxiliares y entrega los códigos QR. También controla el ingreso de sus exámenes \\
+Auxiliar & Controla el ingreso en el examen y el aula donde el docente lo asignó. Puede quedar a cargo \propuesto \\
+Estudiante & Sin cuenta. Recibe su código QR y lo presenta en la puerta \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Decisiones tomadas}
+
+\begin{enumerate}
+  \item La oferta académica se importa de una copia de los datos de GENDA. El
+        \emph{scraper} se queda en GENDA.
+  \item El sistema es un apoyo a la WebSIS, de uso institucional, no una herramienta
+        opcional de cada docente.
+  \item El período académico es una entidad y se detecta de lo que publica la
+        universidad y de la fecha del sistema. Pueden estar vigentes dos a la vez.
+  \item El grupo pertenece a un período. La asignatura, el docente, el aula y el
+        estudiante no.
+  \item El estudiante existe una sola vez, identificado por su código universitario. La
+        inscripción lo une a un grupo.
+  \item La lista de inscritos la carga el docente de su grupo o la administración. Nunca
+        el estudiante.
+  \item Si el estudiante ya existe, la carga lo reutiliza y avisa. Si sus datos no
+        coinciden, queda como conflicto para la administración. El docente no edita los
+        datos de un estudiante que ya existe.
+  \item El examen es de la asignatura y abarca varios grupos, incluso de otros docentes.
+  \item Las cuentas de docente se activan con el correo institucional y una contraseña
+        temporal individual, de cambio obligatorio.
+  \item El estudiante no tiene cuenta ni marca su propia presencia.
+  \item El alcance son los exámenes de las materias, no el examen de ingreso.
+  \item Solo entran las facultades cuya oferta se obtiene de forma automática: Ciencias
+        y Tecnología, Economía, Humanidades y Arquitectura. Derecho y Odontología quedan
+        fuera.
+  \item El aula se usa como dato, sin capacidad: no hay fuente que la publique. El
+        docente elige cualquiera de las aulas importadas.
+  \item Aulas y docentes se ven del campus completo o por facultad, y cada facultad
+        conserva su color.
+  \item Un docente es una sola persona con una sola cuenta, aunque dicte en varias
+        facultades.
+  \item El docente ve todos sus exámenes del período en una lista, de todas sus
+        asignaturas.
+  \item Las pantallas muestran datos, estados y acciones, sin textos que expliquen el
+        funcionamiento.
+  \item No se usa la extensión de navegador para la WebSIS.
+  \item Se quita el rol de responsable académico. No figura en el pliego, la consultora
+        lo puso en duda y sus funciones quedaron cubiertas: el docente sigue su propio
+        examen y el auxiliar, el aula que atiende. Los roles son tres: administrador,
+        docente y auxiliar.
+  \item El seguimiento en vivo es del docente y del auxiliar. El administrador se
+        encarga de los datos del sistema, no de controlar ni de seguir los exámenes.
+\end{enumerate}
+
+\section{Consecuencias para el diseño, todavía sin confirmar}
+
+De la sección 4 salen cambios que se propusieron y que el equipo aún no aprobó:
+
+\begin{itemize}
+  \item El docente opera el punto de control de sus propios exámenes. \propuesto
+  \item El auxiliar no es un rol global: se asigna por examen y por aula, a cargo o de
+        apoyo. \propuesto
+  \item El auxiliar a cargo registra ingresos, expulsiones y situaciones excepcionales,
+        pero no cambia la habilitación. \propuesto
+  \item El docente tiene una vista de su examen con todas sus aulas, para cuando pasa de
+        una a otra. \propuesto
+  \item Un aula puede tener varios exámenes a la misma hora. En vez de impedirlo, el
+        sistema avisa. \propuesto
+  \item La puerta trabaja por aula y hora, no por examen: al identificar al estudiante,
+        el sistema lo busca en todos los exámenes que hay en esa aula en ese momento.
+        \propuesto
+  \item Los reportes siguen siendo por examen, aunque los estudiantes rindan juntos.
+        \propuesto
+  \item Los auxiliares titulares se importan de los horarios, como los docentes.
+        \propuesto
+\end{itemize}
+
+Dos criterios del \emph{backlog} dejan de aplicar por la decisión 13: en la HU-10, la
+comparación de la capacidad asignada contra los habilitados; en la HU-14, que ningún
+ambiente quede por encima de su capacidad. La HU-10 pide además que un ambiente no se
+asigne a dos exámenes que se solapen, y eso cambia si se aprueba el aula compartida.
+
+\section{Preguntas abiertas}
+
+\begin{enumerate}
+  \item ¿Cómo entra un auxiliar al sistema? Con cuenta propia, con un código de acceso
+        por aula, o con las dos formas.
+  \item Si dos docentes distintos comparten un aula, ¿alcanza con avisar o el que la
+        tenía debe aceptar?
+  \item En un examen conjunto de una materia, ¿quién puede cambiar la fecha, la hora y
+        las aulas?
+  \item ¿Qué información de estudiantes tiene realmente la administración?
+  \item ¿Qué formato tiene la lista de inscritos que descarga el docente?
+  \item ¿Se ubican en el mapa los auditorios de la FCyT?
+  \item ¿Qué mapa base se usa debajo de los edificios?
+\end{enumerate}
+
+\section{Lo que se descartó}
+
+\begin{center}
+\begin{tabular}{@{}L{5.4cm}L{10.4cm}@{}}
+\hline
+\textbf{Opción} & \textbf{Por qué no} \\
+\hline
+Autoinscripción con código de curso & Deja entrar a quien no corresponde \\
+El estudiante marca su presencia & Cualquiera podría marcarla por otro; el pliego pone la verificación en la puerta \\
+Sistema opcional por docente & Sin lista confiable de inscritos no se cumple el requerimiento 9 \\
+Contraseña inicial común a todos los docentes & Quien la conozca entra a cualquier cuenta antes del cambio \\
+Extensión de navegador para la WebSIS & Trabaja con la cuenta y la contraseña de cada persona y no exporta listas \\
+Capacidad de las aulas & No hay fuente que la publique \\
+Derecho y Odontología & Derecho no tiene fuente web; los datos de Odontología son de un período anterior \\
+Examen de ingreso a la universidad & No tiene materia, grupo ni código universitario \\
+Rol de responsable académico & No figura en el pliego y lo que hacía lo cubren el docente y el auxiliar \\
+\hline
+\end{tabular}
+\end{center}
+
+\end{document}

@@ -7,6 +7,7 @@ namespace App\Modules\Examenes\Application\Contracts;
 use App\Modules\Examenes\Application\DTOs\ExamenDetalleData;
 use App\Modules\Examenes\Application\DTOs\ExamenResumenData;
 use App\Modules\Examenes\Application\DTOs\GrupoDeExamenData;
+use App\Modules\Examenes\Application\DTOs\PersonaData;
 
 /**
  * Lecturas del examen y de lo que el asistente de registro ofrece.
@@ -45,6 +46,12 @@ interface ConsultaExamenGateway
     public function gruposConExamenDeTipo(array $grupoIds, string $tipo, ?int $exceptoExamenId): array;
 
     /**
+     * @param  list<int>  $usuarioIds
+     * @return array<int, PersonaData>
+     */
+    public function personas(array $usuarioIds): array;
+
+    /**
      * Las aulas ubicadas (con edificio) de los horarios de esos grupos.
      *
      * @param  list<int>  $grupoIds
@@ -63,11 +70,14 @@ interface ConsultaExamenGateway
     public function clasesALaHora(array $grupoIds, string $fecha, string $horaInicio, int $duracionMinutos): array;
 
     /**
-     * Por aula, los examenes que se solapan con ese horario.
+     * Por aula, los examenes que se solapan con ese horario. `mismo_grupo`
+     * dice si el otro examen incluye alguno de esos grupos.
      *
-     * @return array<int, list<string>>
+     * @param  list<int>  $grupoIds
+     * @return array<int, list<array{examen: string, docente: ?string, inicio: string, fin: string, mismo_grupo: bool}>>
      */
-    public function aulasCompartidas(
+    public function examenesALaHora(
+        array $grupoIds,
         string $fecha,
         string $horaInicio,
         int $duracionMinutos,
@@ -87,35 +97,4 @@ interface ConsultaExamenGateway
      * El instante actual, ISO 8601 con la zona de la universidad.
      */
     public function horaServidor(): string;
-
-    /**
-     * Devuelve los IDs de las cuentas activas de los docentes de los grupos.
-     *
-     * @param  list<int>  $grupoIds
-     * @return list<int>
-     */
-    public function docentesDeGrupos(array $grupoIds): array;
-
-    /**
-     * Comprueba que usuarios de la lista dada tienen rol Auxiliar y cuenta activa.
-     *
-     * @param  list<int>  $usuarioIds
-     * @return list<int>
-     */
-    public function usuariosConRolAuxiliar(array $usuarioIds): array;
-
-    /**
-     * De los usuarios dados, los que tienen la cuenta bloqueada.
-     *
-     * @param  list<int>  $usuarioIds
-     * @return list<int>
-     */
-    public function cuentasInactivas(array $usuarioIds): array;
-
-    /**
-     * Devuelve los IDs de todos los docentes con cuenta de usuario.
-     *
-     * @return list<int>
-     */
-    public function todosLosDocentesConCuenta(): array;
 }

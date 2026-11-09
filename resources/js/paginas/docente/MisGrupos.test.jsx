@@ -30,7 +30,7 @@ function estudiantes(cantidad) {
     return Array.from({ length: cantidad }, (_, i) => ({
         id: i + 1,
         codigo: String(202400001 + i),
-        nombre: `Apellido${String(i + 1).padStart(3, '0')} Nombre`,
+        nombre: `Apellido${String(i + 1).padStart(3, '0')}, Nombre`,
         documento: String(5000001 + i),
         origen: i % 2 === 0 ? 'Docente' : 'Administración',
     }));
@@ -140,7 +140,7 @@ describe('Mis grupos · grupos del docente', () => {
         const conLista = await screen.findByRole('button', {
             name: /Introducción a la Programación/,
         });
-        expect(conLista).toHaveTextContent('Lista cargada · 65');
+        expect(conLista).toHaveTextContent('65 inscritos');
         expect(conLista).toHaveTextContent('Grupo 2 · 2010037 · Semestre 1');
         expect(conLista).toHaveTextContent('LU 06:45-08:15 (691C) · MI 08:15-09:45 (624)');
         expect(conLista).toHaveTextContent('FCyT');
@@ -249,21 +249,6 @@ describe('Mis grupos · muchos grupos', () => {
 });
 
 describe('Mis grupos · lista de inscritos', () => {
-    it('muestra la fotografía de cada estudiante que ya la registró', async () => {
-        const lista = estudiantes(1);
-        lista[0].foto = { subida_en: '2026-10-12', habilitada_hasta: null };
-        servidor(POCOS(), { inscritos: { 37: lista } });
-        renderConSesion(<MisGrupos />);
-
-        const fotos = await screen.findAllByRole('img', {
-            name: 'Fotografía de Apellido001 Nombre',
-        });
-        expect(fotos).toHaveLength(2);
-        fotos.forEach((foto) =>
-            expect(foto).toHaveAttribute('src', '/api/docente/grupos/37/inscritos/1/foto')
-        );
-    });
-
     it('la pide de a 25 y la muestra con código, nombre, documento y origen', async () => {
         servidor(POCOS(), { inscritos: { 37: estudiantes(65) } });
         renderConSesion(<MisGrupos />);
@@ -273,15 +258,15 @@ describe('Mis grupos · lista de inscritos', () => {
             within(tabla)
                 .getAllByRole('columnheader')
                 .map((c) => c.textContent)
-        ).toEqual(['Código SIS', 'Estudiante', 'C.I.', 'Origen', 'Foto']);
+        ).toEqual(['Código SIS', 'Estudiante', 'Foto', 'Acciones']);
         expect(within(tabla).getAllByRole('row')).toHaveLength(26);
 
         const primera = within(tabla).getAllByRole('row')[1];
         expect(primera).toHaveTextContent('202400001');
-        expect(primera).toHaveTextContent('Apellido001 Nombre');
-        expect(primera).toHaveTextContent('5000001');
-        expect(primera).toHaveTextContent('Docente');
-        expect(within(tabla).getAllByRole('row')[2]).toHaveTextContent('Administración');
+        expect(primera).toHaveTextContent('Apellido001, Nombre');
+        expect(primera).toHaveTextContent('C.I. 5000001 · Registrado por el docente');
+        expect(primera).toHaveTextContent('Sin foto');
+        expect(within(tabla).getAllByRole('row')[2]).toHaveTextContent('Padrón verificado');
 
         expect(pedidos('get', /\/37\/inscritos$/)[0][1].params).toEqual({
             pagina: 1,
@@ -323,12 +308,12 @@ describe('Mis grupos · lista de inscritos', () => {
         expect(screen.queryByRole('table')).not.toBeInTheDocument();
     });
 
-    it('descarga la lista con «Reporte de mis estudiantes»', async () => {
+    it('descarga la lista con «Descargar lista»', async () => {
         servidor(POCOS(), { inscritos: { 37: estudiantes(65) } });
         renderConSesion(<MisGrupos />);
         await screen.findByRole('table');
 
-        fireEvent.click(screen.getByRole('button', { name: /Reporte de mis estudiantes/ }));
+        fireEvent.click(screen.getByRole('button', { name: /Descargar lista/ }));
 
         expect(await screen.findByText('estudiantes_2010037_g2.xlsx descargado')).toBeVisible();
         const [url, config] = pedidos('get', /descarga$/)[0];
@@ -349,7 +334,7 @@ describe('Mis grupos · lista de inscritos', () => {
         renderConSesion(<MisGrupos />);
         await screen.findByRole('table');
 
-        fireEvent.click(screen.getByRole('button', { name: /Reporte de mis estudiantes/ }));
+        fireEvent.click(screen.getByRole('button', { name: /Descargar lista/ }));
 
         expect(await screen.findByText('El grupo no tiene lista cargada.')).toBeVisible();
     });
@@ -358,14 +343,16 @@ describe('Mis grupos · lista de inscritos', () => {
         servidor(POCOS(), {
             rutas: {
                 'GET /docente/grupos/*/inscritos': errorHttp(403, {
-                    message: 'Grupo no autorizado.',
+                    message: 'Este grupo no está a su cargo.',
                     alcance: true,
                 }),
             },
         });
         renderConSesion(<MisGrupos />);
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('Grupo no autorizado.');
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'Este grupo no está a su cargo.'
+        );
         expect(screen.queryByRole('table')).not.toBeInTheDocument();
     });
 });
@@ -378,84 +365,7 @@ describe('Mis grupos · grupo sin lista', () => {
         await screen.findByText('Sin lista cargada');
     }
 
-    it('sin lista también agrega un estudiante suelto, sin archivo', async () => {
-        const unaFila = {
-            message: 'Carga procesada.',
-            archivo: 'Agregado a mano',
-            resumen: {
-                filas: 1,
-                nuevos: 1,
-                reutilizados: 0,
-                ya_inscritos: 0,
-                rechazados: 0,
-                conflictos: 0,
-            },
-            rechazos: [],
-            conflictos: [],
-        };
-        await abrirSinLista({ rutas: { 'POST /docente/grupos/*/inscritos': unaFila } });
-
-        fireEvent.click(screen.getByRole('button', { name: /Agregar estudiante/ }));
-        const dialogo = within(screen.getByRole('dialog', { name: 'Agregar estudiante' }));
-        fireEvent.click(dialogo.getByRole('button', { name: 'Agregar' }));
-        expect(dialogo.getAllByText('Obligatorio')).toHaveLength(4);
-
-        fireEvent.change(dialogo.getByLabelText(/Código SIS/), { target: { value: '202104821' } });
-        fireEvent.change(dialogo.getByLabelText(/C\.I\./), { target: { value: '7928194' } });
-        fireEvent.change(dialogo.getByLabelText(/Nombres/), { target: { value: 'Kevin René' } });
-        fireEvent.change(dialogo.getByLabelText(/Apellidos/), {
-            target: { value: 'Alvarado Claros' },
-        });
-        fireEvent.click(dialogo.getByRole('button', { name: 'Agregar' }));
-
-        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-        expect(api.post).toHaveBeenCalledWith('/docente/grupos/66/inscritos', {
-            codigo_universitario: '202104821',
-            documento_identidad: '7928194',
-            nombres: 'Kevin René',
-            apellidos: 'Alvarado Claros',
-        });
-        expect(await screen.findByText('Estudiante agregado')).toBeInTheDocument();
-    });
-
-    it('si la fila se rechaza, el motivo queda en el formulario', async () => {
-        await abrirSinLista({
-            rutas: {
-                'POST /docente/grupos/*/inscritos': {
-                    message: 'Carga procesada.',
-                    archivo: 'Agregado a mano',
-                    resumen: {
-                        filas: 1,
-                        nuevos: 0,
-                        reutilizados: 0,
-                        ya_inscritos: 0,
-                        rechazados: 1,
-                        conflictos: 0,
-                    },
-                    rechazos: [{ fila: 1, motivo: 'Código universitario no válido' }],
-                    conflictos: [],
-                },
-            },
-        });
-
-        fireEvent.click(screen.getByRole('button', { name: /Agregar estudiante/ }));
-        const dialogo = within(screen.getByRole('dialog', { name: 'Agregar estudiante' }));
-        for (const [etiqueta, valor] of [
-            [/Código SIS/, 'abc'],
-            [/C\.I\./, '7928194'],
-            [/Nombres/, 'Kevin'],
-            [/Apellidos/, 'Alvarado'],
-        ]) {
-            fireEvent.change(dialogo.getByLabelText(etiqueta), { target: { value: valor } });
-        }
-        fireEvent.click(dialogo.getByRole('button', { name: 'Agregar' }));
-
-        expect(await dialogo.findByRole('alert')).toHaveTextContent(
-            'Código universitario no válido'
-        );
-    });
-
-    it('dice «Sin lista cargada», ofrece la carga con su formato y deshabilita el reporte', async () => {
+    it('dice «Sin lista cargada», ofrece la carga con su formato y sin descarga', async () => {
         await abrirSinLista();
 
         expect(
@@ -465,9 +375,33 @@ describe('Mis grupos · grupo sin lista', () => {
             'accept',
             '.csv,.xlsx'
         );
-        expect(screen.getByRole('button', { name: /Reporte de mis estudiantes/ })).toBeDisabled();
+        expect(screen.queryByRole('button', { name: /Descargar lista/ })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Cargar archivo/ })).not.toBeInTheDocument();
         expect(pedidos('get', /\/66\/inscritos$/)).toHaveLength(0);
+    });
+
+    it('sin lista también deja agregar a un estudiante suelto, sin archivo', async () => {
+        await abrirSinLista();
+        // Las dos vías a la vez: la carga del archivo y el alta de uno.
+        expect(screen.getByLabelText('Archivo de la lista')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /Agregar estudiante/ }));
+        const dialogo = within(screen.getByRole('dialog'));
+        expect(screen.getByRole('dialog')).toHaveAccessibleName('Agregar estudiante');
+        Object.entries({
+            'Código SIS': '202104821',
+            'C.I.': '7928194',
+            Apellidos: 'Alvarado Claros',
+            Nombres: 'Kevin René',
+        }).forEach(([etiqueta, valor]) =>
+            fireEvent.change(dialogo.getByLabelText(etiqueta, { exact: false }), {
+                target: { value: valor },
+            })
+        );
+        fireEvent.click(dialogo.getByRole('button', { name: /Agregar/ }));
+
+        await waitFor(() => expect(pedidos('post', /inscritos$/)).toHaveLength(1));
+        expect(pedidos('post', /inscritos$/)[0][0]).toBe('/docente/grupos/66/inscritos');
     });
 
     it('descarga la plantilla del grupo', async () => {
@@ -539,10 +473,10 @@ describe('Mis grupos · grupo sin lista', () => {
         // El grupo pasa a tener lista y se consulta.
         expect(await screen.findByText('1–25 de 29 inscritos')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Algoritmos Avanzados/ })).toHaveTextContent(
-            'Lista cargada · 29'
+            '29 inscritos'
         );
         expect(screen.queryByText('Sin lista cargada')).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Reporte de mis estudiantes/ })).toBeEnabled();
+        expect(screen.getByRole('button', { name: /Descargar lista/ })).toBeEnabled();
 
         fireEvent.click(screen.getByRole('button', { name: 'Cerrar el resumen de la carga' }));
         expect(screen.queryByText('9 nuevos')).not.toBeInTheDocument();
@@ -632,8 +566,8 @@ describe('Mis grupos · grupo sin lista', () => {
     it('muestra el 422 del formulario del servidor', async () => {
         await abrirSinLista({
             carga: errorHttp(422, {
-                message: 'El archivo no puede superar los 7 MB.',
-                errors: { archivo: ['El archivo no puede superar los 7 MB.'] },
+                message: 'El archivo no puede superar los 8 MB.',
+                errors: { archivo: ['El archivo no puede superar los 8 MB.'] },
             }),
         });
 
@@ -641,13 +575,13 @@ describe('Mis grupos · grupo sin lista', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Cargar lista' }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent(
-            'El archivo no puede superar los 7 MB.'
+            'El archivo no puede superar los 8 MB.'
         );
     });
 
     it.each([
         [409, { message: 'El período del grupo ya no está vigente.', codigo: 'PERIODO_CERRADO' }],
-        [403, { message: 'Grupo no autorizado.', alcance: true }],
+        [403, { message: 'Este grupo no está a su cargo.', alcance: true }],
     ])('muestra la negativa %i del servidor', async (estado, cuerpo) => {
         await abrirSinLista({ carga: errorHttp(estado, cuerpo) });
 
@@ -686,7 +620,7 @@ describe('Mis grupos · grupo con lista', () => {
         await waitFor(() =>
             expect(
                 screen.getByRole('button', { name: /Introducción a la Programación/ })
-            ).toHaveTextContent('Lista cargada · 94')
+            ).toHaveTextContent('94 inscritos')
         );
 
         fireEvent.click(screen.getByRole('button', { name: /Algoritmos Avanzados/ }));
@@ -698,35 +632,312 @@ describe('Mis grupos · grupo con lista', () => {
     });
 });
 
-describe('Mis grupos · foto del inscrito', () => {
-    it('habilita a un inscrito sin foto para que la suba hasta el día propuesto', async () => {
-        const lista = estudiantes(2).map((e, i) => ({
-            ...e,
-            foto: i === 0 ? { subida_en: null, habilitada_hasta: null } : undefined,
-        }));
-        servidor(POCOS(), {
+describe('Mis grupos · agregar y quitar estudiantes', () => {
+    // El servidor de la lista, más el alta suelta y la baja con motivo.
+    function servidorConEdicion({ agregar, quitar, editar } = {}) {
+        const grupos = POCOS();
+        const lista = estudiantes(3);
+        servidor(grupos, {
             inscritos: { 37: lista },
             rutas: {
-                'POST /docente/grupos/*/inscritos/*/foto': {
-                    hasta: '2026-11-02',
-                    message: 'Foto habilitada.',
+                'POST /docente/grupos/*/inscritos': (pedido) => {
+                    const respuesta = agregar ? agregar(pedido) : { resultado: 'NUEVO' };
+                    if (respuesta instanceof Error) return respuesta;
+                    lista.unshift({
+                        id: 99,
+                        codigo: pedido.data.codigo,
+                        nombre: `${pedido.data.apellidos} ${pedido.data.nombres}`,
+                        documento: pedido.data.documento,
+                        origen: 'Docente',
+                    });
+                    grupos[0].inscritos += 1;
+                    return respuesta;
+                },
+                'PUT /docente/grupos/*/inscritos/*': (pedido) => {
+                    const respuesta = editar
+                        ? editar(pedido)
+                        : { message: 'Estudiante actualizado.' };
+                    if (respuesta instanceof Error) return respuesta;
+                    const fila = lista.find((e) => e.id === Number(pedido.url.split('/')[5]));
+                    Object.assign(fila, {
+                        documento: pedido.data.documento,
+                        nombre: `${pedido.data.apellidos} ${pedido.data.nombres}`,
+                    });
+                    return respuesta;
+                },
+                'POST /docente/grupos/*/inscritos/*/baja': (pedido) => {
+                    const respuesta = quitar
+                        ? quitar(pedido)
+                        : { message: 'Estudiante quitado del grupo.' };
+                    if (respuesta instanceof Error) return respuesta;
+                    const id = Number(pedido.url.split('/')[5]);
+                    lista.splice(
+                        lista.findIndex((e) => e.id === id),
+                        1
+                    );
+                    grupos[0].inscritos -= 1;
+                    return respuesta;
                 },
             },
         });
+    }
+
+    async function abrir(opciones) {
+        servidorConEdicion(opciones);
         renderConSesion(<MisGrupos />);
+        await screen.findByRole('table');
+    }
 
-        const tabla = await screen.findByRole('table');
-        fireEvent.click(within(tabla).getByRole('button', { name: 'Foto de Apellido001 Nombre' }));
+    const dialogo = () => screen.getByRole('dialog');
 
-        const dialogo = await screen.findByRole('dialog');
-        expect(within(dialogo).getByText('Sin foto')).toBeInTheDocument();
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Habilitar' }));
+    function escribir(etiqueta, valor) {
+        fireEvent.change(within(dialogo()).getByLabelText(etiqueta, { exact: false }), {
+            target: { value: valor },
+        });
+    }
 
+    function llenar(datos = {}) {
+        const valores = {
+            'Código SIS': '202104821',
+            'C.I.': '7928194',
+            Apellidos: 'Alvarado Claros',
+            Nombres: 'Kevin René',
+            ...datos,
+        };
+        Object.entries(valores).forEach(([etiqueta, valor]) => escribir(etiqueta, valor));
+    }
+
+    it('edita el C.I. y los nombres de un inscrito y lo avisa', async () => {
+        await abrir();
+        const fila = screen.getAllByRole('row')[1];
+
+        fireEvent.click(within(fila).getByRole('button', { name: /^Editar a/ }));
+        expect(dialogo()).toHaveAccessibleName('Editar estudiante');
+        expect(within(dialogo()).getByText(/se corrige en todas sus materias/)).toBeVisible();
+        expect(within(dialogo()).queryByLabelText('Código SIS', { exact: false })).toBeNull();
+
+        escribir('C.I.', '7928194-1A');
+        escribir('Apellidos', 'Alvarado Claros');
+        escribir('Nombres', 'Kevin René');
+        fireEvent.click(within(dialogo()).getByRole('button', { name: /Guardar/ }));
+
+        expect(await screen.findByText('Estudiante actualizado')).toBeVisible();
+        expect(api.put).toHaveBeenCalledWith('/docente/grupos/37/inscritos/1', {
+            documento: '7928194-1A',
+            apellidos: 'Alvarado Claros',
+            nombres: 'Kevin René',
+        });
+        expect((await screen.findAllByText(/Alvarado Claros Kevin René/)).length).toBeGreaterThan(
+            0
+        );
+    });
+
+    it('al editar, el C.I. de otro estudiante queda bajo su campo', async () => {
+        await abrir({
+            editar: () =>
+                errorHttp(422, {
+                    message: 'Ese documento ya pertenece a otro estudiante.',
+                    errors: { documento: ['Ese documento ya pertenece a otro estudiante.'] },
+                }),
+        });
+        fireEvent.click(
+            within(screen.getAllByRole('row')[1]).getByRole('button', { name: /^Editar a/ })
+        );
+        escribir('C.I.', '5000002');
+        escribir('Apellidos', 'Alvarado Claros');
+        escribir('Nombres', 'Kevin');
+        fireEvent.click(within(dialogo()).getByRole('button', { name: /Guardar/ }));
+
+        expect(
+            await within(dialogo()).findByText('Ese documento ya pertenece a otro estudiante.')
+        ).toBeVisible();
+    });
+
+    it('«Agregar estudiante» abre el diálogo con los cuatro campos', async () => {
+        await abrir();
+
+        fireEvent.click(screen.getByRole('button', { name: /Agregar estudiante/ }));
+
+        expect(dialogo()).toHaveAccessibleName('Agregar estudiante');
+        ['Código SIS', 'C.I.', 'Apellidos', 'Nombres'].forEach((etiqueta) =>
+            expect(within(dialogo()).getByLabelText(etiqueta, { exact: false })).toBeRequired()
+        );
+        expect(
+            within(dialogo()).getByText('Introducción a la Programación · Grupo 2')
+        ).toBeVisible();
+
+        fireEvent.click(within(dialogo()).getByRole('button', { name: 'Cancelar' }));
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('valida al escribir y no envía con datos incompletos', async () => {
+        await abrir();
+        fireEvent.click(screen.getByRole('button', { name: /Agregar estudiante/ }));
+
+        escribir('Código SIS', '123');
+        expect(within(dialogo()).getByText('Entre 5 y 10 dígitos')).toBeInTheDocument();
+        escribir('Código SIS', '202104821');
+        expect(within(dialogo()).queryByText('Entre 5 y 10 dígitos')).not.toBeInTheDocument();
+
+        fireEvent.click(within(dialogo()).getByRole('button', { name: /Agregar/ }));
+
+        expect(within(dialogo()).getAllByText('Obligatorio')).toHaveLength(3);
+        expect(pedidos('post', /inscritos$/)).toHaveLength(0);
+    });
+
+    it('agrega al estudiante, avisa y recarga la lista y la cifra del grupo', async () => {
+        await abrir();
+        expect(screen.getByText('3 inscritos')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /Agregar estudiante/ }));
+        llenar();
+        fireEvent.click(within(dialogo()).getByRole('button', { name: /Agregar/ }));
+
+        expect(await screen.findByText('Estudiante agregado al padrón e inscrito')).toBeVisible();
+        const [url, cuerpo] = pedidos('post', /inscritos$/)[0];
+        expect(url).toBe('/docente/grupos/37/inscritos');
+        expect(cuerpo).toEqual({
+            codigo: '202104821',
+            documento: '7928194',
+            apellidos: 'Alvarado Claros',
+            nombres: 'Kevin René',
+        });
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(await screen.findByText('4 inscritos')).toBeInTheDocument();
+        expect(screen.getAllByText('Alvarado Claros Kevin René').length).toBeGreaterThan(0);
         await waitFor(() =>
-            expect(api.post).toHaveBeenCalledWith('/docente/grupos/37/inscritos/1/foto', {
-                hasta: expect.any(String),
+            expect(
+                screen.getByRole('button', { name: /Introducción a la Programación/ })
+            ).toHaveTextContent('66 inscritos')
+        );
+    });
+
+    it.each([
+        ['INSCRITO', 'Estudiante inscrito'],
+        ['CONFLICTO', 'Datos distintos al padrón · inscripción pendiente'],
+    ])('avisa el resultado %s', async (resultado, aviso) => {
+        await abrir({ agregar: () => ({ resultado }) });
+
+        fireEvent.click(screen.getByRole('button', { name: /Agregar estudiante/ }));
+        llenar();
+        fireEvent.click(within(dialogo()).getByRole('button', { name: /Agregar/ }));
+
+        expect(await screen.findByText(aviso)).toBeVisible();
+    });
+
+    it('muestra bajo el campo el rechazo del servidor', async () => {
+        await abrir({
+            agregar: () =>
+                errorHttp(422, {
+                    message: 'El estudiante ya está inscrito en este grupo.',
+                    codigo: 'YA_INSCRITO',
+                    errors: { codigo: ['El estudiante ya está inscrito en este grupo.'] },
+                }),
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /Agregar estudiante/ }));
+        llenar();
+        fireEvent.click(within(dialogo()).getByRole('button', { name: /Agregar/ }));
+
+        expect(
+            await within(dialogo()).findByText('El estudiante ya está inscrito en este grupo.')
+        ).toBeInTheDocument();
+        expect(screen.getByText('3 inscritos')).toBeInTheDocument();
+    });
+
+    it('muestra la negativa del servidor que no es de un campo', async () => {
+        await abrir({
+            agregar: () =>
+                errorHttp(409, {
+                    message: 'El período de este grupo no está vigente.',
+                    codigo: 'PERIODO_CERRADO',
+                }),
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /Agregar estudiante/ }));
+        llenar();
+        fireEvent.click(within(dialogo()).getByRole('button', { name: /Agregar/ }));
+
+        expect(await within(dialogo()).findByRole('alert')).toHaveTextContent(
+            'El período de este grupo no está vigente.'
+        );
+    });
+
+    it('cada fila tiene su botón para quitar, con nombre accesible', async () => {
+        await abrir();
+
+        const tabla = screen.getByRole('table');
+        expect(
+            within(tabla).getAllByRole('button', { name: /^Quitar a .* del grupo$/ })
+        ).toHaveLength(3);
+        expect(
+            within(tabla).getByRole('button', { name: 'Quitar a Apellido001, Nombre del grupo' })
+        ).toBeInTheDocument();
+    });
+
+    it('quita con un motivo, avisa y recarga la lista', async () => {
+        await abrir();
+
+        fireEvent.click(
+            within(screen.getByRole('table')).getByRole('button', {
+                name: 'Quitar a Apellido002, Nombre del grupo',
             })
         );
-        expect(await screen.findByText('Foto habilitada hasta el 2 nov 2026')).toBeInTheDocument();
+        expect(dialogo()).toHaveAccessibleName('Quitar del grupo');
+        expect(within(dialogo()).getByText('Apellido002, Nombre')).toBeInTheDocument();
+
+        fireEvent.click(within(dialogo()).getByRole('button', { name: 'Cargado por error' }));
+        fireEvent.click(within(dialogo()).getByRole('button', { name: /Quitar$/ }));
+
+        expect(await screen.findByText('Apellido002, Nombre quitado del grupo')).toBeVisible();
+        const [url, cuerpo] = pedidos('post', /baja$/)[0];
+        expect(url).toBe('/docente/grupos/37/inscritos/2/baja');
+        expect(cuerpo).toEqual({ motivo: 'CARGADO_POR_ERROR' });
+        expect(await screen.findByText('2 inscritos')).toBeInTheDocument();
+        expect(screen.queryByText('Apellido002, Nombre')).not.toBeInTheDocument();
+    });
+
+    it('«Otro» pide un detalle de al menos 5 caracteres', async () => {
+        await abrir();
+
+        fireEvent.click(
+            within(screen.getByRole('table')).getByRole('button', {
+                name: 'Quitar a Apellido001, Nombre del grupo',
+            })
+        );
+        fireEvent.click(within(dialogo()).getByRole('button', { name: 'Otro' }));
+        const detalle = within(dialogo()).getByLabelText('Detalle', { exact: false });
+
+        fireEvent.click(within(dialogo()).getByRole('button', { name: /Quitar$/ }));
+        expect(within(dialogo()).getByText('Mínimo 5 caracteres')).toBeInTheDocument();
+        expect(pedidos('post', /baja$/)).toHaveLength(0);
+
+        fireEvent.change(detalle, { target: { value: 'Cambio de grupo' } });
+        expect(within(dialogo()).queryByText('Mínimo 5 caracteres')).not.toBeInTheDocument();
+        expect(within(dialogo()).getByText('15/200')).toBeInTheDocument();
+
+        fireEvent.click(within(dialogo()).getByRole('button', { name: /Quitar$/ }));
+
+        await screen.findByText('Apellido001, Nombre quitado del grupo');
+        expect(pedidos('post', /baja$/)[0][1]).toEqual({
+            motivo: 'OTRO',
+            detalle: 'Cambio de grupo',
+        });
+    });
+
+    it('no quita a quien ya ingresó a un examen del grupo', async () => {
+        const mensaje =
+            'No se puede quitar: ya tiene un ingreso registrado en un examen de este grupo.';
+        await abrir({ quitar: () => errorHttp(409, { message: mensaje, codigo: 'CON_INGRESO' }) });
+
+        fireEvent.click(
+            within(screen.getByRole('table')).getByRole('button', {
+                name: 'Quitar a Apellido001, Nombre del grupo',
+            })
+        );
+        fireEvent.click(within(dialogo()).getByRole('button', { name: /Quitar$/ }));
+
+        expect(await within(dialogo()).findByRole('alert')).toHaveTextContent(mensaje);
+        expect(screen.getByText('3 inscritos')).toBeInTheDocument();
     });
 });

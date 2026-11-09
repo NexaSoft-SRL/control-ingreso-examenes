@@ -5,61 +5,39 @@ declare(strict_types=1);
 namespace App\Modules\Administracion\Http\Middleware;
 
 use App\Modules\Administracion\Application\Authorization\VerificarPermiso;
-use App\Modules\Administracion\Domain\Models\User;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Response as RespuestaBase;
 
 /**
- * Niega el paso cuando el rol del usuario no tiene el permiso de la ruta.
- * La negativa es explícita —dice qué permiso falta y a quién pedirlo— porque
- * el backlog no admite una pantalla en blanco.
- *
- * Cuando la ruta declara varios permisos separados por "|", alcanza con que
- * el rol tenga uno de ellos. Es el caso del listado de carreras, que sirve
- * a la pantalla del periodo (periodo_oferta) y a la del padron
- * (padron_estudiantes).
+ * Niega el paso con un motivo explicito cuando el rol del usuario no tiene
+ * el permiso vigente (criterio 3 de HU-02): nunca una pantalla en blanco.
  */
 final class ExigirPermiso
 {
     public function __construct(
-        private readonly VerificarPermiso $verificar,
+        private readonly VerificarPermiso $verificarPermiso,
     ) {}
 
     /**
-     * @param  Closure(Request): Response  $next
+     * @param  Closure(Request): RespuestaBase  $next
      */
-    public function handle(Request $request, Closure $next, string $permisos): Response
+    public function handle(Request $request, Closure $next, string $permiso): RespuestaBase
     {
-        $usuario = Auth::guard('web')->user();
+        $usuarioId = Auth::id();
 
-        if (! $usuario instanceof User) {
+        if (! is_int($usuarioId)) {
             return response()->json([
-                'message' => 'Inicie sesión.',
+                'message' => 'No hay una sesión activa.',
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        if ($usuario->getAttribute('password_changed_at') === null) {
+        if (! $this->verificarPermiso->puede($usuarioId, $permiso)) {
             return response()->json([
-                'code' => 'PASSWORD_CHANGE_REQUIRED',
-                'message' => 'Cambie su contraseña temporal para continuar.',
-            ], 423);
-        }
-
-        /** @var list<string> $lista */
-        $lista = explode('|', $permisos);
-
-        if (! $this->verificar->puedeAlguno($usuario, $lista)) {
-            $rol = $usuario->role->name ?? 'sin rol asignado';
-
-            return response()->json([
-                'message' => sprintf(
-                    'Su rol (%s) no tiene acceso a esta sección. Solicite el permiso al administrador.',
-                    $rol,
-                ),
-                'permiso_requerido' => $permisos,
-                'rol' => $usuario->role?->name,
+                'message' => 'Este rol no tiene permiso para esta sección.',
+                'permiso_requerido' => $permiso,
             ], Response::HTTP_FORBIDDEN);
         }
 

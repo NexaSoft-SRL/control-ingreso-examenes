@@ -4,32 +4,25 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Actions;
 
-use App\Modules\Ingreso\Application\Authorization\AlcanceCodigosQr;
+use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
 use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
-use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
-use App\Modules\Ingreso\Domain\Exceptions\ExamenAjenoException;
 use App\Modules\Ingreso\Domain\Exceptions\SinCodigosException;
 
 /**
  * Emite un codigo QR a cada habilitado que no lo tenga, cuando todos
- * tienen aula. El contenido sale de `CodigoQrGateway`, el formato que lee
- * la puerta (HU-19). Repetirla no cambia los codigos ya emitidos.
+ * tienen aula. Repetirla no cambia los codigos ya emitidos.
  */
 final readonly class EmitirCodigosQr
 {
     public function __construct(
-        private EmisionQrGateway $codigos,
-        private CodigoQrGateway $qr,
-        private AlcanceCodigosQr $alcance,
+        private CodigoQrGateway $codigos,
+        private AlcancePuesto $alcance,
     ) {}
 
     /**
      * @return array{emitidos: int, total: int}
-     *
-     * @throws ExamenAjenoException
-     * @throws SinCodigosException
      */
-    public function execute(int $examenId, int $usuarioId): array
+    public function execute(int $examenId, ?int $usuarioId): array
     {
         $this->alcance->exigirDocente($usuarioId, $examenId);
 
@@ -39,20 +32,13 @@ final readonly class EmitirCodigosQr
             throw SinCodigosException::sinHabilitados();
         }
 
-        // La credencial muestra el aula y la puerta la usa.
+        // Antes de emitir, todos los habilitados tienen aula: la credencial
+        // la muestra y la puerta la usa.
         if ($resumen['sin_aula'] > 0) {
             throw SinCodigosException::sinAula($resumen['sin_aula']);
         }
 
-        $contenidos = [];
-
-        foreach ($this->codigos->pendientesDeEmitir($examenId) as $pendiente) {
-            $contenidos[$pendiente['estudiante_id']] = $this->qr->generar($examenId, $pendiente['codigo']);
-        }
-
-        $emitidos = $contenidos === []
-            ? 0
-            : $this->codigos->guardarLote($examenId, $contenidos, $usuarioId);
+        $emitidos = $this->codigos->emitirLote($examenId, $usuarioId);
 
         return [
             'emitidos' => $emitidos,

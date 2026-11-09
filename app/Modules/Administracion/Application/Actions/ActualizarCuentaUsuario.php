@@ -48,8 +48,21 @@ final readonly class ActualizarCuentaUsuario
         // Se comprueba antes de escribir nada: una edicion que ademas
         // intenta el bloqueo propio no deja los datos a medio guardar.
         if ($cambiaEstado && $datos->activo === false && $datos->usuarioId === $administradorId) {
-            throw new BloqueoPropioException('No puede bloquear su propia cuenta.');
+            throw new BloqueoPropioException('No se puede bloquear la propia cuenta.');
         }
+
+        // Quien administra no se quita su rol: dejaria al sistema sin nadie
+        // que pueda devolverselo.
+        if ($datos->usuarioId === $administradorId && $antes->rol !== $datos->rol) {
+            throw new BloqueoPropioException('No se puede cambiar el rol de la propia cuenta.');
+        }
+
+        $cambios = array_values(array_filter([
+            $antes->nombre !== $datos->nombre ? "nombre «{$antes->nombre}» → «{$datos->nombre}»" : null,
+            $antes->usuario !== $usuario ? "usuario «{$antes->usuario}» → «{$usuario}»" : null,
+            $antes->correo !== $datos->correo ? 'correo «'.($antes->correo ?? '—').'» → «'.($datos->correo ?? '—').'»' : null,
+            $antes->rol !== $datos->rol ? "rol «{$antes->rol}» → «{$datos->rol}»" : null,
+        ]));
 
         $cambianDatos = $antes->nombre !== $datos->nombre
             || $antes->usuario !== $usuario
@@ -62,6 +75,7 @@ final readonly class ActualizarCuentaUsuario
             $usuario,
             $cambianDatos,
             $cambiaEstado,
+            $cambios,
         ): void {
             if ($cambianDatos) {
                 $this->cuentas->actualizar(
@@ -75,9 +89,9 @@ final readonly class ActualizarCuentaUsuario
                 $this->bitacora->registrar(
                     $administradorId,
                     'usuario.actualizar',
-                    'usuarios',
+                    'users',
                     $datos->usuarioId,
-                    "Cuenta {$usuario} actualizada con el rol {$datos->rol}.",
+                    $datos->nombre.': '.implode('; ', $cambios),
                 );
             }
 

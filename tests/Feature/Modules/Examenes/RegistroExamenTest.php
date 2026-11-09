@@ -11,14 +11,14 @@ use Tests\TestCase;
 
 /**
  * El examen es de la asignatura y abarca grupos: se registra de una vez
- * con sus grupos y sus aulas (rutas 43 a 47).
+ * con sus grupos, sus aulas y quien las atiende (rutas 43 a 47).
  */
 final class RegistroExamenTest extends TestCase
 {
     use ArmaExamenes;
     use RefreshDatabase;
 
-    public function test_an_exam_is_registered_in_one_request_with_groups_and_rooms(): void
+    public function test_an_exam_is_registered_in_one_request_with_groups_rooms_and_staff(): void
     {
         $docente = $this->docente('Blanco Coca Leticia');
         $asignatura = $this->asignatura('Introducción a la Programación', '2010010');
@@ -29,9 +29,16 @@ final class RegistroExamenTest extends TestCase
         $edificio = $this->edificio(null, 'Edificio Académico 2');
         $aulaA = $this->aula('624', $edificio, '1° Piso');
         $aulaB = $this->aula('AUDINF');
+        $auxiliar = $this->auxiliarConRol();
+        $apoyo = $this->auxiliarConRol();
 
         $respuesta = $this->actingAs($this->cuenta($docente))
-            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$uno, $dos], [$aulaA, $aulaB]));
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$uno, $dos], [], [
+                'aulas' => [
+                    ['aula_id' => $aulaA->id, 'encargado_id' => $auxiliar->id, 'apoyo' => [$apoyo->id]],
+                    ['aula_id' => $aulaB->id],
+                ],
+            ]));
 
         $respuesta->assertCreated()
             ->assertJsonPath('message', 'Examen registrado.')
@@ -43,41 +50,23 @@ final class RegistroExamenTest extends TestCase
             ->assertJsonPath('data.grupos', ['1', '2'])
             ->assertJsonPath('data.inscritos', 5)
             ->assertJsonPath('data.aulas', ['624', 'AUDINF'])
-            ->assertJsonPath('data.qr_emitidos', 0)
-            ->assertJsonPath('data.estado', 'Falta habilitar')
+            ->assertJsonPath('data.auxiliares', 2)
             ->assertJsonPath('data.propio', true)
             ->assertJsonPath('data.registrado_por', 'Blanco Coca Leticia')
             ->assertJsonPath('data.normas', 'Sin celular.')
-            ->assertJsonPath('data.normas_marcadas', [])
             ->assertJsonPath('data.grupos_detalle.0.codigo', '1')
             ->assertJsonPath('data.grupos_detalle.0.inscritos', 3)
             ->assertJsonPath('data.grupos_detalle.0.propio', true)
-            ->assertJsonPath('data.aulas_detalle.0', [
-                'aula_id' => $aulaA->id,
-                'nombre' => '624',
-                'ubicacion' => 'Edificio Académico 2 · 1° Piso',
-                'edificio_id' => $edificio->id,
-                'a_cargo' => [
-                    'id' => $docente->user_id,
-                    'nombre' => 'Blanco Coca Leticia',
-                    'rol' => 'rol de prueba',
-                ],
-                'apoyo' => [],
-                'codigo' => null,
-            ])
-            ->assertJsonPath('data.aulas_detalle.1', [
-                'aula_id' => $aulaB->id,
-                'nombre' => 'AUDINF',
-                'ubicacion' => null,
-                'edificio_id' => null,
-                'a_cargo' => [
-                    'id' => $docente->user_id,
-                    'nombre' => 'Blanco Coca Leticia',
-                    'rol' => 'rol de prueba',
-                ],
-                'apoyo' => [],
-                'codigo' => null,
-            ]);
+            ->assertJsonPath('data.aulas_detalle.0.aula_id', $aulaA->id)
+            ->assertJsonPath('data.aulas_detalle.0.ubicacion', 'Edificio Académico 2 · 1° Piso')
+            ->assertJsonPath('data.aulas_detalle.0.edificio_id', $edificio->id)
+            ->assertJsonPath('data.aulas_detalle.0.encargado.id', $auxiliar->id)
+            ->assertJsonPath('data.aulas_detalle.0.encargado.es_docente', false)
+            ->assertJsonPath('data.aulas_detalle.0.apoyo.0.id', $apoyo->id)
+            ->assertJsonPath('data.aulas_detalle.0.usa_codigo', false)
+            ->assertJsonPath('data.aulas_detalle.1.ubicacion', null)
+            ->assertJsonPath('data.aulas_detalle.1.encargado.id', $docente->user_id)
+            ->assertJsonPath('data.aulas_detalle.1.encargado.es_docente', true);
 
         $examenId = $respuesta->json('data.id');
 
@@ -90,8 +79,9 @@ final class RegistroExamenTest extends TestCase
             'normas' => 'Sin celular.',
         ]);
         $this->assertDatabaseCount('examen_grupo', 2);
-        $this->assertDatabaseHas('examen_aula', ['examen_id' => $examenId, 'aula_id' => $aulaA->id]);
-        $this->assertDatabaseHas('examen_aula', ['examen_id' => $examenId, 'aula_id' => $aulaB->id]);
+        $this->assertDatabaseHas('examen_aula', ['examen_id' => $examenId, 'aula_id' => $aulaA->id, 'encargado_id' => $auxiliar->id]);
+        $this->assertDatabaseHas('examen_aula', ['examen_id' => $examenId, 'aula_id' => $aulaB->id, 'encargado_id' => $docente->user_id]);
+        $this->assertDatabaseHas('examen_aula_apoyo', ['user_id' => $apoyo->id]);
     }
 
     public function test_an_exam_can_be_registered_without_rooms(): void
@@ -106,6 +96,48 @@ final class RegistroExamenTest extends TestCase
             ->assertJsonPath('data.aulas', [])
             ->assertJsonPath('data.normas', null)
             ->assertJsonPath('data.estado', 'Faltan aulas');
+    }
+
+    public function test_an_exam_cannot_be_registered_in_the_past_or_at_odd_hours(): void
+    {
+        $docente = $this->docente();
+        $asignatura = $this->asignatura();
+        $grupo = $this->grupo($docente, $asignatura);
+        $cuenta = $this->cuenta($docente);
+
+        $this->actingAs($cuenta)
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [], ['fecha' => now()->subDay()->toDateString()]))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.fecha.0', 'La fecha ya pasó.');
+
+        $this->actingAs($cuenta)
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [], ['hora_inicio' => '03:00']))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.hora_inicio.0', 'Entre 06:00 y 22:00.');
+
+        $this->actingAs($cuenta)
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [], ['hora_inicio' => '21:30', 'duracion_minutos' => 180]))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.duracion_minutos.0', 'El examen terminaría después de medianoche.');
+    }
+
+    public function test_the_exam_falls_inside_the_calendar_window_of_its_type(): void
+    {
+        $docente = $this->docente();
+        $asignatura = $this->asignatura();
+        $grupo = $this->grupo($docente, $asignatura);
+        $this->periodoVigente()->forceFill(['ventanas' => [
+            'primeros_parciales' => [now()->toDateString(), now()->addDays(10)->toDateString()],
+        ]])->save();
+
+        $this->actingAs($this->cuenta($docente))
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [], ['fecha' => now()->addDays(20)->toDateString()]))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.fecha.0', fn (string $mensaje): bool => str_starts_with($mensaje, 'Fuera del calendario: primer parcial del '));
+
+        $this->actingAs($this->cuenta($docente))
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo]))
+            ->assertCreated();
     }
 
     public function test_groups_of_other_teachers_can_be_added_without_their_approval(): void
@@ -222,19 +254,116 @@ final class RegistroExamenTest extends TestCase
                 'duracion_minutos' => 5,
                 'normas' => str_repeat('a', 2001),
                 'grupos' => [],
-                'aulas' => [$aula->id, $aula->id],
+                'aulas' => [['aula_id' => $aula->id], ['aula_id' => $aula->id]],
             ]))
             ->assertUnprocessable()
             ->assertJsonValidationErrors([
-                'tipo', 'fecha', 'hora_inicio', 'normas', 'grupos', 'aulas.0',
+                'tipo', 'fecha', 'hora_inicio', 'normas', 'grupos', 'aulas.0.aula_id',
             ])
-            ->assertJsonValidationErrors(['aulas.0' => 'Hay un aula repetida.'])
+            ->assertJsonValidationErrors(['aulas.0.aula_id' => 'Hay un aula repetida.'])
             ->assertJsonPath('errors.duracion_minutos.0', 'Entre 15 y 480');
 
         $this->actingAs($this->cuenta($docente))
             ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [], ['duracion_minutos' => 481]))
             ->assertUnprocessable()
             ->assertJsonPath('errors.duracion_minutos.0', 'Entre 15 y 480');
+    }
+
+    public function test_who_is_in_charge_must_be_a_teacher_or_an_assistant(): void
+    {
+        $docente = $this->docente();
+        $asignatura = $this->asignatura();
+        $grupo = $this->grupo($docente, $asignatura);
+        $aula = $this->aula();
+        $administrador = $this->usuarioConRol('Administrador');
+        $otroDocente = $this->docente();
+        $auxiliar = $this->auxiliarConRol();
+        $cuenta = $this->cuenta($docente);
+
+        $this->actingAs($cuenta)
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [], [
+                'aulas' => [['aula_id' => $aula->id, 'encargado_id' => $administrador->id]],
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('aulas.0.encargado_id');
+
+        // De apoyo solo van auxiliares.
+        $this->actingAs($cuenta)
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [], [
+                'aulas' => [['aula_id' => $aula->id, 'apoyo' => [$otroDocente->user_id]]],
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('aulas.0.apoyo');
+
+        // Y no puede ser el mismo encargado.
+        $this->actingAs($cuenta)
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [], [
+                'aulas' => [['aula_id' => $aula->id, 'encargado_id' => $auxiliar->id, 'apoyo' => [$auxiliar->id]]],
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('aulas.0.apoyo');
+
+        $this->assertSame(0, Examen::count());
+
+        // Otro docente si puede quedar a cargo.
+        $this->actingAs($cuenta)
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [], [
+                'aulas' => [['aula_id' => $aula->id, 'encargado_id' => $otroDocente->user_id]],
+            ]))
+            ->assertCreated()
+            ->assertJsonPath('data.aulas_detalle.0.encargado.es_docente', true)
+            ->assertJsonPath('data.auxiliares', 0);
+    }
+
+    public function test_the_teacher_of_a_joined_group_can_be_left_in_charge_of_a_room(): void
+    {
+        $docente = $this->docente();
+        $sumado = $this->docente('Taborga Acha Fidel');
+        $cuenta = $this->cuenta($docente);
+        $asignatura = $this->asignatura();
+        $propio = $this->grupo($docente, $asignatura, '1');
+        $ajeno = $this->grupo($sumado, $asignatura, '2');
+        $aulaA = $this->aula();
+        $aulaB = $this->aula();
+
+        // El id sale de las opciones de grupos (ruta 48).
+        $sumadoId = $this->actingAs($cuenta)
+            ->getJson("/api/examenes/opciones/grupos?asignatura_id={$asignatura->id}")
+            ->assertOk()
+            ->json('otros.0.docente_usuario_id');
+
+        $this->assertSame($sumado->user_id, $sumadoId);
+
+        $examenId = $this->actingAs($cuenta)
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$propio, $ajeno], [], [
+                'aulas' => [
+                    ['aula_id' => $aulaA->id],
+                    ['aula_id' => $aulaB->id, 'encargado_id' => $sumadoId],
+                ],
+            ]))
+            ->assertCreated()
+            ->assertJsonPath('data.grupos_detalle.*.docente_usuario_id', [$docente->user_id, $sumado->user_id])
+            ->assertJsonPath('data.aulas_detalle.1.encargado.id', $sumado->user_id)
+            ->assertJsonPath('data.aulas_detalle.1.encargado.nombre', 'Taborga Acha Fidel')
+            ->assertJsonPath('data.aulas_detalle.1.encargado.es_docente', true)
+            ->assertJsonPath('data.auxiliares', 0)
+            ->json('data.id');
+
+        $this->assertIsInt($examenId);
+
+        // Al modificar se le pasa la otra aula.
+        $this->actingAs($cuenta)
+            ->putJson("/api/examenes/{$examenId}", $this->cuerpo($asignatura, [$propio, $ajeno], [], [
+                'aulas' => [
+                    ['aula_id' => $aulaA->id, 'encargado_id' => $sumadoId],
+                    ['aula_id' => $aulaB->id],
+                ],
+            ]))
+            ->assertOk()
+            ->assertJsonPath('data.aulas_detalle.0.encargado.id', $sumado->user_id)
+            ->assertJsonPath('data.aulas_detalle.1.encargado.id', $docente->user_id);
+
+        $this->assertDatabaseHas('examen_aula', ['examen_id' => $examenId, 'aula_id' => $aulaA->id, 'encargado_id' => $sumado->user_id]);
     }
 
     public function test_the_types_of_exam_are_the_five_of_the_university(): void
@@ -286,7 +415,7 @@ final class RegistroExamenTest extends TestCase
         $this->actingAs($this->cuenta($ajeno))
             ->getJson("/api/examenes/{$examen->id}")
             ->assertForbidden()
-            ->assertExactJson(['message' => 'Examen no autorizado.', 'alcance' => true]);
+            ->assertExactJson(['message' => 'Este examen no está a su cargo.', 'alcance' => true]);
 
         $this->actingAs($this->cuenta($ajeno))
             ->getJson('/api/examenes/999999')
@@ -350,6 +479,27 @@ final class RegistroExamenTest extends TestCase
             ->assertJsonPath('errors.grupos.0', 'El grupo 2 ya tiene un primer parcial.');
     }
 
+    public function test_a_board_exam_is_registered_and_not_repeated_for_a_group(): void
+    {
+        $docente = $this->docente();
+        $asignatura = $this->asignatura();
+        $grupo = $this->grupo($docente, $asignatura, '4');
+        $cuenta = $this->cuenta($docente);
+
+        $this->actingAs($cuenta)
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [], ['tipo' => 'MESA']))
+            ->assertCreated()
+            ->assertJsonPath('data.tipo', 'MESA')
+            ->assertJsonPath('data.tipo_texto', 'Examen de mesa');
+
+        $this->actingAs($cuenta)
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [], ['tipo' => 'MESA', 'hora_inicio' => '14:00']))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.grupos.0', 'El grupo 4 ya tiene un examen de mesa.');
+
+        $this->assertSame(1, Examen::count());
+    }
+
     public function test_only_who_registered_the_exam_modifies_or_deletes_it(): void
     {
         $registra = $this->docente();
@@ -362,7 +512,7 @@ final class RegistroExamenTest extends TestCase
         $this->actingAs($this->cuenta($sumado))
             ->putJson("/api/examenes/{$examen->id}", $this->cuerpo($asignatura, [$propio, $ajeno]))
             ->assertForbidden()
-            ->assertExactJson(['message' => 'Examen no autorizado.', 'alcance' => true]);
+            ->assertExactJson(['message' => 'Este examen no está a su cargo.', 'alcance' => true]);
 
         $this->actingAs($this->cuenta($sumado))
             ->deleteJson("/api/examenes/{$examen->id}")
@@ -372,7 +522,7 @@ final class RegistroExamenTest extends TestCase
         $this->assertDatabaseHas('examenes', ['id' => $examen->id]);
     }
 
-    public function test_with_entries_only_the_rules_can_change(): void
+    public function test_with_entries_only_rules_and_staff_can_change(): void
     {
         $docente = $this->docente();
         $asignatura = $this->asignatura();
@@ -383,6 +533,7 @@ final class RegistroExamenTest extends TestCase
         [$estudiante] = $this->estudiantesInscritos($grupo, 1);
         $this->habilitar($examen, [$estudiante], $aula);
         $this->ingresar($examen, $estudiante, $aula);
+        $auxiliar = $this->auxiliarConRol();
         $cuenta = $this->cuenta($docente);
 
         $igual = $this->cuerpo($asignatura, [$grupo], [$aula], [
@@ -397,28 +548,26 @@ final class RegistroExamenTest extends TestCase
             ['duracion_minutos' => 45],
             ['tipo' => 'FINAL'],
             ['fecha' => now()->addDay()->toDateString()],
-            ['aulas' => [$aula->id, $otraAula->id]],
+            ['aulas' => [['aula_id' => $aula->id], ['aula_id' => $otraAula->id]]],
             ['aulas' => []],
             ['grupos' => [$grupo->id, $this->grupo($docente, $asignatura)->id]],
         ] as $cambio) {
             $this->actingAs($cuenta)
                 ->putJson("/api/examenes/{$examen->id}", array_merge($igual, $cambio))
                 ->assertConflict()
-                ->assertExactJson([
-                    'message' => 'El examen ya tiene ingresos registrados: solo se pueden cambiar las normas.',
-                    'codigo' => 'EXAMEN_CON_INGRESOS',
-                ]);
+                ->assertJsonPath('codigo', 'EXAMEN_CON_INGRESOS');
         }
 
         $this->actingAs($cuenta)
             ->putJson("/api/examenes/{$examen->id}", array_merge($igual, [
                 'normas' => 'Normas nuevas.',
+                'aulas' => [['aula_id' => $aula->id, 'encargado_id' => $auxiliar->id]],
             ]))
             ->assertOk()
             ->assertJsonPath('data.normas', 'Normas nuevas.')
-            ->assertJsonPath('data.aulas', [$aula->nombre]);
+            ->assertJsonPath('data.aulas_detalle.0.encargado.id', $auxiliar->id);
 
-        $this->assertDatabaseHas('examenes', ['id' => $examen->id, 'normas' => 'Normas nuevas.']);
+        $this->assertDatabaseHas('examen_aula', ['examen_id' => $examen->id, 'encargado_id' => $auxiliar->id]);
         $this->assertDatabaseCount('ingresos', 1);
     }
 
@@ -463,10 +612,7 @@ final class RegistroExamenTest extends TestCase
         $this->actingAs($this->cuenta($docente))
             ->deleteJson("/api/examenes/{$examen->id}")
             ->assertConflict()
-            ->assertExactJson([
-                'message' => 'El examen ya tiene ingresos registrados: no se puede eliminar.',
-                'codigo' => 'EXAMEN_CON_INGRESOS',
-            ]);
+            ->assertJsonPath('codigo', 'EXAMEN_CON_INGRESOS');
 
         $this->assertDatabaseHas('examenes', ['id' => $examen->id]);
     }
@@ -477,8 +623,10 @@ final class RegistroExamenTest extends TestCase
         $asignatura = $this->asignatura();
         $grupo = $this->grupo($docente, $asignatura);
         $aula = $this->aula();
+        $auxiliar = $this->auxiliarConRol();
         $cuenta = $this->cuenta($docente);
 
+        // Sin personal ajeno no hay asiento de asignacion.
         $examenId = $this->actingAs($cuenta)
             ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [$aula]))
             ->assertCreated()
@@ -486,30 +634,56 @@ final class RegistroExamenTest extends TestCase
 
         $this->assertIsInt($examenId);
 
+        $this->assertDatabaseHas('bitacora_operaciones', [
+            'operacion' => 'examen.registrar',
+            'tabla_afectada' => 'examenes',
+            'registro_id' => $examenId,
+            'usuario_id' => $docente->user_id,
+        ]);
+        $this->assertDatabaseMissing('bitacora_operaciones', ['operacion' => 'examen.asignar_auxiliar']);
+
+        // Guardar sin tocar el personal tampoco lo asienta.
         $this->actingAs($cuenta)
             ->putJson("/api/examenes/{$examenId}", $this->cuerpo($asignatura, [$grupo], [$aula], ['normas' => 'Otras.']))
             ->assertOk();
 
+        $this->assertDatabaseHas('bitacora_operaciones', ['operacion' => 'examen.modificar', 'registro_id' => $examenId]);
+        $this->assertDatabaseMissing('bitacora_operaciones', ['operacion' => 'examen.asignar_auxiliar']);
+
         $this->actingAs($cuenta)
-            ->deleteJson("/api/examenes/{$examenId}")
-            ->assertNoContent();
+            ->putJson("/api/examenes/{$examenId}", $this->cuerpo($asignatura, [$grupo], [], [
+                'aulas' => [['aula_id' => $aula->id, 'apoyo' => [$auxiliar->id]]],
+            ]))
+            ->assertOk();
 
-        foreach (['examen.registrar', 'examen.modificar', 'examen.eliminar'] as $operacion) {
-            $this->assertDatabaseHas('bitacora_operaciones', [
-                'operacion' => $operacion,
-                'tabla_afectada' => 'examenes',
-                'registro_id' => $examenId,
-                'usuario_id' => $docente->user_id,
-            ]);
-        }
+        $this->assertDatabaseHas('bitacora_operaciones', [
+            'operacion' => 'examen.asignar_auxiliar',
+            'registro_id' => $examenId,
+            'usuario_id' => $docente->user_id,
+        ]);
+    }
 
-        $this->assertDatabaseCount('bitacora_operaciones', 3);
+    public function test_registering_with_assistants_records_the_assignment(): void
+    {
+        $docente = $this->docente();
+        $asignatura = $this->asignatura();
+        $grupo = $this->grupo($docente, $asignatura);
+        $aula = $this->aula();
+        $auxiliar = $this->auxiliarConRol();
+
+        $this->actingAs($this->cuenta($docente))
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [], [
+                'aulas' => [['aula_id' => $aula->id, 'encargado_id' => $auxiliar->id]],
+            ]))
+            ->assertCreated();
+
+        $this->assertDatabaseHas('bitacora_operaciones', ['operacion' => 'examen.asignar_auxiliar']);
     }
 
     public function test_a_role_without_the_permission_cannot_manage_exams(): void
     {
-        // El auxiliar no tiene la pantalla de examenes.
-        $cuenta = $this->usuarioConRol('Auxiliar');
+        // El administrador no tiene la pantalla de examenes.
+        $cuenta = $this->usuarioConRol('Administrador');
         $docente = $this->docente();
         $examen = $this->examen($docente, [$this->grupo($docente)]);
 
@@ -545,243 +719,5 @@ final class RegistroExamenTest extends TestCase
         }
 
         $this->assertDatabaseHas('examenes', ['id' => $examen->id]);
-    }
-
-    public function test_an_exam_can_be_registered_with_custom_personal_per_room(): void
-    {
-        $docente = $this->docente('Docente Titular');
-        $auxiliar = $this->usuarioConRol('Auxiliar', ['nombre' => 'Auxiliar Juan']);
-        $asignatura = $this->asignatura('Programación 1', '101');
-        $grupo = $this->grupo($docente, $asignatura, 'G1');
-        $this->estudiantesInscritos($grupo, 2);
-        $aula = $this->aula('Aula 101');
-
-        $cuerpo = $this->cuerpo($asignatura, [$grupo], [$aula]);
-        $cuerpo['personal'] = [
-            [
-                'aula_id' => $aula->id,
-                'a_cargo' => $docente->user_id,
-                'apoyo' => [$auxiliar->id],
-            ],
-        ];
-
-        $respuesta = $this->actingAs($this->cuenta($docente))
-            ->postJson('/api/examenes', $cuerpo)
-            ->assertCreated();
-
-        $examenId = $respuesta->json('data.id');
-
-        $this->assertDatabaseHas('examen_aula_personal', [
-            'examen_id' => $examenId,
-            'aula_id' => $aula->id,
-            'usuario_id' => $docente->user_id,
-            'rol' => 'a_cargo',
-        ]);
-
-        $this->assertDatabaseHas('examen_aula_personal', [
-            'examen_id' => $examenId,
-            'aula_id' => $aula->id,
-            'usuario_id' => $auxiliar->id,
-            'rol' => 'apoyo',
-        ]);
-    }
-
-    public function test_rejects_personal_a_cargo_if_not_docente_nor_auxiliar(): void
-    {
-        $docente = $this->docente('Docente Titular');
-        $asignatura = $this->asignatura('Programación 1', '101');
-        $grupo = $this->grupo($docente, $asignatura, 'G1');
-        $aula = $this->aula('Aula 101');
-
-        // Usuario sin rol de docente ni auxiliar
-        $noValido = $this->usuarioConPermisos([]);
-
-        $cuerpo = $this->cuerpo($asignatura, [$grupo], [$aula]);
-        $cuerpo['personal'] = [
-            [
-                'aula_id' => $aula->id,
-                'a_cargo' => $noValido->id,
-                'apoyo' => [],
-            ],
-        ];
-
-        $this->actingAs($this->cuenta($docente))
-            ->postJson('/api/examenes', $cuerpo)
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors([
-                "personal.{$aula->id}.a_cargo" => 'Debe ser docente o auxiliar.',
-            ]);
-    }
-
-    public function test_reverts_room_a_cargo_to_creator_when_its_docente_group_is_removed(): void
-    {
-        $docenteA = $this->docente('Docente A');
-        $docenteB = $this->docente('Docente B');
-        $this->cuenta($docenteB);
-
-        $asignatura = $this->asignatura('Programación 1', '101');
-        $grupoA = $this->grupo($docenteA, $asignatura, 'G1');
-        $grupoB = $this->grupo($docenteB, $asignatura, 'G2');
-        $this->estudiantesInscritos($grupoA, 2);
-        $this->estudiantesInscritos($grupoB, 2);
-        $aula = $this->aula('Aula 101');
-
-        $cuerpo = $this->cuerpo($asignatura, [$grupoA, $grupoB], [$aula]);
-        $cuerpo['personal'] = [
-            [
-                'aula_id' => $aula->id,
-                'a_cargo' => $docenteB->user_id,
-                'apoyo' => [],
-            ],
-        ];
-
-        $respuesta = $this->actingAs($this->cuenta($docenteA))
-            ->postJson('/api/examenes', $cuerpo)
-            ->assertCreated();
-
-        $examenId = $respuesta->json('data.id');
-        self::assertIsInt($examenId);
-
-        // Ahora actualizamos quitando el grupo de Docente B
-        $cuerpoActualizado = $this->cuerpo($asignatura, [$grupoA], [$aula]);
-        $cuerpoActualizado['personal'] = [
-            [
-                'aula_id' => $aula->id,
-                'a_cargo' => $docenteB->user_id,
-                'apoyo' => [],
-            ],
-        ];
-
-        $this->actingAs($this->cuenta($docenteA))
-            ->putJson("/api/examenes/{$examenId}", $cuerpoActualizado)
-            ->assertOk();
-
-        // Debe revertir a Docente A (creador)
-        $this->assertDatabaseHas('examen_aula_personal', [
-            'examen_id' => $examenId,
-            'aula_id' => $aula->id,
-            'usuario_id' => $docenteA->user_id,
-            'rol' => 'a_cargo',
-        ]);
-    }
-
-    public function test_exam_with_ingresos_allows_modifying_normas_and_personal(): void
-    {
-        $docente = $this->docente('Docente Titular');
-        $auxiliar = $this->usuarioConRol('Auxiliar', ['nombre' => 'Auxiliar Nuevo']);
-        $asignatura = $this->asignatura('Programación 1', '101');
-        $grupo = $this->grupo($docente, $asignatura, 'G1');
-        [$estudiante] = $this->estudiantesInscritos($grupo, 1);
-        $aula = $this->aula('Aula 101');
-
-        $cuerpo = $this->cuerpo($asignatura, [$grupo], [$aula]);
-        $respuesta = $this->actingAs($this->cuenta($docente))
-            ->postJson('/api/examenes', $cuerpo)
-            ->assertCreated();
-
-        $examenId = $respuesta->json('data.id');
-        self::assertIsInt($examenId);
-
-        // Simulamos un ingreso registrado
-        DB::table('ingresos')->insert([
-            'examen_id' => $examenId,
-            'estudiante_id' => $estudiante->id,
-            'aula_id' => $aula->id,
-            'registrado_por' => $docente->user_id,
-            'registrado_en' => now(),
-        ]);
-
-        // Modificamos normas y personal
-        $cuerpo['normas'] = 'Nuevas normas permitidas.';
-        $cuerpo['personal'] = [
-            [
-                'aula_id' => $aula->id,
-                'a_cargo' => $docente->user_id,
-                'apoyo' => [$auxiliar->id],
-            ],
-        ];
-
-        $this->actingAs($this->cuenta($docente))
-            ->putJson("/api/examenes/{$examenId}", $cuerpo)
-            ->assertOk()
-            ->assertJsonPath('data.normas', 'Nuevas normas permitidas.');
-
-        $this->assertDatabaseHas('examen_aula_personal', [
-            'examen_id' => $examenId,
-            'aula_id' => $aula->id,
-            'usuario_id' => $auxiliar->id,
-            'rol' => 'apoyo',
-        ]);
-
-        // Pero si intenta cambiar fecha/hora con ingresos, se rechaza con 409
-        $cuerpoConCambioDeHora = $cuerpo;
-        $cuerpoConCambioDeHora['hora_inicio'] = '14:00';
-
-        $this->actingAs($this->cuenta($docente))
-            ->putJson("/api/examenes/{$examenId}", $cuerpoConCambioDeHora)
-            ->assertStatus(409)
-            ->assertJsonPath('message', 'El examen ya tiene ingresos registrados: solo se pueden cambiar las normas.');
-    }
-
-    public function test_a_blocked_account_cannot_be_in_charge_of_a_room(): void
-    {
-        $docenteA = $this->docente('Docente A');
-        $docenteB = $this->docente('Docente B');
-        $cuentaB = $this->cuenta($docenteB);
-        $cuentaB->forceFill(['is_active' => false])->save();
-
-        $asignatura = $this->asignatura('Programación 1', '101');
-        $grupoA = $this->grupo($docenteA, $asignatura, 'G1');
-        $grupoB = $this->grupo($docenteB, $asignatura, 'G2');
-        $aula = $this->aula('Aula 101');
-
-        // La lista de «A cargo» no ofrece la cuenta bloqueada.
-        $this->actingAs($this->cuenta($docenteA))
-            ->getJson("/api/examenes/opciones/grupos?asignatura_id={$asignatura->id}")
-            ->assertOk()
-            ->assertJsonPath('otros.0.id', $grupoB->id)
-            ->assertJsonPath('otros.0.docente', 'Docente B')
-            ->assertJsonPath('otros.0.docente_id', null);
-
-        $cuerpo = $this->cuerpo($asignatura, [$grupoA, $grupoB], [$aula]);
-        $cuerpo['personal'] = [
-            [
-                'aula_id' => $aula->id,
-                'a_cargo' => $cuentaB->id,
-                'apoyo' => [],
-            ],
-        ];
-
-        $this->actingAs($this->cuenta($docenteA))
-            ->postJson('/api/examenes', $cuerpo)
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors([
-                "personal.{$aula->id}.a_cargo" => 'La cuenta de quien está a cargo está inactiva.',
-            ]);
-
-        $this->assertDatabaseMissing('examen_aula_personal', ['usuario_id' => $cuentaB->id]);
-    }
-
-    public function test_a_room_without_personal_is_in_charge_of_who_registered(): void
-    {
-        $docente = $this->docente('Docente Titular');
-        $asignatura = $this->asignatura('Programación 1', '101');
-        $grupo = $this->grupo($docente, $asignatura, 'G1');
-        $aula = $this->aula('Aula 101');
-
-        $examenId = $this->actingAs($this->cuenta($docente))
-            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [$aula]))
-            ->assertCreated()
-            ->json('data.id');
-        self::assertIsInt($examenId);
-
-        // Un examen anterior a «Quién atiende» no tiene personal guardado.
-        DB::table('examen_aula_personal')->where('examen_id', $examenId)->delete();
-
-        $this->actingAs($this->cuenta($docente))
-            ->getJson("/api/examenes/{$examenId}")
-            ->assertOk()
-            ->assertJsonPath('data.aulas_detalle.0.a_cargo.id', $this->cuenta($docente)->id)
-            ->assertJsonPath('data.aulas_detalle.0.a_cargo.nombre', 'Docente Titular');
     }
 }

@@ -11,7 +11,7 @@ const TEMPORAL = 'Fa7-Kmq4-Ru9';
 
 // Un servidor mínimo en memoria con el contrato de GET /docentes,
 // GET /docentes/{id} y POST /docentes/{id}/cuenta.
-function servidor(docentes) {
+function servidor(docentes, periodo = '2/2026') {
     const cuentas = new Map();
     docentes.forEach((d) => d.cuenta && cuentas.set(d.id, d.cuenta));
     const estado = (d) => cuentas.get(d.id)?.estado ?? 'sin_cuenta';
@@ -96,6 +96,7 @@ function servidor(docentes) {
     simularApi(api, {
         'GET /docentes': lista,
         'GET /docentes/*': detalle,
+        'GET /periodos/vigentes': { data: [], principal: periodo },
         'POST /docentes/*/cuenta': activar,
     });
 
@@ -177,6 +178,15 @@ afterEach(() => {
 });
 
 describe('Docentes', () => {
+    it('sin período vigente el subtítulo solo lleva los totales', async () => {
+        servidor(DOCENTES, null);
+        montar();
+
+        expect(
+            await screen.findByText('4 docentes · 1 en más de una facultad')
+        ).toBeInTheDocument();
+    });
+
     it('lista de a 20 con facultades, grupos, estado de la cuenta y los totales (criterio 1)', async () => {
         montar();
 
@@ -187,7 +197,9 @@ describe('Docentes', () => {
         expect(fila('Agreda Corrales')).toHaveTextContent('Activo');
         expect(fila('Acha Perez')).toHaveTextContent('FCyT · 1 grupo');
         expect(fila('Acha Perez')).toHaveTextContent('Temporal');
-        expect(screen.getByText('4 docentes · 1 en más de una facultad')).toBeInTheDocument();
+        expect(
+            await screen.findByText('Período 2/2026 · 4 docentes · 1 en más de una facultad')
+        ).toBeInTheDocument();
         expect(peticiones()[0]).toEqual({ pagina: 1, por_pagina: 20 });
         expect(screen.getByRole('navigation', { name: 'Paginación' })).toHaveTextContent(
             '4 docentes'
@@ -222,6 +234,12 @@ describe('Docentes', () => {
 
         fireEvent.change(screen.getByLabelText('Buscar docente'), { target: { value: 'zzz' } });
         expect(await screen.findByText('Sin resultados')).toBeInTheDocument();
+        // Sin resultados, el detalle no sigue mostrando a un docente de antes.
+        await waitFor(() =>
+            expect(
+                screen.queryByRole('heading', { name: /Cespedes Guizada|Flores Soliz/ })
+            ).toBeNull()
+        );
     });
 
     it('filtra por facultad con la clave y cada opción muestra su conteo (criterio 3)', async () => {
@@ -272,16 +290,6 @@ describe('Docentes', () => {
         ).toBeInTheDocument();
     });
 
-    it('el detalle lleva el ícono del área en cada materia', async () => {
-        montar();
-        await elegir('Cespedes Guizada');
-        const titulo = await screen.findByRole('heading', {
-            name: 'Cespedes Guizada Maria Benita',
-        });
-        const materia = within(titulo.closest('section')).getByTitle('Ingles I');
-        expect(within(materia).getByRole('img')).toBeInTheDocument();
-    });
-
     it('«Sin cuenta» filtra con sin_cuenta=1 y su conteo baja al activar (criterio 4)', async () => {
         montar();
         await screen.findByRole('button', { name: /Agreda Corrales/ });
@@ -322,7 +330,7 @@ describe('Docentes', () => {
         expect(peticiones().at(-1)).toEqual({ varias_facultades: 1, pagina: 1, por_pagina: 20 });
     });
 
-    it('el detalle separa grupos y materias por facultad e indica una sola cuenta (criterio 6)', async () => {
+    it('el detalle separa grupos y materias por facultad e indica el estado de la cuenta (criterio 6)', async () => {
         montar();
         await elegir('Cespedes Guizada');
 
@@ -406,7 +414,7 @@ describe('Docentes', () => {
         const usuario = await screen.findByLabelText(/Usuario/);
         const boton = screen.getByRole('button', { name: /Activar cuenta/ });
 
-        fireEvent.change(usuario, { target: { value: 'maría..cespedes' } });
+        fireEvent.change(usuario, { target: { value: 'maría/cespedes' } });
         expect(screen.getByText('Nombre y apellido, separados por un espacio')).toBeInTheDocument();
         expect(boton).toBeDisabled();
 

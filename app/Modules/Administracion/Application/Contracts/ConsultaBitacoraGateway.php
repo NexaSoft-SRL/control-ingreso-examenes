@@ -4,15 +4,13 @@ declare(strict_types=1);
 
 namespace App\Modules\Administracion\Application\Contracts;
 
-use App\Modules\Administracion\Application\DTOs\BitacoraOperacionData;
 use App\Modules\Administracion\Application\DTOs\ConsultarBitacoraData;
+use App\Modules\Administracion\Application\DTOs\PaginaBitacoraData;
 
 interface ConsultaBitacoraGateway
 {
     /**
-     * @return list<BitacoraOperacionData>
+     * Una pagina de asientos, del mas reciente al mas antiguo.
      */
-    public function consultar(
-        ConsultarBitacoraData $filtros,
-    ): array;
+    public function consultar(ConsultarBitacoraData $filtros): PaginaBitacoraData;
 }

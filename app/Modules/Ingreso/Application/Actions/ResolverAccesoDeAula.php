@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Actions;
 
-use App\Modules\Examenes\Application\Contracts\AccesoCodigoAulaGateway;
-use App\Modules\Ingreso\Application\Authorization\AlcancePuerta;
+use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
+use App\Modules\Ingreso\Application\Contracts\AccesoAulaGateway;
 use App\Modules\Ingreso\Domain\Exceptions\DatoNoValidoException;
 
 /**
@@ -22,8 +22,8 @@ final readonly class ResolverAccesoDeAula
     ];
 
     public function __construct(
-        private AlcancePuerta $alcance,
-        private AccesoCodigoAulaGateway $accesos,
+        private AlcancePuesto $alcance,
+        private AccesoAulaGateway $accesos,
     ) {}
 
     /**
@@ -31,7 +31,7 @@ final readonly class ResolverAccesoDeAula
      *
      * @throws DatoNoValidoException
      */
-    public function ejecutar(int $examenId, int $accesoId, string $accion, int $usuarioId, ?int $aulaId = null): ?string
+    public function execute(int $examenId, int $accesoId, string $accion, int $usuarioId, ?int $aulaId = null): ?string
     {
         $this->alcance->exigirDocente($usuarioId, $examenId);
 

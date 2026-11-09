@@ -1,0 +1,64 @@
+% Ficha HU-24. Criterios del backlog de la iteracion 4. La expulsion se
+% asienta sobre el ingreso previo: sin ingreso no hay a quien expulsar.
+\def\HUNro{24}
+\def\HUSprint{4}
+\def\HUTitulo{Punto de control > Ingreso > Registro de expulsión}
+\def\HUModulo{M4}
+\def\HUReq{14}
+\def\HUPuntos{3}
+
+\def\HUComo{personal de control}
+\def\HUQuiero{registrar la expulsión de un estudiante}
+\def\HUPara{dejar asentado el motivo y la hora}
+
+\def\HUDescripcion{%
+Una expulsión es un hecho grave y discutible: el estudiante va a reclamar, y el docente
+va a pedir explicaciones. Lo único que sostiene la decisión después es lo que quedó
+escrito en el momento.
+
+La expulsión no es un dato suelto sobre un estudiante: se asienta sobre su ingreso. Solo
+se puede expulsar a quien registró ingreso a ese examen, y un mismo ingreso se expulsa una
+sola vez ---lo garantiza un índice único---. El motivo y la hora son obligatorios: la
+hora se propone con el reloj del sistema, porque en la práctica se expulsa primero y se
+registra un minuto después, y se combina con la fecha del ingreso.
+
+Expulsar cierra la puerta de ese examen. Si el estudiante vuelve a presentarse, el sistema
+lo rechaza diciendo que fue expulsado, y no confunde ese caso con el del que ya había
+ingresado (HU-22). La expulsión queda además como incidencia del examen y como asiento
+en la bitácora del sistema (HU-07).}
+
+\def\HUCriterios{%
+\item Dado que un estudiante registró su ingreso, Cuando se lo expulsa, Entonces la
+      expulsión queda asociada a ese ingreso.
+\item Dado que un estudiante no registró ingreso, Cuando se intenta expulsarlo, Entonces
+      el sistema lo impide.
+\item Dado que se registra una expulsión, Cuando falta el motivo o la hora, Entonces el
+      sistema la rechaza señalando el campo.
+\item Dado que un estudiante fue expulsado, Cuando vuelve a la puerta, Entonces el
+      sistema le niega el ingreso a ese examen.
+\item Dado que un estudiante ya fue expulsado, Cuando se intenta expulsarlo otra vez,
+      Entonces el sistema lo impide.
+\item Dado que la expulsión quedó registrada, Cuando se consulta el examen, Entonces
+      figura en la lista de ingresos con su motivo y su autor.
+\item Dado que un rol no tiene el permiso del punto de control, Cuando intenta registrar
+      una expulsión, Entonces el sistema responde con una negativa explícita.}
+
+\def\HUPruebas{%
+\item \texttt{ExpulsionTest::the\_expulsion\_is\_recorded\_against\_the\_previous\_entry}:
+      la expulsión apunta al ingreso (criterio 1).
+\item \texttt{ExpulsionTest::a\_student\_who\_did\_not\_enter\_cannot\_be\_expelled}: sin
+      ingreso no hay expulsión (criterio 2).
+\item \texttt{ExpulsionTest::the\_reason\_and\_the\_hour\_are\_required}: motivo y hora
+      obligatorios (criterio 3).
+\item \texttt{ExpulsionTest::the\_hour\_is\_taken\_from\_the\_day\_of\_the\_exam}: la hora se
+      asienta sobre la fecha del ingreso (criterio 3).
+\item \texttt{ExpulsionTest::the\_expelled\_student\_cannot\_enter\_the\_same\_exam\_again}:
+      la puerta queda cerrada (criterio 4).
+\item \texttt{ExpulsionTest::nobody\_is\_expelled\_twice\_from\_the\_same\_exam}: una sola
+      expulsión por estudiante (criterio 5).
+\item \texttt{ExpulsionTest::the\_entry\_list\_shows\_who\_was\_expelled} y
+      \texttt{the\_control\_point\_permission\_is\_required} (criterios 6 y 7).
+\item \texttt{PuntoControl.test.jsx}: la pantalla pide motivo y hora, y no ofrece
+      expulsar a quien ya lo fue (criterios 3, 4 y 6).}
+
+\input{cuerpo}

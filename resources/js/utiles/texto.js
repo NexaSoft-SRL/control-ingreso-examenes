@@ -16,7 +16,7 @@ export function plural(cantidad, singular, pluralTexto = `${singular}s`) {
 }
 
 export function nombreCompleto(e) {
-    return [e.apellidos, e.nombres].filter(Boolean).join(' ');
+    return `${e.apellidos} ${e.nombres}`;
 }
 
 // 'Blanco Coca Leticia' → 'BC'.
@@ -116,4 +116,17 @@ export function ubicacionSin(aula, ...partes) {
                 normalizar(p.trim()) !== propio && normalizar(p.trim()) !== normalizar(String(aula))
         )
         .join(' · ');
+}
+
+// Un nombre de persona: palabras de letras separadas por un espacio, un
+// punto, un apóstrofo o un guion, sin dos signos seguidos («Ma. José»,
+// «D'Alessandro», «Pérez-Gómez»). Devuelve el error, o null si sirve.
+export function errorDeNombre(valor, minimoLetras = 2) {
+    const texto = String(valor ?? '').trim();
+    if (!texto) return 'Obligatorio';
+    if ((texto.match(/\p{L}/gu) ?? []).length < minimoLetras)
+        return `Mínimo ${minimoLetras} letras`;
+    return /^\p{L}+(?:(?:\.\s*|\s+|['-])\p{L}+)*\.?$/u.test(texto)
+        ? null
+        : 'Solo letras, sin signos seguidos';
 }

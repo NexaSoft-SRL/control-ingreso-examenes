@@ -14,6 +14,8 @@ final readonly class FilaAsistencia
         public string $nombre,
         public ?string $grupo,
         public ?string $aula,
+        /** El docente del grupo del estudiante. */
+        public ?string $docente,
         public string $hora,
         public string $medio,
         public bool $expulsado,

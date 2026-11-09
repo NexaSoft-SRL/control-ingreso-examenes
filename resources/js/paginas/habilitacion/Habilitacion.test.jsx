@@ -2,7 +2,13 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Habilitacion from './Habilitacion';
 import { api } from '../../api/cliente';
-import { errorHttp, renderConSesion, simularApi, usuarioDePrueba } from '../../test/apoyo';
+import {
+    errorHttp,
+    renderConSesion,
+    simularApi,
+    usuarioDePrueba,
+    elegirExamen,
+} from '../../test/apoyo';
 
 vi.mock('../../api/cliente');
 
@@ -37,7 +43,7 @@ const inscritos = () =>
     Array.from({ length: 60 }, (_, i) => ({
         estudiante_id: i + 1,
         codigo: String(202100001 + i),
-        nombre: `Apellido${String(i + 1).padStart(2, '0')} Nombre`,
+        nombre: `Apellido${String(i + 1).padStart(2, '0')}, Nombre`,
         documento: String(5000000 + i),
         grupo: i % 2 === 0 ? '1' : '2',
         estado: i === 0 ? 'no' : i < 40 ? 'habilitado' : 'pendiente',
@@ -48,7 +54,7 @@ const inscritos = () =>
         con_foto: i === 1,
     }));
 
-// La lista como la devuelve la API (plan, 9 · B3), filtrada y paginada aquí.
+// La lista como la devuelve la API (ruta 54), filtrada y paginada aquí.
 function listado(todos, params = {}, { aulas = AULAS } = {}) {
     const texto = (params.buscar ?? '').toLowerCase();
     const base = todos.filter(
@@ -88,8 +94,8 @@ function listado(todos, params = {}, { aulas = AULAS } = {}) {
 }
 
 const RUTA_LISTA = '/examenes/1/habilitaciones';
-const montar = (ruta = '/habilitacion?examen=1') =>
-    renderConSesion(<Habilitacion />, { usuario: usuarioDePrueba('Docente'), ruta });
+const montar = (ruta = '/habilitacion?examen=1', usuario = usuarioDePrueba('Docente')) =>
+    renderConSesion(<Habilitacion />, { usuario, ruta });
 
 // Las peticiones a la lista, con sus parámetros.
 const consultas = (ruta = RUTA_LISTA) =>
@@ -99,7 +105,7 @@ const lotes = () => api.post.mock.calls.filter(([url]) => url.endsWith('/habilit
 const casillaDe = (nombre) => screen.getAllByLabelText(`Seleccionar a ${nombre}`)[0];
 const casillaPagina = () => screen.getAllByRole('checkbox', { name: 'Seleccionar la página' })[0];
 const dato = (etiqueta) => screen.getByText(etiqueta, { selector: 'span' }).parentElement;
-const cargada = () => screen.findAllByText('Apellido01 Nombre');
+const cargada = () => screen.findAllByText('Apellido01, Nombre');
 
 let alumnos;
 let rutas;
@@ -132,6 +138,16 @@ beforeEach(() => {
     simularApi(api, rutas);
 });
 
+// Un lote de diez o más pide confirmación: si aparece, se confirma.
+function confirmarLote() {
+    const dialogo = screen.queryByRole('dialog');
+    if (dialogo) {
+        fireEvent.click(
+            within(dialogo).getByRole('button', { name: /^(Habilitar|Inhabilitar) \d+/ })
+        );
+    }
+}
+
 describe('Habilitacion', () => {
     it('lista a los inscritos del examen de a 25, con sus seis columnas', async () => {
         montar();
@@ -147,20 +163,19 @@ describe('Habilitacion', () => {
         ).toEqual(['Código SIS', 'Estudiante', 'Grupo', 'Condición', 'Aula', 'Motivo']);
         expect(within(tabla).getAllByRole('row')).toHaveLength(26);
 
-        const fila = within(tabla).getByText('Apellido01 Nombre').closest('tr');
+        const fila = within(tabla).getByText('Apellido01, Nombre').closest('tr');
         expect(within(fila).getByText('202100001')).toBeInTheDocument();
         expect(within(fila).getByText('No habilitado')).toBeInTheDocument();
         expect(within(fila).getByText('No presentó el proyecto')).toBeInTheDocument();
         expect(
             within(fila).getByText('Blanco Coca Leticia · 9 oct 2026, 14:05')
         ).toBeInTheDocument();
-        expect(within(tabla).getByText('Apellido02 Nombre').closest('tr')).toHaveTextContent(
+        expect(within(tabla).getByText('Apellido02, Nombre').closest('tr')).toHaveTextContent(
             '691B'
         );
         expect(screen.getByText('1–25 de 60 estudiantes')).toBeInTheDocument();
         expect(screen.getByText('Primer parcial · Introducción a la Programación')).toBeVisible();
         expect(screen.getByRole('link', { name: 'Exámenes' })).toHaveAttribute('href', '/examenes');
-        expect(screen.queryByText(/códigos QR/i)).not.toBeInTheDocument();
     });
 
     it('muestra la foto de cada inscrito y la amplía; sin foto, sus iniciales', async () => {
@@ -168,19 +183,19 @@ describe('Habilitacion', () => {
         await cargada();
         const tabla = screen.getByRole('table');
 
-        const sinFoto = within(tabla).getByText('Apellido01 Nombre').closest('tr');
+        const sinFoto = within(tabla).getByText('Apellido01, Nombre').closest('tr');
         expect(
-            within(sinFoto).getByRole('img', { name: 'Apellido01 Nombre sin foto' })
+            within(sinFoto).getByRole('img', { name: 'Apellido01, Nombre sin foto' })
         ).toHaveTextContent('AN');
 
-        const conFoto = within(tabla).getByText('Apellido02 Nombre').closest('tr');
+        const conFoto = within(tabla).getByText('Apellido02, Nombre').closest('tr');
         fireEvent.click(
-            within(conFoto).getByRole('button', { name: 'Ver la foto de Apellido02 Nombre' })
+            within(conFoto).getByRole('button', { name: 'Ver la foto de Apellido02, Nombre' })
         );
 
         const dialogo = screen.getByRole('dialog');
         expect(
-            within(dialogo).getByRole('img', { name: 'Foto de Apellido02 Nombre' })
+            within(dialogo).getByRole('img', { name: 'Foto de Apellido02, Nombre' })
         ).toHaveAttribute('src', '/api/examenes/1/habilitaciones/2/foto');
         expect(dialogo).toHaveTextContent('202100002');
         expect(dialogo).toHaveTextContent('Habilitado');
@@ -207,7 +222,7 @@ describe('Habilitacion', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }));
 
-        expect(await screen.findAllByText('Apellido26 Nombre')).not.toHaveLength(0);
+        expect(await screen.findAllByText('Apellido26, Nombre')).not.toHaveLength(0);
         expect(ultimaConsulta()).toEqual({ pagina: 2, por_pagina: 25 });
         expect(screen.getByText('26–50 de 60 estudiantes')).toBeInTheDocument();
     });
@@ -217,12 +232,10 @@ describe('Habilitacion', () => {
         await cargada();
         fireEvent.click(screen.getByRole('button', { name: /^No habilitados/ }));
         await waitFor(() => expect(ultimaConsulta().condicion).toBe('no'));
-        fireEvent.click(casillaDe('Apellido01 Nombre'));
+        fireEvent.click(casillaDe('Apellido01, Nombre'));
         expect(screen.getAllByText('1 seleccionado')).not.toHaveLength(0);
 
-        fireEvent.change(screen.getByRole('combobox', { name: /Examen/ }), {
-            target: { value: '3' },
-        });
+        elegirExamen(/^Base de Datos I/);
 
         expect(await screen.findByText('Examen final · Base de Datos I')).toBeInTheDocument();
         await waitFor(() =>
@@ -233,7 +246,7 @@ describe('Habilitacion', () => {
         );
         expect(await screen.findByText('3 estudiantes')).toBeInTheDocument();
         expect(screen.queryByText('1 seleccionado')).not.toBeInTheDocument();
-        expect(screen.queryByLabelText(/Motivo de la inhabilitación/)).not.toBeInTheDocument();
+        expect(screen.queryByLabelText(/Motivo para inhabilitar/)).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: /^Todos/ })).toHaveAttribute(
             'aria-pressed',
             'true'
@@ -252,7 +265,7 @@ describe('Habilitacion', () => {
             expect(ultimaConsulta()).toEqual({ buscar: '202100007', pagina: 1, por_pagina: 25 })
         );
         expect(await screen.findByText('1 estudiante')).toBeInTheDocument();
-        expect(screen.queryByText('Apellido01 Nombre')).not.toBeInTheDocument();
+        expect(screen.queryByText('Apellido01, Nombre')).not.toBeInTheDocument();
 
         fireEvent.change(buscador, { target: { value: 'zzz' } });
 
@@ -327,24 +340,25 @@ describe('Habilitacion', () => {
     it('la selección de uno y de la página sobrevive al cambio de página', async () => {
         montar();
         await cargada();
-        expect(screen.queryByLabelText(/Motivo de la inhabilitación/)).not.toBeInTheDocument();
+        expect(screen.queryByLabelText(/Motivo para inhabilitar/)).not.toBeInTheDocument();
 
-        fireEvent.click(casillaDe('Apellido03 Nombre'));
+        fireEvent.click(casillaDe('Apellido03, Nombre'));
         expect(screen.getAllByText('1 seleccionado')).not.toHaveLength(0);
-        expect(screen.getByLabelText(/Motivo de la inhabilitación/)).toBeInTheDocument();
+        expect(screen.getByLabelText(/Motivo para inhabilitar/)).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }));
-        await screen.findAllByText('Apellido26 Nombre');
+        await screen.findAllByText('Apellido26, Nombre');
         fireEvent.click(casillaPagina());
         expect(screen.getAllByText('26 seleccionados')).not.toHaveLength(0);
 
         fireEvent.click(screen.getByRole('button', { name: 'Página anterior' }));
         await cargada();
-        expect(casillaDe('Apellido03 Nombre')).toBeChecked();
-        expect(casillaDe('Apellido04 Nombre')).not.toBeChecked();
+        expect(casillaDe('Apellido03, Nombre')).toBeChecked();
+        expect(casillaDe('Apellido04, Nombre')).not.toBeChecked();
         expect(casillaPagina()).not.toBeChecked();
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Habilitar' })[0]);
+        confirmarLote();
         await waitFor(() => expect(lotes()).toHaveLength(1));
         const [, cuerpo] = lotes()[0];
         expect(cuerpo.habilitado).toBe(true);
@@ -378,7 +392,18 @@ describe('Habilitacion', () => {
         expect(screen.queryByRole('button', { name: /Seleccionar los/ })).not.toBeInTheDocument();
         expect(consultas()).toHaveLength(pedidas);
 
+        // Desmarcar uno deja «todos menos él», no solo la página.
+        const fila = screen.getAllByLabelText(/^Seleccionar a /)[0];
+        const excluido = alumnos.find(
+            (e) => fila.getAttribute('aria-label') === `Seleccionar a ${e.nombre}`
+        ).estudiante_id;
+        fireEvent.click(fila);
+        expect(screen.getAllByText('29 seleccionados')).not.toHaveLength(0);
+        expect(fila).not.toBeChecked();
+        expect(casillaPagina()).not.toBeChecked();
+
         fireEvent.click(screen.getAllByRole('button', { name: 'Habilitar' })[0]);
+        confirmarLote();
 
         await waitFor(() => expect(lotes()).toHaveLength(1));
         expect(lotes()[0]).toEqual([
@@ -387,6 +412,7 @@ describe('Habilitacion', () => {
                 habilitado: true,
                 todos: true,
                 filtros: { grupo: 37, aula: null, condicion: null, buscar: '' },
+                excluidos: [excluido],
             },
         ]);
     });
@@ -401,17 +427,18 @@ describe('Habilitacion', () => {
         fireEvent.click(screen.getAllByRole('button', { name: 'Deseleccionar' })[0]);
 
         expect(screen.queryByText(/seleccionado/)).not.toBeInTheDocument();
-        expect(screen.queryByLabelText(/Motivo de la inhabilitación/)).not.toBeInTheDocument();
+        expect(screen.queryByLabelText(/Motivo para inhabilitar/)).not.toBeInTheDocument();
         expect(casillaPagina()).not.toBeChecked();
-        expect(casillaDe('Apellido01 Nombre')).not.toBeChecked();
+        expect(casillaDe('Apellido01, Nombre')).not.toBeChecked();
     });
 
     it('habilita la selección, avisa cuántos fueron y actualiza la lista y las cifras', async () => {
         montar();
         await cargada();
-        fireEvent.click(casillaDe('Apellido01 Nombre'));
+        fireEvent.click(casillaDe('Apellido01, Nombre'));
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Habilitar' })[0]);
+        confirmarLote();
 
         expect(await screen.findByRole('status')).toHaveTextContent('1 habilitado');
         expect(lotes()[0]).toEqual([RUTA_LISTA, { habilitado: true, estudiantes: [1] }]);
@@ -424,9 +451,9 @@ describe('Habilitacion', () => {
     it('inhabilita con motivo: queda a la vista y sin aula', async () => {
         montar();
         await cargada();
-        fireEvent.click(casillaDe('Apellido02 Nombre'));
-        fireEvent.click(casillaDe('Apellido03 Nombre'));
-        fireEvent.change(screen.getByLabelText(/Motivo de la inhabilitación/), {
+        fireEvent.click(casillaDe('Apellido02, Nombre'));
+        fireEvent.click(casillaDe('Apellido03, Nombre'));
+        fireEvent.change(screen.getByLabelText(/Motivo para inhabilitar/), {
             target: { value: '  Sin prácticas aprobadas ' },
         });
 
@@ -439,7 +466,7 @@ describe('Habilitacion', () => {
         ]);
         const fila = await waitFor(() => {
             const tr = within(screen.getByRole('table'))
-                .getByText('Apellido02 Nombre')
+                .getByText('Apellido02, Nombre')
                 .closest('tr');
             expect(tr).toHaveTextContent('Sin prácticas aprobadas');
             return tr;
@@ -447,14 +474,14 @@ describe('Habilitacion', () => {
         expect(fila).toHaveTextContent('No habilitado');
         expect(fila).not.toHaveTextContent('691');
         expect(dato('No habilitados')).toHaveTextContent('3');
-        expect(screen.queryByLabelText(/Motivo de la inhabilitación/)).not.toBeInTheDocument();
+        expect(screen.queryByLabelText(/Motivo para inhabilitar/)).not.toBeInTheDocument();
     });
 
     it('con un motivo de menos de cinco caracteres no cambia a nadie', async () => {
         montar();
         await cargada();
-        fireEvent.click(casillaDe('Apellido02 Nombre'));
-        const motivo = screen.getByLabelText(/Motivo de la inhabilitación/);
+        fireEvent.click(casillaDe('Apellido02, Nombre'));
+        const motivo = screen.getByLabelText(/Motivo para inhabilitar/);
         expect(motivo).toHaveAttribute('maxlength', '1000');
         expect(screen.getByText('0/1000')).toBeInTheDocument();
 
@@ -483,8 +510,8 @@ describe('Habilitacion', () => {
         simularApi(api, rutas);
         montar();
         await cargada();
-        fireEvent.click(casillaDe('Apellido02 Nombre'));
-        fireEvent.change(screen.getByLabelText(/Motivo de la inhabilitación/), {
+        fireEvent.click(casillaDe('Apellido02, Nombre'));
+        fireEvent.change(screen.getByLabelText(/Motivo para inhabilitar/), {
             target: { value: 'Motivo cualquiera' },
         });
 
@@ -503,8 +530,8 @@ describe('Habilitacion', () => {
         simularApi(api, rutas);
         montar();
         await cargada();
-        fireEvent.click(casillaDe('Apellido02 Nombre'));
-        fireEvent.change(screen.getByLabelText(/Motivo de la inhabilitación/), {
+        fireEvent.click(casillaDe('Apellido02, Nombre'));
+        fireEvent.change(screen.getByLabelText(/Motivo para inhabilitar/), {
             target: { value: 'Sin prácticas aprobadas' },
         });
 
@@ -514,10 +541,12 @@ describe('Habilitacion', () => {
             'Un estudiante de la selección ya ingresó al examen y no se puede inhabilitar'
         );
         expect(screen.getAllByText('1 seleccionado')).not.toHaveLength(0);
-        expect(screen.getByLabelText(/Motivo de la inhabilitación/)).toHaveValue(
+        expect(screen.getByLabelText(/Motivo para inhabilitar/)).toHaveValue(
             'Sin prácticas aprobadas'
         );
-        const fila = within(screen.getByRole('table')).getByText('Apellido02 Nombre').closest('tr');
+        const fila = within(screen.getByRole('table'))
+            .getByText('Apellido02, Nombre')
+            .closest('tr');
         expect(within(fila).getByText('Habilitado')).toBeInTheDocument();
     });
 
@@ -573,29 +602,34 @@ describe('Habilitacion', () => {
     });
 
     it('muestra la negativa del servidor si el examen no es del docente', async () => {
-        const ajeno = errorHttp(403, { message: 'Examen no autorizado.', alcance: true });
+        const ajeno = errorHttp(403, { message: 'Este examen no está a su cargo.', alcance: true });
         rutas['GET /examenes/1/habilitaciones'] = ajeno;
         simularApi(api, rutas);
         montar();
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('Examen no autorizado');
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'Este examen no está a su cargo'
+        );
         expect(screen.queryByRole('table')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Repartir' })).not.toBeInTheDocument();
     });
 
     it('avisa la negativa si el servidor rechaza un lote por alcance', async () => {
         rutas['POST /examenes/*/habilitaciones'] = errorHttp(403, {
-            message: 'Examen no autorizado.',
+            message: 'Este examen no está a su cargo.',
             alcance: true,
         });
         simularApi(api, rutas);
         montar();
         await cargada();
-        fireEvent.click(casillaDe('Apellido02 Nombre'));
+        fireEvent.click(casillaDe('Apellido02, Nombre'));
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Habilitar' })[0]);
+        confirmarLote();
 
-        expect(await screen.findByRole('status')).toHaveTextContent('Examen no autorizado');
+        expect(await screen.findByRole('status')).toHaveTextContent(
+            'Este examen no está a su cargo'
+        );
     });
 
     it('en móvil la lista es de tarjetas y el panel del motivo queda fijo al pie', async () => {
@@ -606,7 +640,7 @@ describe('Habilitacion', () => {
         expect(tabla.parentElement).toHaveClass('hidden', 'md:block', 'overflow-x-auto');
         const tarjetas = screen.getByText('Seleccionar la página').closest('div');
         expect(tarjetas).toHaveClass('md:hidden');
-        const tarjeta = within(tarjetas).getByText('Apellido02 Nombre').closest('li');
+        const tarjeta = within(tarjetas).getByText('Apellido02, Nombre').closest('li');
         expect(tarjeta).toHaveTextContent('202100002 · Grupo 2 · Aula 691B');
         expect(within(tarjeta).getByText('Habilitado')).toBeInTheDocument();
         expect(within(tarjetas).getByText('No presentó el proyecto')).toBeInTheDocument();
@@ -615,10 +649,59 @@ describe('Habilitacion', () => {
 
         const panel = screen.getByTestId('panel-seleccion');
         expect(panel).toHaveClass('max-md:fixed', 'max-md:inset-x-0');
-        expect(within(panel).getByLabelText(/Motivo de la inhabilitación/)).toBeInTheDocument();
+        expect(within(panel).getByLabelText(/Motivo para inhabilitar/)).toBeInTheDocument();
         expect(within(panel).getByRole('button', { name: 'Inhabilitar' })).toBeInTheDocument();
         expect(within(panel).getByRole('button', { name: 'Habilitar' })).toBeInTheDocument();
         expect(within(tarjetas).getByText('Seleccionar la página')).toBeInTheDocument();
+    });
+
+    it('enlaza a los códigos QR del examen y lo destaca con la habilitación completa', async () => {
+        montar();
+        await cargada();
+
+        const enlace = screen.getByRole('link', { name: /Emitir códigos QR/ });
+        expect(enlace).toHaveAttribute('href', '/examenes/detalle?examen=1&pestana=qr');
+        // Quedan 20 sin revisar.
+        expect(enlace).not.toHaveClass('bg-primary-600');
+
+        fireEvent.click(casillaPagina());
+        fireEvent.click(screen.getAllByRole('button', { name: 'Seleccionar los 60' })[0]);
+        fireEvent.click(screen.getByRole('button', { name: /^Habilitar/ }));
+        confirmarLote();
+
+        // Habilitados pero algunos sin aula: todavía no se emiten códigos.
+        await waitFor(() => expect(screen.getByText(/sin aula/)).toBeInTheDocument());
+        expect(screen.getByRole('link', { name: /Emitir códigos QR/ })).not.toHaveClass(
+            'bg-primary-600'
+        );
+
+        // Repartidos, queda completa.
+        alumnos = alumnos.map((e) => ({ ...e, aula: e.aula ?? AULAS[0].nombre }));
+        fireEvent.click(screen.getByRole('button', { name: 'Repartir' }));
+        await waitFor(() =>
+            expect(screen.getByRole('link', { name: /Emitir códigos QR/ })).toHaveClass(
+                'bg-primary-600'
+            )
+        );
+
+        // Al cambiar de examen el enlace sigue al examen elegido.
+        elegirExamen(/^Base de Datos I/);
+        await waitFor(() =>
+            expect(screen.getByRole('link', { name: /Emitir códigos QR/ })).toHaveAttribute(
+                'href',
+                '/examenes/detalle?examen=3&pestana=qr'
+            )
+        );
+    });
+
+    it('sin el permiso de códigos QR no dibuja el enlace', async () => {
+        montar(
+            '/habilitacion?examen=1',
+            usuarioDePrueba('Docente', { permisos: ['examenes', 'habilitacion'] })
+        );
+        await cargada();
+
+        expect(screen.queryByRole('link', { name: /códigos QR/ })).not.toBeInTheDocument();
     });
 
     it('sin exámenes muestra «Sin exámenes»', async () => {

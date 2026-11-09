@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ProveedorSesion, usarFacultades, usarSesion } from './SesionContexto';
-import { api, suscribirSesion, SIN_SESION } from '../api/cliente';
+import { api, suscribirSesion, CAMBIAR_CONTRASENA, SIN_SESION } from '../api/cliente';
 import {
     errorHttp,
     respuestaDiferida,
@@ -18,6 +18,7 @@ function Sonda() {
     return (
         <div>
             <p>{usuario ? `${usuario.nombre} · ${usuario.rol}` : 'Sin sesión'}</p>
+            <p>{usuario?.debe_cambiar_contrasena ? 'Cambio obligatorio' : 'Contraseña propia'}</p>
             <p>{puede('examenes') ? 'Puede exámenes' : 'No puede exámenes'}</p>
             <p>Facultades: {facultades.length}</p>
             <button
@@ -119,7 +120,7 @@ describe('ProveedorSesion', () => {
         expect(guardar).not.toHaveBeenCalled();
     });
 
-    it('queda sin sesión cuando el cliente avisa que terminó', async () => {
+    it('reacciona a los eventos del cliente', async () => {
         simularApi(api, {
             'GET /auth/sesion': { user: usuarioDePrueba() },
             'GET /facultades': { data: [] },
@@ -128,7 +129,22 @@ describe('ProveedorSesion', () => {
         await screen.findByText('Blanco Coca Leticia · Docente');
         const oyente = suscribirSesion.mock.calls.at(-1)[0];
 
+        act(() => oyente(CAMBIAR_CONTRASENA));
+        expect(screen.getByText('Cambio obligatorio')).toBeInTheDocument();
+
         act(() => oyente(SIN_SESION));
         await waitFor(() => expect(screen.getByText('Sin sesión')).toBeInTheDocument());
+    });
+
+    it('con contraseña temporal no pide las facultades', async () => {
+        simularApi(api, {
+            'GET /auth/sesion': {
+                user: usuarioDePrueba('Docente', { debe_cambiar_contrasena: true }),
+            },
+        });
+        montar();
+
+        expect(await screen.findByText('Cambio obligatorio')).toBeInTheDocument();
+        expect(api.get).toHaveBeenCalledTimes(1);
     });
 });

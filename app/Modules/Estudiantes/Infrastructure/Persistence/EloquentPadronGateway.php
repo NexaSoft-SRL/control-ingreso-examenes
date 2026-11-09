@@ -6,18 +6,23 @@ namespace App\Modules\Estudiantes\Infrastructure\Persistence;
 
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Estudiantes\Application\Contracts\PadronGateway;
+use App\Modules\Estudiantes\Application\DTOs\EdicionDeEstudianteData;
 use App\Modules\Estudiantes\Application\DTOs\EstudianteData;
 use App\Modules\Estudiantes\Application\DTOs\FiltroListaData;
 use App\Modules\Estudiantes\Application\DTOs\PaginaData;
 use App\Modules\Estudiantes\Domain\Enums\EstadoConflicto;
 use App\Modules\Estudiantes\Domain\Enums\OrigenEstudiante;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentPadronGateway implements PadronGateway
 {
-    use ConsultasDePadron;
+    public function __construct(
+        private readonly BitacoraGateway $bitacora,
+    ) {}
 
-    public function __construct(private readonly BitacoraGateway $bitacora) {}
+    use ConsultasDePadron;
 
     public function listar(FiltroListaData $filtro): PaginaData
     {
@@ -33,6 +38,12 @@ final class EloquentPadronGateway implements PadronGateway
 
         if ($filtro->carreraId !== null) {
             $consulta->where('e.carrera_id', $filtro->carreraId);
+        }
+
+        if ($filtro->foto === 'con') {
+            $consulta->whereNotNull('e.foto');
+        } elseif ($filtro->foto === 'sin') {
+            $consulta->whereNull('e.foto');
         }
 
         $this->buscar($consulta, $filtro->buscar, [
@@ -53,6 +64,7 @@ final class EloquentPadronGateway implements PadronGateway
                 'e.nombres',
                 'e.apellidos',
                 'e.verificado',
+                'e.foto',
                 'f.sigla as facultad',
                 'c.nombre as carrera',
             ])
@@ -61,11 +73,12 @@ final class EloquentPadronGateway implements PadronGateway
                     join grupos g on g.id = i.grupo_id
                     join periodos p on p.id = g.periodo_id
                    where i.estudiante_id = e.id
+                     and i.baja_en is null
                      and p.fecha_inicio <= ? and p.fecha_fin >= ?) as grupos',
                 [$hoy, $hoy],
             )
-            ->orderBy('e.apellidos')
-            ->orderBy('e.nombres')
+            ->orderByRaw("translate(lower(e.apellidos), 'áéíóúüñ', 'aeiouun')")
+            ->orderByRaw("translate(lower(e.nombres), 'áéíóúüñ', 'aeiouun')")
             ->orderBy('e.id')
             ->forPage($filtro->pagina, $filtro->porPagina)
             ->get();
@@ -82,10 +95,11 @@ final class EloquentPadronGateway implements PadronGateway
                 'carrera' => $this->texto($fila->carrera),
                 'grupos' => $this->entero($fila->grupos),
                 'origen' => (bool) $fila->verificado ? 'Administración' : 'Docente',
+                'con_foto' => $this->texto($fila->foto) !== null,
             ];
         }
 
-        return new PaginaData($datos, $total, $filtro->pagina, $filtro->porPagina, $this->conteos());
+        return new PaginaData($datos, $total, $filtro->pagina, $filtro->porPagina, $this->conteos($filtro->foto));
     }
 
     public function ficha(int $estudianteId, string $dominioCorreo): ?array
@@ -116,7 +130,8 @@ final class EloquentPadronGateway implements PadronGateway
             ->join('asignaturas as a', 'a.id', '=', 'g.asignatura_id')
             ->join('periodos as p', 'p.id', '=', 'g.periodo_id')
             ->leftJoin('docentes as d', 'd.id', '=', 'g.docente_id')
-            ->where('i.estudiante_id', $estudianteId);
+            ->where('i.estudiante_id', $estudianteId)
+            ->whereNull('i.baja_en');
 
         $this->vigente($inscripciones, 'p');
 
@@ -172,78 +187,12 @@ final class EloquentPadronGateway implements PadronGateway
         ];
     }
 
-    public function corregirDatos(
-        int $usuarioId,
-        int $estudianteId,
-        string $nombres,
-        string $apellidos,
-        ?string $documento,
-    ): bool {
-        return DB::transaction(function () use ($usuarioId, $estudianteId, $nombres, $apellidos, $documento): bool {
-            /** @var object{
-             *     codigo_universitario: string,
-             *     nombres: string,
-             *     apellidos: string,
-             *     documento_identidad: string|null
-             * }|null $actual
-             */
-            $actual = DB::table('estudiantes')
-                ->where('id', $estudianteId)
-                ->lockForUpdate()
-                ->first(['codigo_universitario', 'nombres', 'apellidos', 'documento_identidad']);
-
-            if ($actual === null) {
-                return false;
-            }
-
-            $cambios = [];
-            $descripcion = [];
-
-            foreach (['nombres' => $nombres, 'apellidos' => $apellidos] as $campo => $nuevo) {
-                if ($actual->{$campo} !== $nuevo) {
-                    $cambios[$campo] = $nuevo;
-                    $descripcion[] = sprintf('%s «%s» → «%s»', ucfirst($campo), $actual->{$campo}, $nuevo);
-                }
-            }
-
-            if ($actual->documento_identidad !== $documento) {
-                $cambios['documento_identidad'] = $documento;
-                $descripcion[] = sprintf(
-                    'Documento de identidad «%s» → «%s»',
-                    $actual->documento_identidad ?? 'sin documento',
-                    $documento ?? 'sin documento',
-                );
-            }
-
-            if ($cambios === []) {
-                return true;
-            }
-
-            DB::table('estudiantes')
-                ->where('id', $estudianteId)
-                ->update([...$cambios, 'updated_at' => now()]);
-
-            $this->bitacora->registrar(
-                $usuarioId,
-                'estudiante.datos_corregidos',
-                'estudiantes',
-                $estudianteId,
-                sprintf(
-                    'Corrección de datos de %s: %s.',
-                    $actual->codigo_universitario,
-                    implode('; ', $descripcion),
-                ),
-            );
-
-            return true;
-        }, 3);
-    }
-
     public function resumen(): array
     {
         $inscripciones = DB::table('inscripciones as i')
             ->join('grupos as g', 'g.id', '=', 'i.grupo_id')
-            ->join('periodos as p', 'p.id', '=', 'g.periodo_id');
+            ->join('periodos as p', 'p.id', '=', 'g.periodo_id')
+            ->whereNull('i.baja_en');
 
         $this->vigente($inscripciones, 'p');
 
@@ -301,17 +250,35 @@ final class EloquentPadronGateway implements PadronGateway
     }
 
     /**
-     * Estudiantes por facultad, sobre todo el padron: son las cifras de
-     * los filtros, no cambian con la busqueda.
+     * Estudiantes por facultad: son las cifras de los filtros. Siguen al
+     * de foto, no a la busqueda.
      *
      * @return array<string, int>
      */
-    private function conteos(): array
+    private function conteos(?string $foto): array
     {
-        $conteos = ['todas' => DB::table('estudiantes')->count()];
+        $conFoto = static function (Builder $consulta, string $columna) use ($foto): void {
+            if ($foto === 'con') {
+                $consulta->whereNotNull($columna);
+            } elseif ($foto === 'sin') {
+                $consulta->whereNull($columna);
+            }
+        };
+
+        $todas = DB::table('estudiantes');
+        $conFoto($todas, 'foto');
+        $conteos = ['todas' => $todas->count()];
 
         $filas = DB::table('facultades as f')
-            ->leftJoin('estudiantes as e', 'e.facultad_id', '=', 'f.id')
+            ->leftJoin('estudiantes as e', function (JoinClause $union) use ($foto): void {
+                $union->on('e.facultad_id', '=', 'f.id');
+
+                if ($foto === 'con') {
+                    $union->whereNotNull('e.foto');
+                } elseif ($foto === 'sin') {
+                    $union->whereNull('e.foto');
+                }
+            })
             ->groupBy('f.id', 'f.sigla', 'f.orden')
             ->orderBy('f.orden')
             ->selectRaw('f.sigla, count(e.id) as total')
@@ -322,5 +289,68 @@ final class EloquentPadronGateway implements PadronGateway
         }
 
         return $conteos;
+    }
+
+    public function existe(int $estudianteId): bool
+    {
+        return DB::table('estudiantes')->where('id', $estudianteId)->exists();
+    }
+
+    public function documentoDeOtro(string $documento, int $estudianteId): bool
+    {
+        return DB::table('estudiantes')
+            ->whereRaw('upper(documento_identidad) = upper(?)', [$documento])
+            ->where('id', '<>', $estudianteId)
+            ->exists();
+    }
+
+    public function editar(EdicionDeEstudianteData $edicion): void
+    {
+        DB::transaction(function () use ($edicion): void {
+            $antes = DB::table('estudiantes')
+                ->where('id', $edicion->estudianteId)
+                ->lockForUpdate()
+                ->first(['codigo_universitario', 'documento_identidad', 'nombres', 'apellidos']);
+
+            if ($antes === null) {
+                return;
+            }
+
+            /** @var array<string, mixed> $previos */
+            $previos = get_object_vars($antes);
+
+            $nuevos = [
+                'documento_identidad' => $edicion->documento,
+                'nombres' => $edicion->nombres,
+                'apellidos' => $edicion->apellidos,
+            ];
+            $etiquetas = ['documento_identidad' => 'C.I.', 'nombres' => 'Nombres', 'apellidos' => 'Apellidos'];
+            $cambios = [];
+
+            foreach ($nuevos as $campo => $valor) {
+                $anterior = is_scalar($previos[$campo] ?? null) ? (string) $previos[$campo] : '';
+
+                if ($anterior !== $valor) {
+                    $cambios[] = sprintf('%s: «%s» → «%s»', $etiquetas[$campo], $anterior === '' ? '—' : $anterior, $valor);
+                }
+            }
+
+            if ($cambios === []) {
+                return;
+            }
+
+            DB::table('estudiantes')
+                ->where('id', $edicion->estudianteId)
+                ->update($nuevos + ['updated_at' => now()]);
+
+            $codigo = is_scalar($previos['codigo_universitario'] ?? null) ? (string) $previos['codigo_universitario'] : '';
+            $this->bitacora->registrar(
+                $edicion->usuarioId,
+                'estudiante.editar',
+                'estudiantes',
+                $edicion->estudianteId,
+                sprintf('Estudiante %s corregido. %s.', $codigo, implode('; ', $cambios)),
+            );
+        }, 3);
     }
 }

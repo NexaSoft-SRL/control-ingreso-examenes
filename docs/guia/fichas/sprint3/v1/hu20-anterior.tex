@@ -1,0 +1,64 @@
+% Ficha HU-20. Criterios tomados del backlog de la iteracion 3. El puesto
+% declara en que ambiente esta: contra eso se compara el asignado.
+\def\HUNro{20}
+\def\HUSprint{3}
+\def\HUTitulo{Punto de control > Ingreso > Verificar el ambiente asignado}
+\def\HUModulo{M4}
+\def\HUReq{10}
+\def\HUPuntos{3}
+
+\def\HUComo{personal de control}
+\def\HUQuiero{que el sistema compruebe si el estudiante está en el ambiente que le
+corresponde}
+\def\HUPara{evitar que rinda en el aula equivocada}
+
+\def\HUDescripcion{%
+Un examen repartido en tres aulas se desordena si los estudiantes entran donde quieren:
+las listas dejan de cuadrar y nadie sabe quién rindió dónde.
+
+Cada puesto de control declara en qué ambiente está. Al identificar a un estudiante, el
+sistema compara ese ambiente con el que se le asignó en la distribución (HU-14). Si no
+coinciden, advierte e indica cuál le corresponde, para que el personal lo mande al aula
+correcta.
+
+El ingreso en un ambiente distinto no queda prohibido, pero solo procede como situación
+excepcional: hay que declararla y escribir por qué ---su aula se quedó sin luz, el
+docente lo autorizó---. El ingreso queda marcado como excepción y la situación se
+registra como incidencia, con el ambiente que le correspondía y la explicación.
+
+Cuando el puesto no declara ambiente, el sistema registra el ingreso en el que el
+estudiante tiene asignado: es el caso de una mesa única para todo el examen.}
+
+\def\HUCriterios{%
+\item Dado que el puesto de control declara su ambiente, Cuando identifica a un
+      estudiante, Entonces el sistema compara ese ambiente con el asignado.
+\item Dado que el ambiente no coincide con el asignado, Cuando se intenta registrar el
+      ingreso, Entonces el sistema lo advierte e indica cuál le corresponde.
+\item Dado que el ambiente no coincide, Cuando no se declara la excepción, Entonces el
+      sistema no registra el ingreso.
+\item Dado que el personal autoriza el ingreso como excepción, Cuando escribe el motivo,
+      Entonces el sistema registra el ingreso marcado como excepcional.
+\item Dado que se declara una excepción sin motivo, Cuando se envía, Entonces el sistema
+      la rechaza señalando el campo.
+\item Dado que se autoriza un ingreso excepcional, Cuando se completa, Entonces queda
+      registrado como incidencia con el ambiente que correspondía y la explicación.
+\item Dado que el ambiente del puesto coincide con el asignado, Cuando se registra el
+      ingreso, Entonces el sistema lo autoriza sin advertencias.
+\item Dado que el puesto no declara ambiente, Cuando se registra el ingreso, Entonces el
+      sistema usa el ambiente asignado al estudiante.
+\item Dado que el personal de control atiende desde un dispositivo móvil, Cuando autoriza
+      una excepción, Entonces la interfaz se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{RegistroIngresoTest}, en la prueba del ambiente que no corresponde: la
+      advertencia con el ambiente correcto (criterios 1 a 3).
+\item \texttt{RegistroIngresoTest}, en la prueba del ingreso que solo procede como
+      excepción registrada: la excepción y su incidencia (criterios 4 y 6).
+\item \texttt{RegistroIngresoTest::an\_exception\_without\_a\_reason\_is\_rejected}: sin
+      motivo no hay excepción (criterio 5).
+\item \texttt{RegistroIngresoTest}, en la prueba del ingreso correcto: el ambiente que
+      coincide no genera advertencia (criterio 7).
+\item \texttt{PuntoControl.test.jsx}: el selector del ambiente del puesto y el formulario
+      de excepción que aparece al rechazar (criterios 1, 2 y 4).}
+
+\input{cuerpo}

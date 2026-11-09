@@ -20,11 +20,11 @@ final class AuthenticationHardeningTest extends TestCase
         $plainPassword = 'SecurePassword123!';
 
         $user = UserFactory::new()->createOne([
-            'email' => 'hashed-password@example.invalid',
+            'usuario' => 'hashed-password',
             'password' => $plainPassword,
         ]);
 
-        $persistedPassword = DB::table('usuarios')
+        $persistedPassword = DB::table('users')
             ->where('id', $user->getKey())
             ->value('password');
 
@@ -73,12 +73,11 @@ final class AuthenticationHardeningTest extends TestCase
 
         $user = UserFactory::new()->createOne([
             'usuario' => 'rehash-user',
-            'email' => 'rehash-user@example.invalid',
             'password' => $outdatedHash,
             'is_active' => true,
         ]);
 
-        $storedBeforeLogin = DB::table('usuarios')
+        $storedBeforeLogin = DB::table('users')
             ->where('id', $user->getKey())
             ->value('password');
 
@@ -94,7 +93,7 @@ final class AuthenticationHardeningTest extends TestCase
             'password' => $plainPassword,
         ])->assertOk();
 
-        $storedAfterLogin = DB::table('usuarios')
+        $storedAfterLogin = DB::table('users')
             ->where('id', $user->getKey())
             ->value('password');
 
@@ -121,7 +120,6 @@ final class AuthenticationHardeningTest extends TestCase
     {
         $user = UserFactory::new()->createOne([
             'usuario' => 'audit-metadata',
-            'email' => 'audit-metadata@example.invalid',
             'password' => 'CorrectPassword123!',
             'is_active' => true,
         ]);
@@ -194,7 +192,14 @@ final class AuthenticationHardeningTest extends TestCase
         ])
             ->assertUnauthorized()
             ->assertExactJson([
-                'message' => 'Credenciales incorrectas.',
+                'message' => 'Usuario o contraseña incorrectos.',
             ]);
+    }
+
+    public function test_the_api_answers_401_in_json_even_without_the_accept_header(): void
+    {
+        $this->get('/api/periodos/vigentes')
+            ->assertUnauthorized()
+            ->assertJsonPath('message', 'No hay una sesión activa.');
     }
 }

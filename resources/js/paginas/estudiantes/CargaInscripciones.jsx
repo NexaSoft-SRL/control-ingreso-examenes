@@ -19,6 +19,8 @@ import Dialogo from '../../componentes/Dialogo';
 import Seleccion from '../../componentes/Seleccion';
 import { usarFacultades } from '../../sesion/SesionContexto';
 
+// El límite de subida del servidor.
+const MAXIMO_BYTES = 8 * 1024 * 1024;
 const ARCHIVO = /\.(csv|xlsx)$/i;
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
@@ -136,9 +138,11 @@ export default function CargaInscripciones({
     const [resultado, setResultado] = useState(null);
 
     const errorLocal = archivo
-        ? ARCHIVO.test(archivo.name)
-            ? null
-            : 'Solo .csv o .xlsx'
+        ? !ARCHIVO.test(archivo.name)
+            ? 'Solo .csv o .xlsx'
+            : archivo.size > MAXIMO_BYTES
+              ? 'Máximo 8 MB'
+              : null
         : enviado
           ? 'Obligatorio'
           : null;
@@ -155,7 +159,7 @@ export default function CargaInscripciones({
         evento?.preventDefault();
         if (enviando) return;
         setEnviado(true);
-        if (!archivo || !ARCHIVO.test(archivo.name) || facultad === '') return;
+        if (!archivo || errorLocal || facultad === '') return;
 
         const cuerpo = new FormData();
         cuerpo.append('facultad', facultad);
@@ -232,7 +236,7 @@ export default function CargaInscripciones({
                     <Boton variante="secundario" onClick={onCerrar}>
                         Cancelar
                     </Boton>
-                    <Boton onClick={cargar} disabled={enviando}>
+                    <Boton onClick={cargar} cargando={enviando}>
                         <Upload className="h-4 w-4" aria-hidden="true" />{' '}
                         {enviando ? 'Cargando' : 'Cargar'}
                     </Boton>
@@ -263,14 +267,23 @@ export default function CargaInscripciones({
                         </span>
                     )}
                 </div>
-                <label className="block">
-                    <span className="mb-1.5 block text-sm font-medium text-slate-700">
-                        Archivo
-                        <span className="ml-0.5 text-danger-600" aria-hidden="true">
-                            *
-                        </span>
-                    </span>
+                <div>
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                        <label
+                            htmlFor="archivo-inscripciones"
+                            className="text-sm font-medium text-slate-700"
+                        >
+                            Archivo
+                            <span className="ml-0.5 text-danger-600" aria-hidden="true">
+                                *
+                            </span>
+                        </label>
+                        <Boton type="button" variante="enlace" tamano="chico" onClick={plantilla}>
+                            <Download className="h-4 w-4" aria-hidden="true" /> Descargar plantilla
+                        </Boton>
+                    </div>
                     <input
+                        id="archivo-inscripciones"
                         type="file"
                         accept=".csv,.xlsx"
                         aria-required="true"
@@ -292,14 +305,17 @@ export default function CargaInscripciones({
                             </span>
                         )
                     )}
-                </label>
+                </div>
 
                 {rechazo && (
                     <div
                         role="alert"
                         className="space-y-2 rounded-lg border border-danger-200 bg-danger-50 p-3 text-sm"
                     >
-                        <p className="font-medium text-danger-700">{rechazo.mensaje}</p>
+                        {/* Con las listas a la vista, el título no las repite. */}
+                        <p className="font-medium text-danger-700">
+                            {rechazo.mensaje.split(/:| \. Orden esperado|\. Orden esperado/)[0]}
+                        </p>
                         {rechazo.faltan.length > 0 && (
                             <p className="break-words text-slate-800">
                                 Faltan:{' '}
@@ -336,10 +352,6 @@ export default function CargaInscripciones({
                         {general}
                     </p>
                 )}
-
-                <Boton type="button" variante="enlace" tamano="chico" onClick={plantilla}>
-                    <Download className="h-4 w-4" aria-hidden="true" /> Plantilla
-                </Boton>
             </form>
         </Dialogo>
     );

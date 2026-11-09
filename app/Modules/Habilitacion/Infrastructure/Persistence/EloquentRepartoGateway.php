@@ -82,8 +82,8 @@ final class EloquentRepartoGateway implements RepartoGateway
                 ->where('habilitacion.examen_id', $examenId)
                 ->where('habilitacion.habilitado', true)
                 ->whereNull('habilitacion.aula_id')
-                ->orderBy('estudiante.apellidos')
-                ->orderBy('estudiante.nombres')
+                ->orderByRaw("translate(lower(estudiante.apellidos), 'áéíóúüñ', 'aeiouun')")
+                ->orderByRaw("translate(lower(estudiante.nombres), 'áéíóúüñ', 'aeiouun')")
                 ->orderBy('estudiante.id')
                 ->pluck('habilitacion.id')
                 ->all();

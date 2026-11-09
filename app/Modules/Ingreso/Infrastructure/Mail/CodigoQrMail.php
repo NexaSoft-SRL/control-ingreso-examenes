@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Infrastructure\Mail;
 
-use App\Modules\Administracion\Application\Contracts\RegistroCorreoGateway;
 use App\Modules\Ingreso\Application\Contracts\GeneradorImagenQr;
 use App\Modules\Ingreso\Application\DTOs\CredencialData;
-use App\Modules\Ingreso\Domain\Models\CodigoQr;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -15,12 +13,14 @@ use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
- * El codigo QR de un estudiante para un examen, con donde rinde. Va en
- * cola; al salir marca su envio y el codigo como recibidos y, si falla,
- * deja el error en el envio.
+ * El codigo QR de un estudiante para un examen, con donde rinde. El QR va
+ * dentro del correo y ademas adjunto como PNG, para guardarlo o compartirlo.
+ * Va en cola; al salir marca su fila de `envios_correo` y el codigo como
+ * enviados, y si falla deja el error.
  */
 final class CodigoQrMail extends Mailable implements ShouldQueue
 {
@@ -37,7 +37,7 @@ final class CodigoQrMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Su código QR · '.$this->credencial->examen,
+            subject: 'Código QR · '.$this->credencial->examen,
         );
     }
 
@@ -58,7 +58,7 @@ final class CodigoQrMail extends Mailable implements ShouldQueue
     public function attachments(): array
     {
         return [
-            Attachment::fromData(fn (): string => $this->png(), 'codigo-qr.png')
+            Attachment::fromData(fn (): string => $this->png(), $this->credencial->nombreDelQr())
                 ->withMime('image/png'),
         ];
     }
@@ -67,31 +67,44 @@ final class CodigoQrMail extends Mailable implements ShouldQueue
     {
         $enviado = parent::send($mailer);
 
-        // Nulo: el envio se cancelo porque el destinatario no esta entre
-        // las direcciones permitidas (`mail.permitidos`).
-        if ($enviado === null) {
-            app(RegistroCorreoGateway::class)->marcarFallido($this->envioId, 'Dirección no permitida en esta instalación.');
+        $ahora = now();
 
-            return null;
-        }
+        DB::table('envios_correo')
+            ->where('id', $this->envioId)
+            ->update([
+                'estado' => 'ENVIADO',
+                'error' => null,
+                'enviado_en' => $ahora,
+                'updated_at' => $ahora,
+            ]);
 
-        app(RegistroCorreoGateway::class)->marcarEnviado($this->envioId);
-
-        CodigoQr::query()
+        DB::table('codigos_qr')
             ->where('examen_id', $this->credencial->examenId)
             ->where('estudiante_id', $this->credencial->estudianteId)
-            ->update(['enviado_en' => now()]);
+            ->update(['enviado_en' => $ahora, 'updated_at' => $ahora]);
 
         return $enviado;
     }
 
     public function failed(Throwable $error): void
     {
-        app(RegistroCorreoGateway::class)->marcarFallido($this->envioId, $error->getMessage());
+        self::marcarFallido($this->envioId, $error->getMessage());
+    }
+
+    public static function marcarFallido(int $envioId, string $error): void
+    {
+        DB::table('envios_correo')
+            ->where('id', $envioId)
+            ->where('estado', '!=', 'ENVIADO')
+            ->update([
+                'estado' => 'FALLIDO',
+                'error' => mb_substr($error, 0, 2000),
+                'updated_at' => now(),
+            ]);
     }
 
     private function png(): string
     {
-        return app(GeneradorImagenQr::class)->comoPng($this->credencial->contenido ?? '');
+        return app(GeneradorImagenQr::class)->comoPng($this->credencial->token ?? '');
     }
 }

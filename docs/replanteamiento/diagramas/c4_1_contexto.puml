@@ -1,0 +1,37 @@
+' =====================================================================
+'  C4 - Nivel 1: contexto del sistema, replanteado
+'  Cambia respecto del diseno original en dos cosas: el sistema toma la
+'  oferta academica de una fuente externa en vez de cargarla a mano, y
+'  las listas de inscritos salen de la WebSIS por archivo.
+' =====================================================================
+@startuml c4_1_contexto
+!include <C4/C4_Context>
+!include estilo.puml
+
+Person(admin, "Administrador\n<size:11>[Persona]</size>", "Prepara cada período: importa la oferta académica, activa las cuentas y verifica el padrón. Se encarga de los datos del sistema.", $tags="persona")
+Person(docente, "Docente\n<size:11>[Persona]</size>", "Ve solo sus grupos. Carga la lista de inscritos de su grupo, registra el examen, habilita y entrega los códigos QR.", $tags="persona")
+Person(control, "Auxiliar\n<size:11>[Persona]</size>", "Atiende la puerta de un aula: identifica al estudiante, verifica y registra su ingreso.", $tags="persona")
+Person(estudiante, "Estudiante\n<size:11>[Persona]</size>", "No tiene cuenta. Recibe su código QR y lo presenta en la puerta, o se identifica con su código o documento.", $tags="persona")
+
+System(sistema, "Sistema de control de ingreso\n<size:11>[Sistema de software]</size>", "Sabe qué estudiantes están inscritos en cada grupo de cada período, quién está habilitado para cada examen y en qué aula rinde, y registra el ingreso.", $tags="sistema")
+
+System_Ext(genda, "GENDA\n<size:11>[Sistema externo]</size>", "Recopila la oferta académica publicada por las facultades: carreras, materias, grupos, docentes, horarios, aulas con su ubicación y pensum.", $tags="externo")
+System_Ext(websis, "WebSIS\n<size:11>[Sistema externo]</size>", "Sistema de información estudiantil de la UMSS. Es la fuente de las listas de inscritos por grupo.", $tags="externo2")
+System_Ext(mapas, "Servicio de mapas\n<size:11>[Sistema externo]</size>", "Entrega el mapa base sobre el que se dibujan los edificios y las aulas.", $tags="externo")
+
+Rel(estudiante, control, "Presenta su QR, código o documento a", $tags="rel")
+Rel(control, sistema, "Verifica y registra el ingreso con", $tags="rel")
+Rel(docente, sistema, "Carga inscritos, registra exámenes y habilita en", $tags="rel")
+Rel(admin, sistema, "Prepara el período y verifica el padrón en", $tags="rel")
+Rel(docente, estudiante, "Entrega el código QR a", $tags="rel")
+
+Rel(sistema, genda, "Importa la oferta académica y las aulas desde una copia de", "archivos JSON", $tags="rel")
+Rel(docente, websis, "Descarga la lista de inscritos de su grupo de", $tags="rel")
+Rel(admin, websis, "Obtiene las inscripciones de la facultad de", $tags="rel")
+Rel(sistema, mapas, "Pide el mapa base a", "HTTPS", $tags="rel")
+
+legend left
+<font size=17 color=#444444><b>Vista de contexto: Sistema de control de ingreso a exámenes masivos (replanteo)</b></font>
+<font size=11 color=#666666>El sistema no se conecta a la WebSIS: las listas llegan por archivo, de la mano del docente o del administrador.</font>
+endlegend
+@enduml

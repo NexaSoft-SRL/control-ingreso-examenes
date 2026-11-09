@@ -21,8 +21,7 @@ const TITULOS = {
 };
 
 const EXTENSIONES = ['csv', 'xlsx'];
-// El servidor admite envíos de hasta 8 MB en total; el archivo, hasta 7 MB.
-const MAXIMO_BYTES = 7 * 1024 * 1024;
+const MAXIMO_BYTES = 8 * 1024 * 1024;
 
 const columna = (nombre) => COLUMNAS[nombre] ?? nombre;
 
@@ -32,7 +31,7 @@ function reparoDe(archivo) {
     if (!archivo) return 'El archivo es obligatorio.';
     const extension = archivo.name.includes('.') ? archivo.name.split('.').pop().toLowerCase() : '';
     if (!EXTENSIONES.includes(extension)) return 'El archivo debe ser .csv o .xlsx.';
-    if (archivo.size > MAXIMO_BYTES) return 'El archivo no puede superar los 7 MB.';
+    if (archivo.size > MAXIMO_BYTES) return 'El archivo no puede superar los 8 MB.';
     return null;
 }
 
@@ -158,12 +157,12 @@ export default function CargaDeLista({ grupoId, onCargada, onCancelar, onAvisar 
                     <Boton
                         type="button"
                         variante="secundario"
-                        disabled={enviando}
+                        cargando={enviando}
                         onClick={() => entrada.current?.click()}
                     >
                         <Upload className="h-4 w-4" /> Elegir archivo
                     </Boton>
-                    <Boton type="submit" disabled={enviando}>
+                    <Boton type="submit" cargando={enviando}>
                         {enviando ? 'Cargando' : 'Cargar lista'}
                     </Boton>
                     <Boton type="button" variante="fantasma" onClick={plantilla}>
@@ -173,7 +172,7 @@ export default function CargaDeLista({ grupoId, onCargada, onCancelar, onAvisar 
                         <Boton
                             type="button"
                             variante="fantasma"
-                            disabled={enviando}
+                            cargando={enviando}
                             onClick={onCancelar}
                         >
                             Cancelar

@@ -6,8 +6,7 @@ namespace App\Modules\Examenes\Application\DTOs;
 
 /**
  * Lo que el examen tiene guardado hoy, para saber que cambia al
- * modificarlo. `finalizadoEn` (`AAAA-MM-DD HH:MM:SS`) es cuando un docente
- * lo finalizo; null mientras nadie lo hizo.
+ * modificarlo.
  */
 final readonly class ExamenActualData
 {
@@ -25,7 +24,5 @@ final readonly class ExamenActualData
         public int $duracionMinutos,
         public array $grupos,
         public array $aulas,
-        public ?int $creadoPor = null,
-        public ?string $finalizadoEn = null,
     ) {}
 }

@@ -1,48 +1,60 @@
 import { describe, expect, it } from 'vitest';
-import { VISTAS, destinoDe, entradaDe, vistaDeRuta, vistasDe } from './vistas';
-import { CATALOGO_PERMISOS, usuarioDePrueba } from '../test/apoyo';
+import { VISTAS, destinoDe, entradaDe, gemelaDe, vistaDeRuta, vistasDe } from './vistas';
+import { CATALOGO_PERMISOS, PERMISOS, usuarioDePrueba } from '../test/apoyo';
 
 const rutas = (usuario) => vistasDe(usuario).map((v) => v.ruta);
+const conTodo = () => usuarioDePrueba('Administrador', { permisos: CATALOGO_PERMISOS });
 
 describe('vistas por permiso', () => {
-    it('declara las rutas del sprint, cada una con su permiso', () => {
-        expect(VISTAS.map((v) => [v.ruta, v.permiso])).toEqual([
-            ['/periodo', 'periodo_oferta'],
-            ['/oferta', 'periodo_oferta'],
-            ['/aulas', 'aulas_docentes'],
-            ['/docentes', 'aulas_docentes'],
-            ['/estudiantes', 'padron_estudiantes'],
-            ['/examenes', 'examenes'],
-            ['/reportes', 'reportes_examenes'],
-            ['/reportes-universidad', 'reportes_universidad'],
-            ['/bitacora-examen', 'reportes_examenes|reportes_universidad'],
-            ['/examenes/nuevo', 'examenes'],
-            ['/examenes/detalle', 'examenes'],
-            ['/habilitacion', 'habilitacion'],
-            ['/codigos-qr', 'codigos_qr'],
-            ['/en-curso', 'examenes'],
-            ['/punto-control', 'punto_control'],
-            ['/en-curso/aula', 'examenes'],
-            ['/mi-aula', 'seguimiento_vivo'],
-            ['/mis-grupos', 'mis_grupos'],
-            ['/admin', 'usuarios_roles'],
-            ['/bitacora', 'bitacora'],
-            ['/respaldo', 'respaldo_restauracion'],
+    it('declara las veintiuna rutas, cada una con su permiso y su grupo', () => {
+        expect(VISTAS.map((v) => [v.ruta, v.permiso, v.grupo])).toEqual([
+            ['/periodo', 'periodo_oferta', 'Preparación'],
+            ['/oferta', 'periodo_oferta', 'Preparación'],
+            ['/aulas', 'aulas_docentes', 'Preparación'],
+            ['/docentes', 'aulas_docentes', 'Preparación'],
+            ['/estudiantes', 'padron_estudiantes', 'Preparación'],
+            ['/examenes', 'examenes', 'Docencia'],
+            ['/examenes/nuevo', 'examenes', 'Docencia'],
+            ['/examenes/detalle', 'examenes', 'Docencia'],
+            ['/habilitacion', 'habilitacion', 'Docencia'],
+            ['/codigos-qr', 'codigos_qr', 'Docencia'],
+            ['/en-curso', 'seguimiento_vivo', 'Docencia'],
+            ['/en-curso/aula', 'seguimiento_vivo', 'Docencia'],
+            ['/control', 'punto_control', 'Docencia'],
+            ['/ingreso', 'punto_control', 'Docencia'],
+            ['/mi-aula', 'seguimiento_vivo', 'Docencia'],
+            ['/mis-grupos', 'mis_grupos', 'Docencia'],
+            ['/mis-reportes', 'reportes_examenes', 'Docencia'],
+            ['/reportes', 'reportes_universidad', 'Sistema'],
+            ['/admin', 'usuarios_roles', 'Sistema'],
+            ['/bitacora', 'bitacora', 'Sistema'],
+            ['/respaldo', 'respaldo_restauracion', 'Sistema'],
         ]);
     });
 
-    it('cada permiso de una vista existe en el catálogo', () => {
-        VISTAS.forEach((v) =>
-            v.permiso
-                .split('|')
-                .forEach((permiso) => expect(CATALOGO_PERMISOS, v.ruta).toContain(permiso))
+    it('cada permiso de una vista existe en el catálogo y cada permiso tiene vista', () => {
+        VISTAS.forEach((v) => {
+            expect(CATALOGO_PERMISOS, v.ruta).toContain(v.permiso);
+            if (v.con) expect(CATALOGO_PERMISOS, v.ruta).toContain(v.con);
+            if (v.sin) expect(CATALOGO_PERMISOS, v.ruta).toContain(v.sin);
+        });
+        expect([...new Set(VISTAS.map((v) => v.permiso))].sort()).toEqual(
+            [...CATALOGO_PERMISOS].sort()
         );
+    });
+
+    it('una vista oculta nombra a su padre, que está en el menú', () => {
+        VISTAS.filter((v) => v.oculta).forEach((v) => {
+            const padre = VISTAS.find((otra) => otra.ruta === v.padre);
+            expect(padre, v.ruta).toBeTruthy();
+            expect(padre.oculta, v.ruta).toBeFalsy();
+        });
     });
 
     it('cada rol de inicio entra por su pantalla', () => {
         expect(entradaDe(usuarioDePrueba('Administrador'))).toBe('/periodo');
         expect(entradaDe(usuarioDePrueba('Docente'))).toBe('/examenes');
-        expect(entradaDe(usuarioDePrueba('Auxiliar'))).toBe('/punto-control');
+        expect(entradaDe(usuarioDePrueba('Auxiliar'))).toBe('/ingreso');
     });
 
     it('da las vistas de los permisos de la cuenta', () => {
@@ -52,31 +64,36 @@ describe('vistas por permiso', () => {
             '/aulas',
             '/docentes',
             '/estudiantes',
-            '/reportes-universidad',
-            '/bitacora-examen',
+            '/reportes',
             '/admin',
             '/bitacora',
             '/respaldo',
         ]);
-        expect(rutas(usuarioDePrueba('Administrador', { permisos: CATALOGO_PERMISOS }))).toEqual(
-            VISTAS.map((v) => v.ruta)
-        );
         expect(rutas(usuarioDePrueba('Docente'))).toEqual([
             '/examenes',
-            '/reportes',
-            '/bitacora-examen',
             '/examenes/nuevo',
             '/examenes/detalle',
             '/habilitacion',
             '/codigos-qr',
             '/en-curso',
-            '/punto-control',
             '/en-curso/aula',
-            '/mi-aula',
+            '/control',
             '/mis-grupos',
+            '/mis-reportes',
         ]);
-        expect(rutas(usuarioDePrueba('Auxiliar'))).toEqual(['/punto-control', '/mi-aula']);
+        expect(rutas(usuarioDePrueba('Auxiliar'))).toEqual(['/ingreso', '/mi-aula']);
         expect(rutas(null)).toEqual([]);
+    });
+
+    it('el administrador de inicio no tiene pantallas de docencia', () => {
+        expect(PERMISOS.Administrador).toHaveLength(7);
+        expect(
+            vistasDe(usuarioDePrueba('Administrador')).filter((v) => v.grupo === 'Docencia')
+        ).toEqual([]);
+    });
+
+    it('con todo el catálogo se ven todas menos las de quien solo atiende un aula', () => {
+        expect(rutas(conTodo())).toEqual(VISTAS.filter((v) => !v.sin).map((v) => v.ruta));
     });
 
     it('no depende del nombre del rol: un rol creado ve lo que sus permisos dicen', () => {
@@ -90,10 +107,38 @@ describe('vistas por permiso', () => {
             '/examenes',
             '/examenes/nuevo',
             '/examenes/detalle',
-            '/en-curso',
-            '/en-curso/aula',
         ]);
         expect(entradaDe(cuenta)).toBe('/periodo');
+    });
+
+    it('el control y el seguimiento cambian de juego según se tenga `examenes`', () => {
+        const permisos = ['punto_control', 'seguimiento_vivo'];
+        const atiende = usuarioDePrueba('Auxiliar', { rol: 'Apoyo', permisos });
+        const toma = usuarioDePrueba('Docente', {
+            rol: 'Titular',
+            permisos: [...permisos, 'examenes'],
+        });
+        expect(rutas(atiende)).toEqual(['/ingreso', '/mi-aula']);
+        expect(rutas(toma)).toEqual([
+            '/examenes',
+            '/examenes/nuevo',
+            '/examenes/detalle',
+            '/en-curso',
+            '/en-curso/aula',
+            '/control',
+        ]);
+    });
+
+    it('da la gemela de una vista del otro juego si la cuenta la tiene', () => {
+        const docente = usuarioDePrueba('Docente');
+        const auxiliar = usuarioDePrueba('Auxiliar');
+        expect(gemelaDe(docente, '/ingreso')).toBe('/control');
+        expect(gemelaDe(docente, '/mi-aula')).toBe('/en-curso');
+        expect(gemelaDe(auxiliar, '/control')).toBe('/ingreso');
+        expect(gemelaDe(auxiliar, '/en-curso')).toBe('/mi-aula');
+        expect(gemelaDe(auxiliar, '/en-curso/aula')).toBe('/mi-aula');
+        expect(gemelaDe(auxiliar, '/examenes')).toBeNull();
+        expect(gemelaDe(usuarioDePrueba('Administrador'), '/control')).toBeNull();
     });
 
     it('quita las vistas sin permiso', () => {
@@ -110,16 +155,19 @@ describe('vistas por permiso', () => {
 
     it('decide el destino tras autenticarse', () => {
         expect(destinoDe(null)).toBe('/login');
+        expect(destinoDe(usuarioDePrueba('Docente', { debe_cambiar_contrasena: true }))).toBe(
+            '/primer-ingreso'
+        );
         expect(destinoDe(usuarioDePrueba('Docente'))).toBe('/examenes');
-        expect(destinoDe(usuarioDePrueba('Auxiliar'))).toBe('/punto-control');
+        expect(destinoDe(usuarioDePrueba('Auxiliar'))).toBe('/ingreso');
         expect(destinoDe(usuarioDePrueba('Docente', { permisos: [] }))).toBe('/sin-acceso');
     });
 
     it('encuentra la vista de una dirección, la más específica primero', () => {
         const vistas = vistasDe(usuarioDePrueba('Docente'));
+        expect(vistaDeRuta(vistas, '/en-curso/aula').padre).toBe('/en-curso');
+        expect(vistaDeRuta(vistas, '/en-curso').ruta).toBe('/en-curso');
         expect(vistaDeRuta(vistas, '/examenes/nuevo').padre).toBe('/examenes');
-        expect(vistaDeRuta(vistas, '/examenes/detalle').padre).toBe('/examenes');
-        expect(vistaDeRuta(vistas, '/examenes').ruta).toBe('/examenes');
         expect(vistaDeRuta(vistas, '/periodo')).toBeNull();
     });
 });

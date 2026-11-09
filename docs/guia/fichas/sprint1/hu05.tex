@@ -1,0 +1,74 @@
+% Ficha HU-05. Criterios tomados del backlog del sprint 1. El docente
+% responsable sale del alta de docentes de HU-02.
+\def\HUNro{05}
+\def\HUSprint{1}
+\def\HUTitulo{Administración > Asignaturas > Registrar asignatura}
+\def\HUModulo{M1}
+\def\HUReq{2}
+\def\HUPuntos{2}
+
+\def\HUComo{administrador}
+\def\HUQuiero{registrar las asignaturas de la gestión}
+\def\HUPara{poder asociar cada examen a la materia que corresponde}
+
+\def\HUDescripcion{%
+Cada examen pertenece a una asignatura, y cada asignatura tiene un docente responsable:
+sin este registro, los exámenes de la iteración 2 no tienen de dónde colgar.
+
+De la asignatura se guardan su sigla ---única en el sistema---, su nombre y sus grupos.
+Cada grupo indica su código, su cupo y el docente responsable, que se elige de la lista
+de docentes dados de alta en la pantalla de usuarios y roles (HU-02). Un grupo no puede
+quedar sin docente ni apuntar a uno inactivo.
+
+Una asignatura con exámenes asociados no se elimina: el sistema rechaza el borrado y
+explica el motivo, para no dejar exámenes huérfanos. Mientras no tenga dependencias, se
+elimina junto con sus grupos.
+
+La pantalla comparte permiso con la de ambientes, porque son la misma vista. Cada alta y
+cada eliminación quedan asentadas en la bitácora (HU-07).}
+
+\def\HUCriterios{%
+\item Dado que el administrador abre Asignaturas y ambientes, Cuando se carga la pantalla,
+      Entonces el sistema lista las asignaturas con su sigla, su nombre y el docente
+      responsable de cada grupo.
+\item Dado que se registra una asignatura, Cuando se indican sigla, nombre y al menos un
+      grupo con su docente y su cupo, Entonces el sistema la guarda y la muestra en la
+      lista.
+\item Dado que la sigla ya pertenece a otra asignatura, Cuando se intenta guardar,
+      Entonces el sistema rechaza el registro indicando el campo repetido.
+\item Dado que la asignatura se registra sin ningún grupo, Cuando se intenta guardar,
+      Entonces el sistema lo rechaza: al menos un grupo es obligatorio.
+\item Dado que dos grupos de la misma asignatura llevan el mismo código, Cuando se intenta
+      guardar, Entonces el sistema lo rechaza.
+\item Dado que el grupo apunta a un docente que no existe o que está inactivo, Cuando se
+      intenta guardar, Entonces el sistema lo rechaza.
+\item Dado que el cupo del grupo es negativo, Cuando se intenta guardar, Entonces el
+      sistema lo rechaza.
+\item Dado que una asignatura no tiene exámenes asociados, Cuando se la elimina, Entonces
+      el sistema la borra junto con sus grupos.
+\item Dado que una asignatura tiene exámenes asociados, Cuando se intenta eliminarla,
+      Entonces el sistema lo impide y explica el motivo.
+\item Dado que un rol no tiene el permiso de asignaturas y ambientes, Cuando intenta abrir
+      la pantalla, Entonces el sistema responde con una negativa explícita que nombra el
+      permiso.
+\item Dado que se registra o se elimina una asignatura, Cuando la operación se completa,
+      Entonces queda asentada en la bitácora con su autor.
+\item Dado que el administrador accede desde un dispositivo móvil, Cuando abre la
+      pantalla, Entonces la interfaz se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{AsignaturaControllerTest}: alta con grupos y docentes responsables, sigla
+      única, grupo obligatorio, códigos de grupo distintos, docente inexistente o
+      inactivo y cupo negativo (criterios 2 a 7).
+\item \texttt{AsignaturaIndexControllerTest}: listado con sus grupos y su docente
+      (criterio 1).
+\item \texttt{AsignaturaDeleteControllerTest}: borrado de una asignatura sin dependencias
+      y rechazo cuando tiene exámenes asociados (criterios 8 y 9).
+\item \texttt{AsignaturaPermisosTest}: el administrador entra, un rol sin el permiso
+      recibe 403 y sin sesión la respuesta es 401 (criterio 10).
+\item \texttt{BitacoraRegistroAutomaticoTest}: alta y eliminación asentadas, y una alta
+      fallida que no deja rastro (criterio 11).
+\item \texttt{AsignaturasAmbientes.test.jsx}: listado, formulario con selector de docente
+      y eliminación desde la pantalla (criterios 1, 2 y 8).}
+
+\input{cuerpo}

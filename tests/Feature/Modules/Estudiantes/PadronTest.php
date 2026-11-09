@@ -58,6 +58,7 @@ final class PadronTest extends TestCase
                 'carrera' => 'Ing. Informática',
                 'grupos' => 2,
                 'origen' => 'Administración',
+                'con_foto' => false,
             ])
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('meta.pagina', 1)
@@ -140,7 +141,7 @@ final class PadronTest extends TestCase
 
         $administrador = $this->administrador();
 
-        foreach (['cossio' => '202104821', 'MARIANA aguilar' => '202104821', 'Aguilar Cossío, Mariana' => '202104821',
+        foreach (['cossio' => '202104821', 'MARIANA aguilar' => '202104821', 'Aguilar Cossío Mariana' => '202104821',
             'nunez' => '201901349', 'andres' => '201901349', '2019013' => '201901349', '649281' => '201901349'] as $texto => $codigo) {
             $this->actingAs($administrador)
                 ->getJson('/api/estudiantes?buscar='.urlencode((string) $texto))
@@ -252,16 +253,14 @@ final class PadronTest extends TestCase
         $this->actingAs($cuenta)->getJson('/api/estudiantes/resumen')->assertForbidden();
     }
 
-    public function test_student_corrections_validate_required_identity_fields(): void
+    public function test_the_padron_creates_and_deletes_no_student_by_hand(): void
     {
+        // Se corrigen (EditarEstudianteTest), pero no se crean ni se borran:
+        // llegan con las cargas y se quedan, por sus ingresos e historial.
         $estudiante = $this->estudiante();
         $administrador = $this->administrador();
 
         $this->actingAs($administrador)->postJson('/api/estudiantes', [])->assertStatus(405);
-        $this->actingAs($administrador)
-            ->putJson("/api/estudiantes/{$estudiante->id}", [])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['nombres', 'apellidos']);
         $this->actingAs($administrador)->deleteJson("/api/estudiantes/{$estudiante->id}")->assertStatus(405);
     }
 
@@ -272,6 +271,40 @@ final class PadronTest extends TestCase
             'codigo' => '419701',
             'nombre' => 'Ing. Informática',
             'regimen' => RegimenCarrera::Semestral,
+        ]);
+    }
+
+    public function test_the_list_filters_by_photo(): void
+    {
+        [$conFoto, $sinFoto] = [$this->estudianteDePadron('202100001'), $this->estudianteDePadron('202100002')];
+        DB::table('estudiantes')->where('id', $conFoto)->update(['foto' => 'imagenes/estudiantes/a.jpg']);
+
+        $this->actingAs($this->administrador())
+            ->getJson('/api/estudiantes?foto=sin')
+            ->assertOk()
+            ->assertJsonMissing(['id' => $conFoto])
+            ->assertJsonFragment(['id' => $sinFoto, 'con_foto' => false]);
+
+        $this->actingAs($this->administrador())
+            ->getJson('/api/estudiantes?foto=con')
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.con_foto', true)
+            // Las cifras de los filtros siguen al de foto.
+            ->assertJsonPath('meta.conteos.todas', 1);
+    }
+
+    private function estudianteDePadron(string $codigo): int
+    {
+        return (int) DB::table('estudiantes')->insertGetId([
+            'codigo_universitario' => $codigo,
+            'documento_identidad' => '7'.$codigo,
+            'nombres' => 'Ana',
+            'apellidos' => 'Rojas',
+            'origen' => 'ADMINISTRACION',
+            'verificado' => true,
+            'activo' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
     }
 }

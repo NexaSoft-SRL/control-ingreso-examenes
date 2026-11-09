@@ -30,7 +30,7 @@ class NormasPredefinidasSeeder extends Seeder
     {
         foreach (self::NORMAS as $texto) {
             PlantillaNorma::firstOrCreate([
-                'usuario_id' => null,
+                'user_id' => null,
                 'texto' => $texto,
             ]);
         }

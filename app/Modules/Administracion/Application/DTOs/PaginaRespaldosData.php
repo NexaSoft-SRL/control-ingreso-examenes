@@ -8,7 +8,7 @@ final readonly class PaginaRespaldosData
 {
     /**
      * @param  list<RespaldoData>  $filas
-     * @param  array<string, int>  $conteos
+     * @param  array{todos: int, programados: int, puntuales: int, fallidos: int}  $conteos
      */
     public function __construct(
         public array $filas,
@@ -16,6 +16,7 @@ final readonly class PaginaRespaldosData
         public int $pagina,
         public int $porPagina,
         public array $conteos,
+        // Instante del ultimo respaldo correcto, o null.
         public ?string $ultimo,
     ) {}
 }

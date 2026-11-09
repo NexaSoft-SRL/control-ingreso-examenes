@@ -1,6 +1,21 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import {
+    Ban,
+    BookX,
+    Calculator,
+    Clock,
+    Headphones,
+    IdCard,
+    ListChecks,
+    PenLine,
+    Pencil,
+    PhoneOff,
+    Plus,
+    ScrollText,
+    Trash2,
+    Watch,
+} from 'lucide-react';
 import { api } from '../../api/cliente';
 import { erroresDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
@@ -16,6 +31,21 @@ export const TEXTO_LIBRE_MAXIMO = 2000;
 const PLANTILLA_MAXIMO = 300;
 
 const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
+
+// El icono de una norma sale de su texto; la que no encaja lleva uno genérico.
+const ICONOS_DE_NORMA = [
+    [/identidad|carnet|c\.i\./i, IdCard],
+    [/celular|tel[eé]fono/i, PhoneOff],
+    [/reloj/i, Watch],
+    [/aud[ií]fono/i, Headphones],
+    [/apunte|libro/i, BookX],
+    [/calculadora/i, Calculator],
+    [/bol[ií]grafo|l[aá]piz/i, PenLine],
+    [/minuto|hora|tarde/i, Clock],
+    [/^sin |^no /i, Ban],
+];
+const iconoDeNorma = (texto) =>
+    ICONOS_DE_NORMA.find(([patron]) => patron.test(texto))?.[1] ?? ListChecks;
 
 // Las normas de un examen: plantillas predefinidas y propias que se marcan,
 // más un texto libre. Las plantillas propias se crean, editan y quitan aquí
@@ -104,7 +134,9 @@ export default function NormasDelExamen({
     return (
         <fieldset className="min-w-0">
             <div className="mb-1.5 flex min-h-9 flex-wrap items-center justify-between gap-x-3">
-                <legend className="float-left text-sm font-medium text-slate-700">Normas</legend>
+                <legend className="float-left flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                    <ScrollText className="h-4 w-4 text-slate-500" aria-hidden="true" /> Normas
+                </legend>
                 {copiadasDe && (
                     <span className="mr-auto pl-2 text-xs text-slate-500">
                         Como en {copiadasDe}
@@ -134,6 +166,7 @@ export default function NormasDelExamen({
                         {plantillas.map((p) => {
                             const marcada = marcadas.includes(p.id);
                             const guardada = guardadas[p.id];
+                            const Icono = iconoDeNorma(p.texto);
                             return (
                                 <li key={p.id} className="flex min-w-0 items-center gap-1 pr-1">
                                     <label className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-start gap-3 px-4 py-2.5">
@@ -142,6 +175,10 @@ export default function NormasDelExamen({
                                             className="mt-0.5 h-4 w-4 shrink-0"
                                             checked={marcada}
                                             onChange={() => onMarcadas(alternar(marcadas, p.id))}
+                                        />
+                                        <Icono
+                                            className={`mt-0.5 h-4 w-4 shrink-0 ${marcada ? 'text-primary-600' : 'text-slate-400'}`}
+                                            aria-hidden="true"
                                         />
                                         <span className="min-w-0 flex-1 break-words text-sm text-slate-800">
                                             {p.texto}
@@ -235,7 +272,7 @@ export default function NormasDelExamen({
                         <Boton type="button" variante="secundario" onClick={() => setEdicion(null)}>
                             Cancelar
                         </Boton>
-                        <Boton type="button" disabled={enviando} onClick={guardar}>
+                        <Boton type="button" cargando={enviando} onClick={guardar}>
                             Guardar
                         </Boton>
                     </>
@@ -281,7 +318,7 @@ export default function NormasDelExamen({
                         <Boton
                             type="button"
                             variante="peligro"
-                            disabled={enviando}
+                            cargando={enviando}
                             onClick={quitar}
                         >
                             Quitar

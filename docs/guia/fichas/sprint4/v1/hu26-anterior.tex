@@ -1,0 +1,60 @@
+% Ficha HU-26. Criterios del backlog de la iteracion 4. La anotacion viaja
+% con el ingreso: no es una nota suelta sobre el examen.
+\def\HUNro{26}
+\def\HUSprint{4}
+\def\HUTitulo{Punto de control > Ingreso > Observación sobre el examen}
+\def\HUModulo{M4}
+\def\HUReq{5}
+\def\HUPuntos{3}
+
+\def\HUComo{personal de control}
+\def\HUQuiero{registrar información relativa al examen mientras autorizo el ingreso}
+\def\HUPara{contribuir a la transparencia de la evaluación}
+
+\def\HUDescripcion{%
+Mientras atiende la puerta, el personal ve cosas que después nadie recuerda: que un
+estudiante llegó veinte minutos tarde con permiso del docente, que el proyector del aula
+no funcionaba, que se entregó una hoja adicional. Si eso no se anota en el momento, se
+pierde.
+
+Al registrar el ingreso, la pantalla ofrece un campo para anotar lo que haga falta. La
+anotación es opcional ---la mayoría de los ingresos no tiene nada que decir--- y queda
+guardada en el mismo registro del ingreso, no en una tabla aparte: así no hay forma de
+que se despegue del estudiante y del momento al que se refiere.
+
+El autor de la anotación es quien registró el ingreso, que es quien la escribió: el
+registro ya guarda ese dato. La anotación se muestra junto al ingreso en la lista del
+punto de control, con el nombre de quien la hizo, y se copia a la bitácora del sistema
+(HU-07) para que quede fuera del alcance de cualquier corrección posterior.
+
+Anotar no es declarar una excepción: el ingreso con observación sigue siendo un ingreso
+normal. La excepción de ambiente tiene su propio camino (HU-20 y HU-25).}
+
+\def\HUCriterios{%
+\item Dado que se registra un ingreso, Cuando se escribe una observación, Entonces queda
+      guardada con ese ingreso.
+\item Dado que se guardó la observación, Cuando se consulta el examen, Entonces se la ve
+      junto al ingreso y al usuario que la hizo.
+\item Dado que no hay nada que anotar, Cuando se registra el ingreso, Entonces la
+      observación queda vacía y el ingreso se registra igual.
+\item Dado que se anota un ingreso, Cuando se guarda, Entonces el ingreso no queda
+      marcado como excepción.
+\item Dado que la observación supera el límite de caracteres, Cuando se envía, Entonces
+      el sistema la rechaza señalando el campo.
+\item Dado que se anotó un ingreso, Cuando se consulta la bitácora, Entonces el asiento
+      recoge la observación.}
+
+\def\HUPruebas{%
+\item \texttt{ObservacionIngresoTest::the\_entry\_accepts\_a\_note\_about\_the\_exam}
+      (criterios 1 y 4).
+\item \texttt{ObservacionIngresoTest::the\_note\_stays\_with\_the\_entry\_and\_its\_author}
+      (criterio 2).
+\item \texttt{ObservacionIngresoTest::the\_note\_is\_optional} (criterio 3).
+\item \texttt{ObservacionIngresoTest::a\_note\_longer\_than\_the\_limit\_is\_rejected}
+      (criterio 5).
+\item \texttt{ObservacionIngresoTest::the\_note\_is\_also\_written\_to\_the\_audit\_log}
+      (criterio 6).
+\item \texttt{PuntoControl.test.jsx}: la pantalla manda la anotación con el ingreso y la
+      muestra en la lista con su autor (criterios 1, 2 y 3).}
+
+\input{cuerpo}

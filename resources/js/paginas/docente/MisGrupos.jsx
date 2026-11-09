@@ -88,6 +88,7 @@ export default function MisGrupos() {
                                 grupo={grupo}
                                 resumen={resumen?.grupoId === grupo.id ? resumen.resultado : null}
                                 onCargada={cargada}
+                                onCambiada={recargar}
                                 onCerrarResumen={() => setResumen(null)}
                                 onAvisar={avisar}
                             />

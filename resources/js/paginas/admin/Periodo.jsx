@@ -43,6 +43,13 @@ const TONO_PERIODO = {
     Próximo: 'info',
     'Sin fechas': 'advertencia',
 };
+// El ícono de cada período toma el color de su estado.
+const FONDO_PERIODO = {
+    Vigente: 'bg-success-50 text-success-700',
+    Próximo: 'bg-info-50 text-info-700',
+    'Sin fechas': 'bg-warning-50 text-warning-700',
+};
+const ICONO_PENDIENTE = { docentes_sin_cuenta: UserX, grupos_sin_lista: ListX };
 
 const ESTADOS = {
     sin: { tono: 'neutro', texto: () => 'Sin importar' },
@@ -54,15 +61,6 @@ const ESTADOS = {
     fallo: { tono: 'peligro', texto: () => 'Falló' },
 };
 
-// El ícono de cada período toma el color de su estado.
-const FONDO_PERIODO = {
-    Vigente: 'bg-success-50 text-success-700',
-    Próximo: 'bg-info-50 text-info-700',
-    'Sin fechas': 'bg-warning-50 text-warning-700',
-};
-const ICONO_PENDIENTE = { docentes_sin_cuenta: UserX, grupos_sin_lista: ListX };
-
-// Cada pendiente abre la vista ya filtrada.
 const PENDIENTES = [
     {
         clave: 'docentes_sin_cuenta',
@@ -143,7 +141,7 @@ function AjustarFechas({ periodo, onCerrar, onGuardado }) {
                     <Boton type="button" variante="secundario" onClick={onCerrar}>
                         Cancelar
                     </Boton>
-                    <Boton type="submit" form="ajustar-periodo" disabled={guardando}>
+                    <Boton type="submit" form="ajustar-periodo" cargando={guardando}>
                         {guardando ? 'Guardando' : 'Guardar'}
                     </Boton>
                 </>
