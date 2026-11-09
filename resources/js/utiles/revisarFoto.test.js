@@ -11,6 +11,7 @@ import {
     revisarFoto,
     revisarLuz,
     revisarRostros,
+    texturaDeFondo,
     UMBRALES,
     varianzaLaplaciano,
 } from './revisarFoto';
@@ -79,6 +80,28 @@ describe('luz y nitidez', () => {
             MENSAJES.fondoOscuro,
         ]);
         expect(revisarLuz({ brillo: 130, fondo: 200, nitidez: 10 })).toEqual([MENSAJES.borrosa]);
+    });
+
+    it('un fondo liso no tiene dibujo; uno a cuadros, sí', () => {
+        const caja = { x: 35, y: 30, ancho: 30, alto: 40 };
+        // Pared lisa, aunque el rostro sea oscuro.
+        const lisa = plano(100, 100, 210);
+        for (let y = 30; y < 70; y++) {
+            for (let x = 35; x < 65; x++) lisa[y * 100 + x] = 60;
+        }
+        expect(texturaDeFondo(lisa, 100, 100, caja)).toBe(0);
+        // Cuadros de 2 px: todo el fondo es borde.
+        const cuadros = new Float32Array(100 * 100).map((_, i) =>
+            Math.floor((i % 100) / 2) % 2 === Math.floor(Math.floor(i / 100) / 2) % 2 ? 230 : 40
+        );
+        expect(texturaDeFondo(cuadros, 100, 100, caja)).toBeGreaterThan(UMBRALES.texturaMaxima);
+    });
+
+    it('revisarLuz avisa un fondo con dibujo, sin bloquear', () => {
+        expect(revisarLuz({ brillo: 130, fondo: 200, textura: 0.05, nitidez: 200 })).toEqual([]);
+        expect(revisarLuz({ brillo: 130, fondo: 200, textura: 0.4, nitidez: 200 })).toEqual([
+            MENSAJES.fondoConDibujo,
+        ]);
     });
 });
 

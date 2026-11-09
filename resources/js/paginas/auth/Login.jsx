@@ -13,7 +13,7 @@ import FondoAcceso, { CabeceraAcceso, TARJETA_ACCESO } from '../../componentes/F
 import { useAviso } from '../../componentes/Aviso';
 import SugerenciaInstalar from '../../componentes/SugerenciaInstalar';
 import usarTituloPestana from '../../utiles/usarTituloPestana';
-import { normalizarUsuario, usuarioValido } from '../../utiles/usuario';
+import { normalizarUsuario, PISTA_SIN_CORREO, usuarioValido } from '../../utiles/usuario';
 
 // Acceso por nombre de usuario; el correo solo se utiliza como contacto.
 const FOCO =
@@ -138,10 +138,10 @@ export default function Login() {
             setRecuperando(false);
             // No dice si la cuenta existe ni si tiene correo: el servidor tampoco.
             avisar(
-                String(
+                `${String(
                     respuesta.data?.message ??
                         `Si ${nombre} tiene correo registrado, le llegará el enlace`
-                ).replace(/\.$/, '')
+                ).replace(/\.$/, '')}. ${PISTA_SIN_CORREO.replace(/\.$/, '')}`
             );
         } catch (error) {
             const campos = erroresDe(error);
@@ -314,6 +314,7 @@ export default function Login() {
                             autoCapitalize="none"
                             spellCheck={false}
                             validar={SOLO_USUARIO}
+                            ayuda={PISTA_SIN_CORREO}
                             autoFocus
                             error={
                                 errorRecuperar ??

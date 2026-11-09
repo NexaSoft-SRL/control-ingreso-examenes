@@ -41,7 +41,7 @@ describe('RecuperarContrasena', () => {
             })
         );
         expect(await screen.findByRole('status')).toHaveTextContent(
-            'recibirá el enlace de recuperación'
+            'recibirá el enlace de recuperación. Si no llega, pida una contraseña temporal a la administración.'
         );
     });
 

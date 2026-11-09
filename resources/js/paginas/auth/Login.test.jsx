@@ -78,7 +78,9 @@ describe('Login', () => {
             })
         );
         expect(
-            await screen.findByText('Si la cuenta tiene correo registrado, recibirá el enlace')
+            await screen.findByText(
+                'Si la cuenta tiene correo registrado, recibirá el enlace. Si no llega, pida una contraseña temporal a la administración'
+            )
         ).toBeInTheDocument();
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
