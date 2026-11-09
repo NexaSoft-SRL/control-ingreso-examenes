@@ -14,6 +14,8 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 final class FiltroCodigosRequest extends FormRequest
 {
+    public const ENVIOS = ['sin_emitir', 'sin_enviar', 'enviado', 'fallido'];
+
     public function authorize(): bool
     {
         return true;
@@ -28,7 +30,7 @@ final class FiltroCodigosRequest extends FormRequest
             'grupo' => ['nullable', 'integer', 'min:1'],
             'aula' => ['nullable', 'integer', 'min:1'],
             'buscar' => ['nullable', 'string', 'max:100'],
-            'envio' => ['nullable', 'string', 'in:'.implode(',', FiltroCodigosData::ENVIOS)],
+            'envio' => ['nullable', 'string', 'in:'.implode(',', self::ENVIOS)],
             'tanda' => ['nullable', 'date'],
             'pagina' => ['nullable', 'integer', 'min:1'],
             'por_pagina' => ['nullable', 'integer', 'min:1', 'max:100'],

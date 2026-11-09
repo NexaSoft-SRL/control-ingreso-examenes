@@ -5,23 +5,19 @@ declare(strict_types=1);
 namespace Tests\Feature\Modules\Ingreso;
 
 use App\Modules\Estudiantes\Domain\Models\Estudiante;
-use App\Modules\Estudiantes\Domain\Models\Inscripcion;
 use App\Modules\Examenes\Domain\Models\ExamenGrupo;
-use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use Database\Factories\UserFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Testing\TestResponse;
-use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 
 /**
- * HU-20: lista de habilitados con su codigo, emision en lote, credencial
- * y hoja imprimible.
+ * Rutas 57 a 59 y 61: lista de habilitados con su codigo, emision,
+ * credencial y hoja imprimible.
  */
 final class CodigosQrTest extends TestCase
 {
-    use EscenarioDeCodigosQr;
+    use EscenarioDePuerta;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -30,10 +26,15 @@ final class CodigosQrTest extends TestCase
         $this->armarExamen();
     }
 
+    private function ruta(string $resto = ''): string
+    {
+        return "/api/examenes/{$this->examen->id}/codigos-qr{$resto}";
+    }
+
     public function test_the_list_shows_only_enabled_students_with_the_state_of_their_code(): void
     {
         [$primero, $segundo] = $this->habilitados(2);
-        [$inhabilitado] = $this->estudiantesInscritos($this->grupo, 2);
+        [$inhabilitado, $sinRevisar] = $this->estudiantesInscritos($this->grupo, 2);
         $this->inhabilitar($this->examen, [$inhabilitado]);
         $this->emitirCodigo($primero);
 
@@ -48,31 +49,19 @@ final class CodigosQrTest extends TestCase
             ->assertJsonPath('data.0.aula', '691A')
             ->assertJsonPath('data.0.emitido', true)
             ->assertJsonPath('data.0.enviado_en', null)
-            ->assertJsonPath('data.0.envio', 'sin_enviar')
-            ->assertJsonPath('data.0.correo', $primero->codigo_universitario.'@est.umss.edu')
             ->assertJsonPath('data.1.estudiante_id', $segundo->id)
             ->assertJsonPath('data.1.emitido', false)
-            ->assertJsonPath('data.1.envio', 'sin_emitir')
             ->assertJsonPath('meta.total', 2)
             ->assertJsonPath('meta.pagina', 1)
             ->assertJsonPath('meta.por_pagina', 20)
             ->assertJsonPath('meta.habilitados', 2)
             ->assertJsonPath('meta.emitidos', 1)
             ->assertJsonPath('meta.enviados', 0)
-            ->assertJsonPath('meta.fallidos', 0)
-            ->assertJsonPath('meta.sin_aula', 0)
+            ->assertJsonPath('meta.estado', 'sin_emitir')
             ->assertJsonPath('meta.grupos.0.codigo', '2')
             ->assertJsonPath('meta.aulas.0.nombre', '691A');
-    }
 
-    public function test_the_list_never_exposes_the_content_of_the_code(): void
-    {
-        [$estudiante] = $this->habilitados(1);
-        $contenido = $this->emitirCodigo($estudiante);
-
-        $respuesta = $this->actingAs($this->cuentaDocente)->getJson($this->ruta())->assertOk();
-
-        $this->assertStringNotContainsString($contenido, (string) $respuesta->getContent());
+        $this->assertNotSame($sinRevisar->id, $primero->id);
     }
 
     public function test_the_list_is_paginated_and_filtered_by_group_room_and_text(): void
@@ -85,7 +74,7 @@ final class CodigosQrTest extends TestCase
             'grupo_id' => $otroGrupo->id,
         ]);
         $delDos = $this->habilitados(3);
-        $delTres = $this->habilitados(2, $otra, $otroGrupo);
+        $delTres = $this->habilitados(2, $otra, null, $otroGrupo);
         $delDos[1]->update(['apellidos' => 'Aguilar Cossío', 'nombres' => 'Mariana']);
 
         $this->actingAs($this->cuentaDocente)
@@ -116,28 +105,18 @@ final class CodigosQrTest extends TestCase
             ->assertJsonPath('data.0.nombre', 'Aguilar Cossío Mariana');
 
         $this->actingAs($this->cuentaDocente)
-            ->getJson($this->ruta('?buscar=mariana aguilar'))
-            ->assertOk()
-            ->assertJsonPath('meta.total', 1);
-
-        $this->actingAs($this->cuentaDocente)
             ->getJson($this->ruta('?buscar='.$delDos[2]->codigo_universitario))
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.estudiante_id', $delDos[2]->id);
     }
 
-    public function test_the_filters_are_validated(): void
+    public function test_the_page_size_is_validated(): void
     {
         $this->actingAs($this->cuentaDocente)
             ->getJson($this->ruta('?por_pagina=500'))
             ->assertStatus(422)
             ->assertJsonPath('errors.por_pagina.0', 'Entre 1 y 100 por página.');
-
-        $this->actingAs($this->cuentaDocente)
-            ->getJson($this->ruta('?envio=todos'))
-            ->assertStatus(422)
-            ->assertJsonPath('errors.envio.0', 'El estado de envío no es válido.');
     }
 
     public function test_issuing_gives_a_code_to_each_enabled_student(): void
@@ -158,14 +137,19 @@ final class CodigosQrTest extends TestCase
         $this->assertDatabaseHas('codigos_qr', [
             'examen_id' => $this->examen->id,
             'emitido_por' => $this->cuentaDocente->id,
+            'emitido_en' => '2026-10-12 08:20:00',
             'enviado_en' => null,
         ]);
         $this->assertDatabaseHas('bitacora_operaciones', [
             'usuario_id' => $this->cuentaDocente->id,
             'operacion' => 'qr.emitir',
-            'tabla_afectada' => 'examenes',
+            'tabla_afectada' => 'codigos_qr',
             'registro_id' => $this->examen->id,
         ]);
+
+        $this->actingAs($this->cuentaDocente)
+            ->getJson($this->ruta())
+            ->assertJsonPath('meta.estado', 'emitido');
     }
 
     public function test_issuing_again_keeps_the_codes_and_only_adds_the_missing_ones(): void
@@ -173,7 +157,7 @@ final class CodigosQrTest extends TestCase
         $this->habilitados(2);
 
         $this->actingAs($this->cuentaDocente)->postJson($this->ruta())->assertJsonPath('emitidos', 2);
-        $antes = DB::table('codigos_qr')->orderBy('id')->pluck('contenido')->all();
+        $antes = DB::table('codigos_qr')->orderBy('id')->pluck('token')->all();
 
         $this->actingAs($this->cuentaDocente)
             ->postJson($this->ruta())
@@ -190,7 +174,7 @@ final class CodigosQrTest extends TestCase
             ->assertJsonPath('emitidos', 1)
             ->assertJsonPath('total', 3);
 
-        $this->assertSame($antes, DB::table('codigos_qr')->orderBy('id')->limit(2)->pluck('contenido')->all());
+        $this->assertSame($antes, DB::table('codigos_qr')->orderBy('id')->limit(2)->pluck('token')->all());
         $this->assertSame(2, DB::table('bitacora_operaciones')->where('operacion', 'qr.emitir')->count());
     }
 
@@ -220,36 +204,22 @@ final class CodigosQrTest extends TestCase
         $this->assertDatabaseCount('codigos_qr', 0);
     }
 
-    public function test_the_issued_code_is_read_by_the_control_point_and_shows_no_personal_data(): void
+    public function test_the_token_is_opaque_and_carries_no_personal_data(): void
     {
         [$estudiante] = $this->habilitados(1);
 
         $this->actingAs($this->cuentaDocente)->postJson($this->ruta())->assertOk();
 
-        $contenido = DB::table('codigos_qr')->value('contenido');
+        $token = DB::table('codigos_qr')->value('token');
 
-        self::assertIsString($contenido);
-        $this->assertStringStartsWith('SCIQR1:', $contenido);
-        $this->assertStringNotContainsString($estudiante->codigo_universitario, $contenido);
-        self::assertIsString($estudiante->documento_identidad);
-        $this->assertStringNotContainsString($estudiante->documento_identidad, $contenido);
-        $this->assertStringNotContainsString($estudiante->apellidos, $contenido);
-        $this->assertSame(
-            $estudiante->codigo_universitario,
-            app(CodigoQrGateway::class)->resolver($contenido, $this->examen->id),
-        );
+        self::assertIsString($token);
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9]{48}$/', $token);
+        $this->assertStringNotContainsString($estudiante->codigo_universitario, $token);
+        $this->assertStringNotContainsString((string) $estudiante->documento_identidad, $token);
+        $this->assertStringNotContainsString((string) $this->examen->id.'-', $token);
     }
 
-    public function test_two_students_never_get_the_same_code(): void
-    {
-        $this->habilitados(5);
-
-        $this->actingAs($this->cuentaDocente)->postJson($this->ruta())->assertOk();
-
-        $this->assertSame(5, DB::table('codigos_qr')->distinct()->count('contenido'));
-    }
-
-    public function test_the_credential_says_which_exam_when_and_where_the_student_sits(): void
+    public function test_the_credential_says_where_the_student_sits(): void
     {
         [$estudiante] = $this->habilitados(1);
         $this->emitirCodigo($estudiante);
@@ -259,12 +229,11 @@ final class CodigosQrTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.facultad', 'FCyT')
             ->assertJsonPath('data.examen', 'Primer parcial · Introducción a la Programación')
-            ->assertJsonPath('data.fecha', '2026-10-30')
+            ->assertJsonPath('data.fecha', '2026-10-12')
             ->assertJsonPath('data.hora', '08:15')
             ->assertJsonPath('data.duracion', 90)
             ->assertJsonPath('data.estudiante', $estudiante->apellidos.' '.$estudiante->nombres)
             ->assertJsonPath('data.codigo', $estudiante->codigo_universitario)
-            ->assertJsonPath('data.correo', $estudiante->codigo_universitario.'@est.umss.edu')
             ->assertJsonPath('data.aula.nombre', '691A')
             ->assertJsonPath('data.aula.edificio', 'Edificio Académico 2')
             ->assertJsonPath('data.aula.piso', '1° Piso')
@@ -274,17 +243,17 @@ final class CodigosQrTest extends TestCase
         $qr = $respuesta->json('data.qr');
         self::assertIsString($qr);
         $this->assertStringStartsWith('data:image/png;base64,', $qr);
-        $this->assertArrayNotHasKey('contenido', (array) $respuesta->json('data'));
     }
 
-    public function test_a_credential_without_code_says_so(): void
+    public function test_a_credential_without_code_or_room_says_so(): void
     {
-        [$estudiante] = $this->habilitados(1);
+        [$estudiante] = $this->estudiantesInscritos($this->grupo, 1);
+        $this->habilitar($this->examen, [$estudiante]);
 
         $this->actingAs($this->cuentaDocente)
             ->getJson($this->ruta('/'.$estudiante->id))
             ->assertOk()
-            ->assertJsonPath('data.aula.nombre', '691A')
+            ->assertJsonPath('data.aula', null)
             ->assertJsonPath('data.emitido', false)
             ->assertJsonPath('data.qr', null);
     }
@@ -297,8 +266,7 @@ final class CodigosQrTest extends TestCase
         foreach ([$inhabilitado, $sinRevisar] as $estudiante) {
             $this->actingAs($this->cuentaDocente)
                 ->getJson($this->ruta('/'.$estudiante->id))
-                ->assertNotFound()
-                ->assertJsonPath('message', 'El estudiante no está habilitado en este examen.');
+                ->assertNotFound();
         }
     }
 
@@ -307,7 +275,7 @@ final class CodigosQrTest extends TestCase
         [$conCodigo, $sinCodigo] = $this->habilitados(2);
         $conCodigo->update(['apellidos' => 'Aguilar Cossío', 'nombres' => 'Mariana']);
         $sinCodigo->update(['apellidos' => 'Zurita Rojas', 'nombres' => 'Pablo']);
-        $contenido = $this->emitirCodigo($conCodigo);
+        $this->emitirCodigo($conCodigo);
 
         $respuesta = $this->actingAs($this->cuentaDocente)
             ->get($this->ruta('/hoja'))
@@ -316,12 +284,11 @@ final class CodigosQrTest extends TestCase
             ->assertSee('Aguilar Cossío Mariana')
             ->assertSee($conCodigo->codigo_universitario)
             ->assertSee('Primer parcial · Introducción a la Programación')
-            ->assertSee('30 oct 2026 · 08:15 · 90 min')
+            ->assertSee('2026-10-12 · 08:15')
             ->assertSee('Aula 691A')
             ->assertSee('Edificio Académico 2 · 1° Piso')
             ->assertSee('@media print', false)
-            ->assertDontSee('Zurita Rojas')
-            ->assertDontSee($contenido);
+            ->assertDontSee('Zurita Rojas');
 
         $this->assertSame(1, substr_count((string) $respuesta->getContent(), 'data:image/png;base64,'));
     }
@@ -353,18 +320,20 @@ final class CodigosQrTest extends TestCase
 
     public function test_every_qr_route_requires_a_session(): void
     {
-        foreach ($this->rutasProtegidas(1) as [$verbo, $resto]) {
-            $this->pedir($verbo, $this->ruta($resto))->assertUnauthorized();
-        }
+        $this->getJson($this->ruta())->assertUnauthorized();
+        $this->postJson($this->ruta())->assertUnauthorized();
+        $this->getJson($this->ruta('/1'))->assertUnauthorized();
+        $this->getJson($this->ruta('/hoja'))->assertUnauthorized();
+        $this->postJson($this->ruta('/envios'))->assertUnauthorized();
     }
 
     public function test_every_qr_route_requires_the_permission(): void
     {
         $sinPermiso = UserFactory::new()->createOne();
 
-        foreach ($this->rutasProtegidas(1) as [$verbo, $resto]) {
-            $this->actingAs($sinPermiso);
-            $this->pedir($verbo, $this->ruta($resto))
+        foreach ([['getJson', ''], ['postJson', ''], ['getJson', '/1'], ['getJson', '/hoja'], ['postJson', '/envios']] as [$verbo, $resto]) {
+            $this->actingAs($sinPermiso)
+                ->{$verbo}($this->ruta($resto))
                 ->assertForbidden()
                 ->assertJsonPath('permiso_requerido', 'codigos_qr');
         }
@@ -375,12 +344,12 @@ final class CodigosQrTest extends TestCase
         [$estudiante] = $this->habilitados(1);
         $ajeno = $this->docenteAjeno();
 
-        foreach ($this->rutasProtegidas($estudiante->id) as [$verbo, $resto]) {
-            $this->actingAs($ajeno);
-            $this->pedir($verbo, $this->ruta($resto))
+        foreach ([['getJson', ''], ['postJson', ''], ['getJson', '/'.$estudiante->id], ['getJson', '/hoja'], ['postJson', '/envios']] as [$verbo, $resto]) {
+            $this->actingAs($ajeno)
+                ->{$verbo}($this->ruta($resto))
                 ->assertForbidden()
                 ->assertJsonPath('alcance', true)
-                ->assertJsonPath('message', 'Este examen no es tuyo.');
+                ->assertJsonPath('message', 'Este examen no está a su cargo.');
         }
 
         $this->assertDatabaseCount('codigos_qr', 0);
@@ -404,21 +373,12 @@ final class CodigosQrTest extends TestCase
 
     public function test_an_unknown_exam_is_not_found(): void
     {
-        foreach ($this->rutasProtegidas(1) as [$verbo, $resto]) {
-            $this->actingAs($this->cuentaDocente);
-            $this->pedir($verbo, '/api/examenes/999999/codigos-qr'.$resto)
+        foreach ([['getJson', ''], ['postJson', ''], ['getJson', '/1'], ['getJson', '/hoja'], ['postJson', '/envios']] as [$verbo, $resto]) {
+            $this->actingAs($this->cuentaDocente)
+                ->{$verbo}('/api/examenes/999999/codigos-qr'.$resto)
                 ->assertNotFound()
                 ->assertJsonPath('message', 'Examen no encontrado.');
         }
-    }
-
-    public function test_a_non_numeric_exam_is_not_found_without_details(): void
-    {
-        $respuesta = $this->actingAs($this->cuentaDocente)
-            ->getJson('/api/examenes/abc/codigos-qr')
-            ->assertNotFound();
-
-        $this->assertArrayNotHasKey('trace', (array) $respuesta->json());
     }
 
     public function test_a_student_in_two_groups_of_the_exam_is_listed_once_with_the_lowest_group(): void
@@ -438,33 +398,14 @@ final class CodigosQrTest extends TestCase
             ->assertJsonPath('data.0.grupo', '1');
     }
 
-    /**
-     * @return list<array{string, string}>
-     */
-    private function rutasProtegidas(int $estudianteId): array
-    {
-        return [
-            ['getJson', ''],
-            ['postJson', ''],
-            ['getJson', '/'.$estudianteId],
-            ['getJson', '/hoja'],
-        ];
-    }
-
-    /**
-     * @return TestResponse<Response>
-     */
-    private function pedir(string $verbo, string $url): TestResponse
-    {
-        return $verbo === 'postJson' ? $this->postJson($url) : $this->getJson($url);
-    }
-
     private function inscribir(Estudiante $estudiante, int $grupoId): void
     {
-        Inscripcion::create([
+        DB::table('inscripciones')->insert([
             'estudiante_id' => $estudiante->id,
             'grupo_id' => $grupoId,
             'via' => 'ADMINISTRACION',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
     }
 }

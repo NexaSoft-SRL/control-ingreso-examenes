@@ -2,20 +2,25 @@
 
 declare(strict_types=1);
 
+use App\Modules\Monitoreo\Http\Controllers\AsistenciaController;
 use App\Modules\Monitoreo\Http\Controllers\EnCursoController;
 use Illuminate\Support\Facades\Route;
 
-// HU-22: el examen en curso, aula por aula (Monitoreo). Es del docente del
-// examen, la misma cuenta que lo ve en «Exámenes»: pide ese permiso y,
-// ademas, que el examen sea suyo. Solo lectura: las incidencias se atienden en
-// `/api/incidencias/{id}/atencion`.
-Route::prefix('api/en-curso')
-    ->middleware(['auth', 'permiso:examenes'])
-    ->group(function (): void {
-        Route::get('/', [EnCursoController::class, 'index'])
-            ->name('en-curso.index');
+// En curso y asistencia por aula (Monitoreo). Solo lectura: el seguimiento
+// no tiene ninguna ruta que escriba.
+Route::middleware(['auth', 'permiso:seguimiento_vivo'])->group(function (): void {
+    Route::get(
+        '/api/en-curso',
+        [EnCursoController::class, 'index'],
+    )->name('monitoreo.en_curso.index');
 
-        Route::get('/{examen}', [EnCursoController::class, 'show'])
-            ->whereNumber('examen')
-            ->name('en-curso.show');
-    });
+    Route::get(
+        '/api/examenes/{examen}/en-curso',
+        [EnCursoController::class, 'show'],
+    )->whereNumber('examen')->name('monitoreo.en_curso.show');
+
+    Route::get(
+        '/api/examenes/{examen}/aulas/{aula}/asistencia',
+        AsistenciaController::class,
+    )->whereNumber(['examen', 'aula'])->name('monitoreo.asistencia');
+});

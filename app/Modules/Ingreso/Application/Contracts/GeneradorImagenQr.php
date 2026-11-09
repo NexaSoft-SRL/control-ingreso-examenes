@@ -5,18 +5,17 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Application\Contracts;
 
 /**
- * Dibuja la imagen del codigo QR dentro del sistema, sin servicios
- * externos. La imagen lleva solo el contenido cifrado del codigo.
+ * Dibuja el codigo QR. La imagen codifica solo el token opaco.
  */
 interface GeneradorImagenQr
 {
     /**
      * La imagen lista para incrustar en una pagina, como URI de datos.
      */
-    public function comoUriDeDatos(string $contenido): string;
+    public function comoUriDeDatos(string $token): string;
 
     /**
-     * Los bytes del PNG, para el correo.
+     * Los bytes del PNG, para adjuntarlo a un correo.
      */
-    public function comoPng(string $contenido): string;
+    public function comoPng(string $token): string;
 }

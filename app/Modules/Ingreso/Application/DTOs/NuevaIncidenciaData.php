@@ -17,13 +17,14 @@ final readonly class NuevaIncidenciaData
         public TipoIncidencia $tipo,
         public OrigenIncidencia $origen,
         public string $detalle,
-        public OperadorPuertaData $operador,
+        public OperadorData $operador,
         public ?int $examenId = null,
         public ?int $aulaId = null,
         public ?int $estudianteId = null,
         public ?string $estudianteTexto = null,
         public ?int $ingresoId = null,
         public ?CausaIntento $causa = null,
+        public ?int $examenCorrespondienteId = null,
         public array $evidencias = [],
     ) {}
 }

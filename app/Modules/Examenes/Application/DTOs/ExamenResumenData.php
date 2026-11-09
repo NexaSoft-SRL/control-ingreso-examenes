@@ -6,9 +6,6 @@ namespace App\Modules\Examenes\Application\DTOs;
 
 /**
  * Un examen en el listado del docente, con sus cifras y su avance.
- * `rendido`: lo finalizo un docente o ya paso su dia. `atienden`: personas
- * distintas a cargo o de apoyo en sus aulas. `codigosAula`: aulas con codigo
- * de acceso.
  */
 final readonly class ExamenResumenData
 {
@@ -29,6 +26,7 @@ final readonly class ExamenResumenData
         public array $grupos,
         public int $inscritos,
         public array $aulas,
+        public int $auxiliares,
         public int $habilitados,
         public int $noHabilitados,
         public int $sinRevisar,
@@ -39,10 +37,10 @@ final readonly class ExamenResumenData
         public int $juntoCon,
         public bool $esHoy,
         public bool $rendido,
-        public ?string $finalizadoEn = null,
+        // Con historia en la puerta: no se elimina y, con ingresos, solo se
+        // cambian las normas y quién atiende.
         public bool $conIngresos = false,
         public bool $conIncidencias = false,
-        public int $codigosAula = 0,
-        public int $atienden = 0,
+        public int $codigosDeAula = 0,
     ) {}
 }

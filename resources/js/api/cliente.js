@@ -9,10 +9,11 @@ export const api = axios.create({
 });
 
 export const SIN_SESION = 'sin_sesion';
+export const CAMBIAR_CONTRASENA = 'cambiar_contrasena';
 
 const oyentes = new Set();
 
-// `oyente(evento)` recibe SIN_SESION. Devuelve la baja.
+// `oyente(evento)` recibe SIN_SESION o CAMBIAR_CONTRASENA. Devuelve la baja.
 export function suscribirSesion(oyente) {
     oyentes.add(oyente);
     return () => oyentes.delete(oyente);
@@ -22,28 +23,19 @@ function emitir(evento) {
     oyentes.forEach((oyente) => oyente(evento));
 }
 
-api.interceptors.request.use((config) => {
-    try {
-        const token = localStorage.getItem('codigo_aula_token');
-        if (token && !config.headers['X-Codigo-Aula-Token']) {
-            config.headers['X-Codigo-Aula-Token'] = token;
-        }
-    } catch {
-        // Ignorar si localStorage no está disponible (ej. entorno de pruebas)
-    }
-    return config;
-});
-
-// 401 o 419 fuera de /auth/ → la sesión terminó. Una petición con
-// `{ silencioso: true }` no emite nada.
+// 401 o 419 fuera de /auth/ → la sesión terminó; 409 con
+// `debe_cambiar_contrasena` → falta definir la contraseña propia. Una
+// petición con `{ silencioso: true }` no emite nada.
 export function interpretarError(error) {
     const estado = error?.response?.status;
     const ruta = String(error?.config?.url ?? '');
     const deAcceso = /(^|\/)auth\//.test(ruta);
-    const esColaborador = Boolean(error?.config?.headers?.['X-Codigo-Aula-Token']);
 
-    if (!error?.config?.silencioso && !esColaborador) {
+    if (!error?.config?.silencioso) {
         if ((estado === 401 || estado === 419) && !deAcceso) emitir(SIN_SESION);
+        if (estado === 409 && error.response.data?.debe_cambiar_contrasena) {
+            emitir(CAMBIAR_CONTRASENA);
+        }
     }
 
     return Promise.reject(error);

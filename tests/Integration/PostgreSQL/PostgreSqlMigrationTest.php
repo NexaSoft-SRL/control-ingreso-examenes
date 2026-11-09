@@ -22,7 +22,7 @@ final class PostgreSqlMigrationTest extends TestCase
         );
 
         $this->assertSame(
-            $this->baseDePruebas(),
+            'control_ingreso_testing',
             DB::connection()->getDatabaseName()
         );
 
@@ -57,34 +57,60 @@ final class PostgreSqlMigrationTest extends TestCase
             $tableNames[] = $tableName;
         }
 
-        foreach ([
+        // Las 9 tablas del marco y las del dominio, mas la de control de
+        // migraciones.
+        $expectedTables = [
+            'accesos_aula',
+            'asignaturas',
+            'aulas',
+            'auxiliares',
+            'bitacora_operaciones',
             'cache',
             'cache_locks',
+            'cargas_inscritos',
+            'carreras',
+            'codigos_acceso_estudiante',
+            'codigos_qr',
+            'conflictos_padron',
+            'docentes',
+            'edificios',
+            'envios_correo',
+            'estudiantes',
+            'evidencias_incidencia',
+            'examen_aula',
+            'examen_aula_apoyo',
+            'examen_grupo',
+            'examen_norma',
+            'examenes',
+            'facultades',
             'failed_jobs',
+            'grupos',
+            'habilitaciones',
+            'horarios',
+            'importaciones_oferta',
+            'incidencias',
+            'ingresos',
+            'inscripciones',
             'job_batches',
             'jobs',
+            'login_attempts',
             'migrations',
             'password_reset_tokens',
+            'periodos',
+            'permission_role',
+            'permissions',
+            'plan_estudios',
+            'plantillas_norma',
+            'plazos_foto',
+            'presencias_puerta',
+            'respaldos',
+            'roles',
             'sessions',
             'users',
-            'usuarios',
-        ] as $expectedTable) {
-            $this->assertContains(
-                $expectedTable,
-                $tableNames,
-                "La tabla {$expectedTable} no fue creada."
-            );
-        }
-    }
+        ];
 
-    /**
-     * La base que valido el arranque de la suite: la de `.env.testing` o la
-     * indicada con `PRUEBAS_DB_DATABASE` (siempre `control_ingreso*_testing`).
-     */
-    private function baseDePruebas(): string
-    {
-        $base = getenv('PRUEBAS_DB_DATABASE');
-
-        return is_string($base) && $base !== '' ? $base : 'control_ingreso_testing';
+        // La lista es exacta: tampoco puede quedar ninguna tabla del
+        // esquema anterior (students, ambientes, normas_examen...).
+        $this->assertSame($expectedTables, $tableNames);
     }
 }

@@ -1,0 +1,80 @@
+% Ficha HU-04. Criterios tomados del backlog del sprint 1 y del archivo de
+% padron que entrega la universidad: cinco columnas, sin correo obligatorio.
+\def\HUNro{04}
+\def\HUSprint{1}
+\def\HUTitulo{Administración > Padrón > Carga masiva desde archivo}
+\def\HUModulo{M1}
+\def\HUReq{1}
+\def\HUPuntos{8}
+
+\def\HUComo{administrador}
+\def\HUQuiero{cargar el padrón desde un archivo}
+\def\HUPara{evitar el registro manual de miles de estudiantes}
+
+\def\HUDescripcion{%
+El padrón de una facultad son miles de estudiantes: cargarlos de a uno no es viable. Esta
+historia recibe el archivo que entrega la universidad y lo vuelca al padrón de una vez.
+
+Se admiten hojas de cálculo y archivos de valores separados por comas o por punto y coma.
+Las columnas son las cinco del \emph{backlog}, en orden: código universitario, documento
+de identidad, nombres, apellidos y carrera. La primera fila puede ser el encabezado o ya
+un estudiante: el sistema lo reconoce solo.
+
+Un error en una fila no interrumpe la carga. Cada fila rechazada se informa con su número
+y su motivo ---falta un dato obligatorio, el código se repite dentro del archivo, el
+documento pertenece a otro estudiante---, y el resto sigue adelante. Quien ya está en el
+padrón se actualiza en lugar de duplicarse.
+
+Al terminar, el sistema informa cuántos entraron como nuevos, cuántos se actualizaron y
+cuántos se rechazaron, y asienta la carga en la bitácora con el nombre del archivo y ese
+resumen. La pantalla ofrece además una plantilla descargable con las columnas esperadas.}
+
+\def\HUCriterios{%
+\item Dado que el administrador abre la carga masiva, Cuando elige un archivo en formato
+      de hoja de cálculo o de valores separados por comas, Entonces el sistema lo acepta
+      y lo procesa.
+\item Dado que el archivo trae una fila de encabezado, Cuando se procesa, Entonces el
+      sistema la reconoce y no la toma como estudiante.
+\item Dado que el archivo no trae encabezado, Cuando se procesa, Entonces el sistema toma
+      la primera fila como un estudiante más.
+\item Dado que el archivo separa sus columnas con punto y coma, Cuando se procesa,
+      Entonces el sistema lo lee igual que uno separado por comas.
+\item Dado que una fila no tiene un dato obligatorio, Cuando se procesa, Entonces el
+      sistema la rechaza indicando su número de fila y el motivo, y continúa con el resto.
+\item Dado que dos filas del mismo archivo repiten el código universitario o el documento,
+      Cuando se procesa, Entonces el sistema rechaza la repetida indicando su fila.
+\item Dado que un estudiante del archivo ya existe en el padrón, Cuando se procesa,
+      Entonces el sistema actualiza sus datos en lugar de crear un duplicado.
+\item Dado que el procesamiento terminó, Cuando se muestra el resultado, Entonces el
+      sistema informa cuántos registros entraron como nuevos, cuántos se actualizaron y
+      cuántos se rechazaron.
+\item Dado que el archivo es de un tipo que no corresponde, Cuando se intenta cargar,
+      Entonces el sistema lo rechaza sin procesarlo.
+\item Dado que el archivo contiene al menos dos mil registros, Cuando se realiza la carga,
+      Entonces el sistema la completa sin degradar su desempeño.
+\item Dado que un rol no tiene el permiso de padrón, Cuando intenta cargar un archivo,
+      Entonces el sistema responde con una negativa explícita que nombra el permiso.
+\item Dado que la carga se completó, Cuando termina el proceso, Entonces el sistema la
+      registra en la bitácora con el nombre del archivo y el resumen de la carga.
+\item Dado que el administrador no conoce el formato esperado, Cuando descarga la
+      plantilla desde la pantalla, Entonces obtiene un archivo con las columnas en orden.
+\item Dado que el administrador accede desde un dispositivo móvil, Cuando abre la carga
+      masiva, Entonces la interfaz se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{CargaMasivaPadronTest}: archivo con y sin encabezado, separado por comas y
+      por punto y coma, y rechazo de un tipo que no corresponde (criterios 1 a 4 y 9).
+\item \texttt{CargaMasivaPadronTest}: fila incompleta, código repetido y documento
+      repetido dentro del archivo, cada uno con su fila y su motivo (criterios 5 y 6).
+\item \texttt{CargaMasivaPadronTest::an\_existing\_student\_is\_updated\_instead\_of\_duplicated}:
+      actualización en lugar de duplicado (criterio 7).
+\item \texttt{CargaMasivaPadronTest::two\_thousand\_rows\_are\_processed}: carga completa
+      de dos mil registros (criterio 10).
+\item \texttt{CargaMasivaPadronTest}: sin permiso responde 403 y sin sesión 401
+      (criterio 11).
+\item \texttt{CargaMasivaPadronTest::the\_load\_is\_recorded\_in\_the\_audit\_log}: asiento
+      con el nombre del archivo y el resumen (criterio 12).
+\item \texttt{CargaMasiva.test.jsx}: selección del archivo, resumen de la carga, detalle
+      de los rechazos y descarga de la plantilla (criterios 8 y 13).}
+
+\input{cuerpo}

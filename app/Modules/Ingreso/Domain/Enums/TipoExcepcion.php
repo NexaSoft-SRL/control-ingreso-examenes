@@ -10,9 +10,9 @@ namespace App\Modules\Ingreso\Domain\Enums;
  */
 enum TipoExcepcion: string
 {
-    case Identificacion = 'EXCEPCION_IDENTIFICACION';
-    case CambioAula = 'EXCEPCION_CAMBIO_AULA';
-    case NoHabilitado = 'EXCEPCION_NO_HABILITADO';
+    case ProblemaIdentificacion = 'PROBLEMA_IDENTIFICACION';
+    case CambioAula = 'CAMBIO_AULA';
+    case NoHabilitado = 'NO_HABILITADO';
 
     /**
      * @return list<string>
@@ -28,7 +28,7 @@ enum TipoExcepcion: string
     public function etiqueta(): string
     {
         return match ($this) {
-            self::Identificacion => 'Problema de identificación',
+            self::ProblemaIdentificacion => 'Problema de identificación',
             self::CambioAula => 'Cambio de aula',
             self::NoHabilitado => 'Estudiante no habilitado',
         };
@@ -42,7 +42,7 @@ enum TipoExcepcion: string
     public function tipoIncidencia(): TipoIncidencia
     {
         return match ($this) {
-            self::Identificacion => TipoIncidencia::Otra,
+            self::ProblemaIdentificacion => TipoIncidencia::Otra,
             self::CambioAula => TipoIncidencia::CambioAula,
             self::NoHabilitado => TipoIncidencia::IntentoNoAutorizado,
         };

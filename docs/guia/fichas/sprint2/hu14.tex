@@ -1,0 +1,138 @@
+% Ficha HU-14 del sprint 2 rehecho. Una historia = una vista completa: los
+% grupos del docente y la lista de inscritos de cada uno, con la carga
+% desde archivo y la validacion de su contenido.
+% Tipo: mejora de HU-04. La ficha anterior queda en sprint2/v1/.
+\def\HUNro{14}
+\def\HUSprint{2}
+\def\HUTitulo{Docente > Mis grupos > Cargar y consultar las listas de inscritos}
+\def\HUModulo{M1}
+\def\HUReq{1}
+\def\HUPuntos{8}
+
+\def\HUComo{docente}
+\def\HUQuiero{ver mis grupos del período y cargar desde un archivo la lista de inscritos
+de cada uno}
+\def\HUPara{saber quiénes son mis estudiantes en cada materia y tener lista, sin
+escribirla a mano, la nómina sobre la que voy a habilitar para el examen}
+
+\def\HUDescripcion{%
+La consultora lo preguntó puesta en el lugar de una docente: «¿cómo sé quiénes son mis
+estudiantes?». Esta vista lo responde. El docente ve solo sus grupos del período
+vigente, cada uno con su asignatura, su horario y el estado de su lista: cargada, con la
+cantidad de inscritos, o sin lista.
+
+Al elegir un grupo se abre su lista de inscritos. Si no tiene, la vista ofrece cargarla
+desde un archivo .csv o .xlsx con cuatro columnas en este orden: código universitario,
+documento de identidad, nombres y apellidos; el encabezado es opcional y hay una
+plantilla para descargar. La carga no duplica: un estudiante que ya está en el padrón
+---porque lo cargó otro docente o la administración--- se reutiliza y solo se lo
+inscribe al grupo. Es aditiva: volver a cargar suma inscritos, nunca los quita. Al
+terminar, un resumen dice cuántos fueron nuevos, cuántos ya estaban en el padrón,
+cuántos ya estaban inscritos, y cuáles filas se rechazaron o quedaron en conflicto, cada
+una con su motivo.
+
+El sistema revisa el contenido del archivo y no solo su extensión. Un archivo al que le
+faltan columnas, que las trae en otro orden o que no es una lista de inscritos se
+rechaza entero, antes de guardar nada y con un mensaje que dice qué se esperaba. Las
+filas vacías se saltan sin alterar el número de fila que se informa. El docente no
+modifica a un estudiante que ya existe: si sus datos difieren de los del padrón, queda
+un conflicto que resuelve la administración (HU-13). Solo se carga a grupos propios y de
+un período vigente.
+
+La vista depende de la oferta importada (HU-10), de donde salen los grupos, y de la
+cuenta del docente (HU-12). De la lista cargada dependen el registro de exámenes (HU-08)
+y la habilitación (HU-09). Cada carga queda en la bitácora (HU-07).
+
+Esta historia mejora la carga masiva del sprint 1 (HU-04). Allí el administrador volcaba
+un archivo al padrón general, sin relación con ninguna materia. Ahora la carga es del
+docente y de un grupo: inscribe en lugar de solo registrar, reutiliza a quien ya existe,
+deja las diferencias como conflicto y revisa el contenido del archivo.}
+
+\def\HUCriterios{%
+\item Dado que el docente abre Mis grupos, Cuando se carga la vista, Entonces el sistema
+      muestra solo sus grupos del período vigente, cada uno con su asignatura, código,
+      nivel, horarios con aula y el estado de su lista («Lista cargada» con la cantidad
+      de inscritos o «Sin lista»).
+\item Dado que el docente tiene muchos grupos, Cuando se muestra la vista, Entonces los
+      grupos aparecen agrupados por asignatura, con un buscador por asignatura o grupo y
+      el filtro «Sin lista» con su conteo; si nada coincide, «Sin resultados».
+\item Dado que el grupo elegido no tiene lista, Cuando se abre, Entonces el sistema
+      muestra «Sin lista cargada» y la zona de carga, que indica el formato y las
+      columnas esperadas.
+\item Dado que el docente elige un archivo .csv o .xlsx con las cuatro columnas en orden,
+      con o sin encabezado, Cuando lo carga, Entonces el sistema inscribe en el grupo a
+      cada estudiante: crea al que no existía y reutiliza, sin duplicarlo, al que ya
+      estaba en el padrón aunque lo haya cargado otro docente; si el grupo ya tenía
+      lista, suma a los nuevos y no quita a nadie.
+\item Dado que la carga terminó, Cuando se muestra el resumen, Entonces el sistema indica
+      el nombre del archivo, las filas leídas y cuántos fueron nuevos, ya en el padrón,
+      ya inscritos, rechazados y en conflicto, y «Ver filas» despliega cada fila
+      rechazada o en conflicto con su motivo.
+\item Dado que una fila no tiene un dato obligatorio, no trae documento, trae un código
+      que no es de 5 a 10 dígitos o se repite dentro del archivo, Cuando se procesa,
+      Entonces el sistema la rechaza con su número de fila y su motivo y continúa con el
+      resto.
+\item Dado que una fila trae para un código existente un documento o un nombre distinto
+      del guardado, Cuando se procesa, Entonces el estudiante no se modifica, la
+      inscripción queda en espera y el caso pasa como conflicto a la administración.
+\item Dado que al archivo le falta alguna de las columnas esperadas, Cuando se intenta
+      cargar, Entonces el sistema lo rechaza entero, sin guardar nada, e indica qué
+      columnas faltan.
+\item Dado que el archivo trae las columnas en otro orden, Cuando se intenta cargar,
+      Entonces el sistema lo rechaza entero, sin guardar nada, e indica el orden
+      esperado.
+\item Dado que el archivo tiene filas vacías entre los registros, Cuando se procesa,
+      Entonces el sistema las salta y los números de fila informados siguen siendo los
+      del archivo; si no tiene ninguna fila con datos, lo rechaza.
+\item Dado que el archivo no corresponde ---es de otro tipo, es una imagen o un documento
+      con la extensión cambiada, está dañado o no contiene una lista de inscritos---,
+      Cuando se intenta cargar, Entonces el sistema lo rechaza con un mensaje claro, sin
+      procesarlo y sin error del servidor.
+\item Dado que el docente no conoce el formato, Cuando pulsa «Descargar plantilla»,
+      Entonces obtiene una hoja de cálculo con las cuatro columnas en orden, que puede
+      llenar y volver a cargar.
+\item Dado que el grupo tiene lista, Cuando el docente la consulta, Entonces la ve de a
+      25 por página, con código, nombre, documento y origen; puede buscar por nombre,
+      código o documento («Sin resultados» si nada coincide) y descargarla con «Reporte
+      de mis estudiantes», que sin lista queda deshabilitado.
+\item Dado que un rol no tiene el permiso de mis grupos, que el grupo es de otro docente
+      o que su período ya no está vigente, Cuando se intenta ver la lista o cargar un
+      archivo, Entonces el sistema responde con una negativa explícita.
+\item Dado que se completa una carga, Cuando termina, Entonces queda asentada en la
+      bitácora con su autor, el nombre del archivo y el resumen.
+\item Dado que el docente accede desde un dispositivo móvil, Cuando abre Mis grupos,
+      Entonces los grupos, la carga y la lista se adaptan de forma completamente
+      responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{GruposDelDocenteTest}: el docente ve solo sus grupos, con horario e
+      inscritos, del período vigente; una cuenta que no es de docente no tiene grupos
+      (criterios 1 y 3).
+\item \texttt{CargaInscritosTest}: archivo .csv con y sin encabezado, separado por punto
+      y coma, y .xlsx; estudiante nuevo, estudiante reutilizado sin duplicar, ya inscrito
+      y carga aditiva (criterio 4).
+\item \texttt{CargaInscritosTest}: fila con datos faltantes, sin documento, código no
+      válido y código repetido, cada una con su fila y su motivo, y conteos de la carga
+      (criterios 5 y 6).
+\item \texttt{CargaInscritosTest}: documento o nombre distinto abre un conflicto, el
+      docente nunca modifica a un estudiante existente y cargar dos veces no abre el
+      conflicto dos veces (criterio 7).
+\item \texttt{ValidacionArchivoInscritosTest} (por escribir): columnas faltantes,
+      columnas en otro orden y archivo que no es una lista, rechazados enteros y sin
+      guardar nada (criterios 8, 9 y 11).
+\item \texttt{CargaInscritosTest}: las líneas en blanco se saltan sin correr los números
+      de fila, archivo sin filas, archivo de otro tipo y .xlsx dañado sin error del
+      servidor (criterios 10 y 11).
+\item \texttt{InscritosDeGrupoTest}: plantilla con las cuatro columnas que se puede
+      volver a cargar, lista del grupo con su origen, búsqueda y paginación
+      (criterios 12 y 13).
+\item \texttt{ReporteDeInscritosTest} (por escribir): descarga de la lista del grupo en
+      hoja de cálculo (criterio 13).
+\item \texttt{CargaInscritosTest} e \texttt{InscritosDeGrupoTest}: sin sesión, rol sin
+      permiso, grupo de otro docente, período cerrado y asiento en la bitácora
+      (criterios 14 y 15).
+\item \texttt{MisGrupos.test.jsx} (por escribir): tarjetas y lista por asignatura,
+      filtro «Sin lista», zona de carga, resumen con «Ver filas» y estados vacíos
+      (criterios 1 a 3, 5, 13 y 16).}
+
+\input{cuerpo}

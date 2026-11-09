@@ -4,19 +4,25 @@ declare(strict_types=1);
 
 namespace App\Modules\Administracion\Application\Contracts;
 
-use App\Modules\Administracion\Domain\Exceptions\ContrasenaRepetidaException;
-
 interface CredencialesGateway
 {
+    public function contrasenaCoincide(
+        int $usuarioId,
+        string $contrasena,
+    ): bool;
+
     /**
-     * Sin la contrasena actual (null) solo cambia una cuenta con contrasena
-     * temporal.
-     *
-     * @throws ContrasenaRepetidaException
+     * Guarda la contrasena cifrada, deja constancia de que el usuario ya
+     * definio la suya y retira el vencimiento de la temporal.
      */
-    public function cambiar(int $usuarioId, ?string $contrasenaActual, string $nuevaContrasena): bool;
+    public function cambiarContrasena(
+        int $usuarioId,
+        string $nuevaContrasena,
+    ): void;
 
-    public function solicitarRestablecimiento(string $usuario): void;
-
-    public function restablecer(string $correo, string $token, string $contrasena): bool;
+    /**
+     * Verdadero mientras la cuenta siga con la contrasena temporal que se
+     * le entrego.
+     */
+    public function debeCambiarContrasena(int $usuarioId): bool;
 }

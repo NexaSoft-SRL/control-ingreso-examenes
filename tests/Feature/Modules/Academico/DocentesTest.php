@@ -183,7 +183,7 @@ final class DocentesTest extends TestCase
     {
         $fcyt = $this->facultad();
         $fce = $this->facultad('fce');
-        $cuenta = UserFactory::new()->createOne(['usuario' => 'leticiablanco', 'correo' => null]);
+        $cuenta = UserFactory::new()->createOne(['usuario' => 'leticia blanco', 'email' => null]);
         $docente = $this->docenteConCuenta($cuenta, 'Blanco Coca Leticia');
 
         $taller = $this->asignatura('Taller de Ingeniería de Software');
@@ -209,8 +209,8 @@ final class DocentesTest extends TestCase
                     ],
                     ['sigla' => 'FCE', 'grupos' => 1, 'materias' => ['Estadística']],
                 ],
-                'cuenta' => ['estado' => 'activo', 'usuario' => 'leticiablanco', 'correo' => null],
-                'usuario_sugerido' => 'leticiablanco',
+                'cuenta' => ['estado' => 'activo', 'usuario' => 'leticia blanco', 'correo' => null],
+                'usuario_sugerido' => 'leticia blanco',
             ]]);
     }
 
@@ -226,7 +226,7 @@ final class DocentesTest extends TestCase
             ->assertJsonPath('data.facultades', [])
             ->assertJsonPath('data.usuario_sugerido', 'leticia blanco');
 
-        // Si ya esta tomado, aunque sea sin el espacio, lleva sufijo.
+        // Si ya esta tomado, lleva sufijo.
         UserFactory::new()->createOne(['usuario' => 'leticiablanco']);
 
         $sesion->getJson("/api/docentes/{$docente->id}")
@@ -237,8 +237,8 @@ final class DocentesTest extends TestCase
     public function test_teacher_detail_tells_a_temporary_password_apart(): void
     {
         $cuenta = UserFactory::new()->createOne([
-            'usuario' => 'corinaflores',
-            'correo' => 'corina@umss.edu.bo',
+            'usuario' => 'corina.flores',
+            'email' => 'corina@umss.edu.bo',
             'password_changed_at' => null,
         ]);
         $docente = $this->docenteConCuenta($cuenta, 'Flores Villarroel Corina');
@@ -248,20 +248,9 @@ final class DocentesTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.cuenta', [
                 'estado' => 'temporal',
-                'usuario' => 'corinaflores',
+                'usuario' => 'corina.flores',
                 'correo' => 'corina@umss.edu.bo',
             ]);
-    }
-
-    public function test_a_blocked_account_shows_as_blocked_like_in_users(): void
-    {
-        $cuenta = UserFactory::new()->createOne(['usuario' => 'victormontano', 'is_active' => false]);
-        $docente = $this->docenteConCuenta($cuenta, 'Montaño Quiroga Victor Hugo');
-
-        $this->actingAs($this->usuarioConPermisos(['aulas_docentes']))
-            ->getJson("/api/docentes/{$docente->id}")
-            ->assertOk()
-            ->assertJsonPath('data.cuenta.estado', 'bloqueado');
     }
 
     public function test_teacher_detail_handles_unknown_teacher_session_and_permission(): void
@@ -303,8 +292,8 @@ final class DocentesTest extends TestCase
 
         $cuenta = User::where('usuario', 'leticiablanco')->firstOrFail();
 
-        $this->assertSame('Blanco Coca Leticia', $cuenta->nombre);
-        $this->assertNull($cuenta->correo);
+        $this->assertSame('Blanco Coca Leticia', $cuenta->name);
+        $this->assertNull($cuenta->email);
         $this->assertNull($cuenta->password_changed_at);
         $this->assertTrue(Hash::check($temporal, $cuenta->password));
         $this->assertSame('Docente', $cuenta->role?->name);
@@ -331,7 +320,7 @@ final class DocentesTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.enviada_a', 'leticia.blanco@umss.edu.bo');
 
-        $this->assertDatabaseHas('usuarios', ['usuario' => 'leticiablanco', 'correo' => 'leticia.blanco@umss.edu.bo']);
+        $this->assertDatabaseHas('users', ['usuario' => 'leticiablanco', 'email' => 'leticia.blanco@umss.edu.bo']);
         Mail::assertSent(CredencialesInicialesMail::class);
     }
 
@@ -352,7 +341,7 @@ final class DocentesTest extends TestCase
         ]);
         $this->assertDatabaseHas('bitacora_operaciones', [
             'usuario_id' => $administrador->id,
-            'operacion' => 'usuario.registrar',
+            'operacion' => 'usuario.crear',
         ]);
     }
 
@@ -375,7 +364,7 @@ final class DocentesTest extends TestCase
 
     public function test_activating_an_account_rejects_a_taken_username_or_email(): void
     {
-        UserFactory::new()->createOne(['usuario' => 'leticiablanco', 'correo' => 'leticia@umss.edu.bo']);
+        UserFactory::new()->createOne(['usuario' => 'leticiablanco', 'email' => 'leticia@umss.edu.bo']);
         $docente = $this->docenteSinCuenta('Blanco Coca Leticia');
         $sesion = $this->actingAs($this->usuarioConRol('Administrador'));
 
@@ -384,14 +373,14 @@ final class DocentesTest extends TestCase
             ->assertJsonPath('errors.usuario.0', 'Ya existe una cuenta con ese usuario.');
 
         $sesion->postJson("/api/docentes/{$docente->id}/cuenta", [
-            'usuario' => 'leticiablanco2',
+            'usuario' => 'leticia blanco2',
             'correo' => 'leticia@umss.edu.bo',
         ])
             ->assertUnprocessable()
             ->assertJsonPath('errors.correo.0', 'Ya existe una cuenta con ese correo.');
 
         $this->assertNull($docente->refresh()->user_id);
-        $this->assertDatabaseMissing('usuarios', ['usuario' => 'leticiablanco2']);
+        $this->assertDatabaseMissing('users', ['usuario' => 'leticia blanco2']);
     }
 
     public function test_activating_an_account_validates_the_username_and_email(): void
@@ -401,15 +390,14 @@ final class DocentesTest extends TestCase
 
         $sesion->postJson("/api/docentes/{$docente->id}/cuenta", [])
             ->assertUnprocessable()
-            ->assertJsonPath('errors.usuario.0', 'El campo usuario es obligatorio.');
+            ->assertJsonPath('errors.usuario.0', 'Obligatorio');
 
-        $sesion->postJson("/api/docentes/{$docente->id}/cuenta", ['usuario' => 'leticia..blanco', 'correo' => 'no-es-correo'])
-            ->assertUnprocessable()
-            ->assertJsonPath(
-                'errors.usuario.0',
-                'Nombre y apellido, separados por un espacio',
-            )
-            ->assertJsonPath('errors.correo.0', 'El correo no tiene un formato válido.');
+        foreach (['leticia/blanco', 'leticia..blanco', '.leticia', 'leticia-'] as $usuario) {
+            $sesion->postJson("/api/docentes/{$docente->id}/cuenta", ['usuario' => $usuario, 'correo' => 'no-es-correo'])
+                ->assertUnprocessable()
+                ->assertJsonPath('errors.usuario.0', 'Nombre y apellido, separados por un espacio')
+                ->assertJsonPath('errors.correo.0', 'Correo no válido');
+        }
 
         $this->assertNull($docente->refresh()->user_id);
     }

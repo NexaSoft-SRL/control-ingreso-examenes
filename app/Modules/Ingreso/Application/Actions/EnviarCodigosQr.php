@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Actions;
 
-use App\Modules\Ingreso\Application\Authorization\AlcanceCodigosQr;
+use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
+use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\CorreoQrGateway;
-use App\Modules\Ingreso\Application\Contracts\EmisionQrGateway;
+use App\Modules\Ingreso\Application\Contracts\PuertaGateway;
 use App\Modules\Ingreso\Application\DTOs\FiltroCodigosData;
-use App\Modules\Ingreso\Domain\Exceptions\ExamenAjenoException;
 use App\Modules\Ingreso\Domain\Exceptions\SinCodigosException;
 
 /**
- * Envia por correo el codigo QR de cada estudiante del filtro que ya lo
- * tiene emitido.
+ * Encola un correo con el codigo QR por cada estudiante del filtro que ya
+ * lo tiene emitido.
  *
- * Sin tope por peticion (cola real) van todos de una vez. Con tope (cola
+ * Sin tope (cola real) van todos de una vez. Con tope por peticion (cola
  * sincronica) hay dos casos: mientras quede alguien del filtro sin
  * recibirlo, la tanda es solo de esos; cuando ya lo recibieron todos, es
  * un reenvio a todos, que avanza por tandas sin repetir a nadie gracias a
@@ -25,29 +25,28 @@ use App\Modules\Ingreso\Domain\Exceptions\SinCodigosException;
 final readonly class EnviarCodigosQr
 {
     public function __construct(
-        private EmisionQrGateway $codigos,
+        private CodigoQrGateway $codigos,
         private CorreoQrGateway $correo,
-        private AlcanceCodigosQr $alcance,
+        private PuertaGateway $puerta,
+        private AlcancePuesto $alcance,
     ) {}
 
     /**
      * @return array{encolados: int, pendientes: int, tanda: string}
-     *
-     * @throws ExamenAjenoException
-     * @throws SinCodigosException
      */
-    public function execute(int $examenId, FiltroCodigosData $filtro, int $usuarioId, ?string $tanda = null): array
+    public function execute(int $examenId, FiltroCodigosData $filtro, ?int $usuarioId, ?string $tanda = null): array
     {
         $this->alcance->exigirDocente($usuarioId, $examenId);
 
         $limite = $this->correo->tamanoDeLote();
         $continua = $tanda !== null;
-        $tanda ??= $this->correo->ahora();
+        $tanda ??= $this->puerta->horaServidor();
 
         if ($limite === null) {
             $credenciales = $this->codigos->emitidas($examenId, $filtro);
             $pendientes = 0;
         } elseif (($sinEnviar = $this->codigos->sinEnviar($examenId, $filtro)) > 0) {
+            $continua = false;
             $credenciales = $this->codigos->emitidas($examenId, $filtro, $limite, true);
             $pendientes = max(0, $sinEnviar - count($credenciales));
         } else {
@@ -56,7 +55,7 @@ final readonly class EnviarCodigosQr
         }
 
         if ($credenciales === []) {
-            // La tanda ya habia terminado: no queda a quien enviar.
+            // La tanda ya habia terminado: no queda a quien reenviar.
             if ($continua) {
                 return ['encolados' => 0, 'pendientes' => 0, 'tanda' => $tanda];
             }

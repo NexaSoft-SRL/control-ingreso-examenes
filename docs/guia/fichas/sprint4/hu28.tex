@@ -1,0 +1,189 @@
+% Ficha HU-28 del sprint 4. Una historia = una vista completa: la pagina
+% del examen con sus pestanas, la lista con una sola accion, el examen nuevo
+% con fecha, hora y normas cargadas, la eleccion de aulas de la facultad desde
+% la lista o el mapa, y el cierre manual desde En curso.
+% Tipo: mejora de HU-08 y HU-22.
+% Mockups: el principal es la captura «pagina-del-examen» (hu28-escritorio.png
+% y hu28-movil.png); las demas, en mockups/hu28-<nombre>.png.
+\def\HUNro{28}
+\def\HUSprint{4}
+\def\HUTitulo{Exámenes > Página del examen > Preparar cada examen en un solo lugar y
+finalizarlo a mano}
+\def\HUModulo{M2}
+\def\HUReq{2, 10, 11}
+\def\HUPuntos{3}
+
+\def\HUComo{docente}
+\def\HUQuiero{abrir cada examen en una página propia con su resumen, su habilitación,
+sus códigos QR y su bitácora, registrar uno nuevo con lo que suele repetirse ya cargado,
+y finalizarlo yo cuando termina}
+\def\HUPara{preparar y cerrar cada examen sin saltar entre pantallas ni volver a
+escribir lo mismo, y que la puerta no se cierre antes de tiempo si el examen se alarga}
+
+\def\HUDescripcion{%
+En el segundo sprint la lista de exámenes lo reunía todo (HU-08): cada fila tenía varios
+enlaces, la edición y la eliminación, y la habilitación y los códigos QR se hacían en
+sus propias pantallas. En el tercero, el seguimiento en vivo (HU-22) daba el examen por
+terminado a la hora prevista. Esta historia mejora las dos: cada examen tiene su página,
+la lista queda con una sola acción por examen, el examen nuevo viene con fecha, hora y
+normas ya cargadas, y el examen se cierra cuando el docente lo finaliza.
+
+La lista «Exámenes» muestra los del período: el de hoy, o el próximo, destacado arriba,
+y los demás agrupados por mes, con fichas por asignatura. Cada tarjeta lleva la fecha y
+la hora, el tipo y la asignatura, el estado, los cinco pasos del avance («Grupos»,
+«Aulas», «Quién atiende», «Habilitación» y «Códigos QR») y una sola acción: el paso que
+sigue, o «En curso» el día del examen. Toda la tarjeta abre la página del examen.
+
+La página del examen lleva como título el tipo y la asignatura, debajo la fecha, la
+hora, la duración y el estado, los botones «Editar» y «Eliminar» para quien lo registró,
+«En curso» el día del examen y «Reporte» cuando ya se rindió, y cuatro pestañas:
+«Resumen» (el avance, con cada paso enlazado a su lugar, y los datos del examen),
+«Habilitación», «Códigos QR» y «Bitácora» (HU-29). La pestaña elegida queda en la
+dirección.
+
+Al registrar un examen nuevo, el asistente propone la fecha de hoy ---o la primera
+válida si el período o la ventana del tipo empiezan después---, la hora 08:15, primera
+franja de la mañana, y las normas del último examen propio de la misma asignatura o, si
+no hay, del último que registró el docente, con la indicación «Como en» y ese examen; se
+copian hasta que el docente las toca. En el paso «Aulas» se ven solo las aulas de la
+facultad de la asignatura (más las ya elegidas); una lista desplegable las filtra por
+edificio, por «Elegidas» o por «Libres a esa hora» ---sin clases de otros grupos ni
+otros exámenes a esa hora---, y pulsar un edificio en el mapa muestra solo sus aulas.
+Elegir un aula compartida con otro examen no se impide: solo se avisa.
+
+Reglas del cierre: la duración registrada es la prevista. El examen sigue abierto ---la
+puerta, el seguimiento y el acceso con código de aula--- hasta que un docente del examen
+lo finaliza desde «En curso» o, si nadie lo hace, hasta que termina su día. Finalizar no
+se deshace y queda en la bitácora. La vista depende del registro (HU-08), la
+habilitación (HU-09), los códigos QR (HU-20), el seguimiento (HU-22) y la bitácora del
+examen (HU-29), y la abre quien tiene el permiso «Exámenes» (HU-15).}
+
+\def\HUCriterios{%
+\item Dado que el docente tiene exámenes en el período, Cuando abre «Exámenes», Entonces
+      el sistema muestra el período con cuántos exámenes y asignaturas tiene (por
+      ejemplo, «Período 2/2026 · 4 exámenes · 2 asignaturas»), el botón «Registrar
+      examen», las fichas «Asignatura» («Todas» y una por asignatura, con su conteo), el
+      examen de hoy bajo «Hoy» o, si no hay, el próximo bajo «Próximo», destacado, y los
+      demás agrupados por mes con su cantidad; sin exámenes muestra «Sin exámenes».
+\item Dado que la lista muestra un examen, Cuando se dibuja su tarjeta, Entonces lleva
+      el día, el mes y la hora, «tipo · asignatura», su estado (por ejemplo «Faltan
+      aulas», «Falta habilitar» o «Listo»), los grupos, los inscritos y las aulas, «N de
+      5 pasos» y los cinco pasos con su detalle, y una sola acción: el paso siguiente
+      («Elegir aulas», «Asignar quién atiende», «Repartir aulas», «Habilitar», «Terminar
+      habilitación», «Emitir códigos QR» o «Códigos QR»), si la cuenta tiene el permiso
+      de esa pantalla, o «En curso» el día del examen; la tarjeta no lleva «Editar» ni
+      «Eliminar» y toda ella abre la página del examen.
+\item Dado que el docente abre un examen, Cuando se muestra su página, Entonces el
+      título es «tipo · asignatura», debajo van la fecha, la hora, la duración y el
+      estado, y las pestañas «Resumen», «Habilitación», «Códigos QR» y «Bitácora», con
+      habilitados de inscritos («6/6») y códigos emitidos de habilitados («0/6»);
+      «Exámenes» vuelve a la lista y un examen que no figura en ella muestra «Examen no
+      encontrado».
+\item Dado que la página está en «Resumen», Cuando se muestra, Entonces la tarjeta
+      «Avance» enlaza cada paso a su lugar ---«Grupos», «Aulas» y «Quién atiende» al
+      paso del registro, solo para quien lo registró, y «Habilitación» y «Códigos QR» a
+      su pestaña--- con la acción siguiente como botón, y la tarjeta «Datos del examen»
+      muestra «Fecha», «Horario», «Aulas» y «Registrado por», con los grupos y los
+      inscritos.
+\item Dado que el docente elige «Habilitación», «Códigos QR» o «Bitácora», Cuando cambia
+      de pestaña, Entonces la lista de habilitación, los códigos QR o la bitácora del
+      examen se abren dentro de la página, sin salir del examen; la pestaña queda en la
+      dirección y se conserva al recargar. Sin aulas elegidas, o sin el permiso de su
+      pantalla, la pestaña queda deshabilitada («Primero elija las aulas del examen») y
+      la página se queda en «Resumen».
+\item Dado que el docente registró el examen, Cuando abre su página, Entonces ve
+      «Editar», que lleva al asistente con el examen, y «Eliminar» mientras no tenga
+      ingresos ni incidencias; «Eliminar» pide confirmar en «Eliminar examen» con lo que
+      se pierde («Se pierden:» aulas, habilitaciones, códigos QR y códigos de aula),
+      «Cancelar» no toca nada, y al eliminar vuelve a «Exámenes» con el aviso «Examen
+      eliminado»; si el servidor lo rechaza, muestra el motivo y el examen sigue. El
+      docente de un grupo sumado no ve «Editar» ni «Eliminar».
+\item Dado que el examen es de hoy, tiene aulas y no terminó, o ya se rindió, Cuando se
+      muestra su página, Entonces ofrece «En curso», que abre el seguimiento de ese
+      examen, o «Reporte», que abre sus reportes con el examen elegido (HU-23).
+\item Dado que el docente pulsa «Registrar examen», Cuando se abre el asistente,
+      Entonces la fecha propuesta es la de hoy, o la primera válida si el período o la
+      ventana del tipo empiezan después, y la hora es 08:15; un tipo cuya ventana ya
+      terminó no se ofrece, y una fecha u hora ya pasadas se señalan con «La fecha ya
+      pasó» o «La hora ya pasó».
+\item Dado que el docente ya registró exámenes, Cuando empieza uno nuevo, Entonces las
+      normas vienen marcadas como en su último examen de la misma asignatura o, si no
+      tiene, en el último que registró, con «Como en» y ese examen (tipo, asignatura y
+      fecha); las normas que perdieron su plantilla pasan al texto libre, se copian
+      hasta que el docente las toca y, sin exámenes anteriores, empieza sin normas
+      marcadas.
+\item Dado que el docente llega al paso «Aulas», Cuando se muestra, Entonces ve las
+      aulas de la facultad de la asignatura, y las ya elegidas aunque sean de otra, con
+      el buscador «Buscar aula», el mapa y la lista desplegable «Edificio» con «Todos
+      los edificios», «Elegidas», «Libres a esa hora» y cada edificio, todas con su
+      cantidad; «Libres a esa hora» deja las que no tienen clases de otros grupos ni
+      otros exámenes en ese horario (la clase del propio grupo no la ocupa), pulsar un
+      edificio en el mapa muestra solo sus aulas y otra vez, todas, y un aula que se
+      comparte con otro examen lleva «Compartida» con ese examen, sin impedir elegirla.
+\item Dado que el examen está abierto y la cuenta tiene el permiso «Exámenes», Cuando el
+      docente abre «En curso», Entonces ve «Finalizar examen»; al pulsarlo, el diálogo
+      «Finalizar examen» dice «Se cierra la puerta en todas las aulas: ya no se
+      registran ingresos.» con «Ingresaron N · Faltan M», «Cancelar» y «Finalizar», y al
+      confirmar el examen se cierra, se avisa «Examen finalizado» y deja de estar en
+      curso.
+\item Dado que pasó la hora prevista de término y nadie finalizó el examen, Cuando se
+      muestra «En curso», Entonces avisa «Pasó la hora prevista de término (HH:MM). La
+      puerta sigue abierta hasta que finalice el examen.» y «Finalizar examen» pasa a
+      botón de peligro; la puerta sigue admitiendo ingresos y, si nadie lo finaliza, el
+      examen se cierra solo al terminar su día.
+\item Dado que se pide finalizar un examen, Cuando el servidor lo procesa, Entonces solo
+      lo finaliza un docente del examen: otro recibe «Este examen no está a su cargo.»,
+      el que no existe «Examen no encontrado.» y el que no está abierto ---futuro, de un
+      día pasado o ya finalizado--- «El examen no está abierto: no se puede finalizar.»,
+      que el diálogo muestra; finalizado, se cierran la puerta, el seguimiento y el
+      acceso con código de aula, y queda en la bitácora como «Examen finalizado» con su
+      autor.
+\item Dado que no hay sesión o el rol no tiene el permiso «Exámenes», Cuando se intenta
+      abrir la lista o la página, o finalizar, Entonces el servidor lo rechaza, y sin
+      ese permiso «En curso» no ofrece «Finalizar examen». En un dispositivo móvil la
+      fecha de cada tarjeta va arriba, los pasos de a dos, y las pestañas ocupan el
+      ancho sin íconos ni contadores, de forma completamente responsiva.}
+
+\def\HUMockupsPares{%
+\CajaMockup{hu28-examenes}{10.6cm} & \CajaMockup{hu28-examenes-movil}{3.2cm} \\[4pt]
+\hline
+\CajaMockup{hu28-nuevo-examen}{10.6cm} & \CajaMockup{hu28-nuevo-examen-movil}{3.2cm} \\[4pt]
+\hline
+\CajaMockup{hu28-elegir-aulas}{10.6cm} & \CajaMockup{hu28-elegir-aulas-movil}{3.2cm} \\[4pt]
+\hline
+\CajaMockup{hu28-finalizar-examen}{10.6cm} & \CajaMockup{hu28-finalizar-examen-movil}{3.2cm} \\[4pt]
+\hline}
+
+
+\def\HUPruebas{%
+\item \texttt{Examenes.test.jsx}: exámenes agrupados por mes con el de hoy destacado, el
+      próximo si hoy no hay, filtro por asignatura con sus conteos, «Sin exámenes»,
+      «Reintentar», los cinco pasos, una sola acción y «En curso» el día del examen,
+      enlaces según los permisos, título que abre la página del examen y editar y
+      eliminar fuera de la tarjeta (criterios 1 y 2).
+\item \texttt{DetalleExamen.test.jsx}: título, estado, pestañas con sus cifras y paso
+      siguiente, cambio de pestaña sin salir del examen, pestaña pedida en la dirección,
+      pestañas deshabilitadas sin aulas o sin permiso, «Reporte» del examen ya tomado,
+      «Examen no encontrado», eliminación con confirmación, cancelación y rechazo, sin
+      eliminar con ingresos y solo quien lo registró (criterios 3 a 7).
+\item \texttt{RegistrarExamen.test.jsx}: fecha de hoy y primera hora de la mañana, fecha
+      pasada y hora fuera del horario, normas del último examen de la asignatura y sin
+      exámenes anteriores sin normas marcadas; aulas solo de la facultad, filtro por
+      edificio, «Elegidas» y «Libres a esa hora» con su lista desplegable, y edificio
+      elegido desde el mapa (criterios 8 a 10).
+\item \texttt{AmbientesDelExamenTest}: las aulas compartidas con otro examen y las clases
+      del horario de cada aula a la hora del examen, propias o de otros grupos
+      (criterio 10).
+\item \texttt{FinalizarExamenTest}: un docente del examen lo finaliza y queda en la
+      bitácora, el examen pasado de su hora sigue abierto hasta finalizarlo, solo un
+      examen abierto y una sola vez, otro docente, sesión, permiso y examen inexistente
+      (criterios 11 a 14).
+\item \texttt{VerificacionEnPuertaTest}, \texttt{AccesoConCodigoDeAulaTest} y
+      \texttt{TableroTest}: la puerta sigue abierta pasada la hora prevista hasta que el
+      docente finaliza, el acceso con código de aula termina al finalizar y «En curso»
+      va de una hora antes del inicio hasta la finalización (criterios 12 y 13).
+\item \texttt{EnCurso.test.jsx}: el docente finaliza el examen y deja de estar en curso,
+      aviso pasada la hora prevista y sin el permiso de exámenes no ofrece finalizar
+      (criterios 11, 12 y 14).}
+
+\input{cuerpo}

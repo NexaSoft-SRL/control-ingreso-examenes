@@ -4,156 +4,234 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Modules\Administracion;
 
-use App\Modules\Administracion\Application\Contracts\CuentaUsuarioGateway;
-use App\Modules\Administracion\Application\DTOs\NuevaCuentaData;
 use App\Modules\Administracion\Domain\Models\User;
 use App\Modules\Administracion\Infrastructure\Mail\CredencialesInicialesMail;
-use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use RuntimeException;
+use Tests\Support\UsuarioConPermisos;
 use Tests\TestCase;
 
 /**
- * El correo con las credenciales de una cuenta nueva o restablecida. Las
- * rutas que lo disparan (`/api/usuarios`, `/api/docentes/{docente}/cuenta`)
- * tienen sus propias pruebas; aqui se prueba la pasarela.
+ * Ruta 9: el alta de una cuenta. Sale con una contrasena temporal que se
+ * devuelve una sola vez y, si hay correo, ademas se envia.
  */
 final class CredencialesInicialesTest extends TestCase
 {
     use RefreshDatabase;
+    use UsuarioConPermisos;
 
-    private CuentaUsuarioGateway $cuentas;
+    private const FORMATO = '/^[A-Z][a-z][2-9]-[A-Z][a-z]{2}[2-9]-[A-Z][a-z][2-9]$/';
+
+    private User $administrador;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->seed(RolePermissionSeeder::class);
-
-        $this->cuentas = $this->app->make(CuentaUsuarioGateway::class);
-    }
-
-    public function test_the_temporary_password_travels_to_the_account_email(): void
-    {
         Mail::fake();
 
-        $cuenta = $this->cuentas->crear(
-            new NuevaCuentaData('Mamani Torrez Diego', 'diego.mamani', 'diego@umss.edu.bo', 'Auxiliar'),
-            null,
-        );
+        $this->administrador = $this->usuarioConRol('Administrador', [
+            'usuario' => 'ana.rojas',
+            'email' => 'admin@umss.edu.bo',
+        ]);
+    }
 
-        $this->assertSame('diego@umss.edu.bo', $cuenta->enviadaA);
+    /**
+     * @param  array<string, mixed>  $cambios
+     * @return array<string, mixed>
+     */
+    private function cuerpo(array $cambios = []): array
+    {
+        return array_merge([
+            'nombre' => 'Villarroel Soto Patricia',
+            'usuario' => 'patricia.villarroel',
+            'correo' => 'patricia@umss.edu.bo',
+            'rol' => 'Docente',
+        ], $cambios);
+    }
+
+    public function test_creating_an_account_returns_the_temporary_password_once(): void
+    {
+        $this->travelTo('2026-10-12 08:21:00');
+
+        $respuesta = $this->actingAs($this->administrador)
+            ->postJson('/api/usuarios', $this->cuerpo())
+            ->assertCreated()
+            ->assertJsonPath('message', 'Usuario creado.')
+            ->assertJsonPath('data.nombre', 'Villarroel Soto Patricia')
+            ->assertJsonPath('data.usuario', 'patricia.villarroel')
+            ->assertJsonPath('data.correo', 'patricia@umss.edu.bo')
+            ->assertJsonPath('data.rol', 'Docente')
+            ->assertJsonPath('data.estado', 'temporal')
+            ->assertJsonPath('enviada_a', 'patricia@umss.edu.bo')
+            // 72 horas despues, en la hora de Cochabamba.
+            ->assertJsonPath('caduca_en', '2026-10-15T08:21:00-04:00');
+
+        $temporal = $respuesta->json('contrasena_temporal');
+
+        self::assertIsString($temporal);
+        $this->assertMatchesRegularExpression(self::FORMATO, $temporal);
+
+        $creada = User::where('usuario', 'patricia.villarroel')->firstOrFail();
+
+        $this->assertSame($creada->getKey(), $respuesta->json('data.id'));
+        $this->assertTrue(Hash::check($temporal, $creada->password));
+    }
+
+    public function test_creating_an_account_emails_the_initial_credentials(): void
+    {
+        $this->actingAs($this->administrador)
+            ->postJson('/api/usuarios', $this->cuerpo())
+            ->assertCreated();
 
         Mail::assertSent(
             CredencialesInicialesMail::class,
-            static fn (CredencialesInicialesMail $correo): bool => $correo->hasTo('diego@umss.edu.bo')
-                && $correo->usuario === 'diego.mamani'
-                && $correo->correo === 'diego@umss.edu.bo'
-                && $correo->contrasenaTemporal === $cuenta->contrasenaTemporal
-                && $correo->horasVigencia === 72,
+            fn (CredencialesInicialesMail $correo): bool => $correo->hasTo('patricia@umss.edu.bo')
+                && $correo->usuario === 'patricia.villarroel'
         );
+    }
+
+    public function test_the_sent_email_is_recorded(): void
+    {
+        $this->actingAs($this->administrador)
+            ->postJson('/api/usuarios', $this->cuerpo())
+            ->assertCreated();
+
+        $this->assertDatabaseHas('envios_correo', [
+            'tipo' => 'CREDENCIALES',
+            'destinatario' => 'patricia@umss.edu.bo',
+            'user_id' => User::where('usuario', 'patricia.villarroel')->value('id'),
+            'estado' => 'ENVIADO',
+            'solicitado_por' => $this->administrador->getKey(),
+        ]);
     }
 
     public function test_an_account_without_email_is_created_and_nothing_is_sent(): void
     {
-        Mail::fake();
-
-        $cuenta = $this->cuentas->crear(
-            new NuevaCuentaData('Mamani Torrez Diego', 'diego.mamani', null, 'Auxiliar'),
-            null,
-        );
-
-        $this->assertNull($cuenta->enviadaA);
-        $this->assertDatabaseHas('usuarios', ['id' => $cuenta->id, 'correo' => null]);
+        $this->actingAs($this->administrador)
+            ->postJson('/api/usuarios', $this->cuerpo(['correo' => null, 'rol' => 'Auxiliar']))
+            ->assertCreated()
+            ->assertJsonPath('data.correo', null)
+            ->assertJsonPath('data.rol', 'Auxiliar')
+            ->assertJsonPath('enviada_a', null);
 
         Mail::assertNothingSent();
+        $this->assertDatabaseCount('envios_correo', 0);
+    }
+
+    public function test_the_new_account_must_define_its_own_password(): void
+    {
+        $this->actingAs($this->administrador)
+            ->postJson('/api/usuarios', $this->cuerpo())
+            ->assertCreated();
+
+        $creada = User::where('usuario', 'patricia.villarroel')->firstOrFail();
+
+        $this->assertNull($creada->getAttribute('password_changed_at'));
+        $this->assertNotNull($creada->getAttribute('password_temporal_expira_en'));
     }
 
     public function test_the_username_and_the_email_are_stored_in_lowercase(): void
     {
-        Mail::fake();
+        $this->actingAs($this->administrador)
+            ->postJson('/api/usuarios', $this->cuerpo([
+                'nombre' => '  Villarroel Soto Patricia ',
+                'usuario' => ' Patricia.Villarroel ',
+                'correo' => 'Patricia@UMSS.edu.bo',
+            ]))
+            ->assertCreated()
+            ->assertJsonPath('data.usuario', 'patricia.villarroel');
 
-        $cuenta = $this->cuentas->crear(
-            new NuevaCuentaData(
-                '  Villarroel Soto Patricia ',
-                ' Patricia.Villarroel ',
-                'Patricia@UMSS.edu.bo',
-                'Docente',
-            ),
-            null,
-        );
-
-        $this->assertSame('patricia.villarroel', $cuenta->usuario);
-        $this->assertSame('patricia@umss.edu.bo', $cuenta->enviadaA);
-
-        $this->assertDatabaseHas('usuarios', [
-            'nombre' => 'Villarroel Soto Patricia',
+        $this->assertDatabaseHas('users', [
+            'name' => 'Villarroel Soto Patricia',
             'usuario' => 'patricia.villarroel',
-            'correo' => 'patricia@umss.edu.bo',
+            'email' => 'patricia@umss.edu.bo',
         ]);
     }
 
-    public function test_taken_usernames_and_emails_are_detected_ignoring_case(): void
+    public function test_the_fields_are_validated(): void
     {
-        Mail::fake();
+        $this->actingAs($this->administrador)
+            ->postJson('/api/usuarios', [
+                'nombre' => 'Pa',
+                'usuario' => 'patricia/villarroel',
+                'correo' => 'no-es-correo',
+                'rol' => 'Responsable',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.nombre.0', 'Mínimo 3 caracteres')
+            ->assertJsonPath('errors.usuario.0', 'Nombre y apellido, separados por un espacio')
+            ->assertJsonPath('errors.correo.0', 'Correo no válido')
+            ->assertJsonPath('errors.rol.0', 'El rol no existe');
 
-        $cuenta = $this->cuentas->crear(
-            new NuevaCuentaData('Rojas Vargas Ana', 'ana.rojas', 'ana@umss.edu.bo', 'Administrador'),
-            null,
-        );
+        $this->actingAs($this->administrador)
+            ->postJson('/api/usuarios', [])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.nombre.0', 'Obligatorio')
+            ->assertJsonPath('errors.usuario.0', 'Obligatorio')
+            ->assertJsonPath('errors.rol.0', 'Obligatorio')
+            ->assertJsonMissingValidationErrors('correo');
 
-        $this->assertTrue($this->cuentas->usuarioRegistrado(' ANA.Rojas '));
-        $this->assertTrue($this->cuentas->correoRegistrado('Ana@UMSS.edu.bo'));
-        $this->assertFalse($this->cuentas->usuarioRegistrado('ana.rojas', $cuenta->id));
-        $this->assertFalse($this->cuentas->correoRegistrado('ana@umss.edu.bo', $cuenta->id));
-        $this->assertFalse($this->cuentas->usuarioRegistrado('otra.cuenta'));
+        Mail::assertNothingSent();
     }
 
-    public function test_a_new_temporary_password_is_sent_again(): void
+    public function test_the_username_must_not_be_already_taken(): void
     {
-        Mail::fake();
+        $this->actingAs($this->administrador)
+            ->postJson('/api/usuarios', $this->cuerpo(['usuario' => 'ANA.Rojas']))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.usuario.0', 'Ya existe');
 
-        $cuenta = $this->cuentas->crear(
-            new NuevaCuentaData('Flores Villarroel Corina', 'corina.flores', 'corina@umss.edu.bo', 'Docente'),
-            null,
-        );
-
-        $nueva = $this->cuentas->emitirTemporal($cuenta->id, null);
-
-        $this->assertNotNull($nueva);
-        $this->assertSame('corina@umss.edu.bo', $nueva->enviadaA);
-
-        Mail::assertSent(CredencialesInicialesMail::class, 2);
+        $this->assertDatabaseMissing('users', ['email' => 'patricia@umss.edu.bo']);
     }
 
-    public function test_the_email_shows_the_account_the_password_and_the_expiry(): void
+    public function test_the_email_must_not_be_already_registered(): void
     {
-        $html = (new CredencialesInicialesMail(
-            'Mamani Torrez Diego',
-            'diego.mamani',
-            'diego@umss.edu.bo',
-            'Fa7-Kmq4-Ru9',
-            'https://ejemplo.test/login',
-            72,
-        ))->render();
-
-        $this->assertStringContainsString('diego.mamani', $html);
-        $this->assertStringContainsString('diego@umss.edu.bo', $html);
-        $this->assertStringContainsString('Fa7-Kmq4-Ru9', $html);
-        $this->assertStringContainsString('72 horas', $html);
+        $this->actingAs($this->administrador)
+            ->postJson('/api/usuarios', $this->cuerpo(['correo' => 'Admin@umss.edu.bo']))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.correo.0', 'Ya existe');
     }
 
-    public function test_a_mail_failure_keeps_the_account_and_reports_nothing_was_sent(): void
+    public function test_a_guest_cannot_create_accounts(): void
     {
-        Mail::shouldReceive('to')->andThrow(new RuntimeException('Servidor de correo caído.'));
+        $this->postJson('/api/usuarios', $this->cuerpo())->assertUnauthorized();
 
-        $cuenta = $this->cuentas->crear(
-            new NuevaCuentaData('Mamani Torrez Diego', 'diego.mamani', 'diego@umss.edu.bo', 'Auxiliar'),
-            null,
+        Mail::assertNothingSent();
+        $this->assertDatabaseMissing('users', ['usuario' => 'patricia.villarroel']);
+    }
+
+    public function test_the_permission_is_required_to_create_accounts(): void
+    {
+        $this->actingAs($this->usuarioConRol('Docente'))
+            ->postJson('/api/usuarios', $this->cuerpo())
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('users', ['usuario' => 'patricia.villarroel']);
+    }
+
+    public function test_the_creation_is_recorded_in_the_audit_log_without_the_password(): void
+    {
+        $respuesta = $this->actingAs($this->administrador)
+            ->postJson('/api/usuarios', $this->cuerpo())
+            ->assertCreated();
+
+        $this->assertDatabaseHas('bitacora_operaciones', [
+            'operacion' => 'usuario.crear',
+            'usuario_id' => $this->administrador->getKey(),
+            'tabla_afectada' => 'users',
+            'registro_id' => $respuesta->json('data.id'),
+        ]);
+
+        $temporal = $respuesta->json('contrasena_temporal');
+
+        self::assertIsString($temporal);
+        $this->assertFalse(
+            DB::table('bitacora_operaciones')
+                ->where('descripcion', 'like', '%'.$temporal.'%')
+                ->exists()
         );
-
-        $this->assertNull($cuenta->enviadaA);
-        $this->assertTrue(User::whereKey($cuenta->id)->exists());
     }
 }

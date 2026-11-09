@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Administracion\Http\Requests;
 
-use App\Modules\Administracion\Domain\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 final class CambiarContrasenaRequest extends FormRequest
 {
@@ -16,24 +15,24 @@ final class CambiarContrasenaRequest extends FormRequest
     }
 
     /**
-     * @return array<string, list<mixed>>
+     * `contrasena_actual` no es obligatoria aqui: con contrasena temporal
+     * no se pide. Si hace falta, lo decide la accion.
+     *
+     * @return array<string, list<string|Password>>
      */
     public function rules(): array
     {
-        $usuario = $this->user();
-        // La cuenta con contrasena temporal no repite la temporal: entro con
-        // ella. La cuenta con contrasena propia si debe darla.
-        $esTemporal = $usuario instanceof User
-            && $usuario->getAttribute('password_changed_at') === null;
-
         return [
-            'contrasena_actual' => [Rule::requiredIf(! $esTemporal), 'nullable', 'string'],
-            'password' => [
+            'contrasena_actual' => [
+                'nullable',
+                'string',
+            ],
+            'contrasena_nueva' => [
                 'required',
                 'string',
+                Password::min(10)->mixedCase()->numbers(),
                 'confirmed',
                 'different:contrasena_actual',
-                ...ReglasContrasena::reglas(),
             ],
         ];
     }
@@ -44,8 +43,12 @@ final class CambiarContrasenaRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'password.different' => 'La contraseña nueva debe ser distinta de la actual.',
-            ...ReglasContrasena::mensajes(),
+            'contrasena_nueva.required' => 'Escriba la contraseña nueva.',
+            'contrasena_nueva.different' => 'La contraseña nueva debe ser distinta de la actual.',
+            'contrasena_nueva.confirmed' => 'La confirmación no coincide con la contraseña nueva.',
+            'contrasena_nueva.min' => 'La contraseña nueva debe tener al menos 10 caracteres.',
+            'contrasena_nueva.password.mixed' => 'La contraseña nueva debe tener una mayúscula y una minúscula.',
+            'contrasena_nueva.password.numbers' => 'La contraseña nueva debe tener un número.',
         ];
     }
 }

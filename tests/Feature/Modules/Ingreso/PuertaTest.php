@@ -4,278 +4,331 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Modules\Ingreso;
 
-use App\Modules\Academico\Domain\Models\Aula;
+use App\Modules\Academico\Domain\Models\Grupo;
 use App\Modules\Administracion\Domain\Models\User;
-use App\Modules\Estudiantes\Domain\Models\Estudiante;
-use App\Modules\Examenes\Domain\Models\AccesoCodigoAula;
+use App\Modules\Estudiantes\Domain\Models\Inscripcion;
 use App\Modules\Examenes\Domain\Models\Examen;
-use App\Modules\Examenes\Domain\Models\ExamenAulaCodigo;
-use App\Modules\Examenes\Domain\Models\ExamenAulaPersonal;
+use Database\Factories\UserFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
-use Tests\Feature\Modules\Examenes\ArmaExamenes;
 use Tests\TestCase;
 
 /**
- * Con codigo de aula se ve y se opera la misma puerta que con cuenta, solo
- * en el aula del acceso y solo con la autorizacion del docente; la
- * excepcion y la expulsion las hace una cuenta.
+ * Rutas 62 y 63: las aulas del puesto y la cabecera de la puerta, que
+ * trabaja por aula y hora y puede tener dos examenes a la vez.
  */
 final class PuertaTest extends TestCase
 {
-    use ArmaExamenes;
+    use EscenarioDePuerta;
     use RefreshDatabase;
 
-    public function test_con_codigo_autorizado_opera_la_misma_puerta_que_con_cuenta(): void
+    protected function setUp(): void
     {
-        [$examen, $aula, $estudiante] = $this->escenario();
-        $acceso = $this->acceso($examen, $aula, 'AUTORIZADO', 'token-101');
-        $headers = ['X-Codigo-Aula-Token' => 'token-101'];
-
-        // El contexto dice el aula del acceso y su nombre.
-        $this->withHeaders($headers)
-            ->getJson('/api/punto-control/contexto')
-            ->assertOk()
-            ->assertJsonPath('data.0.id', $examen->id)
-            ->assertJsonPath('data.0.aulas.0.id', $aula->id)
-            ->assertJsonPath('acceso.nombre', 'Rocha Ana')
-            ->assertJsonPath('acceso.aula', 'Aula 101');
-
-        // La puerta del aula con sus examenes, cifras y normas.
-        $this->withHeaders($headers)
-            ->getJson("/api/aulas/{$aula->id}/punto-control")
-            ->assertOk()
-            ->assertJsonPath('data.examenes.0.id', $examen->id);
-
-        $this->withHeaders($headers)
-            ->postJson("/api/aulas/{$aula->id}/punto-control/ingresos", [
-                'identificador' => $estudiante->codigo_universitario,
-            ])
-            ->assertCreated()
-            ->assertJsonPath('data.veredicto', 'ADMITIDO');
-
-        $this->assertDatabaseHas('ingresos', [
-            'examen_id' => $examen->id,
-            'estudiante_id' => $estudiante->id,
-            'aula_id' => $aula->id,
-            'acceso_codigo_aula_id' => $acceso->id,
-            'registrado_por' => null,
-        ]);
-        $this->assertDatabaseHas('bitacora_operaciones', [
-            'operacion' => 'INGRESO_ADMITIDO',
-            'usuario_id' => null,
-        ]);
-
-        $this->withHeaders($headers)
-            ->getJson("/api/aulas/{$aula->id}/punto-control/ingresos")
-            ->assertOk()
-            ->assertJsonPath('data.0.estudiante_id', $estudiante->id)
-            ->assertJsonPath('data.0.operador', 'Rocha Ana (código de aula)');
-
-        // El mapa de la puerta no exige cuenta.
-        $this->withHeaders($headers)
-            ->getJson("/api/aulas/{$aula->id}/punto-control/edificios")
-            ->assertOk()
-            ->assertJsonStructure(['data', 'meta' => ['caja']]);
-
-        // Con codigo de aula no hay excepcion ni expulsion.
-        $ingreso = DB::table('ingresos')->value('id');
-        self::assertIsInt($ingreso);
-        $this->withHeaders($headers)
-            ->postJson("/api/aulas/{$aula->id}/punto-control/ingresos/{$ingreso}/expulsion", ['motivo' => 'Uso de celular.'])
-            ->assertForbidden()
-            ->assertJsonPath('message', 'Con código de aula solo se verifica y se reportan incidencias.');
-        $this->withHeaders($headers)
-            ->postJson("/api/aulas/{$aula->id}/punto-control/excepciones", [
-                'tipo' => 'EXCEPCION_IDENTIFICACION',
-                'motivo' => 'Documento dudoso.',
-            ])
-            ->assertForbidden();
+        parent::setUp();
+        $this->armarExamen();
     }
 
-    public function test_el_codigo_solo_abre_la_puerta_de_su_aula(): void
+    public function test_a_teacher_lists_the_rooms_of_todays_exams(): void
     {
-        [$examen, $aula] = $this->escenario();
-        $otra = $this->aula('Aula 102');
-        DB::table('examen_aula')->insert([
-            'examen_id' => $examen->id,
-            'aula_id' => $otra->id,
-            'created_at' => now(),
-            'updated_at' => now(),
+        $otra = $this->aula('617');
+        $this->sumarAula($otra);
+        $manana = $this->examen($this->docente, [$this->grupo($this->docente)], [$this->aula('999')], [
+            'fecha' => '2026-10-13',
         ]);
-        $this->acceso($examen, $aula, 'AUTORIZADO', 'token-101');
 
-        $this->withHeaders(['X-Codigo-Aula-Token' => 'token-101'])
-            ->postJson("/api/aulas/{$otra->id}/punto-control/ingresos", ['identificador' => '202100001'])
-            ->assertForbidden()
-            ->assertJsonPath('message', 'El código solo abre la puerta de su aula.');
+        $this->actingAs($this->cuentaDocente)
+            ->getJson('/api/puerta/aulas')
+            ->assertOk()
+            ->assertJsonPath('hoy', '2026-10-12')
+            ->assertJsonPath('acceso', null)
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.aula_id', $otra->id)
+            ->assertJsonPath('data.0.nombre', '617')
+            ->assertJsonPath('data.0.ubicacion', null)
+            ->assertJsonPath('data.1.aula_id', $this->aula->id)
+            ->assertJsonPath('data.1.ubicacion', 'Edificio Académico 2 · 1° Piso')
+            ->assertJsonPath('data.1.abierta', true)
+            ->assertJsonPath('data.1.examenes.0.id', $this->examen->id)
+            ->assertJsonPath('data.1.examenes.0.texto', 'Primer parcial · Introducción a la Programación')
+            ->assertJsonPath('data.1.examenes.0.hora', '08:15');
+
+        $this->assertNotSame($manana->id, $this->examen->id);
     }
 
-    public function test_sin_autorizar_rechazado_o_cortado_no_opera(): void
+    public function test_an_assistant_lists_only_the_rooms_it_attends_today(): void
     {
-        [$examen, $aula] = $this->escenario();
+        $otra = $this->aula('617');
+        $this->sumarAula($otra);
+        $auxiliar = $this->cuentaAuxiliar();
+        $this->ponerACargo($this->examen, $otra, $auxiliar);
 
-        foreach ([
-            'PENDIENTE' => 'Falta que el docente autorice el acceso.',
-            'RECHAZADO' => 'El docente no autorizó el acceso.',
-            'CORTADO' => 'El docente cortó el acceso.',
-        ] as $estado => $mensaje) {
-            $token = 'token-'.$estado;
-            $this->acceso($examen, $aula, $estado, $token);
+        $this->actingAs($auxiliar)
+            ->getJson('/api/puerta/aulas')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.aula_id', $otra->id);
+    }
 
-            $this->withHeaders(['X-Codigo-Aula-Token' => $token])
-                ->getJson("/api/aulas/{$aula->id}/punto-control")
-                ->assertUnauthorized()
-                ->assertJsonPath('message', $mensaje);
+    public function test_a_room_is_listed_closed_before_its_window(): void
+    {
+        $this->fijarHora('2026-10-12 06:00:00');
+
+        $this->actingAs($this->cuentaDocente)
+            ->getJson('/api/puerta/aulas')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.abierta', false);
+    }
+
+    public function test_the_room_list_requires_a_session_and_the_permission(): void
+    {
+        $this->getJson('/api/puerta/aulas')->assertUnauthorized();
+
+        $this->actingAs(UserFactory::new()->createOne())
+            ->getJson('/api/puerta/aulas')
+            ->assertForbidden()
+            ->assertJsonPath('permiso_requerido', 'punto_control');
+    }
+
+    public function test_the_door_shows_the_room_its_exams_and_the_latest_entries(): void
+    {
+        $this->examen->update(['normas' => 'Sin celular. Hoja de fórmulas A4.']);
+        $estudiantes = $this->habilitados(7);
+
+        foreach (array_slice($estudiantes, 0, 6) as $indice => $estudiante) {
+            $this->travel(1)->seconds();
+            $this->ingresar($this->examen, $estudiante, $this->aula);
         }
+
+        $ultimo = $estudiantes[5];
+
+        $this->actingAs($this->cuentaDocente)
+            ->getJson("/api/puerta/aulas/{$this->aula->id}")
+            ->assertOk()
+            ->assertJsonPath('aula.id', $this->aula->id)
+            ->assertJsonPath('aula.nombre', '691A')
+            ->assertJsonPath('aula.ubicacion', 'Edificio Académico 2 · 1° Piso')
+            ->assertJsonPath('aula.edificio_id', $this->aula->edificio_id)
+            ->assertJsonPath('hora_servidor', $this->iso('2026-10-12 08:20:06'))
+            ->assertJsonPath('abierta', true)
+            ->assertJsonCount(1, 'examenes')
+            ->assertJsonPath('examenes.0.id', $this->examen->id)
+            ->assertJsonPath('examenes.0.asignatura', 'Introducción a la Programación')
+            ->assertJsonPath('examenes.0.tipo', 'Primer parcial')
+            ->assertJsonPath('examenes.0.hora', '08:15')
+            ->assertJsonPath('examenes.0.ingresados', 6)
+            ->assertJsonPath('examenes.0.asignados', 7)
+            ->assertJsonPath('examenes.0.normas', 'Sin celular. Hoja de fórmulas A4.')
+            ->assertJsonCount(5, 'ingresos')
+            ->assertJsonPath('total_ingresos', 6)
+            ->assertJsonPath('ingresos.0.estudiante_id', $ultimo->id)
+            ->assertJsonPath('ingresos.0.codigo', $ultimo->codigo_universitario)
+            ->assertJsonPath('ingresos.0.nombre', $ultimo->apellidos.' '.$ultimo->nombres)
+            ->assertJsonPath('ingresos.0.hora', '08:20')
+            ->assertJsonPath('ingresos.0.examen_id', $this->examen->id)
+            ->assertJsonPath('ingresos.0.excepcion', false)
+            ->assertJsonPath('ingresos.0.expulsado', false);
     }
 
-    public function test_el_docente_autoriza_mueve_y_corta_el_acceso(): void
+    public function test_all_entries_can_be_listed_and_searched(): void
     {
-        $cuenta = $this->usuarioConPermisos(['examenes', 'punto_control']);
-        $docente = $this->docenteConCuenta($cuenta, 'Blanco Coca Leticia');
-        $grupo = $this->grupo($docente);
-        $aula = $this->aula('Aula 101');
-        $otra = $this->aula('Aula 102');
-        $inicio = now()->subMinutes(10);
-        $examen = $this->examen($docente, [$grupo], [$aula, $otra], [
-            'fecha' => $inicio->toDateString(),
-            'hora_inicio' => $inicio->format('H:i:00'),
-            'duracion_minutos' => 90,
+        $estudiantes = $this->habilitados(7);
+
+        foreach ($estudiantes as $estudiante) {
+            $this->ingresar($this->examen, $estudiante, $this->aula);
+        }
+
+        $estudiantes[2]->update(['apellidos' => 'Aguilar Cossío', 'nombres' => 'Mariana']);
+
+        $this->actingAs($this->cuentaDocente)
+            ->getJson("/api/puerta/aulas/{$this->aula->id}?ingresos=todos")
+            ->assertOk()
+            ->assertJsonCount(7, 'ingresos');
+
+        $this->actingAs($this->cuentaDocente)
+            ->getJson("/api/puerta/aulas/{$this->aula->id}?ingresos=todos&buscar=cossio")
+            ->assertOk()
+            ->assertJsonCount(1, 'ingresos')
+            ->assertJsonPath('ingresos.0.nombre', 'Aguilar Cossío Mariana')
+            ->assertJsonPath('total_ingresos', 7);
+
+        $this->actingAs($this->cuentaDocente)
+            ->getJson("/api/puerta/aulas/{$this->aula->id}?ingresos=todos&buscar=".$estudiantes[4]->codigo_universitario)
+            ->assertOk()
+            ->assertJsonCount(1, 'ingresos')
+            ->assertJsonPath('ingresos.0.estudiante_id', $estudiantes[4]->id);
+    }
+
+    public function test_the_door_rejects_an_unknown_entries_mode(): void
+    {
+        $this->actingAs($this->cuentaDocente)
+            ->getJson("/api/puerta/aulas/{$this->aula->id}?ingresos=ninguno")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['ingresos']);
+    }
+
+    public function test_a_closed_door_shows_todays_exams_without_opening(): void
+    {
+        // Finalizado por el docente: la puerta ya no abre.
+        $this->examen->forceFill(['finalizado_en' => '2026-10-12 10:00:00'])->save();
+        $this->fijarHora('2026-10-12 11:00:00');
+
+        $this->actingAs($this->cuentaDocente)
+            ->getJson("/api/puerta/aulas/{$this->aula->id}")
+            ->assertOk()
+            ->assertJsonPath('abierta', false)
+            ->assertJsonCount(1, 'examenes')
+            ->assertJsonPath('examenes.0.id', $this->examen->id);
+    }
+
+    public function test_a_room_with_two_exams_at_once_shows_both_with_their_own_figures(): void
+    {
+        [$otroExamen, $otroGrupo] = $this->examenCompartido();
+        $propios = $this->habilitados(3);
+        $ajenos = $this->habilitados(2, $this->aula, $otroExamen, $otroGrupo);
+        $this->ingresar($this->examen, $propios[0], $this->aula);
+        $this->ingresar($otroExamen, $ajenos[0], $this->aula);
+
+        $this->actingAs($this->cuentaDocente)
+            ->getJson("/api/puerta/aulas/{$this->aula->id}")
+            ->assertOk()
+            ->assertJsonCount(2, 'examenes')
+            ->assertJsonPath('examenes.0.id', $this->examen->id)
+            ->assertJsonPath('examenes.0.ingresados', 1)
+            ->assertJsonPath('examenes.0.asignados', 3)
+            ->assertJsonPath('examenes.1.id', $otroExamen->id)
+            ->assertJsonPath('examenes.1.asignatura', 'Cálculo I')
+            ->assertJsonPath('examenes.1.ingresados', 1)
+            ->assertJsonPath('examenes.1.asignados', 2)
+            ->assertJsonPath('total_ingresos', 2);
+    }
+
+    public function test_the_door_resolves_the_exam_of_each_student_in_a_shared_room(): void
+    {
+        [$otroExamen, $otroGrupo] = $this->examenCompartido();
+        [$propio] = $this->habilitados(1);
+        [$ajeno] = $this->habilitados(1, $this->aula, $otroExamen, $otroGrupo);
+
+        $this->verificar($this->cuentaDocente, $propio->codigo_universitario)
+            ->assertJsonPath('veredicto', 'admitido')
+            ->assertJsonPath('examen.id', $this->examen->id);
+
+        $this->verificar($this->cuentaDocente, $ajeno->codigo_universitario)
+            ->assertJsonPath('veredicto', 'admitido')
+            ->assertJsonPath('examen.id', $otroExamen->id)
+            ->assertJsonPath('examen.asignatura', 'Cálculo I');
+
+        $this->assertDatabaseHas('ingresos', ['examen_id' => $this->examen->id, 'estudiante_id' => $propio->id]);
+        $this->assertDatabaseHas('ingresos', ['examen_id' => $otroExamen->id, 'estudiante_id' => $ajeno->id]);
+    }
+
+    public function test_a_student_in_both_exams_of_the_room_enters_the_one_without_entry(): void
+    {
+        [$otroExamen, $otroGrupo] = $this->examenCompartido();
+        [$estudiante] = $this->habilitados(1);
+        Inscripcion::create([
+            'estudiante_id' => $estudiante->id,
+            'grupo_id' => $otroGrupo->id,
+            'via' => 'ADMINISTRACION',
         ]);
-        $acceso = $this->acceso($examen, $aula, 'PENDIENTE', 'token-espera');
-        $base = "/api/examenes/{$examen->id}/accesos/{$acceso->id}";
+        $this->habilitar($otroExamen, [$estudiante], $this->aula);
 
-        // Solo el docente del examen decide.
-        $this->actingAs($this->usuarioConPermisos(['examenes']))
-            ->postJson("{$base}/autorizar")
-            ->assertForbidden();
+        $this->verificar($this->cuentaDocente, $estudiante->codigo_universitario)
+            ->assertJsonPath('veredicto', 'admitido')
+            ->assertJsonPath('examen.id', $this->examen->id);
 
-        $this->actingAs($cuenta)
-            ->postJson("{$base}/autorizar")
-            ->assertOk()
-            ->assertJsonPath('estado', 'autorizado')
-            ->assertJsonPath('message', 'Acceso autorizado.');
-        $this->assertDatabaseHas('accesos_codigo_aula', ['id' => $acceso->id, 'estado' => 'AUTORIZADO', 'resuelto_por' => $cuenta->id]);
-        $this->assertDatabaseHas('bitacora_operaciones', ['operacion' => 'acceso_aula.autorizar', 'registro_id' => $acceso->id]);
+        $this->verificar($this->cuentaDocente, $estudiante->codigo_universitario)
+            ->assertJsonPath('veredicto', 'admitido')
+            ->assertJsonPath('examen.id', $otroExamen->id);
 
-        // El aula ajena no se acepta; la del examen mueve el acceso.
-        $ajena = $this->aula('Aula 900');
-        $this->postJson("{$base}/trasladar", ['aula_id' => $ajena->id])
-            ->assertUnprocessable()
-            ->assertJsonPath('errors.aula_id.0', 'El aula no es de este examen.');
-        $this->postJson("{$base}/trasladar", ['aula_id' => $otra->id])
-            ->assertOk()
-            ->assertJsonPath('message', 'Acceso movido de aula.');
-        $this->assertDatabaseHas('accesos_codigo_aula', ['id' => $acceso->id, 'aula_id' => $otra->id]);
+        $this->verificar($this->cuentaDocente, $estudiante->codigo_universitario)
+            ->assertJsonPath('veredicto', 'ya_ingreso');
 
-        // La puerta toma el aula del acceso.
-        $this->withHeaders(['X-Codigo-Aula-Token' => 'token-espera'])
-            ->getJson("/api/aulas/{$otra->id}/punto-control")
+        $this->assertDatabaseCount('ingresos', 2);
+    }
+
+    public function test_with_qr_the_exam_is_the_one_of_the_token(): void
+    {
+        [$otroExamen, $otroGrupo] = $this->examenCompartido();
+        [$estudiante] = $this->habilitados(1);
+        Inscripcion::create([
+            'estudiante_id' => $estudiante->id,
+            'grupo_id' => $otroGrupo->id,
+            'via' => 'ADMINISTRACION',
+        ]);
+        $this->habilitar($otroExamen, [$estudiante], $this->aula);
+        $token = $this->emitirCodigo($estudiante, $otroExamen);
+
+        $this->actingAs($this->cuentaDocente)
+            ->postJson("/api/puerta/aulas/{$this->aula->id}/verificaciones", ['token' => $token])
+            ->assertJsonPath('veredicto', 'admitido')
+            ->assertJsonPath('examen.id', $otroExamen->id);
+    }
+
+    public function test_an_assistant_cannot_open_the_door_of_a_room_it_does_not_attend(): void
+    {
+        $this->actingAs($this->cuentaAuxiliar())
+            ->getJson("/api/puerta/aulas/{$this->aula->id}")
+            ->assertForbidden()
+            ->assertJsonPath('alcance', true)
+            ->assertJsonPath('message', 'Esta aula no está a su cargo.');
+    }
+
+    public function test_an_assistant_attends_only_on_the_day_of_the_exam(): void
+    {
+        $auxiliar = $this->cuentaAuxiliar();
+        $this->ponerACargo($this->examen, $this->aula, $auxiliar);
+
+        $this->actingAs($auxiliar)
+            ->getJson("/api/puerta/aulas/{$this->aula->id}")
             ->assertOk();
 
-        $this->actingAs($cuenta)->postJson("{$base}/cortar")->assertOk()->assertJsonPath('estado', 'cortado');
-        // Lo cortado queda asi.
-        $this->postJson("{$base}/autorizar")->assertOk()->assertJsonPath('estado', 'cortado');
+        $this->fijarHora('2026-10-13 08:20:00');
 
-        $this->app['auth']->forgetGuards();
-        $this->withHeaders(['X-Codigo-Aula-Token' => 'token-espera'])
-            ->getJson('/api/auth/codigo-aula/sesion')
-            ->assertUnauthorized()
-            ->assertJsonPath('message', 'El docente cortó el acceso.');
-    }
+        $this->actingAs($auxiliar)
+            ->getJson("/api/puerta/aulas/{$this->aula->id}")
+            ->assertForbidden()
+            ->assertJsonPath('alcance', true);
 
-    public function test_regenerar_el_codigo_corta_los_accesos_del_aula(): void
-    {
-        [$examen, $aula] = $this->escenario();
-        $creador = User::query()->findOrFail($examen->creado_por);
-        $autorizado = $this->acceso($examen, $aula, 'AUTORIZADO', 'token-a');
-        $pendiente = $this->acceso($examen, $aula, 'PENDIENTE', 'token-b');
-        ExamenAulaCodigo::create([
-            'examen_id' => $examen->id,
-            'aula_id' => $aula->id,
-            'codigo' => '123456',
-            'generado_en' => now()->toDateTimeString(),
-        ]);
-
-        $this->actingAs($creador)
-            ->postJson("/api/examenes/{$examen->id}/aulas/{$aula->id}/codigo")
-            ->assertOk();
-
-        $this->assertDatabaseHas('accesos_codigo_aula', ['id' => $autorizado->id, 'estado' => 'CORTADO']);
-        $this->assertDatabaseHas('accesos_codigo_aula', ['id' => $pendiente->id, 'estado' => 'CORTADO']);
-    }
-
-    public function test_docente_creador_opera_aula_aunque_este_a_cargo_de_otra_persona(): void
-    {
-        $usuarioCreador = $this->usuarioConPermisos(['examenes', 'punto_control']);
-        $docenteCreador = $this->docenteConCuenta($usuarioCreador, 'Docente Creadora');
-        $cuentaCreador = $this->cuenta($docenteCreador);
-
-        $usuarioApoyo = $this->usuarioConPermisos(['examenes', 'punto_control']);
-        $docenteApoyo = $this->docenteConCuenta($usuarioApoyo, 'Docente Apoyo');
-        $cuentaApoyo = $this->cuenta($docenteApoyo);
-
-        $grupo = $this->grupo($docenteCreador);
-        $aula = $this->aula('617');
-        [$estudiante] = $this->estudiantesInscritos($grupo, 1);
-
-        $inicio = now()->subMinutes(10);
-        $examen = $this->examen($docenteCreador, [$grupo], [$aula], [
-            'fecha' => $inicio->toDateString(),
-            'hora_inicio' => $inicio->format('H:i:00'),
-            'duracion_minutos' => 90,
-        ]);
-
-        $this->habilitar($examen, [$estudiante], $aula);
-
-        ExamenAulaPersonal::create([
-            'examen_id' => $examen->id,
-            'aula_id' => $aula->id,
-            'usuario_id' => $cuentaApoyo->id,
-            'rol' => ExamenAulaPersonal::ROL_A_CARGO,
-        ]);
-
-        $this->actingAs($cuentaCreador)
-            ->postJson("/api/aulas/{$aula->id}/punto-control/identificar", [
-                'identificador' => $estudiante->codigo_universitario,
-            ])
+        $this->actingAs($auxiliar)
+            ->getJson('/api/puerta/aulas')
             ->assertOk()
-            ->assertJsonPath('data.codigo', $estudiante->codigo_universitario);
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_the_door_of_an_unknown_room_is_not_found(): void
+    {
+        $this->actingAs($this->cuentaDocente)
+            ->getJson('/api/puerta/aulas/999999')
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Aula no encontrada.');
+    }
+
+    public function test_the_door_requires_a_session_and_the_permission(): void
+    {
+        $this->getJson("/api/puerta/aulas/{$this->aula->id}")->assertUnauthorized();
+
+        $this->actingAs(UserFactory::new()->createOne())
+            ->getJson("/api/puerta/aulas/{$this->aula->id}")
+            ->assertForbidden()
+            ->assertJsonPath('permiso_requerido', 'punto_control');
     }
 
     /**
-     * @return array{Examen, Aula, Estudiante}
+     * Otro examen, de otro docente y otra asignatura, en la misma aula y a
+     * la misma hora.
+     *
+     * @return array{Examen, Grupo}
      */
-    private function escenario(): array
+    private function examenCompartido(): array
     {
-        $docente = $this->docente();
-        $grupo = $this->grupo($docente);
-        $aula = $this->aula('Aula 101');
-        [$estudiante] = $this->estudiantesInscritos($grupo, 1);
+        $otroDocente = $this->docenteConCuenta($this->docenteAjenoSinDocente());
+        $otroGrupo = $this->grupo($otroDocente, $this->asignatura('Cálculo I'));
 
-        $inicio = now()->subMinutes(10);
-        $examen = $this->examen($docente, [$grupo], [$aula], [
-            'fecha' => $inicio->toDateString(),
-            'hora_inicio' => $inicio->format('H:i:00'),
-            'duracion_minutos' => 90,
-        ]);
-
-        $this->habilitar($examen, [$estudiante], $aula);
-
-        return [$examen, $aula, $estudiante];
+        return [$this->examen($otroDocente, [$otroGrupo], [$this->aula]), $otroGrupo];
     }
 
-    private function acceso(Examen $examen, Aula $aula, string $estado, string $token): AccesoCodigoAula
+    private function docenteAjenoSinDocente(): User
     {
-        return AccesoCodigoAula::create([
-            'examen_id' => $examen->id,
-            'aula_id' => $aula->id,
-            'codigo' => '123456',
-            'nombre_colaborador' => 'Rocha Ana',
-            'token' => $token,
-            'ultimo_acceso_en' => now(),
-            'estado' => $estado,
-        ]);
+        return $this->usuarioConPermisos(['codigos_qr', 'punto_control', 'seguimiento_vivo']);
     }
 }

@@ -6,151 +6,133 @@ namespace App\Modules\Examenes\Infrastructure\Persistence;
 
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Examenes\Application\Contracts\CodigoAulaGateway;
-use App\Modules\Examenes\Domain\Enums\TipoExamen;
-use App\Modules\Examenes\Domain\Models\ExamenAulaCodigo;
-use Closure;
-use Illuminate\Database\Query\Builder;
+use App\Modules\Examenes\Application\DTOs\CodigoAulaData;
+use App\Modules\Examenes\Domain\Models\AccesoAula;
+use App\Modules\Examenes\Domain\Models\ExamenAula;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
-final readonly class EloquentCodigoAulaGateway implements CodigoAulaGateway
+final class EloquentCodigoAulaGateway implements CodigoAulaGateway
 {
+    use ConvierteFilas;
+
     /**
-     * @param  (Closure(): string)|null  $sortear  quien elige el código; las pruebas lo fijan
+     * Zona en que se informan los instantes al cliente.
      */
+    private const INTENTOS = 20;
+
+    /**
+     * SQLSTATE de una violacion de indice unico.
+     */
+    private const VIOLACION_DE_UNICO = '23505';
+
     public function __construct(
-        private BitacoraGateway $bitacora,
-        private ?Closure $sortear = null,
+        private readonly BitacoraGateway $bitacora,
     ) {}
 
-    public function aulaPerteneceAlExamen(int $examenId, int $aulaId): bool
+    public function consultar(int $examenId, int $aulaId): ?CodigoAulaData
     {
-        return DB::table('examen_aula')
-            ->where('examen_id', $examenId)
-            ->where('aula_id', $aulaId)
-            ->exists();
+        $fila = DB::table('examen_aula as asignada')
+            ->join('examenes as examen', 'examen.id', '=', 'asignada.examen_id')
+            ->join('users as encargado', 'encargado.id', '=', 'asignada.encargado_id')
+            ->leftJoin('docentes as docente', 'docente.user_id', '=', 'encargado.id')
+            ->where('asignada.examen_id', $examenId)
+            ->where('asignada.aula_id', $aulaId)
+            ->first([
+                'asignada.id',
+                'asignada.codigo_acceso',
+                'examen.fecha',
+                'examen.hora_inicio',
+                'encargado.name as encargado',
+                'docente.nombre_completo as encargado_docente',
+            ]);
+
+        if ($fila === null) {
+            return null;
+        }
+
+        $columnas = $this->columnas($fila);
+        $asignada = ExamenAula::find($this->entero($columnas['id'] ?? null));
+
+        return new CodigoAulaData(
+            codigo: $this->texto($columnas['codigo_acceso'] ?? null),
+            generadoEn: $asignada?->codigo_generado_en?->toIso8601String(),
+            encargado: $this->texto($columnas['encargado_docente'] ?? null)
+                ?? $this->cadena($columnas['encargado'] ?? null),
+            examen: $this->fecha($columnas['fecha'] ?? null).' '.$this->hora($columnas['hora_inicio'] ?? null),
+        );
     }
 
-    public function consultar(int $examenId, int $aulaId): array
+    public function generar(int $examenId, int $aulaId, int $usuarioId, bool $regenerar): ?CodigoAulaData
     {
-        /** @var object{codigo: string, generado_en: string}|null $registro */
-        $registro = DB::table('examen_aula_codigos')
-            ->where('examen_id', $examenId)
-            ->where('aula_id', $aulaId)
-            ->select(['codigo', 'generado_en'])
-            ->first();
+        for ($intento = 0; $intento < self::INTENTOS; $intento++) {
+            $codigo = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
-        return [
-            'codigo' => $registro?->codigo,
-            'generado_en' => $registro?->generado_en,
-        ];
+            if (ExamenAula::where('codigo_acceso', $codigo)->exists()) {
+                continue;
+            }
+
+            try {
+                $encontrada = $this->guardar($examenId, $aulaId, $usuarioId, $regenerar, $codigo);
+            } catch (QueryException $error) {
+                // Otro docente genero el mismo codigo a la vez: se prueba
+                // con otro.
+                if ($error->getCode() === self::VIOLACION_DE_UNICO) {
+                    continue;
+                }
+
+                throw $error;
+            }
+
+            return $encontrada ? $this->consultar($examenId, $aulaId) : null;
+        }
+
+        throw new RuntimeException('No se pudo generar un código de aula libre.');
     }
 
-    public function generar(int $examenId, int $aulaId, int $usuarioId): array
+    private function guardar(int $examenId, int $aulaId, int $usuarioId, bool $regenerar, string $codigo): bool
     {
-        $fecha = $this->fechaDelExamen($examenId);
-
-        // El código no se repite entre las aulas de exámenes del mismo día:
-        // con él se encuentra el aula al entrar.
-        do {
-            $codigo = $this->sortear !== null
-                ? ($this->sortear)()
-                : str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
-            $enUso = DB::table('examen_aula_codigos as c')
-                ->join('examenes as e', 'e.id', '=', 'c.examen_id')
-                ->where('c.codigo', $codigo)
-                ->where(function (Builder $q) use ($examenId, $aulaId): void {
-                    $q->where('c.examen_id', '!=', $examenId)
-                        ->orWhere('c.aula_id', '!=', $aulaId);
-                })
-                ->whereDate('e.fecha', $fecha)
-                ->exists();
-        } while ($enUso);
-
-        /** @var ExamenAulaCodigo|null $existente */
-        $existente = ExamenAulaCodigo::where('examen_id', $examenId)
-            ->where('aula_id', $aulaId)
-            ->first();
-
-        if ($existente instanceof ExamenAulaCodigo) {
-            // El codigo viejo deja de abrir la puerta: se cortan los accesos
-            // que esperaban o que estaban autorizados en esa aula.
-            DB::table('accesos_codigo_aula')
-                ->where('examen_id', $examenId)
+        return DB::transaction(function () use ($examenId, $aulaId, $usuarioId, $regenerar, $codigo): bool {
+            $asignada = ExamenAula::where('examen_id', $examenId)
                 ->where('aula_id', $aulaId)
-                ->whereIn('estado', ['PENDIENTE', 'AUTORIZADO'])
-                ->update(['estado' => 'CORTADO', 'revocado_en' => now()]);
+                ->lockForUpdate()
+                ->first();
 
-            $existente->codigo = $codigo;
-            $existente->generado_en = now();
-            $existente->save();
+            if (! $asignada instanceof ExamenAula) {
+                return false;
+            }
+
+            $anterior = $asignada->codigo_acceso;
+
+            // Dos consultas a la vez: la segunda se queda con el codigo que
+            // genero la primera.
+            if ($anterior !== null && ! $regenerar) {
+                return true;
+            }
+
+            $asignada->codigo_acceso = $codigo;
+            $asignada->setAttribute('codigo_generado_en', now());
+            $asignada->save();
+
+            // El codigo anterior deja de servir: quien entro con el, sale.
+            if ($anterior !== null) {
+                AccesoAula::where('examen_aula_id', $asignada->id)
+                    ->whereIn('estado', ['PENDIENTE', 'AUTORIZADO'])
+                    ->update(['estado' => 'CORTADO', 'resuelto_por' => $usuarioId, 'resuelto_en' => now()]);
+            }
 
             $this->bitacora->registrar(
                 $usuarioId,
-                'examen_aula_codigo.regenerar',
-                'examen_aula_codigos',
-                $existente->id,
-                sprintf('Código regenerado: %s.', $this->describir($examenId, $aulaId)),
+                $anterior === null ? 'codigo_aula.generar' : 'codigo_aula.regenerar',
+                'examen_aula',
+                $asignada->id,
+                $anterior === null
+                    ? 'Código de acceso del aula generado.'
+                    : 'Código de acceso del aula regenerado: el anterior deja de servir y sus accesos se cierran.',
             );
 
-            return [
-                'codigo' => $codigo,
-                'generado_en' => (string) $existente->generado_en,
-                'regenerado' => true,
-            ];
-        }
-
-        $nuevo = ExamenAulaCodigo::create([
-            'examen_id' => $examenId,
-            'aula_id' => $aulaId,
-            'codigo' => $codigo,
-            'generado_en' => now()->toDateTimeString(),
-        ]);
-
-        $this->bitacora->registrar(
-            $usuarioId,
-            'examen_aula_codigo.generar',
-            'examen_aula_codigos',
-            $nuevo->id,
-            sprintf('Código generado: %s.', $this->describir($examenId, $aulaId)),
-        );
-
-        return [
-            'codigo' => $codigo,
-            'generado_en' => (string) $nuevo->generado_en,
-            'regenerado' => false,
-        ];
-    }
-
-    private function fechaDelExamen(int $examenId): string
-    {
-        $fecha = DB::table('examenes')->where('id', $examenId)->value('fecha');
-
-        return is_string($fecha) ? substr($fecha, 0, 10) : now()->toDateString();
-    }
-
-    /**
-     * «Primer parcial · Cálculo I, aula 691A», para la bitácora.
-     */
-    private function describir(int $examenId, int $aulaId): string
-    {
-        /** @var object{tipo: string|null, asignatura: string|null}|null $examen */
-        $examen = DB::table('examenes as e')
-            ->leftJoin('asignaturas as a', 'a.id', '=', 'e.asignatura_id')
-            ->where('e.id', $examenId)
-            ->first(['e.tipo', 'a.nombre as asignatura']);
-
-        $aula = DB::table('aulas')->where('id', $aulaId)->value('nombre');
-
-        $tipo = TipoExamen::tryFrom((string) ($examen->tipo ?? ''))?->etiqueta();
-        $titulo = implode(' · ', array_filter(
-            [$tipo, $examen->asignatura ?? null],
-            static fn (?string $parte): bool => $parte !== null && $parte !== '',
-        ));
-
-        return sprintf(
-            '%s, aula %s',
-            $titulo === '' ? 'examen' : $titulo,
-            is_string($aula) ? $aula : '—',
-        );
+            return true;
+        }, 3);
     }
 }

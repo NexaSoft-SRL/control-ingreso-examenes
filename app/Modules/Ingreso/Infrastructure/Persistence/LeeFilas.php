@@ -9,8 +9,12 @@ use DateTimeZone;
 use LogicException;
 
 /**
- * Conversion de las columnas de `DB::table`, que llegan sin tipo, y las
- * ayudas de busqueda de los codigos QR.
+ * Ayudas comunes de los gateways del modulo: conversion de columnas, la
+ * hora del servidor y la busqueda sin tildes.
+ *
+ * Todas las horas se expresan en la zona de la aplicacion
+ * (`config('app.timezone')`), la misma en la que se guardan la fecha y la
+ * hora de inicio de un examen.
  */
 trait LeeFilas
 {
@@ -60,8 +64,28 @@ trait LeeFilas
         return $valor === null ? null : $this->entero($valor);
     }
 
+    private function booleano(mixed $valor): bool
+    {
+        return $valor === true || $valor === 1 || $valor === '1' || $valor === 't';
+    }
+
     /**
-     * Pasa un instante de la base a ISO 8601 con la zona de la aplicacion.
+     * El instante actual como lo guarda la base: `AAAA-MM-DD HH:MM:SS`.
+     */
+    private function ahora(): string
+    {
+        return now()->format('Y-m-d H:i:s');
+    }
+
+    private function minutosDeApertura(): int
+    {
+        $minutos = config('umss.minutos_apertura', 60);
+
+        return is_int($minutos) ? $minutos : 60;
+    }
+
+    /**
+     * Pasa un instante de la base a ISO 8601 con zona.
      */
     private function iso(?string $instante): ?string
     {
@@ -69,30 +93,30 @@ trait LeeFilas
             return null;
         }
 
-        return (new DateTimeImmutable(substr($instante, 0, 19), $this->zona()))
-            ->format('Y-m-d\TH:i:sP');
+        $zona = config('app.timezone');
+
+        return (new DateTimeImmutable(
+            substr($instante, 0, 19),
+            new DateTimeZone(is_string($zona) ? $zona : 'UTC'),
+        ))->format('Y-m-d\TH:i:sP');
     }
 
     /**
-     * Pasa un instante ISO 8601 a como lo guarda la base.
+     * Pasa un instante ISO 8601 a como lo guarda la base, en la zona de
+     * la aplicacion.
      */
     private function deIso(string $instante): string
     {
+        $zona = config('app.timezone');
+
         return (new DateTimeImmutable($instante))
-            ->setTimezone($this->zona())
+            ->setTimezone(new DateTimeZone(is_string($zona) ? $zona : 'UTC'))
             ->format('Y-m-d H:i:s');
     }
 
-    private function zona(): DateTimeZone
-    {
-        $zona = config('app.timezone');
-
-        return new DateTimeZone(is_string($zona) && $zona !== '' ? $zona : 'UTC');
-    }
-
     /**
-     * El correo institucional del estudiante: su codigo universitario en el
-     * dominio de estudiantes de la universidad.
+     * Regla de la universidad: el correo institucional de un estudiante
+     * es su codigo universitario en este dominio.
      */
     private function correoInstitucional(string $codigo): string
     {
@@ -102,8 +126,17 @@ trait LeeFilas
     }
 
     /**
-     * «Apellidos Nombres», sin coma, como en la habilitacion.
+     * De `AAAA-MM-DD HH:MM:SS` toma `HH:MM:SS` (o `HH:MM`).
      */
+    private function hora(?string $instante, bool $conSegundos = true): ?string
+    {
+        if ($instante === null) {
+            return null;
+        }
+
+        return substr($instante, 11, $conSegundos ? 8 : 5);
+    }
+
     private function nombreDe(mixed $apellidos, mixed $nombres): string
     {
         return trim(($this->texto($apellidos) ?? '').' '.($this->texto($nombres) ?? ''));
@@ -118,7 +151,7 @@ trait LeeFilas
     }
 
     /**
-     * El patron `LIKE` de un texto de busqueda, o nulo si viene vacio.
+     * El patron `ILIKE` de un texto de busqueda, o nulo si viene vacio.
      */
     private function patron(?string $buscar): ?string
     {

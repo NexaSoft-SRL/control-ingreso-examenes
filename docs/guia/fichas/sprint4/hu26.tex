@@ -1,0 +1,185 @@
+% Ficha HU-26 del sprint 4. Una historia = una vista completa: el acceso
+% del estudiante con un codigo del correo, sus examenes y la subida de su
+% foto. El plazo de fotos del grupo y la foto en la puerta quedan en HU-27.
+% Tipo: propia, pedida en la 11.a y la 12.a revision.
+% Mockups: el principal es la captura «mis-examenes» (hu26-escritorio.png
+% y hu26-movil.png); las demas, en mockups/hu26-<nombre>.png.
+\def\HUNro{26}
+\def\HUSprint{4}
+\def\HUTitulo{Estudiantes > Acceso del estudiante > Entrar con un código del correo, ver
+mis exámenes y subir mi foto}
+\def\HUModulo{M1}
+\def\HUReq{1, 3, 4}
+\def\HUPuntos{5}
+
+\def\HUComo{estudiante}
+\def\HUQuiero{entrar al sistema con un código que me llega al correo institucional, ver
+dónde y a qué hora rindo cada examen y subir mi foto una sola vez}
+\def\HUPara{llegar al aula que me toca sabiendo si estoy habilitado, y que en la puerta
+me reconozcan por una foto actual y no por la del carnet}
+
+\def\HUDescripcion{%
+No está en el pliego: lo pidió la consultora en la undécima revisión, porque el carnet
+suele tener una foto antigua, y en la duodécima agregó que quien no suba su foto a
+tiempo quede inhabilitado. Toca los requerimientos 1 (datos del estudiante), 3 (razones
+de inhabilitación) y 4 (verificación de identidad).
+
+El estudiante no tiene cuenta. Desde el inicio de sesión pulsa «Soy estudiante», escribe
+su código SIS y recibe en su correo institucional un código de seis dígitos que vale
+diez minutos y admite cinco intentos. Con él entra a un portal con dos pestañas: «Mis
+exámenes», con la fecha, la hora, el aula y si está habilitado en cada uno ---y, si ya
+se le emitió, su código QR para la puerta, que puede descargar o compartir---, y «Mi
+foto».
+
+La foto se sube una sola vez y dentro del plazo que fija la administración desde el
+padrón (HU-27). Se toma en el momento con la cámara del dispositivo o se elige un
+archivo JPG, PNG o WebP; el navegador la recorta cuadrada alrededor del rostro, la reduce
+y la revisa antes de enviarla, y el servidor la guarda en JPEG de 480 píxeles de lado.
+La revisión busca un solo rostro, grande, centrado y de frente: si no lo encuentra, la
+foto no se acepta; la luz, el fondo (claro y liso) y la nitidez solo dan avisos y la
+foto se puede guardar igual. Se pide «Rostro de frente · Sin lentes ni gorra · Fondo
+claro», y antes de guardar se confirma, porque después no se puede cambiar.
+
+Si venció el plazo y no subió la foto, el portal se lo dice: «Mi foto» avisa que quedó
+no habilitado y «Mis exámenes» muestra el motivo.
+Para subirla tarde, o para cambiarla cuando la foto ya tiene un año, un docente de sus
+grupos tiene que habilitárselo (HU-27); mientras esa habilitación esté vigente, «Mi
+foto» dice hasta qué día y quién la dio, y muestra la foto actual que se reemplaza.
+
+La vista depende del padrón y las listas de inscritos (HU-13 y HU-14), del correo que ya
+envía HU-20 y de la habilitación de cada examen (HU-09). El plazo, la habilitación de una subida o un cambio, la inhabilitación por no subir la foto y la foto
+en la puerta son de HU-27. La subida queda en la bitácora (HU-07) a nombre del
+estudiante; el pedido de código y la entrada del estudiante no.}
+
+\def\HUCriterios{%
+\item Dado que un estudiante abre el inicio de sesión, Cuando pulsa «Soy estudiante»,
+      Entonces ve «Estudiantes · Exámenes y foto» con el campo «Código SIS», el botón
+      «Enviar código al correo» y el enlace «Cuenta institucional» para volver; el campo
+      admite solo dígitos (un código pegado con espacios o guiones conserva los suyos),
+      vacío señala «Obligatorio» y fuera de 5 a 10 dígitos «Entre 5 y 10 dígitos».
+\item Dado que el código SIS es de un estudiante activo del padrón, Cuando se pulsa
+      «Enviar código al correo», Entonces el sistema envía a su correo institucional un
+      código de seis dígitos con el asunto «Código de acceso:», guarda solo su huella y
+      muestra el código SIS, «Enviado a» con la dirección enmascarada
+      (2021\textbullet{}\textbullet{}\textbullet{}17@est.umss.edu) y el campo «Código»
+      con «Vence en 10 min»; si el código SIS no está en el padrón responde igual y no
+      envía nada.
+\item Dado que el estudiante ya pidió un código, Cuando pulsa «Reenviar», Entonces el
+      botón espera treinta segundos («Reenviar en N s»), el nuevo código reemplaza al
+      anterior y se avisa «Código reenviado»; con el código del correo anterior se
+      responde «Código reemplazado · use el del último correo» sin gastar un intento.
+      Más de tres pedidos por código SIS, o de cuarenta por red, en diez minutos
+      responden «Demasiados pedidos · espere N minutos», y «Otro código SIS» vuelve al
+      primer paso.
+\item Dado que el estudiante escribe el código de seis dígitos, Cuando pulsa «Iniciar
+      sesión», Entonces entra a «Mis exámenes»; el código sirve una sola vez, vacío
+      señala «Obligatorio» y con menos de seis dígitos «Seis dígitos».
+\item Dado que el código no es el correcto, Cuando se intenta entrar, Entonces el
+      sistema responde «Código incorrecto · 4 intentos restantes» hasta «1 intento
+      restante»; al quinto fallo «Código bloqueado · pida otro» y pasados diez minutos
+      «Código vencido · pida otro». Un código SIS que no está en el padrón recibe las
+      mismas respuestas, y más de sesenta fallos desde una misma red en diez minutos se
+      cortan con «Demasiados pedidos · espere N minutos».
+\item Dado que el estudiante tiene la sesión abierta, Cuando navega el portal, Entonces
+      ve su nombre, «Estudiante ·» con su código, «Cerrar sesión» y las pestañas «Mis
+      exámenes» y «Mi foto», esta con un punto rojo mientras puede subirla; volver al
+      acceso lo lleva al portal. «Cerrar sesión» destruye la sesión y vuelve al acceso,
+      o avisa «No se pudo cerrar sesión · revise la conexión», y sin sesión las rutas
+      del estudiante responden «No hay una sesión activa.» y la vista vuelve al acceso.
+\item Dado que el estudiante abre «Mis exámenes», Cuando se carga, Entonces ve los
+      exámenes de los grupos en que está inscrito, primero los próximos por fecha y hora
+      y después los pasados, cada uno con asignatura, tipo, fecha y hora, la insignia
+      «Habilitado», «No habilitado» o «Sin revisar», «Aula» con edificio y piso solo si
+      está habilitado y el motivo si no lo está; el de hoy va destacado con «Hoy»,
+      «Ingresó» con la hora si ya entró, y uno pasado dice «Rendido», «No asistió» o
+      «Pasado»; sin ninguno muestra «Sin exámenes».
+\item Dado que el estudiante está habilitado en un examen y ya se le emitió su código
+      QR (HU-20), Cuando abre «Mis exámenes», Entonces ese examen muestra el código QR
+      con «Descargar QR», que baja la imagen, y «Compartir», para guardarlo o mandarlo
+      desde el celular; solo baja el suyo, y sin código emitido no se muestra.
+\item Dado que el estudiante no tiene foto y está abierto el plazo, Cuando abre «Mi
+      foto», Entonces ve «Plazo ·» con las fechas, las indicaciones «Rostro de frente»,
+      «Sin lentes ni gorra» y «Fondo claro», «Tomar foto», «Elegir archivo», «Guardar
+      foto» y «Una sola vez»; sin plazo abierto ni habilitación muestra «Plazo cerrado ·»
+      con las fechas o «Sin plazo de fotos», y no ofrece subirla.
+\item Dado que el estudiante pulsa «Tomar foto», Cuando se abre la cámara frontal,
+      Entonces ve la imagen en vivo, en espejo y cuadrada, con «Cancelar» y «Tomar»; si
+      la cámara no se puede usar avisa «Permiso de cámara denegado», «No se encontró una
+      cámara» o «La cámara está en uso», y queda «Elegir archivo».
+\item Dado que el estudiante toma o elige una foto, Cuando el navegador la revisa,
+      Entonces la recorta cuadrada alrededor del rostro y la rechaza con «No se detecta
+      un rostro», «Debe aparecer solo usted», «Acérquese: el rostro se ve pequeño»,
+      «Centre el rostro» o «Mire de frente a la cámara»; con «Foto oscura», «Use un fondo
+      claro», «Use un fondo liso» o «Foto borrosa» solo avisa y la deja guardar. Si el
+      detector no carga, la revisión sigue solo con la luz y la nitidez.
+\item Dado que el estudiante elige una imagen, Cuando se procesa, Entonces el navegador
+      acepta JPG, PNG o WebP y la reduce antes de enviarla; rechaza con «Solo JPG, PNG o
+      WebP», «HEIC no compatible aquí · use JPG o PNG», «Máximo 8 MB», «Resolución
+      insuficiente · mínimo 240 px» o «La imagen no se puede leer», y el servidor vuelve
+      a validar y guarda la foto en JPEG de 480 píxeles de lado; sin imagen, «Guardar
+      foto» señala «Obligatoria».
+\item Dado que el estudiante pulsa «Guardar foto», Cuando el sistema pide confirmar con
+      «Después no se puede cambiar», «Elegir otra» y «Confirmar», Entonces al confirmar
+      la foto queda registrada, se avisa «Foto registrada» y la pestaña muestra la foto
+      con «Registrada», sin ofrecer cambiarla; si ya tenía una responde «La foto ya fue
+      registrada.» y muestra la que quedó, y fuera de plazo «Fuera del plazo de fotos.».
+\item Dado que venció el plazo de fotos y el estudiante no subió su foto, Cuando abre
+      el portal, Entonces «Mi foto» muestra «Sin foto · no habilitado» y «Plazo cerrado
+      ·» con las fechas, y, aplicada la inhabilitación (HU-27), «Mis exámenes» marca sus
+      exámenes «No habilitado» con el motivo «No subió su foto»; ya no se le ofrece
+      subirla, salvo que un docente se lo habilite.
+\item Dado que un docente de sus grupos le habilitó subir o cambiar la foto (HU-27),
+      Cuando el estudiante abre «Mi foto», Entonces ve «Subida habilitada hasta el» o
+      «Cambio de foto habilitada hasta el» con el día y «· por» con quién la dio, la
+      foto actual con «Foto actual · se reemplaza», las indicaciones y «Guardar foto», y
+      la confirmación dice «Reemplaza la foto actual»; vencido ese día deja de
+      ofrecerse.
+\item Dado que el estudiante sube su foto, Cuando la operación se completa, Entonces
+      queda asentada en la bitácora a su nombre; el pedido de código y la entrada del
+      estudiante no se asientan. En un dispositivo móvil el acceso, el código, las
+      pestañas, los exámenes con su código QR y la subida de la foto se adaptan de forma completamente
+      responsiva.}
+
+\def\HUMockupsPares{%
+\CajaMockup{hu26-acceso-del-estudiante}{10.6cm} & \CajaMockup{hu26-acceso-del-estudiante-movil}{3.2cm} \\[4pt]
+\hline
+\CajaMockup{hu26-codigo-de-acceso}{10.6cm} & \CajaMockup{hu26-codigo-de-acceso-movil}{3.2cm} \\[4pt]
+\hline
+\CajaMockup{hu26-subir-foto}{10.6cm} & \CajaMockup{hu26-subir-foto-movil}{3.2cm} \\[4pt]
+\hline
+\CajaMockup{hu26-sin-foto-no-habilitado}{10.6cm} & \CajaMockup{hu26-sin-foto-no-habilitado-movil}{3.2cm} \\[4pt]
+\hline}
+
+
+\def\HUPruebas{%
+\item \texttt{PortalEstudianteTest}: código al correo institucional con la dirección
+      enmascarada y solo su huella en la base, código SIS desconocido que responde igual
+      sin enviar, entrada con el código una sola vez, intentos restantes, cinco fallos,
+      vencimiento a los diez minutos, código SIS corto enmascarado, desconocido tratado
+      como código errado, código del primer correo tras reenviar y tres pedidos por
+      código SIS sin frenar a la red (criterios 1 a 5).
+\item \texttt{PortalEstudianteTest}: hora y aula de cada examen, cuándo ingresó el
+      estudiante, el código QR que baja solo el suyo y rutas cerradas sin sesión
+      (criterios 6 a 8).
+\item \texttt{PortalEstudianteTest}: foto subida una sola vez dentro del plazo y
+      reducida, solo imágenes, foto diminuta, límites del plazo y plazo vencido que lo
+      deja no habilitado (criterios 9, 12 a 14).
+\item \texttt{PortalEstudianteTest}: cambio habilitado por un docente que deja
+      reemplazar la foto hasta el día fijado (criterio 15).
+\item \texttt{QrDelExamen.test.jsx}: el código QR del examen con su descarga y para
+      compartir (criterio 8).
+\item \texttt{CampoImagen.test.jsx}, \texttt{revisarFoto.test.js} y
+      \texttt{encuadrarFoto.test.js}: cámara y archivo, recorte cuadrado alrededor del
+      rostro, rechazo sin rostro, con varios, pequeño, descentrado o de perfil, y avisos
+      de luz, fondo claro y liso y nitidez sin bloquear (criterios 10 y 11).
+\item \texttt{AccesoEstudiante.test.jsx}: código SIS obligatorio antes de enviar, envío
+      y entrada, código de prueba, código vencido bajo el campo, código SIS pegado con
+      espacios o guiones, reenvío y demasiados pedidos, y sesión abierta que lleva al
+      portal (criterios 1 a 5).
+\item \texttt{PortalEstudiante.test.jsx}: sin sesión vuelve al acceso, exámenes con
+      hora, aula y condición, subida dentro del plazo, foto registrada que no se cambia,
+      plazo vencido sin foto, cambio habilitado por un docente con la foto actual, plazo
+      cerrado, cerrar sesión, «Reintentar», examen pasado «Rendido», «No asistió» o
+      «Pasado» y foco en «Confirmar» (criterios 6, 7, 9, 12 a 15).}
+
+\input{cuerpo}

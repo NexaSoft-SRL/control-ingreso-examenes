@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
     ArrowRight,
     BarChart3,
@@ -25,8 +25,9 @@ import Insignia from '../../componentes/Insignia';
 import Tarjeta from '../../componentes/Tarjeta';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { colorDeAsignatura, fechaLarga, plural } from '../../utiles/texto';
+import { CodigosDelExamen } from '../docente/CodigosQr';
 import { ListaDelExamen } from '../habilitacion/Habilitacion';
-import { CodigosDelExamen } from './CodigosQr';
+import BitacoraDelExamen from './BitacoraDelExamen';
 import EliminarExamen from './EliminarExamen';
 import { FORMA_EXAMEN, PASOS, accionDe, pendiente, tipoDe } from './avanceDelExamen';
 import rutaDelExamen from './rutaDelExamen';
@@ -34,14 +35,14 @@ import rutaDelExamen from './rutaDelExamen';
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
 const BOTON = `inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium ${FOCO}`;
-const VOLVER = { a: '/examenes', texto: 'Exámenes' };
 
 // Las pestañas de la página. Habilitación y códigos QR piden su permiso y
-// que el examen ya tenga aulas. La bitácora del examen (HU-29) se suma aquí.
+// que el examen ya tenga aulas.
 const PESTANAS = [
     { clave: 'resumen', texto: 'Resumen', Icono: ClipboardList },
     { clave: 'habilitacion', texto: 'Habilitación', Icono: UserCheck, permiso: 'habilitacion' },
     { clave: 'qr', texto: 'Códigos QR', Icono: QrCode, permiso: 'codigos_qr' },
+    { clave: 'bitacora', texto: 'Bitácora', Icono: History, permiso: 'reportes_examenes' },
 ];
 
 // A dónde lleva cada paso del resumen. Los tres primeros son del registro
@@ -56,7 +57,7 @@ function Resumen({ e, accion }) {
     return (
         <div className="space-y-6">
             <Tarjeta titulo="Avance" icono={ClipboardList}>
-                <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" aria-label="Pasos">
+                <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                     {PASOS.map(({ clave, Icono, texto, detalle }) => {
                         const hecho = e.avance[clave] === 'ok';
                         const actual = e.avance[clave] === 'ahora';
@@ -158,8 +159,8 @@ Resumen.propTypes = {
     accion: PropTypes.shape({ texto: PropTypes.string, a: PropTypes.string }),
 };
 
-// HU-28: la página de un examen (`?examen=`): su resumen, su habilitación y
-// sus códigos QR en pestañas (`?pestana=`), para no saltar entre pantallas.
+// La página de un examen (`?examen=`): su resumen, su habilitación y sus
+// códigos QR en pestañas (`?pestana=`), para no saltar entre pantallas.
 export default function DetalleExamen() {
     const { datos, cargando, error, recargar } = usarConsulta('/examenes');
     const [parametros, setParametros] = useSearchParams();
@@ -186,11 +187,13 @@ export default function DetalleExamen() {
         // Lo hecho en una pestaña cambia las cifras de las otras.
         recargar();
     };
+    // Las cifras de la habilitación se ven al volver al resumen.
+    const alCambiarCifras = useCallback(() => {}, []);
 
     if (!e) {
         return (
             <div className="space-y-6">
-                <Encabezado titulo="Examen" volver={VOLVER} />
+                <Encabezado titulo="Examen" volver={{ a: '/examenes', texto: 'Exámenes' }} />
                 <Tarjeta sinRelleno>
                     <EstadoCarga
                         cargando={cargando}
@@ -206,7 +209,7 @@ export default function DetalleExamen() {
 
     const nombre = e.asignatura.nombre;
     const accion = accionDe(e, puede('habilitacion'), puede('codigos_qr'));
-    const enCurso = e.es_hoy && !e.rendido && e.aulas.length > 0;
+    const enCurso = e.es_hoy && !e.rendido && e.aulas.length > 0 && puede('seguimiento_vivo');
     const contador = {
         habilitacion: e.inscritos ? `${e.habilitados ?? 0}/${e.inscritos}` : null,
         qr: e.habilitados ? `${e.qr_emitidos ?? 0}/${e.habilitados}` : null,
@@ -237,7 +240,7 @@ export default function DetalleExamen() {
                         </Insignia>
                     </span>
                 }
-                volver={VOLVER}
+                volver={{ a: '/examenes', texto: 'Exámenes' }}
             >
                 {enCurso && (
                     <Link
@@ -250,19 +253,10 @@ export default function DetalleExamen() {
                 {/* Lo que pasó en un examen ya tomado se ve en su reporte. */}
                 {e.rendido && puede('reportes_examenes') && (
                     <Link
-                        to={`/reportes?examen=${e.id}`}
+                        to={`/mis-reportes?examen=${e.id}`}
                         className={`${BOTON} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50`}
                     >
                         <BarChart3 className="h-4 w-4" /> Reporte
-                    </Link>
-                )}
-                {/* La bitácora de exámenes, con este examen elegido. */}
-                {puede('reportes_examenes') && (
-                    <Link
-                        to={`/bitacora-examen?examen=${e.id}`}
-                        className={`${BOTON} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50`}
-                    >
-                        <History className="h-4 w-4" /> Bitácora
                     </Link>
                 )}
                 {e.propio && (
@@ -302,7 +296,7 @@ export default function DetalleExamen() {
                             disabled={!permitida}
                             title={!permitida ? 'Primero elija las aulas del examen' : undefined}
                             onClick={() => ir(p.clave)}
-                            className={`-mb-px flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap border-b-2 px-2 text-sm font-medium sm:flex-none sm:gap-2 sm:px-4 ${FOCO} ${
+                            className={`-mb-px flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 border-b-2 px-2 text-sm whitespace-nowrap sm:flex-none sm:gap-2 sm:px-4 font-medium ${FOCO} ${
                                 activa
                                     ? 'border-primary-600 text-primary-700'
                                     : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:border-transparent'
@@ -328,8 +322,13 @@ export default function DetalleExamen() {
 
             <div role="tabpanel" aria-label={PESTANAS.find((p) => p.clave === pestana).texto}>
                 {pestana === 'resumen' && <Resumen e={e} accion={accion} />}
-                {pestana === 'habilitacion' && <ListaDelExamen key={e.id} examenId={e.id} />}
+                {pestana === 'habilitacion' && (
+                    <ListaDelExamen key={e.id} examenId={e.id} onCifras={alCambiarCifras} />
+                )}
                 {pestana === 'qr' && <CodigosDelExamen key={e.id} examen={e} incrustado />}
+                {pestana === 'bitacora' && (
+                    <BitacoraDelExamen key={e.id} examenId={e.id} fecha={e.fecha} />
+                )}
             </div>
 
             <EliminarExamen

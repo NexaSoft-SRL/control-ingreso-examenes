@@ -1,0 +1,71 @@
+% Ficha HU-35. Criterios del backlog de la iteracion 5. El respaldo se
+% genera en PHP: el alojamiento de destino no tiene consola remota.
+\def\HUNro{35}
+\def\HUSprint{5}
+\def\HUTitulo{Administración > Respaldo y restauración}
+\def\HUModulo{M7}
+\def\HUReq{16}
+\def\HUPuntos{5}
+
+\def\HUComo{administrador}
+\def\HUQuiero{respaldar la base de datos y restaurarla}
+\def\HUPara{recuperar los registros ante una falla}
+
+\def\HUDescripcion{%
+Todo lo que el sistema registró ---el padrón, las habilitaciones, los ingresos, las
+incidencias, la bitácora--- existe en un solo lugar. Una falla del servidor sin respaldo
+significa perder el examen entero.
+
+El respaldo se genera desde la pantalla, a demanda, y además solo: una tarea programada lo
+produce cada noche a las 02:00. El archivo es un guion SQL con los datos ---el esquema lo
+crean las migraciones--- que empieza vaciando las tablas, sigue con los registros en orden
+de dependencias y repone las secuencias, todo dentro de una transacción: o entra completo
+o no entra nada.
+
+Se genera en PHP y no con las herramientas del motor porque el alojamiento de destino no
+tiene consola remota, y ese mismo archivo es el que se importa desde el panel del
+proveedor si el sistema no arranca. También se lo puede descargar.
+
+La restauración reemplaza todos los datos actuales, así que la pantalla la hace confirmar
+antes. La bitácora queda como estaba en el respaldo, más el asiento de la restauración,
+que se escribe una vez repuestos los datos: escrito antes, la propia restauración se lo
+llevaría por delante.
+
+El procedimiento completo, incluida la restauración desde el panel y la prueba previa a
+cada entrega, está en el manual de despliegue.}
+
+\def\HUCriterios{%
+\item Dado que el administrador lo pide, Cuando pulsa generar, Entonces el sistema produce
+      un respaldo y lo deja disponible.
+\item Dado que el sistema está en marcha, Cuando llegan las 02:00, Entonces la tarea
+      programada genera un respaldo sin que nadie intervenga.
+\item Dado un respaldo, Cuando se lo restaura, Entonces el sistema vuelve al estado que
+      tenía cuando se lo generó.
+\item Dado un sistema restaurado, Cuando se registra algo nuevo, Entonces no choca con
+      ningún identificador ya usado.
+\item Dado que se genera o se restaura un respaldo, Cuando la operación termina, Entonces
+      queda asentada en la bitácora con su autor.
+\item Dado un respaldo, Cuando se lo descarga, Entonces el archivo sirve para importarlo a
+      mano desde el panel del alojamiento.
+\item Dado un nombre que no es un respaldo de este sistema, Cuando se lo envía, Entonces
+      el sistema lo rechaza sin tocar el disco.
+\item Dado que un rol no tiene el permiso de respaldo, Cuando abre la pantalla, Entonces
+      el sistema responde con una negativa explícita.}
+
+\def\HUPruebas{%
+\item \texttt{RespaldoTest::the\_backup\_is\_generated\_on\_demand} (criterio 1).
+\item \texttt{RespaldoTest::the\_backup\_is\_also\_generated\_on\_a\_schedule} y
+      \texttt{the\_nightly\_task\_is\_registered} (criterio 2).
+\item \texttt{RespaldoTest::restoring\_brings\_the\_data\_back} (criterio 3).
+\item \texttt{RespaldoTest::the\_restored\_system\_keeps\_working\_with\_new\_records}
+      (criterio 4).
+\item \texttt{RespaldoTest::both\_operations\_are\_written\_to\_the\_audit\_log}
+      (criterio 5).
+\item \texttt{RespaldoTest::the\_backup\_can\_be\_downloaded\_to\_import\_it\_by\_hand}
+      (criterio 6).
+\item \texttt{RespaldoTest::a\_name\_that\_is\_not\_a\_backup\_is\_refused} (criterio 7).
+\item \texttt{RespaldoTest::the\_backup\_permission\_is\_required} (criterio 8).
+\item \texttt{Respaldos.test.jsx}: la pantalla lista, genera, exige confirmar antes de
+      restaurar y ofrece descargar (criterios 1, 3 y 6).}
+
+\input{cuerpo}

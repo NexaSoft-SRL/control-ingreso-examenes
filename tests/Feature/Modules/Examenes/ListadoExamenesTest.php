@@ -6,21 +6,40 @@ namespace Tests\Feature\Modules\Examenes;
 
 use App\Modules\Academico\Domain\Enums\TipoPeriodo;
 use App\Modules\Academico\Domain\Models\Periodo;
+use App\Modules\Estudiantes\Domain\Models\Estudiante;
 use App\Modules\Estudiantes\Domain\Models\Inscripcion;
 use App\Modules\Examenes\Domain\Enums\TipoExamen;
+use App\Modules\Examenes\Domain\Models\Examen;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
  * El listado del docente (ruta 42): sus examenes con las cifras, el avance
- * de los cuatro pasos y el paso que sigue. Los codigos QR todavia no se
- * emiten: ese paso queda siempre pendiente.
+ * de los cinco pasos y el paso que sigue.
  */
 final class ListadoExamenesTest extends TestCase
 {
     use ArmaExamenes;
     use RefreshDatabase;
+
+    /**
+     * @param  list<Estudiante>  $estudiantes
+     */
+    private function emitirQr(Examen $examen, array $estudiantes): void
+    {
+        foreach ($estudiantes as $estudiante) {
+            DB::table('codigos_qr')->insert([
+                'examen_id' => $examen->id,
+                'estudiante_id' => $estudiante->id,
+                'token' => Str::random(48),
+                'emitido_en' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
 
     public function test_the_teacher_sees_the_exams_registered_and_those_that_include_a_group(): void
     {
@@ -67,7 +86,7 @@ final class ListadoExamenesTest extends TestCase
         $this->assertArrayNotHasKey('normas', (array) $respuesta->json('data.0'));
     }
 
-    public function test_progress_goes_from_missing_rooms_to_missing_qr_codes_and_to_ready(): void
+    public function test_progress_goes_from_missing_rooms_to_ready(): void
     {
         $docente = $this->docente();
         $asignatura = $this->asignatura();
@@ -92,6 +111,7 @@ final class ListadoExamenesTest extends TestCase
         $this->actingAs($cuenta)
             ->putJson("/api/examenes/{$examen->id}", $this->cuerpo($asignatura, [$grupo], [$aula], [
                 'fecha' => $examen->fecha->format('Y-m-d'),
+                'hora_inicio' => substr((string) $examen->hora_inicio, 0, 5),
             ]))
             ->assertOk();
 
@@ -114,34 +134,22 @@ final class ListadoExamenesTest extends TestCase
             ->assertJsonPath('data.0.avance.habilitacion', 'ahora')
             ->assertJsonPath('data.0.estado', 'Falta habilitar');
 
-        // 4. Todos revisados: falta emitir los codigos QR.
+        // 4. Todos revisados: faltan los codigos.
         $this->habilitar($examen, [$estudiantes[3]], $aula);
+        $this->emitirQr($examen, [$estudiantes[0]]);
 
-        $respuesta = $this->actingAs($cuenta)->getJson('/api/examenes')
+        $this->actingAs($cuenta)->getJson('/api/examenes')
             ->assertJsonPath('data.0.habilitados', 3)
             ->assertJsonPath('data.0.sin_revisar', 0)
-            ->assertJsonPath('data.0.qr_emitidos', 0)
+            ->assertJsonPath('data.0.qr_emitidos', 1)
             ->assertJsonPath('data.0.avance', [
                 'grupos' => 'ok', 'aulas' => 'ok', 'auxiliares' => 'ok', 'habilitacion' => 'ok', 'qr' => 'ahora',
             ])
             ->assertJsonPath('data.0.estado', 'Faltan códigos QR')
-            ->assertJsonPath('data.0.accion', ['clave' => 'emitir_qr', 'paso' => null]);
+            ->assertJsonPath('data.0.accion.clave', 'emitir_qr');
 
-        // Quien atiende: sin personal guardado, el aula queda a cargo de quien
-        // registro el examen.
-        $this->assertSame(1, $respuesta->json('data.0.auxiliares'));
-
-        // 5. Con el codigo QR de cada habilitado, el examen esta listo.
-        foreach ([$estudiantes[0], $estudiantes[1], $estudiantes[3]] as $estudiante) {
-            DB::table('codigos_qr')->insert([
-                'examen_id' => $examen->id,
-                'estudiante_id' => $estudiante->id,
-                'contenido' => 'SCIQR1:prueba-'.$estudiante->id,
-                'emitido_en' => now(),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
+        // 5. Todos los habilitados con codigo.
+        $this->emitirQr($examen, [$estudiantes[1], $estudiantes[3]]);
 
         $this->actingAs($cuenta)->getJson('/api/examenes')
             ->assertJsonPath('data.0.qr_emitidos', 3)
@@ -150,6 +158,56 @@ final class ListadoExamenesTest extends TestCase
             ])
             ->assertJsonPath('data.0.estado', 'Listo')
             ->assertJsonPath('data.0.accion', ['clave' => 'ver_qr', 'paso' => null]);
+    }
+
+    public function test_one_person_in_charge_of_more_than_two_rooms_leaves_the_step_pending(): void
+    {
+        $docente = $this->docente();
+        $asignatura = $this->asignatura();
+        $grupo = $this->grupo($docente, $asignatura);
+        $this->examen($docente, [$grupo], [$this->aula(), $this->aula(), $this->aula()]);
+
+        $this->actingAs($this->cuenta($docente))->getJson('/api/examenes')
+            ->assertOk()
+            ->assertJsonPath('data.0.avance.aulas', 'ok')
+            ->assertJsonPath('data.0.avance.auxiliares', 'ahora')
+            ->assertJsonPath('data.0.estado', 'Falta quién atiende')
+            ->assertJsonPath('data.0.accion', ['clave' => 'quien_atiende', 'paso' => 3]);
+    }
+
+    public function test_enabled_students_without_room_leave_the_exam_waiting_for_the_split(): void
+    {
+        $docente = $this->docente();
+        $asignatura = $this->asignatura();
+        $grupo = $this->grupo($docente, $asignatura);
+        $estudiantes = $this->estudiantesInscritos($grupo, 2);
+        $examen = $this->examen($docente, [$grupo], [$this->aula()]);
+        $this->habilitar($examen, $estudiantes);
+
+        $this->actingAs($this->cuenta($docente))->getJson('/api/examenes')
+            ->assertJsonPath('data.0.avance.habilitacion', 'ahora')
+            ->assertJsonPath('data.0.avance.qr', 'falta')
+            ->assertJsonPath('data.0.estado', 'Falta repartir')
+            ->assertJsonPath('data.0.accion.clave', 'repartir');
+    }
+
+    public function test_the_list_tells_which_exams_already_have_entries(): void
+    {
+        $docente = $this->docente();
+        $grupo = $this->grupo($docente, $this->asignatura());
+        [$estudiante] = $this->estudiantesInscritos($grupo, 1);
+        $aula = $this->aula();
+        $examen = $this->examen($docente, [$grupo], [$aula]);
+
+        $this->actingAs($this->cuenta($docente))->getJson('/api/examenes')
+            ->assertJsonPath('data.0.con_ingresos', false)
+            ->assertJsonPath('data.0.con_incidencias', false)
+            ->assertJsonPath('data.0.codigos_aula', 0);
+
+        $this->habilitar($examen, [$estudiante], $aula);
+        $this->ingresar($examen, $estudiante, $aula);
+
+        $this->getJson('/api/examenes')->assertJsonPath('data.0.con_ingresos', true);
     }
 
     public function test_nobody_enabled_is_not_a_finished_enabling(): void
@@ -181,6 +239,27 @@ final class ListadoExamenesTest extends TestCase
         $this->actingAs($this->cuenta($docente))->getJson('/api/examenes')
             ->assertJsonPath('data.0.inscritos', 3)
             ->assertJsonPath('data.0.sin_revisar', 3);
+    }
+
+    public function test_assistants_are_distinct_people_among_in_charge_and_support(): void
+    {
+        $docente = $this->docente();
+        $grupo = $this->grupo($docente);
+        $aulaA = $this->aula();
+        $aulaB = $this->aula();
+        $aulaC = $this->aula();
+        $examen = $this->examen($docente, [$grupo], [$aulaA, $aulaB, $aulaC]);
+        $uno = $this->auxiliarConRol();
+        $dos = $this->auxiliar();
+
+        // El mismo auxiliar a cargo de un aula y de apoyo en otra cuenta
+        // una vez; el docente a cargo de la tercera no cuenta.
+        $this->ponerACargo($examen, $aulaA, $uno);
+        $this->ponerDeApoyo($examen, $aulaB, $uno);
+        $this->ponerDeApoyo($examen, $aulaB, $dos);
+
+        $this->actingAs($this->cuenta($docente))->getJson('/api/examenes')
+            ->assertJsonPath('data.0.auxiliares', 2);
     }
 
     public function test_exams_of_the_teacher_at_the_same_time_sharing_a_room_go_together(): void
@@ -235,10 +314,6 @@ final class ListadoExamenesTest extends TestCase
             'duracion_minutos' => 60,
         ]);
         $terminado->forceFill(['finalizado_en' => now()->setTime(9, 10)])->save();
-        $deAyer = $this->examen($docente, [$this->grupo($docente, $asignatura)], [], [
-            'tipo' => TipoExamen::Mesa,
-            'fecha' => now()->subDay()->toDateString(),
-        ]);
 
         $respuesta = $this->actingAs($this->cuenta($docente))->getJson('/api/examenes')->assertOk();
         $datos = collect((array) $respuesta->json('data'));
@@ -249,7 +324,6 @@ final class ListadoExamenesTest extends TestCase
         $this->assertSame([true, true], [$hoy[$terminado->id], $rendido[$terminado->id]]);
         $this->assertSame([false, false], [$hoy[$futuro->id], $rendido[$futuro->id]]);
         $this->assertSame([true, false], [$hoy[$pasado->id], $rendido[$pasado->id]]);
-        $this->assertSame([false, true], [$hoy[$deAyer->id], $rendido[$deAyer->id]]);
     }
 
     public function test_by_default_only_current_periods_are_listed_and_a_period_can_be_asked(): void

@@ -11,8 +11,6 @@ namespace App\Modules\Reportes\Application\DTOs;
  */
 final readonly class TablaReporte
 {
-    public const MAX_FILAS_EXPORTACION = 1000;
-
     /**
      * @param  list<string>  $filtros
      * @param  list<string>  $encabezados

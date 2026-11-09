@@ -6,10 +6,7 @@ namespace App\Modules\Administracion\Domain\Exceptions;
 
 use RuntimeException;
 
-final class RespaldoNoEncontradoException extends RuntimeException
-{
-    public function __construct(string $message = 'Respaldo no encontrado.')
-    {
-        parent::__construct($message);
-    }
-}
+/**
+ * El respaldo que se quiso descargar o restaurar ya no existe o su archivo no esta en disco.
+ */
+final class RespaldoNoEncontradoException extends RuntimeException {}

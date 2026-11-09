@@ -15,5 +15,7 @@ final readonly class ExamenReporteData
         public string $tipo,
         public string $fecha,
         public string $hora,
+        /** «1 · Blanco Coca Leticia; 2 · Salazar Serrudo Carla». */
+        public string $grupos = '',
     ) {}
 }

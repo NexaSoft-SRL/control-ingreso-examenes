@@ -1,0 +1,165 @@
+% Ficha HU-23 del sprint 4. Una historia = una vista completa: los reportes
+% del docente sobre sus examenes, con las cifras del examen elegido y las
+% descargas de asistencia, ausentes e incidencias. La bitacora del examen
+% queda en HU-29.
+% Tipo: propia del sprint.
+% Mockups: el principal es la captura «mis-reportes» (hu23-escritorio.png
+% y hu23-movil.png); las demas, en mockups/hu23-<nombre>.png.
+\def\HUNro{23}
+\def\HUSprint{4}
+\def\HUTitulo{Reportes > Reportes del docente > Descargar la asistencia, los ausentes y
+las incidencias de mis exámenes}
+\def\HUModulo{M6}
+\def\HUReq{12, 13, 15}
+\def\HUPuntos{5}
+
+\def\HUComo{docente}
+\def\HUQuiero{descargar los reportes de mis exámenes}
+\def\HUPara{documentar quién rindió, quién faltó y qué ocurrió, sin armar listas a mano,
+y tener con qué responder a un reclamo}
+
+\def\HUDescripcion{%
+El pliego pide reportes de asistencia y de ausentes, de los intentos de ingreso que no
+corresponden y de las situaciones excepcionales (requerimientos 12, 13 y 15). Esta vista
+es con la que el docente cierra un examen: en un solo lugar ve cuántos ingresaron y baja
+los archivos que necesita para su registro o para elevar un caso. Lee lo que dejaron la
+puerta y el seguimiento; no modifica nada.
+
+Arriba va «Reportes», con el período y cuántos exámenes tiene el docente y cuántos se
+rindieron, y la tarjeta «Exámenes del período»: fichas por asignatura y la lista de sus
+exámenes de a ocho, cada uno con su fecha, su hora y su asistencia, o «Sin rendir». El
+examen que se pulsa queda elegido; debajo van sus cifras «Ingresaron», «Habilitados»,
+«Ausentes» y «No habilitados» y tres tarjetas, una por reporte ---«Asistencia por
+examen», «Estudiantes ausentes» e «Incidencias del examen»---, cada una con sus botones
+«PDF» y «Hoja de cálculo». Si la cuenta también sigue el examen en vivo, se agregan las
+«Incidencias reportadas», que se filtran por gravedad. Junto a «Reportes», la pestaña
+«Bitácora» muestra en la misma vista todo lo ocurrido en el examen (HU-29), sin
+descargar nada.
+
+Reglas: el docente ve solo sus exámenes, los que registró y los que incluyen un grupo
+suyo, de los períodos vigentes o del que elija. Un examen que todavía no empezó no tiene
+cifras ni descargas. El ausente es el habilitado sin ingreso: el no habilitado no figura
+como ausente. La asistencia es una sola lista por examen, en orden de llegada, con el
+aula por la que entró cada estudiante y el docente del grupo por el que figura (en un
+examen conjunto, cada grupo tiene el suyo). Cada archivo lleva el título, el examen, sus
+grupos con su docente y la fecha y hora de emisión, y la hoja de cálculo guarda los códigos como texto. Consultar y
+descargar no cambia datos ni deja asientos.
+
+La vista depende del examen y sus grupos (HU-08), de la habilitación (HU-09) y de lo que
+registran la atención de las aulas (HU-18), la puerta (HU-19), los códigos QR y avisos
+(HU-20) y el seguimiento (HU-21 y HU-22). Los reportes de toda la universidad son del
+administrador (HU-24), y la bitácora de cada examen, con todo lo ocurrido en orden, es
+de HU-29. La vista la abre quien tiene el permiso «Reportes de sus exámenes», que de
+inicio es el docente (HU-15).}
+
+\def\HUCriterios{%
+\item Dado que el docente tiene exámenes en los períodos vigentes, Cuando abre
+      «Reportes», Entonces el sistema muestra el período y cuántos exámenes tiene y
+      cuántos se rindieron (por ejemplo, «Período 2/2026 · 4 exámenes · 2 rendidos»), la
+      tarjeta «Exámenes del período» con el primero elegido y sus cifras «Ingresaron»,
+      «Habilitados», «Ausentes» y «No habilitados»; sin exámenes muestra «Sin exámenes».
+\item Dado que hay más de un período vigente, Cuando el docente elige uno en «Período»,
+      Entonces la lista muestra los exámenes de ese período y la asignatura vuelve a
+      «Todas»; «Vigentes» los reúne, y con un solo período vigente el selector no
+      aparece.
+\item Dado que otro docente registró un examen que no incluye ningún grupo de este
+      docente, Cuando este abre sus reportes, Entonces ese examen no figura; sí figuran
+      los que registró y aquellos que incluyen un grupo suyo.
+\item Dado que la tarjeta lista los exámenes, Cuando el docente pulsa una ficha de
+      asignatura o cambia de página, Entonces la lista se filtra y pagina de a ocho en
+      el servidor; cada ficha lleva cuántos exámenes tiene y cada fila muestra la fecha,
+      la asignatura, el tipo, la hora y la asistencia en porcentaje con «N de M», o la
+      insignia «Sin rendir».
+\item Dado que el docente pulsa un examen de la lista, Cuando queda elegido, Entonces la
+      fila se resalta, el título pasa a tipo, asignatura y fecha del examen, y las
+      cifras y las tarjetas son de ese examen; el examen elegido viaja en la dirección
+      de la página y se conserva al recargar.
+\item Dado que el examen elegido todavía no empezó, Cuando se muestra, Entonces lleva la
+      insignia «Sin rendir», «Ingresaron» y «Ausentes» muestran «---» y los botones de
+      descarga quedan deshabilitados; si se pide el archivo de un examen de fecha
+      futura, el servidor responde «El examen todavía no se rindió.».
+\item Dado que el examen elegido ya empezó, Cuando se muestran las tarjetas, Entonces
+      «Asistencia por examen» dice «N de M · P \%», «Estudiantes ausentes» «N de M» e
+      «Incidencias del examen» «N registros · con intentos rechazados», cada una con
+      «PDF» y «Hoja de cálculo».
+\item Dado que el docente descarga «Asistencia por examen», Cuando llega el archivo,
+      Entonces lista a quienes registraron ingreso, en orden de llegada, con «Código
+      SIS», «Estudiante», «Grupo», «Docente», «Aula», «Hora de ingreso», «Medio» («Código QR»,
+      «Código SIS» o «C.I.») y «Situación» («Rindió», «Excepción» o «Expulsado»), y
+      cierra con cuántos tienen ingreso registrado y cuántos fueron expulsados.
+\item Dado que el docente descarga «Estudiantes ausentes», Cuando llega el archivo,
+      Entonces lista a los habilitados sin ingreso, por apellidos, con código,
+      estudiante, grupo, docente, carrera y «Aula asignada» («Sin aula» si no se repartió); el no
+      habilitado no figura y el total dice «N habilitados que no se presentaron.».
+\item Dado que el docente descarga «Incidencias del examen», Cuando llega el archivo,
+      Entonces reúne lo ocurrido con hora, aula, código, estudiante, tipo, detalle y
+      «Registrado por»: los intentos que rechazó la puerta con su motivo («Intento
+      rechazado · No inscrito en la materia», «· No habilitado» o «· Código no válido»)
+      y «Sistema» como autor ---también los que no llevan examen y ocurrieron en una de
+      sus aulas mientras estaba abierto---, los cambios de aula admitidos como
+      excepción, las expulsiones y las incidencias reportadas, con un total por clase;
+      quien entró con código de aula figura con «(código de aula)».
+\item Dado que se descarga cualquiera de los tres reportes, Cuando se abre el archivo,
+      Entonces lleva el título («Reporte de asistencia», «Reporte de estudiantes
+      ausentes» o «Reporte de incidencias»), «Universidad Mayor de San Simón · Control
+      de exámenes», el examen con asignatura, tipo, fecha y hora, «Grupos:» con cada
+      grupo y su docente, y «Emitido el» con la fecha y la hora; se llama como el reporte y la fecha del examen
+      (\texttt{asistencia\_2026-10-12.pdf}), el PDF va en hoja carta apaisada con
+      «Página N de M», un reporte vacío dice «Sin datos para estos filtros.» y la hoja
+      de cálculo conserva los ceros a la izquierda de los códigos.
+\item Dado que el docente pulsa «PDF» u «Hoja de cálculo», Cuando la descarga está en
+      curso, Entonces solo ese botón queda deshabilitado y la vista sigue respondiendo;
+      al llegar el archivo avisa «\ldots{} descargado» con su nombre, y si falla muestra
+      el mensaje del servidor, o «No se pudo descargar», y el botón vuelve a quedar
+      disponible.
+\item Dado que la cuenta también tiene el permiso de seguimiento y el examen ya empezó,
+      Cuando se muestra la vista, Entonces la tarjeta «Incidencias reportadas» lleva el
+      total y las cinco primeras, con «Ver todas · N» si hay más, cada una con su tipo y
+      gravedad, aula, hora, estudiante y detalle, y si está atendida o «Sin atender»,
+      sin acciones; sin ninguna dice «Sin incidencias». Las fichas «Todas», «Muy
+      grave», «Grave» y «Leve», cada una con su cantidad, filtran la lista en el
+      servidor.
+\item Dado que el docente pulsa la pestaña «Bitácora» del examen elegido, Cuando se
+      abre, Entonces ve la línea de tiempo del examen (HU-29) en la misma vista, sin
+      descargar nada, y «Reportes» vuelve a las cifras y las descargas. Sin ese permiso la tarjeta no
+      aparece, pero el reporte de incidencias se descarga igual.
+\item Dado que no hay sesión, el rol no tiene el permiso «Reportes de sus exámenes» o el
+      examen no es del docente, Cuando se intenta abrir la vista o descargar, Entonces
+      la vista muestra «Sin permiso» sin consultar nada y el servidor responde con una
+      negativa explícita que nombra el permiso; el examen ajeno recibe «Este examen no
+      está a su cargo.» y el que no existe «Examen no encontrado.». El administrador no
+      usa estos reportes: tiene los suyos (HU-24).
+\item Dado que un reporte solo se lee, Cuando se lo consulta o se lo descarga, Entonces
+      no cambia ningún ingreso, incidencia ni habilitación, no deja asientos en la
+      bitácora y sus rutas no admiten escritura; si la lectura falla, la vista muestra
+      «No se pudo cargar» con «Reintentar». En un dispositivo móvil las cifras van de a
+      dos y las tarjetas una bajo otra con «PDF» y «Hoja», de forma completamente
+      responsiva.}
+
+\def\HUMockupsPares{%
+\CajaMockup{hu23-reportes-del-examen}{10.6cm} & \CajaMockup{hu23-reportes-del-examen-movil}{3.2cm} \\[4pt]
+\hline}
+
+
+\def\HUPruebas{%
+\item \texttt{ReportesTest}: exámenes del docente con su asistencia, examen sin rendir
+      sin cifras, examen sin habilitados en cero, exámenes de sus grupos y no los de
+      otros, filtro por asignatura y paginación, períodos vigentes por omisión, y
+      validación de filtros y permiso (criterios 1 a 6 y 15).
+\item \texttt{ReportesTest}: reporte de asistencia con su situación y el docente de
+      cada grupo, de ausentes sin los no habilitados, de incidencias con todo lo ocurrido en el examen y examen sin
+      incidencias (criterios 8 a 10).
+\item \texttt{ReportesTest}: las rutas no admiten escritura y un reporte no deja rastro
+      en ingresos, incidencias, habilitaciones ni bitácora (criterio 16).
+\item \texttt{ExportacionTest}: reportes del examen en PDF y en hoja de cálculo, examen,
+      fecha y ceros a la izquierda en la hoja, espera de la fecha del examen, docente de
+      un grupo incluido, examen ajeno, examen inexistente, sesión y rol de cada reporte
+      (criterios 6, 11 y 15).
+\item \texttt{ReportesDocente.test.jsx}: período y cifras del examen elegido, examen sin
+      rendir sin cifras ni descargas, elección desde la lista, descargas en los dos
+      formatos, mensaje del servidor, incidencias con y sin el permiso de seguimiento,
+      filtro por asignatura y paginación, varios períodos, «Sin exámenes», «Reintentar»
+      y «Sin permiso»; filtro de incidencias por gravedad y pestaña «Bitácora»
+      (criterios 1, 2, 4 a 7 y 12 a 16).}
+
+\input{cuerpo}

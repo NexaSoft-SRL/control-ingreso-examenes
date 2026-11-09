@@ -17,7 +17,4 @@ export const normalizarUsuario = (valor) =>
         .trim()
         .replace(/\s+/g, ' ');
 
-// Para quien no tiene correo registrado o no recibe el enlace de recuperación.
-export const PISTA_SIN_CORREO = 'Si no llega, pida una contraseña temporal a la administración.';
-
 export const usuarioValido = (valor) => FORMATO_USUARIO.test(normalizarUsuario(valor));

@@ -2,15 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Modules\Administracion\Http\Controllers\MatrizPermisosController;
 use App\Modules\Administracion\Http\Controllers\RolController;
 use App\Modules\Administracion\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
-// Cuentas y roles (Administracion): HU-15.
-//
-// Todas van bajo `/api`, con sesion (`auth`) y el permiso de su pantalla
-// (`permiso:<clave>`; `permiso:a|b` cuando alcanza con uno de varios). No
-// hay registro publico: las cuentas se crean aqui.
+// Cuentas, roles y matriz de permisos (Administracion). No hay registro
+// publico: las cuentas se crean aqui con un rol existente.
 Route::prefix('api')
     ->middleware(['auth', 'permiso:usuarios_roles'])
     ->group(function (): void {
@@ -37,6 +35,7 @@ Route::prefix('api')
         Route::post('/roles', [RolController::class, 'store'])
             ->name('roles.store');
 
+        // Los tres roles de inicio vuelven a su reparto de fabrica.
         Route::post('/roles/restablecer', [RolController::class, 'restablecer'])
             ->name('roles.restablecer');
 
@@ -47,4 +46,7 @@ Route::prefix('api')
         Route::delete('/roles/{rol}', [RolController::class, 'destroy'])
             ->whereNumber('rol')
             ->name('roles.destroy');
+
+        Route::get('/permisos/matriz', MatrizPermisosController::class)
+            ->name('permisos.matriz');
     });

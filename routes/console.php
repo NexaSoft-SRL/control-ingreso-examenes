@@ -7,13 +7,26 @@ use App\Modules\Academico\Domain\Exceptions\FuenteNoDisponibleException;
 use App\Modules\Administracion\Application\Actions\GenerarRespaldo;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schedule;
-use Illuminate\Support\Facades\Storage;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+/*
+ * HU-25: el respaldo se genera a demanda desde la pantalla y, ademas, solo
+ * cada noche. Sin usuario: lo hace el sistema, y asi queda en la bitacora.
+ */
+Artisan::command('respaldo:generar', function (GenerarRespaldo $generar) {
+    $respaldo = $generar->execute();
+
+    $this->info(sprintf(
+        'Respaldo %s: %d tablas, %d filas.',
+        $respaldo->archivo,
+        $respaldo->tablas,
+        $respaldo->filas,
+    ));
+})->purpose('Genera un respaldo de los datos del sistema');
 
 /*
  * Los periodos salen de los archivos de oferta y de los calendarios de
@@ -98,68 +111,14 @@ Artisan::command('oferta:importar {facultad? : fcyt, fce, fhce o fach; sin ella,
     return $fallo ? 1 : 0;
 })->purpose('Importa la oferta academica de GENDA');
 
-/*
- * HU-25: Genera un respaldo de la base de datos (por defecto tipo programado)
- * y lo registra en disco seguro y en el historial.
- */
-Artisan::command('respaldo:generar {--tipo=programado : Tipo de respaldo: programado o puntual} {--incompatible : Generar respaldo con versión de esquema incompatible para pruebas}', function (
-    GenerarRespaldo $generar,
-) {
-    if ((bool) $this->option('incompatible')) {
-        return (int) $this->call('respaldo:incompatible');
-    }
-
-    $opcion = $this->option('tipo');
-    $tipo = is_string($opcion) && $opcion !== '' ? $opcion : 'programado';
-
-    try {
-        $respaldo = $generar->execute($tipo, null);
-        $this->info(sprintf(
-            'Respaldo %s generado exitosamente: %s (%d bytes).',
-            $respaldo->tipo,
-            $respaldo->archivo,
-            $respaldo->tamanoBytes,
-        ));
-
-        return 0;
-    } catch (Throwable $error) {
-        $this->error(sprintf('Error al generar respaldo: %s', $error->getMessage()));
-
-        return 1;
-    }
-})->purpose('Genera un respaldo de la base de datos');
+Schedule::command('respaldo:generar')
+    ->dailyAt('03:00')
+    ->withoutOverlapping();
 
 /*
- * HU-25 / CDI-26: Provee un respaldo con version de esquema anterior incompatible
- * para que el equipo de QA pueda verificar el criterio de rechazo de restauracion.
+ * El servidor de destino no tiene procesos permanentes: la cola de correos
+ * se vacia cada minuto desde el planificador.
  */
-Artisan::command('respaldo:incompatible', function () {
-    $discoNombre = is_string(config('respaldo.disco')) ? config('respaldo.disco') : 'local';
-    $directorio = is_string(config('respaldo.directorio')) ? config('respaldo.directorio') : 'respaldos';
-    $disco = Storage::disk($discoNombre);
-
-    $nombreArchivo = 'respaldo-20260901-000000.sql';
-    $ruta = trim($directorio, '/').'/'.$nombreArchivo;
-    $contenido = "-- Respaldo de esquema anterior incompatible (CDI-26)\n-- Version: 2026_09_01_000000_legacy_v0\nSELECT 1;\n";
-
-    $disco->put($ruta, $contenido);
-
-    DB::table('respaldos')->updateOrInsert(
-        ['archivo' => $nombreArchivo],
-        [
-            'tipo' => 'programado',
-            'tamano_bytes' => strlen($contenido),
-            'estado' => 'correcto',
-            'version_esquema' => '2026_09_01_000000_legacy_v0',
-            'error' => null,
-            'created_at' => '2026-09-01 00:00:00',
-            'updated_at' => '2026-09-01 00:00:00',
-        ]
-    );
-
-    $this->info("Respaldo incompatible registrado para pruebas: {$nombreArchivo}");
-
-    return 0;
-})->purpose('Crea un respaldo con versión de esquema incompatible para pruebas de restauración (CDI-26)');
-
-Schedule::command('respaldo:generar')->dailyAt('03:00');
+Schedule::command('queue:work --stop-when-empty --tries=3')
+    ->everyMinute()
+    ->withoutOverlapping();

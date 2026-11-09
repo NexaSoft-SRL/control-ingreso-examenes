@@ -72,6 +72,10 @@ final class ImportacionPorHttpTest extends TestCase
             ->assertExactJson(['creados' => 0, 'actualizados' => 1]);
 
         $this->assertSame(1, Periodo::count());
+        $this->assertDatabaseHas('bitacora_operaciones', [
+            'operacion' => 'periodo.detectar',
+            'descripcion' => 'Períodos detectados en las fuentes: 1 nuevo, 0 revisados.',
+        ]);
     }
 
     public function test_detecting_periods_requires_session_and_permission(): void
@@ -95,7 +99,6 @@ final class ImportacionPorHttpTest extends TestCase
         $this->actingAs($administrador)
             ->postJson('/api/oferta/importaciones', ['facultad' => 'FCYT'])
             ->assertCreated()
-            ->assertJsonPath('message', 'Oferta de FCyT importada.')
             ->assertJsonPath('data.estado', 'importada')
             ->assertJsonPath('data.fecha', '2026-08-03')
             ->assertJsonPath('data.resumen.carreras', 1)
@@ -115,27 +118,14 @@ final class ImportacionPorHttpTest extends TestCase
         $this->assertDatabaseCount('grupos', 2);
 
         // Lo importado se ve en las consultas de la oferta y del periodo.
-        $this->assertDatabaseHas('asignaturas', ['codigo' => '2008019']);
+        $this->getJson('/api/oferta/asignaturas?periodo='.Periodo::where('codigo', '2/2026')->firstOrFail()->id)
+            ->assertOk()
+            ->assertJsonPath('data.0.codigo', '2008019')
+            ->assertJsonPath('data.0.grupos', 2);
 
         $this->getJson('/api/periodos/resumen')
             ->assertOk()
             ->assertJsonPath('facultades.0.importacion', ['estado' => 'importada', 'fecha' => '2026-08-03', 'error' => null]);
-    }
-
-    public function test_importing_the_same_source_again_says_it_is_up_to_date(): void
-    {
-        $this->facultad();
-        $this->escribirFuentes();
-        $administrador = $this->usuarioConPermisos(['periodo_oferta']);
-
-        $this->actingAs($administrador)->postJson('/api/oferta/importaciones', ['facultad' => 'FCYT'])->assertCreated();
-
-        $this->postJson('/api/oferta/importaciones', ['facultad' => 'FCYT'])
-            ->assertOk()
-            ->assertJsonPath('message', 'La oferta de FCyT ya está al día.')
-            ->assertJsonPath('data.sin_cambios', true);
-
-        $this->assertDatabaseCount('importaciones_oferta', 1);
     }
 
     public function test_importing_is_recorded_in_the_log(): void

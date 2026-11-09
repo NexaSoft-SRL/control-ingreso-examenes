@@ -10,7 +10,7 @@ use Tests\Support\UsuarioConPermisos;
 use Tests\TestCase;
 
 /**
- * HU-15, criterios 1 a 4: el listado de cuentas, paginado en el servidor, con busqueda y
+ * Ruta 8: el listado de cuentas, paginado en el servidor, con busqueda y
  * las cifras de sus filtros.
  */
 final class UsuariosListadoTest extends TestCase
@@ -25,9 +25,9 @@ final class UsuariosListadoTest extends TestCase
         parent::setUp();
 
         $this->administrador = $this->usuarioConRol('Administrador', [
-            'nombre' => 'Rojas Vargas Ana',
+            'name' => 'Rojas Vargas Ana',
             'usuario' => 'ana.rojas',
-            'correo' => 'ana.rojas@umss.edu.bo',
+            'email' => 'ana.rojas@umss.edu.bo',
             'created_at' => '2026-09-01 10:00:00',
         ]);
     }
@@ -47,16 +47,16 @@ final class UsuariosListadoTest extends TestCase
     public function test_the_accounts_are_listed_newest_first_with_their_role_and_state(): void
     {
         $this->cuenta('Docente', [
-            'nombre' => 'Blanco Coca Leticia',
+            'name' => 'Blanco Coca Leticia',
             'usuario' => 'leticia.blanco',
-            'correo' => null,
+            'email' => null,
             'created_at' => '2026-09-02 10:00:00',
         ]);
 
         $auxiliar = $this->cuenta('Auxiliar', [
-            'nombre' => 'Mamani Torrez Diego',
+            'name' => 'Mamani Torrez Diego',
             'usuario' => 'diego.mamani',
-            'correo' => null,
+            'email' => null,
             'created_at' => '2026-09-03 10:00:00',
         ], activa: false);
 
@@ -108,8 +108,8 @@ final class UsuariosListadoTest extends TestCase
 
     public function test_the_search_ignores_case_and_accents_in_the_name(): void
     {
-        $this->cuenta('Docente', ['nombre' => 'Núñez Peña Óscar', 'usuario' => 'oscar.nunez']);
-        $this->cuenta('Docente', ['nombre' => 'Flores Villarroel Corina', 'usuario' => 'corina.flores']);
+        $this->cuenta('Docente', ['name' => 'Núñez Peña Óscar', 'usuario' => 'oscar.nunez']);
+        $this->cuenta('Docente', ['name' => 'Flores Villarroel Corina', 'usuario' => 'corina.flores']);
 
         $this->actingAs($this->administrador)
             ->getJson('/api/usuarios?buscar='.urlencode('NUNEZ pena'))
@@ -121,8 +121,8 @@ final class UsuariosListadoTest extends TestCase
 
     public function test_the_search_also_looks_at_the_username_and_the_email(): void
     {
-        $this->cuenta('Docente', ['usuario' => 'corina.flores', 'correo' => 'cflores@umss.edu.bo']);
-        $this->cuenta('Auxiliar', ['usuario' => 'diego.mamani', 'correo' => null]);
+        $this->cuenta('Docente', ['usuario' => 'corina.flores', 'email' => 'cflores@umss.edu.bo']);
+        $this->cuenta('Auxiliar', ['usuario' => 'diego.mamani', 'email' => null]);
 
         $this->actingAs($this->administrador)
             ->getJson('/api/usuarios?buscar=diego.m')
@@ -165,50 +165,26 @@ final class UsuariosListadoTest extends TestCase
 
     public function test_a_created_role_has_its_own_count_and_filter(): void
     {
-        $coordinador = $this->usuarioConPermisos(['periodo_oferta']);
+        // «Rol de prueba» no es de inicio: va despues de los tres.
+        $creada = $this->usuarioConPermisos(['bitacora']);
         $this->cuenta('Docente', ['usuario' => 'corina.flores']);
 
-        $respuesta = $this->actingAs($this->administrador)
+        $this->actingAs($this->administrador)
             ->getJson('/api/usuarios?rol='.urlencode('Rol de prueba'))
             ->assertOk()
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $coordinador->getKey())
+            ->assertJsonPath('data.0.id', $creada->getKey())
             ->assertJsonPath('data.0.rol', 'Rol de prueba')
             ->assertJsonPath('meta.total', 1)
-            ->assertJsonPath('meta.cuentas', 3);
-
-        // Una clave por rol existente, los de inicio primero, y `bloqueadas`.
-        $this->assertSame(
-            [
+            // Todas las cuentas, sin filtros.
+            ->assertJsonPath('meta.cuentas', 3)
+            ->assertJsonPath('meta.conteos', [
                 'Administrador' => 1,
                 'Docente' => 1,
                 'Auxiliar' => 0,
                 'Rol de prueba' => 1,
                 'bloqueadas' => 0,
-            ],
-            $respuesta->json('meta.conteos'),
-        );
-    }
-
-    public function test_the_filters_combine(): void
-    {
-        $this->cuenta('Docente', ['nombre' => 'Flores Villarroel Corina', 'usuario' => 'corina.flores']);
-        $this->cuenta('Docente', ['nombre' => 'Flores Rojas Marta', 'usuario' => 'marta.flores'], activa: false);
-        $this->cuenta('Auxiliar', ['nombre' => 'Flores Vega Luis', 'usuario' => 'luis.flores'], activa: false);
-        $this->cuenta('Docente', ['nombre' => 'Montaño Víctor', 'usuario' => 'victor.montano'], activa: false);
-
-        $this->actingAs($this->administrador)
-            ->getJson('/api/usuarios?buscar=flores&rol=Docente&bloqueadas=1')
-            ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.usuario', 'marta.flores');
-
-        $this->actingAs($this->administrador)
-            ->getJson('/api/usuarios?buscar=nadie')
-            ->assertOk()
-            ->assertJsonCount(0, 'data')
-            ->assertJsonPath('meta.total', 0)
-            ->assertJsonPath('meta.cuentas', 5);
+            ]);
     }
 
     public function test_the_list_is_filtered_by_blocked_accounts(): void

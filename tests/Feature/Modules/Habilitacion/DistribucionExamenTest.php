@@ -9,6 +9,7 @@ use App\Modules\Academico\Domain\Models\Docente;
 use App\Modules\Administracion\Domain\Models\User;
 use App\Modules\Estudiantes\Domain\Models\Estudiante;
 use App\Modules\Examenes\Domain\Models\Examen;
+use Database\Factories\UserFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\DatosAcademicos;
@@ -287,7 +288,7 @@ final class DistribucionExamenTest extends TestCase
     {
         [$examen] = $this->examenPorRepartir();
 
-        $this->actingAs($this->usuarioConRol('Auxiliar'))
+        $this->actingAs(UserFactory::new()->createOne())
             ->postJson("/api/examenes/{$examen->id}/reparto")
             ->assertForbidden()
             ->assertJsonPath('permiso_requerido', 'habilitacion');
@@ -305,7 +306,7 @@ final class DistribucionExamenTest extends TestCase
         $this->actingAs($otra)
             ->postJson("/api/examenes/{$examen->id}/reparto")
             ->assertForbidden()
-            ->assertExactJson(['message' => 'Examen no autorizado.', 'alcance' => true]);
+            ->assertExactJson(['message' => 'Este examen no está a su cargo.', 'alcance' => true]);
 
         $this->assertSame(2, $this->sinAula($examen));
     }

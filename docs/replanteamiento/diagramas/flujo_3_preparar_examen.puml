@@ -1,0 +1,60 @@
+' Flujo 3: el docente prepara el examen.
+@startuml flujo_3_preparar_examen
+skinparam shadowing false
+skinparam defaultFontName "Helvetica Neue"
+skinparam ActivityBackgroundColor White
+skinparam ActivityBorderColor #1168BD
+skinparam ActivityBorderThickness 1.5
+skinparam ArrowColor #444444
+skinparam SwimlaneBorderColor #BBBBBB
+skinparam NoteBackgroundColor #FFF6E5
+skinparam NoteBorderColor #E8820C
+title Flujo 3 · Preparar un examen
+
+|Docente|
+start
+:Elige una de sus asignaturas\ndel período activo;
+:Registra el examen: tipo, fecha,\nhora y duración;
+:Marca los grupos que rinden juntos;
+note right
+  Puede sumar grupos de otros
+  docentes de la misma asignatura:
+  es un examen masivo.
+end note
+
+|Sistema|
+:Reúne a los inscritos\nde esos grupos, sin repetir;
+:Propone las aulas de esos grupos\nlibres a esa hora;
+
+|Docente|
+:Elige las aulas;
+
+|Sistema|
+if (¿Alguna aula se cruza\ncon otro examen?) then (sí)
+  :Rechaza esa aula y dice por qué;
+  |Docente|
+  :Elige otra;
+  |Sistema|
+else (no)
+endif
+
+|Docente|
+:Habilita a los estudiantes;
+:Inhabilita a quien corresponda\ny escribe el motivo;
+:Pide la distribución por aula;
+
+|Sistema|
+:Reparte a los habilitados\nen partes iguales entre las aulas;
+
+|Docente|
+:Ajusta a mano si hace falta;
+:Asigna el personal de control\nde cada aula;
+:Genera los códigos QR;
+
+|Sistema|
+:Emite un código por estudiante y examen,\ncon su aula, edificio y piso;
+
+|Docente|
+:Entrega los códigos\n(lista para imprimir o enviar);
+stop
+@enduml

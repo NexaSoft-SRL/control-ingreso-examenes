@@ -4,31 +4,31 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Actions;
 
-use App\Modules\Ingreso\Application\Authorization\AlcancePuerta;
-use App\Modules\Ingreso\Application\Contracts\AlmacenEvidencias;
+use App\Modules\Administracion\Application\Contracts\AlmacenImagenes;
+use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaGateway;
+use App\Modules\Ingreso\Application\Contracts\PuertaGateway;
+use App\Modules\Ingreso\Application\DTOs\ExamenData;
 use App\Modules\Ingreso\Application\DTOs\NuevaIncidenciaData;
-use App\Modules\Ingreso\Application\DTOs\OperadorPuertaData;
+use App\Modules\Ingreso\Application\DTOs\OperadorData;
 use App\Modules\Ingreso\Domain\Enums\OrigenIncidencia;
 use App\Modules\Ingreso\Domain\Enums\TipoIncidencia;
-use App\Modules\Ingreso\Domain\Exceptions\AccesoPuntoDenegado;
 use App\Modules\Ingreso\Domain\Exceptions\DatoNoValidoException;
-use DateTimeImmutable;
-use DateTimeZone;
-use DomainException;
+use App\Modules\Ingreso\Domain\Exceptions\FueraDeAlcanceException;
+use App\Modules\Ingreso\Domain\Exceptions\FueraDeFechaException;
 use LogicException;
 
 /**
- * Alguien reporta una incidencia en un aula del examen: el docente, quien
- * atiende esa aula o quien la controla con su codigo. Solo el dia del
- * examen.
+ * Alguien reporta una incidencia en un aula del examen. Solo el dia del
+ * examen; el auxiliar, solo en su aula.
  */
 final readonly class ReportarIncidencia
 {
     public function __construct(
+        private PuertaGateway $puerta,
         private IncidenciaGateway $incidencias,
-        private AlcancePuerta $alcance,
-        private AlmacenEvidencias $evidencias,
+        private AlcancePuesto $alcance,
+        private AlmacenImagenes $imagenes,
         private EstudianteDeIncidencia $estudiantes,
     ) {}
 
@@ -36,31 +36,29 @@ final readonly class ReportarIncidencia
      * @param  list<string>  $imagenes  hasta tres fotos de evidencia
      * @return array<string, mixed>
      */
-    public function ejecutar(
-        int $examenId,
+    public function execute(
+        ExamenData $examen,
         int $aulaId,
         TipoIncidencia $tipo,
         ?string $estudiante,
         string $detalle,
-        OperadorPuertaData $operador,
+        OperadorData $operador,
         array $imagenes = [],
     ): array {
-        if (! $this->incidencias->examenTieneAula($examenId, $aulaId)) {
+        if (! $this->puerta->examenTieneAula($examen->id, $aulaId)) {
             throw new DatoNoValidoException('aula_id', 'El aula no es de este examen.');
         }
 
-        if (! $this->alcance->actuaEnAula($operador, $examenId, $aulaId)) {
-            throw new AccesoPuntoDenegado('Sin asignación en esta aula.');
+        if (! $this->alcance->actuaEnExamen($operador, $examen, $aulaId)) {
+            throw FueraDeAlcanceException::aula();
         }
 
-        $hoy = (new DateTimeImmutable('now', new DateTimeZone('America/La_Paz')))->format('Y-m-d');
-
-        if (substr((string) $this->incidencias->fechaDelExamen($examenId), 0, 10) !== $hoy) {
-            throw new DomainException('Solo el día del examen.');
+        if (! $examen->esHoy) {
+            throw new FueraDeFechaException;
         }
 
         $texto = $estudiante === null ? '' : trim($estudiante);
-        $identificado = $this->estudiantes->resolver($examenId, $texto);
+        $identificado = $this->estudiantes->resolver($examen->id, $texto);
 
         if (count($imagenes) > CorregirIncidencia::MAXIMO_EVIDENCIAS) {
             throw new DatoNoValidoException('evidencias', sprintf('Máximo %d fotos', CorregirIncidencia::MAXIMO_EVIDENCIAS));
@@ -69,11 +67,16 @@ final readonly class ReportarIncidencia
         $evidencias = [];
 
         foreach ($imagenes as $imagen) {
-            $ruta = $this->evidencias->guardar($imagen);
+            $ruta = $this->imagenes->guardar(
+                'incidencias',
+                bin2hex(random_bytes(16)),
+                $imagen,
+                CorregirIncidencia::LADO_EVIDENCIA,
+            );
 
             if ($ruta === null) {
                 // Las que ya se guardaron no quedan sueltas.
-                array_map(fn (string $guardada) => $this->evidencias->borrar($guardada), $evidencias);
+                array_map(fn (string $guardada) => $this->imagenes->borrar($guardada), $evidencias);
 
                 throw new DatoNoValidoException('evidencias', 'La imagen no se pudo leer.');
             }
@@ -86,7 +89,7 @@ final readonly class ReportarIncidencia
             origen: OrigenIncidencia::Persona,
             detalle: $detalle,
             operador: $operador,
-            examenId: $examenId,
+            examenId: $examen->id,
             aulaId: $aulaId,
             estudianteId: $identificado,
             estudianteTexto: $texto === '' ? null : $texto,

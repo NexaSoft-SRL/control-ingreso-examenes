@@ -26,4 +26,7 @@ return [
 
     // El correo de un estudiante es su codigo universitario en este dominio.
     'dominio_correo_estudiantes' => 'est.umss.edu',
+
+    // La puerta de un examen abre estos minutos antes de su inicio.
+    'minutos_apertura' => (int) env('UMSS_MINUTOS_APERTURA', 60),
 ];

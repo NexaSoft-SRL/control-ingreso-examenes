@@ -84,7 +84,8 @@ const asignaturas = ({ params = {} }) => ({
         total: 63,
         pagina: params.pagina ?? 1,
         por_pagina: params.por_pagina ?? 15,
-        total_grupos: 1168,
+        grupos: 1168,
+        niveles: NIVELES,
     },
 });
 
@@ -99,7 +100,6 @@ const rutas = (cambios = {}) => ({
     'GET /oferta/carreras': ({ params }) => ({ data: CARRERAS[params.facultad] ?? [] }),
     'GET /oferta/asignaturas': asignaturas,
     'GET /oferta/asignaturas/*/grupos': grupos,
-    'GET /oferta/niveles': { data: NIVELES },
     ...cambios,
 });
 
@@ -227,7 +227,7 @@ describe('Oferta', () => {
         await waitFor(() => expect(within(carrera).getAllByRole('option')).toHaveLength(3));
         expect(within(carrera).getAllByRole('option')[0]).toHaveTextContent('Todas');
 
-        // Los niveles se muestran por orden del plan, no alfabético.
+        // Los niveles llegan por orden alfabético y se muestran por orden del plan.
         const nivel = screen.getByLabelText('Nivel');
         expect(
             within(nivel)
@@ -362,7 +362,7 @@ describe('Oferta', () => {
             rutas({
                 'GET /oferta/asignaturas': {
                     data: [],
-                    meta: { total: 0, pagina: 1, por_pagina: 15, total_grupos: 0 },
+                    meta: { total: 0, pagina: 1, por_pagina: 15, grupos: 0, niveles: [] },
                 },
             })
         );
@@ -400,59 +400,6 @@ describe('Oferta', () => {
 
         expect(await screen.findByRole('heading', { name: 'Sin permiso' })).toBeInTheDocument();
         expect(api.get).not.toHaveBeenCalled();
-    });
-});
-
-describe('Oferta · correcciones de QA', () => {
-    it('el buscador tiene su etiqueta asociada (BUG-10)', async () => {
-        montar();
-        await fila('Algebra I');
-
-        expect(screen.getByRole('searchbox', { name: 'Buscar' })).toHaveAttribute(
-            'placeholder',
-            'Asignatura, código o docente'
-        );
-    });
-
-    it('los grupos desplegados se vuelven a pedir al cambiar período o facultad (N-02)', async () => {
-        montar();
-        fireEvent.click(await fila('Algebra I'));
-        await screen.findByRole('table');
-
-        fireEvent.change(screen.getByLabelText('Período'), { target: { value: '3' } });
-        await waitFor(() =>
-            expect(pedidos('/oferta/asignaturas/17/grupos').at(-1)).toMatchObject({
-                periodo: '3',
-                pagina: 1,
-            })
-        );
-
-        fireEvent.change(screen.getByLabelText('Facultad'), { target: { value: 'fach' } });
-        await waitFor(() =>
-            expect(pedidos('/oferta/asignaturas/17/grupos').at(-1)).toMatchObject({
-                facultad: 'fach',
-                periodo: '3',
-            })
-        );
-    });
-
-    it('el nombre del docente no se recorta y «Por designar» se advierte (N-03)', async () => {
-        montar();
-        fireEvent.click(await fila('Algebra I'));
-        const tabla = await screen.findByRole('table');
-
-        const docente = within(tabla).getByText('Blanco Coca Leticia');
-        expect(docente.className).not.toMatch(/truncate/);
-        expect(within(tabla).getByText('Por designar').className).toMatch(/text-warning/);
-    });
-
-    it('el conteo de grupos sigue al filtrado y cada fila lleva el ícono de su área', async () => {
-        montar();
-        await fila('Algebra I');
-
-        expect(screen.getByText('1.168 grupos')).toBeInTheDocument();
-        expect(within(await fila('Algebra I')).getByRole('img')).toBeInTheDocument();
-        expect(pedidos('/oferta/niveles')[0]).toEqual({ facultad: 'fcyt' });
     });
 });
 

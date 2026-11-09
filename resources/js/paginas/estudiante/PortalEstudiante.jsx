@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { CalendarDays, Camera, Home, Info, LogOut, MapPin } from 'lucide-react';
+import { CalendarDays, Camera, LogOut, MapPin } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
@@ -14,6 +14,9 @@ import Insignia from '../../componentes/Insignia';
 import Escudo from '../../componentes/Escudo';
 import Tarjeta from '../../componentes/Tarjeta';
 import { PantallaDeCarga } from '../../sesion/SesionContexto';
+import { encuadrarFoto } from '../../utiles/encuadrarFoto';
+import { precargarDetector, revisarFoto } from '../../utiles/revisarFoto';
+import QrDelExamen from './QrDelExamen';
 import usarTituloPestana from '../../utiles/usarTituloPestana';
 import {
     colorDeAsignatura,
@@ -21,29 +24,11 @@ import {
     fechaCorta,
     fechaLarga,
     iniciales,
-    normalizar,
+    ubicacionSin,
 } from '../../utiles/texto';
-import { MAXIMO_MB } from '../../utiles/imagen';
-import QrDelExamen from './QrDelExamen';
-import { encuadrarFoto } from '../../utiles/encuadrarFoto';
-import { precargarDetector, revisarFoto } from '../../utiles/revisarFoto';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
-
-// La ubicación del aula sin repetir su nombre: en la fuente algunos
-// edificios se llaman como el aula («Aula 624»).
-function ubicacionSin(aula, ...partes) {
-    const propio = normalizar(`Aula ${aula}`);
-    return partes
-        .filter(Boolean)
-        .flatMap((p) => String(p).split(' · '))
-        .filter(
-            (p) =>
-                normalizar(p.trim()) !== propio && normalizar(p.trim()) !== normalizar(String(aula))
-        )
-        .join(' · ');
-}
 
 const ESTADOS = {
     HABILITADO: { texto: 'Habilitado', tono: 'exito' },
@@ -52,12 +37,11 @@ const ESTADOS = {
 };
 
 const PESTANAS = [
-    { ruta: '/estudiante', titulo: 'Inicio', Icono: Home },
-    { ruta: '/estudiante/examenes', titulo: 'Mis exámenes', Icono: CalendarDays },
-    { ruta: '/estudiante/foto', titulo: 'Mi fotografía', Icono: Camera },
+    { ruta: '/estudiante', titulo: 'Mis exámenes', Icono: CalendarDays },
+    { ruta: '/estudiante/foto', titulo: 'Mi foto', Icono: Camera },
 ];
 
-function Examen({ examen, hoy }) {
+function Examen({ examen, hoy, codigo }) {
     const estado = ESTADOS[examen.estado] ?? ESTADOS.PENDIENTE;
     const rendido = examen.fecha < hoy;
     const esHoy = examen.fecha === hoy;
@@ -93,16 +77,6 @@ function Examen({ examen, hoy }) {
             <p className="mt-3 text-sm font-medium text-slate-800">
                 {fechaLarga(examen.fecha)} · {examen.hora}
             </p>
-            {examen.normas?.length > 0 && (
-                <div className="mt-3 rounded-lg bg-primary-50 px-3 py-2 text-sm text-primary-900">
-                    <p className="font-semibold">Normas del examen</p>
-                    <ul className="mt-1 list-inside list-disc space-y-1">
-                        {examen.normas.map((norma, indice) => (
-                            <li key={`${indice}-${norma}`}>{norma}</li>
-                        ))}
-                    </ul>
-                </div>
-            )}
             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
                 <Insignia tono={estado.tono} punto>
                     {estado.texto}
@@ -123,10 +97,7 @@ function Examen({ examen, hoy }) {
             </div>
             {examen.motivo && <p className="mt-2 text-sm text-danger-700">{examen.motivo}</p>}
             {examen.qr && !rendido && (
-                <QrDelExamen
-                    examenId={examen.id}
-                    nombre={`qr-${examen.asignatura}-${examen.fecha}.png`}
-                />
+                <QrDelExamen examenId={examen.id} nombre={`qr-${codigo}-${examen.fecha}.png`} />
             )}
         </li>
     );
@@ -134,6 +105,7 @@ function Examen({ examen, hoy }) {
 
 Examen.propTypes = {
     examen: PropTypes.shape({
+        id: PropTypes.number,
         asignatura: PropTypes.string,
         tipo: PropTypes.string,
         fecha: PropTypes.string,
@@ -141,17 +113,16 @@ Examen.propTypes = {
         estado: PropTypes.string,
         motivo: PropTypes.string,
         ingreso: PropTypes.string,
-        id: PropTypes.number,
-        qr: PropTypes.bool,
-        normas: PropTypes.arrayOf(PropTypes.string),
         aula: PropTypes.string,
         edificio: PropTypes.string,
         piso: PropTypes.string,
+        qr: PropTypes.bool,
     }).isRequired,
     hoy: PropTypes.string.isRequired,
+    codigo: PropTypes.string.isRequired,
 };
 
-function MisExamenes() {
+function MisExamenes({ codigo }) {
     const consulta = usarConsulta('/estudiante/examenes');
     const examenes = consulta.datos ?? [];
     const hoy = consulta.cuerpo?.hoy ?? '';
@@ -167,12 +138,14 @@ function MisExamenes() {
         >
             <ul className="space-y-3">
                 {examenes.map((x) => (
-                    <Examen key={x.id} examen={x} hoy={hoy} />
+                    <Examen key={x.id} examen={x} hoy={hoy} codigo={codigo} />
                 ))}
             </ul>
         </EstadoCarga>
     );
 }
+
+MisExamenes.propTypes = { codigo: PropTypes.string.isRequired };
 
 // Si puede subir la foto ahora: la primera dentro del plazo general, o
 // cuando un docente le habilitó subirla o cambiarla.
@@ -190,7 +163,6 @@ function MiFoto({ sesion, alGuardar }) {
     const [enviando, setEnviando] = useState(false);
     const [aviso, avisar] = useAviso();
 
-    // El detector de rostros tarda en cargar: se pide apenas puede subirla.
     useEffect(() => {
         if (puede) precargarDetector();
     }, [puede]);
@@ -248,25 +220,16 @@ function MiFoto({ sesion, alGuardar }) {
         return undefined;
     }
 
-    const rangosGrupo = (sesion.plazos_foto_grupo ?? []).map(
-        (item) =>
-            `${item.asignatura} · ${item.grupo}: ${diaMes(item.desde)} – ${fechaCorta(item.hasta)}`
-    );
-    // El de sus grupos cuenta cuando el general no está abierto.
-    const rango =
-        plazo && (plazo.abierto || rangosGrupo.length === 0)
-            ? `${diaMes(plazo.desde)} – ${fechaCorta(plazo.hasta)}`
-            : rangosGrupo.join(' · ') || null;
-    const vencidoEn = sesion.foto?.vencido_en ?? [];
+    const rango = plazo ? `${diaMes(plazo.desde)} – ${fechaCorta(plazo.hasta)}` : null;
 
     return (
         <Tarjeta titulo="Mi foto">
-            {vencidoEn.length > 0 && (
+            {sesion.foto?.sin_foto_vencido && (
                 <p
                     role="alert"
                     className="mb-4 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-800"
                 >
-                    Sin foto · no habilitado en {vencidoEn.join(', ')}
+                    Sin foto · no habilitado
                 </p>
             )}
             {estudiante.con_foto && !puede ? (
@@ -283,11 +246,6 @@ function MiFoto({ sesion, alGuardar }) {
                             Registrada
                         </Insignia>
                     </span>
-                    {sesion.foto?.subida_en && (
-                        <p className="text-sm text-slate-600">
-                            Fecha de registro: {fechaCorta(sesion.foto.subida_en.slice(0, 10))}
-                        </p>
-                    )}
                 </div>
             ) : puede ? (
                 <div className="space-y-4">
@@ -327,7 +285,6 @@ function MiFoto({ sesion, alGuardar }) {
                         error={error}
                         camara={null}
                         minimo={240}
-                        maximoMB={MAXIMO_MB}
                         revisar={revisarFoto}
                         preparar={encuadrarFoto}
                         cuadrada
@@ -363,7 +320,7 @@ function MiFoto({ sesion, alGuardar }) {
                                     type="button"
                                     className="flex-1"
                                     onClick={guardar}
-                                    disabled={enviando}
+                                    cargando={enviando}
                                 >
                                     Confirmar
                                 </Boton>
@@ -401,21 +358,11 @@ MiFoto.propTypes = {
             hasta: PropTypes.string,
             abierto: PropTypes.bool,
         }),
-        plazos_foto_grupo: PropTypes.arrayOf(
-            PropTypes.shape({
-                id: PropTypes.number,
-                asignatura: PropTypes.string,
-                grupo: PropTypes.string,
-                desde: PropTypes.string,
-                hasta: PropTypes.string,
-            })
-        ),
         foto: PropTypes.shape({
             puede_subir: PropTypes.bool,
-            subida_en: PropTypes.string,
             habilitada_hasta: PropTypes.string,
             habilitada_por: PropTypes.string,
-            vencido_en: PropTypes.arrayOf(PropTypes.string),
+            sin_foto_vencido: PropTypes.bool,
         }),
     }).isRequired,
     alGuardar: PropTypes.func.isRequired,
@@ -451,7 +398,7 @@ export default function PortalEstudiante() {
     if (sinSesion) return <Navigate to="/estudiante/ingreso" replace />;
     if (fallo && !sesion) {
         return (
-            <div className="flex min-h-dvh items-center justify-center bg-fondo px-4">
+            <div className="flex min-h-dvh items-center justify-center bg-slate-100 px-4">
                 <EstadoCarga error={new Error('sin conexión')} onReintentar={cargar} />
             </div>
         );
@@ -481,7 +428,7 @@ export default function PortalEstudiante() {
         <div className="flex min-h-dvh flex-col bg-fondo">
             <header className="sticky top-0 z-10 bg-white shadow-sm">
                 <div className="border-b-[3px] border-umss-rojo bg-umss-marino text-white">
-                    <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
+                    <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
                         <div className="flex min-w-0 items-center gap-3">
                             <span
                                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-umss-marino ring-2 ring-white/30"
@@ -512,7 +459,7 @@ export default function PortalEstudiante() {
                         </div>
                     </div>
                 </div>
-                <nav aria-label="Estudiante" className="mx-auto flex max-w-5xl gap-1 px-4">
+                <nav aria-label="Estudiante" className="mx-auto flex max-w-2xl gap-1 px-4">
                     {PESTANAS.map(({ ruta, titulo, Icono }) => {
                         const activa = pathname === ruta;
                         return (
@@ -535,55 +482,14 @@ export default function PortalEstudiante() {
                     })}
                 </nav>
             </header>
-            <main className="mx-auto w-full max-w-5xl flex-1 space-y-5 px-4 py-5">
+            <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-5">
                 <h1 className="sr-only">
                     {PESTANAS.find((p) => p.ruta === pathname)?.titulo ?? 'Mis exámenes'}
                 </h1>
                 {pathname === '/estudiante/foto' ? (
                     <MiFoto sesion={sesion} alGuardar={cargar} />
-                ) : pathname === '/estudiante/examenes' ? (
-                    <Tarjeta titulo="Mis exámenes" icono={CalendarDays}>
-                        <MisExamenes />
-                    </Tarjeta>
                 ) : (
-                    <>
-                        <section className="flex flex-col justify-between gap-4 rounded-xl bg-gradient-to-r from-primary-900 via-primary-800 to-primary-700 p-5 text-white sm:flex-row sm:items-center">
-                            <div>
-                                <h2 className="text-xl font-semibold">{estudiante.nombre}</h2>
-                                <p className="mt-1 text-sm text-primary-100">
-                                    Código universitario: {estudiante.codigo}
-                                </p>
-                            </div>
-                            <span className="text-sm font-semibold tracking-wide">UMSS</span>
-                        </section>
-                        <p
-                            role="status"
-                            className="rounded-lg border border-success-200 bg-success-100 px-4 py-3 font-medium text-success-700"
-                        >
-                            ¡Bienvenido al sistema!
-                        </p>
-                        <Tarjeta
-                            titulo="Mis exámenes"
-                            icono={CalendarDays}
-                            acciones={
-                                <Link
-                                    to="/estudiante/examenes"
-                                    className={`rounded-lg px-3 py-2 text-sm font-medium text-primary-700 hover:bg-primary-50 ${FOCO}`}
-                                >
-                                    Ver todos
-                                </Link>
-                            }
-                        >
-                            <MisExamenes />
-                        </Tarjeta>
-                        <Tarjeta titulo="Información importante" icono={Info}>
-                            <p className="text-sm text-slate-700">
-                                Preséntate 15 minutos antes del examen con tu carnet universitario.
-                                Revisa el aula y las normas indicadas para cada examen.
-                            </p>
-                        </Tarjeta>
-                        <MiFoto sesion={sesion} alGuardar={cargar} />
-                    </>
+                    <MisExamenes codigo={estudiante.codigo} />
                 )}
             </main>
             {avisoSalida}

@@ -7,10 +7,10 @@ import { useAviso } from '../../componentes/Aviso';
 import Chips from '../../componentes/Chips';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
-import IconoAsignatura from '../../componentes/IconoAsignatura';
 import Insignia from '../../componentes/Insignia';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { colorDeAsignatura, diaMes, fechaLarga, mesDe, plural } from '../../utiles/texto';
+import IconoAsignatura from '../../componentes/IconoAsignatura';
 import { FORMA_EXAMEN, PASOS, accionDe, pendiente, tipoDe } from './avanceDelExamen';
 import rutaDelExamen from './rutaDelExamen';
 
@@ -24,9 +24,12 @@ const ENLACE = `inline-flex min-h-10 shrink-0 items-center rounded-lg text-sm fo
 // códigos QR, la edición y la eliminación.
 function TarjetaExamen({ e, destacado = false }) {
     const { puede } = usarSesion();
-    const accion = accionDe(e, puede('habilitacion'), puede('codigos_qr'));
-    // El examen de hoy que no terminó se sigue en vivo.
-    const enCurso = e.es_hoy && !e.rendido && e.aulas.length > 0;
+    const puedeHabilitar = puede('habilitacion');
+    const puedeEmitir = puede('codigos_qr');
+    const accion = accionDe(e, puedeHabilitar, puedeEmitir);
+    // El examen de hoy que no terminó se sigue en vivo; su paso siguiente
+    // baja a los enlaces del pie.
+    const enCurso = e.es_hoy && !e.rendido && e.aulas.length > 0 && puede('seguimiento_vivo');
     const nombre = e.asignatura.nombre;
     const titulo = `${tipoDe(e)} · ${nombre}`;
     const hechos = PASOS.filter((p) => e.avance[p.clave] === 'ok').length;
@@ -37,6 +40,9 @@ function TarjetaExamen({ e, destacado = false }) {
             : e.aulas.length > 3
               ? plural(e.aulas.length, 'aula')
               : e.aulas.join(', ');
+    // Lo que se puede pulsar dentro de la tarjeta queda por encima del enlace
+    // que la cubre entera.
+    const ENCIMA = 'relative z-10';
 
     return (
         <article
@@ -53,7 +59,8 @@ function TarjetaExamen({ e, destacado = false }) {
             <div className="min-w-0 flex-1 px-4 py-3 sm:px-5">
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                     <div className="min-w-0 flex-1 basis-64">
-                        {/* El estado va con el título: es del examen, no de la acción. */}
+                        {/* El estado va con el título: es del examen, no de la acción.
+                            Si no entra en la línea, baja debajo del título. */}
                         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                             <span className="flex min-w-0 items-center gap-2">
                                 <IconoAsignatura
@@ -61,7 +68,6 @@ function TarjetaExamen({ e, destacado = false }) {
                                     color={colorDeAsignatura(nombre)}
                                 />
                                 <h3 className="min-w-0 break-words text-base font-semibold text-slate-900">
-                                    {/* El enlace del título cubre toda la tarjeta. */}
                                     <Link
                                         to={rutaDelExamen(e.id)}
                                         className={`rounded after:absolute after:inset-0 group-hover:text-primary-700 ${FOCO}`}
@@ -88,8 +94,7 @@ function TarjetaExamen({ e, destacado = false }) {
                             </span>
                         </p>
                     </div>
-                    {/* Lo que se pulsa dentro queda por encima del enlace de la tarjeta. */}
-                    <div className="relative z-10 ml-auto flex items-center gap-x-3">
+                    <div className={`ml-auto flex items-center gap-x-3 ${ENCIMA}`}>
                         {enCurso ? (
                             <Link
                                 to={`/en-curso?examen=${e.id}`}
@@ -194,7 +199,8 @@ export default function Examenes() {
         ...new Map(examenes.map((e) => [e.asignatura.id, e.asignatura])).values(),
     ].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 
-    const visible = (e) => asignatura === null || e.asignatura.id === asignatura;
+    const deLaAsignatura = (e) => asignatura === null || e.asignatura.id === asignatura;
+    const visible = deLaAsignatura;
     // El de hoy que no terminó o, si no hay, el próximo.
     const primero = examenes.find((e) => !e.rendido && (!hoy || e.fecha >= hoy)) ?? null;
     const destacado = primero && visible(primero) ? primero : null;
@@ -202,11 +208,22 @@ export default function Examenes() {
     const meses = [...new Set(lista.map((e) => e.fecha.slice(0, 7)))];
 
     const opciones = [
-        { valor: null, etiqueta: 'Todas', conteo: examenes.length },
+        {
+            valor: null,
+            etiqueta: 'Todas',
+            conteo: examenes.length,
+        },
         ...asignaturas.map((a) => ({
             valor: a.id,
             etiqueta: a.nombre,
             color: colorDeAsignatura(a.nombre),
+            icono: (
+                <IconoAsignatura
+                    nombre={a.nombre}
+                    color={colorDeAsignatura(a.nombre)}
+                    tamano="xs"
+                />
+            ),
             conteo: examenes.filter((e) => e.asignatura.id === a.id).length,
         })),
     ];
@@ -238,7 +255,6 @@ export default function Examenes() {
                     valor={asignatura}
                     onCambiar={setAsignatura}
                     etiqueta="Asignatura"
-                    maximo={7}
                 />
 
                 {destacado && (

@@ -22,6 +22,7 @@ use App\Modules\Estudiantes\Domain\Enums\TipoConflicto;
 use App\Modules\Estudiantes\Domain\Exceptions\ArchivoRechazadoException;
 use App\Modules\Estudiantes\Domain\Exceptions\GrupoAjenoException;
 use App\Modules\Estudiantes\Domain\Exceptions\PeriodoCerradoException;
+use App\Modules\Estudiantes\Domain\Rules\DatosDeInscrito;
 use App\Modules\Estudiantes\Domain\Rules\FormatoDeLista;
 
 /**
@@ -76,6 +77,12 @@ final readonly class CargarInscritos
 
     public const MOTIVO_GRUPO = 'El grupo no existe en la oferta';
 
+    public const MOTIVO_ASIGNATURA = 'La asignatura no existe en la oferta';
+
+    public const MOTIVO_NOMBRE = 'Nombres o apellidos no válidos';
+
+    public const MOTIVO_CARRERA = 'La carrera no existe en la facultad';
+
     public const MOTIVO_DOCUMENTO_AJENO = 'El documento ya pertenece a otro estudiante';
 
     public function __construct(
@@ -87,17 +94,13 @@ final readonly class CargarInscritos
     ) {}
 
     /**
-     * Con `$aMano` (codigo, documento, nombres y apellidos) no se lee
-     * archivo: es una lista de esa sola fila, con las mismas reglas.
-     *
-     * @param  list<string>|null  $aMano
      * @return ResultadoCargaData|null null si el grupo o la facultad no existen
      *
      * @throws GrupoAjenoException
      * @throws PeriodoCerradoException
      * @throws ArchivoRechazadoException si el archivo se rechaza entero; no se guarda nada
      */
-    public function execute(SolicitudCargaData $solicitud, ?array $aMano = null): ?ResultadoCargaData
+    public function execute(SolicitudCargaData $solicitud): ?ResultadoCargaData
     {
         $grupoId = null;
         $gruposPorClave = [];
@@ -146,13 +149,11 @@ final readonly class CargarInscritos
         $obligatorias = self::obligatorias($solicitud->alcance);
 
         try {
-            $filas = $aMano !== null
-                ? [1 => array_map(trim(...), $aMano)]
-                : FormatoDeLista::revisar(
-                    $this->lector->leer($solicitud->rutaArchivo, $solicitud->extension),
-                    $obligatorias,
-                    self::opcionales($solicitud->alcance),
-                );
+            $filas = FormatoDeLista::revisar(
+                $this->lector->leer($solicitud->rutaArchivo, $solicitud->extension),
+                $obligatorias,
+                self::opcionales($solicitud->alcance),
+            );
         } catch (ArchivoRechazadoException $rechazo) {
             throw $rechazo->conOrdenEsperado($obligatorias);
         }
@@ -361,12 +362,16 @@ final readonly class CargarInscritos
             return self::MOTIVO_SIN_DOCUMENTO;
         }
 
-        if (preg_match('/^\d{5,10}$/', $codigo) !== 1) {
+        if (! DatosDeInscrito::codigoValido($codigo)) {
             return self::MOTIVO_CODIGO;
         }
 
-        if (mb_strlen($documento) > 30) {
+        if (! DatosDeInscrito::documentoValido($documento)) {
             return self::MOTIVO_DOCUMENTO;
+        }
+
+        if (! DatosDeInscrito::nombreValido($nombres) || ! DatosDeInscrito::nombreValido($apellidos)) {
+            return self::MOTIVO_NOMBRE;
         }
 
         $carreraId = null;
@@ -377,18 +382,22 @@ final readonly class CargarInscritos
                 ?? null;
 
             if ($grupoId === null) {
-                return self::MOTIVO_GRUPO;
+                return $this->hayAsignatura($gruposPorClave, $asignatura) ? self::MOTIVO_GRUPO : self::MOTIVO_ASIGNATURA;
             }
 
-            $carreraId = $carreras[mb_strtoupper($carrera)] ?? null;
+            $carreraId = $carreras[DatosDeInscrito::clave($carrera)] ?? null;
+
+            if ($carrera !== '' && $carreraId === null) {
+                return self::MOTIVO_CARRERA;
+            }
         }
 
         return new FilaInscritoData(
             fila: $numero,
             codigoUniversitario: $codigo,
             documentoIdentidad: $documento,
-            nombres: mb_substr($nombres, 0, 100),
-            apellidos: mb_substr($apellidos, 0, 100),
+            nombres: mb_substr($nombres, 0, DatosDeInscrito::MAXIMO_NOMBRE),
+            apellidos: mb_substr($apellidos, 0, DatosDeInscrito::MAXIMO_NOMBRE),
             grupoId: $grupoId,
             facultadId: $facultadId,
             carreraId: $carreraId,
@@ -397,7 +406,6 @@ final readonly class CargarInscritos
 
     /**
      * En que difiere la fila del estudiante guardado; null si coincide.
-     * Manda el documento: si difiere, el conflicto es de documento.
      */
     private function diferencia(
         ?string $documento,
@@ -405,36 +413,32 @@ final readonly class CargarInscritos
         string $apellidos,
         FilaInscritoData $fila,
     ): ?TipoConflicto {
-        if ($this->documento((string) $documento) !== $this->documento($fila->documentoIdentidad)) {
-            return TipoConflicto::DocumentoDistinto;
-        }
-
-        if (
-            $this->normalizar($nombres) !== $this->normalizar($fila->nombres)
-            || $this->normalizar($apellidos) !== $this->normalizar($fila->apellidos)
-        ) {
-            return TipoConflicto::NombreDistinto;
-        }
-
-        return null;
-    }
-
-    private function documento(string $valor): string
-    {
-        return mb_strtoupper((string) preg_replace('/\s+/u', '', $valor));
+        return DatosDeInscrito::diferencia(
+            $documento,
+            $nombres,
+            $apellidos,
+            $fila->documentoIdentidad,
+            $fila->nombres,
+            $fila->apellidos,
+        );
     }
 
     /**
-     * Mayusculas, sin tildes y con espacios simples: «José  Luis» y
-     * «JOSE LUIS» son el mismo nombre.
+     * Si la oferta tiene algun grupo de esa asignatura: entonces lo que no
+     * existe es el grupo.
+     *
+     * @param  array<string, int>  $gruposPorClave
      */
-    private function normalizar(string $valor): string
+    private function hayAsignatura(array $gruposPorClave, string $asignatura): bool
     {
-        $valor = mb_strtoupper(trim((string) preg_replace('/\s+/u', ' ', $valor)));
+        $prefijo = mb_strtoupper($asignatura.'|');
 
-        return strtr($valor, [
-            'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ü' => 'U',
-            'À' => 'A', 'È' => 'E', 'Ì' => 'I', 'Ò' => 'O', 'Ù' => 'U',
-        ]);
+        foreach (array_keys($gruposPorClave) as $clave) {
+            if (str_starts_with($clave, $prefijo)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -180,8 +180,14 @@ final class CargaInscritosTest extends TestCase
         $grupo = $this->grupo($docente);
         $filas = [self::ENCABEZADO];
 
+        // Nombres de solo letras, distintos por fila: «Nombre Abc».
+        $letras = static fn (int $n): string => implode('', array_map(
+            static fn (string $d): string => chr(ord('a') + (int) base_convert($d, 26, 10)),
+            str_split(str_pad(base_convert((string) $n, 10, 26), 3, '0', STR_PAD_LEFT)),
+        ));
+
         for ($i = 1; $i <= 2000; $i++) {
-            $filas[] = sprintf('%d,%d,Nombre %d,Apellido %d', 202100000 + $i, 7000000 + $i, $i, $i);
+            $filas[] = sprintf('%d,%d,Nombre %s,Apellido %s', 202100000 + $i, 7000000 + $i, $letras($i), $letras($i));
         }
 
         $inicio = microtime(true);
@@ -516,27 +522,12 @@ final class CargaInscritosTest extends TestCase
     {
         $grupo = $this->grupo($this->docente());
 
-        // El Administrador tiene todos los permisos (D-8): se prueba con el Auxiliar.
-        $this->actingAs($this->usuarioConRol('Auxiliar'))
+        $this->actingAs($this->administrador())
             ->postJson("/api/docente/grupos/{$grupo->id}/inscritos/carga", [
                 'archivo' => $this->csv(['x']),
             ])
             ->assertForbidden()
             ->assertJsonPath('permiso_requerido', 'mis_grupos');
-    }
-
-    public function test_the_administrator_does_not_have_the_permission_of_the_teacher_groups(): void
-    {
-        $grupo = $this->grupo($this->docente());
-
-        $this->actingAs($this->administrador())
-            ->postJson("/api/docente/grupos/{$grupo->id}/inscritos/carga", [
-                'archivo' => $this->csv(['202104821,7928194,Kevin René,Alvarado Claros']),
-            ])
-            ->assertForbidden()
-            ->assertJsonPath('permiso_requerido', 'mis_grupos');
-
-        $this->assertDatabaseCount('cargas_inscritos', 0);
     }
 
     public function test_a_teacher_cannot_upload_to_a_group_of_another_teacher(): void
@@ -546,7 +537,7 @@ final class CargaInscritosTest extends TestCase
 
         $this->cargarLista($docente, $ajeno, ['202104821,7928194,Kevin René,Alvarado Claros'])
             ->assertForbidden()
-            ->assertExactJson(['message' => 'Grupo no autorizado.', 'alcance' => true]);
+            ->assertExactJson(['message' => 'Este grupo no está a su cargo.', 'alcance' => true]);
 
         $this->assertDatabaseCount('estudiantes', 0);
         $this->assertDatabaseCount('cargas_inscritos', 0);

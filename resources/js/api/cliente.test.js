@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { api, suscribirSesion, SIN_SESION } from './cliente';
+import { api, suscribirSesion, CAMBIAR_CONTRASENA, SIN_SESION } from './cliente';
 
 // Un adaptador en lugar de la red: responde lo que la prueba le indique.
 function responderCon(estado, datos = {}) {
@@ -47,11 +47,19 @@ describe('cliente de la API', () => {
 
     it('no avisa por un 401 de las rutas de acceso', async () => {
         const oyente = escuchar();
-        responderCon(401, { message: 'Credenciales incorrectas.' });
+        responderCon(401, { message: 'Usuario o contraseña incorrectos.' });
 
         await expect(api.post('/auth/login', {})).rejects.toBeTruthy();
         await expect(api.get('/auth/sesion')).rejects.toBeTruthy();
         expect(oyente).not.toHaveBeenCalled();
+    });
+
+    it('con 409 y debe_cambiar_contrasena avisa del cambio obligatorio', async () => {
+        const oyente = escuchar();
+        responderCon(409, { message: 'Debes definir…', debe_cambiar_contrasena: true });
+
+        await expect(api.get('/examenes')).rejects.toBeTruthy();
+        expect(oyente).toHaveBeenCalledWith(CAMBIAR_CONTRASENA);
     });
 
     it('un 409 de estado no toca la sesión', async () => {
@@ -66,7 +74,7 @@ describe('cliente de la API', () => {
         const oyente = escuchar();
         responderCon(401);
 
-        await expect(api.get('/bitacora', { silencioso: true })).rejects.toBeTruthy();
+        await expect(api.get('/puerta/aulas', { silencioso: true })).rejects.toBeTruthy();
         expect(oyente).not.toHaveBeenCalled();
     });
 

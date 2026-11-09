@@ -15,14 +15,37 @@ import {
 
 vi.mock('../api/cliente');
 
+// Aquí se prueba la tabla de rutas, no las páginas: cada una se sustituye por
+// su título, y así esta prueba no depende de lo que cada página pida a la API.
+const { pagina } = vi.hoisted(() => ({
+    pagina: (titulo) => () => ({ default: () => <h1>{titulo}</h1> }),
+}));
+vi.mock('../paginas/admin/Periodo', pagina('Período'));
+vi.mock('../paginas/admin/Oferta', pagina('Oferta'));
+vi.mock('../paginas/admin/Aulas', pagina('Aulas y mapa'));
+vi.mock('../paginas/admin/Docentes', pagina('Docentes'));
+vi.mock('../paginas/estudiantes/Padron', pagina('Padrón'));
+vi.mock('../paginas/reportes/Reportes', pagina('Reportes'));
+vi.mock('../paginas/admin/Usuarios', pagina('Usuarios y roles'));
+vi.mock('../paginas/admin/Bitacora', pagina('Bitácora'));
+vi.mock('../paginas/admin/Respaldo', pagina('Respaldo'));
+vi.mock('../paginas/examenes/Examenes', pagina('Exámenes'));
+vi.mock('../paginas/examenes/RegistrarExamen', pagina('Registrar examen'));
+vi.mock('../paginas/habilitacion/Habilitacion', pagina('Habilitación'));
+vi.mock('../paginas/docente/CodigosQr', pagina('Códigos QR'));
+vi.mock('../paginas/docente/EnCurso', pagina('En curso'));
+vi.mock('../paginas/monitoreo/Asistencia', pagina('Asistencia del aula'));
+vi.mock('../paginas/ingreso/PuntoControl', pagina('Punto de control'));
+vi.mock('../paginas/docente/MisGrupos', pagina('Mis grupos'));
+vi.mock('../paginas/reportes/ReportesDocente', pagina('Reportes del docente'));
+
 function montar(ruta, usuario) {
     simularApi(api, {
         'GET /auth/sesion': usuario
             ? { user: usuario }
             : errorHttp(401, { message: 'No hay una sesión activa.' }),
         'GET /facultades': { data: FACULTADES },
-        'GET /bitacora': { data: [] },
-        'GET /respaldos': { data: [] },
+        'GET /puerta/aulas': errorHttp(401),
     });
     return render(
         <MemoryRouter initialEntries={[ruta]}>
@@ -33,10 +56,9 @@ function montar(ruta, usuario) {
     );
 }
 
-const titulo = (nombre) =>
-    screen.findByRole('heading', { level: 1, name: nombre }, { timeout: 5000 });
+const titulo = (nombre) => screen.findByRole('heading', { level: 1, name: nombre });
 
-// El título de cada pantalla, por ruta.
+// El título de la página de cada ruta.
 const TITULOS = {
     '/periodo': 'Período',
     '/oferta': 'Oferta',
@@ -46,16 +68,16 @@ const TITULOS = {
     '/examenes': 'Exámenes',
     '/examenes/nuevo': 'Registrar examen',
     '/examenes/detalle': 'Examen',
-    '/reportes': 'Reportes',
-    '/reportes-universidad': 'Reportes de la universidad',
-    '/bitacora-examen': 'Bitácora de exámenes',
     '/habilitacion': 'Habilitación',
     '/codigos-qr': 'Códigos QR',
     '/en-curso': 'En curso',
-    '/punto-control': 'Punto de control',
-    '/en-curso/aula': 'Lista del aula',
-    '/mi-aula': 'Mi aula',
+    '/en-curso/aula': 'Asistencia del aula',
+    '/control': 'Punto de control',
+    '/ingreso': 'Punto de control',
+    '/mi-aula': 'Asistencia del aula',
     '/mis-grupos': 'Mis grupos',
+    '/mis-reportes': 'Reportes del docente',
+    '/reportes': 'Reportes',
     '/admin': 'Usuarios y roles',
     '/bitacora': 'Bitácora',
     '/respaldo': 'Respaldo',
@@ -64,7 +86,7 @@ const TITULOS = {
 describe('Aplicacion', () => {
     beforeEach(() => window.history.replaceState(null, '', '/'));
 
-    it('sin sesión, la raíz lleva al inicio de sesión por usuario', async () => {
+    it('sin sesión, la raíz lleva al inicio de sesión', async () => {
         montar('/', null);
         expect(await titulo('Control de exámenes')).toBeInTheDocument();
         expect(screen.getByLabelText(/Usuario/)).toBeInTheDocument();
@@ -78,14 +100,10 @@ describe('Aplicacion', () => {
     it.each([
         ['Administrador', 'Período'],
         ['Docente', 'Exámenes'],
+        ['Auxiliar', 'Punto de control'],
     ])('la raíz lleva al %s a su entrada', async (rol, nombre) => {
         montar('/', usuarioDePrueba(rol));
         expect(await titulo(nombre)).toBeInTheDocument();
-    });
-
-    it('el auxiliar entra al punto de control según su permiso', async () => {
-        montar('/', usuarioDePrueba('Auxiliar'));
-        expect(await titulo('Punto de control')).toBeInTheDocument();
     });
 
     it('una vista sin permiso muestra «Sin permiso» dentro del armazón', async () => {
@@ -94,7 +112,14 @@ describe('Aplicacion', () => {
         expect(screen.getByRole('link', { name: 'Volver' })).toHaveAttribute('href', '/examenes');
         expect(screen.queryByRole('heading', { name: 'Usuarios y roles' })).not.toBeInTheDocument();
         expect(screen.getAllByRole('button', { name: 'Cerrar sesión' }).length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Docente').length).toBeGreaterThan(0);
+    });
+
+    it('el administrador no abre las pantallas de docencia ni sigue exámenes', async () => {
+        for (const ruta of ['/examenes', '/habilitacion', '/en-curso', '/control', '/mis-grupos']) {
+            const { unmount } = montar(ruta, usuarioDePrueba('Administrador'));
+            expect(await titulo('Sin permiso'), ruta).toBeInTheDocument();
+            unmount();
+        }
     });
 
     it('un rol creado entra a las vistas de sus permisos y a ninguna otra', async () => {
@@ -110,9 +135,34 @@ describe('Aplicacion', () => {
         expect(await titulo('Sin permiso')).toBeInTheDocument();
     });
 
+    it('quien toma el examen y quien atiende un aula llegan cada uno a su control', async () => {
+        const { unmount } = montar('/ingreso?aula=30', usuarioDePrueba('Docente'));
+        expect(await titulo('Punto de control')).toBeInTheDocument();
+        expect(
+            screen
+                .getAllByRole('link', { name: /^(Punto de control|Control)$/ })
+                .map((e) => e.getAttribute('href'))
+        ).toEqual(['/control', '/control']);
+        expect(document.title).toBe('Punto de control · Control de exámenes');
+        unmount();
+
+        montar('/en-curso/aula?examen=1&aula=30', usuarioDePrueba('Auxiliar'));
+        expect(await titulo('Asistencia del aula')).toBeInTheDocument();
+        expect(screen.getAllByRole('link', { name: 'Mi aula' })[0]).toHaveAttribute(
+            'aria-current',
+            'page'
+        );
+    });
+
     it('una dirección desconocida lleva a la entrada de la cuenta', async () => {
-        montar('/ruta-inexistente', usuarioDePrueba('Docente'));
+        montar('/no-existe', usuarioDePrueba('Docente'));
         expect(await titulo('Exámenes')).toBeInTheDocument();
+    });
+
+    it('con contraseña temporal todo lleva al primer ingreso', async () => {
+        montar('/examenes', usuarioDePrueba('Docente', { debe_cambiar_contrasena: true }));
+        expect(await titulo('Contraseña nueva')).toBeInTheDocument();
+        expect(screen.getByText('Primer ingreso · cambio obligatorio')).toBeInTheDocument();
     });
 
     it('la tabla de rutas tiene una página por vista', () => {
@@ -121,17 +171,31 @@ describe('Aplicacion', () => {
     });
 
     it('cada ruta tiene su página dentro del armazón', { timeout: 15000 }, async () => {
-        for (const [ruta, nombre] of Object.entries(TITULOS)) {
-            const { unmount } = montar(
-                ruta,
-                usuarioDePrueba('Administrador', { permisos: CATALOGO_PERMISOS })
-            );
-            expect(await titulo(nombre), ruta).toBeInTheDocument();
-            expect(screen.getAllByRole('button', { name: 'Cerrar sesión' }).length).toBeGreaterThan(
-                0
-            );
-            unmount();
+        const cuentas = [
+            usuarioDePrueba('Administrador', { permisos: CATALOGO_PERMISOS }),
+            usuarioDePrueba('Auxiliar'),
+        ];
+        const vistas = new Set();
+        for (const cuenta of cuentas) {
+            for (const v of VISTAS.filter((vista) => cuenta.permisos.includes(vista.permiso))) {
+                if (v.sin && cuenta.permisos.includes(v.sin)) continue;
+                if (v.con && !cuenta.permisos.includes(v.con)) continue;
+                const { unmount } = montar(v.ruta, cuenta);
+                expect(await titulo(TITULOS[v.ruta]), v.ruta).toBeInTheDocument();
+                expect(
+                    screen.getAllByRole('button', { name: 'Cerrar sesión' }).length
+                ).toBeGreaterThan(0);
+                vistas.add(v.ruta);
+                unmount();
+            }
         }
+        expect(vistas.size).toBe(VISTAS.length);
+    });
+
+    it('la ruta del acceso con código es pública', async () => {
+        montar('/acceso-aula', null);
+        expect(await titulo('Punto de control')).toBeInTheDocument();
+        expect(screen.getByLabelText(/Código/)).toBeInTheDocument();
     });
 
     it('una cuenta sin permisos ve su nombre y puede cerrar sesión', async () => {

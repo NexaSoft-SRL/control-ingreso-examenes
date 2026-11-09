@@ -31,6 +31,7 @@ final class ListaRequest extends FormRequest
             'facultad' => ['sometimes', 'nullable', 'string', 'max:10'],
             'carrera' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'estado' => ['sometimes', 'nullable', 'string', 'in:pendiente,resuelto,todos'],
+            'foto' => ['sometimes', 'nullable', 'string', 'in:con,sin'],
         ];
     }
 
@@ -50,6 +51,7 @@ final class ListaRequest extends FormRequest
             'carrera.integer' => 'La carrera no es válida.',
             'carrera.min' => 'La carrera no es válida.',
             'estado.in' => 'El estado debe ser pendiente, resuelto o todos.',
+            'foto.in' => 'La foto debe ser con o sin.',
         ];
     }
 
@@ -72,6 +74,7 @@ final class ListaRequest extends FormRequest
             facultad: is_string($facultad) && trim($facultad) !== '' ? trim($facultad) : null,
             carreraId: is_numeric($carrera) ? (int) $carrera : null,
             estado: $estado,
+            foto: is_string($this->validated('foto')) ? $this->validated('foto') : null,
         );
     }
 }

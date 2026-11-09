@@ -1,0 +1,145 @@
+% Ficha HU-20 del sprint 3. Una historia = una vista completa: los codigos
+% QR de un examen, con la emision en lote, la credencial de cada habilitado,
+% la hoja imprimible, el envio por correo con su estado y el aviso del examen.
+% Tipo: propia del sprint. La ficha v1 con este numero era otra historia.
+\def\HUNro{20}
+\def\HUSprint{3}
+\def\HUTitulo{Exámenes > Códigos QR > Emitir las credenciales y avisar por correo}
+\def\HUModulo{M4}
+\def\HUReq{4}
+\def\HUPuntos{8}
+
+\def\HUComo{docente}
+\def\HUQuiero{emitir los códigos QR de mi examen y avisar a mis estudiantes por correo}
+\def\HUPara{que cada estudiante llegue con su credencial y enterado de la fecha, el aula y
+las normas, sin que nadie alegue no haber sabido}
+
+\def\HUDescripcion{%
+El pliego pide que cada estudiante se identifique en la puerta con un código QR. Esta
+vista es el último paso de la preparación de un examen: el docente emite un código por
+cada estudiante habilitado, revisa la credencial de cada uno, imprime las credenciales y
+las envía por correo. Se llega desde Exámenes y se cambia de examen con el selector.
+
+Arriba van las acciones y cinco cifras: habilitados, emitidos, enviados, sin enviar y
+fallidos. Debajo, la lista de los habilitados, con su código universitario, su grupo, su
+aula y el estado del envío, y al lado la credencial del estudiante elegido con el mapa
+de su edificio. La lista se filtra por grupo, por aula y por estado del envío, y se busca
+por nombre o código; con un filtro puesto, el envío y la impresión alcanzan solo a lo
+filtrado.
+
+Reglas: solo los habilitados reciben código, uno por estudiante y examen. El código es
+una cadena aleatoria de 48 letras y números que no lleva ningún dato del estudiante ni
+del examen, y el QR codifica solo esa cadena. Emitir de nuevo no cambia los códigos ya
+emitidos; cambiar la fecha, la hora o el aula del examen tampoco los invalida. El correo
+va a la cuenta institucional del estudiante, que se deduce de su código universitario.
+Cada envío queda registrado con su estado, y un correo que no sale no interrumpe a los
+demás. El aviso del examen va a los habilitados tengan o no código: lleva la fecha, la
+hora, el aula, las normas y las recomendaciones del docente.
+
+La vista depende del examen con sus aulas y normas (HU-08), de la habilitación y el
+reparto por aula (HU-09), del mapa de aulas (HU-11) y del padrón, de donde sale el
+correo (HU-13). La HU-19, en este mismo sprint, fija el formato que se lee en la puerta:
+el código que esta vista emite es el que el punto de control resuelve al leer el QR. La
+emisión, los envíos de códigos y los avisos quedan en la bitácora (HU-07).}
+
+\def\HUCriterios{%
+\item Dado que el docente abre «Códigos QR» de uno de sus exámenes, Cuando la vista
+      carga, Entonces muestra el examen, las cifras «Habilitados», «Emitidos»,
+      «Enviados», «Sin enviar» y «Fallidos», y la lista de habilitados por apellido, de
+      a 20 por página, con código, grupo, aula («Sin aula» si no la tiene) y estado del
+      envío: «Sin emitir», «Sin enviar», «Fallido» o «Enviado»; sin habilitados muestra
+      «Sin estudiantes habilitados» y ninguna acción, y sin exámenes «Sin exámenes».
+\item Dado que la lista tiene estudiantes, Cuando el docente elige «Grupo», «Aula» o
+      «Envío», o escribe en «Nombre o código», Entonces la lista se filtra en el servidor
+      y vuelve a la primera página; si nadie coincide muestra «Sin resultados». Un
+      estudiante inscrito en dos grupos del examen aparece una sola vez, con el grupo
+      menor.
+\item Dado que hay habilitados sin código, Cuando el docente pulsa «Emitir códigos»,
+      Entonces el sistema emite en lote un código por cada uno que no lo tiene, avisa
+      cuántos emitió («251 códigos emitidos») y actualiza las cifras; los códigos ya
+      emitidos no cambian, el botón desaparece cuando todos lo tienen y sin habilitados
+      se avisa «Sin estudiantes habilitados».
+\item Dado que se emitió un código, Cuando se examina, Entonces es una cadena aleatoria
+      de 48 letras y números, única, que no contiene el código universitario, el
+      documento ni el examen; el QR codifica solo esa cadena, que es la que lee el punto
+      de control (HU-19).
+\item Dado que el docente elige un estudiante de la lista, Cuando se muestra su
+      credencial, Entonces ve «UMSS» con la facultad, el examen, el QR, el nombre,
+      «Código» con el código universitario, la fecha, la hora y la duración, y «Aula»
+      con el edificio y el piso, o «Sin aula»; sin código emitido el lugar del QR dice
+      «Sin emitir». Debajo van el correo institucional, el estado del envío con su fecha
+      y el mapa «Ubicación · aula» con el edificio marcado.
+\item Dado que un estudiante no está habilitado, Cuando se pide su credencial, Entonces
+      el sistema responde «El estudiante no está habilitado en este examen» y no la
+      muestra.
+\item Dado que hay códigos emitidos, Cuando el docente pulsa «Imprimir credenciales»,
+      Entonces se abre en otra pestaña una hoja con una credencial por código emitido
+      ---QR, nombre, código, examen, fecha, hora, duración, aula, edificio y piso---, dos
+      por fila y sin cortarse entre páginas, que el navegador imprime o guarda como PDF;
+      con un filtro puesto solo incluye lo filtrado.
+\item Dado que hay códigos emitidos, Cuando el docente pulsa «Enviar por correo»,
+      Entonces un diálogo muestra el examen, los destinatarios con el filtro aplicado,
+      «Correo · Institucional» y cuántos faltan enviar; al pulsar «Enviar» sale un correo
+      por estudiante a su código universitario seguido de «@est.umss.edu», con el
+      examen, la fecha, la hora, el aula con su edificio y piso y el QR como imagen, y se
+      avisa cuántos se enviaron. Sin códigos emitidos se avisa «Sin códigos emitidos».
+\item Dado que el servidor envía por tandas de cien correos, Cuando el envío es más
+      grande, Entonces la vista repite la tanda mientras avanza, muestra «Enviando ·
+      quedan» con la cifra y no repite destinatarios; si deja de avanzar se detiene y
+      avisa cuántos quedaron sin enviar.
+\item Dado que un correo sale, Cuando se actualiza la lista, Entonces el estudiante
+      queda «Enviado» con la fecha y la hora; si el correo falla queda «Fallido» con el
+      error bajo su credencial, sin interrumpir a los demás. El filtro «Fallidos» permite
+      reenviar solo a esos.
+\item Dado que el estudiante elegido tiene código, Cuando el docente pulsa «Enviar» o
+      «Reenviar» en su credencial, Entonces sale el correo solo a ese estudiante y se
+      avisa «Código enviado» o «Código reenviado»; sin código emitido el sistema lo
+      rechaza.
+\item Dado que el docente pulsa «Enviar aviso», Cuando se abre «Aviso por correo»,
+      Entonces muestra el examen, la fecha, los destinatarios y «Contenido · Fecha, aula y
+      normas», y un campo «Recomendaciones» con su contador; con más de 2000 caracteres el
+      botón no se habilita y el servidor responde «Máximo 2000 caracteres».
+\item Dado que el aviso es válido, Cuando el docente pulsa «Enviar aviso», Entonces sale
+      un correo a cada habilitado del filtro, tenga o no código, con la fecha, la hora,
+      el aula, las normas marcadas, el texto libre y las recomendaciones; la vista avisa
+      cuántos avisos se enviaron y muestra «Aviso» con la fecha, los enviados y los que
+      quedaron sin enviar.
+\item Dado que no hay sesión o el rol no tiene el permiso de códigos QR, Cuando se
+      intenta listar, emitir, ver una credencial, imprimir o enviar, Entonces el sistema
+      responde con una negativa explícita; el docente de otro examen recibe «Este examen
+      no es tuyo» y el docente de un grupo incluido en el examen opera igual que quien lo
+      registró.
+\item Dado que se emiten códigos, se envían por correo o se envía un aviso, Cuando la
+      operación se completa, Entonces queda asentada en la bitácora con su autor y la
+      cantidad. En un dispositivo móvil las acciones van a todo el ancho, las cifras de a
+      dos y la credencial antes de la lista, de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{CodigosQrTest}: lista de habilitados con su estado, paginación, filtros por
+      grupo, aula y texto, estudiante en dos grupos y examen desconocido (criterios 1 y
+      2).
+\item \texttt{CodigosQrTest}: emisión de un código por habilitado, emisión repetida que
+      conserva los códigos, conflicto sin habilitados y código opaco sin datos personales
+      (criterios 3 y 4).
+\item \texttt{CodigosQrTest}: credencial con aula, edificio y piso, credencial sin código
+      ni aula, estudiante no habilitado y hoja imprimible con sus filtros (criterios 5 a
+      7).
+\item \texttt{EnvioDeCodigosQrTest}: un correo por estudiante a la dirección
+      institucional, correo con examen, aula e imagen del QR, marca de enviado, fallo
+      registrado, filtros, conflicto sin códigos y tandas de cien (criterios 8 a 10).
+\item \texttt{EstadoDeEnviosTest}: estado, error y dirección de cada fila, filtro por
+      estado de envío, reenvío solo a los fallidos, envío a un solo estudiante y tandas
+      sin repetir (criterios 9 a 11).
+\item \texttt{AvisosDeExamenTest}: un aviso por habilitado, contenido con fecha, aula,
+      normas y recomendaciones, filtros, tandas, fallo registrado, conflicto sin
+      habilitados y validación de las recomendaciones (criterios 12 y 13).
+\item \texttt{CodigosQrTest} y \texttt{AvisosDeExamenTest}: sin sesión, sin permiso,
+      docente de otro examen y docente de un grupo incluido (criterio 14).
+\item \texttt{CodigosQrTest}, \texttt{EnvioDeCodigosQrTest} y \texttt{AvisosDeExamenTest}:
+      asiento en la bitácora de la emisión, del envío y del aviso (criterio 15).
+\item \texttt{CodigosQr.test.jsx}: cifras, lista y estados, credencial, filtros, emisión,
+      envío total y filtrado, tandas, fallidos, aviso con recomendaciones y por tandas,
+      reenvío de una credencial, examen sin habilitados, cambio de examen, examen ajeno y
+      reintento (criterios 1 a 3, 5, 7 a 14).}
+
+\input{cuerpo}

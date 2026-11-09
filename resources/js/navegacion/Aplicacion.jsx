@@ -7,15 +7,16 @@ import EstadoCarga from '../componentes/EstadoCarga';
 import Boton from '../componentes/Boton';
 import Escudo from '../componentes/Escudo';
 import { VISTAS, destinoDe, entradaDe } from './vistas';
-import CambiarContrasena from '../paginas/auth/CambiarContrasena';
-import RecuperarContrasena from '../paginas/auth/RecuperarContrasena';
-// Las pantallas de acceso van en el paquete principal: pasar de una a otra
-// no muestra la pantalla de carga.
 import Login from '../paginas/auth/Login';
+import PrimerIngreso from '../paginas/auth/PrimerIngreso';
+import RestablecerContrasena from '../paginas/auth/RestablecerContrasena';
 import AccesoAula from '../paginas/auth/AccesoAula';
 import AccesoEstudiante from '../paginas/estudiante/AccesoEstudiante';
 
 const PortalEstudiante = lazy(() => import('../paginas/estudiante/PortalEstudiante'));
+
+const PuntoControl = lazy(() => import('../paginas/ingreso/PuntoControl'));
+const Asistencia = lazy(() => import('../paginas/monitoreo/Asistencia'));
 
 // Un componente por ruta. Quién ve cada una sale de navegacion/vistas.js.
 export const PAGINAS = {
@@ -24,22 +25,22 @@ export const PAGINAS = {
     '/aulas': lazy(() => import('../paginas/admin/Aulas')),
     '/docentes': lazy(() => import('../paginas/admin/Docentes')),
     '/estudiantes': lazy(() => import('../paginas/estudiantes/Padron')),
-    '/examenes': lazy(() => import('../paginas/examenes/Examenes')),
-    '/examenes/nuevo': lazy(() => import('../paginas/examenes/RegistrarExamen')),
-    '/examenes/detalle': lazy(() => import('../paginas/examenes/DetalleExamen')),
-    '/reportes': lazy(() => import('../paginas/examenes/Reportes')),
-    '/reportes-universidad': lazy(() => import('../paginas/examenes/ReportesUniversidad')),
-    '/bitacora-examen': lazy(() => import('../paginas/examenes/BitacoraExamen')),
-    '/habilitacion': lazy(() => import('../paginas/habilitacion/Habilitacion')),
-    '/codigos-qr': lazy(() => import('../paginas/examenes/CodigosQr')),
-    '/en-curso': lazy(() => import('../paginas/monitoreo/EnCurso')),
-    '/punto-control': lazy(() => import('../paginas/ingreso/PuntoControl')),
-    '/en-curso/aula': lazy(() => import('../paginas/ingreso/Seguimiento')),
-    '/mi-aula': lazy(() => import('../paginas/ingreso/Seguimiento')),
-    '/mis-grupos': lazy(() => import('../paginas/docente/MisGrupos')),
+    '/reportes': lazy(() => import('../paginas/reportes/Reportes')),
     '/admin': lazy(() => import('../paginas/admin/Usuarios')),
     '/bitacora': lazy(() => import('../paginas/admin/Bitacora')),
     '/respaldo': lazy(() => import('../paginas/admin/Respaldo')),
+    '/examenes': lazy(() => import('../paginas/examenes/Examenes')),
+    '/examenes/nuevo': lazy(() => import('../paginas/examenes/RegistrarExamen')),
+    '/examenes/detalle': lazy(() => import('../paginas/examenes/DetalleExamen')),
+    '/habilitacion': lazy(() => import('../paginas/habilitacion/Habilitacion')),
+    '/codigos-qr': lazy(() => import('../paginas/docente/CodigosQr')),
+    '/en-curso': lazy(() => import('../paginas/docente/EnCurso')),
+    '/en-curso/aula': Asistencia,
+    '/control': PuntoControl,
+    '/mis-grupos': lazy(() => import('../paginas/docente/MisGrupos')),
+    '/mis-reportes': lazy(() => import('../paginas/reportes/ReportesDocente')),
+    '/ingreso': PuntoControl,
+    '/mi-aula': Asistencia,
 };
 
 // El armazón con menú: se monta una vez y cambia solo la página.
@@ -58,22 +59,7 @@ function ConMenu() {
 // `/` y cualquier dirección desconocida: la entrada de la cuenta o el acceso.
 function Inicio() {
     const { usuario } = usarSesion();
-    return (
-        <Navigate
-            to={usuario?.debe_cambiar_contrasena ? '/cambiar-contrasena' : destinoDe(usuario)}
-            replace
-        />
-    );
-}
-
-function CambioContrasenaForzado() {
-    const { usuario, cargando } = usarSesion();
-
-    if (cargando) return <PantallaDeCarga />;
-    if (!usuario) return <Navigate to="/login" replace />;
-    if (!usuario.debe_cambiar_contrasena) return <Navigate to={destinoDe(usuario)} replace />;
-
-    return <CambiarContrasena />;
+    return <Navigate to={destinoDe(usuario)} replace />;
 }
 
 // Una cuenta sin ninguna pantalla en el menú.
@@ -82,6 +68,7 @@ function SinAcceso() {
     const navegar = useNavigate();
 
     if (!usuario) return <Navigate to="/login" replace />;
+    if (usuario.debe_cambiar_contrasena) return <Navigate to="/primer-ingreso" replace />;
     if (entradaDe(usuario)) return <Navigate to={entradaDe(usuario)} replace />;
 
     return (
@@ -97,8 +84,16 @@ function SinAcceso() {
                 type="button"
                 variante="secundario"
                 onClick={async () => {
-                    await salir();
-                    navegar('/login', { replace: true });
+                    try {
+                        try {
+                            await salir();
+                            navegar('/login', { replace: true });
+                        } catch {
+                            // Sin conexión la sesión sigue: se queda aquí.
+                        }
+                    } catch {
+                        // Sin conexión la sesión sigue: se queda aquí.
+                    }
                 }}
             >
                 Cerrar sesión
@@ -113,17 +108,14 @@ export function Rutas() {
         <Suspense fallback={<PantallaDeCarga />}>
             <Routes>
                 <Route path="/login" element={<Login />} />
+                <Route path="/primer-ingreso" element={<PrimerIngreso />} />
+                <Route path="/restablecer-contrasena" element={<RestablecerContrasena />} />
                 <Route path="/acceso-aula" element={<AccesoAula />} />
-                <Route path="/recuperar-contrasena" element={<RecuperarContrasena />} />
-                <Route path="/restablecer-contrasena" element={<RecuperarContrasena />} />
-                <Route path="/cambiar-contrasena" element={<CambioContrasenaForzado />} />
-                <Route path="/sin-acceso" element={<SinAcceso />} />
-                {/* El estudiante entra sin cuenta, con un código por correo. */}
                 <Route path="/estudiante/ingreso" element={<AccesoEstudiante />} />
                 <Route path="/estudiante" element={<PortalEstudiante />} />
-                <Route path="/estudiante/examenes" element={<PortalEstudiante />} />
                 <Route path="/estudiante/foto" element={<PortalEstudiante />} />
                 <Route path="/estudiante/*" element={<Navigate to="/estudiante" replace />} />
+                <Route path="/sin-acceso" element={<SinAcceso />} />
                 <Route element={<ConMenu />}>
                     {VISTAS.map((v) => {
                         const Pagina = PAGINAS[v.ruta];

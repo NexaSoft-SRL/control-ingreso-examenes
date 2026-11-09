@@ -4,43 +4,24 @@ declare(strict_types=1);
 
 namespace App\Modules\Administracion\Application\Authorization;
 
-use App\Modules\Administracion\Domain\Models\Permission;
-use App\Modules\Administracion\Domain\Models\Role;
-use App\Modules\Administracion\Domain\Models\User;
+use App\Modules\Administracion\Application\Contracts\RolGateway;
 
 /**
- * HU-02: cada rol tiene su conjunto de permisos y un usuario solo opera
- * dentro de sus atribuciones. Aqui se responde una sola pregunta: ¿esta
- * cuenta puede usar esta pantalla?
+ * Responde si el usuario puede entrar a una pantalla, segun los permisos
+ * vigentes del rol que tenga asignado (HU-02).
  */
-final class VerificarPermiso
+final readonly class VerificarPermiso
 {
-    public function puede(User $usuario, string $permiso): bool
+    public function __construct(
+        private RolGateway $roles,
+    ) {}
+
+    public function puede(int $usuarioId, string $permiso): bool
     {
-        $rol = $usuario->role;
-
-        if (! $rol instanceof Role) {
-            return false;
-        }
-
-        return $rol->permissions
-            ->contains(static fn (Permission $asignado): bool => $asignado->name === $permiso);
-    }
-
-    /**
-     * Una ruta puede aceptar uno de varios permisos separados por "|": es
-     * el caso de un catalogo que sirve a dos pantallas distintas.
-     *
-     * @param  list<string>  $permisos
-     */
-    public function puedeAlguno(User $usuario, array $permisos): bool
-    {
-        foreach ($permisos as $permiso) {
-            if ($this->puede($usuario, $permiso)) {
-                return true;
-            }
-        }
-
-        return false;
+        return in_array(
+            $permiso,
+            $this->roles->permisosVigentesDe($usuarioId),
+            true,
+        );
     }
 }

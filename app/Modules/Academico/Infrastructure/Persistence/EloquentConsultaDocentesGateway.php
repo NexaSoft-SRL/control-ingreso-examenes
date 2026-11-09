@@ -17,7 +17,7 @@ final class EloquentConsultaDocentesGateway implements ConsultaDocentesGateway
     public function listar(FiltroDocentesData $filtro, array $periodoIds, PaginaData $pagina): array
     {
         $consulta = DB::table('docentes as d')
-            ->leftJoin('usuarios as u', 'u.id', '=', 'd.user_id');
+            ->leftJoin('users as u', 'u.id', '=', 'd.user_id');
 
         if ($filtro->sinCuenta) {
             $consulta->whereNull('d.user_id');
@@ -115,9 +115,9 @@ final class EloquentConsultaDocentesGateway implements ConsultaDocentesGateway
     {
         $fila = $this->primera(
             DB::table('docentes as d')
-                ->leftJoin('usuarios as u', 'u.id', '=', 'd.user_id')
+                ->leftJoin('users as u', 'u.id', '=', 'd.user_id')
                 ->where('d.id', $docenteId),
-            ['d.id', 'd.nombre_completo', 'd.user_id', 'u.usuario', 'u.correo', 'u.password_changed_at', 'u.is_active'],
+            ['d.id', 'd.nombre_completo', 'd.user_id', 'u.usuario', 'u.email', 'u.password_changed_at', 'u.is_active'],
         );
 
         if ($fila === null) {
@@ -160,7 +160,7 @@ final class EloquentConsultaDocentesGateway implements ConsultaDocentesGateway
             $cuenta = [
                 'estado' => $this->estadoDeCuenta($fila->user_id, $fila->password_changed_at, $fila->is_active),
                 'usuario' => $this->cadena($fila->usuario),
-                'correo' => $this->texto($fila->correo),
+                'correo' => $this->texto($fila->email),
             ];
         }
 

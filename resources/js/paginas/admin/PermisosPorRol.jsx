@@ -98,7 +98,7 @@ function FormularioRol({ rol = null, permisos, onGuardado, onCerrar }) {
                     <Boton variante="secundario" onClick={onCerrar}>
                         Cancelar
                     </Boton>
-                    <Boton type="submit" form="formulario-rol" disabled={enviando}>
+                    <Boton type="submit" form="formulario-rol" cargando={enviando}>
                         {nuevo ? 'Crear' : 'Guardar'}
                     </Boton>
                 </>
@@ -192,7 +192,7 @@ function EliminarRol({ rol, onEliminado, onCerrar }) {
                     <Boton variante="secundario" onClick={onCerrar}>
                         Cancelar
                     </Boton>
-                    <Boton variante="peligro" onClick={eliminar} disabled={enviando}>
+                    <Boton variante="peligro" onClick={eliminar} cargando={enviando}>
                         Eliminar
                     </Boton>
                 </>
@@ -310,13 +310,6 @@ export default function PermisosPorRol({
         onCambio(editado && editado.nombre !== nombre ? { anterior: editado.nombre } : undefined);
     }
 
-    function alEliminar() {
-        const anterior = eliminando.nombre;
-        setEliminando(null);
-        avisar('Rol eliminado');
-        onCambio({ anterior });
-    }
-
     // Solo los tres roles de inicio vuelven a su reparto de fábrica.
     async function restablecer() {
         setRestableciendo('enviando');
@@ -332,6 +325,13 @@ export default function PermisosPorRol({
         } finally {
             setRestableciendo(null);
         }
+    }
+
+    function alEliminar() {
+        const anterior = eliminando.nombre;
+        setEliminando(null);
+        avisar('Rol eliminado');
+        onCambio({ anterior });
     }
 
     const casilla = (rol, p) => (
@@ -538,13 +538,6 @@ export default function PermisosPorRol({
                     onCerrar={() => setFormulario(null)}
                 />
             )}
-            {eliminando && (
-                <EliminarRol
-                    rol={eliminando}
-                    onEliminado={alEliminar}
-                    onCerrar={() => setEliminando(null)}
-                />
-            )}
             {restableciendo && (
                 <Dialogo
                     titulo="Restablecer roles base"
@@ -573,6 +566,13 @@ export default function PermisosPorRol({
                         <li>Los roles creados no cambian</li>
                     </ul>
                 </Dialogo>
+            )}
+            {eliminando && (
+                <EliminarRol
+                    rol={eliminando}
+                    onEliminado={alEliminar}
+                    onCerrar={() => setEliminando(null)}
+                />
             )}
         </Tarjeta>
     );

@@ -5,163 +5,122 @@ declare(strict_types=1);
 namespace App\Modules\Monitoreo\Http\Controllers;
 
 use App\Modules\Monitoreo\Application\DTOs\AulaEnCursoData;
+use App\Modules\Monitoreo\Application\DTOs\AulaSeguidaData;
 use App\Modules\Monitoreo\Application\DTOs\ExamenEnCursoData;
-use App\Modules\Monitoreo\Application\DTOs\IncidenciaEnCursoData;
 use App\Modules\Monitoreo\Application\Queries\ConsultarEnCurso;
 use App\Modules\Monitoreo\Application\Queries\ListarEnCurso;
-use App\Modules\Monitoreo\Domain\Exceptions\ExamenAjenoException;
-use App\Modules\Monitoreo\Domain\Exceptions\ExamenNoEncontradoException;
+use App\Modules\Monitoreo\Domain\Exceptions\SinAlcanceException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
-use InvalidArgumentException;
 
-/**
- * HU-22: el examen en curso, aula por aula. Las lecturas no escriben nada;
- * las incidencias se atienden en `/api/incidencias/{id}/atencion`.
- */
 final class EnCursoController
 {
     public function index(ListarEnCurso $listar): JsonResponse
     {
+        $usuarioId = Auth::id();
+
+        if (! is_int($usuarioId)) {
+            return $this->sinSesion();
+        }
+
         return response()->json([
             'data' => array_map(
-                fn (ExamenEnCursoData $examen): array => $this->examen($examen),
-                $listar->ejecutar($this->usuarioId()),
+                fn (ExamenEnCursoData $examen): array => [
+                    'examen_id' => $examen->examenId,
+                    'texto' => $examen->texto,
+                    'asignatura' => $examen->asignatura,
+                    'tipo' => $examen->tipo,
+                    'tipo_texto' => $examen->tipoTexto,
+                    'fecha' => $examen->fecha,
+                    'hora' => $examen->hora,
+                    'abierto' => $examen->abierto,
+                    'aulas' => array_map(
+                        fn (AulaSeguidaData $aula): array => [
+                            'aula_id' => $aula->id,
+                            'nombre' => $aula->nombre,
+                        ],
+                        $examen->aulas,
+                    ),
+                ],
+                $listar->execute($usuarioId),
             ),
         ]);
     }
 
     public function show(int $examen, ConsultarEnCurso $consultar): JsonResponse
     {
+        $usuarioId = Auth::id();
+
+        if (! is_int($usuarioId)) {
+            return $this->sinSesion();
+        }
+
         try {
-            $tablero = $consultar->ejecutar($this->usuarioId(), $examen);
-        } catch (ExamenNoEncontradoException $error) {
-            return $this->error($error->getMessage(), 404);
-        } catch (ExamenAjenoException $error) {
-            return $this->error($error->getMessage(), 403);
+            $enCurso = $consultar->execute($usuarioId, $examen);
+        } catch (SinAlcanceException $sinAlcance) {
+            return response()->json([
+                'message' => $sinAlcance->getMessage(),
+                'alcance' => true,
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        if ($enCurso === null) {
+            return response()->json([
+                'message' => 'Examen no encontrado.',
+            ], Response::HTTP_NOT_FOUND);
         }
 
         return response()->json([
-            'data' => [
-                'examen' => $this->examen($tablero->examen),
-                'hora_servidor' => $tablero->horaServidor,
-                // El docente del examen atiende y corrige las incidencias.
-                'es_docente' => $tablero->esDocente,
-                'ultimo_registro' => $tablero->avance->ultimoRegistro,
-                'llegadas' => $tablero->avance->llegadas,
-                'cifras' => [
-                    'ingresaron' => $tablero->avance->ingresaron,
-                    'faltan' => $tablero->avance->faltan,
-                    'aulas' => count($tablero->aulas),
-                    'incidencias_sin_atender' => $tablero->incidenciasSinAtender(),
-                ],
-                'aulas' => array_map(
-                    fn (AulaEnCursoData $aula): array => $this->aula($aula),
-                    $tablero->aulas,
-                ),
-                'incidencias' => array_map(
-                    fn (IncidenciaEnCursoData $incidencia): array => $this->incidencia($incidencia),
-                    $tablero->incidencias,
-                ),
+            'examen' => [
+                'id' => $enCurso->examen->id,
+                'asignatura' => $enCurso->examen->asignatura,
+                'tipo' => $enCurso->examen->tipo,
+                'fecha' => $enCurso->examen->fecha,
+                'hora' => $enCurso->examen->hora,
             ],
+            'abierto' => $enCurso->examen->abierto,
+            'fin' => $enCurso->examen->fin,
+            'excedido' => $enCurso->examen->excedido,
+            'hora_servidor' => $enCurso->examen->horaServidor,
+            'ultimo_ingreso' => $enCurso->cifras->ultimoIngreso,
+            'cifras' => [
+                'ingresaron' => $enCurso->cifras->ingresaron,
+                'faltan' => $enCurso->cifras->faltan,
+                'aulas' => $enCurso->cifras->aulas,
+                'incidencias_sin_atender' => $enCurso->cifras->incidenciasSinAtender,
+            ],
+            'llegadas' => $enCurso->cifras->llegadas,
+            'aulas' => array_map(
+                fn (AulaEnCursoData $aula): array => [
+                    'aula_id' => $aula->aulaId,
+                    'nombre' => $aula->nombre,
+                    'edificio_id' => $aula->edificioId,
+                    'encargado' => [
+                        'nombre' => $aula->encargado,
+                        'es_docente' => $aula->encargadoEsDocente,
+                    ],
+                    'apoyo' => $aula->apoyo,
+                    'ingresados' => $aula->ingresados,
+                    'asignados' => $aula->asignados,
+                    'faltan' => $aula->faltan,
+                    'de_otra' => $aula->deOtra,
+                    'en_otra' => $aula->enOtra,
+                    'incidencias_sin_atender' => $aula->incidenciasSinAtender,
+                    'compartida' => $aula->compartida,
+                    'usa_codigo' => $aula->usaCodigo,
+                    'a_mi_cargo' => $aula->aMiCargo,
+                    'ultimo_ingreso' => $aula->ultimoIngreso,
+                ],
+                $enCurso->aulas,
+            ),
         ]);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function examen(ExamenEnCursoData $examen): array
+    private function sinSesion(): JsonResponse
     {
-        return [
-            'id' => $examen->id,
-            'fecha' => $examen->fecha,
-            'hora' => $examen->hora,
-            'duracion_minutos' => $examen->duracion,
-            'tipo' => $examen->tipo,
-            'tipo_texto' => $examen->tipoTexto,
-            'asignatura' => $examen->asignatura,
-            'abierto' => $examen->abierto,
-            'fin' => $examen->fin,
-            'excedido' => $examen->excedido,
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function aula(AulaEnCursoData $aula): array
-    {
-        return [
-            'aula_id' => $aula->aulaId,
-            'nombre' => $aula->nombre,
-            'ubicacion' => $aula->ubicacion,
-            'edificio_id' => $aula->edificioId,
-            'a_cargo' => $aula->aCargo === null ? null : $this->persona($aula->aCargo),
-            'apoyo' => array_map(
-                fn (array $persona): array => $this->persona($persona),
-                $aula->apoyo,
-            ),
-            'asignados' => $aula->avance->asignados,
-            'ingresados' => $aula->avance->ingresados,
-            'faltan' => $aula->avance->faltan,
-            'ultimo_registro' => $aula->avance->ultimoRegistro,
-            'de_otra' => $aula->avance->deOtra,
-            'en_otra' => $aula->avance->enOtra,
-            'incidencias_sin_atender' => $aula->incidenciasSinAtender,
-            'compartida' => $aula->compartida,
-            'codigo_acceso' => $aula->codigoAcceso,
-            'a_mi_cargo' => $aula->aMiCargo,
-            'puede_operar' => $aula->puedeOperar,
-        ];
-    }
-
-    /**
-     * @param  array{id: int, nombre: string, rol?: string}  $persona
-     * @return array{id: int, nombre: string, es_docente: bool}
-     */
-    private function persona(array $persona): array
-    {
-        return [
-            'id' => $persona['id'],
-            'nombre' => $persona['nombre'],
-            'es_docente' => ($persona['rol'] ?? '') === 'docente',
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function incidencia(IncidenciaEnCursoData $incidencia): array
-    {
-        return [
-            'id' => $incidencia->id,
-            'aula_id' => $incidencia->aulaId,
-            'aula' => $incidencia->aula,
-            'tipo' => $incidencia->tipo,
-            'detalle' => $incidencia->detalle,
-            'estudiante' => $incidencia->estudiante,
-            'reportante' => $incidencia->reportante,
-            'rol_reportante' => $incidencia->rolReportante,
-            'reportada_en' => $incidencia->reportadaEn,
-            'atendida' => $incidencia->atendida(),
-            'atendida_por' => $incidencia->atendidaPor,
-            'atendida_en' => $incidencia->atendidaEn,
-        ];
-    }
-
-    private function usuarioId(): int
-    {
-        $id = Auth::id();
-
-        if (! is_int($id)) {
-            throw new InvalidArgumentException('No hay una sesión activa.');
-        }
-
-        return $id;
-    }
-
-    private function error(string $mensaje, int $estado): JsonResponse
-    {
-        return response()->json(['message' => $mensaje], $estado);
+        return response()->json([
+            'message' => 'No hay una sesión activa.',
+        ], Response::HTTP_UNAUTHORIZED);
     }
 }

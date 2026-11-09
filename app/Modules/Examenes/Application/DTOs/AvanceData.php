@@ -13,11 +13,11 @@ final readonly class AvanceData
     public function __construct(
         public string $grupos,
         public string $aulas,
+        public string $auxiliares,
         public string $habilitacion,
         public string $qr,
         public string $estado,
         public string $accion,
         public ?int $paso,
-        public string $auxiliares = 'falta',
     ) {}
 }

@@ -6,29 +6,30 @@ namespace App\Modules\Ingreso\Domain\Enums;
 
 /**
  * Por que la puerta rechazo un intento. Solo en incidencias del sistema.
- * Las tres ultimas vienen del modelo anterior: ya no se asientan, pero
- * quedan en las incidencias convertidas.
  */
 enum CausaIntento: string
 {
     case NoInscrito = 'NO_INSCRITO';
     case NoHabilitado = 'NO_HABILITADO';
-    case NoRegistrado = 'NO_REGISTRADO';
-    case QrNoValido = 'QR_NO_VALIDO';
-    case Expulsado = 'EXPULSADO';
-    case NoCorresponde = 'NO_CORRESPONDE';
-    case OtraAula = 'OTRA_AULA';
+    case CodigoInvalido = 'CODIGO_INVALIDO';
+
+    /**
+     * @return list<string>
+     */
+    public static function valores(): array
+    {
+        return array_map(
+            static fn (self $causa): string => $causa->value,
+            self::cases(),
+        );
+    }
 
     public function etiqueta(): string
     {
         return match ($this) {
             self::NoInscrito => 'No inscrito',
             self::NoHabilitado => 'No habilitado',
-            self::NoRegistrado => 'Sin registro',
-            self::QrNoValido => 'Código QR no válido',
-            self::Expulsado => 'Expulsado',
-            self::NoCorresponde => 'No corresponde',
-            self::OtraAula => 'Otra aula',
+            self::CodigoInvalido => 'Código inválido',
         };
     }
 }

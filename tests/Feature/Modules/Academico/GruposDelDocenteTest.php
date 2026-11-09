@@ -118,8 +118,7 @@ final class GruposDelDocenteTest extends TestCase
     {
         $this->getJson('/api/docente/grupos')->assertUnauthorized();
 
-        // El Administrador tiene todos los permisos (D-8): se prueba con el Auxiliar.
-        $this->actingAs($this->usuarioConRol('Auxiliar'))
+        $this->actingAs($this->usuarioConRol('Administrador'))
             ->getJson('/api/docente/grupos')
             ->assertForbidden()
             ->assertJsonPath('permiso_requerido', 'mis_grupos');

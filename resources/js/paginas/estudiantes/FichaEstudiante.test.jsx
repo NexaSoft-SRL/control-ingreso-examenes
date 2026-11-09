@@ -1,11 +1,17 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import FichaEstudiante from './FichaEstudiante';
 import PlazoFotos from './PlazoFotos';
 import { api } from '../../api/cliente';
 import { errorHttp, renderConSesion, simularApi } from '../../test/apoyo';
+import { revisarFoto } from '../../utiles/revisarFoto';
 
 vi.mock('../../api/cliente');
+vi.mock('../../utiles/revisarFoto', () => ({ revisarFoto: vi.fn() }));
+
+beforeEach(() => {
+    revisarFoto.mockResolvedValue({ errores: [], avisos: [] });
+});
 
 beforeAll(() => {
     globalThis.URL.createObjectURL = vi.fn(() => 'blob:foto');
@@ -16,8 +22,6 @@ const FICHA = {
     id: 5,
     codigo: '202104821',
     nombre: 'Aguilar Cossío Mariana',
-    nombres: 'Mariana',
-    apellidos: 'Aguilar Cossío',
     documento: '7928194',
     correo: '202104821@est.umss.edu',
     facultad: 'FCyT',
@@ -28,35 +32,6 @@ const FICHA = {
 };
 
 describe('FichaEstudiante', () => {
-    it('edita los nombres y el documento y confirma el guardado', async () => {
-        simularApi(api, {
-            'GET /estudiantes/5': { data: FICHA },
-            'PUT /estudiantes/5': { data: { ...FICHA, nombres: 'Mariana Elena' } },
-        });
-        renderConSesion(
-            <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={vi.fn()} />
-        );
-
-        await screen.findByText('Sin foto');
-        fireEvent.click(screen.getByRole('button', { name: 'Editar datos' }));
-        fireEvent.change(screen.getByRole('textbox', { name: /Nombres/ }), {
-            target: { value: 'Mariana Elena' },
-        });
-        fireEvent.change(screen.getByRole('textbox', { name: 'Documento de identidad' }), {
-            target: { value: '7928195' },
-        });
-        fireEvent.click(screen.getByRole('button', { name: 'Guardar correcciones' }));
-
-        await waitFor(() =>
-            expect(api.put).toHaveBeenCalledWith('/estudiantes/5', {
-                nombres: 'Mariana Elena',
-                apellidos: 'Aguilar Cossío',
-                documento: '7928195',
-            })
-        );
-        expect(await screen.findByText('Datos del estudiante actualizados')).toBeInTheDocument();
-    });
-
     it('sin foto la sube apenas se elige, sin pasos de más', async () => {
         simularApi(api, {
             'GET /estudiantes/5': { data: FICHA },
@@ -75,6 +50,37 @@ describe('FichaEstudiante', () => {
         );
         expect(await screen.findByText('Foto guardada')).toBeInTheDocument();
         expect(screen.queryByRole('dialog', { name: 'Poner foto' })).not.toBeInTheDocument();
+    });
+
+    it('la administración edita los datos desde la ficha', async () => {
+        let ficha = { ...FICHA, nombres: 'Mariana', apellidos: 'Aguilar Cossío' };
+        simularApi(api, {
+            'GET /estudiantes/5': () => ({ data: ficha }),
+            'PUT /estudiantes/5': ({ data }) => {
+                ficha = { ...ficha, documento: data.documento };
+                return { message: 'Estudiante actualizado.' };
+            },
+        });
+        const onFotoCambiada = vi.fn();
+        renderConSesion(
+            <FichaEstudiante
+                estudiante={{ id: 5, nombre: FICHA.nombre }}
+                onCerrar={vi.fn()}
+                onFotoCambiada={onFotoCambiada}
+            />
+        );
+
+        fireEvent.click(await screen.findByRole('button', { name: /Editar datos/ }));
+        const edicion = screen.getByRole('dialog', { name: 'Editar estudiante' });
+        expect(within(edicion).getByLabelText('Nombres', { exact: false })).toHaveValue('Mariana');
+        fireEvent.change(within(edicion).getByLabelText('C.I.', { exact: false }), {
+            target: { value: '7928194-1A' },
+        });
+        fireEvent.click(within(edicion).getByRole('button', { name: /Guardar/ }));
+
+        expect(await screen.findByText('Estudiante actualizado')).toBeInTheDocument();
+        expect(await screen.findByText('7928194-1A')).toBeInTheDocument();
+        expect(onFotoCambiada).toHaveBeenCalled();
     });
 
     it('con foto la muestra y la cámara la cambia', async () => {
@@ -105,6 +111,28 @@ describe('FichaEstudiante', () => {
 
         expect(await screen.findByText('Solo JPG, PNG o WebP')).toBeInTheDocument();
         expect(api.post).not.toHaveBeenCalled();
+    });
+
+    it('la revisión rechaza una foto sin rostro y avisa de un fondo oscuro', async () => {
+        simularApi(api, {
+            'GET /estudiantes/5': { data: FICHA },
+            'POST /estudiantes/5/foto': { message: 'Foto guardada.' },
+        });
+        renderConSesion(
+            <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={vi.fn()} />
+        );
+        await screen.findByText('Sin foto');
+        const foto = new File(['jpeg'], 'm.jpg', { type: 'image/jpeg' });
+
+        revisarFoto.mockResolvedValueOnce({ errores: ['No se detecta un rostro'], avisos: [] });
+        fireEvent.change(screen.getByLabelText('Poner foto'), { target: { files: [foto] } });
+        expect(await screen.findByText('No se detecta un rostro')).toBeInTheDocument();
+        expect(api.post).not.toHaveBeenCalled();
+
+        revisarFoto.mockResolvedValueOnce({ errores: [], avisos: ['Use un fondo claro'] });
+        fireEvent.change(screen.getByLabelText('Poner foto'), { target: { files: [foto] } });
+        expect(await screen.findByText('Foto guardada · Use un fondo claro')).toBeInTheDocument();
+        expect(api.post).toHaveBeenCalledWith('/estudiantes/5/foto', expect.any(FormData));
     });
 });
 

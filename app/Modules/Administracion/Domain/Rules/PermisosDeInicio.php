@@ -15,9 +15,8 @@ final class PermisosDeInicio
      * @var array<string, list<string>>
      */
     public const POR_ROL = [
-        // Prepara los datos y administra el sistema. Las pantallas de
-        // docencia no le sirven: muestran solo lo propio de quien entra.
-        // Desde la matriz se le pueden marcar.
+        // Administra la universidad: no registra examenes ni controla
+        // el ingreso.
         'Administrador' => [
             'periodo_oferta',
             'aulas_docentes',

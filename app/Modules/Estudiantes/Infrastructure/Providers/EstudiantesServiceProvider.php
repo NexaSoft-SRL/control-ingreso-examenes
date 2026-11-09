@@ -37,6 +37,21 @@ final class EstudiantesServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(
+            PortalEstudianteGateway::class,
+            EloquentPortalEstudianteGateway::class,
+        );
+
+        $this->app->bind(
+            FotosDeEstudiantes::class,
+            FotosDeEstudiantesEnDisco::class,
+        );
+
+        $this->app->bind(
+            CorreoCodigoAcceso::class,
+            CorreoCodigoAccesoMail::class,
+        );
+
+        $this->app->bind(
             ConflictoGateway::class,
             EloquentConflictoGateway::class,
         );
@@ -69,22 +84,6 @@ final class EstudiantesServiceProvider extends ServiceProvider
         $this->app->bind(
             PadronGateway::class,
             EloquentPadronGateway::class,
-        );
-
-        // El portal del estudiante: el codigo por correo y su foto.
-        $this->app->bind(
-            PortalEstudianteGateway::class,
-            EloquentPortalEstudianteGateway::class,
-        );
-
-        $this->app->bind(
-            CorreoCodigoAcceso::class,
-            CorreoCodigoAccesoMail::class,
-        );
-
-        $this->app->bind(
-            FotosDeEstudiantes::class,
-            FotosDeEstudiantesEnDisco::class,
         );
 
         // El correo institucional de un estudiante es su codigo con el

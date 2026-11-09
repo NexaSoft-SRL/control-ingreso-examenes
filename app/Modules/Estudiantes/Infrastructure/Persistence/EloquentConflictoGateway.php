@@ -16,6 +16,7 @@ use App\Modules\Estudiantes\Domain\Enums\TipoConflicto;
 use App\Modules\Estudiantes\Domain\Exceptions\ConflictoYaResueltoException;
 use App\Modules\Estudiantes\Domain\Exceptions\DocumentoEnUsoException;
 use DateTimeImmutable;
+use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -36,7 +37,7 @@ final class EloquentConflictoGateway implements ConflictoGateway
     {
         $consulta = DB::table('conflictos_padron as c')
             ->join('estudiantes as e', 'e.id', '=', 'c.estudiante_id')
-            ->leftJoin('usuarios as u', 'u.id', '=', 'c.reportado_por')
+            ->leftJoin('users as u', 'u.id', '=', 'c.reportado_por')
             ->leftJoin('docentes as d', 'd.user_id', '=', 'u.id')
             ->leftJoin('grupos as g', 'g.id', '=', 'c.grupo_id')
             ->leftJoin('asignaturas as a', 'a.id', '=', 'g.asignatura_id');
@@ -67,7 +68,7 @@ final class EloquentConflictoGateway implements ConflictoGateway
                 'e.apellidos',
                 'e.origen',
                 'e.created_at as estudiante_creado_en',
-                'u.nombre as usuario',
+                'u.name as usuario',
                 'd.nombre_completo as docente',
                 'g.codigo as grupo',
                 'a.nombre as asignatura',
@@ -86,8 +87,14 @@ final class EloquentConflictoGateway implements ConflictoGateway
             $pendiente = $this->texto($fila->estado) === EstadoConflicto::Pendiente->value;
             $tipo = TipoConflicto::tryFrom((string) $this->texto($fila->tipo));
 
+            // Si ya no queda la inscripcion por la que entro, al menos la
+            // via y la fecha: nunca un «Docente» suelto.
             $guardadoPor = $this->texto($fila->origen) === OrigenEstudiante::Docente->value
-                ? ($primeras[$this->entero($fila->estudiante_id)] ?? OrigenEstudiante::Docente->etiqueta())
+                ? ($primeras[$this->entero($fila->estudiante_id)] ?? str_replace(
+                    OrigenEstudiante::Administracion->etiqueta(),
+                    'Carga de docente',
+                    $this->porAdministracion($fila->estudiante_creado_en),
+                ))
                 : $this->porAdministracion($fila->estudiante_creado_en);
 
             $nuevoPor = $this->texto($fila->via) === OrigenEstudiante::Docente->value
@@ -145,6 +152,36 @@ final class EloquentConflictoGateway implements ConflictoGateway
         );
     }
 
+    /**
+     * Lo que difiere entre el padron y la carga: 'C.I. 6592900 → 6592910'.
+     *
+     * @param  array<mixed>  $antes
+     * @param  array<mixed>  $conflicto
+     * @return list<string>
+     */
+    private function diferencias(array $antes, array $conflicto): array
+    {
+        $nombre = static fn (mixed $apellidos, mixed $nombres): string => trim(
+            (is_string($apellidos) ? $apellidos : '').' '.(is_string($nombres) ? $nombres : ''),
+        );
+        $pares = [
+            'C.I.' => [$this->texto($antes['documento_identidad'] ?? null), $this->texto($conflicto['documento_nuevo'] ?? null)],
+            'nombre' => [
+                $nombre($antes['apellidos'] ?? null, $antes['nombres'] ?? null),
+                $nombre($conflicto['apellidos_nuevos'] ?? null, $conflicto['nombres_nuevos'] ?? null),
+            ],
+        ];
+        $diferencias = [];
+
+        foreach ($pares as $dato => [$viejo, $nuevo]) {
+            if ($nuevo !== null && $nuevo !== '' && $viejo !== $nuevo) {
+                $diferencias[] = sprintf('%s %s → %s', $dato, $viejo ?? '—', $nuevo);
+            }
+        }
+
+        return $diferencias;
+    }
+
     public function resolver(int $conflictoId, ResolucionConflicto $resolucion, int $usuarioId): void
     {
         DB::transaction(function () use ($conflictoId, $resolucion, $usuarioId): void {
@@ -168,6 +205,9 @@ final class EloquentConflictoGateway implements ConflictoGateway
             $ahora = now();
             $estudianteId = $this->entero(($conflicto['estudiante_id'] ?? null));
             $documento = $this->texto(($conflicto['documento_nuevo'] ?? null));
+            $antes = DB::table('estudiantes')->where('id', $estudianteId)->first(['documento_identidad', 'nombres', 'apellidos']);
+            $antes = $antes === null ? [] : get_object_vars($antes);
+            $diferencias = $this->diferencias($antes, $conflicto);
 
             if ($resolucion === ResolucionConflicto::UsarCarga) {
                 $ajeno = $documento !== null && DB::table('estudiantes')
@@ -193,19 +233,7 @@ final class EloquentConflictoGateway implements ConflictoGateway
                 DB::table('estudiantes')->where('id', $estudianteId)->update($cambios);
             }
 
-            $grupoId = $this->enteroONulo($conflicto['grupo_id'] ?? null);
-
-            if ($grupoId !== null) {
-                DB::table('inscripciones')->insertOrIgnore([
-                    'estudiante_id' => $estudianteId,
-                    'grupo_id' => $grupoId,
-                    'via' => $this->texto(($conflicto['via'] ?? null)),
-                    'cargada_por' => $this->enteroONulo(($conflicto['reportado_por'] ?? null)),
-                    'carga_id' => $this->enteroONulo(($conflicto['carga_id'] ?? null)),
-                    'created_at' => $ahora,
-                    'updated_at' => $ahora,
-                ]);
-            }
+            $this->inscribir($conflicto, $estudianteId, $ahora);
 
             DB::table('conflictos_padron')->where('id', $conflictoId)->update([
                 'estado' => EstadoConflicto::Resuelto->value,
@@ -225,14 +253,56 @@ final class EloquentConflictoGateway implements ConflictoGateway
                 'conflictos_padron',
                 $conflictoId,
                 sprintf(
-                    'Conflicto de %s resuelto: %s.',
+                    'Conflicto de %s (%s) resuelto: %s.',
                     $codigo,
+                    $diferencias === [] ? 'sin diferencias' : implode('; ', $diferencias),
                     $resolucion === ResolucionConflicto::UsarCarga
                         ? 'se usa la carga nueva'
                         : 'se mantiene el padrón',
                 ),
             );
         }, 3);
+    }
+
+    /**
+     * La inscripcion que la carga dejo en espera. Si estaba dada de baja,
+     * la carga que la trajo la reactiva.
+     *
+     * @param  array<mixed>  $conflicto  la fila de `conflictos_padron`
+     */
+    private function inscribir(array $conflicto, int $estudianteId, DateTimeInterface $ahora): void
+    {
+        $grupoId = $this->enteroONulo($conflicto['grupo_id'] ?? null);
+
+        if ($grupoId === null) {
+            return;
+        }
+
+        $inscripcion = [
+            'via' => $this->texto(($conflicto['via'] ?? null)),
+            'cargada_por' => $this->enteroONulo(($conflicto['reportado_por'] ?? null)),
+            'carga_id' => $this->enteroONulo(($conflicto['carga_id'] ?? null)),
+            'updated_at' => $ahora,
+        ];
+
+        DB::table('inscripciones')->insertOrIgnore([
+            'estudiante_id' => $estudianteId,
+            'grupo_id' => $grupoId,
+            ...$inscripcion,
+            'created_at' => $ahora,
+        ]);
+
+        DB::table('inscripciones')
+            ->where('estudiante_id', $estudianteId)
+            ->where('grupo_id', $grupoId)
+            ->whereNotNull('baja_en')
+            ->update([
+                'baja_en' => null,
+                'baja_por' => null,
+                'motivo_baja' => null,
+                'detalle_baja' => null,
+                ...$inscripcion,
+            ]);
     }
 
     /**
@@ -251,14 +321,14 @@ final class EloquentConflictoGateway implements ConflictoGateway
         $filas = DB::table('inscripciones as i')
             ->join('grupos as g', 'g.id', '=', 'i.grupo_id')
             ->join('asignaturas as a', 'a.id', '=', 'g.asignatura_id')
-            ->leftJoin('usuarios as u', 'u.id', '=', 'i.cargada_por')
+            ->leftJoin('users as u', 'u.id', '=', 'i.cargada_por')
             ->leftJoin('docentes as d', 'd.user_id', '=', 'u.id')
             ->whereIn('i.estudiante_id', $estudianteIds)
             ->where('i.via', OrigenEstudiante::Docente->value)
             ->orderBy('i.id')
             ->get([
                 'i.estudiante_id',
-                'u.nombre as usuario',
+                'u.name as usuario',
                 'd.nombre_completo as docente',
                 'g.codigo as grupo',
                 'a.nombre as asignatura',

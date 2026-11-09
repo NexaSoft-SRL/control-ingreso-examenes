@@ -31,7 +31,6 @@ class LoginSecurityTest extends TestCase
     {
         UserFactory::new()->createOne([
             'usuario' => 'leticia blanco',
-            'correo' => 'leticia@example.invalid',
             'password' => 'CorrectPassword123!',
             'is_active' => true,
         ]);
@@ -60,7 +59,6 @@ class LoginSecurityTest extends TestCase
     {
         $user = UserFactory::new()->createOne([
             'usuario' => 'lock-test',
-            'correo' => 'lock-test@example.invalid',
             'password' => 'CorrectPassword123!',
             'is_active' => true,
         ]);
@@ -69,30 +67,44 @@ class LoginSecurityTest extends TestCase
             $this->postJson('/api/auth/login', [
                 'usuario' => 'lock-test',
                 'password' => 'IncorrectPassword123!',
-            ])->assertUnauthorized();
+            ])
+                ->assertUnauthorized()
+                ->assertJsonPath('intentos_restantes', 3 - $attempt);
         }
 
         $this->assertSame(
             2,
-            DB::table('usuarios')
+            DB::table('users')
                 ->where('id', $user->getKey())
                 ->value('failed_login_attempts')
         );
 
+        $this->assertNull(
+            DB::table('users')
+                ->where('id', $user->getKey())
+                ->value('locked_until')
+        );
+
+        // El intento que alcanza el limite ya responde con el bloqueo.
         $this->postJson('/api/auth/login', [
             'usuario' => 'lock-test',
             'password' => 'IncorrectPassword123!',
-        ])->assertStatus(423);
+        ])
+            ->assertStatus(423)
+            ->assertExactJson([
+                'message' => 'Cuenta bloqueada.',
+                'minutos' => 15,
+            ]);
 
         $this->assertSame(
             3,
-            DB::table('usuarios')
+            DB::table('users')
                 ->where('id', $user->getKey())
                 ->value('failed_login_attempts')
         );
 
         $this->assertNotNull(
-            DB::table('usuarios')
+            DB::table('users')
                 ->where('id', $user->getKey())
                 ->value('locked_until')
         );
@@ -110,32 +122,37 @@ class LoginSecurityTest extends TestCase
     {
         $user = UserFactory::new()->createOne([
             'usuario' => 'locked-user',
-            'correo' => 'locked-user@example.invalid',
             'password' => 'CorrectPassword123!',
             'failed_login_attempts' => 3,
             'locked_until' => now()->addMinutes(15),
         ]);
 
-        $lockedUntil = DB::table('usuarios')
+        $lockedUntil = DB::table('users')
             ->where('id', $user->getKey())
             ->value('locked_until');
+
+        $this->assertNotNull($lockedUntil);
 
         $this->postJson('/api/auth/login', [
             'usuario' => 'locked-user',
             'password' => 'CorrectPassword123!',
         ])
-            ->assertStatus(423);
+            ->assertStatus(423)
+            ->assertExactJson([
+                'message' => 'Cuenta bloqueada.',
+                'minutos' => 15,
+            ]);
 
         $this->assertSame(
             3,
-            DB::table('usuarios')
+            DB::table('users')
                 ->where('id', $user->getKey())
                 ->value('failed_login_attempts')
         );
 
         $this->assertSame(
             $lockedUntil,
-            DB::table('usuarios')
+            DB::table('users')
                 ->where('id', $user->getKey())
                 ->value('locked_until')
         );
@@ -145,7 +162,6 @@ class LoginSecurityTest extends TestCase
     {
         $user = UserFactory::new()->createOne([
             'usuario' => 'reset-counter',
-            'correo' => 'reset-counter@example.invalid',
             'password' => 'CorrectPassword123!',
         ]);
 
@@ -158,7 +174,7 @@ class LoginSecurityTest extends TestCase
 
         $this->assertSame(
             2,
-            DB::table('usuarios')
+            DB::table('users')
                 ->where('id', $user->getKey())
                 ->value('failed_login_attempts')
         );
@@ -170,9 +186,23 @@ class LoginSecurityTest extends TestCase
 
         $this->assertSame(
             0,
-            DB::table('usuarios')
+            DB::table('users')
                 ->where('id', $user->getKey())
                 ->value('failed_login_attempts')
+        );
+
+        $this->assertNull(
+            DB::table('users')
+                ->where('id', $user->getKey())
+                ->value('locked_until')
+        );
+
+        $this->assertSame(
+            1,
+            DB::table('login_attempts')
+                ->where('user_id', $user->getKey())
+                ->where('successful', true)
+                ->count()
         );
     }
 
@@ -180,11 +210,12 @@ class LoginSecurityTest extends TestCase
     {
         $user = UserFactory::new()->createOne([
             'usuario' => 'expired-lock',
-            'correo' => 'expired-lock@example.invalid',
             'password' => 'CorrectPassword123!',
             'failed_login_attempts' => 3,
-            'locked_until' => now()->subMinutes(1),
+            'locked_until' => now()->addMinutes(15),
         ]);
+
+        $this->travel(16)->minutes();
 
         $this->postJson('/api/auth/login', [
             'usuario' => 'expired-lock',
@@ -193,10 +224,35 @@ class LoginSecurityTest extends TestCase
 
         $this->assertSame(
             0,
-            DB::table('usuarios')
+            DB::table('users')
                 ->where('id', $user->getKey())
                 ->value('failed_login_attempts')
         );
+
+        $this->assertNull(
+            DB::table('users')
+                ->where('id', $user->getKey())
+                ->value('locked_until')
+        );
+    }
+
+    public function test_the_remaining_minutes_of_the_lock_are_reported(): void
+    {
+        UserFactory::new()->createOne([
+            'usuario' => 'minutes-left',
+            'password' => 'CorrectPassword123!',
+            'failed_login_attempts' => 3,
+            'locked_until' => now()->addMinutes(15),
+        ]);
+
+        $this->travel(11)->minutes();
+
+        $this->postJson('/api/auth/login', [
+            'usuario' => 'minutes-left',
+            'password' => 'CorrectPassword123!',
+        ])
+            ->assertStatus(423)
+            ->assertJsonPath('minutos', 4);
     }
 
     public function test_unknown_identifier_is_recorded_without_user_reference(): void
@@ -213,9 +269,9 @@ class LoginSecurityTest extends TestCase
             );
 
         $this->assertTrue($attempt->exists());
-
-        $this->assertNull(
-            $attempt->value('user_id')
+        $this->assertNull($attempt->value('user_id'));
+        $this->assertFalse(
+            (bool) $attempt->value('successful')
         );
     }
 
@@ -223,7 +279,6 @@ class LoginSecurityTest extends TestCase
     {
         $user = UserFactory::new()->createOne([
             'usuario' => 'inactive-security',
-            'correo' => 'inactive-security@example.invalid',
             'password' => 'CorrectPassword123!',
             'is_active' => false,
         ]);
@@ -231,13 +286,23 @@ class LoginSecurityTest extends TestCase
         $this->postJson('/api/auth/login', [
             'usuario' => 'inactive-security',
             'password' => 'CorrectPassword123!',
-        ])->assertStatus(423);
+        ])
+            ->assertStatus(423)
+            ->assertJsonMissingPath('minutos');
 
         $this->assertSame(
             0,
-            DB::table('usuarios')
+            DB::table('users')
                 ->where('id', $user->getKey())
                 ->value('failed_login_attempts')
+        );
+
+        $this->assertSame(
+            1,
+            DB::table('login_attempts')
+                ->where('user_id', $user->getKey())
+                ->where('successful', false)
+                ->count()
         );
     }
 }

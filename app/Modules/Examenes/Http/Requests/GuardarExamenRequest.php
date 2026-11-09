@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace App\Modules\Examenes\Http\Requests;
 
+use App\Modules\Examenes\Application\DTOs\AulaDeExamenData;
 use App\Modules\Examenes\Application\DTOs\GuardarExamenData;
-use App\Modules\Examenes\Application\DTOs\PersonalAulaData;
 use App\Modules\Examenes\Domain\Enums\TipoExamen;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * El asistente de registro entero: datos, normas, grupos y aulas. Aqui va
- * la forma; lo que depende de lo ya registrado lo comprueba la accion. No
- * se valida el solape de aulas.
+ * El asistente de registro entero: datos, normas, grupos, aulas y quien
+ * atiende.
+ * Aqui va la forma; lo que depende de lo ya registrado lo comprueba la
+ * accion. No se valida capacidad ni solape de aulas.
  */
 final class GuardarExamenRequest extends FormRequest
 {
@@ -34,21 +35,20 @@ final class GuardarExamenRequest extends FormRequest
             'hora_inicio' => ['required', 'date_format:H:i'],
             'duracion_minutos' => ['required', 'integer', 'between:15,480'],
             'normas' => ['nullable', 'string', 'max:2000'],
-            'grupos' => ['required', 'array', 'min:1'],
-            'grupos.*' => ['integer', 'distinct', 'exists:grupos,id'],
-            'aulas' => ['nullable', 'array'],
-            'aulas.*' => ['integer', 'distinct', 'exists:aulas,id'],
             // Ids de plantillas: predefinidas o propias de quien registra.
             'normas_marcadas' => ['nullable', 'array', 'max:50'],
             'normas_marcadas.*' => ['integer', 'distinct', 'min:1'],
             // Ids de normas del examen cuya plantilla ya no existe.
             'normas_conservadas' => ['nullable', 'array'],
             'normas_conservadas.*' => ['integer', 'min:1'],
-            'personal' => ['nullable', 'array'],
-            'personal.*.aula_id' => ['required', 'integer'],
-            'personal.*.a_cargo' => ['nullable', 'integer'],
-            'personal.*.apoyo' => ['nullable', 'array'],
-            'personal.*.apoyo.*' => ['integer'],
+            'grupos' => ['required', 'array', 'min:1'],
+            'grupos.*' => ['integer', 'distinct', 'exists:grupos,id'],
+            'aulas' => ['nullable', 'array'],
+            'aulas.*' => ['array'],
+            'aulas.*.aula_id' => ['required', 'integer', 'distinct', 'exists:aulas,id'],
+            'aulas.*.encargado_id' => ['nullable', 'integer'],
+            'aulas.*.apoyo' => ['nullable', 'array'],
+            'aulas.*.apoyo.*' => ['integer'],
         ];
     }
 
@@ -64,25 +64,15 @@ final class GuardarExamenRequest extends FormRequest
             'tipo.required' => 'Elija el tipo de examen.',
             'tipo.string' => 'El tipo de examen no es válido.',
             'tipo.in' => 'El tipo de examen no es válido.',
-            'fecha.required' => 'Indica la fecha.',
+            'fecha.required' => 'Indique la fecha.',
             'fecha.date_format' => 'La fecha debe tener el formato AAAA-MM-DD.',
-            'hora_inicio.required' => 'Indica la hora de inicio.',
+            'hora_inicio.required' => 'Indique la hora de inicio.',
             'hora_inicio.date_format' => 'La hora debe tener el formato HH:MM.',
-            'duracion_minutos.required' => 'Indica la duración.',
+            'duracion_minutos.required' => 'Indique la duración.',
             'duracion_minutos.integer' => 'Entre 15 y 480',
             'duracion_minutos.between' => 'Entre 15 y 480',
             'normas.string' => 'Las normas deben ser un texto.',
             'normas.max' => 'Las normas admiten hasta 2.000 caracteres.',
-            'grupos.required' => 'Elija al menos un grupo.',
-            'grupos.array' => 'Elija al menos un grupo.',
-            'grupos.min' => 'Elija al menos un grupo.',
-            'grupos.*.integer' => 'El grupo no es válido.',
-            'grupos.*.distinct' => 'Hay un grupo repetido.',
-            'grupos.*.exists' => 'El grupo no existe.',
-            'aulas.array' => 'Las aulas no son válidas.',
-            'aulas.*.integer' => 'El aula no es válida.',
-            'aulas.*.distinct' => 'Hay un aula repetida.',
-            'aulas.*.exists' => 'El aula no existe.',
             'normas_marcadas.array' => 'Las normas no son válidas.',
             'normas_marcadas.max' => 'Hasta 50 normas marcadas.',
             'normas_marcadas.*.integer' => 'La norma no es válida.',
@@ -91,6 +81,21 @@ final class GuardarExamenRequest extends FormRequest
             'normas_conservadas.array' => 'Las normas no son válidas.',
             'normas_conservadas.*.integer' => 'La norma no es válida.',
             'normas_conservadas.*.min' => 'La norma no es válida.',
+            'grupos.required' => 'Elija al menos un grupo.',
+            'grupos.array' => 'Elija al menos un grupo.',
+            'grupos.min' => 'Elija al menos un grupo.',
+            'grupos.*.integer' => 'El grupo no es válido.',
+            'grupos.*.distinct' => 'Hay un grupo repetido.',
+            'grupos.*.exists' => 'El grupo no existe.',
+            'aulas.array' => 'Las aulas no son válidas.',
+            'aulas.*.array' => 'El aula no es válida.',
+            'aulas.*.aula_id.required' => 'Falta el aula.',
+            'aulas.*.aula_id.integer' => 'El aula no es válida.',
+            'aulas.*.aula_id.distinct' => 'Hay un aula repetida.',
+            'aulas.*.aula_id.exists' => 'El aula no existe.',
+            'aulas.*.encargado_id.integer' => 'El encargado no es válido.',
+            'aulas.*.apoyo.array' => 'El apoyo no es válido.',
+            'aulas.*.apoyo.*.integer' => 'El apoyo no es válido.',
         ];
     }
 
@@ -101,24 +106,21 @@ final class GuardarExamenRequest extends FormRequest
 
         $conservadas = $this->validated('normas_conservadas');
 
-        $personalDatos = [];
-        $personalInput = $this->validated('personal');
-        if (is_array($personalInput)) {
-            foreach ($personalInput as $item) {
-                if (is_array($item) && isset($item['aula_id'])) {
-                    $apoyo = [];
-                    foreach (is_array($item['apoyo'] ?? null) ? $item['apoyo'] : [] as $ap) {
-                        if (is_numeric($ap)) {
-                            $apoyo[] = (int) $ap;
-                        }
-                    }
-                    $personalDatos[] = new PersonalAulaData(
-                        aulaId: is_numeric($item['aula_id']) ? (int) $item['aula_id'] : 0,
-                        aCargo: isset($item['a_cargo']) && is_numeric($item['a_cargo']) ? (int) $item['a_cargo'] : 0,
-                        apoyo: array_values(array_unique($apoyo)),
-                    );
-                }
+        $aulas = [];
+        $recibidas = $this->validated('aulas');
+
+        foreach (is_array($recibidas) ? $recibidas : [] as $aula) {
+            if (! is_array($aula)) {
+                continue;
             }
+
+            $encargado = $aula['encargado_id'] ?? null;
+
+            $aulas[] = new AulaDeExamenData(
+                aulaId: $this->entero($aula['aula_id'] ?? null),
+                encargadoId: $encargado === null ? null : $this->entero($encargado),
+                apoyo: $this->enteros($aula['apoyo'] ?? null),
+            );
         }
 
         return new GuardarExamenData(
@@ -129,10 +131,9 @@ final class GuardarExamenRequest extends FormRequest
             duracionMinutos: $this->integer('duracion_minutos'),
             normas: $normas === '' ? null : $normas,
             grupos: $this->enteros($this->validated('grupos')),
-            aulas: $this->enteros($this->validated('aulas')),
+            aulas: $aulas,
             normasMarcadas: $this->enteros($this->validated('normas_marcadas')),
             normasConservadas: is_array($conservadas) ? $this->enteros($conservadas) : null,
-            personal: $personalDatos,
         );
     }
 

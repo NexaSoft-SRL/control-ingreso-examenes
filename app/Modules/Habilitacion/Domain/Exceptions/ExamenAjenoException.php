@@ -13,6 +13,6 @@ final class ExamenAjenoException extends RuntimeException
 {
     public function __construct()
     {
-        parent::__construct('Examen no autorizado.');
+        parent::__construct('Este examen no está a su cargo.');
     }
 }

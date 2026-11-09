@@ -1,0 +1,121 @@
+% Ficha HU-10 del sprint 2 rehecho. Una historia = una vista completa: el
+% periodo academico y la importacion de la oferta por facultad.
+% Tipo: mejora de HU-05 y HU-06. La ficha anterior queda en sprint2/v1/.
+\def\HUNro{10}
+\def\HUSprint{2}
+\def\HUTitulo{Administración > Período > Detectar el período e importar la oferta}
+\def\HUModulo{M1}
+\def\HUReq{2}
+\def\HUPuntos{8}
+
+\def\HUComo{administrador}
+\def\HUQuiero{que el sistema detecte el período académico vigente y me permita importar,
+facultad por facultad, la oferta que publica la universidad}
+\def\HUPara{empezar cada gestión con las asignaturas, los grupos, los docentes y las
+aulas ya cargados, sin transcribirlos a mano, y saber qué falta para que los docentes
+puedan registrar sus exámenes}
+
+\def\HUDescripcion{%
+Para que un docente registre un examen, el sistema tiene que conocer antes en qué
+gestión está, qué asignaturas y grupos se dictan, quién dicta cada uno y en qué aulas.
+Esta vista es el punto de partida del administrador: prepara el período y deja a la
+vista lo que falta.
+
+El período no se crea a mano: se detecta de lo que publica la universidad y de la fecha
+del sistema. Conviven el régimen semestral (1 y 2), el anual (0) y el curso de invierno
+(4), y puede haber más de un período vigente a la vez. Cada período muestra su código,
+su tipo, sus fechas y su estado: vigente, cerrado, próximo o sin fechas. Cuando la
+fuente no trae fechas, el administrador las ajusta, y ese ajuste manda: volver a
+detectar no lo pisa. Los períodos pasados quedan cerrados y se pueden seguir
+consultando, con todo lo que se registró en ellos.
+
+La oferta se importa por facultad ---Ciencias y Tecnología, Ciencias Económicas,
+Humanidades y Arquitectura---. Cada importación trae carreras, asignaturas, grupos,
+docentes, horarios y aulas con su edificio, y deja su estado a la vista: sin importar,
+importando, importada con su fecha o fallida. Si falla no queda nada a medias y se
+puede reintentar. Reimportar no duplica: actualiza lo que ya existe, no borra un grupo
+que ya tiene inscritos o exámenes y no toca las cuentas de los docentes.
+
+La vista muestra además los pendientes que siguen a la importación: cuántos docentes no
+tienen cuenta (HU-12) y cuántos grupos no tienen lista de inscritos (HU-13 y HU-14), cada
+uno con su enlace. De esta historia dependen todas las demás del sprint. El ajuste de
+fechas y cada importación quedan asentados en la bitácora (HU-07).
+
+Esta historia mejora la gestión de asignaturas (HU-05) y la de aulas (HU-06) del sprint 1.
+Allí el administrador registraba cada asignatura y cada aula en un formulario. Ahora
+llegan por importación, junto con los grupos, los docentes y los horarios, y todo queda
+ligado a un período académico.}
+
+\def\HUCriterios{%
+\item Dado que el administrador abre Período, Cuando se carga la vista, Entonces el
+      sistema muestra la fecha de hoy, el período principal y la ventana de exámenes
+      próxima, y lista los períodos detectados con su código, tipo, fechas y estado, los
+      vigentes primero.
+\item Dado que la universidad publica la gestión de cada régimen, Cuando se detectan los
+      períodos, Entonces el sistema registra el semestral, el anual y el de invierno con
+      su código (por ejemplo, 2/2026 y 0/2026) y marca como vigente a todo período cuyas
+      fechas contienen la fecha de hoy.
+\item Dado que un período no tiene fechas publicadas, Cuando se lo detecta, Entonces
+      queda «Sin fechas», no figura como vigente y ofrece «Ajustar».
+\item Dado que el administrador ajusta las fechas de un período, Cuando guarda, Entonces
+      el sistema las conserva, recalcula su estado y registra quién las fijó.
+\item Dado que la fecha de fin no es posterior a la de inicio, Cuando se intenta guardar
+      el ajuste, Entonces el sistema lo rechaza señalando el campo.
+\item Dado que los períodos ya fueron detectados, Cuando se vuelve a detectar, Entonces
+      el sistema no los duplica y conserva las fechas ajustadas a mano.
+\item Dado que hay períodos de gestiones anteriores, Cuando el administrador avanza en
+      la lista, Entonces los ve como «Cerrado», de a cuatro por página, y sus datos
+      siguen disponibles para consulta.
+\item Dado que la vista está cargada, Cuando se muestra la oferta por facultad, Entonces
+      hay una fila por cada una de las cuatro facultades con sus carreras, grupos y
+      aulas, y su estado: «Sin importar», «Importando», «Importada» con la fecha o
+      «Falló».
+\item Dado que el administrador pulsa «Importar» en una facultad, Cuando la importación
+      termina, Entonces el sistema dejó registradas sus carreras, asignaturas, grupos,
+      docentes, horarios y aulas con su edificio, y la fila pasa a «Importada» con la
+      fecha y las cifras actualizadas.
+\item Dado que una importación está en curso, Cuando se mira la fila, Entonces figura
+      «Importando» con el botón deshabilitado, y un segundo pedido para la misma facultad
+      se rechaza.
+\item Dado que la importación de una facultad falla, Cuando termina, Entonces la fila
+      queda en «Falló», no se guarda nada a medias y el botón pasa a «Reintentar»; al
+      reintentar con éxito queda «Importada».
+\item Dado que una facultad ya fue importada, Cuando se la importa otra vez, Entonces el
+      sistema no duplica carreras, asignaturas, grupos, docentes ni aulas, conserva los
+      grupos que ya tienen inscritos o exámenes y no toca las cuentas de los docentes.
+\item Dado que hay docentes sin cuenta o grupos sin lista de inscritos, Cuando se muestra
+      «Pendientes», Entonces el sistema indica cuántos son sobre el total y enlaza a
+      Docentes y al Padrón.
+\item Dado que un rol no tiene el permiso de período y oferta, Cuando intenta abrir la
+      vista, ajustar fechas, detectar o importar, Entonces el sistema responde con una
+      negativa explícita.
+\item Dado que se ajustan las fechas de un período o se importa la oferta de una
+      facultad, Cuando la operación se completa, Entonces queda asentada en la bitácora
+      con su autor.
+\item Dado que el administrador accede desde un dispositivo móvil, Cuando abre Período,
+      Entonces las listas y las acciones de importar se adaptan de forma completamente
+      responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{DetectarPeriodosTest}: detección a partir de la oferta y de los
+      calendarios, período sin fechas publicadas, volver a detectar sin duplicar y sin
+      pisar las fechas ajustadas a mano (criterios 2, 3 y 6).
+\item \texttt{PeriodosTest}: lista con los vigentes primero y paginada, resumen con el
+      período principal, la ventana de exámenes y los pendientes, ajuste de fechas y su
+      validación (criterios 1, 4, 5, 7 y 13).
+\item \texttt{ImportarOfertaTest}: importación de una facultad con su registro, grupo
+      repetido en dos carreras, docente de dos facultades, aula sin edificio y sesiones
+      descartadas (criterio 9).
+\item \texttt{ImportarOfertaTest}: importar dos veces no duplica, el grupo que ya no
+      viene se conserva solo si tiene estudiantes, la cuenta del docente no se toca y un
+      fallo no deja nada a medias (criterios 11 y 12).
+\item \texttt{ImportacionPorHttpTest}: resumen de la importación, fallo con su motivo,
+      importación en curso que bloquea otra y facultad no válida (criterios 8 a 11).
+\item \texttt{PeriodosTest} e \texttt{ImportacionPorHttpTest}: sin sesión, rol sin
+      permiso y asiento en la bitácora del ajuste y de la importación (criterios 14
+      y 15).
+\item \texttt{Periodo.test.jsx} (por escribir): estados de cada facultad, botón
+      deshabilitado al importar, reintento, diálogo de ajuste con su error y enlaces de
+      pendientes (criterios 3, 5, 8, 10, 11, 13 y 16).}
+
+\input{cuerpo}

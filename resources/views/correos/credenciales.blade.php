@@ -1,11 +1,10 @@
 @component('mail::message')
-# Acceso al sistema
+# Su acceso al sistema
 
-Hola {{ $nombre }}:
+{{ $nombre }}:
 
-Estas son las credenciales para el sistema de control de exámenes:
+Estas son sus credenciales para el sistema de control de exámenes:
 
-- **Correo:** {{ $correo }}
 - **Usuario:** {{ $usuario }}
 - **Contraseña temporal:** {{ $contrasenaTemporal }}
 
@@ -13,7 +12,8 @@ Estas son las credenciales para el sistema de control de exámenes:
 Ingresar al sistema
 @endcomponent
 
-La contraseña temporal caduca en {{ $horasVigencia }} horas. No comparta estos datos con nadie.
+La contraseña temporal caduca en {{ $horasVigencia }} horas. En su primer ingreso el sistema
+le pedirá definir una propia. No comparta estos datos con nadie.
 
 Gracias,
 {{ config('app.name') }}

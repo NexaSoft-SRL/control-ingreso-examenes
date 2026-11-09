@@ -1,0 +1,69 @@
+% Ficha HU-25. Criterios del backlog de la iteracion 4. La incidencia la
+% escribe el sistema; la situacion excepcional la escribe el personal.
+\def\HUNro{25}
+\def\HUSprint{4}
+\def\HUTitulo{Punto de control > Ingreso > Situaciones excepcionales}
+\def\HUModulo{M4}
+\def\HUReq{15}
+\def\HUPuntos{5}
+
+\def\HUComo{personal de control}
+\def\HUQuiero{registrar una situación excepcional}
+\def\HUPara{que quede constancia de lo que se resolvió en la puerta}
+
+\def\HUDescripcion{%
+En la puerta pasan cosas que el sistema no puede decidir. Un estudiante llega sin carnet
+y lo reconoce el docente; otro no está habilitado pero trae el comprobante de pago; a un
+tercero lo mandan a un aula distinta porque la suya se llenó. Nada de eso es un ingreso
+ni un rechazo automático: es una decisión de una persona, y tiene que quedar escrita.
+
+El sistema contempla los tres casos ---problema de identificación, cambio de ambiente y
+estudiante no habilitado--- y exige siempre el motivo. La hora y el autor los pone el
+sistema, como en el ingreso (HU-21). El estudiante es opcional: cuando el problema es
+justamente identificarlo, todavía no hay a quién apuntar.
+
+Esto es distinto de la incidencia de HU-19 y HU-23, que la escribe el sistema solo cuando
+rechaza a alguien. Aquí escribe la persona. El único caso que produce las dos cosas es el
+ingreso excepcional a otro ambiente (HU-20): el sistema anota la incidencia y, además,
+deja la situación con el motivo que autorizó el personal.
+
+Las situaciones se consultan por examen y, dentro del examen, por ambiente: cada puesto
+mira lo suyo.}
+
+\def\HUCriterios{%
+\item Dado que se registra una situación, Cuando se elige el tipo, Entonces se contemplan
+      problema de identificación, cambio de ambiente y estudiante no habilitado.
+\item Dado que se registra una situación, Cuando falta el motivo, Entonces el sistema la
+      rechaza señalando el campo.
+\item Dado que la situación se registró, Cuando se la consulta, Entonces consta la hora y
+      el usuario que la registró.
+\item Dado que el problema es identificar al estudiante, Cuando se registra la situación,
+      Entonces se la puede dejar sin estudiante.
+\item Dado que hay situaciones de varios ambientes, Cuando se filtra por uno, Entonces se
+      ven solo las de ese ambiente.
+\item Dado que se autoriza un ingreso excepcional a otro ambiente, Cuando se lo registra,
+      Entonces queda también como situación con su motivo.
+\item Dado que el tipo enviado no está contemplado, Cuando se envía, Entonces el sistema
+      lo rechaza.
+\item Dado que se registra una situación, Cuando la operación se completa, Entonces queda
+      asentada en la bitácora del sistema.}
+
+\def\HUPruebas{%
+\item \texttt{SituacionExcepcionalTest::the\_three\_kinds\_of\_situation\_are\_accepted} y
+      \texttt{an\_unknown\_kind\_of\_situation\_is\_rejected} (criterios 1 y 7).
+\item \texttt{SituacionExcepcionalTest::every\_situation\_requires\_a\_reason}: sin motivo
+      no hay situación (criterio 2).
+\item \texttt{SituacionExcepcionalTest}, caso de la hora y el autor de la situación
+      (criterio 3).
+\item \texttt{SituacionExcepcionalTest}, caso de la situación sin estudiante
+      identificado (criterio 4).
+\item \texttt{SituacionExcepcionalTest::the\_situations\_are\_listed\_by\_exam\_and\_by\_room}
+      (criterio 5).
+\item \texttt{SituacionExcepcionalTest::an\_authorised\_room\_change\_also\_becomes\_a\_situation}
+      (criterio 6).
+\item \texttt{SituacionExcepcionalTest::the\_situation\_is\_written\_to\_the\_audit\_log}
+      (criterio 8).
+\item \texttt{SituacionesExcepcionales.test.jsx}: los tres tipos, el motivo obligatorio y
+      el filtro por ambiente (criterios 1, 2 y 5).}
+
+\input{cuerpo}

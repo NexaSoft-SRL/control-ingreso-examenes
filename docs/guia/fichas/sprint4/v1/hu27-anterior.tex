@@ -1,0 +1,60 @@
+% Ficha HU-27. Criterios del backlog de la iteracion 4. Primera historia
+% del modulo de monitoreo: solo lee, y se actualiza sola.
+\def\HUNro{27}
+\def\HUSprint{4}
+\def\HUTitulo{Monitoreo > Tablero de ingresos en tiempo real}
+\def\HUModulo{M5}
+\def\HUReq{11}
+\def\HUPuntos{8}
+
+\def\HUComo{responsable académico}
+\def\HUQuiero{ver el avance del ingreso por ambiente}
+\def\HUPara{saber cómo marcha el examen sin ir a la puerta}
+
+\def\HUDescripcion{%
+Durante un examen masivo, quien coordina necesita saber si las aulas se están llenando al
+ritmo previsto y cuál de ellas va atrasada. Hasta ahora eso se resolvía caminando de
+puerta en puerta.
+
+El tablero muestra, por ambiente, cuántos estudiantes habilitados le corresponden,
+cuántos ya ingresaron y cuántos faltan, más la capacidad del aula para poner el número en
+contexto. Arriba, el total del examen. Los habilitados sin ambiente asignado se agrupan
+aparte: son los que todavía nadie distribuyó (HU-14).
+
+Dos datos dicen si el examen marcha o está trabado: la hora del último ingreso ---si pasó
+mucho rato, la fila se cortó--- y el ritmo, que cuenta los ingresos de los últimos diez
+minutos y los expresa por minuto.
+
+La pantalla se vuelve a pedir sola cada diez segundos mientras está abierta: nadie tiene
+que recargar nada. El tablero no escribe: toda su información sale de una única consulta
+de lectura, y el módulo de monitoreo no expone ninguna ruta que modifique registros.}
+
+\def\HUCriterios{%
+\item Dado un examen con varios ambientes, Cuando se abre el tablero, Entonces se ve por
+      ambiente cuántos ingresaron y cuántos faltan.
+\item Dado que hay ingresos nuevos, Cuando pasan diez segundos, Entonces el tablero se
+      actualiza sin recargar la página.
+\item Dado que se consulta el tablero, Cuando hay ingresos registrados, Entonces se ve el
+      ritmo de ingreso y la hora del último registro.
+\item Dado que hay estudiantes habilitados sin ambiente asignado, Cuando se abre el
+      tablero, Entonces aparecen agrupados aparte.
+\item Dado que hay estudiantes inhabilitados, Cuando se abre el tablero, Entonces no se
+      los cuenta entre los que faltan.
+\item Dado que el examen no existe, Cuando se lo consulta, Entonces el sistema lo informa.
+\item Dado que un rol no tiene el permiso de monitoreo, Cuando abre el tablero, Entonces
+      el sistema responde con una negativa explícita.}
+
+\def\HUPruebas{%
+\item \texttt{TableroTest::the\_board\_counts\_entries\_and\_missing\_students\_per\_room}
+      (criterio 1).
+\item \texttt{TableroTest::the\_board\_reports\_the\_pace\_and\_the\_time\_of\_the\_last\_entry}
+      (criterio 3).
+\item \texttt{TableroTest::the\_board\_groups\_the\_students\_without\_a\_room} (criterio 4).
+\item \texttt{TableroTest::the\_board\_ignores\_students\_who\_are\_not\_enabled} (criterio 5).
+\item \texttt{TableroTest::an\_unknown\_exam\_is\_reported} y
+      \texttt{the\_monitoring\_permission\_is\_required} (criterios 6 y 7).
+\item \texttt{Tablero.test.jsx}: la pantalla muestra ingresados y faltantes por ambiente,
+      el ritmo y la hora del último ingreso, y se vuelve a pedir sola (criterios 1, 2
+      y 3).}
+
+\input{cuerpo}

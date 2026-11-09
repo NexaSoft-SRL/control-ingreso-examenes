@@ -9,13 +9,12 @@ use App\Modules\Estudiantes\Application\Contracts\PortalEstudianteGateway;
 
 /**
  * Envia al correo institucional del estudiante un codigo de seis digitos
- * que vale 24 horas, para que alcance aunque el correo tarde o se lea
- * despues; sigue siendo de un solo uso y con intentos contados. Si el codigo universitario no esta en el padron
+ * que vale diez minutos. Si el codigo universitario no esta en el padron
  * no envia nada, pero responde igual: asi no se averigua quien esta.
  */
 final readonly class SolicitarCodigoDeAcceso
 {
-    public const MINUTOS = 24 * 60;
+    public const MINUTOS = 10;
 
     public function __construct(
         private PortalEstudianteGateway $portal,

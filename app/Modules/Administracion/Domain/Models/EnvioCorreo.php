@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property TipoCorreo $tipo
  * @property string $destinatario
+ * @property int|null $user_id
  * @property int|null $examen_id
  * @property int|null $estudiante_id
  * @property EstadoEnvio $estado
@@ -34,6 +35,7 @@ final class EnvioCorreo extends Model
     protected $fillable = [
         'tipo',
         'destinatario',
+        'user_id',
         'examen_id',
         'estudiante_id',
         'estado',
@@ -49,6 +51,7 @@ final class EnvioCorreo extends Model
     {
         return [
             'tipo' => TipoCorreo::class,
+            'user_id' => 'integer',
             'examen_id' => 'integer',
             'estudiante_id' => 'integer',
             'estado' => EstadoEnvio::class,

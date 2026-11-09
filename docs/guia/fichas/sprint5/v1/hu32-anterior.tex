@@ -1,0 +1,55 @@
+% Ficha HU-32. Criterios del backlog de la iteracion 5. Es el unico reporte
+% que mira mas de un examen a la vez.
+\def\HUNro{32}
+\def\HUSprint{5}
+\def\HUTitulo{Reportes > Registrados por examen}
+\def\HUModulo{M6}
+\def\HUReq{12}
+\def\HUPuntos{3}
+
+\def\HUComo{responsable académico}
+\def\HUQuiero{conocer cuántos estudiantes se registraron por examen}
+\def\HUPara{consolidar cifras de la gestión}
+
+\def\HUDescripcion{%
+Los demás reportes miran un examen. Este mira la gestión: cuántos se esperaban y cuántos
+entraron en cada examen y en cada aula, durante el período que se indique.
+
+Cada fila es un examen y un ambiente, con la fecha, la asignatura con su grupo, cuántos
+habilitados le correspondían y cuántos registraron ingreso. La diferencia entre las dos
+columnas es la ausencia, y se ve sin restar: si un aula tiene ochenta habilitados y
+cuarenta registrados, algo pasó ahí.
+
+Admite un rango de fechas ---desde, hasta, o los dos--- y se lo puede acotar a un examen o
+a un ambiente. Sin filtros muestra todo, y lo dice en el encabezado para que nadie tome
+por parcial un número que es total, ni al revés. Un rango invertido se rechaza señalando
+el campo.
+
+El pie consolida cuántos registros de ingreso hubo en el período. Se exporta como los
+demás (HU-34).}
+
+\def\HUCriterios{%
+\item Dado un conjunto de exámenes, Cuando se pide el reporte, Entonces presenta el total
+      por examen y por ambiente.
+\item Dado que se indica un rango de fechas, Cuando se pide el reporte, Entonces solo
+      figuran los exámenes de ese rango.
+\item Dado que la fecha final es anterior a la inicial, Cuando se envía, Entonces el
+      sistema lo rechaza señalando el campo.
+\item Dado que no se indica ningún filtro, Cuando se pide el reporte, Entonces el
+      encabezado dice que están todos los exámenes.
+\item Dado un ambiente sin ningún ingreso, Cuando se pide el reporte, Entonces figura con
+      sus habilitados y con cero registrados.
+\item Dado que se pide el reporte, Cuando se lee el pie, Entonces consta el total de
+      registros del período.}
+
+\def\HUPruebas{%
+\item \texttt{ReportesTest::the\_registered\_report\_totals\_by\_exam\_and\_room}
+      (criterios 1, 5 y 6).
+\item \texttt{ReportesTest::the\_registered\_report\_admits\_a\_range\_of\_dates}
+      (criterio 2).
+\item \texttt{ReportesTest::an\_inverted\_range\_of\_dates\_is\_rejected} (criterio 3).
+\item \texttt{ExportacionTest::the\_export\_without\_filters\_says\_so} (criterio 4).
+\item \texttt{Reportes.test.jsx}, caso de la pestaña de registrados: la fila por examen
+      y ambiente y el envío del rango de fechas (criterios 1 y 2).}
+
+\input{cuerpo}

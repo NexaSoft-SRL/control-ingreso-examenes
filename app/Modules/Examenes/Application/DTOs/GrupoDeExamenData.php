@@ -19,6 +19,7 @@ final readonly class GrupoDeExamenData
         public string $periodoCodigo,
         public ?string $periodoInicio,
         public ?string $periodoFin,
-        public ?int $docenteCuentaId = null,
+        /** La cuenta del docente del grupo; nulo si no tiene o esta bloqueada. */
+        public ?int $docenteUsuarioId = null,
     ) {}
 }

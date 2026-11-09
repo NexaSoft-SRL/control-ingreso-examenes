@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Modules\Academico\Application\Contracts;
 
+use App\Modules\Academico\Application\DTOs\FiltroAsignaturasData;
 use App\Modules\Academico\Application\DTOs\PaginaData;
 
 /**
- * Lecturas de la oferta academica para la pantalla Periodo del
- * administrador y para «Mis grupos» del docente. En todos los metodos
+ * Lecturas de la oferta academica para las pantallas del administrador
+ * (Periodo, Oferta) y para «Mis grupos» del docente. En todos los metodos
  * `$periodoIds` vacio significa «sin filtrar por periodo».
  */
 interface ConsultaOfertaGateway
@@ -64,30 +65,21 @@ interface ConsultaOfertaGateway
     public function carreras(?string $claveFacultad): array;
 
     /**
-     * Asignaturas de la oferta con sus grupos e inscritos, filtradas por
-     * periodo, facultad, carrera, nivel y búsqueda: una fila por asignatura y
-     * facultad. Sin periodo, los vigentes (ninguno si no hay vigente).
-     *
-     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null, sin_lista?: bool}  $filtros
-     * @return array{filas: list<array<string, mixed>>, total: int, total_grupos: int}
+     * @param  list<int>  $periodoIds
+     * @return array{filas: list<array{id: int, codigo: string, nombre: string, nivel: string|null, grupos: int, inscritos: int}>, total: int, grupos: int, niveles: list<string>}
      */
-    public function asignaturasDeOferta(array $filtros, PaginaData $pagina): array;
+    public function asignaturas(FiltroAsignaturasData $filtro, array $periodoIds, PaginaData $pagina): array;
+
+    public function existeAsignatura(int $asignaturaId): bool;
 
     /**
-     * Los grupos de una asignatura con su docente, horarios, aula e inscritos.
-     * Con `$buscar`, los mismos que cuenta la fila de la asignatura (si solo
-     * coincide un docente, solo los suyos), con los del docente primero.
+     * Todos los grupos de la asignatura, en orden natural de codigo. Con
+     * `$buscar`, los del docente que coincide van primero.
      *
      * @param  list<int>  $periodoIds
-     * @return array{filas: list<array<string, mixed>>, total: int}
+     * @return list<array{id: int, codigo: string, docente: string|null, horarios: list<array{dia: string, hora: string, aula: string|null}>, inscritos: int}>
      */
-    public function gruposDeAsignatura(
-        int $asignaturaId,
-        array $periodoIds,
-        ?string $buscar,
-        ?string $facultadClave,
-        PaginaData $pagina,
-    ): array;
+    public function gruposDeAsignatura(int $asignaturaId, array $periodoIds, ?string $claveFacultad, ?string $buscar): array;
 
     /**
      * @param  list<int>  $periodoIds
@@ -101,19 +93,4 @@ interface ConsultaOfertaGateway
      * El dia de hoy para el sistema, `AAAA-MM-DD`.
      */
     public function hoy(): string;
-
-    /**
-     * Los niveles (semestre o año) presentes en la oferta filtrada, en el
-     * orden del plan de estudios, no alfabetico.
-     *
-     * @param  array{periodo_ids: list<int>, facultad: string|null, carrera_id: int|null, nivel: string|null, buscar: string|null, sin_lista?: bool}  $filtros
-     * @return list<string>
-     */
-    public function nivelesDeOferta(array $filtros): array;
-
-    /**
-     * Si la asignatura existe en el catalogo (para distinguir «sin grupos»
-     * de «no existe»).
-     */
-    public function existeAsignatura(int $asignaturaId): bool;
 }

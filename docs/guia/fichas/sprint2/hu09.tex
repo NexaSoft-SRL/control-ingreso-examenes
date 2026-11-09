@@ -1,0 +1,117 @@
+% Ficha HU-09 del sprint 2 rehecho. Una historia = una vista completa: la
+% habilitacion del examen, con el motivo y el reparto por aula.
+% Tipo: propia del sprint. La ficha anterior queda en sprint2/v1/.
+\def\HUNro{09}
+\def\HUSprint{2}
+\def\HUTitulo{Habilitación > Lista del examen > Habilitar estudiantes y repartirlos por aula}
+\def\HUModulo{M3}
+\def\HUReq{3, 6, 10}
+\def\HUPuntos{8}
+
+\def\HUComo{docente}
+\def\HUQuiero{revisar la lista de inscritos de mi examen, habilitar o inhabilitar a cada
+estudiante con su motivo y repartir a los habilitados entre las aulas}
+\def\HUPara{que el día del examen ingresen solo quienes cumplen las condiciones, cada
+uno sepa a qué aula va y yo pueda responder por qué un estudiante no fue habilitado}
+
+\def\HUDescripcion{%
+El pliego pide que el sistema sepa quién puede rendir cada examen y en qué aula. Esta
+vista es donde el docente lo decide. La lista no es el padrón de la universidad: son los
+inscritos de los grupos que el examen abarca, y un estudiante inscrito en dos de esos
+grupos aparece una sola vez.
+
+Arriba van las cifras del examen ---inscritos, habilitados, no habilitados y sin
+revisar--- y la distribución por aula, con cuántos estudiantes tiene cada una. La lista
+se busca por nombre, código o documento y se filtra por condición, por grupo y por aula.
+El docente marca a uno, a la página o a todo lo filtrado, y habilita o inhabilita al
+lote completo. El panel con el motivo aparece solo cuando hay estudiantes seleccionados.
+
+Inhabilitar exige un motivo de al menos cinco caracteres, y queda registrado quién lo
+hizo y cuándo: es lo que permite responder un reclamo. Quien queda inhabilitado pierde
+su aula; quien vuelve a ser habilitado no la recupera sola, entra al próximo reparto. No
+se inhabilita a quien ya ingresó al examen: lo ocurrido en la puerta no se deshace desde
+aquí. Un inscrito que nadie revisó no figura como habilitado.
+
+«Repartir» toma a los habilitados que no tienen aula y los distribuye en partes iguales
+entre las aulas del examen, cada uno al aula con menos estudiantes en ese momento. No
+mueve a quien ya tiene aula y no hay tope por aula.
+
+La vista depende del examen registrado con sus grupos y sus aulas (HU-08) y de las listas
+de inscritos de esos grupos (HU-13 y HU-14). La usan el docente que registró el examen y
+los docentes de los grupos incluidos. De su resultado dependen la emisión de los códigos
+QR (HU-20) y la verificación en la puerta (HU-19). Cada lote y cada reparto quedan
+asentados en la bitácora (HU-07).}
+
+\def\HUCriterios{%
+\item Dado que el docente abre la habilitación de un examen, Cuando se carga, Entonces el
+      sistema lista a los inscritos de los grupos de ese examen ---no al padrón---,
+      ordenados por apellidos, de a 25 por página, con código, nombre, grupo, condición,
+      aula y motivo; quien está en dos grupos del examen aparece una sola vez.
+\item Dado que la lista está cargada, Cuando se muestra la cabecera, Entonces el sistema
+      presenta las cifras del examen entero (inscritos, habilitados, no habilitados y sin
+      revisar) y la distribución por aula con la cantidad de cada una y los que siguen
+      sin aula, y las actualiza después de cada cambio.
+\item Dado que el docente tiene más de un examen, Cuando elige otro en el selector,
+      Entonces la vista carga la lista de ese examen y limpia la selección y los filtros.
+\item Dado que el docente escribe en el buscador un nombre, un código o un documento,
+      Cuando se aplica, Entonces la lista muestra solo las coincidencias, sin distinguir
+      mayúsculas ni tildes; si no hay ninguna muestra «Sin resultados» y, si el examen
+      no tiene inscritos, «Sin estudiantes».
+\item Dado que el docente elige una condición (Todos, Habilitados, No habilitados o Sin
+      revisar), Cuando se aplica, Entonces la lista muestra solo esa condición y cada
+      opción lleva su conteo sobre lo ya filtrado por grupo, aula y texto.
+\item Dado que el docente elige un grupo o un aula ---en los selectores o pulsando el aula
+      en la distribución---, Cuando se aplica, Entonces la lista muestra solo a los
+      estudiantes de ese grupo o de esa aula, y el selector distingue sus grupos propios.
+\item Dado que el docente marca a un estudiante, la página o «Seleccionar los N», Cuando
+      lo hace, Entonces la selección alcanza a todo lo filtrado y no solo a la página a
+      la vista, se indica cuántos hay seleccionados y «Quitar» la vacía.
+\item Dado que hay estudiantes seleccionados, Cuando el docente pulsa «Habilitar»,
+      Entonces quedan habilitados, sin motivo y conservando el aula que tuvieran, y el
+      sistema avisa cuántos fueron.
+\item Dado que hay estudiantes seleccionados y un motivo escrito, Cuando el docente pulsa
+      «Inhabilitar», Entonces quedan como no habilitados con ese motivo a la vista, sin
+      aula, y queda registrado quién lo hizo y cuándo.
+\item Dado que el motivo tiene menos de cinco caracteres, Cuando el docente pulsa
+      «Inhabilitar», Entonces el sistema no cambia a nadie y señala el campo con «Mínimo
+      5 caracteres»; el campo admite hasta 1.000 y muestra el contador.
+\item Dado que un estudiante seleccionado ya ingresó al examen, Cuando se intenta
+      inhabilitarlo, Entonces el sistema lo rechaza indicando que ya tiene un ingreso
+      registrado y no cambia su condición.
+\item Dado que hay habilitados sin aula, Cuando el docente pulsa «Repartir», Entonces el
+      sistema los distribuye en partes iguales entre las aulas del examen, sin mover a
+      quien ya tiene aula, y avisa cuántos estudiantes repartió en cuántas aulas.
+\item Dado que no queda nadie por repartir o el examen no tiene aulas, Cuando se intenta
+      repartir, Entonces el sistema avisa «Sin estudiantes por repartir» o, sin aulas,
+      muestra «Sin aulas» y no permite el reparto.
+\item Dado que un rol no tiene el permiso de habilitación, o que el docente no registró
+      el examen ni dicta ninguno de sus grupos, Cuando intenta ver la lista, cambiar una
+      condición o repartir, Entonces el sistema responde con una negativa explícita.
+\item Dado que se habilita, se inhabilita o se reparte, Cuando la operación se completa,
+      Entonces queda asentada en la bitácora con su autor y la cantidad de estudiantes.
+\item Dado que el docente accede desde un dispositivo móvil, Cuando selecciona
+      estudiantes, Entonces el panel del motivo y las acciones queda fijo al pie y la
+      lista se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{HabilitacionExamenTest}: la lista son los inscritos de los grupos del
+      examen, sin repetir al que está en dos grupos, ordenada y paginada, con las cifras
+      y las aulas del examen entero (criterios 1 a 3).
+\item \texttt{HabilitacionExamenTest}: búsqueda por nombre, código y documento, y filtros
+      por condición, por grupo y por aula con sus conteos (criterios 4 a 6).
+\item \texttt{HabilitacionExamenTest}: habilitar un lote por selección o todo lo
+      filtrado, inhabilitar con motivo y pérdida del aula, motivo de menos de cinco
+      caracteres y estudiante que ya ingresó (criterios 7 a 11).
+\item \texttt{DistribucionExamenTest}: reparto parejo al aula con menos estudiantes, sin
+      mover a quien ya tiene aula, sin tope, sin nadie por repartir y examen sin aulas
+      (criterios 12 y 13).
+\item \texttt{HabilitacionExamenTest} y \texttt{DistribucionExamenTest}: sin sesión, rol
+      sin permiso, docente que no es del examen y docente de un grupo incluido
+      (criterio 14).
+\item \texttt{HabilitacionExamenTest} y \texttt{DistribucionExamenTest}: un asiento en la
+      bitácora por lote y por reparto, con la cantidad (criterio 15).
+\item \texttt{Habilitacion.test.jsx} (por escribir): selección por página y de todo lo
+      filtrado, panel del motivo con su error, filtro al pulsar un aula y estados vacíos
+      (criterios 4 a 7, 10 y 16).}
+
+\input{cuerpo}

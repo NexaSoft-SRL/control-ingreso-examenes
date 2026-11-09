@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace Tests\Integration\PostgreSQL;
 
 use App\Modules\Academico\Domain\Models\Aula;
-use App\Modules\Administracion\Domain\Models\Role;
+use App\Modules\Administracion\Domain\Models\Respaldo;
+use App\Modules\Administracion\Domain\Models\User;
 use App\Modules\Estudiantes\Domain\Models\Estudiante;
 use App\Modules\Estudiantes\Domain\Models\Inscripcion;
 use App\Modules\Examenes\Domain\Models\Examen;
 use App\Modules\Examenes\Domain\Models\ExamenAula;
-use App\Modules\Examenes\Domain\Models\ExamenNorma;
-use App\Modules\Examenes\Domain\Models\PlantillaNorma;
 use App\Modules\Habilitacion\Domain\Models\Habilitacion;
+use App\Modules\Ingreso\Domain\Models\CodigoQr;
+use App\Modules\Ingreso\Domain\Models\Incidencia;
+use App\Modules\Ingreso\Domain\Models\Ingreso;
 use Closure;
 use Database\Factories\UserFactory;
 use Illuminate\Database\QueryException;
@@ -24,8 +26,8 @@ use Tests\Support\DatosDeExamen;
 use Tests\TestCase;
 
 /**
- * Las garantias del esquema nuevo que no dependen de la aplicacion: las
- * tablas que existen (y las que ya no), unicos, indices parciales y CHECK.
+ * Las garantias del esquema nuevo que no dependen de la aplicacion: unicos,
+ * indices parciales, CHECK y el disparador que hace inmutable el ingreso.
  */
 final class EsquemaReplanteoTest extends TestCase
 {
@@ -33,155 +35,16 @@ final class EsquemaReplanteoTest extends TestCase
     use DatosDeExamen;
     use RefreshDatabase;
 
-    /**
-     * Las 50 tablas del esquema; `migrations` va aparte.
-     *
-     * @var list<string>
-     */
-    private const TABLAS = [
-        // Marco.
-        'cache',
-        'cache_locks',
-        'failed_jobs',
-        'job_batches',
-        'jobs',
-        'login_attempts',
-        'password_reset_tokens',
-        'sessions',
-        'users',
-        'usuarios',
-        // Administracion.
-        'bitacora_operaciones',
-        'permission_role',
-        'permissions',
-        'respaldos',
-        'roles',
-        // Academico.
-        'asignaturas',
-        'aulas',
-        'carreras',
-        'docentes',
-        'edificios',
-        'facultades',
-        'grupos',
-        'horarios',
-        'importaciones_oferta',
-        'periodos',
-        'plan_estudios',
-        // Estudiantes.
-        'cargas_inscritos',
-        'codigos_acceso_estudiante',
-        'conflictos_padron',
-        'estudiantes',
-        'evidencias_incidencia',
-        'inscripciones',
-        'plazos_foto',
-        'plazos_foto_grupo',
-        // Examenes y atencion de aulas (HU-18).
-        'accesos_codigo_aula',
-        'docente_auxiliares',
-        'examen_aula',
-        'examen_aula_codigos',
-        'examen_aula_personal',
-        'examen_grupo',
-        'examen_norma',
-        'examenes',
-        'plantillas_norma',
-        // Habilitacion.
-        'habilitaciones',
-        // Ingreso y seguimiento (HU-19, HU-21).
-        'asignaciones_seguimiento_aula',
-        'codigos_qr',
-        'envios_correo',
-        'incidencias',
-        'ingresos',
-        'intentos_punto_control',
-        'presencias_puerta',
-    ];
-
-    public function test_schema_has_exactly_the_expected_tables(): void
+    public function test_username_is_unique_and_contact_email_is_optional(): void
     {
-        $esperadas = [...self::TABLAS, 'migrations'];
-        sort($esperadas);
+        UserFactory::new()->createOne(['usuario' => 'leticia.blanco', 'email' => null]);
+        UserFactory::new()->createOne(['usuario' => 'corina.flores', 'email' => null]);
 
-        $reales = DB::table('pg_tables')
-            ->where('schemaname', 'public')
-            ->orderBy('tablename')
-            ->pluck('tablename')
-            ->all();
-
-        $this->assertSame($esperadas, $reales);
-    }
-
-    public function test_previous_domain_design_is_gone(): void
-    {
-        foreach ([
-            'ambientes',
-            'asignaciones_ambiente',
-            'examen_ambiente',
-            'grupos_asignatura',
-            'habilitaciones_examen',
-            'normas_examenes',
-            'students',
-        ] as $tabla) {
-            $this->assertFalse(Schema::hasTable($tabla), "La tabla {$tabla} debía eliminarse.");
-        }
-
-        // Las aulas no tienen capacidad ni estado.
-        $this->assertSame(
-            ['id', 'nombre', 'edificio_id', 'facultad_id', 'piso', 'created_at', 'updated_at'],
-            Schema::getColumnListing('aulas'),
-        );
-
-        // El aula de un examen no lleva encargado ni codigo de acceso.
-        $this->assertSame(
-            ['id', 'examen_id', 'aula_id', 'created_at', 'updated_at'],
-            Schema::getColumnListing('examen_aula'),
-        );
-
-        $this->assertFalse(Schema::hasColumn('examenes', 'grupo_id'));
-    }
-
-    public function test_username_is_unique_and_email_is_optional(): void
-    {
-        UserFactory::new()->createOne(['usuario' => 'leticia.blanco', 'correo' => null]);
-        UserFactory::new()->createOne(['usuario' => 'corina.flores', 'correo' => null]);
-
-        $this->assertDatabaseCount('usuarios', 2);
+        $this->assertDatabaseCount('users', 2);
 
         $this->assertRechaza(
-            'uq_usuarios_usuario',
+            'uq_users_usuario',
             fn () => UserFactory::new()->createOne(['usuario' => 'leticia.blanco']),
-        );
-    }
-
-    public function test_account_without_username_gets_one_from_its_email(): void
-    {
-        $primera = UserFactory::new()->createOne(['usuario' => null, 'correo' => 'Ana.Rojas@umss.edu.bo']);
-        $segunda = UserFactory::new()->createOne(['usuario' => null, 'correo' => 'ana.rojas@fcyt.umss.edu.bo']);
-        $sinCorreo = UserFactory::new()->createOne(['usuario' => null, 'correo' => null]);
-
-        $this->assertSame('ana.rojas', $primera->getAttribute('usuario'));
-        $this->assertSame('ana.rojas2', $segunda->getAttribute('usuario'));
-        $this->assertSame('usuario', $sinCorreo->getAttribute('usuario'));
-    }
-
-    public function test_role_keeps_each_permission_once_and_is_not_a_system_role_by_default(): void
-    {
-        $rol = Role::create(['name' => 'Coordinador']);
-
-        $this->assertFalse($rol->refresh()->es_sistema);
-
-        $permisoId = DB::table('permissions')->insertGetId([
-            'name' => 'periodo_oferta',
-            'screen_name' => 'Período y oferta académica',
-        ]);
-
-        DB::table('permission_role')->insert(['role_id' => $rol->id, 'permission_id' => $permisoId]);
-
-        $this->assertRechaza(
-            'uq_permission_role',
-            fn () => DB::table('permission_role')->insert(['role_id' => $rol->id, 'permission_id' => $permisoId]),
         );
     }
 
@@ -258,7 +121,7 @@ final class EsquemaReplanteoTest extends TestCase
         $aula = $this->aula('691A');
 
         $primero = $this->examen($docente, [$this->grupo($docente)], [$aula]);
-        $this->examen($otro, [$this->grupo($otro)], [$aula]);
+        $segundo = $this->examen($otro, [$this->grupo($otro)], [$aula]);
 
         $this->assertSame(2, ExamenAula::where('aula_id', $aula->id)->count());
 
@@ -267,65 +130,34 @@ final class EsquemaReplanteoTest extends TestCase
             fn () => ExamenAula::create([
                 'examen_id' => $primero->id,
                 'aula_id' => $aula->id,
+                'encargado_id' => $segundo->creado_por,
             ]),
         );
     }
 
-    public function test_norm_template_text_is_unique_per_owner_and_among_predefined(): void
+    public function test_room_access_code_is_unique_only_when_present(): void
     {
         $docente = $this->docenteConCuenta();
-        $otro = $this->docenteConCuenta();
-
-        PlantillaNorma::create(['usuario_id' => null, 'texto' => 'Sin celular']);
-        PlantillaNorma::create(['usuario_id' => $docente->user_id, 'texto' => 'Sin celular']);
-        PlantillaNorma::create(['usuario_id' => $otro->user_id, 'texto' => 'Sin celular']);
-
-        $this->assertRechaza(
-            'uq_plantilla_predefinida_texto',
-            fn () => PlantillaNorma::create(['usuario_id' => null, 'texto' => 'Sin celular']),
+        $examen = $this->examen(
+            $docente,
+            [$this->grupo($docente)],
+            [$this->aula(), $this->aula(), $this->aula()],
         );
 
-        $this->assertRechaza(
-            'uq_plantilla_usuario_texto',
-            fn () => PlantillaNorma::create(['usuario_id' => $docente->user_id, 'texto' => 'Sin celular']),
-        );
-    }
+        [$primera, $segunda, $tercera] = ExamenAula::where('examen_id', $examen->id)
+            ->orderBy('id')
+            ->get()
+            ->all();
 
-    public function test_exam_keeps_the_norm_text_when_its_template_is_removed(): void
-    {
-        $docente = $this->docenteConCuenta();
-        $examen = $this->examen($docente, [$this->grupo($docente)]);
-        $plantilla = PlantillaNorma::create(['usuario_id' => $docente->user_id, 'texto' => 'Sin apuntes ni libros']);
+        $this->assertSame(3, ExamenAula::whereNull('codigo_acceso')->count());
 
-        ExamenNorma::create([
-            'examen_id' => $examen->id,
-            'plantilla_id' => $plantilla->id,
-            'texto' => $plantilla->texto,
-            'orden' => 1,
-        ]);
+        $primera->update(['codigo_acceso' => '482913', 'codigo_generado_en' => now()]);
+        $segunda->update(['codigo_acceso' => '100200', 'codigo_generado_en' => now()]);
 
         $this->assertRechaza(
-            'uq_examen_norma',
-            fn () => ExamenNorma::create([
-                'examen_id' => $examen->id,
-                'plantilla_id' => $plantilla->id,
-                'texto' => $plantilla->texto,
-                'orden' => 2,
-            ]),
+            'uq_examen_aula_codigo',
+            fn () => $tercera->update(['codigo_acceso' => '482913']),
         );
-
-        $plantilla->delete();
-
-        $this->assertDatabaseHas('examen_norma', [
-            'examen_id' => $examen->id,
-            'plantilla_id' => null,
-            'texto' => 'Sin apuntes ni libros',
-        ]);
-
-        // Con el examen se van sus normas marcadas.
-        $examen->delete();
-
-        $this->assertDatabaseCount('examen_norma', 0);
     }
 
     public function test_qualification_is_unique_and_a_disqualified_student_has_no_room(): void
@@ -351,6 +183,38 @@ final class EsquemaReplanteoTest extends TestCase
         );
     }
 
+    public function test_qr_code_is_unique_by_token_and_by_exam_and_student(): void
+    {
+        [$examen, $estudiantes] = $this->examenConInscritos(2);
+
+        CodigoQr::create([
+            'examen_id' => $examen->id,
+            'estudiante_id' => $estudiantes[0]->id,
+            'token' => str_repeat('a', 48),
+            'emitido_en' => now(),
+        ]);
+
+        $this->assertRechaza(
+            'uq_codigo_qr_token',
+            fn () => CodigoQr::create([
+                'examen_id' => $examen->id,
+                'estudiante_id' => $estudiantes[1]->id,
+                'token' => str_repeat('a', 48),
+                'emitido_en' => now(),
+            ]),
+        );
+
+        $this->assertRechaza(
+            'uq_codigo_qr_examen_estudiante',
+            fn () => CodigoQr::create([
+                'examen_id' => $examen->id,
+                'estudiante_id' => $estudiantes[0]->id,
+                'token' => str_repeat('b', 48),
+                'emitido_en' => now(),
+            ]),
+        );
+    }
+
     public function test_student_enters_an_exam_only_once_even_through_another_room(): void
     {
         [$examen, $estudiantes, $aula] = $this->examenConInscritos(1);
@@ -365,17 +229,115 @@ final class EsquemaReplanteoTest extends TestCase
         $this->assertDatabaseCount('ingresos', 1);
     }
 
-    public function test_exam_with_entries_cannot_be_deleted(): void
+    public function test_entry_cannot_be_updated(): void
     {
         [$examen, $estudiantes, $aula] = $this->examenConInscritos(1);
-        $ingresoId = $this->ingresar($examen, $estudiantes[0], $aula);
+        $ingreso = $this->ingresar($examen, $estudiantes[0], $aula);
 
+        $this->assertRechaza(
+            'trg_ingresos_inmutables',
+            fn () => DB::table('ingresos')
+                ->where('id', $ingreso->id)
+                ->update(['es_excepcion' => true]),
+        );
+
+        $this->assertDatabaseHas('ingresos', [
+            'id' => $ingreso->id,
+            'es_excepcion' => false,
+        ]);
+    }
+
+    public function test_entry_cannot_be_deleted(): void
+    {
+        [$examen, $estudiantes, $aula] = $this->examenConInscritos(1);
+        $ingreso = $this->ingresar($examen, $estudiantes[0], $aula);
+
+        $this->assertRechaza(
+            'trg_ingresos_inmutables',
+            fn () => DB::table('ingresos')->where('id', $ingreso->id)->delete(),
+        );
+
+        // Tampoco por arrastre: el examen con ingresos no se borra.
         $this->assertRechaza(
             'ingresos_examen_id_foreign',
             fn () => Examen::where('id', $examen->id)->delete(),
         );
 
-        $this->assertDatabaseHas('ingresos', ['id' => $ingresoId]);
+        $this->assertDatabaseHas('ingresos', ['id' => $ingreso->id]);
+    }
+
+    public function test_expulsion_requires_an_entry_and_happens_once_per_entry(): void
+    {
+        [$examen, $estudiantes, $aula] = $this->examenConInscritos(1);
+        $ingreso = $this->ingresar($examen, $estudiantes[0], $aula);
+
+        $this->assertRechaza(
+            'chk_incidencia_expulsion_con_ingreso',
+            fn () => $this->incidencia($examen, 'EXPULSION', null),
+        );
+
+        $this->incidencia($examen, 'EXPULSION', $ingreso);
+
+        $this->assertRechaza(
+            'uq_expulsion_por_ingreso',
+            fn () => $this->incidencia($examen, 'EXPULSION', $ingreso),
+        );
+
+        // El unico es parcial: sobre el mismo ingreso caben otras
+        // incidencias.
+        $this->incidencia($examen, 'MATERIAL_NO_PERMITIDO', $ingreso);
+        $this->incidencia($examen, 'MATERIAL_NO_PERMITIDO', $ingreso);
+
+        $this->assertDatabaseCount('incidencias', 3);
+    }
+
+    public function test_system_attempt_may_have_no_exam(): void
+    {
+        $aula = $this->aula();
+
+        Incidencia::create([
+            'examen_id' => null,
+            'aula_id' => $aula->id,
+            'tipo' => 'INTENTO_NO_AUTORIZADO',
+            'origen' => 'SISTEMA',
+            'causa' => 'CODIGO_INVALIDO',
+            'detalle' => 'Código que no existe.',
+            'ocurrida_en' => now(),
+        ]);
+
+        $this->assertDatabaseHas('incidencias', [
+            'aula_id' => $aula->id,
+            'examen_id' => null,
+            'origen' => 'SISTEMA',
+        ]);
+    }
+
+    public function test_failed_backups_keep_a_row_without_file(): void
+    {
+        Respaldo::create(['tipo' => 'PROGRAMADO', 'estado' => 'FALLIDO', 'error' => 'Disco lleno.']);
+        Respaldo::create(['tipo' => 'PUNTUAL', 'estado' => 'FALLIDO', 'error' => 'Disco lleno.']);
+        Respaldo::create([
+            'archivo' => 'respaldo-20261006-030000.sql',
+            'tipo' => 'PROGRAMADO',
+            'estado' => 'CORRECTO',
+        ]);
+
+        $this->assertRechaza(
+            'uq_respaldo_archivo',
+            fn () => Respaldo::create([
+                'archivo' => 'respaldo-20261006-030000.sql',
+                'tipo' => 'PUNTUAL',
+                'estado' => 'CORRECTO',
+            ]),
+        );
+
+        $this->assertDatabaseCount('respaldos', 3);
+    }
+
+    public function test_audit_log_has_the_indexes_the_screen_filters_by(): void
+    {
+        $this->assertTrue(Schema::hasIndex('bitacora_operaciones', 'idx_bitacora_fecha'));
+        $this->assertTrue(Schema::hasIndex('bitacora_operaciones', 'idx_bitacora_operacion'));
     }
 
     /**
@@ -394,6 +356,23 @@ final class EsquemaReplanteoTest extends TestCase
             $this->estudiantesInscritos($grupo, $cantidad),
             $aula,
         ];
+    }
+
+    private function incidencia(Examen $examen, string $tipo, ?Ingreso $ingreso): Incidencia
+    {
+        $autor = User::find($examen->creado_por);
+
+        return Incidencia::create([
+            'examen_id' => $examen->id,
+            'ingreso_id' => $ingreso?->id,
+            'estudiante_id' => $ingreso?->estudiante_id,
+            'aula_id' => $ingreso?->aula_id,
+            'tipo' => $tipo,
+            'origen' => 'PERSONA',
+            'detalle' => 'Detalle de la prueba.',
+            'ocurrida_en' => now(),
+            'reportada_por' => $autor?->getKey(),
+        ]);
     }
 
     /**

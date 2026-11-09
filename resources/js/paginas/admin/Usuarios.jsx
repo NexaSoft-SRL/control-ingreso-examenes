@@ -1,12 +1,15 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import {
+    AtSign,
     BookOpenCheck,
     Copy,
     GraduationCap,
+    Mail,
     Plus,
     ScanLine,
     ShieldCheck,
+    UserRound,
     UsersRound,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -28,8 +31,11 @@ import Paginacion from '../../componentes/Paginacion';
 import Seleccion from '../../componentes/Seleccion';
 import Tarjeta from '../../componentes/Tarjeta';
 import { usarSesion } from '../../sesion/SesionContexto';
+import { errorDeNombre, fechaCorta } from '../../utiles/texto';
 import PermisosPorRol from './PermisosPorRol';
 import { ERROR_USUARIO, normalizarUsuario, usuarioValido } from '../../utiles/usuario';
+
+const ICONO_ROL = { Administrador: ShieldCheck, Docente: BookOpenCheck, Auxiliar: ScanLine };
 
 const POR_PAGINA = 20;
 const TH = 'px-4 py-3 font-medium';
@@ -55,8 +61,6 @@ const ESTADOS = {
     bloqueado: { tono: 'peligro', texto: 'Bloqueado' },
 };
 
-const ICONO_ROL = { Administrador: ShieldCheck, Docente: BookOpenCheck, Auxiliar: ScanLine };
-
 function Estado({ estado }) {
     const forma = ESTADOS[estado] ?? ESTADOS.bloqueado;
     return <Insignia tono={forma.tono}>{forma.texto}</Insignia>;
@@ -65,8 +69,16 @@ function Estado({ estado }) {
 Estado.propTypes = { estado: PropTypes.string };
 
 // La contraseña temporal recién emitida. Solo existe en el estado de quien
-// la dibuja: al cerrar deja de estar.
-function ContrasenaTemporal({ usuario, contrasena, enviadaA = null, conCorreo, avisar }) {
+// la dibuja: al cerrar deja de estar. `caducaEn` es el instante que da el
+// servidor (`caduca_en`).
+function ContrasenaTemporal({
+    usuario,
+    contrasena,
+    enviadaA = null,
+    caducaEn = null,
+    conCorreo,
+    avisar,
+}) {
     function copiar() {
         const copia = navigator.clipboard?.writeText(contrasena);
         if (!copia) {
@@ -101,7 +113,9 @@ function ContrasenaTemporal({ usuario, contrasena, enviadaA = null, conCorreo, a
                           : ' · sin correo'}
                 </p>
             </div>
-            <p className="text-sm text-slate-600">Caduca en 72 horas</p>
+            <p className="text-sm text-slate-600">
+                {caducaEn ? `Caduca el ${fechaCorta(caducaEn)}` : 'Caduca en 72 horas'}
+            </p>
         </div>
     );
 }
@@ -110,6 +124,7 @@ ContrasenaTemporal.propTypes = {
     usuario: PropTypes.string,
     contrasena: PropTypes.string.isRequired,
     enviadaA: PropTypes.string,
+    caducaEn: PropTypes.string,
     conCorreo: PropTypes.bool,
     avisar: PropTypes.func.isRequired,
 };
@@ -117,6 +132,9 @@ ContrasenaTemporal.propTypes = {
 // Alta o edición de una cuenta. `cuenta` sin id es una nueva. Con id suma
 // el bloqueo y el restablecimiento de la contraseña.
 function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisar }) {
+    const { usuario: sesion } = usarSesion();
+    // La propia cuenta no cambia su rol ni se bloquea.
+    const propia = cuenta.id !== undefined && cuenta.id === sesion?.id;
     const nueva = !cuenta.id;
     const [nombre, setNombre] = useState(cuenta.nombre ?? '');
     const [usuario, setUsuario] = useState(cuenta.usuario ?? '');
@@ -134,11 +152,7 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
 
     const opciones = cuenta.rol && !roles.includes(cuenta.rol) ? [...roles, cuenta.rol] : roles;
 
-    const errorNombre = !nombre.trim()
-        ? 'Obligatorio'
-        : nombre.trim().length < 3
-          ? 'Mínimo 3 caracteres'
-          : null;
+    const errorNombre = errorDeNombre(nombre, 3);
     const errorUsuario = !usuario.trim()
         ? 'Obligatorio'
         : !usuarioValido(usuario)
@@ -218,7 +232,7 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
                     <Boton variante="secundario" onClick={onCerrar}>
                         Cancelar
                     </Boton>
-                    <Boton type="submit" form="formulario-cuenta" disabled={enviando}>
+                    <Boton type="submit" form="formulario-cuenta" cargando={enviando}>
                         {nueva ? 'Crear' : 'Guardar'}
                     </Boton>
                 </>
@@ -227,6 +241,7 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
             <form id="formulario-cuenta" className="space-y-4" onSubmit={enviar} noValidate>
                 <Campo
                     etiqueta="Nombre"
+                    icono={UserRound}
                     requerido
                     value={nombre}
                     error={errores.nombre ?? (enviado ? (errorNombre ?? undefined) : undefined)}
@@ -235,6 +250,7 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
                 />
                 <Campo
                     etiqueta="Usuario"
+                    icono={AtSign}
                     requerido
                     autoCapitalize="none"
                     autoComplete="off"
@@ -246,6 +262,7 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
                 />
                 <Campo
                     etiqueta="Correo"
+                    icono={Mail}
                     type="email"
                     autoCapitalize="none"
                     autoComplete="off"
@@ -258,8 +275,10 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
                 <div>
                     <Seleccion
                         etiqueta="Rol"
+                        icono={ShieldCheck}
                         requerido
                         value={rol}
+                        disabled={propia}
                         aria-invalid={errores.rol ? 'true' : undefined}
                         onChange={cambiar('rol', setRol)}
                     >
@@ -311,25 +330,29 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
                                         >
                                             Restablecer contraseña
                                         </Boton>
-                                        <Boton
-                                            type="button"
-                                            variante={
-                                                estado !== 'bloqueado'
-                                                    ? 'peligroContorno'
-                                                    : 'secundario'
-                                            }
-                                            tamano="chico"
-                                            className="min-h-10"
-                                            onClick={() =>
-                                                setEstado(
+                                        {!propia && (
+                                            <Boton
+                                                type="button"
+                                                variante={
                                                     estado !== 'bloqueado'
-                                                        ? 'bloqueado'
-                                                        : desbloqueada
-                                                )
-                                            }
-                                        >
-                                            {estado !== 'bloqueado' ? 'Bloquear' : 'Desbloquear'}
-                                        </Boton>
+                                                        ? 'peligroContorno'
+                                                        : 'secundario'
+                                                }
+                                                tamano="chico"
+                                                className="min-h-10"
+                                                onClick={() =>
+                                                    setEstado(
+                                                        estado !== 'bloqueado'
+                                                            ? 'bloqueado'
+                                                            : desbloqueada
+                                                    )
+                                                }
+                                            >
+                                                {estado !== 'bloqueado'
+                                                    ? 'Bloquear'
+                                                    : 'Desbloquear'}
+                                            </Boton>
+                                        )}
                                     </>
                                 )}
                             </div>
@@ -339,6 +362,7 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
                                 usuario={cuenta.usuario}
                                 contrasena={emitida.contrasena_temporal}
                                 enviadaA={emitida.enviada_a}
+                                caducaEn={emitida.caduca_en}
                                 conCorreo={Boolean(cuenta.correo)}
                                 avisar={avisar}
                             />
@@ -377,8 +401,8 @@ export default function Usuarios() {
     });
     const roles = usarConsulta('/roles');
     const { puede } = usarSesion();
-    // El estudiante no tiene cuenta: entra con su código SIS, y su portal
-    // no tiene permisos que repartir.
+    // El estudiante no tiene cuenta: entra con su código SIS y un código al
+    // correo, y su portal no tiene permisos que repartir.
     const estudiantes = usarConsulta('/estudiantes/resumen', {
         activa: puede('padron_estudiantes'),
     });
@@ -461,7 +485,8 @@ export default function Usuarios() {
                         {puede('padron_estudiantes') && (
                             <Link
                                 to="/estudiantes"
-                                className="block h-full min-w-0 rounded-xl border border-dashed border-slate-300 bg-white p-4 hover:border-primary-300 hover:bg-primary-50/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600"
+                                title="Sin cuenta: entra con un código que le llega al correo"
+                                className="block min-w-0 rounded-xl border border-dashed border-slate-300 bg-white p-4 hover:border-primary-300 hover:bg-primary-50/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600"
                             >
                                 <span className="flex items-start justify-between gap-2">
                                     <span className="min-w-0">
@@ -677,6 +702,7 @@ export default function Usuarios() {
                         usuario={creada.data?.usuario}
                         contrasena={creada.contrasena_temporal}
                         enviadaA={creada.enviada_a}
+                        caducaEn={creada.caduca_en}
                         conCorreo={creada.conCorreo}
                         avisar={avisar}
                     />

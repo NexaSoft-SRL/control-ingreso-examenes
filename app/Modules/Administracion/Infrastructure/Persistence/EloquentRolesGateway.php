@@ -8,6 +8,7 @@ use App\Modules\Administracion\Application\Contracts\RolesGateway;
 use App\Modules\Administracion\Application\DTOs\RolData;
 use App\Modules\Administracion\Domain\Models\Permission;
 use App\Modules\Administracion\Domain\Models\Role;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentRolesGateway implements RolesGateway
@@ -64,7 +65,7 @@ final class EloquentRolesGateway implements RolesGateway
 
     public function rolDeUsuario(int $usuarioId): ?int
     {
-        $rolId = DB::table('usuarios')->where('id', $usuarioId)->value('role_id');
+        $rolId = DB::table('users')->where('id', $usuarioId)->value('role_id');
 
         return is_numeric($rolId) ? (int) $rolId : null;
     }
@@ -109,8 +110,11 @@ final class EloquentRolesGateway implements RolesGateway
     }
 
     /**
+     * Lo que se marca en la matriz queda sin vencimiento: una asignacion
+     * que ya existia pierde la vigencia que tuviera.
+     *
      * @param  list<string>  $claves
-     * @return list<int>
+     * @return array<int, array{vigente_desde: null, vigente_hasta: null}>
      */
     private function identificadores(array $claves): array
     {
@@ -118,7 +122,7 @@ final class EloquentRolesGateway implements RolesGateway
 
         foreach (Permission::query()->whereIn('name', $claves)->pluck('id') as $id) {
             if (is_numeric($id)) {
-                $identificadores[] = (int) $id;
+                $identificadores[(int) $id] = ['vigente_desde' => null, 'vigente_hasta' => null];
             }
         }
 
@@ -132,8 +136,10 @@ final class EloquentRolesGateway implements RolesGateway
      */
     private function leer(?int $rolId): array
     {
+        $hoy = now()->toDateString();
+
         $consulta = DB::table('roles as rol')
-            ->leftJoin('usuarios as cuenta', 'cuenta.role_id', '=', 'rol.id')
+            ->leftJoin('users as cuenta', 'cuenta.role_id', '=', 'rol.id')
             ->groupBy('rol.id', 'rol.name', 'rol.es_sistema')
             ->orderByDesc('rol.es_sistema')
             ->orderBy('rol.id')
@@ -141,6 +147,15 @@ final class EloquentRolesGateway implements RolesGateway
 
         $asignaciones = DB::table('permission_role as asignacion')
             ->join('permissions as permiso', 'permiso.id', '=', 'asignacion.permission_id')
+            // Solo lo vigente hoy: es lo que la cuenta tiene de verdad.
+            ->where(function (Builder $donde) use ($hoy): void {
+                $donde->whereNull('asignacion.vigente_desde')
+                    ->orWhere('asignacion.vigente_desde', '<=', $hoy);
+            })
+            ->where(function (Builder $donde) use ($hoy): void {
+                $donde->whereNull('asignacion.vigente_hasta')
+                    ->orWhere('asignacion.vigente_hasta', '>=', $hoy);
+            })
             ->orderBy('permiso.id')
             ->select(['asignacion.role_id', 'permiso.name']);
 

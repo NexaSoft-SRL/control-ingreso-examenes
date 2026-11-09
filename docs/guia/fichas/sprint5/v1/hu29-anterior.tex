@@ -1,0 +1,57 @@
+% Ficha HU-29. Criterios del backlog de la iteracion 5. El reporte no
+% calcula nada nuevo: lee lo que dejo el punto de control.
+\def\HUNro{29}
+\def\HUSprint{5}
+\def\HUTitulo{Reportes > Asistencia}
+\def\HUModulo{M6}
+\def\HUReq{12}
+\def\HUPuntos{3}
+
+\def\HUComo{docente}
+\def\HUQuiero{obtener la asistencia de un examen}
+\def\HUPara{documentar quiénes rindieron}
+
+\def\HUDescripcion{%
+Terminado el examen, el docente necesita el papel que dice quiénes rindieron. Hasta ahora
+eso salía de una lista firmada a mano, con la letra de cada uno y los apellidos
+incompletos.
+
+El reporte lista a los estudiantes que registraron su ingreso, con la hora que puso el
+servidor, el ambiente en el que entraron y el medio con que se los identificó. A quien
+fue expulsado (HU-24) lo muestra igual ---estuvo en el aula--- pero marcado como tal, y
+arrastra la observación que se anotó al ingresar (HU-26).
+
+Se genera por examen y, cuando el examen se rinde en varias aulas, se lo puede acotar a
+una. Los ingresos anulados (HU-21) no figuran: la anulación existe justamente para
+deshacer un registro equivocado.
+
+El reporte es de solo lectura, como todos los del módulo, y se exporta a PDF y a hoja de
+cálculo (HU-34).}
+
+\def\HUCriterios{%
+\item Dado un examen con ingresos registrados, Cuando se pide el reporte, Entonces lista
+      a los estudiantes que ingresaron con su hora.
+\item Dado que el examen se rindió en varias aulas, Cuando se acota el reporte a una,
+      Entonces solo figuran los estudiantes de esa aula.
+\item Dado que un ingreso fue anulado, Cuando se pide el reporte, Entonces ese estudiante
+      no figura.
+\item Dado que un estudiante fue expulsado, Cuando se lo ve en el reporte, Entonces
+      figura con su situación.
+\item Dado que se anotó una observación al ingresar, Cuando se ve el reporte, Entonces la
+      observación acompaña a esa fila.
+\item Dado que el rol es el del docente, Cuando pide el reporte de su asignatura, Entonces
+      el sistema se lo entrega; y le niega los consolidados.}
+
+\def\HUPruebas{%
+\item \texttt{ReportesTest::the\_attendance\_report\_lists\_who\_entered\_with\_their\_time}
+      (criterios 1 y 5).
+\item \texttt{ReportesTest::the\_attendance\_report\_can\_be\_narrowed\_to\_one\_room}
+      (criterio 2).
+\item \texttt{ReportesTest::the\_attendance\_report\_ignores\_annulled\_entries}
+      (criterio 3).
+\item \texttt{ReportesTest::the\_teacher\_reaches\_the\_reports\_of\_the\_subject\_only}
+      (criterio 6).
+\item \texttt{Reportes.test.jsx}: la pantalla muestra el reporte con sus filtros y su
+      fecha de emisión (criterios 1 y 2).}
+
+\input{cuerpo}

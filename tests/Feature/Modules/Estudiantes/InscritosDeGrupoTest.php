@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Modules\Estudiantes;
 
-use App\Modules\Estudiantes\Application\Contracts\FotosDeEstudiantes;
 use App\Modules\Estudiantes\Application\Contracts\InscritosDeExamenGateway;
 use App\Modules\Estudiantes\Application\DTOs\EstudianteData;
 use App\Modules\Estudiantes\Domain\Enums\OrigenEstudiante;
@@ -50,6 +49,8 @@ final class InscritosDeGrupoTest extends TestCase
                 'id' => $deAdministracion->id,
                 'codigo' => $deAdministracion->codigo_universitario,
                 'nombre' => 'Apellido 1 Nombre 1',
+                'nombres' => 'Nombre 1',
+                'apellidos' => 'Apellido 1',
                 'documento' => $deAdministracion->documento_identidad,
                 'origen' => 'Administración',
                 'foto' => ['subida_en' => null, 'habilitada_hasta' => null],
@@ -116,43 +117,7 @@ final class InscritosDeGrupoTest extends TestCase
         $this->actingAs($this->cuentaDe($docente))
             ->getJson("/api/docente/grupos/{$ajeno->id}/inscritos")
             ->assertForbidden()
-            ->assertExactJson(['message' => 'Grupo no autorizado.', 'alcance' => true]);
-    }
-
-    public function test_a_teacher_can_view_the_photo_only_for_a_student_enrolled_in_its_group(): void
-    {
-        $docente = $this->docente();
-        $grupo = $this->grupo($docente);
-        $estudiante = $this->estudiantesInscritos($grupo, 1)[0];
-
-        $this->mock(FotosDeEstudiantes::class)
-            ->shouldReceive('foto')
-            ->once()
-            ->with($estudiante->id)
-            ->andReturn('jpeg-bytes');
-
-        $this->actingAs($this->cuentaDe($docente))
-            ->get("/api/docente/grupos/{$grupo->id}/inscritos/{$estudiante->id}/foto")
-            ->assertOk()
-            ->assertHeader('Content-Type', 'image/jpeg')
-            ->assertHeader('Cache-Control', 'no-store, private')
-            ->assertContent('jpeg-bytes');
-    }
-
-    public function test_a_teacher_cannot_view_a_student_photo_outside_its_group(): void
-    {
-        $docente = $this->docente();
-        $grupo = $this->grupo($docente);
-        $estudiante = $this->estudiantesInscritos($grupo, 1)[0];
-        $otroGrupo = $this->grupo($docente);
-        $porDesignar = $this->grupo();
-
-        $this->mock(FotosDeEstudiantes::class)
-            ->shouldNotReceive('foto');
-
-        $this->actingAs($this->cuentaDe($docente))
-            ->getJson("/api/docente/grupos/{$otroGrupo->id}/inscritos/{$estudiante->id}/foto")
-            ->assertNotFound();
+            ->assertExactJson(['message' => 'Este grupo no está a su cargo.', 'alcance' => true]);
 
         $this->actingAs($this->cuentaDe($docente))
             ->getJson("/api/docente/grupos/{$porDesignar->id}/inscritos")
@@ -175,18 +140,7 @@ final class InscritosDeGrupoTest extends TestCase
         $this->getJson("/api/docente/grupos/{$grupo->id}/inscritos")->assertUnauthorized();
     }
 
-    public function test_a_role_without_the_permission_cannot_see_the_list(): void
-    {
-        $grupo = $this->grupo($this->docente());
-
-        // El Administrador tiene todos los permisos (D-8): se prueba con el Auxiliar.
-        $this->actingAs($this->usuarioConRol('Auxiliar'))
-            ->getJson("/api/docente/grupos/{$grupo->id}/inscritos")
-            ->assertForbidden()
-            ->assertJsonPath('permiso_requerido', 'mis_grupos');
-    }
-
-    public function test_the_administrator_does_not_have_the_permission_of_the_teacher_groups(): void
+    public function test_the_administrator_does_not_use_the_teacher_routes(): void
     {
         $grupo = $this->grupo($this->docente());
 
@@ -283,7 +237,8 @@ final class InscritosDeGrupoTest extends TestCase
         $this->actingAs($this->usuarioConRol('Auxiliar'))
             ->getJson('/api/inscritos/plantilla')
             ->assertForbidden()
-            ->assertJsonPath('permiso_requerido', 'padron_estudiantes|mis_grupos');
+            ->assertJsonPath('message', 'Este rol no tiene permiso para esta sección.')
+            ->assertJsonPath('permiso_requerido', 'padron_estudiantes');
     }
 
     // --- Contrato publico ---

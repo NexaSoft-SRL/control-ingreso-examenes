@@ -2,15 +2,16 @@
 
 ## 1. Estado del documento
 
-Este documento contiene el diseño de datos del sistema de gestión, validación y
-control del ingreso de estudiantes a exámenes masivos.
+Este documento describe el diseño de datos del sistema de gestión, validación y control
+del ingreso de estudiantes a exámenes masivos.
 
-El diseño se encuentra en elaboración durante el Sprint 0. Ninguna estructura
-indicada como candidata se considera implementada mientras no haya sido
-validada, traducida a restricciones PostgreSQL y aprobada conforme al proceso
-del proyecto.
+El diseño se elaboró durante el Sprint 0 como propuesta y se implementó entre los sprints
+1 y 5. **Las migraciones son la fuente de verdad del esquema**; este documento explica por
+qué el esquema quedó así y qué se decidió en cada punto discutido.
 
-Las migraciones de dominio se crearán después de cerrar este diseño.
+Cada decisión de la sección 6 indica cómo cerró: qué se implementó, qué se resolvió de
+otra manera que la propuesta original y qué sigue abierto a la espera de una definición
+funcional de TIS.
 
 ## 2. Principios
 
@@ -24,423 +25,351 @@ El modelo debe:
 - soportar identificación rápida por QR, código universitario y documento;
 - conservar los registros históricos necesarios para auditoría y reportes.
 
-## 3. Entidades conceptuales
+## 3. Entidades y tablas
+
+Correspondencia entre las entidades conceptuales del diseño y las tablas implementadas.
+Los conceptos que no aparecen como tabla propia se resolvieron dentro de otra entidad, y
+la sección 6 explica por qué.
 
 ### Administración
 
-- Usuario
-- Rol
-- Permiso
-- Bitácora
+| Concepto | Tabla | Nota |
+|---|---|---|
+| Usuario | `users` | Bloqueo por intentos fallidos y cambio obligatorio de contraseña (HU-01) |
+| Rol | `roles` | Los de sistema no se eliminan (`es_sistema`) |
+| Permiso | `permissions` | Un permiso por pantalla |
+| Rol-Permiso | `permission_role` | Con vigencia opcional (`vigente_desde`, `vigente_hasta`) |
+| Bitácora | `bitacora_operaciones` | Hechos de auditoría, no estado (HU-07) |
+| Intentos de acceso | `login_attempts` | Soporte del bloqueo de HU-01 |
+| Ambiente | `ambientes` | Catálogo de aulas, con capacidad y estado (HU-06) |
 
 ### Estudiantes
 
-- Estudiante
-- ParticipacionExamen
+| Concepto | Tabla | Nota |
+|---|---|---|
+| Estudiante | `students` | Baja lógica con `activo`; nunca se borra (HU-03) |
+| ParticipacionExamen | — | No se implementó: la pertenencia al examen la expresa `habilitaciones_examen` (ver D-02) |
 
 ### Exámenes
 
-- Docente
-- Asignatura
-- Examen
-- Ambiente
-- ExamenAmbiente
-- NormaExamen
-- NormaEstudianteExamen
+| Concepto | Tabla | Nota |
+|---|---|---|
+| Docente | `docentes` | Vínculo opcional y único con `users` (D-01) |
+| Asignatura | `asignaturas` | |
+| Grupo | `grupos_asignatura` | Docente responsable por grupo, no por asignatura (D-08) |
+| Examen | `examenes` | Único por grupo, fecha y hora de inicio (HU-08) |
+| ExamenAmbiente | `examen_ambiente` | Aulas habilitadas para el examen (HU-10) |
+| NormaExamen | `normas_examen` | Generales y particulares en una sola tabla, con `alcance` (D-06) |
+| NormaEstudianteExamen | — | Es una fila de `normas_examen` con `alcance = PARTICULAR` y `student_id` |
 
 ### Habilitación
 
-- Habilitación
-- MotivoInhabilitación
-- AsignaciónAmbiente
-- CódigoQR
+| Concepto | Tabla | Nota |
+|---|---|---|
+| Habilitación | `habilitaciones_examen` | Única por examen y estudiante (HU-11) |
+| MotivoInhabilitación | — | Columna `motivo` de la habilitación, texto libre obligatorio (D-02) |
+| AsignaciónAmbiente | — | Columna `ambiente_id` de la habilitación (D-02) |
+| CódigoQR | `codigos_qr` | Un token opaco por examen y estudiante (D-05) |
 
 ### Ingreso
 
-- Ingreso
-- AnulaciónIngreso
-- Incidencia
+| Concepto | Tabla | Nota |
+|---|---|---|
+| Ingreso | `ingresos_examen` | Con la anulación en las mismas columnas (D-03, D-07) |
+| AnulaciónIngreso | — | Columnas `anulado_en`, `anulado_por` y `motivo_anulacion` del ingreso |
+| Incidencia | `incidencias_ingreso` | Lo que el sistema rechazó en la puerta (D-04) |
+| Expulsión | `expulsiones` | Tabla propia, colgada del ingreso previo (D-04, HU-24) |
+| Situación excepcional | `situaciones_excepcionales` | Lo que el personal resolvió a mano (D-04, HU-25) |
 
-## 4. Relaciones conceptuales
+### Tablas de trabajo de Laravel
 
-Un docente puede ser responsable de asignaturas.
+`sessions`, `password_reset_tokens`, `cache`, `cache_locks`, `jobs`, `job_batches` y
+`failed_jobs` existen en el esquema pero no son del dominio: las crea el framework para
+sostener sesiones, colas y caché. No se respaldan (HU-35) ni se documentan aquí como
+entidades.
 
-Una asignatura puede tener múltiples exámenes.
+### Monitoreo, reportes y respaldo
 
-Un examen puede utilizar múltiples ambientes y un ambiente puede ser utilizado
-por múltiples exámenes en distintos momentos. Esta relación se representa
-mediante ExamenAmbiente.
+No agregan tablas. El tablero (HU-27), la lista de presentes y ausentes (HU-28) y los
+cinco reportes (HU-29 a HU-33) son consultas de solo lectura sobre lo anterior. Los
+respaldos (HU-35) son archivos SQL en `storage/app/respaldos`, no filas.
 
-Un examen puede disponer de múltiples NormaExamen.
+## 4. Relaciones
 
-Una NormaEstudianteExamen representa una regla particular cuyo alcance está
-limitado a una combinación estudiante-examen.
+Un docente puede ser responsable de varios grupos de asignatura, y un grupo tiene un solo
+docente responsable.
 
-Un estudiante puede participar en múltiples exámenes. ParticipacionExamen
-representa de forma neutral la pertenencia de un Estudiante a un Examen y debe
-ser única para cada combinación estudiante-examen.
+Una asignatura puede tener varios grupos, y cada grupo, varios exámenes.
 
-La condición del estudiante respecto a esa participación se representa mediante
-Habilitación. Una habilitación negativa se relaciona con un
-MotivoInhabilitación parametrizable.
+Un examen puede utilizar varios ambientes y un ambiente puede ser utilizado por varios
+exámenes en distintos momentos. Esa relación es `examen_ambiente`.
 
-CódigoQR permite identificar una relación estudiante-examen durante el punto de
-control, pero no constituye por sí mismo evidencia de habilitación ni permiso
-de ingreso.
+Un examen puede tener varias normas. Una norma de alcance particular se limita además a
+un estudiante.
 
-La asignación física del estudiante se modela separadamente de la asignación del
-ambiente al examen. AsignaciónAmbiente relaciona estudiante, examen y ambiente.
+La condición del estudiante respecto a un examen es `habilitaciones_examen`, única por
+examen y estudiante. La ausencia de fila significa que **nadie registró condición** para
+ese estudiante y examen, y es distinta de una condición negativa: el punto de control las
+distingue y el reporte de HU-33 las cuenta por separado.
 
-Un ingreso corresponde al acceso efectivo de un estudiante a un examen. Se
-relaciona con la Habilitación validada, el ambiente efectivo del ingreso y el
-usuario que realizó el registro. Estudiante y examen se determinan
-inequívocamente mediante la Habilitación.
+El ambiente asignado a un estudiante es una columna de su habilitación, no una entidad
+aparte, y puede quedar nulo mientras no se haya distribuido (HU-14).
 
-Las incidencias registran resultados excepcionales del punto de control. Algunas
-pueden existir sin un ingreso previo; una expulsión, en cambio, requiere un
-ingreso previo. Esta diferencia debe quedar resuelta antes del modelo lógico.
+`codigos_qr` identifica una relación estudiante-examen en la puerta. No es evidencia de
+habilitación: después de resolver el token, el sistema comprueba igual la condición y el
+ambiente.
 
-## 5. Reglas funcionales confirmadas
+Un ingreso corresponde al acceso efectivo de un estudiante a un examen. Guarda examen y
+estudiante directamente ---no a través de la habilitación (D-03)---, el ambiente por el
+que entró, el medio con que se lo identificó, quién lo registró y la hora que puso el
+servidor.
 
-Las siguientes reglas provienen del pliego, del backlog o de la propuesta
-técnica aceptada como base del diseño:
+Una incidencia registra lo que el sistema rechazó en la puerta; puede existir sin ingreso
+previo y, en el caso de un problema de identificación, incluso sin estudiante. Una
+expulsión, en cambio, cuelga obligatoriamente de un ingreso previo. Una situación
+excepcional registra lo que una persona resolvió, con su motivo.
 
-- El estudiante debe poder identificarse mediante código universitario,
-  documento de identidad o código QR.
-- Antes del ingreso debe comprobarse la habilitación del estudiante para el
-  examen correspondiente.
-- Antes del ingreso debe verificarse el ambiente que corresponde al estudiante.
-- La fecha y hora del ingreso se registran automáticamente.
-- Un estudiante no puede registrar más de un ingreso para el mismo examen.
-- La garantía contra doble ingreso debe mantenerse también bajo concurrencia.
-- Los intentos de ingreso a exámenes que no corresponden deben quedar registrados.
-- Las expulsiones deben conservar motivo y hora.
-- Las situaciones excepcionales, incluidos problemas de identificación,
-  estudiantes no habilitados y cambios de ambiente, deben quedar registradas.
-- Las operaciones relevantes deben conservar usuario, fecha y hora.
-- Las correcciones de un ingreso deben conservar el registro original mediante
-  una anulación registrada.
+## 5. Reglas funcionales implementadas
 
-## 5.1 Invariantes de diseño candidatos
+Provienen del pliego, del backlog o de la propuesta técnica, y todas están cubiertas por
+pruebas automatizadas:
 
-Las siguientes reglas son propuestas del modelo y deben validarse antes de
-convertirse en restricciones PostgreSQL:
+- el estudiante se identifica por código universitario, documento de identidad o código
+  QR (HU-15, HU-16, HU-18);
+- antes del ingreso se comprueba la habilitación (HU-19) y el ambiente que le corresponde
+  (HU-20);
+- la fecha y la hora del ingreso las pone el servidor y el cliente no puede enviarlas
+  (HU-21);
+- un estudiante no registra más de un ingreso vigente para el mismo examen, ni siquiera
+  con dos puestos de control operando a la vez (HU-22);
+- los intentos de ingreso a exámenes que no corresponden quedan registrados, distinguiendo
+  al no registrado del inhabilitado (HU-23);
+- las expulsiones conservan motivo y hora, y cierran la puerta de ese examen (HU-24);
+- las situaciones excepcionales ---problema de identificación, cambio de ambiente,
+  estudiante no habilitado--- quedan registradas con su motivo (HU-25);
+- las operaciones relevantes conservan usuario, fecha y hora en la bitácora (HU-07);
+- una corrección de ingreso conserva el registro original mediante una anulación
+  registrada (HU-21);
+- la capacidad de un ambiente no puede quedar por debajo de los estudiantes ya asignados
+  en exámenes por rendirse (HU-06 con las tablas de HU-08 y HU-14).
 
-- una sola relación de habilitación por estudiante y examen;
-- una sola asignación de ambiente por estudiante y examen;
-- el ambiente asignado a un estudiante debe formar parte de los ambientes
-  habilitados para ese examen;
-- la bitácora representa hechos de auditoría y no el estado actual de las
-  entidades de negocio.
+## 5.1 Invariantes del modelo
+
+- una sola habilitación por estudiante y examen ---índice `uq_habilitacion_examen_estudiante`---;
+- un solo ambiente asignado por estudiante y examen, porque es una columna de esa fila
+  única;
+- un solo ingreso vigente por estudiante y examen, conservando los anulados ---índice
+  parcial `uq_ingreso_vigente_por_estudiante`---;
+- una sola expulsión por ingreso ---índice `uq_expulsion_por_ingreso`---;
+- un solo código QR por estudiante y examen ---índice `uq_codigo_qr_examen_estudiante`---;
+- un examen único por grupo, fecha y hora de inicio;
+- la bitácora representa hechos de auditoría y no el estado actual de las entidades.
 
 ## 6. Decisiones de diseño
 
-### D-01 — Docente y usuario — RESUELTA COMO PROPUESTA DE DISEÑO
+### D-01 — Docente y usuario — IMPLEMENTADA
+
+Docente se mantiene como entidad académica independiente de Usuario, con un vínculo
+opcional y único (`docentes.user_id`, con índice único).
+
+Permite registrar docentes antes de provisionarles una cuenta y evita acoplar la
+información académica al mecanismo de acceso. El alta de docente se hace desde la pantalla
+de usuarios y roles, con ese permiso (HU-02).
+
+### D-02 — Semántica de Habilitación — IMPLEMENTADA, CON DOS SIMPLIFICACIONES
+
+La habilitación es la condición evaluada de un estudiante respecto a un examen, única por
+esa combinación. La ausencia de fila no equivale a una inhabilitación, y el sistema
+distingue los dos casos en la puerta (HU-19) y en los reportes (HU-33).
+
+Dos conceptos que el diseño preveía como entidades propias quedaron dentro de la
+habilitación:
+
+- **MotivoInhabilitación no es un catálogo.** Se implementó como texto libre obligatorio
+  cuando la condición es negativa (HU-12). Un catálogo cerrado obligaría a mantener una
+  tabla de motivos que nadie pidió administrar, y las revisiones mostraron motivos
+  redactados caso por caso. Si TIS pide después consolidar motivos, la migración es
+  agregar la tabla y una columna opcional, sin tocar lo registrado.
+- **AsignaciónAmbiente no es una tabla.** Es la columna `ambiente_id` de la habilitación.
+  Como la habilitación ya es única por estudiante y examen, esa columna garantiza sola el
+  invariante «un solo ambiente asignado por estudiante y examen», sin una tabla adicional
+  ni una restricción extra.
+
+`ParticipacionExamen`, que el diseño usaba para representar de forma neutral la
+pertenencia al examen, no se implementó: la habilitación cumple ese papel, y una fila
+neutral aparte habría duplicado la clave estudiante-examen sin agregar información.
+
+### D-03 — Unicidad e integridad de Ingreso — IMPLEMENTADA, DISTINTO DE LA PROPUESTA
+
+El diseño proponía que Ingreso referenciara a Habilitación para no duplicar estudiante y
+examen. **Se implementó con `examen_id` y `student_id` directos.** Razones:
 
-Docente se mantiene como entidad académica independiente de Usuario.
+- el punto de control necesita registrar hechos de estudiantes que **no tienen**
+  habilitación ---las incidencias de HU-23---, y hacer que unas tablas cuelguen de la
+  habilitación y otras no habría partido el modelo en dos formas de nombrar lo mismo;
+- todas las consultas del monitoreo y de los reportes parten del par examen-estudiante;
+  llegar a él por un salto adicional encarecía cada una sin beneficio.
 
-Un Docente puede vincularse opcionalmente a un Usuario mediante una relación
-uno a cero-o-uno. El vínculo debe ser único cuando exista.
+La unicidad quedó resuelta por D-07: como una anulación permite registrar un ingreso
+nuevo, una restricción simple habría impedido conservar el historial. Se implementó un
+**índice único parcial** de PostgreSQL:
 
-Usuario representa autenticación, autorización y acceso al sistema. Docente
-representa la identidad académica utilizada por asignaturas y exámenes.
+```sql
+CREATE UNIQUE INDEX uq_ingreso_vigente_por_estudiante
+ON ingresos_examen (examen_id, student_id)
+WHERE anulado_en IS NULL
+```
 
-Esta separación permite registrar docentes académicos antes de provisionarles
-una cuenta y evita acoplar la información académica al mecanismo de acceso.
-La decisión debe ser validada con TIS antes de congelar el modelo lógico.
+Permite varios ingresos históricos para el mismo par y como máximo uno vigente, y
+sostiene la regla bajo concurrencia sin depender de la comprobación previa del código
+(HU-22).
 
-### D-02 — Semántica de Habilitación — RESUELTA COMO PROPUESTA DE DISEÑO
+Queda **una regla en la aplicación y no en el esquema**: que no se registre un ingreso de
+un estudiante cuya condición sea negativa. La comprueba la acción `RegistrarIngreso`
+antes de escribir, y existe la excepción deliberada del ingreso autorizado a mano, que se
+asienta como situación excepcional (HU-25). Llevarla a una restricción física exigiría
+duplicar la condición dentro del ingreso, y ese dato copiado podría quedar desactualizado.
 
-Habilitación representa la condición evaluada de un estudiante respecto a un
-examen.
+### D-04 — Incidencias — IMPLEMENTADA COMO TRES TABLAS
 
-Para una misma combinación estudiante-examen puede existir como máximo una
-Habilitación.
+El diseño preveía una sola entidad Incidencia con un tipo y contexto variable. Se
+implementó separando **quién escribe el hecho**, que es lo que hace que las columnas
+obligatorias sean distintas:
 
-La ausencia de una fila de Habilitación significa que no existe una condición
-registrada para ese estudiante y examen; no equivale a una inhabilitación.
+| Tabla | Quién la escribe | Qué exige |
+|---|---|---|
+| `incidencias_ingreso` | el sistema, al rechazar | tipo, examen, hora; estudiante opcional |
+| `expulsiones` | el personal, sobre un ingreso | ingreso previo, motivo y hora obligatorios |
+| `situaciones_excepcionales` | el personal, a mano | tipo, motivo obligatorio; estudiante opcional |
 
-Una Habilitación conserva su condición y, cuando la condición sea negativa, el
-motivo de inhabilitación correspondiente.
+Una sola tabla habría necesitado columnas obligatorias para unos tipos y nulas para
+otros, que es exactamente la ambigüedad que el diseño quería evitar. Separarlas permite
+además que la expulsión tenga su clave foránea al ingreso y su índice único, en vez de
+una restricción condicional por tipo.
+
+El cambio de ambiente no guarda «ambiente anterior» y «nuevo»: el anterior es el de la
+habilitación, que no se modifica, y el nuevo es el ambiente del ingreso. El dato no se
+duplica y la comparación sigue siendo posible.
+
+Las incidencias guardan además `ambiente_id` ---la puerta donde ocurrió el intento---,
+que el reporte de HU-33 usa para filtrar.
+
+### D-05 — Código QR — IMPLEMENTADA, CON ALCANCE REDUCIDO
 
-MotivoInhabilitación se mantiene como catálogo parametrizable y no como valores
-codificados en la aplicación.
+El código es un token opaco de 48 caracteres al azar, único en la tabla y único por
+examen y estudiante. No expone datos personales y no es evidencia de habilitación: al
+resolverlo, el sistema comprueba igual la condición, el ambiente y el ingreso previo
+(HU-18).
+
+Dos puntos del diseño quedaron **fuera de alcance por ahora**, y conviene decirlo en vez
+de simular que se cumplieron:
+
+- **No se almacena una representación criptográfica del token**, sino el token mismo. La
+  hoja de códigos (HU-17) se reimprime cuantas veces haga falta, y eso exige poder
+  reproducir el código exacto. Guardar solo un hash obligaría a regenerar el código en
+  cada reimpresión e invalidar los ya repartidos.
+- **No hay revocación ni expiración.** Emitir dos veces no duplica ni cambia el código
+  vigente. Si TIS pide revocar, el cambio es agregar una columna de estado y mover el
+  índice único a los códigos activos, sin perder trazabilidad.
 
-La combinación estudiante-examen deberá disponer de una restricción UNIQUE en
-el modelo lógico.
+### D-06 — Normas del examen — IMPLEMENTADA EN UNA TABLA CON ALCANCE
 
-Esta decisión debe ser validada con TIS antes de congelar el modelo lógico.
+Las normas generales y las particulares comparten la tabla `normas_examen` y se
+distinguen por `alcance` (`GENERAL` o `PARTICULAR`). La norma particular lleva además
+`student_id` y el motivo por el que se la otorga (HU-09).
 
-### D-03 — Unicidad e integridad de Ingreso — RESUELTA PARCIALMENTE
+Dos tablas habrían duplicado el texto, el autor y las mismas consultas. La regla ---que
+una particular exige estudiante y una general no--- la sostiene la validación de la
+petición y está cubierta por pruebas.
 
-Ingreso referencia una Habilitación en lugar de duplicar estudiante_id y
-examen_id.
+Sigue **sin definir con TIS** si una norma particular es adicional, una excepción o una
+sustitución de la general. El sistema las muestra juntas y no presupone precedencia, que
+es lo único que se puede afirmar con lo que hay.
 
-Habilitación dispone de unicidad sobre estudiante-examen.
+No se introdujo un catálogo global de normas reutilizables entre exámenes: nada en los
+requisitos lo justifica todavía.
 
-Si D-07 determina que una anulación no permite registrar posteriormente otro
-Ingreso para la misma relación estudiante-examen, una restricción UNIQUE sobre
-habilitacion_id en Ingreso constituye una solución candidata que garantiza el
-bloqueo concurrente sin duplicar estudiante_id y examen_id.
+### D-07 — Anulación y nuevo ingreso — RESUELTA
 
-Si D-07 determina que una anulación permite registrar posteriormente un nuevo
-Ingreso correcto, esa restricción simple no será suficiente porque impediría
-conservar varios ingresos históricos para una misma Habilitación. En ese caso
-deberá diseñarse una garantía PostgreSQL que permita historial pero mantenga
-como máximo un ingreso efectivo.
+**La anulación invalida el ingreso original y permite registrar después uno nuevo**
+(opción 2). El registro original se conserva con su hora, su autor y el motivo de la
+anulación; el estudiante queda libre para volver a ingresar, y en la lista figuran los dos
+hechos.
 
-Ambas alternativas deben preservar la regla funcional de doble ingreso exigida
-por el sistema. La estrategia física definitiva debe validarse con TIS antes de
-congelar el modelo lógico.
+Es lo que exige el caso real que la originó: se registró al estudiante equivocado y hay
+que corregirlo sin borrar nada. De aquí sale el índice único parcial de D-03.
 
-La referencia a Habilitación, por sí sola, no garantiza que su condición sea
-habilitada. El modelo lógico deberá impedir que un Ingreso se asocie a una
-Habilitación cuya condición sea negativa. El mecanismo PostgreSQL concreto se
-definirá al diseñar las restricciones físicas.
+En la lista de presentes y ausentes (HU-28), un ingreso anulado devuelve al estudiante a
+la situación de no presentado.
 
-La semántica definitiva de la unicidad depende además de D-07, porque debe
-definirse si una anulación permite o no registrar posteriormente otro ingreso
-correcto para el mismo estudiante y examen.
+### D-08 — Responsabilidad docente y asignatura — RESUELTA
 
-### D-04 — Incidencias — RESUELTA PARCIALMENTE COMO PROPUESTA DE DISEÑO
+La responsabilidad corresponde al **grupo de la asignatura**, no a la asignatura ni al
+examen: `grupos_asignatura.docente_id`. Una asignatura puede tener varios grupos, cada uno
+con su docente, que es como trabaja la facultad y lo que confirmaron las revisiones.
 
-Incidencia representa un hecho excepcional ocurrido durante el proceso de
-control de ingreso.
+El examen cuelga del grupo, así que su docente responsable se deduce sin duplicar el dato.
 
-Los tipos funcionales inicialmente conocidos son:
+### D-09 — Gestión académica — SIGUE ABIERTA
 
-- intento no autorizado;
-- problema de identificación;
-- cambio de ambiente;
-- expulsión.
+No se incorporó `GestiónAcadémica` al modelo. Los exámenes conservan su fecha, y los
+reportes se acotan por rango de fechas (HU-32), que cubre las consultas conocidas hasta
+hoy.
 
-Toda Incidencia conserva como mínimo su tipo, el usuario que la registra, el
-motivo y la fecha y hora del hecho.
+La decisión pendiente es si hace falta una entidad propia para conservar la oferta
+académica entre gestiones ---asignaturas, grupos y docentes que cambian de un semestre a
+otro---. Incorporarla después implica agregar la entidad y una referencia en grupos y
+exámenes; no obliga a rehacer lo registrado.
 
-El contexto asociado depende del tipo de incidencia. No todos los casos
-disponen necesariamente de un estudiante identificado ni de un ingreso previo.
+## 7. Restricciones implementadas
 
-Una expulsión requiere obligatoriamente un Ingreso previo y debe conservar una
-referencia a este.
+Restricciones vigentes en PostgreSQL:
 
-Un problema de identificación puede registrarse aun cuando no haya sido posible
-determinar el Estudiante.
+- unicidad de código universitario y de documento de identidad en `students`;
+- unicidad de nombre de ambiente y de código de asignatura;
+- unicidad de habilitación por examen y estudiante;
+- un solo ingreso vigente por examen y estudiante ---índice único parcial---;
+- una sola expulsión por ingreso;
+- un solo código QR por examen y estudiante, y token único en toda la tabla;
+- un examen único por grupo, fecha y hora de inicio;
+- un ambiente no se repite dentro del mismo examen (`uq_examen_ambiente`);
+- claves foráneas con `restrict` donde borrar destruiría historia ---ingresos sobre
+  estudiantes y exámenes--- y `null on delete` donde el dato es contextual ---ambiente,
+  autor de un registro---.
 
-Los intentos no autorizados y los cambios de ambiente deben conservar el
-contexto suficiente para identificar el examen y la situación que produjo la
-incidencia.
+Reglas sostenidas por la aplicación, con su prueba, por las razones explicadas en las
+decisiones correspondientes:
 
-Para los cambios de ambiente debe distinguirse el ambiente anterior del nuevo
-ambiente. La representación física concreta de este dato se definirá en el
-modelo lógico.
+- obligatoriedad del motivo cuando la habilitación es negativa (HU-12);
+- ausencia de motivo cuando la condición es positiva (HU-12);
+- prohibición de registrar el ingreso de un estudiante inhabilitado, salvo excepción
+  registrada (HU-19, HU-25);
+- obligatoriedad de un ingreso previo para una expulsión (HU-24);
+- posibilidad de registrar un problema de identificación sin estudiante (HU-25);
+- el ambiente asignado a un estudiante pertenece a los ambientes del examen (HU-14);
+- la capacidad de un ambiente no baja de los estudiantes ya asignados (HU-06);
+- la bitácora no se edita: no existe ruta que la modifique (HU-07).
 
-La estructura definitiva deberá evitar columnas ambiguas o combinaciones de
-campos inválidas. Las restricciones específicas por tipo se definirán antes de
-crear las migraciones PostgreSQL.
+## 8. Índices
 
-Esta decisión debe ser validada con TIS antes de congelar el modelo lógico.
+Además de los índices que respaldan las restricciones anteriores:
 
-### D-05 — Código QR — RESUELTA PARCIALMENTE COMO PROPUESTA DE DISEÑO
+- `idx_ingreso_examen_estudiante` sobre `ingresos_examen (examen_id, student_id)`;
+- `idx_incidencia_examen_tipo` sobre `incidencias_ingreso (examen_id, tipo)`;
+- `idx_situacion_examen_ambiente` sobre `situaciones_excepcionales (examen_id, ambiente_id)`;
+- los de las claves foráneas que crean las migraciones.
 
-CódigoQR representa un mecanismo de identificación de la relación entre un
-estudiante y un examen. La existencia o validez del código no constituye por sí
-misma autorización de ingreso.
+Las búsquedas que los justifican son las de la puerta ---estudiante por código o
+documento, habilitación por estudiante y examen--- y las del monitoreo y los reportes
+---ingresos por examen y ambiente, incidencias por examen, tipo y fecha, bitácora por
+usuario, operación y fecha---.
 
-Después de resolver un CódigoQR, el sistema debe verificar de forma independiente
-la habilitación, el ambiente correspondiente y la existencia de un ingreso
-previo.
-
-El contenido utilizado como QR debe ser un identificador opaco y no debe exponer
-directamente información sensible ni utilizarse como evidencia de que el
-estudiante está habilitado.
-
-El diseño debe permitir regenerar y revocar códigos. Cuando se regenere un
-CódigoQR, los códigos anteriores deben quedar inactivos sin perder la
-trazabilidad de su existencia.
-
-Como propuesta de seguridad, se considera almacenar en la base de datos una
-representación criptográfica no reversible del token utilizado para resolver el
-código, evitando conservar el token secreto en texto plano.
-
-Esta alternativa debe evaluarse junto con la necesidad funcional de reimprimir
-o reenviar posteriormente exactamente el mismo código. Si TIS exige esa
-capacidad, el diseño deberá resolverla sin degradar la protección del token.
-
-Debe existir como máximo un CódigoQR activo para una misma relación
-estudiante-examen.
-
-La relación física definitiva de CódigoQR con Habilitación o directamente con
-estudiante-examen se definirá en el modelo lógico después de validar D-02 con
-TIS.
-
-Quedan pendientes de validación funcional la expiración, reimpresión, reenvío y
-regeneración del CódigoQR antes de congelar el modelo lógico.
-
-### D-06 — Normas del examen — RESUELTA PARCIALMENTE COMO PROPUESTA DE DISEÑO
-
-Las normas generales y las normas particulares de un estudiante se modelan como
-conceptos separados.
-
-NormaExamen representa una norma cuyo alcance corresponde al examen completo.
-
-NormaEstudianteExamen representa una norma particular aplicable exclusivamente
-a un estudiante dentro de un examen determinado.
-
-Las normas se consideran datos del dominio y no valores codificados en la
-aplicación.
-
-Un examen puede disponer de múltiples NormaExamen.
-
-Una misma relación estudiante-examen puede disponer de múltiples
-NormaEstudianteExamen.
-
-El modelo no presupone que una norma particular sustituya automáticamente una
-norma general. Debe validarse con TIS si las normas particulares son
-adicionales, excepciones o sustituciones de normas generales antes de definir
-su semántica definitiva.
-
-No se introduce por ahora un catálogo global de normas, porque los requisitos
-disponibles no demuestran que las mismas normas deban reutilizarse como
-entidades compartidas entre diferentes exámenes.
-
-### D-07 — Anulación y nuevo ingreso
-
-Definir el efecto funcional de una anulación sobre la posibilidad de registrar
-posteriormente otro ingreso para el mismo estudiante y examen.
-
-Debe determinarse si:
-
-1. la anulación únicamente conserva constancia de una corrección y el ingreso
-   original continúa siendo el único ingreso posible; o
-2. la anulación invalida el ingreso original y permite registrar posteriormente
-   un nuevo ingreso correcto.
-
-Esta decisión condiciona la estrategia definitiva de unicidad de Ingreso y debe
-cerrarse antes de definir la restricción PostgreSQL correspondiente.
-
-### D-08 — Responsabilidad docente y asignatura
-
-Los requisitos identifican Docente y Asignatura como parte de la oferta
-académica, pero todavía no establecen la cardinalidad exacta entre ambos.
-
-Debe validarse si:
-
-- una asignatura dispone de un único docente responsable;
-- una asignatura puede disponer de varios docentes;
-- la responsabilidad corresponde directamente al Examen y no a la Asignatura;
-- o se requiere una entidad intermedia de oferta académica.
-
-No se fijará una cardinalidad física hasta contar con esta definición.
-
-### D-09 — Gestión académica
-
-La documentación hace referencia a la oferta académica de una gestión, pero
-todavía no determina si GestiónAcadémica debe representarse como una entidad
-propia o como un atributo de otras entidades.
-
-La decisión debe considerar la conservación histórica de asignaturas, docentes,
-exámenes y reportes entre distintas gestiones académicas.
-
-No se incorporará GestiónAcadémica al modelo lógico hasta validar esta
-necesidad con TIS.
-
-## 7. Restricciones candidatas
-
-Las siguientes restricciones son parte del diseño y todavía no se consideran
-implementadas:
-
-- unicidad de código universitario;
-- unicidad de documento de identidad, pendiente de validación de los datos TIS;
-- unicidad de Habilitación por estudiante y examen;
-- unicidad de AsignaciónAmbiente por estudiante y examen;
-- existencia de como máximo un ingreso efectivo para una misma relación
-  estudiante-examen; el mecanismo definitivo de unicidad queda condicionado por
-  D-07;
-- integridad entre ExamenAmbiente y AsignaciónAmbiente;
-- obligatoriedad del motivo cuando una habilitación sea negativa;
-- ausencia de motivo de inhabilitación cuando la condición sea positiva;
-- prohibición de asociar un Ingreso a una Habilitación cuya condición sea
-  negativa;
-- obligatoriedad de un Ingreso previo para una incidencia de expulsión;
-- posibilidad de registrar un problema de identificación sin Estudiante
-  identificado;
-- conservación del ambiente anterior y del nuevo ambiente cuando se registre
-  un cambio de ambiente;
-- un CódigoQR válido identifica estudiante y examen pero no sustituye la
-  validación de habilitación;
-- como máximo un CódigoQR puede encontrarse activo para una misma relación
-  estudiante-examen;
-- un CódigoQR revocado no puede utilizarse para identificar un ingreso;
-- una NormaExamen mantiene alcance general sobre su examen;
-- una NormaEstudianteExamen mantiene alcance exclusivo sobre la combinación
-  estudiante-examen correspondiente;
-- conservación del ingreso original cuando exista una corrección;
-- protección de la bitácora contra edición ordinaria.
-
-## 8. Índices candidatos
-
-Los índices se definirán a partir de las consultas críticas después de cerrar
-las claves del modelo.
-
-Las búsquedas conocidas incluyen:
-
-- estudiante por código universitario;
-- estudiante por documento de identidad;
-- habilitación por estudiante y examen;
-- ambiente asignado por estudiante y examen;
-- ingreso por estudiante y examen;
-- ingresos por examen y ambiente;
-- incidencias por examen, tipo y fecha;
-- bitácora por usuario, operación y fecha.
-
-No se crearán índices redundantes con restricciones UNIQUE o claves primarias.
+No se crearon índices redundantes con restricciones UNIQUE o claves primarias.
 
 ## 9. Fuera de alcance
 
-El sistema no administra contenido del examen, respuestas, corrección ni
-calificaciones.
+El sistema no administra contenido del examen, respuestas, corrección ni calificaciones.
 
-Su responsabilidad funcional concluye en el control y trazabilidad del ingreso,
-las situaciones excepcionales relacionadas y la información necesaria para
-monitoreo y reportes.
-
-## 10. Implementación de seguimiento por aula (HU-21)
-
-La migración `2026_10_16_020000_create_seguimiento_aula_tables.php` añade dos
-tablas operativas:
-
-- `asignaciones_seguimiento_aula` vincula usuario auxiliar, examen, aula y
-  docente que realizó la asignación. La combinación usuario-examen-aula es
-  única; al eliminar un examen se eliminan sus asignaciones.
-- `incidencias_aula` registra novedades humanas asociadas a examen y aula,
-  opcionalmente a un estudiante. Conserva reportante, tipo, detalle y fecha; la
-  atención conserva usuario y fecha de atención.
-
-Estas incidencias son distintas de `incidencias_ingreso`, que registra
-rechazos automáticos del punto de control. La captura de incidencias humanas
-por HU-19 todavía debe integrarse con `incidencias_aula`; el seguimiento puede
-consultar y marcar atendidas las incidencias que ya estén registradas allí.
-
-El listado de ausentes se deriva de habilitaciones activas, inscripciones en
-los grupos del examen e ingresos del examen. El tablero es de consulta: no
-crea ni modifica ingresos.
-
-## 11. Códigos QR y envíos de correo (HU-20)
-
-La migración `2026_10_26_000100_create_codigos_qr_and_envios_correo_tables.php`
-añade dos tablas:
-
-- `codigos_qr` guarda un código por estudiante habilitado y examen (único por
-  par). `contenido` es lo que lleva la imagen, en el formato que lee la puerta
-  (HU-19, `CodigoQrCifrado`): cifrado con la clave de la aplicación, no
-  predecible y sin datos legibles. Se conserva para mostrar, imprimir y
-  reenviar exactamente el mismo código; emitir de nuevo no cambia los ya
-  emitidos. `enviado_en` es la última vez que el estudiante lo recibió.
-- `envios_correo` registra cada correo del sistema (`CODIGO_QR` o `AVISO`): el
-  destinatario institucional, el estudiante, quién lo pidió y su estado
-  (`PENDIENTE`, `ENVIADO` o `FALLIDO` con el error).
-
-El código no autoriza por sí mismo: la puerta verifica la habilitación y el
-aula de forma independiente (D-05). La regeneración y la revocación de códigos
-quedan fuera de esta versión.
-
+Su responsabilidad funcional concluye en el control y trazabilidad del ingreso, las
+situaciones excepcionales relacionadas y la información necesaria para monitoreo y
+reportes.

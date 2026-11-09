@@ -11,6 +11,16 @@ import Paginacion from '../../componentes/Paginacion';
 import Tarjeta from '../../componentes/Tarjeta';
 
 const POR_PAGINA = 5;
+
+// Lo que reescribe «Usar carga nueva»: cada dato que cambia, de antes a después.
+const cambiosDe = (c) =>
+    [
+        ['C.I.', c.guardado?.documento, c.nuevo?.documento],
+        ['Nombre', c.guardado?.nombre, c.nuevo?.nombre],
+    ]
+        .filter(([, antes, despues]) => (antes ?? '') !== (despues ?? ''))
+        .map(([dato, antes, despues]) => `${dato} ${antes ?? '—'} → ${despues ?? '—'}`);
+
 const MARCA = 'rounded bg-warning-100 px-1 text-inherit';
 const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
 
@@ -42,6 +52,8 @@ export default function Conflictos({ onCambio, avisar }) {
     });
     const [enviando, setEnviando] = useState(null);
     const [rechazos, setRechazos] = useState({});
+    // «Usar carga nueva» reescribe nombre y documento del padrón: se confirma.
+    const [confirmando, setConfirmando] = useState(null);
 
     // Si al resolver la página a la vista queda vacía, se pide la última.
     const total = meta?.total ?? 0;
@@ -54,6 +66,7 @@ export default function Conflictos({ onCambio, avisar }) {
 
     function resolver(conflicto, resolucion) {
         if (enviando !== null) return;
+        setConfirmando(null);
         setEnviando(conflicto.id);
         setRechazos((previos) => ({ ...previos, [conflicto.id]: undefined }));
         api.post(`/estudiantes/conflictos/${conflicto.id}/resolucion`, { resolucion })
@@ -97,7 +110,7 @@ export default function Conflictos({ onCambio, avisar }) {
                 {(datos ?? []).map((c) => (
                     <Tarjeta
                         key={c.id}
-                        titulo={`Código ${c.codigo}`}
+                        titulo={`Código SIS ${c.codigo}`}
                         acciones={<Insignia tono="advertencia">{c.tipo}</Insignia>}
                     >
                         <div className="grid gap-3 sm:grid-cols-2">
@@ -116,7 +129,7 @@ export default function Conflictos({ onCambio, avisar }) {
                                         <Diferencia valor={d?.nombre} otro={otro?.nombre} />
                                     </p>
                                     <p className="text-slate-700">
-                                        CI{' '}
+                                        C.I.{' '}
                                         <Diferencia valor={d?.documento} otro={otro?.documento} />
                                     </p>
                                     <p
@@ -141,19 +154,42 @@ export default function Conflictos({ onCambio, avisar }) {
                                     </Insignia>
                                 </span>
                             )}
-                            <Boton
-                                variante="secundario"
-                                disabled={enviando !== null}
-                                onClick={() => resolver(c, 'MANTENER_PADRON')}
-                            >
-                                Mantener padrón
-                            </Boton>
-                            <Boton
-                                disabled={enviando !== null}
-                                onClick={() => resolver(c, 'USAR_CARGA')}
-                            >
-                                Usar carga nueva
-                            </Boton>
+                            {confirmando === c.id ? (
+                                <>
+                                    <span className="mr-auto min-w-0 break-words text-sm font-medium text-warning-800">
+                                        {cambiosDe(c).join(' · ')}
+                                    </span>
+                                    <Boton
+                                        variante="secundario"
+                                        onClick={() => setConfirmando(null)}
+                                    >
+                                        Cancelar
+                                    </Boton>
+                                    <Boton
+                                        cargando={enviando === c.id}
+                                        onClick={() => resolver(c, 'USAR_CARGA')}
+                                    >
+                                        Reemplazar
+                                    </Boton>
+                                </>
+                            ) : (
+                                <>
+                                    <Boton
+                                        variante="secundario"
+                                        disabled={enviando !== null}
+                                        cargando={enviando === c.id}
+                                        onClick={() => resolver(c, 'MANTENER_PADRON')}
+                                    >
+                                        Mantener padrón
+                                    </Boton>
+                                    <Boton
+                                        disabled={enviando !== null}
+                                        onClick={() => setConfirmando(c.id)}
+                                    >
+                                        Usar carga nueva
+                                    </Boton>
+                                </>
+                            )}
                         </div>
                     </Tarjeta>
                 ))}

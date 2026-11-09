@@ -6,6 +6,8 @@ namespace App\Modules\Estudiantes\Infrastructure\Persistence;
 
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Estudiantes\Application\Contracts\InscripcionGateway;
+use App\Modules\Estudiantes\Application\DTOs\AltaDeInscritoData;
+use App\Modules\Estudiantes\Application\DTOs\BajaDeInscritoData;
 use App\Modules\Estudiantes\Application\DTOs\FilaInscritoData;
 use App\Modules\Estudiantes\Application\DTOs\FiltroListaData;
 use App\Modules\Estudiantes\Application\DTOs\GrupoDeCargaData;
@@ -14,8 +16,15 @@ use App\Modules\Estudiantes\Application\DTOs\RechazoCargaData;
 use App\Modules\Estudiantes\Application\DTOs\RegistroCargaData;
 use App\Modules\Estudiantes\Domain\Enums\EstadoConflicto;
 use App\Modules\Estudiantes\Domain\Enums\OrigenEstudiante;
+use App\Modules\Estudiantes\Domain\Rules\DatosDeInscrito;
+use DateTimeInterface;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Una inscripcion con `baja_en` sigue en la tabla (es historia), pero
+ * ninguna lectura la cuenta.
+ */
 final class EloquentInscripcionGateway implements InscripcionGateway
 {
     use ConsultasDePadron;
@@ -119,8 +128,11 @@ final class EloquentInscripcionGateway implements InscripcionGateway
     {
         $carreras = [];
 
-        foreach (DB::table('carreras')->where('facultad_id', $facultadId)->get(['id', 'codigo']) as $fila) {
-            $carreras[mb_strtoupper((string) $this->texto($fila->codigo))] = $this->entero($fila->id);
+        // Por codigo y por nombre: la plantilla acepta cualquiera de los dos.
+        foreach (DB::table('carreras')->where('facultad_id', $facultadId)->get(['id', 'codigo', 'nombre']) as $fila) {
+            $id = $this->entero($fila->id);
+            $carreras[DatosDeInscrito::clave((string) $this->texto($fila->codigo))] = $id;
+            $carreras[DatosDeInscrito::clave((string) $this->texto($fila->nombre))] = $id;
         }
 
         return $carreras;
@@ -143,6 +155,7 @@ final class EloquentInscripcionGateway implements InscripcionGateway
             $filas = DB::table('inscripciones')
                 ->whereIn('estudiante_id', $lote)
                 ->whereIn('grupo_id', $grupoIds)
+                ->whereNull('baja_en')
                 ->get(['estudiante_id', 'grupo_id']);
 
             foreach ($filas as $fila) {
@@ -237,11 +250,15 @@ final class EloquentInscripcionGateway implements InscripcionGateway
                 DB::table('inscripciones')->insertOrIgnore($lote);
             }
 
+            $this->reactivar($inscripciones, $carga->via, $carga->usuarioId, $cargaId, $ahora);
+
             $this->abrirConflictos($carga, $cargaId, $ids);
 
+            // La del docente es la lista de su grupo; la de la administración,
+            // las inscripciones de una facultad.
             $this->bitacora->registrar(
                 $carga->usuarioId,
-                'inscritos.cargar',
+                $carga->via === OrigenEstudiante::Docente ? 'inscritos.cargar' : 'inscripciones.cargar',
                 'cargas_inscritos',
                 $cargaId,
                 sprintf(
@@ -264,7 +281,8 @@ final class EloquentInscripcionGateway implements InscripcionGateway
     {
         $consulta = DB::table('inscripciones as i')
             ->join('estudiantes as e', 'e.id', '=', 'i.estudiante_id')
-            ->where('i.grupo_id', $grupoId);
+            ->where('i.grupo_id', $grupoId)
+            ->whereNull('i.baja_en');
 
         $this->buscar($consulta, $filtro->buscar, [
             'e.apellidos',
@@ -276,8 +294,8 @@ final class EloquentInscripcionGateway implements InscripcionGateway
         $total = (clone $consulta)->count();
 
         $filas = $consulta
-            ->orderBy('e.apellidos')
-            ->orderBy('e.nombres')
+            ->orderByRaw("translate(lower(e.apellidos), 'áéíóúüñ', 'aeiouun')")
+            ->orderByRaw("translate(lower(e.nombres), 'áéíóúüñ', 'aeiouun')")
             ->orderBy('e.id')
             ->forPage($filtro->pagina, $filtro->porPagina)
             ->get([
@@ -286,10 +304,10 @@ final class EloquentInscripcionGateway implements InscripcionGateway
                 'e.documento_identidad',
                 'e.nombres',
                 'e.apellidos',
+                'i.via',
                 'e.foto',
                 'e.foto_subida_en',
                 'e.foto_habilitada_hasta',
-                'i.via',
             ]);
 
         $datos = [];
@@ -301,6 +319,9 @@ final class EloquentInscripcionGateway implements InscripcionGateway
                 'id' => $this->entero($fila->id),
                 'codigo' => $this->texto($fila->codigo_universitario),
                 'nombre' => $this->nombreCompleto($fila->apellidos, $fila->nombres),
+                // Por separado, para corregirlos.
+                'nombres' => $this->texto($fila->nombres),
+                'apellidos' => $this->texto($fila->apellidos),
                 'documento' => $this->texto($fila->documento_identidad),
                 'origen' => ($via ?? OrigenEstudiante::Administracion)->etiqueta(),
                 // Lo que el docente necesita para habilitar un cambio de foto.
@@ -318,14 +339,6 @@ final class EloquentInscripcionGateway implements InscripcionGateway
         return new PaginaData($datos, $total, $filtro->pagina, $filtro->porPagina);
     }
 
-    public function inscritoEnGrupo(int $grupoId, int $estudianteId): bool
-    {
-        return DB::table('inscripciones')
-            ->where('grupo_id', $grupoId)
-            ->where('estudiante_id', $estudianteId)
-            ->exists();
-    }
-
     /**
      * @return list<array{codigo: string, nombre: string, documento: string, origen: string}>
      */
@@ -334,8 +347,9 @@ final class EloquentInscripcionGateway implements InscripcionGateway
         $filas = DB::table('inscripciones as i')
             ->join('estudiantes as e', 'e.id', '=', 'i.estudiante_id')
             ->where('i.grupo_id', $grupoId)
-            ->orderBy('e.apellidos')
-            ->orderBy('e.nombres')
+            ->whereNull('i.baja_en')
+            ->orderByRaw("translate(lower(e.apellidos), 'áéíóúüñ', 'aeiouun')")
+            ->orderByRaw("translate(lower(e.nombres), 'áéíóúüñ', 'aeiouun')")
             ->orderBy('e.id')
             ->get([
                 'e.codigo_universitario',
@@ -359,6 +373,254 @@ final class EloquentInscripcionGateway implements InscripcionGateway
         }
 
         return $lista;
+    }
+
+    public function agregar(AltaDeInscritoData $alta): bool
+    {
+        return DB::transaction(function () use ($alta): bool {
+            $ahora = now();
+            $estudianteId = $alta->estudianteId;
+            $nuevo = $estudianteId === null;
+
+            if ($estudianteId === null) {
+                $estudianteId = $this->entero(DB::table('estudiantes')->insertGetId([
+                    'codigo_universitario' => $alta->codigoUniversitario,
+                    'documento_identidad' => $alta->documentoIdentidad,
+                    'nombres' => $alta->nombres,
+                    'apellidos' => $alta->apellidos,
+                    'carrera_id' => null,
+                    'facultad_id' => $alta->facultadId,
+                    'origen' => OrigenEstudiante::Docente->value,
+                    'verificado' => false,
+                    'activo' => true,
+                    'created_at' => $ahora,
+                    'updated_at' => $ahora,
+                ]));
+            }
+
+            $grupo = $this->grupo($alta->grupoId);
+            $enGrupo = $grupo === null ? '' : sprintf(' en el grupo %s de %s', $grupo->codigo, $grupo->asignaturaCodigo);
+
+            // Datos distintos a los del padron: no se tocan. Queda el
+            // conflicto y la inscripcion espera a la administracion.
+            if ($alta->conflicto !== null) {
+                $conflictoId = $this->abrirConflicto($alta, $estudianteId, $ahora);
+
+                $this->bitacora->registrar(
+                    $alta->usuarioId,
+                    'inscritos.agregar',
+                    'conflictos_padron',
+                    $conflictoId,
+                    sprintf(
+                        'Estudiante %s agregado%s: datos distintos a los del padrón, inscripción pendiente.',
+                        $alta->codigoUniversitario,
+                        $enGrupo,
+                    ),
+                );
+
+                return false;
+            }
+
+            $reactivada = $this->reactivar(
+                [['estudiante_id' => $estudianteId, 'grupo_id' => $alta->grupoId]],
+                OrigenEstudiante::Docente,
+                $alta->usuarioId,
+                null,
+                $ahora,
+            ) > 0;
+
+            if (! $reactivada) {
+                DB::table('inscripciones')->insertOrIgnore([
+                    'estudiante_id' => $estudianteId,
+                    'grupo_id' => $alta->grupoId,
+                    'via' => OrigenEstudiante::Docente->value,
+                    'cargada_por' => $alta->usuarioId,
+                    'carga_id' => null,
+                    'created_at' => $ahora,
+                    'updated_at' => $ahora,
+                ]);
+            }
+
+            $this->bitacora->registrar(
+                $alta->usuarioId,
+                'inscritos.agregar',
+                'inscripciones',
+                $this->enteroONulo(
+                    DB::table('inscripciones')
+                        ->where('estudiante_id', $estudianteId)
+                        ->where('grupo_id', $alta->grupoId)
+                        ->value('id')
+                ),
+                sprintf(
+                    'Estudiante %s %s%s%s.',
+                    $alta->codigoUniversitario,
+                    $reactivada ? 'reinscrito' : 'agregado',
+                    $enGrupo,
+                    $nuevo ? '; nuevo en el padrón' : '',
+                ),
+            );
+
+            return $reactivada;
+        }, 3);
+    }
+
+    public function tieneIngresoEnGrupo(int $estudianteId, int $grupoId): bool
+    {
+        return DB::table('ingresos as ingreso')
+            ->join('examen_grupo as incluido', 'incluido.examen_id', '=', 'ingreso.examen_id')
+            ->where('incluido.grupo_id', $grupoId)
+            ->where('ingreso.estudiante_id', $estudianteId)
+            ->exists();
+    }
+
+    public function darDeBaja(BajaDeInscritoData $baja): void
+    {
+        DB::transaction(function () use ($baja): void {
+            $ahora = now();
+
+            $inscripcionId = $this->enteroONulo(
+                DB::table('inscripciones')
+                    ->where('estudiante_id', $baja->estudianteId)
+                    ->where('grupo_id', $baja->grupoId)
+                    ->whereNull('baja_en')
+                    ->lockForUpdate()
+                    ->value('id')
+            );
+
+            if ($inscripcionId === null) {
+                return;
+            }
+
+            DB::table('inscripciones')->where('id', $inscripcionId)->update([
+                'baja_en' => $ahora,
+                'baja_por' => $baja->usuarioId,
+                'motivo_baja' => $baja->motivo->value,
+                'detalle_baja' => $baja->detalle,
+                'updated_at' => $ahora,
+            ]);
+
+            // Como al sacar un grupo de un examen: quien ya no esta inscrito
+            // en ningun grupo del examen deja de tener habilitacion y
+            // codigo QR en el.
+            foreach (['habilitaciones', 'codigos_qr'] as $tabla) {
+                DB::table($tabla)
+                    ->where($tabla.'.estudiante_id', $baja->estudianteId)
+                    ->whereIn($tabla.'.examen_id', function (Builder $examenes) use ($baja): void {
+                        $examenes->select('examen_id')
+                            ->from('examen_grupo')
+                            ->where('grupo_id', $baja->grupoId);
+                    })
+                    ->whereNotExists(function (Builder $inscrito) use ($tabla): void {
+                        $inscrito->selectRaw('1')
+                            ->from('examen_grupo as incluido')
+                            ->join('inscripciones as inscripcion', 'inscripcion.grupo_id', '=', 'incluido.grupo_id')
+                            ->whereColumn('incluido.examen_id', $tabla.'.examen_id')
+                            ->whereColumn('inscripcion.estudiante_id', $tabla.'.estudiante_id')
+                            ->whereNull('inscripcion.baja_en');
+                    })
+                    ->delete();
+            }
+
+            $grupo = $this->grupo($baja->grupoId);
+            $codigo = $this->texto(
+                DB::table('estudiantes')->where('id', $baja->estudianteId)->value('codigo_universitario')
+            );
+
+            $this->bitacora->registrar(
+                $baja->usuarioId,
+                'inscritos.quitar',
+                'inscripciones',
+                $inscripcionId,
+                sprintf(
+                    'Estudiante %s quitado%s. Motivo: %s.',
+                    (string) $codigo,
+                    $grupo === null ? '' : sprintf(' del grupo %s de %s', $grupo->codigo, $grupo->asignaturaCodigo),
+                    $baja->detalle === null || $baja->detalle === ''
+                        ? $baja->motivo->etiqueta()
+                        : $baja->motivo->etiqueta().' ('.$baja->detalle.')',
+                ),
+            );
+        }, 3);
+    }
+
+    /**
+     * Vuelve a dar de alta las inscripciones dadas de baja entre esas:
+     * la carga o el docente que las trae de nuevo pasan a ser su origen.
+     * Devuelve cuantas reactivo.
+     *
+     * @param  list<array<string, mixed>>  $inscripciones  filas con `estudiante_id` y `grupo_id`
+     */
+    private function reactivar(
+        array $inscripciones,
+        OrigenEstudiante $via,
+        int $usuarioId,
+        ?int $cargaId,
+        DateTimeInterface $ahora,
+    ): int {
+        $porGrupo = [];
+
+        foreach ($inscripciones as $inscripcion) {
+            $porGrupo[$this->entero($inscripcion['grupo_id'] ?? null)][] = $this->entero($inscripcion['estudiante_id'] ?? null);
+        }
+
+        $reactivadas = 0;
+
+        foreach ($porGrupo as $grupoId => $estudianteIds) {
+            foreach (array_chunk($estudianteIds, 1000) as $lote) {
+                $reactivadas += DB::table('inscripciones')
+                    ->where('grupo_id', $grupoId)
+                    ->whereIn('estudiante_id', $lote)
+                    ->whereNotNull('baja_en')
+                    ->update([
+                        'baja_en' => null,
+                        'baja_por' => null,
+                        'motivo_baja' => null,
+                        'detalle_baja' => null,
+                        'via' => $via->value,
+                        'cargada_por' => $usuarioId,
+                        'carga_id' => $cargaId,
+                        'updated_at' => $ahora,
+                    ]);
+            }
+        }
+
+        return $reactivadas;
+    }
+
+    /**
+     * El conflicto del estudiante agregado suelto; si ya hay uno pendiente
+     * con los mismos datos para el grupo, ese.
+     */
+    private function abrirConflicto(AltaDeInscritoData $alta, int $estudianteId, DateTimeInterface $ahora): int
+    {
+        $abierto = DB::table('conflictos_padron')
+            ->where('estado', EstadoConflicto::Pendiente->value)
+            ->where('estudiante_id', $estudianteId)
+            ->where('grupo_id', $alta->grupoId)
+            ->where('documento_nuevo', $alta->documentoIdentidad)
+            ->where('nombres_nuevos', $alta->nombres)
+            ->where('apellidos_nuevos', $alta->apellidos)
+            ->value('id');
+
+        if ($abierto !== null) {
+            return $this->entero($abierto);
+        }
+
+        return $this->entero(DB::table('conflictos_padron')->insertGetId([
+            'estudiante_id' => $estudianteId,
+            'grupo_id' => $alta->grupoId,
+            'carga_id' => null,
+            'fila' => null,
+            'tipo' => $alta->conflicto?->value,
+            'documento_nuevo' => $alta->documentoIdentidad,
+            'nombres_nuevos' => $alta->nombres,
+            'apellidos_nuevos' => $alta->apellidos,
+            'via' => OrigenEstudiante::Docente->value,
+            'estado' => EstadoConflicto::Pendiente->value,
+            'reportado_por' => $alta->usuarioId,
+            'created_at' => $ahora,
+            'updated_at' => $ahora,
+        ]));
     }
 
     /**

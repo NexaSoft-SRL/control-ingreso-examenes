@@ -141,31 +141,7 @@ describe('DetalleExamen', () => {
 
         expect(await screen.findByRole('link', { name: /Reporte/ })).toHaveAttribute(
             'href',
-            '/reportes?examen=24'
-        );
-        expect(screen.queryByRole('link', { name: /En curso/ })).not.toBeInTheDocument();
-    });
-
-    it('el examen de hoy con aulas ofrece «En curso»', async () => {
-        examenes = [examen({ es_hoy: true })];
-        montar();
-
-        expect(await screen.findByRole('link', { name: /En curso/ })).toHaveAttribute(
-            'href',
-            '/en-curso?examen=24'
-        );
-        expect(screen.queryByRole('link', { name: /Reporte/ })).not.toBeInTheDocument();
-    });
-
-    it('con el permiso de reportes enlaza la bitácora del examen', async () => {
-        montar(
-            '/examenes/detalle?examen=24',
-            usuarioDePrueba('Docente', { permisos: ['examenes', 'reportes_examenes'] })
-        );
-
-        expect(await screen.findByRole('link', { name: /Bitácora/ })).toHaveAttribute(
-            'href',
-            '/bitacora-examen?examen=24'
+            '/mis-reportes?examen=24'
         );
     });
 
@@ -173,7 +149,6 @@ describe('DetalleExamen', () => {
         montar('/examenes/detalle?examen=999');
 
         expect(await screen.findByText('Examen no encontrado')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /Exámenes/ })).toHaveAttribute('href', '/examenes');
     });
 });
 

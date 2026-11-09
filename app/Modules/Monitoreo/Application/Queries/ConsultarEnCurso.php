@@ -5,182 +5,42 @@ declare(strict_types=1);
 namespace App\Modules\Monitoreo\Application\Queries;
 
 use App\Modules\Examenes\Application\Contracts\AlcanceExamenGateway;
-use App\Modules\Examenes\Application\Contracts\ConsultaExamenGateway;
-use App\Modules\Examenes\Application\Contracts\ExamenGateway;
-use App\Modules\Examenes\Application\DTOs\AulaDetalleData;
-use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
-use App\Modules\Ingreso\Application\Contracts\VentanaPuntoControl;
-use App\Modules\Monitoreo\Application\Contracts\EnCursoGateway;
-use App\Modules\Monitoreo\Application\DTOs\AulaEnCursoData;
-use App\Modules\Monitoreo\Application\DTOs\AvanceEnCursoData;
-use App\Modules\Monitoreo\Application\DTOs\ExamenEnCursoData;
-use App\Modules\Monitoreo\Application\DTOs\IncidenciaEnCursoData;
-use App\Modules\Monitoreo\Application\DTOs\TableroEnCursoData;
-use App\Modules\Monitoreo\Domain\Exceptions\ExamenAjenoException;
-use App\Modules\Monitoreo\Domain\Exceptions\ExamenNoEncontradoException;
-use DateTimeImmutable;
-use LogicException;
+use App\Modules\Monitoreo\Application\Contracts\SeguimientoGateway;
+use App\Modules\Monitoreo\Application\DTOs\EnCursoData;
+use App\Modules\Monitoreo\Domain\Exceptions\SinAlcanceException;
 
 /**
- * El examen en curso, aula por aula (HU-22). Solo lo ve un docente del
- * examen. Quien atiende cada aula y su codigo salen del examen (HU-18);
- * el aula compartida, de la misma regla que usa el registro del examen;
- * si el ingreso esta abierto, de la ventana de la puerta (HU-19), y si la
- * cuenta opera la puerta de cada aula, del alcance de esa puerta.
+ * «En curso» de un examen: sus cifras y la situacion de cada aula. Solo
+ * para un docente del examen.
  */
 final readonly class ConsultarEnCurso
 {
     public function __construct(
-        private ExamenGateway $examenes,
-        private ConsultaExamenGateway $consulta,
+        private SeguimientoGateway $seguimiento,
         private AlcanceExamenGateway $alcance,
-        private VentanaPuntoControl $ventana,
-        private EnCursoGateway $enCurso,
-        private AlcancePuntoControl $puerta,
     ) {}
 
-    public function ejecutar(int $usuarioId, int $examenId): TableroEnCursoData
-    {
-        if (! $this->examenes->existe($examenId)) {
-            throw new ExamenNoEncontradoException('Examen no encontrado.');
-        }
-
-        $esDocente = $this->alcance->esDocenteDelExamen($usuarioId, $examenId);
-        $mias = $this->alcance->aulasQueAtiende($usuarioId, $examenId);
-
-        if (! $esDocente && $mias === []) {
-            throw new ExamenAjenoException('Este examen no es suyo.');
-        }
-
-        $detalle = $this->consulta->detalle($examenId, $usuarioId);
-
-        if ($detalle === null) {
-            throw new LogicException('El examen existe, pero no se pudo leer.');
-        }
-
-        $resumen = $detalle->resumen;
-        $avance = $this->enCurso->avance($examenId);
-        $incidencias = $this->enCurso->incidencias($examenId);
-        $compartidas = $this->consulta->aulasCompartidas(
-            $resumen->fecha,
-            $resumen->hora,
-            $resumen->duracion,
-            $examenId,
-        );
-        $aulasDetalle = array_values(array_filter(
-            $detalle->aulas,
-            static fn (AulaDetalleData $aula): bool => $esDocente || in_array($aula->aulaId, $mias, true),
-        ));
-
-        if (! $esDocente && $aulasDetalle === []) {
-            throw new ExamenAjenoException('No atiende aulas de este examen.');
-        }
-
-        $idsVisibles = array_map(
-            static fn (AulaDetalleData $aula): int => $aula->aulaId,
-            $aulasDetalle,
-        );
-        $incidencias = array_values(array_filter(
-            $incidencias,
-            static fn (IncidenciaEnCursoData $incidencia): bool => $esDocente
-                || in_array($incidencia->aulaId, $idsVisibles, true),
-        ));
-        $porAtender = $this->sinAtenderPorAula($incidencias);
-        $avanceVisible = $esDocente
-            ? $avance
-            : $this->avanceDeAulasVisibles($avance, $idsVisibles);
-
-        $horaServidor = $this->consulta->horaServidor();
-        $abierto = $this->ventana->estaAbierta($examenId);
-        // La duracion es la prevista: pasada esa hora, el examen sigue
-        // abierto hasta que un docente lo finaliza (HU-28).
-        $ahora = new DateTimeImmutable($horaServidor);
-        $finPrevisto = (new DateTimeImmutable("{$resumen->fecha} {$resumen->hora}", $ahora->getTimezone()))
-            ->modify("+{$resumen->duracion} minutes");
-
-        return new TableroEnCursoData(
-            examen: new ExamenEnCursoData(
-                id: $resumen->id,
-                fecha: $resumen->fecha,
-                hora: $resumen->hora,
-                duracion: $resumen->duracion,
-                tipo: $resumen->tipo,
-                tipoTexto: $resumen->tipoTexto,
-                asignatura: $resumen->asignaturaNombre,
-                abierto: $abierto,
-                fin: $finPrevisto->format('H:i'),
-                excedido: $abierto && $resumen->finalizadoEn === null && $ahora > $finPrevisto,
-            ),
-            horaServidor: $horaServidor,
-            avance: $avanceVisible,
-            aulas: array_map(
-                fn (AulaDetalleData $aula): AulaEnCursoData => new AulaEnCursoData(
-                    aulaId: $aula->aulaId,
-                    nombre: $aula->nombre,
-                    ubicacion: $aula->ubicacion,
-                    edificioId: $aula->edificioId,
-                    aCargo: $aula->aCargo,
-                    apoyo: $aula->apoyo,
-                    avance: $avance->deAula($aula->aulaId),
-                    incidenciasSinAtender: $porAtender[$aula->aulaId] ?? 0,
-                    compartida: $compartidas[$aula->aulaId] ?? [],
-                    codigoAcceso: $aula->codigo !== null,
-                    aMiCargo: in_array($aula->aulaId, $mias, true),
-                    puedeOperar: $this->puerta->puedeOperar($usuarioId, $examenId, $aula->aulaId),
-                ),
-                $aulasDetalle,
-            ),
-            incidencias: $incidencias,
-            esDocente: $esDocente,
-        );
-    }
-
     /**
-     * @param  list<IncidenciaEnCursoData>  $incidencias
-     * @return array<int, int>
+     * Null si el examen no existe.
+     *
+     * @throws SinAlcanceException
      */
-    private function sinAtenderPorAula(array $incidencias): array
+    public function execute(int $usuarioId, int $examenId): ?EnCursoData
     {
-        $conteo = [];
+        $examen = $this->seguimiento->examen($examenId);
 
-        foreach ($incidencias as $incidencia) {
-            if (! $incidencia->atendida()) {
-                $conteo[$incidencia->aulaId] = ($conteo[$incidencia->aulaId] ?? 0) + 1;
-            }
+        if ($examen === null) {
+            return null;
         }
 
-        return $conteo;
-    }
-
-    /**
-     * @param  list<int>  $aulaIds
-     */
-    private function avanceDeAulasVisibles(AvanceEnCursoData $avance, array $aulaIds): AvanceEnCursoData
-    {
-        $aulas = [];
-        $ingresaron = 0;
-        $faltan = 0;
-        $ultimosRegistros = [];
-
-        foreach ($aulaIds as $aulaId) {
-            $avanceAula = $avance->deAula($aulaId);
-            $aulas[$aulaId] = $avanceAula;
-            $ingresaron += $avanceAula->ingresados;
-            $faltan += $avanceAula->faltan;
-
-            if ($avanceAula->ultimoRegistro !== null) {
-                $ultimosRegistros[] = $avanceAula->ultimoRegistro;
-            }
+        if (! $this->alcance->esDocenteDelExamen($usuarioId, $examenId)) {
+            throw new SinAlcanceException('Este examen no está a su cargo.');
         }
 
-        rsort($ultimosRegistros, SORT_STRING);
-
-        return new AvanceEnCursoData(
-            ingresaron: $ingresaron,
-            faltan: $faltan,
-            ultimoRegistro: $ultimosRegistros[0] ?? null,
-            aulas: $aulas,
-            llegadas: $avance->llegadas,
+        return new EnCursoData(
+            examen: $examen,
+            cifras: $this->seguimiento->cifras($examenId),
+            aulas: $this->seguimiento->aulas($examenId, $usuarioId),
         );
     }
 }

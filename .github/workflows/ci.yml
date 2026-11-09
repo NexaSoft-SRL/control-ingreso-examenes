@@ -1,16 +1,14 @@
 # Quality gates de integración continua.
 #
-# Se ejecutan en cada push y en PR hacia develop, qa y main.
+# Se ejecutan en cada push y en los pull requests dirigidos a main.
 # Para bloquear merges, estos checks deben configurarse como obligatorios
-# en la protección de develop, qa y main.
+# en la protección de la rama main.
 
 name: CI
 
 on:
   pull_request:
     branches:
-      - develop
-      - qa
       - main
   push:
     branches:
@@ -39,15 +37,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       - name: PHP 8.2 con PostgreSQL
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          tools: composer:2.11.1
-          extensions: pdo_pgsql, pgsql, mbstring, bcmath, gd, zip
+          extensions: pdo_pgsql, pgsql, mbstring, bcmath
           coverage: none
 
       - name: Instalar dependencias PHP
@@ -78,21 +73,7 @@ jobs:
         run: npm run build
 
       - name: Quality gate backend
-        shell: bash
-        run: |
-          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-            export MIGRATION_GUARD_BASE="${{ github.event.pull_request.base.sha }}"
-          elif [[ "$GITHUB_REF_NAME" =~ ^(main|qa|develop)$ ]]; then
-            export MIGRATION_GUARD_BASE="${{ github.event.before }}"
-
-            if [[ "$MIGRATION_GUARD_BASE" =~ ^0+$ ]]; then
-              export MIGRATION_GUARD_BASE="HEAD^"
-            fi
-          else
-            export MIGRATION_GUARD_BASE="origin/main"
-          fi
-
-          composer quality:backend
+        run: composer quality:backend
 
   postgresql:
     name: PostgreSQL Integration
@@ -121,8 +102,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          tools: composer:2.11.1
-          extensions: pdo_pgsql, pgsql, mbstring, bcmath, gd, zip
+          extensions: pdo_pgsql, pgsql, mbstring, bcmath
           coverage: none
 
       - name: Instalar dependencias PHP

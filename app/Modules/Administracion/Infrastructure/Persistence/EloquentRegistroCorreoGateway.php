@@ -25,6 +25,7 @@ final class EloquentRegistroCorreoGateway implements RegistroCorreoGateway
         $envio = EnvioCorreo::query()->create([
             'tipo' => $tipo,
             'destinatario' => mb_substr($datos->destinatario, 0, 150),
+            'user_id' => $datos->usuarioId,
             'examen_id' => $datos->examenId,
             'estudiante_id' => $datos->estudianteId,
             'estado' => EstadoEnvio::Pendiente,
@@ -34,7 +35,7 @@ final class EloquentRegistroCorreoGateway implements RegistroCorreoGateway
         $id = $envio->getKey();
 
         if (! is_int($id)) {
-            throw new RuntimeException('El registro del correo no devolvió un identificador.');
+            throw new RuntimeException('El registro del correo no devolvio un identificador.');
         }
 
         return $id;
@@ -46,17 +47,16 @@ final class EloquentRegistroCorreoGateway implements RegistroCorreoGateway
             'estado' => EstadoEnvio::Enviado->value,
             'error' => null,
             'enviado_en' => now(),
+            'updated_at' => now(),
         ]);
     }
 
     public function marcarFallido(int $envioId, string $error): void
     {
-        EnvioCorreo::query()
-            ->whereKey($envioId)
-            ->where('estado', '!=', EstadoEnvio::Enviado->value)
-            ->update([
-                'estado' => EstadoEnvio::Fallido->value,
-                'error' => mb_substr($error, 0, 2000),
-            ]);
+        EnvioCorreo::query()->whereKey($envioId)->update([
+            'estado' => EstadoEnvio::Fallido->value,
+            'error' => $error,
+            'updated_at' => now(),
+        ]);
     }
 }

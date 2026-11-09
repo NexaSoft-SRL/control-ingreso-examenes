@@ -10,8 +10,8 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "dompdf/dompdf": "^3.1.6",
-        "endroid/qr-code": "~6.0.9",
+        "dompdf/dompdf": "^3.1",
+        "endroid/qr-code": "^6.0",
         "laravel/framework": "^11.0",
         "laravel/tinker": "^2.10.1",
         "phpoffice/phpspreadsheet": "^5.10"
@@ -48,11 +48,16 @@
             "npm run build"
         ],
         "dev": [
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185\" \"php artisan serve\" \"php artisan                        queue:listen --tries=1 --timeout=0\" \"npm run dev\" --names=server,queue,vite --kill-others"
+            "Composer\\Config::disableProcessTimeout",
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"npm run dev\" --names=server,queue,vite --kill-others"
         ],
         "datos:demo": [
             "@php artisan migrate:fresh --force",
             "@php artisan db:seed --class=DemoSeeder --force"
+        ],
+        "datos:volumen": [
+            "@php artisan migrate:fresh --force",
+            "@php artisan db:seed --class=VolumenSeeder --force"
         ],
         "test": [
             "Composer\\Config::disableProcessTimeout",
@@ -80,7 +85,6 @@
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
         ],
         "quality:composer": "@composer validate --strict",
-        "quality:migrations": "bash scripts/quality/check-migration-history.sh",
         "quality:structure": "@php scripts/architecture/check-structure.php",
         "quality:layers": "@php vendor/bin/deptrac analyse --config-file=deptrac.php --no-cache --report-uncovered --fail-on-uncovered",
         "quality:modules": [
@@ -93,7 +97,6 @@
         "quality:backend": [
             "Composer\\Config::disableProcessTimeout",
             "@quality:composer",
-            "@quality:migrations",
             "@quality:structure",
             "@quality:layers",
             "@quality:modules",

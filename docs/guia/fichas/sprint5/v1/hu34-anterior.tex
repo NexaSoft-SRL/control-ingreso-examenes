@@ -1,0 +1,66 @@
+% Ficha HU-34. Criterios del backlog de la iteracion 5. Una sola
+% exportacion para los cinco reportes: el exportador recibe una tabla.
+\def\HUNro{34}
+\def\HUSprint{5}
+\def\HUTitulo{Reportes > Exportación}
+\def\HUModulo{M6}
+\def\HUReq{12, 13}
+\def\HUPuntos{8}
+
+\def\HUComo{docente o responsable académico}
+\def\HUQuiero{exportar cualquier reporte}
+\def\HUPara{poder archivarlo y compartirlo fuera del sistema}
+
+\def\HUDescripcion{%
+Un reporte que solo se ve en la pantalla no sirve para adjuntarlo a un acta ni para
+mandárselo a otro. Los cinco reportes se exportan a PDF ---para archivar y firmar--- y a
+hoja de cálculo ---para seguir trabajando con los datos---.
+
+La exportación es una sola para los cinco. El servidor arma cada reporte como una tabla de
+texto: título, filtros, encabezados, filas y totales. El exportador recibe esa tabla y no
+sabe de qué reporte se trata, así que agregar un reporte nuevo no toca el código de la
+exportación.
+
+El archivo conserva los filtros con que se lo pidió ---el examen, el ambiente, el rango de
+fechas--- y la fecha y hora de emisión. Fuera del sistema nadie puede preguntarle a la
+pantalla qué estaba filtrado: tiene que decirlo el archivo. Sin filtros, lo dice también.
+
+En la hoja de cálculo las celdas se escriben como texto: un código universitario no es un
+número, y la planilla le comería los ceros de la izquierda.
+
+La descarga no congela la aplicación: la pantalla marca el botón como «Generando…»
+mientras el servidor arma el archivo, y el resto de la vista sigue disponible.}
+
+\def\HUCriterios{%
+\item Dado cualquiera de los cinco reportes, Cuando se lo exporta a PDF, Entonces el
+      sistema entrega un archivo PDF descargable.
+\item Dado cualquiera de los cinco reportes, Cuando se lo exporta a hoja de cálculo,
+      Entonces el sistema entrega un archivo xlsx descargable.
+\item Dado un reporte con filtros, Cuando se lo exporta, Entonces el archivo consigna esos
+      filtros.
+\item Dado un reporte exportado, Cuando se lo abre, Entonces consigna la fecha y la hora
+      de emisión.
+\item Dado que no se aplicó ningún filtro, Cuando se exporta, Entonces el archivo lo dice.
+\item Dado un formato que no es PDF ni hoja de cálculo, Cuando se lo pide, Entonces el
+      sistema lo rechaza.
+\item Dado que se exporta un reporte, Cuando se pide el archivo, Entonces exige el mismo
+      permiso que el reporte.
+\item Dado que el archivo se está generando, Cuando se mira la pantalla, Entonces la
+      aplicación sigue respondiendo.}
+
+\def\HUPruebas{%
+\item \texttt{ExportacionTest::every\_report\_is\_exported\_to\_pdf} (criterio 1).
+\item \texttt{ExportacionTest::every\_report\_is\_exported\_to\_a\_spreadsheet}
+      (criterio 2).
+\item \texttt{ExportacionTest::the\_spreadsheet\_keeps\_the\_filters\_the\_date\_and\_the\_rows}
+      (criterios 3 y 4).
+\item \texttt{ExportacionTest::the\_export\_without\_filters\_says\_so} (criterio 5).
+\item \texttt{ExportacionTest::an\_unknown\_format\_is\_rejected} (criterio 6).
+\item \texttt{ExportacionTest::the\_export\_demands\_the\_permission\_of\_its\_report}
+      (criterio 7).
+\item \texttt{Reportes.test.jsx}: la exportación manda los mismos filtros (criterio 3).
+\item \texttt{Reportes.test.jsx}, caso del archivo que tarda: el botón queda en
+      «Generando…», la tabla sigue visible y el otro formato sigue disponible
+      (criterio 8).}
+
+\input{cuerpo}

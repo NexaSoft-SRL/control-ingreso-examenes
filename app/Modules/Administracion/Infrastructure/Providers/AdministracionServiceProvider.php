@@ -9,33 +9,27 @@ use App\Modules\Administracion\Application\Contracts\AlmacenImagenes;
 use App\Modules\Administracion\Application\Contracts\AuthenticationSecurityGateway;
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
 use App\Modules\Administracion\Application\Contracts\ConsultaBitacoraGateway;
-use App\Modules\Administracion\Application\Contracts\ConsultaPermisosGateway;
-use App\Modules\Administracion\Application\Contracts\ConsultaRespaldosGateway;
 use App\Modules\Administracion\Application\Contracts\ConsultaUsuariosGateway;
 use App\Modules\Administracion\Application\Contracts\CredencialesGateway;
 use App\Modules\Administracion\Application\Contracts\CuentaUsuarioGateway;
-use App\Modules\Administracion\Application\Contracts\ExportadorBaseDeDatos;
 use App\Modules\Administracion\Application\Contracts\GeneradorContrasenaTemporal;
-use App\Modules\Administracion\Application\Contracts\GeneradorRespaldoGateway;
 use App\Modules\Administracion\Application\Contracts\ProponedorUsuario;
 use App\Modules\Administracion\Application\Contracts\RegistroCorreoGateway;
-use App\Modules\Administracion\Application\Contracts\RestauradorRespaldoGateway;
+use App\Modules\Administracion\Application\Contracts\RespaldoGateway;
+use App\Modules\Administracion\Application\Contracts\RestablecimientoGateway;
 use App\Modules\Administracion\Application\Contracts\RolesGateway;
 use App\Modules\Administracion\Application\Contracts\RolGateway;
 use App\Modules\Administracion\Application\Contracts\Transaccion;
-use App\Modules\Administracion\Infrastructure\Export\ExportadorSqlBaseDeDatos;
 use App\Modules\Administracion\Infrastructure\Files\AlmacenImagenesEnDisco;
+use App\Modules\Administracion\Infrastructure\Files\RespaldoSqlEnDisco;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentAuthenticationSecurityGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentBitacoraGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentConsultaBitacoraGateway;
-use App\Modules\Administracion\Infrastructure\Persistence\EloquentConsultaPermisosGateway;
-use App\Modules\Administracion\Infrastructure\Persistence\EloquentConsultaRespaldosGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentConsultaUsuariosGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentCredencialesGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentCuentaUsuarioGateway;
-use App\Modules\Administracion\Infrastructure\Persistence\EloquentGeneradorRespaldoGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentRegistroCorreoGateway;
-use App\Modules\Administracion\Infrastructure\Persistence\EloquentRestauradorRespaldoGateway;
+use App\Modules\Administracion\Infrastructure\Persistence\EloquentRestablecimientoGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentRolesGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentRolGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\GeneradorContrasenaTemporalAleatorio;
@@ -65,48 +59,23 @@ final class AdministracionServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(
-            RegistroCorreoGateway::class,
-            EloquentRegistroCorreoGateway::class,
-        );
-
-        $this->app->bind(
             ConsultaBitacoraGateway::class,
             EloquentConsultaBitacoraGateway::class,
         );
 
         $this->app->bind(
-            ConsultaPermisosGateway::class,
-            EloquentConsultaPermisosGateway::class,
-        );
-
-        $this->app->bind(
-            ConsultaRespaldosGateway::class,
-            EloquentConsultaRespaldosGateway::class,
-        );
-
-        $this->app->bind(
-            ExportadorBaseDeDatos::class,
-            ExportadorSqlBaseDeDatos::class,
-        );
-
-        $this->app->bind(
-            GeneradorRespaldoGateway::class,
-            EloquentGeneradorRespaldoGateway::class,
-        );
-
-        $this->app->bind(
-            RestauradorRespaldoGateway::class,
-            EloquentRestauradorRespaldoGateway::class,
-        );
-
-        $this->app->bind(
-            CuentaUsuarioGateway::class,
-            EloquentCuentaUsuarioGateway::class,
+            ConsultaUsuariosGateway::class,
+            EloquentConsultaUsuariosGateway::class,
         );
 
         $this->app->bind(
             CredencialesGateway::class,
             EloquentCredencialesGateway::class,
+        );
+
+        $this->app->bind(
+            CuentaUsuarioGateway::class,
+            EloquentCuentaUsuarioGateway::class,
         );
 
         $this->app->bind(
@@ -122,18 +91,28 @@ final class AdministracionServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(
-            RolGateway::class,
-            EloquentRolGateway::class,
+            RegistroCorreoGateway::class,
+            EloquentRegistroCorreoGateway::class,
         );
 
         $this->app->bind(
-            ConsultaUsuariosGateway::class,
-            EloquentConsultaUsuariosGateway::class,
+            RespaldoGateway::class,
+            RespaldoSqlEnDisco::class,
+        );
+
+        $this->app->bind(
+            RestablecimientoGateway::class,
+            EloquentRestablecimientoGateway::class,
         );
 
         $this->app->bind(
             RolesGateway::class,
             EloquentRolesGateway::class,
+        );
+
+        $this->app->bind(
+            RolGateway::class,
+            EloquentRolGateway::class,
         );
 
         $this->app->bind(

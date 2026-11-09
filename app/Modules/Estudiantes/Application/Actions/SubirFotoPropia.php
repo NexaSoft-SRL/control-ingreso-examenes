@@ -12,10 +12,10 @@ use App\Modules\Estudiantes\Domain\Exceptions\FueraDePlazoDeFotoException;
 use App\Modules\Estudiantes\Domain\Exceptions\ImagenNoValidaException;
 
 /**
- * El estudiante sube su foto una sola vez y dentro del plazo: asi un
- * suplantador no puede cambiarla el dia del examen. Fuera del plazo, o
- * para cambiarla, necesita que un docente de sus grupos se lo habilite.
- * El sistema la reduce.
+ * El estudiante sube su foto una sola vez y dentro del plazo general que
+ * fija la administracion: asi un suplantador no puede cambiarla el dia del
+ * examen. Fuera del plazo, o para cambiarla, necesita que un docente
+ * de sus grupos se lo habilite. El sistema la reduce.
  */
 final readonly class SubirFotoPropia
 {
@@ -37,17 +37,7 @@ final readonly class SubirFotoPropia
                 throw new FotoYaSubidaException;
             }
 
-            $plazoGeneral = $this->portal->plazo();
-            $plazoDeGrupoAbierto = false;
-
-            foreach ($this->portal->plazosDeGruposDelEstudiante($estudianteId) as $plazo) {
-                if ($plazo['desde'] <= $hoy && $hoy <= $plazo['hasta']) {
-                    $plazoDeGrupoAbierto = true;
-                    break;
-                }
-            }
-
-            if (! ($plazoGeneral?->abiertoEl($hoy) === true || $plazoDeGrupoAbierto)) {
+            if ($this->portal->plazo()?->abiertoEl($hoy) !== true) {
                 throw new FueraDePlazoDeFotoException;
             }
         }
@@ -63,7 +53,6 @@ final readonly class SubirFotoPropia
         if ($anterior !== null) {
             $this->imagenes->borrar($anterior);
         }
-
         $estudiante = $this->portal->estudiante($estudianteId);
         $this->bitacora->registrar(
             null,
@@ -79,6 +68,7 @@ final readonly class SubirFotoPropia
                     $anterior === null ? 'subida' : 'cambiada',
                     $habilitado ? ' con el cambio que habilitó '.($estado['habilitada_por'] ?? 'un docente') : '',
                 ),
+            $estudiante?->nombre,
         );
     }
 }

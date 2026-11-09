@@ -1,18 +1,27 @@
 import PropTypes from 'prop-types';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronDown, ChevronRight, UserX } from 'lucide-react';
+import {
+    Building2,
+    CalendarRange,
+    ChevronDown,
+    ChevronRight,
+    GraduationCap,
+    Layers,
+    Search,
+    UserX,
+} from 'lucide-react';
 import usarConsulta from '../../api/usarConsulta';
 import usarPaginaServidor from '../../api/usarPaginaServidor';
 import Campo from '../../componentes/Campo';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
-import IconoAsignatura from '../../componentes/IconoAsignatura';
 import Insignia from '../../componentes/Insignia';
 import Paginacion from '../../componentes/Paginacion';
 import Seleccion from '../../componentes/Seleccion';
 import Tarjeta from '../../componentes/Tarjeta';
 import { usarFacultades } from '../../sesion/SesionContexto';
+import IconoAsignatura from '../../componentes/IconoAsignatura';
 
 const POR_PAGINA = 15;
 const GRUPOS_POR_PAGINA = 10;
@@ -23,7 +32,7 @@ const plural = (n, uno, varios) => `${miles(n)} ${n === 1 ? uno : varios}`;
 const ORDINALES = ['primer', 'segundo', 'tercer', 'cuarto', 'quinto', 'sexto', 'septimo'];
 
 // «Preparatorio», «Primer año»… y «Semestre 1»… «Semestre 10», en el orden
-// del plan, no en el alfabético.
+// del plan: el servidor los entrega por orden alfabético.
 function pesoDeNivel(nivel) {
     const texto = nivel.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
     const numero = Number(/\d+/.exec(texto)?.[0] ?? 0);
@@ -71,18 +80,11 @@ function Horarios({ horarios }) {
     ));
 }
 
-// Grupos de una asignatura en la facultad, de a diez: una asignatura de
-// servicio llega a tener treinta. Con búsqueda por docente el servidor pone
-// primero los que coinciden. Siguen a los filtros: al cambiar período,
-// facultad o búsqueda se vuelven a pedir desde la página 1.
+// Grupos de una asignatura, de a diez: una asignatura de servicio llega a
+// tener treinta. Con búsqueda por docente el servidor pone primero los que
+// coinciden.
 function Grupos({ asignatura, periodo, facultad, buscar }) {
     const lista = usarPaginaServidor({ porPagina: GRUPOS_POR_PAGINA });
-    const { irA } = lista;
-
-    useEffect(() => {
-        irA(1);
-    }, [irA, buscar, periodo, facultad]);
-
     const { datos, meta, cargando, error, recargar } = usarConsulta(
         `/oferta/asignaturas/${asignatura.id}/grupos`,
         { parametros: { ...lista.parametros, periodo, facultad, buscar } }
@@ -108,7 +110,7 @@ function Grupos({ asignatura, periodo, facultad, buscar }) {
                                     {plural(g.inscritos, 'inscrito', 'inscritos')}
                                 </span>
                             </p>
-                            <p className="break-words text-slate-700">
+                            <p className="truncate text-slate-700">
                                 <Docente nombre={g.docente} />
                             </p>
                             <p className="text-xs leading-5 text-slate-600">
@@ -141,7 +143,10 @@ function Grupos({ asignatura, periodo, facultad, buscar }) {
                                     <td className="px-4 py-2.5 font-medium text-slate-800">
                                         {g.codigo}
                                     </td>
-                                    <td className="break-words px-4 py-2.5 text-slate-700">
+                                    <td
+                                        className="max-w-56 truncate px-4 py-2.5 text-slate-700"
+                                        title={g.docente ?? undefined}
+                                    >
                                         <Docente nombre={g.docente} />
                                     </td>
                                     <td className="px-4 py-2.5 text-slate-600">
@@ -179,8 +184,7 @@ Grupos.propTypes = {
 
 // La oferta académica importada (HU-17): asignaturas de un período (por
 // defecto, los vigentes) con sus grupos, docentes, horarios y aulas. Los
-// períodos cerrados siguen consultables. Solo consulta; la oferta se corrige
-// volviendo a importar (pantalla Período).
+// períodos cerrados siguen consultables. Es de solo lectura.
 export default function Oferta() {
     const facultades = usarFacultades();
     // «Grupos sin lista» del período llega con `?sin_lista=1`.
@@ -212,11 +216,6 @@ export default function Oferta() {
         parametros,
         activa: facultad !== null,
     });
-    // Los niveles que hay en lo filtrado (sin el nivel mismo).
-    const consultaNiveles = usarConsulta('/oferta/niveles', {
-        parametros: { periodo, facultad, carrera, buscar: parametros.buscar },
-        activa: facultad !== null,
-    });
 
     const sigla = facultades.find((f) => f.clave === facultad)?.sigla ?? null;
     const elegida = (carreras.datos ?? []).find((c) => String(c.id) === String(carrera)) ?? null;
@@ -224,7 +223,7 @@ export default function Oferta() {
     const periodos = (pedido ? [pedido] : periodosDe(vigentes.datos ?? [], elegida)).map(
         (p) => p.codigo
     );
-    const niveles = ordenarNiveles(consultaNiveles.datos ?? []);
+    const niveles = ordenarNiveles(meta?.niveles ?? []);
     const subtitulo = [
         periodos.length > 0 &&
             `${periodos.length === 1 ? 'Período' : 'Períodos'} ${periodos.join(' y ')}`,
@@ -243,9 +242,13 @@ export default function Oferta() {
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-[9.5rem_7rem_minmax(0,1.4fr)_9.5rem_minmax(0,1fr)]">
                 <Seleccion
                     etiqueta="Período"
+                    icono={CalendarRange}
                     className="col-span-2 min-w-0 sm:col-span-1"
                     value={periodo}
-                    onChange={(e) => lista.ponerFiltros({ periodo: e.target.value, nivel: '' })}
+                    onChange={(e) => {
+                        lista.ponerFiltros({ periodo: e.target.value, nivel: '' });
+                        setAbierta(null);
+                    }}
                 >
                     <option value="">Vigentes</option>
                     {(detectados.datos ?? []).map((p) => (
@@ -256,11 +259,13 @@ export default function Oferta() {
                 </Seleccion>
                 <Seleccion
                     etiqueta="Facultad"
+                    icono={Building2}
                     className="min-w-0"
                     value={facultad ?? ''}
-                    onChange={(e) =>
-                        lista.ponerFiltros({ facultad: e.target.value, carrera: '', nivel: '' })
-                    }
+                    onChange={(e) => {
+                        lista.ponerFiltros({ facultad: e.target.value, carrera: '', nivel: '' });
+                        setAbierta(null);
+                    }}
                 >
                     {facultades.map((f) => (
                         <option key={f.clave} value={f.clave}>
@@ -270,6 +275,7 @@ export default function Oferta() {
                 </Seleccion>
                 <Seleccion
                     etiqueta="Carrera"
+                    icono={GraduationCap}
                     className="order-last col-span-2 min-w-0 sm:order-none sm:col-span-1"
                     value={carrera}
                     onChange={(e) => {
@@ -286,6 +292,7 @@ export default function Oferta() {
                 </Seleccion>
                 <Seleccion
                     etiqueta="Nivel"
+                    icono={Layers}
                     className="min-w-0"
                     value={nivel}
                     onChange={(e) => lista.ponerFiltro('nivel', e.target.value)}
@@ -299,6 +306,7 @@ export default function Oferta() {
                 </Seleccion>
                 <Campo
                     etiqueta="Buscar"
+                    icono={Search}
                     type="search"
                     className="order-last col-span-2 min-w-0 lg:order-none lg:col-span-1"
                     placeholder="Asignatura, código o docente"
@@ -315,7 +323,7 @@ export default function Oferta() {
                     <span className="flex items-center gap-3">
                         {meta && (
                             <span className="text-xs text-slate-600">
-                                {plural(meta.total_grupos ?? 0, 'grupo', 'grupos')}
+                                {plural(meta.grupos ?? 0, 'grupo', 'grupos')}
                             </span>
                         )}
                         <button

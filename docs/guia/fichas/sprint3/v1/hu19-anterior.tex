@@ -1,0 +1,68 @@
+% Ficha HU-19. Criterios tomados del backlog de la iteracion 3. El rechazo
+% queda como incidencia del examen, distinta de la bitacora del sistema.
+\def\HUNro{19}
+\def\HUSprint{3}
+\def\HUTitulo{Punto de control > Ingreso > Verificar habilitación}
+\def\HUModulo{M4}
+\def\HUReq{6}
+\def\HUPuntos{5}
+
+\def\HUComo{personal de control}
+\def\HUQuiero{que el sistema compruebe la habilitación antes de autorizar}
+\def\HUPara{impedir que rinda quien no debe}
+
+\def\HUDescripcion{%
+La comprobación no queda a criterio de quien atiende la puerta: el sistema no registra el
+ingreso de un estudiante inhabilitado, aunque el personal lo intente.
+
+Al rechazarlo muestra el motivo que se registró en HU-12 ---la deuda, la falta de
+asistencia, lo que sea--- para que el personal se lo explique al estudiante en ese
+momento. Un estudiante que ni siquiera tiene condición registrada para ese examen se
+trata igual que un inhabilitado: en la puerta, no estar en la lista y estar excluido se
+resuelven de la misma manera.
+
+Cada rechazo queda registrado como incidencia del examen, con el estudiante, el motivo y
+la hora. Eso es lo que alimenta el reporte de intentos de ingreso no correspondientes
+(HU-33) y lo que permite reconstruir después qué pasó en la fila. La incidencia es
+distinta de la bitácora del sistema (HU-07), que audita operaciones de usuarios: esto
+registra hechos del examen.
+
+También se rechaza el segundo ingreso del mismo estudiante, que queda como incidencia de
+ingreso duplicado (HU-22).}
+
+\def\HUCriterios{%
+\item Dado que un estudiante está inhabilitado, Cuando se intenta registrar su ingreso,
+      Entonces el sistema no lo permite.
+\item Dado que el sistema rechaza el ingreso, Cuando lo muestra, Entonces indica el motivo
+      de la inhabilitación.
+\item Dado que un estudiante no tiene condición registrada para el examen, Cuando se
+      intenta registrar su ingreso, Entonces el sistema lo rechaza como no habilitado.
+\item Dado que se rechaza un ingreso, Cuando ocurre, Entonces queda registrado como
+      incidencia del examen.
+\item Dado que la incidencia se registra, Cuando se la consulta, Entonces consta el
+      estudiante, el tipo de rechazo y su detalle.
+\item Dado que el estudiante ya tiene un ingreso registrado, Cuando se intenta registrar
+      otro, Entonces el sistema lo rechaza e informa que ya ingresó.
+\item Dado que el estudiante está habilitado, Cuando se registra su ingreso, Entonces el
+      sistema lo autoriza sin trabas.
+\item Dado que un rol no tiene el permiso del punto de control, Cuando intenta registrar
+      un ingreso, Entonces el sistema responde con una negativa explícita.
+\item Dado que el personal de control atiende desde un dispositivo móvil, Cuando registra
+      un ingreso, Entonces la interfaz se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{RegistroIngresoTest::a\_student\_that\_is\_not\_enabled\_cannot\_enter}: el
+      inhabilitado no ingresa y se ve su motivo (criterios 1 y 2).
+\item \texttt{RegistroIngresoTest::a\_student\_without\_any\_condition\_cannot\_enter}: sin
+      condición registrada tampoco (criterio 3).
+\item \texttt{RegistroIngresoTest::the\_rejection\_is\_recorded\_as\_an\_incident} y
+      \texttt{the\_entries\_and\_incidents\_of\_the\_exam\_are\_listed}: la incidencia y su
+      consulta (criterios 4 y 5).
+\item \texttt{RegistroIngresoTest::a\_second\_entry\_of\_the\_same\_student\_is\_refused}:
+      el ingreso duplicado (criterio 6).
+\item \texttt{RegistroIngresoTest}: el habilitado ingresa y el rol sin permiso no
+      (criterios 7 y 8).
+\item \texttt{PuntoControl.test.jsx}: la pantalla muestra el rechazo con su motivo
+      (criterios 1 y 2).}
+
+\input{cuerpo}

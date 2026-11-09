@@ -1,0 +1,63 @@
+% Ficha HU-15. Criterios tomados del backlog de la iteracion 3. La
+% fotografia del estudiante no existe en el padron que entrega la
+% universidad: el criterio la condiciona a que exista.
+\def\HUNro{15}
+\def\HUSprint{3}
+\def\HUTitulo{Punto de control > Identificación > Por código universitario}
+\def\HUModulo{M4}
+\def\HUReq{4}
+\def\HUPuntos{3}
+
+\def\HUComo{personal de control}
+\def\HUQuiero{identificar al estudiante por su código universitario}
+\def\HUPara{registrar su ingreso cuando no lleva otro medio}
+
+\def\HUDescripcion{%
+El código universitario es el identificador con el que la universidad conoce al
+estudiante, y el medio de reserva cuando no trae el código QR.
+
+El personal de control lo teclea o lo pasa por un lector: para el sistema es lo mismo,
+porque un lector de códigos escribe en el campo como si fuera un teclado. Con eso el
+sistema muestra el nombre del estudiante, su condición de habilitación para ese examen y
+el ambiente que le corresponde.
+
+Un código que no existe en el padrón produce un aviso en castellano ---no un error
+técnico--- y la pantalla queda lista para volver a intentar. La fotografía del estudiante
+se mostraría junto a sus datos si el padrón la tuviera; el archivo que entrega la
+universidad no la trae, así que el sistema no la inventa.
+
+La pantalla exige el permiso del punto de control.}
+
+\def\HUCriterios{%
+\item Dado que el personal de control teclea un código universitario, Cuando identifica,
+      Entonces el sistema muestra el nombre del estudiante y su condición de habilitación.
+\item Dado que el padrón no trae fotografía de los estudiantes, Cuando se identifica a
+      uno, Entonces la tarjeta muestra los datos que sí existen y no deja un hueco:
+      la fotografía se agregará el día en que la universidad la entregue.
+\item Dado que el código se ingresa con un lector en vez del teclado, Cuando el lector
+      escribe en el campo, Entonces el sistema lo procesa igual que si se hubiera
+      tecleado.
+\item Dado que el estudiante está habilitado, Cuando se lo identifica, Entonces el sistema
+      muestra también el ambiente que le corresponde.
+\item Dado que el estudiante no está habilitado, Cuando se lo identifica, Entonces el
+      sistema lo muestra con su condición y el motivo.
+\item Dado que el código no corresponde a ningún estudiante del padrón, Cuando se
+      identifica, Entonces el sistema muestra un aviso claro y no un error técnico.
+\item Dado que el campo de identificación queda vacío, Cuando se envía, Entonces el
+      sistema lo rechaza señalando el campo.
+\item Dado que un rol no tiene el permiso del punto de control, Cuando intenta
+      identificar, Entonces el sistema responde con una negativa explícita.
+\item Dado que el personal de control atiende desde un dispositivo móvil, Cuando usa la
+      pantalla, Entonces la interfaz se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{ConsultaHabilitacionTest::the\_query\_answers\_by\_university\_code}:
+      identificación por código con su condición (criterios 1 y 3).
+\item \texttt{ConsultaHabilitacionTest}: motivo del no habilitado, identificador
+      desconocido y campo vacío (criterios 4 a 6).
+\item \texttt{ConsultaHabilitacionTest}: rol sin el permiso del punto de control
+      (criterio 7).
+\item \texttt{PuntoControl.test.jsx}: identificación desde la pantalla, tarjeta con
+      condición y ambiente, y aviso cuando el estudiante no existe (criterios 1, 3 y 5).}
+
+\input{cuerpo}

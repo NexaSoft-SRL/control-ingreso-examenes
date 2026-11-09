@@ -1,0 +1,60 @@
+' =====================================================================
+'  C4 - Nivel 2: contenedores, replanteado
+'  Se agregan el importador de la oferta academica y la copia de datos
+'  de GENDA. El resto de los contenedores es el del diseno original.
+' =====================================================================
+@startuml c4_2_contenedores
+!include <C4/C4_Container>
+!include estilo.puml
+
+Person(admin, "Administrador\n<size:11>[Persona]</size>", "Prepara el período y verifica el padrón.", $tags="persona")
+Person(docente, "Docente\n<size:11>[Persona]</size>", "Gestiona sus grupos y sus exámenes.", $tags="persona")
+Person(control, "Auxiliar\n<size:11>[Persona]</size>", "Registra el ingreso en la puerta.", $tags="persona")
+
+System_Ext(genda, "GENDA\n<size:11>[Sistema externo]</size>", "Genera los JSON de horarios, pensum y ubicación de aulas.", $tags="externo")
+System_Ext(mapas, "Servicio de mapas\n<size:11>[Sistema externo]</size>", "Mapa base.", $tags="externo")
+
+Boundary(sistema, "Sistema de control de ingreso", "Sistema de software") {
+
+  Container(spa, "Interfaz de usuario", "Contenedor: React 19, Tailwind CSS 4 y MapLibre", "Aplicación de página única. Lee el código QR con la cámara y dibuja el mapa de aulas.", $sprite="&browser", $tags="sistema")
+
+  Container(app, "Aplicación web", "Contenedor: PHP 8.2 y Laravel 11 sobre Apache 2.4", "API y reglas de negocio: períodos, grupos, inscripciones, exámenes, habilitación, ingreso y control de acceso por rol.", $sprite="&terminal", $tags="sistema")
+
+  Container(importador, "Importador de la oferta académica", "Contenedor: comando de Laravel", "Lee la copia de datos de GENDA y crea o actualiza carreras, materias, grupos, docentes y aulas del período. Se puede volver a ejecutar sin duplicar.", $sprite="&terminal", $tags="sistema")
+
+  Container(datos_genda, "Copia de datos de GENDA", "Contenedor: archivos JSON en database/umss/", "Horarios por facultad, pensum y ubicación de aulas, con el período al que corresponden.", $sprite="&folder", $tags="sistema")
+
+  Container(cola, "Trabajos en cola", "Contenedor: Laravel Queue sobre la base de datos", "Carga de listas de inscritos, generación de códigos QR y exportación de reportes.", $sprite="&layers", $tags="sistema")
+
+  ContainerDb(db, "Base de datos", "Contenedor: esquema de PostgreSQL 15.10", "Períodos, oferta académica, padrón, inscripciones, exámenes, habilitaciones, ingresos inmutables, incidencias y bitácora.", $tags="sistema")
+
+  Container(archivos, "Almacenamiento de archivos", "Contenedor: directorio storage/", "Listas cargadas, códigos QR y reportes exportados.", $sprite="&folder", $tags="sistema")
+
+  Container(respaldo, "Respaldo programado", "Contenedor: tarea programada de Laravel", "Respaldo diario y respaldo puntual antes de cada jornada de exámenes.", $sprite="&layers", $tags="sistema")
+}
+
+Rel(admin, spa, "Prepara el período con", "HTTPS", $tags="rel")
+Rel(docente, spa, "Gestiona sus grupos y exámenes con", "HTTPS", $tags="rel")
+Rel(control, spa, "Registra el ingreso con", "HTTPS", $tags="rel")
+
+Rel(spa, app, "Consume la API de", "JSON sobre HTTPS, con sesión y token CSRF", $tags="rel")
+Rel(spa, mapas, "Pide el mapa base a", "HTTPS", $tags="rel")
+Rel(genda, datos_genda, "Se copia a mano en", "archivos JSON, una vez por período", $tags="rel")
+Rel(importador, datos_genda, "Lee", "sistema de archivos", $tags="rel")
+Rel(importador, db, "Crea y actualiza la oferta en", "PDO y pgsql", $tags="rel")
+Rel(admin, importador, "Ejecuta al preparar el período", $tags="rel")
+Rel(app, db, "Lee y escribe en", "PDO y pgsql", $tags="rel")
+Rel(app, cola, "Encola los trabajos diferidos en", $tags="rel")
+Rel(cola, db, "Lee y escribe en", "PDO y pgsql", $tags="rel")
+Rel(app, archivos, "Lee y escribe en", "sistema de archivos", $tags="rel")
+Rel(cola, archivos, "Deposita códigos QR y reportes en", "sistema de archivos", $tags="rel")
+Rel(respaldo, db, "Respalda", $tags="rel")
+
+Lay_R(admin, docente)
+Lay_R(docente, control)
+
+legend left
+<font size=17 color=#444444><b>Vista de contenedores: Sistema de control de ingreso a exámenes masivos (replanteo)</b></font>
+<font size=11 color=#666666>El scraper se queda en GENDA. Al sistema solo entra una copia de sus datos.</font>
+endlegend
+@enduml

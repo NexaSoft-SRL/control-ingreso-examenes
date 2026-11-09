@@ -4,17 +4,20 @@ declare(strict_types=1);
 
 namespace App\Modules\Monitoreo\Infrastructure\Providers;
 
-use App\Modules\Monitoreo\Application\Contracts\EnCursoGateway;
-use App\Modules\Monitoreo\Infrastructure\Persistence\EloquentEnCursoGateway;
+use App\Modules\Monitoreo\Application\Contracts\SeguimientoGateway;
+use App\Modules\Monitoreo\Infrastructure\Persistence\EloquentSeguimientoGateway;
 use Illuminate\Support\ServiceProvider;
 
+/**
+ * Enlaces contrato -> implementacion del modulo Monitoreo.
+ */
 final class MonitoreoServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
         $this->app->bind(
-            EnCursoGateway::class,
-            EloquentEnCursoGateway::class,
+            SeguimientoGateway::class,
+            EloquentSeguimientoGateway::class,
         );
     }
 }

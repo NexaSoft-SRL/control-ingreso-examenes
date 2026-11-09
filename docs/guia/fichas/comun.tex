@@ -1,0 +1,27 @@
+% Preambulo de las fichas del proyecto guia. Autocontenido: no depende del
+% repositorio de documentacion, solo del logo que vive en logo/.
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noquoting]{babel}
+\usepackage[margin=2.2cm,headheight=24pt,headsep=10pt]{geometry}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage[breakable,skins]{tcolorbox}
+\usepackage{needspace}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\setlength{\emergencystretch}{3em}
+
+\newcommand{\NombreLargo}{NexaSoft S.R.L.}
+\newcommand{\NombreProyecto}{Punku}
+\newcommand{\Sistema}{Sistema informático para la gestión, validación y control del
+ingreso de estudiantes durante la realización de exámenes masivos}
+
+\newcommand{\LogoHorizontal}[1]{%
+  \IfFileExists{logo/nexasoft_horizontal.png}{%
+    \includegraphics[width=#1]{logo/nexasoft_horizontal}}{\textbf{[\,logo\,]}}}

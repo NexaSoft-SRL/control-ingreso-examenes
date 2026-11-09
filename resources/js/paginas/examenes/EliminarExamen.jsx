@@ -31,17 +31,6 @@ export default function EliminarExamen({ examen, onCerrar, onEliminado }) {
         onCerrar();
     };
 
-    const habilitaciones = (examen?.habilitados ?? 0) + (examen?.no_habilitados ?? 0);
-    const perdidas = examen
-        ? [
-              examen.aulas.length > 0 && plural(examen.aulas.length, 'aula'),
-              habilitaciones > 0 && plural(habilitaciones, 'habilitación', 'habilitaciones'),
-              examen.qr_emitidos > 0 && plural(examen.qr_emitidos, 'código QR', 'códigos QR'),
-              examen.codigos_aula > 0 &&
-                  plural(examen.codigos_aula, 'código de aula', 'códigos de aula'),
-          ].filter(Boolean)
-        : [];
-
     return (
         <Dialogo
             titulo="Eliminar examen"
@@ -72,9 +61,32 @@ export default function EliminarExamen({ examen, onCerrar, onEliminado }) {
                         {fechaLarga(examen.fecha)}, {examen.hora} ·{' '}
                         {plural(examen.grupos.length, 'grupo')}
                     </p>
-                    {perdidas.length > 0 && (
+                    {(examen.habilitados > 0 ||
+                        examen.no_habilitados > 0 ||
+                        examen.qr_emitidos > 0 ||
+                        examen.codigos_aula > 0 ||
+                        examen.aulas?.length > 0) && (
                         <p className="mt-3 rounded-lg bg-danger-50 px-3 py-2 text-sm font-medium text-danger-700">
-                            Se pierden: {perdidas.join(' · ')}
+                            Se pierden:{' '}
+                            {[
+                                examen.aulas?.length > 0 && plural(examen.aulas.length, 'aula'),
+                                (examen.habilitados ?? 0) + (examen.no_habilitados ?? 0) > 0 &&
+                                    plural(
+                                        (examen.habilitados ?? 0) + (examen.no_habilitados ?? 0),
+                                        'habilitación',
+                                        'habilitaciones'
+                                    ),
+                                examen.qr_emitidos > 0 &&
+                                    plural(examen.qr_emitidos, 'código QR', 'códigos QR'),
+                                examen.codigos_aula > 0 &&
+                                    plural(
+                                        examen.codigos_aula,
+                                        'código de aula',
+                                        'códigos de aula'
+                                    ),
+                            ]
+                                .filter(Boolean)
+                                .join(' · ')}
                         </p>
                     )}
                 </>

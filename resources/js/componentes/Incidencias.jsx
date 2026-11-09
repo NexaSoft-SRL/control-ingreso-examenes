@@ -4,14 +4,14 @@ import { TriangleAlert, Check, Image as IconoImagen, Pencil } from 'lucide-react
 import { api } from '../api/cliente';
 import Boton from './Boton';
 import Campo from './Campo';
-import Chips from './Chips';
 import FotosEvidencia from './FotosEvidencia';
+import Chips from './Chips';
 import Dialogo from './Dialogo';
 import Insignia from './Insignia';
 import Seleccion, { AreaTexto } from './Seleccion';
 import { useAviso } from './Aviso';
 import { erroresDe, mensajeDe } from '../api/errores';
-import { fechaCorta } from '../utiles/texto';
+import { errorDeNombre, fechaCorta } from '../utiles/texto';
 
 // Lo que pasa durante un examen y hay que dejar asentado. Las reporta quien
 // está en el aula (auxiliar o docente) y las atiende el docente del examen.
@@ -27,7 +27,7 @@ export const TIPOS_INCIDENCIA = {
 };
 
 // La gravedad sale del tipo y se lee por el color y por el texto: leve,
-// grave o muy grave (decimotercera revisión).
+// grave o muy grave.
 export const GRAVEDADES = {
     MUY_GRAVE: { texto: 'Muy grave', tono: 'peligro' },
     GRAVE: { texto: 'Grave', tono: 'advertencia' },
@@ -84,16 +84,11 @@ function atencionDe(incidencia) {
 
 // La expulsión exige el ingreso y el ingreso repetido lo asienta la puerta.
 const DETALLE_MINIMO = 5;
-// Un nombre escrito a mano: palabras de letras separadas por un espacio, un
-// punto, un apóstrofo o un guion, con al menos dos letras.
-const NOMBRE = /^\p{L}+(?:(?:\.\s*|\s+|['-])\p{L}+)*\.?$/u;
-const errorDeNombre = (texto) =>
-    (texto.match(/\p{L}/gu) ?? []).length >= 2 && NOMBRE.test(texto) ? null : 'error';
-// El estudiante va por su código SIS o C.I. (el servidor exige que esté
-// inscrito en el examen) o, si no se lo pudo identificar, por su nombre.
+// El estudiante va por su código (el servidor exige que esté inscrito en el
+// examen) o, si no se lo pudo identificar, por su nombre.
 const errorDeEstudiante = (texto) => {
     const valor = texto.trim();
-    if (!valor || /^\d/.test(valor)) return null;
+    if (!valor || /^\d+$/.test(valor)) return null;
     return errorDeNombre(valor) ? 'Un código SIS o solo letras' : null;
 };
 const REPORTABLES = Object.keys(TIPOS_INCIDENCIA).filter((clave) => !FIJOS.includes(clave));
@@ -240,7 +235,7 @@ export function BotonIncidencia({
                     </Seleccion>
                     <Campo
                         etiqueta="Estudiante"
-                        placeholder="Código SIS, C.I. o nombre"
+                        placeholder="Código SIS o nombre"
                         maxLength={150}
                         value={estudiante}
                         error={errores.estudiante}
@@ -464,7 +459,8 @@ const TEXTO_GRAVEDAD = {
 
 export const gravedadDe = (i) => i.gravedad ?? GRAVEDAD_DE_TIPO[i.tipo] ?? null;
 
-// Filtra una lista de incidencias por gravedad, con el conteo de cada una.
+// Filtro por gravedad de una lista de incidencias (o de sucesos con
+// `gravedad`). `valor` nulo: todas.
 export function FiltroGravedad({ items, valor, onCambiar }) {
     return (
         <Chips
@@ -666,7 +662,7 @@ function CorregirIncidencia({ incidencia, corregir, onCerrar }) {
                 {!delSistema && (
                     <Campo
                         etiqueta="Estudiante"
-                        placeholder="Código SIS, C.I. o nombre"
+                        placeholder="Código SIS o nombre"
                         maxLength={150}
                         value={estudiante}
                         error={errores.estudiante}

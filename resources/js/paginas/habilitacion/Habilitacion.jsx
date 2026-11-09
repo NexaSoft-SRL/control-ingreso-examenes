@@ -1,14 +1,16 @@
 import PropTypes from 'prop-types';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
     CheckCircle2,
     CircleCheck,
     CircleX,
     Hourglass,
+    QrCode,
     Shuffle,
     UsersRound,
     XCircle,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { codigoDe, erroresDe, estadoDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
@@ -19,6 +21,7 @@ import Buscador from '../../componentes/Buscador';
 import Chips from '../../componentes/Chips';
 import Dato from '../../componentes/Dato';
 import Dialogo from '../../componentes/Dialogo';
+import rutaDelExamen from '../examenes/rutaDelExamen';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
 import Insignia from '../../componentes/Insignia';
@@ -27,7 +30,10 @@ import Seleccion, { AreaTexto } from '../../componentes/Seleccion';
 import SelectorExamen from '../../componentes/SelectorExamen';
 import Tarjeta from '../../componentes/Tarjeta';
 import usarExamen from '../../componentes/usarExamen';
+import { usarSesion } from '../../sesion/SesionContexto';
 import { fechaCorta, plural } from '../../utiles/texto';
+
+const LOTE_CON_CONFIRMACION = 10;
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
@@ -37,9 +43,15 @@ const MOTIVO_MINIMO = 5;
 // Quién registró la inhabilitación y cuándo: «Blanco Coca Leticia · 9 oct 2026, 14:05».
 const autoria = (e) => [e.registrada_por, fechaCorta(e.registrada_el)].filter(Boolean).join(' · ');
 const MOTIVO_MAXIMO = 1000;
+// Todos revisados, al menos un habilitado y todos con aula: ya se pueden
+// emitir los códigos QR (la credencial lleva el aula).
+const completa = (cifras) =>
+    (cifras?.sin_revisar ?? 1) === 0 &&
+    (cifras?.habilitados ?? 0) > 0 &&
+    (cifras?.sin_aula ?? 0) === 0;
 const CONDICION = {
     habilitado: ['exito', 'Habilitado'],
-    no: ['advertencia', 'No habilitado'],
+    no: ['peligro', 'No habilitado'],
     pendiente: ['neutro', 'Sin revisar'],
 };
 const SIN_FILTROS = { grupo: null, aula: null, condicion: null };
@@ -93,7 +105,7 @@ function FotoInscrito({ url, nombre, conFoto, onAmpliar }) {
                 src={url}
                 alt=""
                 loading="lazy"
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover object-[50%_25%]"
                 onError={() => setFallo(true)}
             />
         </button>
@@ -110,7 +122,7 @@ FotoInscrito.propTypes = {
 // La lista de un examen: cifras, distribución por aula, filtros, selección
 // y lotes. Se monta de nuevo con cada examen (`key`), así el cambio de
 // examen limpia la selección, los filtros, la búsqueda y el motivo.
-export function ListaDelExamen({ examenId }) {
+export function ListaDelExamen({ examenId, onCifras }) {
     const ruta = `/examenes/${examenId}/habilitaciones`;
     const lista = usarPaginaServidor({ porPagina: POR_PAGINA, filtros: SIN_FILTROS });
     const { datos, meta, cargando, error, recargar } = usarConsulta(ruta, {
@@ -120,9 +132,13 @@ export function ListaDelExamen({ examenId }) {
     // `todos` es «Seleccionar los N»: el lote viaja con los filtros.
     const [seleccion, setSeleccion] = useState(() => new Set());
     const [todos, setTodos] = useState(false);
+    // Con «todos», los que se desmarcaron después.
+    const [excluidos, setExcluidos] = useState(() => new Set());
     const [motivo, setMotivo] = useState('');
     const [errorMotivo, setErrorMotivo] = useState(null);
     const [enviando, setEnviando] = useState(false);
+    // Un lote grande se confirma antes: no se deshace con un clic.
+    const [porConfirmar, setPorConfirmar] = useState(null);
     const [ampliada, setAmpliada] = useState(null);
     const urlFoto = (e) => `/api${ruta}/${e.estudiante_id}/foto`;
     const foto = (e) => (
@@ -145,6 +161,13 @@ export function ListaDelExamen({ examenId }) {
             irA(Math.ceil(total / POR_PAGINA));
         }
     }, [datos, total, lista.pagina, irA]);
+
+    // Las cifras vigentes suben a la página: de ellas depende el enlace a
+    // los códigos QR.
+    const cifrasVigentes = meta?.cifras;
+    useEffect(() => {
+        if (cifrasVigentes) onCifras(cifrasVigentes);
+    }, [cifrasVigentes, onCifras]);
 
     if (cargando || error) {
         if (error && estadoDe(error) === 403) {
@@ -170,41 +193,49 @@ export function ListaDelExamen({ examenId }) {
     const { grupo, aula, condicion } = lista.filtros;
 
     const idsPagina = filas.map((e) => e.estudiante_id);
-    const marcado = (id) => todos || seleccion.has(id);
+    const marcado = (id) => (todos ? !excluidos.has(id) : seleccion.has(id));
     const paginaMarcada = filas.length > 0 && idsPagina.every(marcado);
-    const cantidad = todos ? total : seleccion.size;
+    const cantidad = todos ? total - excluidos.size : seleccion.size;
     const motivoCorto = motivo.trim().length < MOTIVO_MINIMO;
 
-    const filtrar = (clave, valor) => {
-        setTodos(false);
-        lista.ponerFiltro(clave, valor);
-    };
-    const buscar = (texto) => {
-        setTodos(false);
-        lista.ponerBuscar(texto);
-    };
-    const alternar = (id) => {
-        const despues = new Set(seleccion);
-        if (todos) {
-            idsPagina.forEach((i) => despues.add(i));
-            despues.delete(id);
-        } else if (despues.has(id)) {
-            despues.delete(id);
-        } else {
-            despues.add(id);
-        }
-        setTodos(false);
-        setSeleccion(despues);
-    };
-    const alternarPagina = () => {
-        const despues = new Set(seleccion);
-        idsPagina.forEach((i) => (paginaMarcada ? despues.delete(i) : despues.add(i)));
-        setTodos(false);
-        setSeleccion(despues);
+    const seleccionarTodos = () => {
+        setTodos(true);
+        setExcluidos(new Set());
     };
     const quitar = () => {
         setTodos(false);
+        setExcluidos(new Set());
         setSeleccion(new Set());
+    };
+    const filtrar = (clave, valor) => {
+        quitar();
+        lista.ponerFiltro(clave, valor);
+    };
+    const buscar = (texto) => {
+        quitar();
+        lista.ponerBuscar(texto);
+    };
+    // Con «todos», desmarcar uno lo excluye del lote: sigue «todos menos él».
+    const alternar = (id) => {
+        const cambiado = (previo) => {
+            const despues = new Set(previo);
+            if (despues.has(id)) despues.delete(id);
+            else despues.add(id);
+            return despues;
+        };
+        if (todos) setExcluidos(cambiado);
+        else setSeleccion(cambiado);
+    };
+    const alternarPagina = () => {
+        if (todos) {
+            const despues = new Set(excluidos);
+            idsPagina.forEach((i) => (paginaMarcada ? despues.add(i) : despues.delete(i)));
+            setExcluidos(despues);
+            return;
+        }
+        const despues = new Set(seleccion);
+        idsPagina.forEach((i) => (paginaMarcada ? despues.delete(i) : despues.add(i)));
+        setSeleccion(despues);
     };
     const cerrarSeleccion = () => {
         quitar();
@@ -225,13 +256,19 @@ export function ListaDelExamen({ examenId }) {
         avisar(sinPunto(mensajeDe(fallo, porDefecto)), 'error');
     };
 
+    const pedir = (habilitado) => {
+        if (cantidad >= LOTE_CON_CONFIRMACION) setPorConfirmar(habilitado);
+        else cambiar(habilitado);
+    };
+
     const cambiar = async (habilitado) => {
+        setPorConfirmar(null);
         if (enviando || cantidad === 0) return;
         const cuerpo = {
             habilitado,
             ...(habilitado ? {} : { motivo: motivo.trim() }),
             ...(todos
-                ? { todos: true, filtros: lista.filtrosVigentes }
+                ? { todos: true, filtros: lista.filtrosVigentes, excluidos: [...excluidos] }
                 : { estudiantes: [...seleccion] }),
         };
         setEnviando(true);
@@ -255,7 +292,7 @@ export function ListaDelExamen({ examenId }) {
             setErrorMotivo(`Mínimo ${MOTIVO_MINIMO} caracteres`);
             return;
         }
-        cambiar(false);
+        pedir(false);
     };
     const repartir = async () => {
         if (enviando) return;
@@ -289,7 +326,7 @@ export function ListaDelExamen({ examenId }) {
                 {plural(cantidad, 'seleccionado')}
             </span>
             {!todos && total > filas.length && (
-                <Boton variante="enlace" tamano="chico" onClick={() => setTodos(true)}>
+                <Boton variante="enlace" tamano="chico" onClick={seleccionarTodos}>
                     Seleccionar los {total}
                 </Boton>
             )}
@@ -445,21 +482,16 @@ export function ListaDelExamen({ examenId }) {
                             {resumenSeleccion}
                         </div>
                         <AreaTexto
-                            etiqueta="Motivo de la inhabilitación"
-                            requerido
+                            etiqueta="Motivo para inhabilitar"
                             rows={2}
                             maxLength={MOTIVO_MAXIMO}
                             value={motivo}
                             error={errorMotivo}
                             pie={`${motivo.length}/${MOTIVO_MAXIMO}`}
                             onChange={(e) => {
-                                const texto = e.target.value;
-                                setMotivo(texto);
-                                setErrorMotivo(
-                                    texto.trim().length < MOTIVO_MINIMO
-                                        ? `Mínimo ${MOTIVO_MINIMO} caracteres`
-                                        : null
-                                );
+                                // Se valida al inhabilitar, no mientras se escribe.
+                                setMotivo(e.target.value);
+                                setErrorMotivo(null);
                             }}
                         />
                         <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
@@ -469,15 +501,15 @@ export function ListaDelExamen({ examenId }) {
                             <Boton
                                 variante="peligroContorno"
                                 className="max-md:flex-1"
-                                disabled={enviando}
+                                cargando={enviando}
                                 onClick={inhabilitar}
                             >
                                 <XCircle className="h-4 w-4" /> Inhabilitar
                             </Boton>
                             <Boton
                                 className="max-md:flex-1"
-                                disabled={enviando}
-                                onClick={() => cambiar(true)}
+                                cargando={enviando}
+                                onClick={() => pedir(true)}
                             >
                                 <CheckCircle2 className="h-4 w-4" /> Habilitar
                             </Boton>
@@ -622,7 +654,7 @@ export function ListaDelExamen({ examenId }) {
                     <img
                         src={urlFoto(ampliada)}
                         alt={`Foto de ${ampliada.nombre}`}
-                        className="mx-auto aspect-[3/4] w-full max-w-64 rounded-xl object-cover shadow-md"
+                        className="mx-auto aspect-square w-full max-w-64 rounded-xl object-cover object-[50%_25%] shadow-md"
                     />
                     <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
                         <div>
@@ -642,18 +674,52 @@ export function ListaDelExamen({ examenId }) {
                     </dl>
                 </Dialogo>
             )}
+            {porConfirmar !== null && (
+                <Dialogo
+                    titulo={porConfirmar ? 'Habilitar' : 'Inhabilitar'}
+                    onCerrar={() => setPorConfirmar(null)}
+                    acciones={
+                        <>
+                            <Boton variante="secundario" onClick={() => setPorConfirmar(null)}>
+                                Cancelar
+                            </Boton>
+                            <Boton
+                                variante={porConfirmar ? 'primario' : 'peligro'}
+                                onClick={() => cambiar(porConfirmar)}
+                                cargando={enviando}
+                            >
+                                {porConfirmar ? 'Habilitar' : 'Inhabilitar'} {cantidad}
+                            </Boton>
+                        </>
+                    }
+                >
+                    <p className="text-sm text-slate-700">
+                        {plural(cantidad, 'estudiante')}
+                        {!porConfirmar && motivo.trim() && ` · ${motivo.trim()}`}
+                    </p>
+                </Dialogo>
+            )}
             {aviso}
         </div>
     );
 }
 
-ListaDelExamen.propTypes = { examenId: PropTypes.number.isRequired };
+ListaDelExamen.propTypes = {
+    examenId: PropTypes.number.isRequired,
+    onCifras: PropTypes.func.isRequired,
+};
 
 // Habilitación y distribución del examen elegido (`?examen=`).
 export default function Habilitacion() {
     const { datos, cargando, error, recargar } = usarConsulta('/examenes');
     const examenes = datos ?? [];
     const [examen, elegir] = usarExamen(examenes);
+    const { puede } = usarSesion();
+    // Las cifras del examen a la vista, al día tras cada lote.
+    const [vigentes, setVigentes] = useState(null);
+    const examenId = examen?.id ?? null;
+    const anotar = useCallback((cifras) => setVigentes({ examenId, cifras }), [examenId]);
+    const cifras = vigentes?.examenId === examenId ? vigentes.cifras : examen;
 
     return (
         <div className="space-y-6">
@@ -665,11 +731,24 @@ export default function Habilitacion() {
                         : undefined
                 }
                 volver={{ a: '/examenes', texto: 'Exámenes' }}
-            />
+            >
+                {examen && puede('codigos_qr') && (
+                    <Link
+                        to={rutaDelExamen(examen.id, 'qr')}
+                        className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium ${FOCO} ${
+                            completa(cifras)
+                                ? 'bg-primary-600 text-white hover:bg-primary-700'
+                                : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
+                    >
+                        <QrCode className="h-4 w-4" /> Emitir códigos QR
+                    </Link>
+                )}
+            </Encabezado>
             {examen ? (
                 <>
                     <SelectorExamen valor={examen.id} onCambiar={elegir} examenes={examenes} />
-                    <ListaDelExamen key={examen.id} examenId={examen.id} />
+                    <ListaDelExamen key={examen.id} examenId={examen.id} onCifras={anotar} />
                 </>
             ) : (
                 <Tarjeta sinRelleno>

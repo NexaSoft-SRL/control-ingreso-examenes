@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { acomodarRotulos } from './rotulosMapa';
 
 // Mapa del campus con MapLibre, como en GENDA. Con VITE_CARTO_API_KEY el mapa
 // base es el claro de CARTO, con los mismos ajustes de color que GENDA. Sin
@@ -96,12 +95,13 @@ export default function MapaVivo({ edificios, onElegir, alto }) {
                 const texto = document.createElement('div');
                 texto.className = 'mapa-rotulo';
                 texto.textContent = e.rotulo;
-                return new maplibregl.Marker({ element: texto, anchor: 'center' })
+                return new maplibregl.Marker({ element: texto, anchor: 'bottom', offset: [0, -6] })
                     .setLngLat(e.centro ?? e.poligono[0])
                     .addTo(m);
             });
 
-        const destacados = lista.filter((e) => e.marcado);
+        // Lo marcado y el punto de partida («Aquí») entran juntos en la vista.
+        const destacados = lista.filter((e) => e.marcado || e.contorno);
         const caja = limites(destacados.length > 0 ? destacados : lista);
         if (caja) {
             m.fitBounds(caja, {
@@ -110,7 +110,6 @@ export default function MapaVivo({ edificios, onElegir, alto }) {
                 duration: animar ? 600 : 0,
             });
         }
-        requestAnimationFrame(() => acomodarRotulos(m, rotulos.current));
     };
 
     useEffect(() => {
@@ -202,8 +201,6 @@ export default function MapaVivo({ edificios, onElegir, alto }) {
                 }
                 sobre = null;
             });
-            m.on('moveend', () => acomodarRotulos(m, rotulos.current));
-            m.on('resize', () => acomodarRotulos(m, rotulos.current));
 
             // La atribución queda plegada tras su botón: abierta tapa un mapa pequeño.
             contenedor.current

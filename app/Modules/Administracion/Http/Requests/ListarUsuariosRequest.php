@@ -37,14 +37,14 @@ final class ListarUsuariosRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'buscar.max' => 'Máximo 100 caracteres.',
+            'buscar.max' => 'La búsqueda no puede pasar de 100 caracteres.',
             'rol.exists' => 'El rol no existe.',
             'bloqueadas.boolean' => 'El filtro de bloqueadas no es válido.',
             'pagina.integer' => 'La página no es válida.',
             'pagina.min' => 'La página no es válida.',
             'por_pagina.integer' => 'El tamaño de página no es válido.',
             'por_pagina.min' => 'El tamaño de página no es válido.',
-            'por_pagina.max' => 'Máximo 100 filas por página.',
+            'por_pagina.max' => 'No se pueden pedir más de 100 filas por página.',
         ];
     }
 

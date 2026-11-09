@@ -1,0 +1,139 @@
+% Ficha HU-22 del sprint 3. Una historia = una vista completa: el examen
+% mientras se toma, aula por aula, con sus cifras, quien atiende, las
+% incidencias por atender, el mapa, los filtros y el aula compartida.
+% Tipo: propia del sprint. La ficha v1 con este numero era otra historia.
+\def\HUNro{22}
+\def\HUSprint{3}
+\def\HUTitulo{Monitoreo > En curso > Seguir el examen aula por aula}
+\def\HUModulo{M5}
+\def\HUReq{11, 15}
+\def\HUPuntos{8}
+
+\def\HUComo{docente}
+\def\HUQuiero{seguir mi examen en curso, aula por aula}
+\def\HUPara{saber cómo marcha el ingreso y atender lo que pasa en cada aula mientras voy
+de una a otra}
+
+\def\HUDescripcion{%
+Un examen masivo ocupa varias aulas y el docente no puede estar en todas. El pliego pide
+seguir el ingreso mientras ocurre y que cada aula tenga un responsable. Esta vista es el
+examen en curso visto desde arriba: cuántos ingresaron, cuántos faltan, quién atiende
+cada aula y qué incidencias esperan respuesta. El docente la usa de pie, con el teléfono,
+mientras pasa de un aula a otra.
+
+Arriba van el examen, el estado del ingreso con la hora del último registro y cuatro
+cifras: ingresaron, faltan, aulas e incidencias sin atender. Debajo, las incidencias del
+examen, las que faltan atender a la vista. Luego las aulas, cada una con quién está a
+cargo, quién apoya, su avance y sus señales, y al lado el mapa con los edificios de las
+aulas. Desde cada aula se abre su lista (HU-21) o su puerta (HU-19).
+
+Reglas: el selector ofrece los exámenes de hoy y los del próximo día con examen. El
+ingreso está abierto desde sesenta minutos antes del inicio hasta el final, y eso lo
+decide el servidor. La vista se actualiza sola cada diez segundos. Las cifras solo
+cuentan; la única escritura es reportar una incidencia el día del examen y marcarla
+como atendida, que deja quién y cuándo y no se deshace. Un aula que a la misma hora usa
+otro examen queda señalada.
+
+La vista depende del examen con sus aulas (HU-08), de la habilitación y el reparto por
+aula (HU-09), del mapa de aulas (HU-11), de quién atiende cada aula y del código de acceso
+(HU-18), y de los ingresos y las incidencias que registra la puerta (HU-19). La atención
+de una incidencia queda en la bitácora (HU-07).}
+
+\def\HUCriterios{%
+\item Dado que el docente tiene exámenes hoy o el próximo día con examen, Cuando abre «En
+      curso», Entonces el selector ofrece esos exámenes ---los que registró y los de sus
+      grupos incluidos--- y muestra «En curso» con el tipo y la asignatura del elegido; sin
+      ninguno muestra «Sin exámenes».
+\item Dado que el examen está elegido, Cuando la vista carga, Entonces muestra las cifras
+      «Ingresaron», «Faltan», «Aulas» e «Incidencias sin atender», esta última resaltada
+      si hay alguna.
+\item Dado que el ingreso está abierto, Cuando se muestra el examen, Entonces la insignia
+      dice «Ingreso abierto · Último registro» con la hora del último ingreso del examen,
+      o «Sin registros» si aún no hay; con el examen sin abrir dice la fecha y la hora del
+      examen.
+\item Dado que el examen tiene aulas, Cuando se muestran, Entonces cada una dice «Aula»
+      con su nombre, quién está a cargo con «Docente» o «Auxiliar a cargo», quién apoya,
+      «Último registro» con su hora, una barra de avance y los ingresados sobre los
+      asignados con lo que falta («19 de 50 · Faltan 31»), que nunca es negativo; con el
+      ingreso abierto, un aula sin ingresos se marca «Sin ingresos».
+\item Dado que un aula del examen la usa otro examen cuyo horario se cruza el mismo día,
+      Cuando se muestra, Entonces lleva «Compartida» con la asignatura y el tipo del otro
+      examen; no se marca si el otro empieza justo cuando este termina ni si es de otro
+      día. Un aula que tiene código de aula para el ayudante sin cuenta (HU-18) lleva la señal
+      «Código de acceso».
+\item Dado que la vista está abierta, Cuando pasan diez segundos, Entonces vuelve a pedir
+      el examen y sus incidencias sin recargar la página; con la pestaña oculta se detiene
+      y al volver se actualiza en el acto. Tras tres fallos seguidos muestra «Sin
+      conexión» y conserva los últimos datos.
+\item Dado que el examen tiene incidencias reportadas por personas, Cuando se muestra la
+      vista, Entonces aparece «Incidencias» con su total y las fichas «Sin atender», que
+      es la inicial, y «Todas»; cada una dice el tipo, el aula, la hora, el estudiante si
+      se indicó, el detalle y quién la reportó con su rol, de la más reciente a la más
+      antigua. Cada aula con incidencias por atender lleva la cantidad; los intentos que
+      registra la puerta por sí sola no se cuentan ni se listan.
+\item Dado que una incidencia está sin atender, Cuando el docente pulsa «Atender»,
+      Entonces el sistema la marca como atendida, avisa «Incidencia atendida» y la muestra
+      «Atendida» con quién y cuándo; no hay forma de deshacerlo y un segundo intento
+      responde «La incidencia ya estaba atendida.».
+\item Dado que la incidencia es de un examen compartido por varios docentes, Cuando la
+      atiende el docente de un grupo incluido, Entonces queda atendida igual; el auxiliar
+      no puede atenderla.
+\item Dado que es el día del examen, Cuando el docente pulsa «Incidencia», Entonces elige
+      el aula del examen y reporta la incidencia con el mismo formulario de la puerta
+      (HU-19); la lista y las cifras se actualizan.
+\item Dado que el examen tiene dos aulas o más, Cuando el docente elige una ficha,
+      Entonces las aulas se filtran por «Todas», «Con incidencias», «Con pendientes»,
+      «Sin ingresos» o «A mi cargo», cada una con su cantidad; si ninguna queda muestra
+      «Sin resultados».
+\item Dado que el examen tiene dos aulas o más, Cuando el docente cambia «Orden»,
+      Entonces las aulas se ordenan por «Menor avance», que es el inicial, «Más
+      pendientes» o «Aula».
+\item Dado que las aulas tienen edificio, Cuando se muestra «Aulas del examen», Entonces
+      el mapa marca los edificios de esas aulas con un rótulo que dice sus aulas.
+\item Dado que el examen tiene más de seis aulas, Cuando se muestran, Entonces pasan a
+      una rejilla compacta con el aula, la cifra, la barra, quién está a cargo y sus
+      señales en una línea.
+\item Dado que se muestra un aula, Cuando el docente pulsa «Lista», Entonces abre la lista
+      de esa aula (HU-21); con el ingreso abierto también ofrece «Controlar», que abre su
+      puerta (HU-19), si la cuenta ---docente o auxiliar--- puede operar la puerta.
+\item Dado que un docente está a cargo de un aula en un examen que no es suyo, Cuando lo
+      elige, Entonces en lugar del examen ve «Aulas a mi cargo» con el enlace a la lista de
+      cada una; el examen entero le responde «Este examen no es tuyo.».
+\item Dado que no hay sesión, la cuenta es de administrador o de otro rol sin el permiso
+      de seguimiento, o es un auxiliar, Cuando se pide el examen en curso, Entonces el
+      sistema responde con una negativa explícita.
+\item Dado que la vista es de consulta, Cuando se recorre, se filtra o se ordena, Entonces
+      no escribe nada: las rutas del seguimiento no admiten otra operación que la consulta,
+      y solo la atención de una incidencia queda en la bitácora. En un dispositivo móvil
+      las cifras van de a dos, el mapa debajo de las aulas y los filtros con desplazamiento
+      propio, de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{EnCursoListadoTest}: exámenes de hoy y del próximo día con examen, su texto,
+      su hora y si está abierto, docente de un grupo incluido y cuenta sin exámenes
+      (criterio 1).
+\item \texttt{TableroTest}: ingresados y asignados por aula, último ingreso del examen y
+      de cada aula, hora del servidor, quién está a cargo y quién apoya, aula compartida y
+      aula con código de acceso (criterios 2 a 5).
+\item \texttt{TableroTest}: ventana desde una hora antes del inicio hasta el final y
+      examen de otro día que no está abierto (criterio 3).
+\item \texttt{TableroTest} e \texttt{IncidenciasTest}: solo cuentan y se listan las
+      incidencias sin atender reportadas por personas, de la más reciente a la más
+      antigua, con filtros por aula y por pendientes (criterio 7).
+\item \texttt{IncidenciasTest}: atención única con quién y cuándo, docente de un grupo
+      incluido, auxiliar que no atiende, asiento en la bitácora y reporte en un aula del
+      examen (criterios 8 a 10).
+\item \texttt{TableroTest}: docente de otro examen, auxiliar, administrador, invitado,
+      permiso por rol y examen desconocido (criterios 16 y 17).
+\item \texttt{TableroTest}: rutas del seguimiento solo de lectura (criterio 18).
+\item \texttt{usarSondeo.test.jsx}: consulta periódica, pausa con la pestaña oculta y
+      «sin conexión» tras tres fallos (criterio 6).
+\item \texttt{Incidencias.test.jsx}: formulario con el aula elegida, detalle mínimo,
+      errores del servidor, lista con su estado y atención (criterios 7, 8 y 10).
+\item \texttt{EnCurso.test.jsx}: aulas con ingresados, faltantes y quién atiende, último
+      registro, aula compartida, sondeo cada 10 s y sin conexión, incidencias sin atender
+      y todas, atención sin deshacer, ya atendida, reporte, filtros, orden, mapa, enlaces
+      a la lista y a la puerta, examen sin abrir, cambio de examen, rejilla compacta,
+      sin exámenes, reintento y examen ajeno (criterios 1 a 8 y 10 a 16).}
+
+\input{cuerpo}

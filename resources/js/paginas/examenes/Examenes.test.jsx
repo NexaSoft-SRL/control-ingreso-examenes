@@ -9,7 +9,7 @@ vi.mock('../../api/cliente');
 const INTRO = { id: 20, codigo: '2010010', nombre: 'Introducción a la Programación' };
 const TALLER = { id: 53, codigo: '2010024', nombre: 'Taller de Ingeniería de Software' };
 
-// Un examen del resumen, como lo devuelve GET /examenes.
+// Un examen del resumen, como lo devuelve GET /examenes (ruta 42).
 function examen(cambios) {
     return {
         tipo: 'PRIMER_PARCIAL',
@@ -215,7 +215,7 @@ describe('Examenes · pasos y acción siguiente', () => {
         expect(pasos.map((p) => p.textContent)).toEqual([
             'Grupos4 · 260 inscritos',
             'Aulas617, 624, 691A, 691B, 691E',
-            'Quién atiende4 personas',
+            'Quién atiende4 auxiliares',
             'Habilitación251 de 260',
             'Códigos QRPendiente',
         ]);
@@ -300,11 +300,11 @@ describe('Examenes · pasos y acción siguiente', () => {
         );
     });
 
-    it('sin el permiso de códigos QR no dibuja su enlace', async () => {
-        examenes = [{ ...CON_QR, es_hoy: false, fecha: '2026-10-20' }];
+    it('sin los permisos de seguimiento y códigos QR no dibuja sus enlaces', async () => {
         montar(usuarioDePrueba('Docente', { permisos: ['examenes', 'habilitacion'] }));
         const fila = await tarjeta('Primer parcial · Introducción a la Programación');
 
+        expect(within(fila).queryByRole('link', { name: /En curso/ })).not.toBeInTheDocument();
         expect(within(fila).queryByRole('link', { name: /QR|códigos/i })).not.toBeInTheDocument();
         // Queda el título, que abre el examen.
         expect(within(fila).getAllByRole('link')).toHaveLength(1);
@@ -341,27 +341,6 @@ describe('Examenes · pasos y acción siguiente', () => {
             '/examenes/nuevo?examen=4&paso=2'
         );
         expect(within(fila).queryByRole('link', { name: 'Habilitación' })).not.toBeInTheDocument();
-    });
-
-    it('«Asignar quién atiende» lleva a la edición en el paso de quién atiende', async () => {
-        examenes = [
-            {
-                ...POR_HABILITAR,
-                avance: { ...POR_HABILITAR.avance, auxiliares: 'ahora', habilitacion: 'falta' },
-                estado: 'Falta quién atiende',
-                accion: { clave: 'quien_atiende', paso: 3 },
-            },
-        ];
-        montar();
-        const fila = await tarjeta('Segundo parcial · Taller de Ingeniería de Software');
-
-        expect(within(fila).getByRole('link', { name: /Asignar quién atiende/ })).toHaveAttribute(
-            'href',
-            '/examenes/nuevo?examen=5&paso=3'
-        );
-        expect(within(fila).getAllByRole('listitem')[2]).toHaveTextContent(
-            'Quién atiendeMás de 2 aulas por persona'
-        );
     });
 
     it('«Habilitar» lleva a Habilitación con el examen', async () => {

@@ -119,9 +119,13 @@ export default function FotoDelInscrito({ grupoId, estudiante, onHabilitada, onC
         >
             <div className="space-y-3 text-sm">
                 <p className="font-semibold text-slate-900">{estudiante.nombre}</p>
-                <p className="text-slate-700">
-                    {subida ? `Foto del ${fechaCorta(subida)}` : 'Sin foto'}
-                </p>
+                {subida ? (
+                    <p className="rounded-lg bg-success-50 px-3 py-2 text-success-800">
+                        Con foto · del {fechaCorta(subida)}
+                    </p>
+                ) : (
+                    <p className="text-slate-700">Sin foto</p>
+                )}
                 {vigente && (
                     <p className="rounded-lg bg-primary-50 px-3 py-2 text-primary-800">
                         Habilitado hasta el {fechaCorta(actual)}

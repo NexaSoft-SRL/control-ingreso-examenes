@@ -1,0 +1,161 @@
+% Ficha HU-18 del sprint 3. Una historia = una vista completa: el paso
+% «Quien atiende» del registro de examen, con los auxiliares, el codigo de
+% acceso por aula y la entrada con ese codigo.
+% Tipo: propia del sprint. La ficha anterior queda en sprint3/v1/.
+\def\HUNro{18}
+\def\HUSprint{3}
+\def\HUTitulo{Exámenes > Quién atiende > Asignar las aulas y dar acceso a quien ayuda}
+\def\HUModulo{M4}
+\def\HUReq{16}
+\def\HUPuntos{8}
+
+\def\HUComo{docente}
+\def\HUQuiero{indicar quién atiende cada aula de mi examen y dar acceso a quien me ayuda,
+tenga o no una cuenta en el sistema}
+\def\HUPara{que cada puerta quede a cargo de una persona identificada aunque yo no pueda
+estar en todas, y que cada ingreso registrado diga quién lo hizo}
+
+\def\HUDescripcion{%
+Un examen masivo ocupa varias aulas a la misma hora y el docente no puede estar en todas
+las puertas. El pliego pide que cada punto de control tenga un responsable. Esta vista es
+el cuarto paso del registro de examen, «Quién atiende»: por cada aula elegida en el paso
+anterior, el docente decide quién queda a cargo y quién apoya.
+
+Cada aula nace a cargo de quien registra el examen. «A cargo» puede ser ese docente, el
+docente con cuenta de alguno de los grupos incluidos o un auxiliar; «Apoyo» son solo
+auxiliares, tantos como hagan falta y distintos de quien está a cargo. Debajo de las
+aulas va la lista de auxiliares del docente, con un buscador que alcanza a los auxiliares
+de otros docentes y un formulario para dar de alta a uno nuevo sin salir de la vista. El
+auxiliar es un estudiante: su correo sale de su código universitario y a ese correo llega
+su contraseña temporal. Con más de dos aulas, «Repartir» deja un auxiliar a cargo de cada
+una.
+
+Hay dos formas de dar acceso. El auxiliar con cuenta inicia sesión con su usuario y en el
+punto de control ve solo las aulas que atiende, y solo el día del examen. Quien ayuda sin
+cuenta entra con el código de acceso del aula: seis dígitos que el docente genera por aula
+y por examen, copia y entrega. Con el código y su nombre, esa persona abre el punto de
+control de esa aula y de ninguna otra. El código vale el día del examen, desde sesenta
+minutos antes del inicio hasta el final; regenerarlo deja sin efecto el anterior y cierra
+los accesos abiertos con él.
+
+Reglas: solo quien registró el examen cambia quién atiende; los docentes de los grupos
+incluidos ven el resumen y manejan el código de cada aula. El personal se puede cambiar
+aunque el examen ya tenga ingresos. Quitar a un auxiliar de la lista no borra su cuenta ni
+lo que registró, y no se quita mientras atienda un examen pendiente.
+
+La vista depende del examen registrado con sus aulas (HU-08), de las aulas importadas
+(HU-11) y de los roles de inicio ---administrador, docente y auxiliar--- con sus permisos
+(HU-15). El auxiliar entra con su usuario (HU-16). De ella dependen el punto de control
+(HU-19), que decide por esta asignación quién opera cada puerta, la lista del aula (HU-21)
+y el examen en curso (HU-22), que muestran quién atiende. Cada alta, cada baja, cada código
+y cada entrada con código quedan en la bitácora (HU-07).}
+
+\def\HUCriterios{%
+\item Dado que el docente eligió las aulas del examen, Cuando llega al paso «4. Quién
+      atiende», Entonces el sistema lista cada aula con su ubicación y la cantidad de
+      aulas, cada una a cargo de quien registra y sin apoyo; si el examen no tiene aulas
+      muestra «Sin aulas».
+\item Dado que el docente abre «A cargo» de un aula, Cuando elige, Entonces puede dejar a
+      quien registra, al docente con cuenta de un grupo incluido o a un auxiliar; si
+      después quita ese grupo del examen, las aulas que tenía su docente vuelven a quien
+      registra.
+\item Dado que el docente elige a alguien en «Apoyo», Cuando lo agrega, Entonces queda
+      como etiqueta bajo el aula con su equis para quitarlo; el apoyo ofrece solo
+      auxiliares que no estén ya en esa aula, y quien pasa a estar a cargo sale del apoyo.
+\item Dado que el examen tiene más de dos aulas y hay al menos un auxiliar, Cuando el
+      docente pulsa «Repartir», Entonces la primera aula queda con el docente, cada una de
+      las siguientes con un auxiliar distinto a cargo y las que sobran con el docente; con
+      dos aulas o sin auxiliares el botón no se ofrece.
+\item Dado que el docente abre el paso, Cuando se carga «Auxiliares», Entonces ve con su
+      cantidad a los que registró y a los que atienden un examen suyo pendiente, o «Sin
+      auxiliares»; al escribir tres letras o más en «Buscar auxiliar» aparecen hasta
+      veinte cuentas activas de auxiliar por nombre, usuario o código universitario, sin
+      distinguir mayúsculas ni tildes, y un clic suma al elegido.
+\item Dado que el docente escribe el nombre completo y el código universitario en
+      «Auxiliar nuevo», Cuando pulsa «Agregar», Entonces el sistema crea la cuenta con rol
+      auxiliar y correo institucional de estudiante, envía la contraseña temporal a ese
+      correo, avisa «Auxiliar agregado» y lo deja disponible para las aulas.
+\item Dado que falta un dato, el nombre tiene menos de tres caracteres o el código no
+      tiene entre 5 y 10 dígitos, Cuando pulsa «Agregar», Entonces el sistema no crea nada
+      y señala el campo («Obligatorio», «Mínimo 3 caracteres», «Entre 5 y 10 dígitos»); si
+      ese código ya es de un auxiliar lo suma a la lista con «Auxiliar ya registrado», y
+      si el correo es de otra cuenta responde «Ya existe».
+\item Dado que el docente pulsa la equis de un auxiliar de su lista, Cuando confirma en
+      «Quitar auxiliar», Entonces el auxiliar sale de la lista y de las aulas donde
+      estaba, que vuelven al docente, y se avisa «Auxiliar quitado»; la cuenta no se borra,
+      y si atiende un examen pendiente no se quita y se avisa «Atiende un examen
+      pendiente».
+\item Dado que los datos son válidos, Cuando el docente pulsa «Registrar examen» o
+      «Guardar examen», Entonces quién atiende se guarda junto con el examen y el resumen
+      muestra, por aula, quién está a cargo y quién apoya; si alguien a cargo no es
+      docente ni auxiliar, el sistema lo rechaza con el mensaje bajo esa aula.
+\item Dado que el examen ya tiene ingresos registrados, Cuando quien lo registró cambia
+      solo quién atiende sus aulas, Entonces el sistema guarda el cambio, aunque la fecha,
+      los grupos y las aulas ya no se puedan modificar.
+\item Dado que el examen está guardado, Cuando el docente pulsa la llave de un aula,
+      Entonces se abre «Código de acceso» con el aula, quién está a cargo y la fecha del
+      examen; si el aula no tiene código muestra «Sin código» y «Generar», y consultarlo
+      no lo crea; en un aula que todavía no se guardó la llave está deshabilitada.
+\item Dado que el docente pulsa «Generar», Cuando se completa, Entonces el sistema crea un
+      código de seis dígitos propio de esa aula y ese examen, avisa «Código generado» y
+      ofrece «Copiar», que lo deja en el portapapeles y avisa «Código copiado».
+\item Dado que el aula ya tiene código, Cuando el docente pulsa «Regenerar», Entonces el
+      sistema lo reemplaza y avisa «Código regenerado»; el código anterior deja de valer y
+      los accesos abiertos con él se cierran.
+\item Dado que quien ayuda no tiene cuenta, Cuando abre «Entrar con código de aula» desde
+      el inicio de sesión, escribe el código y su nombre y pulsa «Entrar», Entonces ve el
+      punto de control de esa aula, sin menú, con su nombre, el aula, la hora hasta la que
+      vale el acceso y «Salir»; con datos incompletos se señala «Seis dígitos» o «Mínimo 3
+      caracteres».
+\item Dado que el código no existe o se usa fuera del día del examen ---antes de los
+      sesenta minutos previos al inicio o después del final---, Cuando se intenta entrar,
+      Entonces el sistema responde «Código no válido» sin decir la causa; al cuarto
+      intento en cinco minutos responde «Demasiados intentos», y cuando el examen termina
+      el acceso abierto se cierra y la pantalla vuelve a pedir el código.
+\item Dado que alguien entró con código de aula o es un auxiliar con cuenta, Cuando
+      intenta operar un aula que no es la suya, Entonces el sistema lo niega: el código
+      abre solo su aula y no alcanza ninguna vista que exija cuenta, y el auxiliar ve
+      solo las aulas donde está a cargo o de apoyo, y solo el día del examen.
+\item Dado que no hay sesión, que el rol no tiene el permiso de exámenes o que el docente
+      no registró el examen ni dicta ninguno de sus grupos, Cuando intenta ver o dar de
+      alta auxiliares o consultar o generar un código, Entonces el sistema responde con
+      una negativa explícita; el docente de un grupo incluido maneja el código pero no
+      cambia quién atiende, y solo quien registró a un auxiliar lo quita de su lista.
+\item Dado que se da de alta o se quita un auxiliar, se genera o regenera un código o
+      alguien entra con él, Cuando la operación se completa, Entonces queda asentada en la
+      bitácora; cada ingreso registrado después conserva quién lo hizo: la cuenta, o el
+      acceso con código y el nombre declarado. En un dispositivo móvil las aulas se
+      muestran en una sola columna y la entrada con código se adapta de forma
+      completamente responsiva.}
+
+\def\HUMockupsExtra{%
+\CajaMockup{hu18-codigo}{7.8cm} & \CajaMockup{hu18-acceso-aula}{7.8cm}}
+
+\def\HUPruebas{%
+\item \texttt{RegistroExamenTest}: registro en una sola petición con aulas y personal,
+      encargado que debe ser docente o auxiliar, docente de un grupo sumado a cargo de un
+      aula y, con ingresos, cambio solo de normas y personal (criterios 1, 2, 9 y 10).
+\item \texttt{AuxiliaresTest}: auxiliares propios y de exámenes pendientes, búsqueda desde
+      tres letras con tope de veinte, alta con correo de estudiante y contraseña temporal,
+      código ya registrado, correo de otra cuenta, validación y baja de la lista
+      (criterios 5 a 8).
+\item \texttt{CodigoDeAulaTest}: consultar no genera, generar a pedido, regenerar y cierre
+      de los accesos anteriores, un código por aula y examen, docente del examen frente a
+      un ajeno y aula que no es del examen (criterios 11 a 13 y 17).
+\item \texttt{AccesoConCodigoDeAulaTest}: acceso hasta el final del examen, código
+      desconocido o fuera de su ventana, límite de intentos, alcance a su aula, rutas que
+      exigen cuenta e ingreso que conserva el acceso y no un usuario (criterios 14 a 16 y
+      18).
+\item \texttt{PuertaTest} y \texttt{AlcanceExamenGatewayTest}: el auxiliar lista solo las
+      aulas que atiende, a cargo o de apoyo, y solo el día del examen (criterio 16).
+\item \texttt{AuxiliaresTest}, \texttt{CodigoDeAulaTest} y
+      \texttt{AccesoConCodigoDeAulaTest}: sin sesión, rol sin permiso y asiento en la
+      bitácora de cada alta, baja, código y entrada (criterios 17 y 18).
+\item \texttt{RegistrarExamen.test.jsx}: a cargo y apoyo por aula, «Repartir», alta,
+      búsqueda y baja de auxiliares, docente de un grupo sumado, rechazo bajo el aula y
+      diálogo del código con «Generar», «Copiar» y «Regenerar» (criterios 1 a 9 y 11 a 13).
+\item \texttt{AccesoAula.test.jsx}: formulario con su validación, puerta sin menú y con
+      «Salir», código rechazado, demasiados intentos, acceso recuperado al recargar y
+      acceso vencido (criterios 14 y 15).}
+
+\input{cuerpo}

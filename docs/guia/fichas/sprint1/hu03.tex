@@ -1,0 +1,72 @@
+% Ficha HU-03. Criterios tomados del backlog del sprint 1 y de lo aclarado
+% por la consultora en la sexta revision: el docente tambien mantiene el
+% padron de su asignatura, y la baja no borra el historial del estudiante.
+\def\HUNro{03}
+\def\HUSprint{1}
+\def\HUTitulo{Administración > Padrón > Registrar y mantener estudiantes}
+\def\HUModulo{M1}
+\def\HUReq{1}
+\def\HUPuntos{3}
+
+\def\HUComo{administrador o docente}
+\def\HUQuiero{registrar y mantener los datos de un estudiante}
+\def\HUPara{contar con el padrón sobre el que opera todo el sistema}
+
+\def\HUDescripcion{%
+El padrón es la base de las demás historias: sin estudiantes registrados no hay a quién
+habilitar ni a quién dejar entrar a un examen.
+
+De cada estudiante se guardan código universitario, documento de identidad, nombres,
+apellidos y carrera. El correo es opcional, porque el padrón que entrega la universidad
+no siempre lo trae. El código y el documento son únicos: dos estudiantes no pueden
+compartirlos, y el sistema lo rechaza antes de guardar.
+
+El estudiante no se elimina nunca. Cuando deja de corresponder al padrón se lo da de
+baja: el registro se conserva con sus ingresos y habilitaciones de exámenes anteriores, y
+deja de aparecer como activo. Un estudiante dado de baja puede volver a activarse.
+
+La pantalla exige el permiso de padrón: el administrador y el docente lo tienen; quien no,
+recibe una negativa que nombra el permiso que le falta. Cada alta, edición y baja queda
+asentada en la bitácora (HU-07).}
+
+\def\HUCriterios{%
+\item Dado que el administrador abre el padrón, Cuando se carga la pantalla, Entonces el
+      sistema lista los estudiantes con su código, documento, nombre, carrera y estado.
+\item Dado que se registra un estudiante, Cuando se completan código universitario,
+      documento de identidad, nombres, apellidos y carrera, Entonces el sistema lo guarda
+      y lo muestra en el padrón.
+\item Dado que el código universitario ya pertenece a otro estudiante, Cuando se intenta
+      guardar, Entonces el sistema rechaza el registro indicando el campo repetido.
+\item Dado que el documento de identidad ya pertenece a otro estudiante, Cuando se intenta
+      guardar, Entonces el sistema rechaza el registro indicando el campo repetido.
+\item Dado que el estudiante no tiene correo, Cuando se guarda sin ese dato, Entonces el
+      sistema lo acepta, porque el correo es opcional.
+\item Dado que los datos de un estudiante cambian, Cuando se editan y se guardan, Entonces
+      el sistema los actualiza conservando su código y su historial.
+\item Dado que un estudiante deja de corresponder al padrón, Cuando se lo da de baja,
+      Entonces el sistema lo marca como inactivo sin borrar su registro ni su historial.
+\item Dado que un estudiante está dado de baja, Cuando se lo reactiva, Entonces vuelve a
+      figurar como activo en el padrón.
+\item Dado que un rol no tiene el permiso de padrón, Cuando intenta abrir la pantalla,
+      Entonces el sistema responde con una negativa explícita que nombra el permiso.
+\item Dado que no hay sesión iniciada, Cuando se llama a cualquier ruta del padrón,
+      Entonces el sistema responde 401.
+\item Dado que se registra, edita o da de baja a un estudiante, Cuando la operación se
+      completa, Entonces queda asentada en la bitácora con su autor.
+\item Dado que el administrador entra desde un dispositivo móvil, Cuando abre el padrón,
+      Entonces la interfaz se adapta de forma completamente responsiva.}
+
+\def\HUPruebas{%
+\item \texttt{PadronEstudiantesTest}: alta con los cinco campos del backlog, unicidad del
+      código y del documento, correo opcional y edición sin perder el historial
+      (criterios 2 a 6).
+\item \texttt{PadronEstudiantesTest::a\_student\_is\_deactivated\_without\_losing\_the\_record}:
+      la baja deja el registro en la base, marcado como inactivo (criterio 7).
+\item \texttt{PadronEstudiantesTest}: el docente también administra el padrón, un rol sin
+      el permiso recibe 403 y sin sesión la respuesta es 401 (criterios 9 y 10).
+\item \texttt{PadronEstudiantesTest::every\_movement\_is\_recorded\_in\_the\_audit\_log}:
+      alta, edición y baja asentadas en la bitácora (criterio 11).
+\item \texttt{RegistroEstudiantes.test.jsx}: listado, formulario de alta y edición, baja
+      con confirmación y reactivación desde la pantalla (criterios 1, 6, 7 y 8).}
+
+\input{cuerpo}

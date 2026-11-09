@@ -30,12 +30,12 @@ final class NormasDelExamenTest extends TestCase
 
     private function predefinida(string $texto): PlantillaNorma
     {
-        return PlantillaNorma::whereNull('usuario_id')->where('texto', $texto)->firstOrFail();
+        return PlantillaNorma::whereNull('user_id')->where('texto', $texto)->firstOrFail();
     }
 
     private function propia(int $usuarioId, string $texto): PlantillaNorma
     {
-        return PlantillaNorma::create(['usuario_id' => $usuarioId, 'texto' => $texto]);
+        return PlantillaNorma::create(['user_id' => $usuarioId, 'texto' => $texto]);
     }
 
     /**

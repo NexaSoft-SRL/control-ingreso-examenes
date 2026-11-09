@@ -4,96 +4,90 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Modules\Administracion;
 
-use App\Modules\Administracion\Domain\Models\Role;
-use Database\Factories\UserFactory;
-use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Tests\Support\UsuarioConPermisos;
 use Tests\TestCase;
 
 /**
- * La bitacora se escribe sola: quien opera no la pide. Cada operacion deja
- * quien la hizo, que hizo, sobre que registro y cuando; una operacion
- * rechazada no deja asiento.
+ * La bitacora se escribe sola: cada operacion deja su asiento con autor,
+ * tabla, registro y hora, sin que nadie lo pida.
  */
 final class BitacoraRegistroAutomaticoTest extends TestCase
 {
     use RefreshDatabase;
+    use UsuarioConPermisos;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->seed(RolePermissionSeeder::class);
+        Mail::fake();
     }
 
-    public function test_creating_an_account_records_audit_operation(): void
+    public function test_creating_a_user_records_the_operation(): void
     {
-        $administrador = UserFactory::new()->createOne();
+        $this->travelTo('2026-10-12 12:21:00');
 
-        $this
-            ->actingAs($administrador)
+        $administrador = $this->usuarioConRol('Administrador');
+
+        $id = $this->actingAs($administrador)
             ->postJson('/api/usuarios', [
                 'nombre' => 'Blanco Coca Leticia',
                 'usuario' => 'leticia.blanco',
-                'correo' => 'leticia.blanco@umss.edu.bo',
+                'correo' => null,
+                'rol' => 'Docente',
+            ])
+            ->assertCreated()
+            ->json('data.id');
+
+        self::assertIsInt($id);
+
+        $this->assertDatabaseHas('bitacora_operaciones', [
+            'usuario_id' => $administrador->getKey(),
+            'operacion' => 'usuario.crear',
+            'tabla_afectada' => 'users',
+            'registro_id' => $id,
+            'fecha_operacion' => '2026-10-12 12:21:00',
+        ]);
+
+        $this->assertDatabaseCount('bitacora_operaciones', 1);
+    }
+
+    public function test_the_recorded_operation_shows_up_in_the_log_screen(): void
+    {
+        $administrador = $this->usuarioConRol('Administrador', ['name' => 'Rojas Vargas Ana']);
+
+        $this->actingAs($administrador)
+            ->postJson('/api/usuarios', [
+                'nombre' => 'Blanco Coca Leticia',
+                'usuario' => 'leticia.blanco',
                 'rol' => 'Docente',
             ])
             ->assertCreated();
 
-        $cuentaId = DB::table('usuarios')
-            ->where('correo', 'leticia.blanco@umss.edu.bo')
-            ->value('id');
-
-        self::assertIsInt($cuentaId);
-
-        $this->assertDatabaseHas('bitacora_operaciones', [
-            'usuario_id' => $administrador->getKey(),
-            'operacion' => 'usuario.registrar',
-            'tabla_afectada' => 'usuarios',
-            'registro_id' => $cuentaId,
-        ]);
-
-        $fechaOperacion = DB::table('bitacora_operaciones')
-            ->where('operacion', 'usuario.registrar')
-            ->where('registro_id', $cuentaId)
-            ->value('fecha_operacion');
-
-        self::assertNotNull($fechaOperacion);
+        $this->actingAs($administrador)
+            ->getJson('/api/bitacora?operacion=usuario.crear')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.usuario', 'Rojas Vargas Ana')
+            ->assertJsonPath('data.0.rol', 'Administrador')
+            ->assertJsonPath('data.0.operacion_texto', 'Creó el usuario');
     }
 
-    public function test_changing_the_permissions_of_a_role_records_audit_operation(): void
+    public function test_a_failed_creation_does_not_record_anything(): void
     {
-        $administrador = UserFactory::new()->createOne();
-        $rolId = Role::where('name', 'Auxiliar')->firstOrFail()->id;
+        $administrador = $this->usuarioConRol('Administrador');
 
-        $this
-            ->actingAs($administrador)
-            ->putJson("/api/roles/{$rolId}", ['permisos' => ['punto_control']])
-            ->assertOk();
-
-        $this->assertDatabaseHas('bitacora_operaciones', [
-            'usuario_id' => $administrador->getKey(),
-            'operacion' => 'rol.modificar',
-            'tabla_afectada' => 'roles',
-            'registro_id' => $rolId,
-            'descripcion' => 'El rol Auxiliar quedó con 1 permisos.',
-        ]);
-    }
-
-    public function test_rejected_account_creation_does_not_record_audit_operation(): void
-    {
-        $administrador = UserFactory::new()->createOne();
-
-        $this
-            ->actingAs($administrador)
+        $this->actingAs($administrador)
             ->postJson('/api/usuarios', [
-                'nombre' => 'Sin usuario',
-                'correo' => 'sin.usuario@umss.edu.bo',
+                'nombre' => 'Blanco Coca Leticia',
+                'usuario' => 'leticia/blanco',
                 'rol' => 'Docente',
             ])
             ->assertUnprocessable();
 
-        $this->assertDatabaseCount('bitacora_operaciones', 0);
+        $this->assertSame(0, DB::table('bitacora_operaciones')->count());
     }
 }

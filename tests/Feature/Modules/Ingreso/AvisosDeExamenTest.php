@@ -10,30 +10,30 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use RuntimeException;
 use Symfony\Component\Mailer\SentMessage;
 use Symfony\Component\Mime\Email;
 use Tests\TestCase;
 
 /**
- * HU-20: el docente avisa por correo a los habilitados la fecha, el aula,
- * las normas y sus recomendaciones.
+ * `POST /api/examenes/{examen}/codigos-qr/avisos`: el docente avisa a los
+ * habilitados la fecha, las normas y sus recomendaciones.
  */
 final class AvisosDeExamenTest extends TestCase
 {
-    use EscenarioDeCodigosQr;
+    use EscenarioDePuerta;
     use RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->travelTo('2026-10-26 09:30:00');
         $this->armarExamen();
     }
 
-    private function avisos(): string
+    private function ruta(): string
     {
-        return $this->ruta('/avisos');
+        return "/api/examenes/{$this->examen->id}/codigos-qr/avisos";
     }
 
     private function marcarNorma(string $texto, int $orden): void
@@ -52,7 +52,7 @@ final class AvisosDeExamenTest extends TestCase
         $this->habilitar($this->examen, $this->estudiantesInscritos($this->grupo, 2));
 
         $this->actingAs($this->cuentaDocente)
-            ->postJson($this->avisos())
+            ->postJson($this->ruta())
             ->assertStatus(409)
             ->assertJsonPath('codigo', 'SIN_AULA');
 
@@ -62,6 +62,7 @@ final class AvisosDeExamenTest extends TestCase
     public function test_one_notice_per_enabled_student_is_queued_and_recorded(): void
     {
         Mail::fake();
+        Queue::fake();
 
         [$conCodigo, $sinCodigo] = $this->habilitados(2);
         $this->emitirCodigo($conCodigo);
@@ -69,12 +70,12 @@ final class AvisosDeExamenTest extends TestCase
         $this->inhabilitar($this->examen, [$inhabilitado]);
 
         $this->actingAs($this->cuentaDocente)
-            ->postJson($this->avisos(), ['recomendaciones' => 'Llegar 20 minutos antes.'])
+            ->postJson($this->ruta(), ['recomendaciones' => 'Llegar 20 minutos antes.'])
             ->assertStatus(202)
             ->assertJsonPath('message', '2 avisos enviados.')
             ->assertJsonPath('encolados', 2)
             ->assertJsonPath('pendientes', 0)
-            ->assertJsonPath('tanda', '2026-10-26T09:30:00-04:00');
+            ->assertJsonPath('tanda', $this->iso('2026-10-12 08:20:00'));
 
         Mail::assertQueuedCount(2);
 
@@ -113,7 +114,7 @@ final class AvisosDeExamenTest extends TestCase
         $this->emitirCodigo($estudiante);
 
         $this->actingAs($this->cuentaDocente)
-            ->postJson($this->avisos(), ['recomendaciones' => "Llegar antes.\nTraer lápiz."])
+            ->postJson($this->ruta(), ['recomendaciones' => "Llegar antes.\nTraer lápiz."])
             ->assertStatus(202)
             ->assertJsonPath('message', '1 aviso enviado.');
 
@@ -129,7 +130,7 @@ final class AvisosDeExamenTest extends TestCase
 
         $this->assertSame($estudiante->codigo_universitario.'@est.umss.edu', $correo->getTo()[0]->getAddress());
         $this->assertSame('Aviso de examen · Primer parcial · Introducción a la Programación', $correo->getSubject());
-        $this->assertStringContainsString('30 oct 2026 · 08:15 · 90 min', $html);
+        $this->assertStringContainsString('2026-10-12 · 08:15 · 90 min', $html);
         $this->assertStringContainsString('Aula 691A', $html);
         $this->assertStringContainsString('Hoja de fórmulas A4.', $html);
         $this->assertStringContainsString('Traer lápiz.', $html);
@@ -138,12 +139,12 @@ final class AvisosDeExamenTest extends TestCase
             strpos($html, 'Documento de identidad a la vista'),
         );
 
-        // El aviso queda enviado, pero no marca el codigo como recibido.
+        // El aviso queda enviado, pero no marca el codigo como entregado.
         $this->assertDatabaseHas('envios_correo', [
             'tipo' => 'AVISO',
             'estudiante_id' => $estudiante->id,
             'estado' => 'ENVIADO',
-            'enviado_en' => '2026-10-26 09:30:00',
+            'enviado_en' => '2026-10-12 08:20:00',
         ]);
         $this->assertDatabaseHas('codigos_qr', ['estudiante_id' => $estudiante->id, 'enviado_en' => null]);
     }
@@ -158,7 +159,7 @@ final class AvisosDeExamenTest extends TestCase
         [$alla] = $this->habilitados(1, $otra);
 
         $this->actingAs($this->cuentaDocente)
-            ->postJson($this->avisos(), ['aula' => $otra->id])
+            ->postJson($this->ruta(), ['aula' => $otra->id])
             ->assertStatus(202)
             ->assertJsonPath('encolados', 1);
 
@@ -172,14 +173,14 @@ final class AvisosDeExamenTest extends TestCase
         $this->habilitados(105);
 
         $tanda = $this->actingAs($this->cuentaDocente)
-            ->postJson($this->avisos())
+            ->postJson($this->ruta())
             ->assertStatus(202)
             ->assertJsonPath('encolados', 100)
             ->assertJsonPath('pendientes', 5)
             ->json('tanda');
 
         $this->actingAs($this->cuentaDocente)
-            ->postJson($this->avisos(), ['tanda' => $tanda])
+            ->postJson($this->ruta(), ['tanda' => $tanda])
             ->assertStatus(202)
             ->assertJsonPath('encolados', 5)
             ->assertJsonPath('pendientes', 0);
@@ -189,16 +190,16 @@ final class AvisosDeExamenTest extends TestCase
 
         // La tanda ya termino: repetirla no envia nada ni falla.
         $this->actingAs($this->cuentaDocente)
-            ->postJson($this->avisos(), ['tanda' => $tanda])
+            ->postJson($this->ruta(), ['tanda' => $tanda])
             ->assertStatus(202)
             ->assertJsonPath('encolados', 0)
             ->assertJsonPath('pendientes', 0);
 
         // Un aviso nuevo, mas tarde, vuelve a empezar.
-        $this->travelTo('2026-10-26 09:40:00');
+        $this->fijarHora('2026-10-12 08:30:00');
 
         $this->actingAs($this->cuentaDocente)
-            ->postJson($this->avisos())
+            ->postJson($this->ruta())
             ->assertStatus(202)
             ->assertJsonPath('encolados', 100)
             ->assertJsonPath('pendientes', 5);
@@ -211,7 +212,7 @@ final class AvisosDeExamenTest extends TestCase
         Mail::shouldReceive('to')->andThrow(new RuntimeException('El servidor de correo no responde.'));
 
         $this->actingAs($this->cuentaDocente)
-            ->postJson($this->avisos())
+            ->postJson($this->ruta())
             ->assertStatus(202);
 
         $this->assertDatabaseHas('envios_correo', [
@@ -227,7 +228,7 @@ final class AvisosDeExamenTest extends TestCase
         Mail::fake();
 
         $this->actingAs($this->cuentaDocente)
-            ->postJson($this->avisos())
+            ->postJson($this->ruta())
             ->assertStatus(409)
             ->assertJsonPath('codigo', 'SIN_HABILITADOS');
 
@@ -237,7 +238,7 @@ final class AvisosDeExamenTest extends TestCase
     public function test_the_recommendations_are_validated(): void
     {
         $this->actingAs($this->cuentaDocente)
-            ->postJson($this->avisos(), ['recomendaciones' => str_repeat('a', 2001), 'tanda' => 'ayer no'])
+            ->postJson($this->ruta(), ['recomendaciones' => str_repeat('a', 2001), 'tanda' => 'ayer no'])
             ->assertStatus(422)
             ->assertJsonPath('errors.recomendaciones.0', 'Máximo 2000 caracteres')
             ->assertJsonPath('errors.tanda.0', 'La tanda no es válida.');
@@ -245,15 +246,15 @@ final class AvisosDeExamenTest extends TestCase
 
     public function test_notices_require_a_session_the_permission_and_the_exam(): void
     {
-        $this->postJson($this->avisos())->assertStatus(401);
+        $this->postJson($this->ruta())->assertStatus(401);
 
         $this->actingAs(UserFactory::new()->createOne())
-            ->postJson($this->avisos())
+            ->postJson($this->ruta())
             ->assertStatus(403)
             ->assertJsonPath('permiso_requerido', 'codigos_qr');
 
         $this->actingAs($this->docenteAjeno())
-            ->postJson($this->avisos())
+            ->postJson($this->ruta())
             ->assertStatus(403)
             ->assertJsonPath('alcance', true);
 
