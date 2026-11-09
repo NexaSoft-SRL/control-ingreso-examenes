@@ -48,7 +48,8 @@ export function cuadroAlrededor(caja, ancho, alto) {
 // El rostro único de la foto, en fracciones (0 a 1) de su ancho y alto, o
 // null si no hay exactamente uno.
 async function rostroDe(archivo, opciones) {
-    const medidas = await medirFoto(archivo, opciones);
+    // Para recortar basta el detector: sin puntos del rostro.
+    const medidas = await medirFoto(archivo, { ...opciones, obtenerMarcador: null });
     const rostros = rostrosValidos(medidas?.detecciones);
     if (rostros.length !== 1) return null;
     const caja = cajaDe(rostros[0]);
