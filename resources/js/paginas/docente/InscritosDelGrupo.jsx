@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
-import { Download, Upload } from 'lucide-react';
+import { Download, Upload, UserPlus } from 'lucide-react';
 import descargar from '../../api/descargar';
 import { estadoDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
@@ -11,6 +11,7 @@ import EstadoCarga from '../../componentes/EstadoCarga';
 import Insignia from '../../componentes/Insignia';
 import Paginacion from '../../componentes/Paginacion';
 import Tarjeta from '../../componentes/Tarjeta';
+import AgregarEstudiante from './AgregarEstudiante';
 import CargaDeLista from './CargaDeLista';
 import FotoDelInscrito, { BotonFoto } from './FotoDelInscrito';
 import ResumenDeCarga from './ResumenDeCarga';
@@ -53,6 +54,7 @@ export default function InscritosDelGrupo({
     onAvisar,
 }) {
     const [eligiendo, setEligiendo] = useState(false);
+    const [agregando, setAgregando] = useState(false);
     const [descargando, setDescargando] = useState(false);
     const [conFoto, setConFoto] = useState(null);
     const lista = usarPaginaServidor({ porPagina: 25 });
@@ -102,6 +104,17 @@ export default function InscritosDelGrupo({
                     </p>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
+                    {/* Uno por uno o la lista entera; también sin lista. */}
+                    {!eligiendo && (
+                        <Boton
+                            type="button"
+                            variante={hayLista ? 'primario' : 'secundario'}
+                            className="whitespace-nowrap"
+                            onClick={() => setAgregando(true)}
+                        >
+                            <UserPlus className="h-4 w-4 shrink-0" /> Agregar estudiante
+                        </Boton>
+                    )}
                     {hayLista && !eligiendo && (
                         <Boton
                             type="button"
@@ -232,6 +245,17 @@ export default function InscritosDelGrupo({
                         />
                     )}
                 </>
+            )}
+            {agregando && (
+                <AgregarEstudiante
+                    grupoId={grupo.id}
+                    onAgregado={(resultado, aviso) => {
+                        setAgregando(false);
+                        cargada(resultado);
+                        onAvisar(aviso);
+                    }}
+                    onCerrar={() => setAgregando(false)}
+                />
             )}
             {conFoto && (
                 <FotoDelInscrito

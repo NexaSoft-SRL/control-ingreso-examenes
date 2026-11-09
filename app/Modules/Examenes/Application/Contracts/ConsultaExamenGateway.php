@@ -53,6 +53,16 @@ interface ConsultaExamenGateway
     public function aulasSugeridas(array $grupoIds): array;
 
     /**
+     * Por aula, las clases del horario que caen ese dia de la semana y se
+     * solapan con el examen, en los periodos de esos grupos. `propio` dice si
+     * la clase es de uno de esos grupos.
+     *
+     * @param  list<int>  $grupoIds
+     * @return array<int, list<array{asignatura: string, grupo: string, docente: ?string, inicio: string, fin: string, propio: bool, auxiliatura: bool}>>
+     */
+    public function clasesALaHora(array $grupoIds, string $fecha, string $horaInicio, int $duracionMinutos): array;
+
+    /**
      * Por aula, los examenes que se solapan con ese horario.
      *
      * @return array<int, list<string>>

@@ -9,7 +9,8 @@ use App\Modules\Examenes\Application\DTOs\OpcionesDeAulasData;
 
 /**
  * Paso 3 del asistente: las aulas que sugieren los horarios de los grupos
- * y el aviso de aula compartida. Compartir aula no se impide.
+ * y, a la hora del examen, los otros examenes y las clases del horario en
+ * cada aula. Compartir aula no se impide.
  */
 final readonly class ConsultarOpcionesDeAulas
 {
@@ -27,13 +28,14 @@ final readonly class ConsultarOpcionesDeAulas
         ?int $duracionMinutos,
         ?int $exceptoExamenId,
     ): OpcionesDeAulasData {
-        $compartidas = $fecha !== null && $horaInicio !== null && $duracionMinutos !== null
-            ? $this->consulta->aulasCompartidas($fecha, $horaInicio, $duracionMinutos, $exceptoExamenId)
-            : [];
+        $conHora = $fecha !== null && $horaInicio !== null && $duracionMinutos !== null;
 
         return new OpcionesDeAulasData(
             sugeridas: $grupoIds === [] ? [] : $this->consulta->aulasSugeridas($grupoIds),
-            compartidas: $compartidas,
+            compartidas: $conHora
+                ? $this->consulta->aulasCompartidas($fecha, $horaInicio, $duracionMinutos, $exceptoExamenId)
+                : [],
+            clases: $conHora ? $this->consulta->clasesALaHora($grupoIds, $fecha, $horaInicio, $duracionMinutos) : [],
         );
     }
 }

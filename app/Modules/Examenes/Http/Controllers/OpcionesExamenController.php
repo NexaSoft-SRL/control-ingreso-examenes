@@ -48,6 +48,8 @@ final class OpcionesExamenController
             'sugeridas' => $opciones->sugeridas,
             // Un objeto por id de aula, tambien cuando no hay ninguna.
             'compartidas' => (object) $opciones->compartidas,
+            // Las clases del horario en cada aula a esa hora.
+            'clases' => (object) $opciones->clases,
         ]);
     }
 }

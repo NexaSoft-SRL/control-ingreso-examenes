@@ -171,6 +171,20 @@ const EDIFICIOS = {
 const OPCIONES_AULAS = {
     sugeridas: [32, 31],
     compartidas: { 31: ['Cálculo I · Primer parcial'], 78: ['Análisis Numérico · Primer parcial'] },
+    // La clase del propio grupo no ocupa el aula.
+    clases: {
+        32: [
+            {
+                asignatura: 'Introducción a la Programación',
+                grupo: '2',
+                docente: 'Blanco Coca Leticia',
+                inicio: '08:15',
+                fin: '09:45',
+                propio: true,
+                auxiliatura: false,
+            },
+        ],
+    },
 };
 
 // GET /examenes/{id}, como lo devuelve la API (plan, 9 · B2).
@@ -592,10 +606,15 @@ describe('RegistrarExamen · paso 3, aulas', () => {
         ).toEqual([
             'Todos los edificios3',
             'Elegidas0',
+            'Libres a esa hora1',
             'Departamento de Biología1',
             'Edificio Académico 22',
         ]);
         fireEvent.keyDown(filtro(), { key: 'Escape' });
+
+        // Libre: ni clases de otros grupos ni otros exámenes a esa hora.
+        elegir('Libres a esa hora');
+        expect(visibles()).toEqual(['Aula 691B']);
 
         elegir('Departamento de Biología');
         expect(visibles()).toEqual(['Aula 606']);

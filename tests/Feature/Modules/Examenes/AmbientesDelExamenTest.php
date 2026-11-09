@@ -97,6 +97,7 @@ final class AmbientesDelExamenTest extends TestCase
                 'compartidas' => [
                     (string) $compartida->id => ['Cálculo I · Primer parcial', 'Física I · Examen final'],
                 ],
+                'clases' => [],
             ]);
     }
 
@@ -316,5 +317,61 @@ final class AmbientesDelExamenTest extends TestCase
             ->getJson('/api/examenes/opciones/aulas')
             ->assertForbidden()
             ->assertJsonPath('permiso_requerido', 'examenes');
+    }
+
+    public function test_the_classes_of_the_schedule_at_the_exam_time_are_reported(): void
+    {
+        $docente = $this->docente('Rojas Vera Ana');
+        $otro = $this->docente('Mendez Paz Luis');
+        $propio = $this->grupo($docente, $this->asignatura('Introducción a la Programación'), '2');
+        $ajeno = $this->grupo($otro, $this->asignatura('Cálculo I'), '5');
+        $aula = $this->aula('691A', $this->edificio());
+        $otraAula = $this->aula('617', $this->edificio());
+        // Un lunes.
+        $fecha = now()->next('Monday')->toDateString();
+
+        foreach ([
+            [$propio, $aula, 'LU', '08:15', '09:45', false],
+            [$ajeno, $aula, 'LU', '09:45', '11:15', true],
+            // Otro dia, misma hora: no cuenta.
+            [$ajeno, $otraAula, 'MA', '08:15', '09:45', false],
+            // Mismo dia, termina justo al empezar el examen: no cuenta.
+            [$ajeno, $otraAula, 'LU', '06:45', '08:15', false],
+        ] as [$grupo, $sala, $dia, $desde, $hasta, $auxiliatura]) {
+            Horario::create([
+                'grupo_id' => $grupo->id,
+                'aula_id' => $sala->id,
+                'dia' => $dia,
+                'hora_inicio' => $desde,
+                'hora_fin' => $hasta,
+                'es_auxiliatura' => $auxiliatura,
+            ]);
+        }
+
+        $this->actingAs($this->cuenta($docente))
+            ->getJson($this->opciones(['grupos' => [$propio->id], 'fecha' => $fecha, 'hora_inicio' => '08:15', 'duracion_minutos' => 120]))
+            ->assertOk()
+            ->assertJsonPath('clases', [
+                (string) $aula->id => [
+                    [
+                        'asignatura' => 'Introducción a la Programación',
+                        'grupo' => '2',
+                        'docente' => 'Rojas Vera Ana',
+                        'inicio' => '08:15',
+                        'fin' => '09:45',
+                        'propio' => true,
+                        'auxiliatura' => false,
+                    ],
+                    [
+                        'asignatura' => 'Cálculo I',
+                        'grupo' => '5',
+                        'docente' => 'Mendez Paz Luis',
+                        'inicio' => '09:45',
+                        'fin' => '11:15',
+                        'propio' => false,
+                        'auxiliatura' => true,
+                    ],
+                ],
+            ]);
     }
 }
