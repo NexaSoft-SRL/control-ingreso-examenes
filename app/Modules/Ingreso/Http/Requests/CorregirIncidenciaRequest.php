@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Http\Requests;
 
+use App\Modules\Ingreso\Domain\Enums\Gravedad;
 use App\Modules\Ingreso\Domain\Enums\TipoIncidencia;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
@@ -24,6 +25,10 @@ final class CorregirIncidenciaRequest extends FormRequest
         return [
             'tipo' => ['required', 'string', Rule::in(TipoIncidencia::valores())],
             'detalle' => ['required', 'string', 'min:5', 'max:2000'],
+            // La gravedad la elige quien registra (sin ella, la sugerida) y una
+            // no prevista lleva su nombre.
+            'gravedad' => ['nullable', 'string', Rule::in(Gravedad::valores())],
+            'tipo_texto' => ['nullable', 'string', 'max:80'],
             'estudiante' => ['sometimes', 'nullable', 'string', 'max:150'],
             // Hasta tres fotos; `evidencia`, una suelta, como antes.
             'evidencias' => ['nullable', 'array', 'max:3'],
@@ -44,6 +49,8 @@ final class CorregirIncidenciaRequest extends FormRequest
             'detalle.min' => 'Mínimo 5 caracteres',
             'detalle.max' => 'Máximo 2000 caracteres',
             'estudiante.*' => 'Máximo 150 caracteres',
+            'gravedad.*' => 'Elija leve, grave o muy grave.',
+            'tipo_texto.*' => 'Máximo 80 caracteres',
             'evidencias.max' => 'Máximo 3 fotos',
             'evidencias.array' => 'Solo JPG, PNG o WebP',
             'evidencias.*.uploaded' => 'Máximo 8 MB por foto',
@@ -58,6 +65,21 @@ final class CorregirIncidenciaRequest extends FormRequest
     public function tipo(): TipoIncidencia
     {
         return TipoIncidencia::from($this->string('tipo')->toString());
+    }
+
+    public function gravedad(): ?Gravedad
+    {
+        return Gravedad::tryFrom($this->string('gravedad')->toString());
+    }
+
+    /**
+     * El nombre de una incidencia no prevista; vacio, null.
+     */
+    public function tipoTexto(): ?string
+    {
+        $texto = trim($this->string('tipo_texto')->toString());
+
+        return $texto === '' ? null : $texto;
     }
 
     public function detalle(): string

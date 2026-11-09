@@ -6,6 +6,7 @@ namespace App\Modules\Ingreso\Application\Contracts;
 
 use App\Modules\Ingreso\Application\DTOs\NuevaIncidenciaData;
 use App\Modules\Ingreso\Domain\Enums\CausaIntento;
+use App\Modules\Ingreso\Domain\Enums\Gravedad;
 use App\Modules\Ingreso\Domain\Enums\TipoIncidencia;
 
 interface IncidenciaGateway
@@ -42,7 +43,9 @@ interface IncidenciaGateway
     /**
      * Cambia el tipo y el detalle, agrega las fotos nuevas a la evidencia
      * (no reemplaza ni borra las que habia) y el estudiante si viene
-     * `$estudiante` (texto escrito e id del padron, si se encontro).
+     * `$estudiante` (texto escrito e id del padron, si se encontro). Con
+     * `$gravedad` la cambia; `$tipoTexto` es el nombre de una no prevista
+     * (null lo deja como esta).
      *
      * @param  list<string>  $evidencias  rutas de las fotos nuevas, ya guardadas
      * @param  array{texto: string|null, id: int|null}|null  $estudiante
@@ -54,6 +57,8 @@ interface IncidenciaGateway
         array $evidencias,
         int $usuarioId,
         ?array $estudiante = null,
+        ?Gravedad $gravedad = null,
+        ?string $tipoTexto = null,
     ): void;
 
     /**

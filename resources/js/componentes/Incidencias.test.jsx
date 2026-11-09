@@ -1,6 +1,12 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { BotonIncidencia, FiltroGravedad, ListaIncidencias, TIPOS_INCIDENCIA } from './Incidencias';
+import {
+    BotonIncidencia,
+    BotonIncidenciasComunes,
+    FiltroGravedad,
+    ListaIncidencias,
+    TIPOS_INCIDENCIA,
+} from './Incidencias';
 import { api } from '../api/cliente';
 import { errorHttp, simularApi } from '../test/apoyo';
 
@@ -23,7 +29,7 @@ const abrir = () => {
     return within(screen.getByRole('dialog', { name: 'Incidencia' }));
 };
 
-const elegirTipo = (dialogo, tipo = 'OTRA') =>
+const elegirTipo = (dialogo, tipo = 'CAMBIO_AULA') =>
     fireEvent.change(dialogo.getByRole('combobox', { name: /Tipo/ }), {
         target: { value: tipo },
     });
@@ -47,12 +53,12 @@ describe('BotonIncidencia', () => {
         );
         expect(tipos.map((o) => o.textContent)).toEqual([
             'Elegir',
-            'Intento rechazado · Grave',
-            'Suplantación de identidad · Muy grave',
-            'Material no permitido · Grave',
-            'Dispositivo no permitido · Grave',
-            'Cambio de aula · Leve',
-            'Otra · Leve',
+            'Intento rechazado',
+            'Suplantación de identidad',
+            'Material no permitido',
+            'Dispositivo no permitido',
+            'Cambio de aula',
+            'Otra no prevista…',
         ]);
         expect(TIPOS_INCIDENCIA.EXPULSION).toBe('Expulsión');
     });
@@ -113,6 +119,9 @@ describe('BotonIncidencia', () => {
         expect(registrar).toHaveBeenCalledWith({
             aula_id: 31,
             tipo: 'MATERIAL_NO_PERMITIDO',
+            tipo_texto: null,
+            gravedad: 'GRAVE',
+            guardar_comun: null,
             estudiante: '222011223',
             detalle: 'Calculadora programable',
         });
@@ -150,6 +159,129 @@ describe('BotonIncidencia', () => {
         expect(cuerpo.get('detalle')).toBe('Hoja con fórmulas');
         expect(cuerpo.getAll('evidencias[]')).toEqual([FOTO, otra]);
         expect(cuerpo.has('estudiante')).toBe(false);
+    });
+
+    it('la gravedad se marca con el tipo y se puede cambiar', async () => {
+        const registrar = vi.fn(() => Promise.resolve());
+        render(<BotonIncidencia aula={AULAS[0]} registrar={registrar} />);
+        const dialogo = abrir();
+
+        expect(dialogo.queryByRole('radiogroup', { name: 'Gravedad' })).not.toBeInTheDocument();
+        elegirTipo(dialogo, 'DISPOSITIVO_NO_PERMITIDO');
+        const gravedad = within(dialogo.getByRole('radiogroup', { name: 'Gravedad' }));
+        expect(gravedad.getByRole('radio', { name: 'Grave' })).toHaveAttribute(
+            'aria-checked',
+            'true'
+        );
+        fireEvent.click(gravedad.getByRole('radio', { name: 'Leve' }));
+        fireEvent.change(dialogo.getByRole('textbox', { name: /Detalle/ }), {
+            target: { value: 'Celular apagado en la mochila' },
+        });
+        fireEvent.click(dialogo.getByRole('button', { name: 'Registrar' }));
+
+        await waitFor(() => expect(registrar).toHaveBeenCalledTimes(1));
+        expect(registrar.mock.calls[0][0]).toMatchObject({
+            tipo: 'DISPOSITIVO_NO_PERMITIDO',
+            gravedad: 'LEVE',
+        });
+    });
+
+    it('ofrece la lista del docente con su gravedad', async () => {
+        simularApi(api, {
+            'GET /examenes/8/incidencias/catalogo': {
+                data: [
+                    {
+                        tipo: 'DISPOSITIVO_NO_PERMITIDO',
+                        nombre: 'Dispositivo no permitido',
+                        gravedad: 'MUY_GRAVE',
+                        propia: false,
+                    },
+                    {
+                        id: 3,
+                        tipo: 'OTRA',
+                        nombre: 'Uso de corrector',
+                        gravedad: 'LEVE',
+                        propia: true,
+                    },
+                ],
+                puede_guardar: true,
+            },
+        });
+        const registrar = vi.fn(() => Promise.resolve());
+        render(
+            <BotonIncidencia
+                aula={AULAS[0]}
+                registrar={registrar}
+                catalogo="/examenes/8/incidencias/catalogo"
+            />
+        );
+        const dialogo = abrir();
+
+        const propias = await dialogo.findByRole('group', { name: 'Mis incidencias' });
+        expect(
+            within(propias).getByRole('option', { name: 'Uso de corrector' })
+        ).toBeInTheDocument();
+        elegirTipo(dialogo, 'DISPOSITIVO_NO_PERMITIDO');
+        expect(dialogo.getByRole('radio', { name: 'Muy grave' })).toHaveAttribute(
+            'aria-checked',
+            'true'
+        );
+        elegirTipo(dialogo, 'p:Uso de corrector');
+        expect(dialogo.getByRole('radio', { name: 'Leve' })).toHaveAttribute(
+            'aria-checked',
+            'true'
+        );
+        fireEvent.change(dialogo.getByRole('textbox', { name: /Detalle/ }), {
+            target: { value: 'Corrector líquido en la mesa' },
+        });
+        fireEvent.click(dialogo.getByRole('button', { name: 'Registrar' }));
+
+        await waitFor(() => expect(registrar).toHaveBeenCalledTimes(1));
+        expect(registrar.mock.calls[0][0]).toMatchObject({
+            tipo: 'OTRA',
+            tipo_texto: 'Uso de corrector',
+            gravedad: 'LEVE',
+        });
+    });
+
+    it('una no prevista pide su nombre y su gravedad, y se puede guardar', async () => {
+        simularApi(api, {
+            'GET /examenes/8/incidencias/catalogo': { data: [], puede_guardar: true },
+        });
+        const registrar = vi.fn(() => Promise.resolve());
+        render(
+            <BotonIncidencia
+                aula={AULAS[0]}
+                registrar={registrar}
+                catalogo="/examenes/8/incidencias/catalogo"
+            />
+        );
+        const dialogo = abrir();
+        await waitFor(() => expect(api.get).toHaveBeenCalled());
+
+        elegirTipo(dialogo, '__nueva');
+        fireEvent.change(dialogo.getByRole('textbox', { name: /Detalle/ }), {
+            target: { value: 'Le pasaba respuestas al de al lado' },
+        });
+        const boton = dialogo.getByRole('button', { name: 'Registrar' });
+        expect(boton).toBeDisabled();
+        fireEvent.change(dialogo.getByRole('textbox', { name: /Qué pasó/ }), {
+            target: { value: 'Se comunicó por señas' },
+        });
+        expect(boton).toBeDisabled();
+        fireEvent.click(dialogo.getByRole('radio', { name: 'Grave' }));
+        fireEvent.click(
+            await dialogo.findByRole('checkbox', { name: 'Guardar en mis incidencias comunes' })
+        );
+        fireEvent.click(boton);
+
+        await waitFor(() => expect(registrar).toHaveBeenCalledTimes(1));
+        expect(registrar.mock.calls[0][0]).toMatchObject({
+            tipo: 'OTRA',
+            tipo_texto: 'Se comunicó por señas',
+            gravedad: 'GRAVE',
+            guardar_comun: 1,
+        });
     });
 
     it('muestra el error del servidor y deja el formulario abierto', async () => {
@@ -328,7 +460,32 @@ describe('ListaIncidencias', () => {
         await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
         expect(corregir).toHaveBeenCalledWith(40, {
             tipo: 'DISPOSITIVO_NO_PERMITIDO',
+            gravedad: 'GRAVE',
             detalle: 'Reloj inteligente',
+        });
+    });
+
+    it('el docente cambia la gravedad y nombra una no prevista', async () => {
+        const corregir = vi.fn(() => Promise.resolve());
+        render(<ListaIncidencias items={ITEMS} corregir={corregir} />);
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Corregir' })[0]);
+        const dialogo = within(screen.getByRole('dialog', { name: 'Corregir incidencia' }));
+        fireEvent.change(dialogo.getByRole('combobox', { name: /Tipo/ }), {
+            target: { value: 'OTRA' },
+        });
+        fireEvent.change(dialogo.getByRole('textbox', { name: /Qué pasó/ }), {
+            target: { value: 'Hojas de otro examen' },
+        });
+        fireEvent.click(dialogo.getByRole('radio', { name: 'Muy grave' }));
+        fireEvent.click(dialogo.getByRole('button', { name: 'Guardar' }));
+
+        await waitFor(() => expect(corregir).toHaveBeenCalledTimes(1));
+        expect(corregir).toHaveBeenCalledWith(40, {
+            tipo: 'OTRA',
+            tipo_texto: 'Hojas de otro examen',
+            gravedad: 'MUY_GRAVE',
+            detalle: 'Calculadora programable',
         });
     });
 
@@ -413,5 +570,67 @@ describe('ListaIncidencias', () => {
         const dialogo = within(screen.getByRole('dialog', { name: 'Evidencia' }));
         expect(dialogo.queryByRole('textbox', { name: /Detalle/ })).not.toBeInTheDocument();
         expect(dialogo.getByText('Código QR ya usado.')).toBeInTheDocument();
+    });
+});
+
+describe('BotonIncidenciasComunes', () => {
+    it('cambia la gravedad de un tipo, agrega y quita una propia', async () => {
+        const lista = [
+            {
+                id: null,
+                tipo: 'DISPOSITIVO_NO_PERMITIDO',
+                nombre: 'Dispositivo no permitido',
+                gravedad: 'GRAVE',
+                propia: false,
+            },
+        ];
+        const propia = {
+            id: 5,
+            tipo: 'OTRA',
+            nombre: 'Uso de corrector',
+            gravedad: 'LEVE',
+            propia: true,
+        };
+        simularApi(api, {
+            'GET /incidencias-comunes': { data: lista },
+            'PUT /incidencias-comunes': ({ data }) => ({
+                data: data.tipo
+                    ? [{ ...lista[0], gravedad: data.gravedad }]
+                    : [...lista, { ...propia, nombre: data.nombre, gravedad: data.gravedad }],
+            }),
+            'DELETE /incidencias-comunes/5': { data: lista },
+        });
+        render(<BotonIncidenciasComunes />);
+        fireEvent.click(screen.getByRole('button', { name: 'Mis incidencias' }));
+        const dialogo = within(screen.getByRole('dialog', { name: 'Mis incidencias comunes' }));
+
+        const fila = within(
+            await dialogo.findByRole('radiogroup', { name: 'Gravedad de Dispositivo no permitido' })
+        );
+        fireEvent.click(fila.getByRole('radio', { name: 'Muy grave' }));
+        await waitFor(() =>
+            expect(api.put).toHaveBeenCalledWith('/incidencias-comunes', {
+                tipo: 'DISPOSITIVO_NO_PERMITIDO',
+                gravedad: 'MUY_GRAVE',
+            })
+        );
+
+        fireEvent.change(dialogo.getByRole('textbox', { name: /Nueva incidencia/ }), {
+            target: { value: 'Uso de corrector' },
+        });
+        fireEvent.click(dialogo.getByRole('button', { name: 'Agregar' }));
+        expect(await dialogo.findByText('Elija leve, grave o muy grave')).toBeInTheDocument();
+        fireEvent.click(
+            within(dialogo.getByRole('radiogroup', { name: 'Gravedad' })).getByRole('radio', {
+                name: 'Leve',
+            })
+        );
+        fireEvent.click(dialogo.getByRole('button', { name: 'Agregar' }));
+
+        fireEvent.click(await dialogo.findByRole('button', { name: 'Quitar Uso de corrector' }));
+        await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/incidencias-comunes/5'));
+        await waitFor(() =>
+            expect(dialogo.queryByText('Uso de corrector')).not.toBeInTheDocument()
+        );
     });
 });

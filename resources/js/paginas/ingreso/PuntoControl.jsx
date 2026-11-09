@@ -426,6 +426,7 @@ function Puesto({ resumen, aulas, hoy, elegirAula }) {
                                         por={operador}
                                         hora={hora}
                                         registrar={reportar}
+                                        catalogo={`/examenes/${acceso?.examen_id ?? examenes[0].id}/incidencias/catalogo`}
                                         variante="enlace"
                                         className="px-2"
                                     />

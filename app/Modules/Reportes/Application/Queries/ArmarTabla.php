@@ -445,7 +445,7 @@ final readonly class ArmarTabla
                 $fila->tipo === 'CAMBIO_AULA' => $excepciones++,
                 default => $reportadas++,
             };
-            $gravedad = GravedadIncidencia::deTipo($fila->tipo);
+            $gravedad = GravedadIncidencia::deFila($fila->gravedad, $fila->tipo);
             $porGravedad[$gravedad->value]++;
 
             $filas[] = [
@@ -485,7 +485,7 @@ final readonly class ArmarTabla
      */
     private function tipoDeIncidencia(FilaIncidencia $fila): string
     {
-        $tipo = self::INCIDENCIAS[$fila->tipo] ?? $fila->tipo;
+        $tipo = $fila->tipoTexto ?? self::INCIDENCIAS[$fila->tipo] ?? $fila->tipo;
         $motivo = $fila->origen === 'SISTEMA'
             ? MotivoIntento::tryFrom($fila->causa ?? '')?->etiqueta()
             : null;

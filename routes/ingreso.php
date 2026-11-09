@@ -6,6 +6,7 @@ use App\Modules\Ingreso\Http\Controllers\AccesoAulaController;
 use App\Modules\Ingreso\Http\Controllers\CodigoQrController;
 use App\Modules\Ingreso\Http\Controllers\ControlDelExamenController;
 use App\Modules\Ingreso\Http\Controllers\IncidenciaController;
+use App\Modules\Ingreso\Http\Controllers\IncidenciasComunesController;
 use App\Modules\Ingreso\Http\Controllers\PuertaController;
 use Illuminate\Support\Facades\Route;
 
@@ -55,6 +56,21 @@ Route::get('/api/examenes/{examen}/incidencias', [IncidenciaController::class, '
     ->middleware(['auth', 'permiso:seguimiento_vivo'])
     ->whereNumber('examen')
     ->name('incidencias.index');
+
+// Lo que se ofrece al registrar: la lista de incidencias comunes del docente.
+Route::get('/api/examenes/{examen}/incidencias/catalogo', [IncidenciasComunesController::class, 'catalogo'])
+    ->middleware('puesto:seguimiento_vivo')
+    ->whereNumber('examen')
+    ->name('incidencias.catalogo');
+
+// La lista propia de incidencias comunes, con la gravedad de cada una.
+Route::middleware(['auth', 'permiso:seguimiento_vivo'])->group(function (): void {
+    Route::get('/api/incidencias-comunes', [IncidenciasComunesController::class, 'index'])->name('incidencias-comunes.index');
+    Route::put('/api/incidencias-comunes', [IncidenciasComunesController::class, 'guardar'])->name('incidencias-comunes.guardar');
+    Route::delete('/api/incidencias-comunes/{id}', [IncidenciasComunesController::class, 'quitar'])
+        ->whereNumber('id')
+        ->name('incidencias-comunes.quitar');
+});
 
 // Reporta quien sigue el examen o quien esta en la puerta.
 Route::post('/api/examenes/{examen}/incidencias', [IncidenciaController::class, 'store'])

@@ -7,6 +7,7 @@ namespace App\Modules\Ingreso\Application\Actions;
 use App\Modules\Administracion\Application\Contracts\AlmacenImagenes;
 use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaGateway;
+use App\Modules\Ingreso\Domain\Enums\Gravedad;
 use App\Modules\Ingreso\Domain\Enums\TipoIncidencia;
 use App\Modules\Ingreso\Domain\Exceptions\DatoNoValidoException;
 
@@ -45,6 +46,8 @@ final readonly class CorregirIncidencia
         bool $cambiaEstudiante = false,
         ?string $estudiante = null,
         ?string $detalleActual = null,
+        ?Gravedad $gravedad = null,
+        ?string $tipoTexto = null,
     ): void {
         $this->alcance->exigirDocente($usuarioId, $examenId);
 
@@ -93,6 +96,8 @@ final readonly class CorregirIncidencia
             $rutas,
             $usuarioId,
             $cambiaEstudiante ? ['texto' => $estudiante, 'id' => $estudianteId] : null,
+            $gravedad,
+            $tipoTexto,
         );
     }
 }
