@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { KeyRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Boton from '../../componentes/Boton';
 import Campo from '../../componentes/Campo';
-import Logo from '../../componentes/Logo';
+import FondoAcceso, { CabeceraAcceso, TARJETA_ACCESO } from '../../componentes/FondoAcceso';
 import { api } from '../../api/cliente';
 import { erroresDe } from '../../api/errores';
 import { usarSesion } from '../../sesion/SesionContexto';
@@ -49,27 +50,15 @@ export default function CambiarContrasena() {
     }
 
     return (
-        <div className="min-h-dvh bg-slate-100">
-            <header className="flex h-16 items-center gap-3 border-b border-slate-200 bg-white px-5 sm:px-8">
-                <Logo className="h-10 w-10 shrink-0" />
-                <div>
-                    <span className="block text-sm font-bold text-slate-900">UMSS</span>
-                    <span className="block text-[10px] uppercase tracking-wide text-slate-500">
-                        Control de ingreso
-                    </span>
-                </div>
-            </header>
-            <main className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-5xl items-center justify-center px-4 py-10">
-                <section className="w-full max-w-md">
-                    <h1 className="text-2xl font-bold text-slate-900">Contraseña nueva</h1>
-                    <p className="mb-6 mt-1 text-sm text-slate-600">
-                        Primer ingreso · cambio obligatorio
-                    </p>
-                    <form
-                        className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
-                        onSubmit={guardar}
-                        noValidate
-                    >
+        <FondoAcceso>
+            <div className="w-full max-w-md">
+                <div className={TARJETA_ACCESO}>
+                    <CabeceraAcceso
+                        icono={KeyRound}
+                        titulo="Contraseña nueva"
+                        subtitulo="Primer ingreso · cambio obligatorio"
+                    />
+                    <form className="space-y-4" onSubmit={guardar} noValidate>
                         <Campo
                             etiqueta="Contraseña"
                             requerido
@@ -121,8 +110,8 @@ export default function CambiarContrasena() {
                             Cerrar sesión
                         </button>
                     </form>
-                </section>
-            </main>
-        </div>
+                </div>
+            </div>
+        </FondoAcceso>
     );
 }

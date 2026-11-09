@@ -89,7 +89,7 @@ final class GeneradorTablaReporteDompdfPhpSpreadsheet implements GeneradorTablaR
             $hoja->setCellValueExplicit('A1', $tabla->titulo, DataType::TYPE_STRING);
             $hoja->setCellValueExplicit(
                 'A2',
-                'Universidad Mayor de San Simón · Control de ingreso a exámenes',
+                'Universidad Mayor de San Simón · Control de exámenes',
                 DataType::TYPE_STRING,
             );
             $hoja->setCellValueExplicit(

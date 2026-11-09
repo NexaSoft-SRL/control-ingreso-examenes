@@ -134,6 +134,7 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                 'estudiante.documento_identidad',
                 'estudiante.nombres',
                 'estudiante.apellidos',
+                'estudiante.foto',
                 'lista.grupo',
                 'habilitacion.id as habilitacion_id',
                 'habilitacion.habilitado',
@@ -173,6 +174,7 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                 motivo: $habilitado ? null : $this->texto($columnas['motivo'] ?? null),
                 registradaPor: $inhabilitado ? $this->texto($columnas['autor_nombre'] ?? null) : null,
                 registradaEl: $inhabilitado && $momento !== null ? substr($momento, 0, 16) : null,
+                conFoto: ($this->texto($columnas['foto'] ?? null) ?? '') !== '',
             );
         }
 
@@ -337,9 +339,9 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                         ->whereColumn('ingresos.estudiante_id', 'inscripcion.estudiante_id')
                         ->where('ingresos.examen_id', $examenId);
                 })
-                ->selectRaw('distinct on (inscripcion.estudiante_id) inscripcion.estudiante_id, plazo.fijado_por')
+                ->selectRaw('distinct on (inscripcion.estudiante_id) inscripcion.estudiante_id, coalesce(plazo.fijado_por, general.fijado_por) as fijado_por')
                 ->orderBy('inscripcion.estudiante_id')
-                ->orderBy('plazo.hasta')
+                ->orderByRaw('coalesce(plazo.hasta, general.hasta)')
                 ->get();
 
             if ($faltan->isEmpty()) {
@@ -540,17 +542,25 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
     }
 
     /**
-     * Los inscritos sin foto de los grupos del examen cuyo plazo de fotos
-     * (`plazos_foto_grupo`) ya vencio.
+     * Los inscritos sin foto de los grupos del examen cuyo plazo de fotos ya
+     * vencio. Los plazos los fija solo la administracion: el del grupo
+     * (`plazos_foto_grupo`) si le puso uno, y si no el general (`plazos_foto`,
+     * el ultimo).
      */
     private function sinFotoVencida(int $examenId, string $hoy): Builder
     {
+        $general = DB::table('plazos_foto')
+            ->orderByDesc('id')
+            ->limit(1)
+            ->select(['hasta', 'fijado_por']);
+
         return DB::table('examen_grupo as incluido')
-            ->join('plazos_foto_grupo as plazo', 'plazo.grupo_id', '=', 'incluido.grupo_id')
+            ->leftJoin('plazos_foto_grupo as plazo', 'plazo.grupo_id', '=', 'incluido.grupo_id')
+            ->leftJoinSub($general, 'general', static fn (JoinClause $union) => $union->on(DB::raw('1'), '=', DB::raw('1')))
             ->join('inscripciones as inscripcion', 'inscripcion.grupo_id', '=', 'incluido.grupo_id')
             ->join('estudiantes as estudiante', 'estudiante.id', '=', 'inscripcion.estudiante_id')
             ->where('incluido.examen_id', $examenId)
-            ->where('plazo.hasta', '<', $hoy)
+            ->whereRaw('coalesce(plazo.hasta, general.hasta) < ?', [$hoy])
             ->where(function (Builder $sinFoto): void {
                 $sinFoto->whereNull('estudiante.foto')->orWhere('estudiante.foto', '');
             });

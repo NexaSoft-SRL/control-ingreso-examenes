@@ -30,36 +30,43 @@
 }
 
 /* =====================================================================
-   Paleta del sistema de control de ingreso — propuesta de trabajo.
-   No hay marca institucional previa para el producto (el azul de
-   NexaSoft es de la grupo-empresa, no del sistema): esta paleta se
-   diseñó para la pantalla real que más se usa, el punto de control,
-   que tiene que resolver de un vistazo cuatro estados de verificación.
+   Paleta del sistema de control de exámenes, con la identidad de la
+   Universidad Mayor de San Simón (UMSS).
 
-   - primary   : acciones y navegación. Azul institucional, sobrio.
-   - success   : ingreso admitido (HU-18 a HU-21).
-   - danger    : no habilitado / ingreso duplicado (HU-19, HU-22).
-   - warning   : aula incorrecta / situación excepcional (HU-20).
-   - info      : QR de otro examen o ilegible, antes de resolver (HU-18).
-   - slate     : texto y superficies neutras.
+   - umss-marino : azul marino del escudo. Encabezados y títulos.
+   - umss-rojo   : rojo del escudo. Solo acento (franja del acceso); los
+                   errores siguen siendo `danger`.
+   - primary     : acciones y navegación. Azul intenso (600 = #0B4FD6)
+                   con celestes muy claros (50/100) para fondos.
+   - success     : ingreso admitido (HU-18 a HU-21).
+   - danger      : no habilitado / ingreso duplicado (HU-19, HU-22).
+   - warning     : aula incorrecta / situación excepcional (HU-20).
+   - info        : QR de otro examen o ilegible, antes de resolver (HU-18).
+   - slate       : texto y superficies neutras.
 
    Contraste verificado para texto sobre blanco y para texto blanco
    sobre el tono 600 de cada escala (WCAG AA, 4.5:1 en tamaño de texto
-   normal).
+   normal): blanco sobre primary-600 da 6.8:1 y umss-marino sobre blanco,
+   11.7:1.
    ===================================================================== */
 @theme {
     --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
-    --color-primary-50: #eff6ff;
-    --color-primary-100: #dbeafe;
-    --color-primary-200: #bfdbfe;
-    --color-primary-300: #93c5fd;
-    --color-primary-400: #60a5fa;
-    --color-primary-500: #3b82f6;
-    --color-primary-600: #2563eb;
-    --color-primary-700: #1d4ed8;
-    --color-primary-800: #1e40af;
-    --color-primary-900: #1e3a8a;
+    --color-umss-marino: #003870;
+    --color-umss-rojo: #e81820;
+    --color-fondo: #f3f7fd;
+
+    --color-primary-50: #eff5ff;
+    --color-primary-100: #dce8fb;
+    --color-primary-200: #bfd4f6;
+    --color-primary-300: #93b6ef;
+    --color-primary-400: #5c8fe5;
+    --color-primary-500: #2e6bdc;
+    --color-primary-600: #0b4fd6;
+    --color-primary-700: #0a41b0;
+    --color-primary-800: #0a3a99;
+    --color-primary-900: #003870;
+    --color-primary-950: #002550;
 
     --color-success-50: #f0fdf4;
     --color-success-100: #dcfce7;
@@ -78,8 +85,10 @@
     --color-warning-50: #fffbeb;
     --color-warning-100: #fef3c7;
     --color-warning-200: #fde68a;
+    --color-warning-300: #fcd34d;
     --color-warning-600: #d97706;
     --color-warning-700: #b45309;
+    --color-warning-800: #92400e;
     --color-warning-900: #78350f;
 
     --color-info-50: #f5f3ff;
@@ -104,7 +113,7 @@ html {
 }
 
 body {
-    background-color: var(--color-slate-100);
+    background-color: var(--color-fondo);
     color: var(--color-slate-800);
 }
 
@@ -135,6 +144,16 @@ body {
         -webkit-appearance: none;
         appearance: none;
     }
+}
+
+/* Tablas: encabezado celeste claro con el texto en azul marino. Va fuera de
+   las capas para que valga sobre el fondo gris que cada tabla trae. */
+table > thead {
+    background-color: var(--color-primary-50);
+}
+
+table > thead th {
+    color: var(--color-umss-marino);
 }
 
 /* Rótulo de un edificio marcado sobre el mapa. */

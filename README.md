@@ -1,4 +1,4 @@
-# Sistema de control de ingreso a exámenes masivos
+# Sistema de control de exámenes
 
 <!-- Descomentar al crear el repositorio, sustituyendo <repositorio> por su nombre:
 ![CI](https://github.com/NexaSoft-SRL/<repositorio>/actions/workflows/ci.yml/badge.svg)
@@ -63,13 +63,15 @@ composer datos:demo   # rehace la base desde cero y la siembra
 
 El comando **borra la base** y la deja idéntica a la del resto del equipo.
 
-| Rol           | Usuario         | Contraseña         |
-| ------------- | --------------- | ------------------ |
-| Administrador | `admin`         | `Admin12345`       |
-| Docente       | `leticiablanco` | `Docente12345`     |
-| Docente       | `cargaalta`     | `Docente12345`     |
-| Auxiliar      | `diegomamani`   | `Auxiliar12345`    |
-| Coordinador   | `coordinacion`  | `Coordinador12345` |
+| Rol           | Usuario                                   | Contraseña         |
+| ------------- | ----------------------------------------- | ------------------ |
+| Administrador | `admin`                                   | `Admin12345`       |
+| Docente       | `leticia blanco`                          | `Docente12345`     |
+| Docente       | nombre y apellido del de más asignaturas  | `Docente12345`     |
+| Auxiliar      | `diego mamani`                            | `Auxiliar12345`    |
+| Coordinador   | `coordinacion`                            | `Coordinador12345` |
+
+El usuario también se acepta junto, sin el espacio (`leticiablanco`).
 
 Cada cuenta ve únicamente las pantallas que su rol tiene habilitadas. «Coordinador» es un
 rol creado, para mostrar que los roles no son fijos. Los demás docentes de la oferta

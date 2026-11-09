@@ -3,7 +3,7 @@
 
 Hola {{ $nombre }}:
 
-Estas son las credenciales para el sistema de control de ingreso a exámenes:
+Estas son las credenciales para el sistema de control de exámenes:
 
 - **Correo:** {{ $correo }}
 - **Usuario:** {{ $usuario }}

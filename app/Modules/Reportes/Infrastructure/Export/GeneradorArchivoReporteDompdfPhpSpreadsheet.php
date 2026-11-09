@@ -23,6 +23,7 @@ final class GeneradorArchivoReporteDompdfPhpSpreadsheet implements GeneradorArch
             'tipo' => $reporte['tipo'],
             'fecha' => $reporte['fecha'],
             'hora' => $reporte['hora'],
+            'grupos' => $reporte['grupos'] ?? '',
         ];
         $etiquetaArchivo = match ($tipo) {
             'asistencia' => 'asistencia',
@@ -38,8 +39,8 @@ final class GeneradorArchivoReporteDompdfPhpSpreadsheet implements GeneradorArch
 
     /**
      * @param  array{
-     *     asistencia: list<array{codigo: string, estudiante: string, grupo: string, aula: string, hora: string|null, medio: string, situacion: string}>,
-     *     ausentes: list<array{apellidos: string, nombres: string, codigo: string, grupo: string, carrera: string, aula: string}>,
+     *     asistencia: list<array{codigo: string, estudiante: string, grupo: string, docente: string, aula: string, hora: string|null, medio: string, situacion: string}>,
+     *     ausentes: list<array{apellidos: string, nombres: string, codigo: string, grupo: string, docente: string, carrera: string, aula: string}>,
      *     incidencias: list<array{hora: string, aula: string, codigo: string|null, estudiante: string, tipo: string, detalle: string, registrado_por: string}>
      * }  $filasReporte
      * @return array{string, list<string>, list<list<string>>}
@@ -49,20 +50,20 @@ final class GeneradorArchivoReporteDompdfPhpSpreadsheet implements GeneradorArch
         $celdas = [];
 
         if ($tipo === 'asistencia') {
-            $encabezados = ['Código SIS', 'Estudiante', 'Grupo', 'Aula', 'Hora de ingreso', 'Medio', 'Situación'];
+            $encabezados = ['Código SIS', 'Estudiante', 'Grupo', 'Docente', 'Aula', 'Hora de ingreso', 'Medio', 'Situación'];
             $titulo = 'Reporte de asistencia';
             foreach ($filasReporte['asistencia'] as $fila) {
                 $celdas[] = [
-                    $fila['codigo'], $fila['estudiante'], $fila['grupo'], $fila['aula'],
+                    $fila['codigo'], $fila['estudiante'], $fila['grupo'], $fila['docente'], $fila['aula'],
                     $fila['hora'] ?? '', $fila['medio'], $fila['situacion'],
                 ];
             }
         } elseif ($tipo === 'ausentes') {
-            $encabezados = ['Apellidos', 'Nombres', 'Código SIS', 'Grupo', 'Carrera', 'Aula asignada'];
+            $encabezados = ['Apellidos', 'Nombres', 'Código SIS', 'Grupo', 'Docente', 'Carrera', 'Aula asignada'];
             $titulo = 'Reporte de estudiantes ausentes';
             foreach ($filasReporte['ausentes'] as $fila) {
                 $celdas[] = [
-                    $fila['apellidos'], $fila['nombres'], $fila['codigo'], $fila['grupo'],
+                    $fila['apellidos'], $fila['nombres'], $fila['codigo'], $fila['grupo'], $fila['docente'],
                     $fila['carrera'], $fila['aula'],
                 ];
             }
@@ -83,7 +84,7 @@ final class GeneradorArchivoReporteDompdfPhpSpreadsheet implements GeneradorArch
     /**
      * @param  list<string>  $encabezados
      * @param  list<list<string>>  $filas
-     * @param  array{asignatura: array{nombre: string}, periodo: string, tipo: string, fecha: string, hora: string}  $reporte
+     * @param  array{asignatura: array{nombre: string}, periodo: string, tipo: string, fecha: string, hora: string, grupos: string}  $reporte
      */
     private function xlsx(
         string $nombre,
@@ -96,7 +97,7 @@ final class GeneradorArchivoReporteDompdfPhpSpreadsheet implements GeneradorArch
         $hoja = $libro->getActiveSheet();
         $hoja->setTitle('Reporte');
         $hoja->setCellValue('A1', $titulo);
-        $hoja->setCellValue('A2', 'Universidad Mayor de San Simón · Control de ingreso a exámenes');
+        $hoja->setCellValue('A2', 'Universidad Mayor de San Simón · Control de exámenes');
         $hoja->setCellValue('A3', sprintf(
             '%s · %s · %s · %s · Emitido el %s',
             $reporte['asignatura']['nombre'],
@@ -105,6 +106,10 @@ final class GeneradorArchivoReporteDompdfPhpSpreadsheet implements GeneradorArch
             $reporte['hora'],
             now()->format('Y-m-d H:i'),
         ));
+
+        if ($reporte['grupos'] !== '') {
+            $hoja->setCellValue('A4', 'Grupos: '.$reporte['grupos']);
+        }
 
         foreach ([$encabezados, ...$filas] as $indice => $fila) {
             foreach ($fila as $columna => $valor) {
@@ -149,7 +154,7 @@ final class GeneradorArchivoReporteDompdfPhpSpreadsheet implements GeneradorArch
     /**
      * @param  list<string>  $encabezados
      * @param  list<list<string>>  $filas
-     * @param  array{asignatura: array{nombre: string}, periodo: string, tipo: string, fecha: string, hora: string}  $reporte
+     * @param  array{asignatura: array{nombre: string}, periodo: string, tipo: string, fecha: string, hora: string, grupos: string}  $reporte
      */
     private function pdf(
         string $nombre,

@@ -27,6 +27,9 @@ final class ReportarIncidenciaRequest extends FormRequest
             'tipo' => ['required', 'string', Rule::in(TipoIncidencia::reportables())],
             'estudiante' => ['nullable', 'string', 'max:150'],
             'detalle' => ['required', 'string', 'min:5', 'max:2000'],
+            // Hasta tres fotos; `evidencia`, una suelta, como antes.
+            'evidencias' => ['nullable', 'array', 'max:3'],
+            'evidencias.*' => ['file', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
             'evidencia' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
         ];
     }
@@ -44,6 +47,11 @@ final class ReportarIncidenciaRequest extends FormRequest
             'detalle.string' => 'Mínimo 5 caracteres',
             'detalle.min' => 'Mínimo 5 caracteres',
             'detalle.max' => 'Máximo 2000 caracteres',
+            'evidencias.max' => 'Máximo 3 fotos',
+            'evidencias.array' => 'Solo JPG, PNG o WebP',
+            'evidencias.*.uploaded' => 'Máximo 8 MB por foto',
+            'evidencias.*.max' => 'Máximo 8 MB por foto',
+            'evidencias.*.*' => 'Solo JPG, PNG o WebP',
             'evidencia.uploaded' => 'Máximo 8 MB',
             'evidencia.max' => 'Máximo 8 MB',
             'evidencia.*' => 'Solo JPG, PNG o WebP',
@@ -72,10 +80,27 @@ final class ReportarIncidenciaRequest extends FormRequest
         return trim($this->string('detalle')->toString());
     }
 
-    public function evidencia(): ?string
+    /**
+     * El contenido de cada foto, en el orden en que vinieron.
+     *
+     * @return list<string>
+     */
+    public function evidencias(): array
     {
-        $archivo = $this->file('evidencia');
+        $archivos = $this->file('evidencias');
+        $archivos = is_array($archivos) ? $archivos : [];
+        $suelta = $this->file('evidencia');
 
-        return $archivo instanceof UploadedFile ? $archivo->getContent() : null;
+        if ($suelta instanceof UploadedFile) {
+            array_unshift($archivos, $suelta);
+        }
+
+        $contenidos = [];
+
+        foreach ($archivos as $archivo) {
+            $contenidos[] = $archivo->getContent();
+        }
+
+        return $contenidos;
     }
 }

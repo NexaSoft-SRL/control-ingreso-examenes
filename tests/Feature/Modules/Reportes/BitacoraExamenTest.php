@@ -68,6 +68,47 @@ final class BitacoraExamenTest extends TestCase
         $this->assertSame(['RECHAZO', 'INGRESO'], array_column($datos, 'categoria'));
     }
 
+    public function test_once_closed_the_timeline_shows_the_close_and_each_enabled_student_that_did_not_show_up(): void
+    {
+        $usuario = $this->usuarioConPermisos(['reportes_examenes']);
+        $docente = $this->docenteConCuenta($usuario);
+        $grupo = $this->grupo($docente);
+        $aula = $this->aula('624');
+        [$vino, $falto, $inhabilitado] = $this->estudiantesInscritos($grupo, 3);
+        DB::table('estudiantes')->where('id', $falto->id)->update(['apellidos' => 'Zurita Paz', 'nombres' => 'Omar']);
+        $examen = $this->examen($docente, [$grupo], [$aula]);
+        $this->habilitar($examen, [$vino, $falto], $aula);
+        $this->inhabilitar($examen, [$inhabilitado]);
+        $this->ingresar($examen, $vino, $aula);
+        $ruta = "/api/reportes/examenes/{$examen->id}/bitacora";
+
+        // Abierto todavia: ni cierre ni ausentes.
+        $abierto = collect((array) $this->actingAs($usuario)->getJson($ruta)->assertOk()->json('data'));
+        $this->assertSame(0, $abierto->whereIn('categoria', ['CIERRE', 'AUSENTE'])->count());
+
+        DB::table('examenes')->where('id', $examen->id)->update(['finalizado_en' => now()->addHour(), 'finalizado_por' => $usuario->id]);
+
+        $eventos = collect((array) $this->actingAs($usuario)->getJson($ruta)->assertOk()->json('data'));
+        $cierre = $eventos->firstWhere('categoria', 'CIERRE');
+        self::assertIsArray($cierre);
+        $this->assertSame('Cierre del examen', $cierre['suceso']);
+        $this->assertSame('Ingresaron 1 de 2 habilitados · 1 no se presentaron · 0 incidencias · 0 intentos rechazados', $cierre['detalle']);
+        $this->assertSame(
+            [['No se presentó', 'Zurita Paz Omar', $falto->codigo_universitario, '624']],
+            $eventos->where('categoria', 'AUSENTE')
+                ->map(static fn (mixed $e): array => is_array($e) ? [$e['suceso'], $e['estudiante'], $e['codigo'], $e['aula']] : [])
+                ->values()
+                ->all(),
+        );
+
+        // Se busca al estudiante y responde el reclamo: no vino.
+        $this->actingAs($usuario)->getJson($ruta.'?buscar=zurita')
+            ->assertJsonPath('data.0.suceso', 'No se presentó');
+
+        $this->actingAs($usuario)->getJson($ruta.'?categoria=AUSENTE')
+            ->assertJsonPath('meta.total', 1);
+    }
+
     public function test_timeline_includes_unlogged_classroom_access_requests_and_resolutions(): void
     {
         $usuario = $this->usuarioConPermisos(['reportes_examenes']);

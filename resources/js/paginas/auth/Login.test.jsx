@@ -33,14 +33,14 @@ describe('Login', () => {
     it('muestra el logo, el nombre y el formulario por usuario', () => {
         montar();
 
-        expect(screen.getByRole('img', { name: 'Control de ingreso' })).toBeInTheDocument();
+        expect(screen.getByRole('img', { name: 'Escudo de la UMSS' })).toBeInTheDocument();
         expect(
-            screen.getByRole('heading', { level: 1, name: 'Control de ingreso a exámenes' })
+            screen.getByRole('heading', { level: 1, name: 'Control de exámenes' })
         ).toBeInTheDocument();
         expect(screen.getByText('Cuenta institucional')).toBeInTheDocument();
         expect(screen.getByLabelText(/Usuario/)).toHaveAttribute('type', 'text');
-        expect(screen.getByLabelText(/Usuario/)).toHaveAttribute('placeholder', 'nombreapellido');
-        expect(document.title).toBe('Iniciar sesión · Control de ingreso a exámenes');
+        expect(screen.getByLabelText(/Usuario/)).toHaveAttribute('placeholder', 'nombre apellido');
+        expect(document.title).toBe('Iniciar sesión · Control de exámenes');
         expect(screen.getByLabelText(/^Contraseña/)).toHaveAttribute('type', 'password');
     });
 
@@ -88,8 +88,9 @@ describe('Login', () => {
         expect(container.textContent).not.toMatch(/ingresá|tenés|podés|\bvos\b/i);
         expect(container.textContent).not.toMatch(/credenciales para continuar|deberá cambiarla/);
         expect(screen.getByText('Cuenta institucional')).toBeInTheDocument();
-        // El párrafo de la cuenta y el pie del fondo de acceso.
-        expect(container.querySelectorAll('p')).toHaveLength(2);
+        // La universidad, la cuenta y las dos líneas del pie (NexaSoft).
+        expect(container.querySelectorAll('p')).toHaveLength(4);
+        expect(screen.getByText('Desarrollado por NexaSoft SRL')).toBeInTheDocument();
         expect(container.textContent).not.toMatch(/Sistema Institucional de Verificación/);
     });
 

@@ -106,6 +106,9 @@ Route::middleware(['auth', 'permiso:seguimiento_vivo|examenes'])
         Route::post('/atencion', [IncidenciaController::class, 'atender'])->name('atender');
         Route::post('/correccion', [IncidenciaController::class, 'corregir'])->name('corregir');
         Route::get('/evidencia', [IncidenciaController::class, 'evidencia'])->name('evidencia');
+        Route::get('/evidencias/{numero}', [IncidenciaController::class, 'evidencia'])
+            ->whereNumber('numero')
+            ->name('evidencias');
     });
 
 // El panel en vivo del docente (HU-22): la autorizacion de los accesos con

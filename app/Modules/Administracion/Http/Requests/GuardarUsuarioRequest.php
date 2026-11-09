@@ -7,6 +7,7 @@ namespace App\Modules\Administracion\Http\Requests;
 use App\Modules\Administracion\Application\Contracts\CuentaUsuarioGateway;
 use App\Modules\Administracion\Application\DTOs\ActualizarCuentaData;
 use App\Modules\Administracion\Application\DTOs\NuevaCuentaData;
+use App\Modules\Administracion\Domain\Rules\NombreDeUsuario;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -61,7 +62,7 @@ final class GuardarUsuarioRequest extends FormRequest
                 'string',
                 'max:60',
                 // Empieza y termina con letra o numero, sin separadores seguidos.
-                'regex:/^[a-z0-9]+([._-][a-z0-9]+)*$/',
+                'regex:'.NombreDeUsuario::FORMATO,
                 function (string $atributo, mixed $valor, Closure $fallar) use ($cuentas, $propia): void {
                     if (is_string($valor) && $cuentas->usuarioRegistrado($valor, $propia)) {
                         $fallar('Ya existe');
@@ -98,7 +99,7 @@ final class GuardarUsuarioRequest extends FormRequest
             'usuario.required' => 'Obligatorio',
             'usuario.string' => 'Obligatorio',
             'usuario.max' => 'Máximo 60 caracteres',
-            'usuario.regex' => 'Letras o números, separados por punto o guion',
+            'usuario.regex' => 'Nombre y apellido, separados por un espacio',
             'correo.string' => 'Correo no válido',
             'correo.email' => 'Correo no válido',
             'correo.max' => 'Máximo 255 caracteres',

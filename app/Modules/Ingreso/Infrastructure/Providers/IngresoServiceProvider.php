@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Infrastructure\Providers;
 
+use App\Modules\Estudiantes\Application\Contracts\CodigosQrDelEstudiante;
 use App\Modules\Ingreso\Application\Contracts\AlcancePuntoControl;
 use App\Modules\Ingreso\Application\Contracts\AlmacenEvidencias;
 use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
@@ -41,6 +42,7 @@ use App\Modules\Ingreso\Infrastructure\Persistence\EloquentVerificacionPuntoCont
 use App\Modules\Ingreso\Infrastructure\Persistence\IngresoAuditadoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\VentanaExamen;
 use App\Modules\Ingreso\Infrastructure\QR\CodigoQrCifrado;
+use App\Modules\Ingreso\Infrastructure\QR\CodigosQrDelEstudianteEmitidos;
 use App\Modules\Ingreso\Infrastructure\QR\GeneradorImagenQrEndroid;
 use Illuminate\Support\ServiceProvider;
 
@@ -48,6 +50,9 @@ final class IngresoServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        // El QR del estudiante, para su portal (contrato de Estudiantes).
+        $this->app->bind(CodigosQrDelEstudiante::class, CodigosQrDelEstudianteEmitidos::class);
+
         // Las incidencias en un solo modelo y sus evidencias con foto.
         $this->app->bind(IncidenciaGateway::class, EloquentIncidenciaGateway::class);
         $this->app->bind(AlmacenEvidencias::class, AlmacenEvidenciasEnDisco::class);

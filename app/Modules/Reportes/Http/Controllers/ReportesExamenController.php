@@ -78,7 +78,13 @@ final class ReportesExamenController
             ], Response::HTTP_CONFLICT);
         }
 
-        return response()->json($reportes->incidencias($examen, $request->integer('pagina', 1)));
+        $gravedad = $request->query('gravedad');
+
+        return response()->json($reportes->incidencias(
+            $examen,
+            $request->integer('pagina', 1),
+            is_string($gravedad) && in_array($gravedad, ['MUY_GRAVE', 'GRAVE', 'LEVE'], true) ? $gravedad : null,
+        ));
     }
 
     public function descargar(

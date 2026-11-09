@@ -14,7 +14,7 @@ final class ListarBitacoraExamenRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'categoria' => ['nullable', 'in:INGRESO,RECHAZO,INCIDENCIA,HABILITACION,CODIGO_QR,ACCESO_AULA,ADMINISTRACION'],
+            'categoria' => ['nullable', 'in:INGRESO,RECHAZO,INCIDENCIA,HABILITACION,CODIGO_QR,ACCESO_AULA,ADMINISTRACION,CIERRE,AUSENTE'],
             'buscar' => ['nullable', 'string', 'max:120'],
             'aula' => ['nullable', 'integer', 'min:1'],
             'pagina' => ['nullable', 'integer', 'min:1'],

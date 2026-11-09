@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { FileSpreadsheet, FileText } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { FileSpreadsheet, FileText, History } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { useAviso } from '../../componentes/Aviso';
 import Boton from '../../componentes/Boton';
@@ -13,6 +13,7 @@ import { useSesion } from '../../sesion/SesionContexto';
 import descargar from '../../api/descargar';
 import useConsulta from '../../api/usarConsulta';
 import { mensajeDe } from '../../api/errores';
+import { GRAVEDADES } from '../../componentes/Incidencias';
 
 function cambiarParametros(parametros, cambios) {
     const nuevos = new URLSearchParams(parametros);
@@ -134,6 +135,9 @@ function DetalleReporte({
     cambiarVisibilidadIncidencias,
     paginaIncidencias,
     cambiarPaginaIncidencias,
+    gravedades,
+    gravedadIncidencias,
+    cambiarGravedadIncidencias,
 }) {
     const tarjetas = [
         {
@@ -171,6 +175,13 @@ function DetalleReporte({
                             {reporte.fecha} · {reporte.hora} · Período {reporte.periodo}
                         </p>
                     </div>
+                    {/* La línea de tiempo de este examen, sin descargar nada. */}
+                    <Link
+                        to={`/bitacora-examen?examen=${reporte.id}`}
+                        className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+                    >
+                        <History className="h-4 w-4" aria-hidden="true" /> Bitácora del examen
+                    </Link>
                     <Insignia tono={reporte.rendido ? 'exito' : 'neutro'}>
                         {reporte.rendido ? 'Rendido' : 'Sin rendir'}
                     </Insignia>
@@ -245,10 +256,40 @@ function DetalleReporte({
                                     <p role="status" className="text-xs text-slate-600">
                                         Cargando incidencias…
                                     </p>
-                                ) : totalIncidencias === 0 ? (
+                                ) : totalIncidencias === 0 && !gravedadIncidencias ? (
                                     <p className="text-xs text-slate-600">Sin incidencias.</p>
                                 ) : (
                                     <>
+                                        {gravedades && (
+                                            <div className="mb-3">
+                                                <Chips
+                                                    etiqueta="Gravedad"
+                                                    valor={gravedadIncidencias}
+                                                    onCambiar={cambiarGravedadIncidencias}
+                                                    opciones={[
+                                                        {
+                                                            valor: null,
+                                                            etiqueta: 'Todas',
+                                                            conteo: Object.values(
+                                                                gravedades
+                                                            ).reduce((a, b) => a + b, 0),
+                                                        },
+                                                        ...Object.entries(GRAVEDADES).map(
+                                                            ([clave, g]) => ({
+                                                                valor: clave,
+                                                                etiqueta: g.texto,
+                                                                conteo: gravedades[clave] ?? 0,
+                                                            })
+                                                        ),
+                                                    ]}
+                                                />
+                                            </div>
+                                        )}
+                                        {totalIncidencias === 0 && (
+                                            <p className="text-xs text-slate-600">
+                                                Sin incidencias de esa gravedad.
+                                            </p>
+                                        )}
                                         <ul className="space-y-3">
                                             {(mostrandoTodasIncidencias
                                                 ? incidencias
@@ -264,9 +305,9 @@ function DetalleReporte({
                                                         </span>
                                                         <Insignia
                                                             tono={
-                                                                fila.gravedad === 'Grave'
+                                                                fila.gravedad === 'Muy grave'
                                                                     ? 'peligro'
-                                                                    : fila.gravedad === 'Media'
+                                                                    : fila.gravedad === 'Grave'
                                                                       ? 'advertencia'
                                                                       : 'neutro'
                                                             }
@@ -354,6 +395,7 @@ function DetalleReporte({
                             { clave: 'codigo', titulo: 'Código SIS' },
                             { clave: 'estudiante', titulo: 'Estudiante' },
                             { clave: 'grupo', titulo: 'Grupo' },
+                            { clave: 'docente', titulo: 'Docente' },
                             { clave: 'aula', titulo: 'Aula' },
                             { clave: 'medio', titulo: 'Medio' },
                             { clave: 'situacion', titulo: 'Situación' },
@@ -367,6 +409,7 @@ function DetalleReporte({
                             { clave: 'estudiante', titulo: 'Apellidos y nombres' },
                             { clave: 'codigo', titulo: 'Código SIS' },
                             { clave: 'grupo', titulo: 'Grupo' },
+                            { clave: 'docente', titulo: 'Docente' },
                             { clave: 'carrera', titulo: 'Carrera' },
                             { clave: 'aula', titulo: 'Aula asignada' },
                         ]}
@@ -381,6 +424,7 @@ function DetalleReporte({
 
 DetalleReporte.propTypes = {
     reporte: PropTypes.shape({
+        id: PropTypes.number.isRequired,
         tipo: PropTypes.string.isRequired,
         fecha: PropTypes.string.isRequired,
         hora: PropTypes.string.isRequired,
@@ -412,6 +456,9 @@ DetalleReporte.propTypes = {
     mostrandoTodasIncidencias: PropTypes.bool.isRequired,
     cambiarVisibilidadIncidencias: PropTypes.func.isRequired,
     paginaIncidencias: PropTypes.number.isRequired,
+    gravedades: PropTypes.objectOf(PropTypes.number),
+    gravedadIncidencias: PropTypes.string,
+    cambiarGravedadIncidencias: PropTypes.func,
     cambiarPaginaIncidencias: PropTypes.func.isRequired,
 };
 
@@ -434,9 +481,11 @@ export default function Reportes() {
     );
     const [paginaIncidencias, setPaginaIncidencias] = useState(1);
     const [mostrandoTodasIncidencias, setMostrandoTodasIncidencias] = useState(false);
+    const [gravedadIncidencias, setGravedadIncidencias] = useState(null);
     useEffect(() => {
         setPaginaIncidencias(1);
         setMostrandoTodasIncidencias(false);
+        setGravedadIncidencias(null);
     }, [examenId]);
     const [aviso, avisar] = useAviso();
     const [descargasEnCurso, setDescargasEnCurso] = useState([]);
@@ -451,7 +500,10 @@ export default function Reportes() {
             ? `/reportes/examenes/${encodeURIComponent(examenId)}/incidencias`
             : null;
     const consultaIncidencias = useConsulta(rutaIncidencias, {
-        parametros: { pagina: paginaIncidencias },
+        parametros: {
+            pagina: paginaIncidencias,
+            ...(gravedadIncidencias ? { gravedad: gravedadIncidencias } : {}),
+        },
     });
     const incidencias = consultaIncidencias.datos ?? [];
     const totalIncidencias = consultaIncidencias.meta?.total ?? reporte?.incidencias ?? 0;
@@ -672,6 +724,12 @@ export default function Reportes() {
                             }}
                             paginaIncidencias={paginaIncidencias}
                             cambiarPaginaIncidencias={setPaginaIncidencias}
+                            gravedades={consultaIncidencias.meta?.gravedades ?? null}
+                            gravedadIncidencias={gravedadIncidencias}
+                            cambiarGravedadIncidencias={(clave) => {
+                                setGravedadIncidencias(clave);
+                                setPaginaIncidencias(1);
+                            }}
                         />
                     )}
                     {consultaDetalle.error && (

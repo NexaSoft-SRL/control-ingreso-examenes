@@ -33,6 +33,7 @@ final readonly class ReportarIncidencia
     ) {}
 
     /**
+     * @param  list<string>  $imagenes  hasta tres fotos de evidencia
      * @return array<string, mixed>
      */
     public function ejecutar(
@@ -42,7 +43,7 @@ final readonly class ReportarIncidencia
         ?string $estudiante,
         string $detalle,
         OperadorPuertaData $operador,
-        ?string $imagen = null,
+        array $imagenes = [],
     ): array {
         if (! $this->incidencias->examenTieneAula($examenId, $aulaId)) {
             throw new DatoNoValidoException('aula_id', 'El aula no es de este examen.');
@@ -60,14 +61,24 @@ final readonly class ReportarIncidencia
 
         $texto = $estudiante === null ? '' : trim($estudiante);
         $identificado = $this->estudiantes->resolver($examenId, $texto);
-        $evidencia = null;
 
-        if ($imagen !== null) {
-            $evidencia = $this->evidencias->guardar($imagen);
+        if (count($imagenes) > CorregirIncidencia::MAXIMO_EVIDENCIAS) {
+            throw new DatoNoValidoException('evidencias', sprintf('Máximo %d fotos', CorregirIncidencia::MAXIMO_EVIDENCIAS));
+        }
 
-            if ($evidencia === null) {
-                throw new DatoNoValidoException('evidencia', 'La imagen no se pudo leer.');
+        $evidencias = [];
+
+        foreach ($imagenes as $imagen) {
+            $ruta = $this->evidencias->guardar($imagen);
+
+            if ($ruta === null) {
+                // Las que ya se guardaron no quedan sueltas.
+                array_map(fn (string $guardada) => $this->evidencias->borrar($guardada), $evidencias);
+
+                throw new DatoNoValidoException('evidencias', 'La imagen no se pudo leer.');
             }
+
+            $evidencias[] = $ruta;
         }
 
         $incidenciaId = $this->incidencias->registrar(new NuevaIncidenciaData(
@@ -79,7 +90,7 @@ final readonly class ReportarIncidencia
             aulaId: $aulaId,
             estudianteId: $identificado,
             estudianteTexto: $texto === '' ? null : $texto,
-            evidencia: $evidencia,
+            evidencias: $evidencias,
         ), 'incidencia.registrar');
 
         $fila = $incidenciaId === null ? null : $this->incidencias->reportada($incidenciaId);

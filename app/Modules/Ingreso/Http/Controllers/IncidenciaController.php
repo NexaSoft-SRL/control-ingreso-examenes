@@ -73,7 +73,7 @@ final class IncidenciaController
                 $request->estudiante(),
                 $request->detalle(),
                 ExigirPuesto::operador($request),
-                $request->evidencia(),
+                $request->evidencias(),
             );
         } catch (AccesoPuntoDenegado $error) {
             return $this->error($error->getMessage(), Response::HTTP_FORBIDDEN);
@@ -135,7 +135,7 @@ final class IncidenciaController
                 $actual,
                 $request->tipo(),
                 $request->detalle(),
-                $request->evidencia(),
+                $request->evidencias(),
                 $this->usuarioId(),
                 $request->cambiaEstudiante(),
                 $request->estudiante(),
@@ -154,14 +154,15 @@ final class IncidenciaController
     }
 
     /**
-     * La foto de la evidencia, para el docente del examen o quien atiende
-     * su aula.
+     * Una foto de la evidencia (la primera, o la `$numero`), para el docente
+     * del examen o quien atiende su aula.
      */
     public function evidencia(
         int $incidencia,
         IncidenciaGateway $incidencias,
         AlcancePuerta $alcance,
         AlmacenEvidencias $almacen,
+        int $numero = 1,
     ): JsonResponse|Response {
         $datos = $incidencias->reportada($incidencia);
         $examenId = $datos['examen_id'] ?? null;
@@ -178,7 +179,7 @@ final class IncidenciaController
             return $this->error('Sin asignación en esta aula.', Response::HTTP_FORBIDDEN);
         }
 
-        $ruta = $incidencias->evidencia($incidencia);
+        $ruta = $incidencias->evidencia($incidencia, $numero);
         $jpeg = $ruta === null ? null : $almacen->leer($ruta);
 
         if ($jpeg === null) {

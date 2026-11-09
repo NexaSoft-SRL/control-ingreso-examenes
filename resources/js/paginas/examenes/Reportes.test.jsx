@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, within, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Reportes from './Reportes';
 import { api } from '../../api/cliente';
@@ -55,7 +55,7 @@ const incidencias = Array.from({ length: 6 }, (_, indice) => ({
     hora: `08:${String(20 + indice).padStart(2, '0')}`,
     aula: '624',
     tipo: indice === 0 ? 'Intento rechazado · No habilitado' : 'Expulsión',
-    gravedad: indice === 0 ? 'Media' : 'Grave',
+    gravedad: indice === 0 ? 'Grave' : 'Muy grave',
     estudiante: `Apellido Nombre ${indice + 1}`,
     codigo: `20210000${indice + 1}`,
     detalle: `Detalle ${indice + 1}`,
@@ -85,7 +85,13 @@ beforeEach(() => {
             return Promise.resolve({
                 data: {
                     data: incidencias,
-                    meta: { total: incidencias.length, pagina: 1, por_pagina: 8, paginas: 1 },
+                    meta: {
+                        total: incidencias.length,
+                        pagina: 1,
+                        por_pagina: 8,
+                        paginas: 1,
+                        gravedades: { MUY_GRAVE: 5, GRAVE: 1, LEVE: 0 },
+                    },
                 },
             });
         }
@@ -110,6 +116,27 @@ describe('Reportes · HU-23', () => {
 
         fireEvent.click(await screen.findByRole('button', { name: 'Ver todas · 6' }));
         expect(await screen.findByText('Detalle 6')).toBeInTheDocument();
+        // La bitácora del examen, a un clic desde su reporte.
+        expect(screen.getByRole('link', { name: 'Bitácora del examen' })).toHaveAttribute(
+            'href',
+            '/bitacora-examen?examen=21'
+        );
+    });
+
+    it('filtra las incidencias por gravedad en el servidor, con el conteo de cada una', async () => {
+        renderConSesion(<Reportes />, { ruta: '/reportes?examen=21' });
+        await screen.findByText(/Intento rechazado/);
+        const gravedad = within(screen.getByRole('group', { name: 'Gravedad' }));
+
+        expect(gravedad.getByRole('button', { name: /Todas/ })).toHaveTextContent('Todas6');
+        expect(gravedad.getByRole('button', { name: /Muy grave/ })).toHaveTextContent('Muy grave5');
+        fireEvent.click(gravedad.getByRole('button', { name: /Muy grave/ }));
+
+        await waitFor(() =>
+            expect(api.get).toHaveBeenCalledWith('/reportes/examenes/21/incidencias', {
+                params: { pagina: 1, gravedad: 'MUY_GRAVE' },
+            })
+        );
     });
 
     it('mantiene la descarga por reporte y muestra confirmación al recibir el archivo', async () => {

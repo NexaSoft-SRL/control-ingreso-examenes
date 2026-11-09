@@ -16,9 +16,12 @@
 </head>
 <body>
     <h1>{{ $titulo }}</h1>
-    <p>Universidad Mayor de San Simón · Control de ingreso a exámenes</p>
+    <p>Universidad Mayor de San Simón · Control de exámenes</p>
     <div class="meta">
         <p>{{ $reporte['asignatura']['nombre'] }} · {{ $reporte['tipo'] }} · {{ $reporte['fecha'] }} · {{ $reporte['hora'] }}</p>
+        @if (($reporte['grupos'] ?? '') !== '')
+            <p>Grupos: {{ $reporte['grupos'] }}</p>
+        @endif
         <p>Período {{ $reporte['periodo'] }} · Emitido el {{ $emitido }}</p>
     </div>
     @if ($filas === [])

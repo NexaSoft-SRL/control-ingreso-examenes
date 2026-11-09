@@ -39,6 +39,8 @@ final class UnificarIncidenciasMigracionTest extends TestCase
         $ingresoB = $this->ingresar($examen, $b, $aula);
         DB::table('ingresos')->where('id', $ingresoB)->update(['es_excepcion' => true]);
 
+        // La tabla de las fotos, posterior, depende de `incidencias`.
+        $this->correr($this->evidencias(), 'down');
         $this->correr($migracion, 'down');
         self::assertFalse(Schema::hasTable('incidencias'));
 
@@ -108,6 +110,7 @@ final class UnificarIncidenciasMigracionTest extends TestCase
         $aula = $this->aula('691A');
         $examen = $this->examen($docente, [$this->grupo($docente)], [$aula]);
 
+        $this->correr($this->evidencias(), 'down');
         $this->correr($migracion, 'down');
         DB::table('incidencias_aula')->insert([
             'id' => 70, 'examen_id' => $examen->id, 'aula_id' => $aula->id, 'reportada_por' => $usuario->id,
@@ -132,6 +135,14 @@ final class UnificarIncidenciasMigracionTest extends TestCase
         $paso = [$migracion, $sentido];
         self::assertIsCallable($paso);
         $paso();
+    }
+
+    private function evidencias(): Migration
+    {
+        /** @var Migration $migracion */
+        $migracion = require database_path('migrations/2026_11_09_000100_create_evidencias_incidencia_table.php');
+
+        return $migracion;
     }
 
     private function migracion(): Migration

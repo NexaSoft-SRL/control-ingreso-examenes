@@ -3,6 +3,7 @@
 namespace Tests\Feature\Modules\Administracion;
 
 use Database\Factories\UserFactory;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -24,6 +25,35 @@ class LoginSecurityTest extends TestCase
             'auth_security.lockout_minutes',
             15
         );
+    }
+
+    public function test_the_username_can_be_typed_as_name_and_surname_or_all_together(): void
+    {
+        UserFactory::new()->createOne([
+            'usuario' => 'leticia blanco',
+            'correo' => 'leticia@example.invalid',
+            'password' => 'CorrectPassword123!',
+            'is_active' => true,
+        ]);
+
+        // Con tildes, mayusculas y espacios de mas; y junto, como antes.
+        foreach (['  Letícia  Blanco ', 'leticiablanco'] as $escrito) {
+            $this->postJson('/api/auth/login', [
+                'usuario' => $escrito,
+                'password' => 'CorrectPassword123!',
+            ])->assertOk();
+
+            $this->postJson('/api/auth/logout');
+            $this->app['auth']->forgetGuards();
+        }
+    }
+
+    public function test_two_accounts_cannot_differ_only_in_the_space(): void
+    {
+        UserFactory::new()->createOne(['usuario' => 'leticia blanco']);
+
+        $this->expectException(QueryException::class);
+        UserFactory::new()->createOne(['usuario' => 'leticiablanco']);
     }
 
     public function test_failed_logins_increment_counter_and_lock_at_threshold(): void

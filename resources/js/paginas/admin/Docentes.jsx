@@ -20,13 +20,13 @@ import IconoAsignatura from '../../componentes/IconoAsignatura';
 import Insignia from '../../componentes/Insignia';
 import Paginacion from '../../componentes/Paginacion';
 import Tarjeta from '../../componentes/Tarjeta';
+import { ERROR_USUARIO, normalizarUsuario, usuarioValido } from '../../utiles/usuario';
 
 const POR_PAGINA = 20;
 const FICHA =
     'inline-flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
 const fichaClases = (activo) =>
     `${FICHA} ${activo ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`;
-const USUARIO = /^[a-z0-9]+([._-][a-z0-9]+)*$/i;
 const CORREO = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 const miles = (n) => (typeof n === 'number' ? n.toLocaleString('es-BO') : undefined);
@@ -42,7 +42,6 @@ const CUENTA = {
     sin_cuenta: { tono: 'neutro', texto: 'Sin cuenta' },
 };
 
-const usuarioValido = (v) => USUARIO.test(v.trim());
 const correoValido = (v) => v.trim() === '' || CORREO.test(v.trim());
 
 // Usuario propuesto por el servidor, editable, y correo opcional.
@@ -60,7 +59,7 @@ function FormularioActivar({ docente, onActivada, onRechazo }) {
         const escrito = correo.trim();
         setEnviando(true);
         api.post(`/docentes/${docente.id}/cuenta`, {
-            usuario: usuario.trim().toLowerCase(),
+            usuario: normalizarUsuario(usuario),
             correo: escrito === '' ? null : escrito,
         })
             .then((respuesta) => onActivada(respuesta.data?.data ?? {}, escrito))
@@ -77,7 +76,7 @@ function FormularioActivar({ docente, onActivada, onRechazo }) {
             <Campo
                 etiqueta="Usuario"
                 requerido
-                placeholder="nombreapellido"
+                placeholder="nombre apellido"
                 value={usuario}
                 error={errores.usuario}
                 ayuda={usuario === docente.usuario_sugerido ? 'Sugerido' : undefined}
@@ -88,11 +87,7 @@ function FormularioActivar({ docente, onActivada, onRechazo }) {
                     setUsuario(e.target.value);
                     setErrores((previos) => ({ ...previos, usuario: undefined }));
                 }}
-                validar={(v) =>
-                    usuarioValido(String(v))
-                        ? null
-                        : 'Letras o números, separados por punto o guion'
-                }
+                validar={(v) => (usuarioValido(String(v)) ? null : ERROR_USUARIO)}
             />
             <Campo
                 etiqueta="Correo"

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Administracion\Http\Requests;
 
+use App\Modules\Administracion\Domain\Rules\NombreDeUsuario;
 use Illuminate\Foundation\Http\FormRequest;
 
 final class SolicitarRestablecimientoRequest extends FormRequest
@@ -19,7 +20,7 @@ final class SolicitarRestablecimientoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'usuario' => ['required', 'string', 'max:60', 'regex:/^[a-zA-Z0-9._-]+$/'],
+            'usuario' => ['required', 'string', 'max:60', 'regex:'.NombreDeUsuario::FORMATO],
         ];
     }
 
