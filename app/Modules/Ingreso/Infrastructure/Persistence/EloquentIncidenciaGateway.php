@@ -281,6 +281,30 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
             ->exists();
     }
 
+    public function ponerVideo(int $incidenciaId, string $ruta, string $tipo, ?int $usuarioId): bool
+    {
+        $puesto = DB::table('incidencias')
+            ->where('id', $incidenciaId)
+            ->whereNull('video')
+            ->update(['video' => $ruta, 'video_tipo' => $tipo, 'updated_at' => now()]) > 0;
+
+        if ($puesto) {
+            $this->bitacora->registrar($usuarioId, 'incidencia.video', 'incidencias', $incidenciaId, sprintf('Video de evidencia en la incidencia %d.', $incidenciaId));
+        }
+
+        return $puesto;
+    }
+
+    public function video(int $incidenciaId): ?array
+    {
+        $fila = DB::table('incidencias')->where('id', $incidenciaId)->first(['video', 'video_tipo']);
+        $c = $fila === null ? [] : $this->columnas($fila);
+        $ruta = $this->texto($c['video'] ?? null);
+        $tipo = $this->texto($c['video_tipo'] ?? null);
+
+        return $ruta === null || $tipo === null ? null : ['ruta' => $ruta, 'tipo' => $tipo];
+    }
+
     public function evidencia(int $incidenciaId, int $numero = 1): ?string
     {
         $ruta = DB::table('evidencias_incidencia')
@@ -332,7 +356,8 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
                 'atendio.name as atendio',
                 'corrigio.name as corrigio',
             ])
-            ->selectRaw('(select count(*) from evidencias_incidencia as foto where foto.incidencia_id = incidencia.id) as evidencias');
+            ->selectRaw('(select count(*) from evidencias_incidencia as foto where foto.incidencia_id = incidencia.id) as evidencias')
+            ->selectRaw('(incidencia.video is not null) as con_video');
     }
 
     /**
@@ -379,6 +404,8 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
             'evidencia' => $this->entero($columnas['evidencias'] ?? 0) > 0,
             // Cuantas fotos: se piden de a una, por su numero.
             'evidencias' => $this->entero($columnas['evidencias'] ?? 0),
+            // Un video corto de evidencia, aparte de las fotos.
+            'video' => (bool) ($columnas['con_video'] ?? false),
             'corregida' => $corregidaEn !== null,
             'corregida_por' => $corregidaEn === null ? null : $this->texto($columnas['corrigio'] ?? null),
         ];

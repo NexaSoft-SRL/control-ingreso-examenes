@@ -161,6 +161,44 @@ describe('BotonIncidencia', () => {
         expect(cuerpo.has('estudiante')).toBe(false);
     });
 
+    it('con video envía un formulario con el video', async () => {
+        const registrar = vi.fn(() => Promise.resolve());
+        render(<BotonIncidencia aula={AULAS[0]} registrar={registrar} />);
+        const dialogo = abrir();
+        elegirTipo(dialogo);
+        fireEvent.change(dialogo.getByRole('textbox', { name: /Detalle/ }), {
+            target: { value: 'Salió del aula sin permiso' },
+        });
+        // jsdom no lee videos: la duración se da por leída.
+        const crear = document.createElement.bind(document);
+        vi.spyOn(document, 'createElement').mockImplementation((etiqueta, ...resto) => {
+            const elemento = crear(etiqueta, ...resto);
+            if (etiqueta === 'video') {
+                Object.defineProperty(elemento, 'duration', { value: 20 });
+                Object.defineProperty(elemento, 'src', {
+                    set() {
+                        setTimeout(() => elemento.onloadedmetadata?.(), 0);
+                    },
+                });
+            }
+            return elemento;
+        });
+        const grabado = new File(['webm'], 'pasillo.webm', { type: 'video/webm' });
+        fireEvent.change(dialogo.getByLabelText('Archivo de video'), {
+            target: { files: [grabado] },
+        });
+        expect(await dialogo.findByLabelText('Video elegido')).toBeInTheDocument();
+        fireEvent.click(dialogo.getByRole('button', { name: 'Registrar' }));
+
+        await waitFor(() => expect(registrar).toHaveBeenCalledTimes(1));
+        const cuerpo = registrar.mock.calls[0][0];
+        expect(cuerpo).toBeInstanceOf(FormData);
+        expect(cuerpo.get('video')).toBe(grabado);
+        expect(cuerpo.getAll('evidencias[]')).toEqual([]);
+        expect(cuerpo.get('gravedad')).toBe('LEVE');
+        vi.restoreAllMocks();
+    });
+
     it('la gravedad se marca con el tipo y se puede cambiar', async () => {
         const registrar = vi.fn(() => Promise.resolve());
         render(<BotonIncidencia aula={AULAS[0]} registrar={registrar} />);
@@ -518,6 +556,40 @@ describe('ListaIncidencias', () => {
         expect(api.get).toHaveBeenCalledWith('/incidencias/40/evidencias/1', {
             responseType: 'blob',
         });
+    });
+
+    it('abre el video de la evidencia junto a las fotos', async () => {
+        simularApi(api, {
+            'GET /incidencias/40/evidencias/1': new Blob(['jpeg']),
+            'GET /incidencias/40/video': new Blob(['webm'], { type: 'video/webm' }),
+        });
+        render(
+            <ListaIncidencias
+                items={[{ ...ITEMS[0], evidencia: true, evidencias: 1, video: true }]}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Evidencia · video' }));
+
+        const dialogo = within(screen.getByRole('dialog', { name: 'Evidencia' }));
+        expect(await dialogo.findByLabelText('Video de evidencia')).toHaveAttribute(
+            'src',
+            'blob:foto'
+        );
+        expect(dialogo.getByRole('img', { name: 'Evidencia 1' })).toBeInTheDocument();
+        expect(api.get).toHaveBeenCalledWith('/incidencias/40/video', { responseType: 'blob' });
+    });
+
+    it('con solo video, la evidencia es el video', async () => {
+        simularApi(api, { 'GET /incidencias/40/video': new Blob(['mp4']) });
+        render(<ListaIncidencias items={[{ ...ITEMS[0], evidencias: 0, video: true }]} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Evidencia' }));
+
+        const dialogo = within(screen.getByRole('dialog', { name: 'Evidencia' }));
+        expect(await dialogo.findByLabelText('Video de evidencia')).toBeInTheDocument();
+        expect(dialogo.queryByText('No se pudo abrir')).not.toBeInTheDocument();
+        expect(api.get).not.toHaveBeenCalledWith('/incidencias/40/evidencias/1', expect.anything());
     });
 
     it('con varias fotos las muestra todas y se pasa de una a otra', async () => {

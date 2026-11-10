@@ -83,4 +83,16 @@ interface IncidenciaGateway
      * nulo si no la tiene.
      */
     public function evidencia(int $incidenciaId, int $numero = 1): ?string;
+
+    /**
+     * Pone el video de evidencia si la incidencia aun no tiene uno.
+     */
+    public function ponerVideo(int $incidenciaId, string $ruta, string $tipo, ?int $usuarioId): bool;
+
+    /**
+     * El video de evidencia (ruta y tipo), o nulo si no tiene.
+     *
+     * @return array{ruta: string, tipo: string}|null
+     */
+    public function video(int $incidenciaId): ?array;
 }
