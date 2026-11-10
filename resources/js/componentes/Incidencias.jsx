@@ -7,11 +7,13 @@ import {
     ListChecks,
     Pencil,
     Trash2,
+    Video,
 } from 'lucide-react';
 import { api } from '../api/cliente';
 import Boton from './Boton';
 import Campo from './Campo';
 import FotosEvidencia from './FotosEvidencia';
+import VideoEvidencia from './VideoEvidencia';
 import Chips from './Chips';
 import Dialogo from './Dialogo';
 import Insignia from './Insignia';
@@ -159,14 +161,16 @@ function useCatalogo(ruta, abierto) {
     return { lista, puedeGuardar: estado.puedeGuardar };
 }
 
-// Con fotos, el cuerpo va como formulario multipart (`evidencias[]`).
-function cuerpoCon(datos, fotos) {
-    if (fotos.length === 0) return datos;
+// Con fotos o video, el cuerpo va como formulario multipart (`evidencias[]`
+// y `video`).
+function cuerpoCon(datos, fotos, video = null) {
+    if (fotos.length === 0 && !video) return datos;
     const formulario = new FormData();
     Object.entries(datos).forEach(([clave, valor]) => {
         if (valor !== null && valor !== undefined) formulario.append(clave, valor);
     });
     fotos.forEach((foto) => formulario.append('evidencias[]', foto));
+    if (video) formulario.append('video', video);
     return formulario;
 }
 
@@ -230,6 +234,7 @@ export function BotonIncidencia({
     const [estudiante, setEstudiante] = useState('');
     const [detalle, setDetalle] = useState('');
     const [fotos, setFotos] = useState([]);
+    const [video, setVideo] = useState(null);
     const [intento, setIntento] = useState(false);
     const [enviando, setEnviando] = useState(false);
     const [errores, setErrores] = useState({});
@@ -259,6 +264,7 @@ export function BotonIncidencia({
         setEstudiante('');
         setDetalle('');
         setFotos([]);
+        setVideo(null);
         setIntento(false);
         setErrores({});
     };
@@ -288,7 +294,8 @@ export function BotonIncidencia({
                         estudiante: estudiante.trim() || null,
                         detalle: detalle.trim(),
                     },
-                    fotos
+                    fotos,
+                    video
                 )
             );
             cerrar();
@@ -450,6 +457,7 @@ export function BotonIncidencia({
                         maximo={MAXIMO_FOTOS}
                         error={errorDeFotos(errores)}
                     />
+                    <VideoEvidencia video={video} onCambiar={setVideo} error={errores.video} />
                 </div>
             </Dialogo>
             {aviso}
@@ -535,17 +543,23 @@ export function ListaIncidencias({ items, atender, corregir, conAula = false, li
                                     .filter(Boolean)
                                     .join(' · ')}
                             </p>
-                            {(i.evidencia || corregir) && (
+                            {(i.evidencia || i.video || corregir) && (
                                 <p className="-ml-2 mt-1 flex flex-wrap gap-1">
-                                    {i.evidencia && (
+                                    {(i.evidencia || i.video) && (
                                         <Boton
                                             type="button"
                                             variante="enlace"
                                             tamano="chico"
                                             onClick={() => setViendo(i)}
                                         >
-                                            <IconoImagen className="h-4 w-4" /> Evidencia
+                                            {i.evidencia ? (
+                                                <IconoImagen className="h-4 w-4" />
+                                            ) : (
+                                                <Video className="h-4 w-4" />
+                                            )}{' '}
+                                            Evidencia
                                             {fotosDe(i) > 1 && ` · ${fotosDe(i)}`}
+                                            {i.evidencia && i.video && ' · video'}
                                         </Boton>
                                     )}
                                     {corregir && (
@@ -676,10 +690,28 @@ const tonoDe = (i) => (i.atendida ? 'neutro' : (GRAVEDADES[gravedadDe(i)]?.tono 
 // pedidas con la sesión y mostradas desde la memoria: una grande y debajo
 // las miniaturas para pasar de una a otra.
 function VerEvidencia({ incidencia, onCerrar }) {
-    const cantidad = Math.max(1, fotosDe(incidencia));
+    const cantidad = fotosDe(incidencia);
     const [urls, setUrls] = useState([]);
     const [fallo, setFallo] = useState(false);
     const [actual, setActual] = useState(0);
+    const [video, setVideo] = useState(null);
+
+    // El video (GET /api/incidencias/{id}/video), también con la sesión.
+    useEffect(() => {
+        if (!incidencia.video) return undefined;
+        let vigente = true;
+        let creada = null;
+        api.get(`/incidencias/${incidencia.id}/video`, { responseType: 'blob' })
+            .then((respuesta) => {
+                creada = URL.createObjectURL(respuesta.data);
+                if (vigente) setVideo(creada);
+            })
+            .catch(() => vigente && setVideo(false));
+        return () => {
+            vigente = false;
+            if (creada) URL.revokeObjectURL(creada);
+        };
+    }, [incidencia.id, incidencia.video]);
 
     useEffect(() => {
         let vigente = true;
@@ -701,7 +733,7 @@ function VerEvidencia({ incidencia, onCerrar }) {
             if (!vigente) return;
             const abiertas = todas.filter(Boolean);
             setUrls(abiertas);
-            setFallo(abiertas.length === 0);
+            setFallo(cantidad > 0 && abiertas.length === 0);
         });
         return () => {
             vigente = false;
@@ -716,6 +748,7 @@ function VerEvidencia({ incidencia, onCerrar }) {
                     incidencia.tipo_texto ?? TIPOS_INCIDENCIA[incidencia.tipo],
                     incidencia.hora,
                     cantidad > 1 && `${cantidad} fotos`,
+                    incidencia.video && 'video',
                 ]
                     .filter(Boolean)
                     .join(' · ')}
@@ -743,8 +776,21 @@ function VerEvidencia({ incidencia, onCerrar }) {
                     ))}
                 </div>
             )}
-            {fallo && <p className="text-sm text-danger-600">No se pudo abrir</p>}
-            {urls.length === 0 && !fallo && <p className="text-sm text-slate-600">Cargando…</p>}
+            {video && (
+                <video
+                    src={video}
+                    controls
+                    playsInline
+                    aria-label="Video de evidencia"
+                    className={`max-h-[55vh] w-full rounded-lg bg-slate-900 ${urls.length > 0 ? 'mt-3' : ''}`}
+                />
+            )}
+            {(fallo || video === false) && (
+                <p className="text-sm text-danger-600">No se pudo abrir</p>
+            )}
+            {urls.length === 0 && !fallo && video === null && (
+                <p className="text-sm text-slate-600">Cargando…</p>
+            )}
         </Dialogo>
     );
 }
@@ -757,6 +803,7 @@ VerEvidencia.propTypes = {
         hora: PropTypes.string,
         evidencia: PropTypes.bool,
         evidencias: PropTypes.number,
+        video: PropTypes.bool,
     }).isRequired,
     onCerrar: PropTypes.func.isRequired,
 };
@@ -776,6 +823,7 @@ function CorregirIncidencia({ incidencia, corregir, onCerrar }) {
     const [estudiante, setEstudiante] = useState(incidencia.estudiante ?? '');
     const [tocoEstudiante, setTocoEstudiante] = useState(false);
     const [fotos, setFotos] = useState([]);
+    const [video, setVideo] = useState(null);
     const [errores, setErrores] = useState({});
     const [enviando, setEnviando] = useState(false);
     const [aviso, avisar] = useAviso();
@@ -799,7 +847,7 @@ function CorregirIncidencia({ incidencia, corregir, onCerrar }) {
             if (tipo === 'OTRA') datos.tipo_texto = nombre.trim();
             // Solo viaja si se cambió: el texto mostrado no es el guardado.
             if (tocoEstudiante) datos.estudiante = estudiante.trim();
-            await corregir(incidencia.id, cuerpoCon(datos, fotos));
+            await corregir(incidencia.id, cuerpoCon(datos, fotos, video));
             onCerrar();
         } catch (error) {
             const campos = erroresDe(error);
@@ -826,7 +874,7 @@ function CorregirIncidencia({ incidencia, corregir, onCerrar }) {
                     <Boton
                         type="button"
                         onClick={guardar}
-                        disabled={(delSistema ? fotos.length === 0 : corto) || enviando}
+                        disabled={(delSistema ? fotos.length === 0 && !video : corto) || enviando}
                         cargando={enviando}
                     >
                         Guardar
@@ -910,6 +958,11 @@ function CorregirIncidencia({ incidencia, corregir, onCerrar }) {
                 ) : (
                     <p className="text-sm text-slate-600">{MAXIMO_FOTOS} fotos de evidencia</p>
                 )}
+                {incidencia.video ? (
+                    <p className="text-sm text-slate-600">Ya tiene un video</p>
+                ) : (
+                    <VideoEvidencia video={video} onCambiar={setVideo} error={errores.video} />
+                )}
             </div>
             {aviso}
         </Dialogo>
@@ -926,6 +979,7 @@ CorregirIncidencia.propTypes = {
         nombre_propio: PropTypes.string,
         evidencia: PropTypes.bool,
         evidencias: PropTypes.number,
+        video: PropTypes.bool,
     }).isRequired,
     corregir: PropTypes.func.isRequired,
     onCerrar: PropTypes.func.isRequired,

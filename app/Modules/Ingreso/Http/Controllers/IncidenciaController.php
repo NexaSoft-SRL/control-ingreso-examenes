@@ -9,6 +9,7 @@ use App\Modules\Ingreso\Application\Actions\AtenderIncidencia;
 use App\Modules\Ingreso\Application\Actions\CorregirIncidencia;
 use App\Modules\Ingreso\Application\Actions\ReportarIncidencia;
 use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
+use App\Modules\Ingreso\Application\Contracts\AlmacenVideos;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaGateway;
 use App\Modules\Ingreso\Application\Contracts\PuertaGateway;
 use App\Modules\Ingreso\Application\DTOs\OperadorData;
@@ -23,6 +24,7 @@ use App\Modules\Ingreso\Http\Requests\ListarIncidenciasRequest;
 use App\Modules\Ingreso\Http\Requests\ReportarIncidenciaRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\Response as RespuestaBase;
 
 final class IncidenciaController
 {
@@ -79,6 +81,7 @@ final class IncidenciaController
                 $request->gravedad(),
                 $request->tipoTexto(),
                 $request->guardarComun(),
+                $request->video(),
             );
         } catch (FueraDeAlcanceException $error) {
             return $this->fueraDeAlcance($error);
@@ -147,6 +150,7 @@ final class IncidenciaController
                 is_string($datos['detalle'] ?? null) ? $datos['detalle'] : null,
                 $request->gravedad(),
                 $request->tipoTexto(),
+                $request->video(),
             );
         } catch (FueraDeAlcanceException $error) {
             return $this->fueraDeAlcance($error);
@@ -172,21 +176,10 @@ final class IncidenciaController
         AlmacenImagenes $imagenes,
         int $numero = 1,
     ): JsonResponse|Response {
-        $datos = $incidencias->reportada($incidencia);
-        $usuarioId = $this->usuarioId();
-        $examenId = $datos['examen_id'] ?? null;
-        $aulaId = $datos['aula_id'] ?? null;
-        $examen = is_int($examenId) ? $puerta->examen($examenId) : null;
+        $permiso = $this->permisoDeEvidencia($incidencias->reportada($incidencia), $puerta, $alcance);
 
-        if ($datos === null || $usuarioId === null || $examen === null) {
-            return $this->noEncontrado('Incidencia no encontrada.');
-        }
-
-        $puedeVer = $alcance->esDocente($usuarioId, $examen->id)
-            || (is_int($aulaId) && $alcance->actuaEnExamen(new OperadorData($usuarioId), $examen, $aulaId));
-
-        if (! $puedeVer) {
-            return $this->fueraDeAlcance(FueraDeAlcanceException::aula());
+        if ($permiso !== null) {
+            return $permiso;
         }
 
         $ruta = $incidencias->evidencia($incidencia, $numero);
@@ -200,5 +193,57 @@ final class IncidenciaController
             'Content-Type' => 'image/jpeg',
             'Cache-Control' => 'private, max-age=300',
         ]);
+    }
+
+    /**
+     * El video de evidencia, para quien puede ver la incidencia. Se entrega
+     * el archivo (con rangos, para que el reproductor avance y retroceda).
+     */
+    public function video(
+        int $incidencia,
+        IncidenciaGateway $incidencias,
+        PuertaGateway $puerta,
+        AlcancePuesto $alcance,
+        AlmacenVideos $videos,
+    ): JsonResponse|RespuestaBase {
+        $permiso = $this->permisoDeEvidencia($incidencias->reportada($incidencia), $puerta, $alcance);
+
+        if ($permiso !== null) {
+            return $permiso;
+        }
+
+        $video = $incidencias->video($incidencia);
+        $archivo = $video === null ? null : $videos->archivo($video['ruta']);
+
+        if ($video === null || $archivo === null) {
+            return $this->noEncontrado('Sin video.');
+        }
+
+        return response()->file($archivo, [
+            'Content-Type' => $video['tipo'],
+            'Cache-Control' => 'private, max-age=300',
+        ]);
+    }
+
+    /**
+     * La evidencia la ve el docente del examen o quien atiende su aula.
+     *
+     * @param  array<string, mixed>|null  $datos
+     */
+    private function permisoDeEvidencia(?array $datos, PuertaGateway $puerta, AlcancePuesto $alcance): ?JsonResponse
+    {
+        $usuarioId = $this->usuarioId();
+        $examenId = $datos['examen_id'] ?? null;
+        $aulaId = $datos['aula_id'] ?? null;
+        $examen = is_int($examenId) ? $puerta->examen($examenId) : null;
+
+        if ($datos === null || $usuarioId === null || $examen === null) {
+            return $this->noEncontrado('Incidencia no encontrada.');
+        }
+
+        $puedeVer = $alcance->esDocente($usuarioId, $examen->id)
+            || (is_int($aulaId) && $alcance->actuaEnExamen(new OperadorData($usuarioId), $examen, $aulaId));
+
+        return $puedeVer ? null : $this->fueraDeAlcance(FueraDeAlcanceException::aula());
     }
 }
