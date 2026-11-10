@@ -47,9 +47,10 @@ docente tiene su lista de incidencias comunes, con la gravedad que prefiere para
 tipo y las incidencias propias que fue guardando; al registrar en un examen se ofrece la
 lista del docente del examen, también al auxiliar. Una incidencia no prevista se
 registra con su propio nombre y su gravedad, y se puede guardar en la lista. Una
-incidencia puede llevar hasta tres fotos de
-evidencia, tomadas con la cámara de atrás al reportarla o al corregirla; se agregan y
-no se reemplazan. Un intento sin examen cuenta si ocurrió en un
+incidencia puede llevar hasta tres fotos y un video de evidencia, tomados con la cámara
+de atrás al reportarla o al corregirla; se agregan y no se reemplazan. El video dura
+hasta un minuto y pesa hasta 8 MB, el límite del servidor: se graba en la aplicación en
+calidad baja o se elige del dispositivo. Un intento sin examen cuenta si ocurrió en un
 aula del examen mientras estaba abierto. El docente lee la de los exámenes que registró
 o que incluyen un grupo suyo; el administrador, la de cualquiera. Leer y descargar no
 deja rastro.
@@ -115,6 +116,13 @@ exámenes» o «Reportes de la universidad» (HU-15).}
       se quitan con la equis antes de enviar; al corregir se agregan a las que ya tenía,
       hasta tres en total («Máximo N fotos más» o «Ya tiene 3 fotos»), y «Evidencia ·
       N» las abre una grande con sus miniaturas para pasar de una a otra.
+\item Dado que se reporta o se corrige una incidencia, Cuando se agrega un video,
+      Entonces «Grabar video» abre la cámara de atrás, «Grabar» cuenta «0:00 / 1:00» y
+      corta solo al minuto, y «Detener» lo deja listo; «Elegir video» acepta MP4, WebM o
+      MOV y rechaza con «Solo MP4, WebM o MOV», «Máximo 8 MB» o «Máximo 60 segundos». El
+      video se ve antes de enviarlo y se quita con la equis; uno por incidencia («Ya
+      tiene un video»), y la evidencia lo reproduce junto a las fotos, solo para el
+      docente del examen o quien atiende el aula.
 \item Dado que la bitácora tiene sucesos, Cuando el docente usa las fichas «Tipo de
       suceso» («Todo», «Ingresos», «Rechazos», «Incidencias», «Accesos», «Examen» y «No
       se presentaron», cada una con su conteo y solo si tiene alguno), las de gravedad
@@ -151,6 +159,10 @@ exámenes» o «Reportes de la universidad» (HU-15).}
 \CajaMockup{hu29-incidencia-no-prevista}{10.6cm} & \CajaMockup{hu29-incidencia-no-prevista-movil}{3.2cm} \\[4pt]
 \hline
 \CajaMockup{hu29-mis-incidencias}{10.6cm} & \CajaMockup{hu29-mis-incidencias-movil}{3.2cm} \\[4pt]
+\hline
+\CajaMockup{hu29-grabar-video}{10.6cm} & \CajaMockup{hu29-grabar-video-movil}{3.2cm} \\[4pt]
+\hline
+\CajaMockup{hu29-video-de-evidencia}{10.6cm} & \CajaMockup{hu29-video-de-evidencia-movil}{3.2cm} \\[4pt]
 \hline}
 
 \def\HUPruebas{%
@@ -169,16 +181,21 @@ exámenes» o «Reportes de la universidad» (HU-15).}
       docente, no prevista con su nombre y «Guardar», corrección de la gravedad y «Mis
       incidencias comunes» (criterios 6 y 7); fotos en miniatura con su equis, hasta tres, y
       el visor de evidencia con sus miniaturas (criterio 8).
+\item \texttt{VideoEvidenciaTest}: video guardado con la incidencia y entregado con
+      rangos, sin video, solo MP4, WebM o MOV de hasta 8 MB, uno por incidencia al
+      corregir y solo para quien ve la incidencia; \texttt{VideoEvidencia.test.jsx} e
+      \texttt{Incidencias.test.jsx}: grabación que corta al minuto, video elegido,
+      rechazos y el video en la evidencia (criterio 9).
 \item \texttt{BitacoraExamenTest}: lectura solo para un docente del examen, sin sesión y
-      examen inexistente (criterio 13).
+      examen inexistente (criterio 14).
 \item \texttt{BitacoraExamenTest}: el administrador lee y descarga la bitácora de
       cualquier examen, con el nombre del archivo, y el docente no usa esa ruta
-      (criterios 11 a 13).
+      (criterios 12 a 14).
 \item \texttt{BitacoraDelExamen.test.jsx}: sucesos por día con hora, aula, estudiante y
       autor, filtros por tipo, gravedad, aula y estudiante con su cuenta, y bitácora
-      vacía sin descarga (criterios 1, 9 y 11).
+      vacía sin descarga (criterios 1, 10 y 12).
 \item \texttt{Reportes.test.jsx}: el botón «Bitácora» solo con un examen elegido y la
-      bitácora de ese examen en un diálogo (criterio 12); \texttt{ReportesDocente.test.jsx}:
+      bitácora de ese examen en un diálogo (criterio 13); \texttt{ReportesDocente.test.jsx}:
       la pestaña «Bitácora» en los reportes del docente (criterio 1).}
 
 \input{cuerpo}
