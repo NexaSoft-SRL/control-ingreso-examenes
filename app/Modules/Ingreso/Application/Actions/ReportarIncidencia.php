@@ -6,12 +6,14 @@ namespace App\Modules\Ingreso\Application\Actions;
 
 use App\Modules\Administracion\Application\Contracts\AlmacenImagenes;
 use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
+use App\Modules\Ingreso\Application\Contracts\AlmacenVideos;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaGateway;
 use App\Modules\Ingreso\Application\Contracts\IncidenciasComunesGateway;
 use App\Modules\Ingreso\Application\Contracts\PuertaGateway;
 use App\Modules\Ingreso\Application\DTOs\ExamenData;
 use App\Modules\Ingreso\Application\DTOs\NuevaIncidenciaData;
 use App\Modules\Ingreso\Application\DTOs\OperadorData;
+use App\Modules\Ingreso\Application\DTOs\VideoData;
 use App\Modules\Ingreso\Domain\Enums\Gravedad;
 use App\Modules\Ingreso\Domain\Enums\OrigenIncidencia;
 use App\Modules\Ingreso\Domain\Enums\TipoIncidencia;
@@ -33,6 +35,7 @@ final readonly class ReportarIncidencia
         private AlmacenImagenes $imagenes,
         private EstudianteDeIncidencia $estudiantes,
         private IncidenciasComunesGateway $comunes,
+        private AlmacenVideos $videos,
     ) {}
 
     /**
@@ -55,6 +58,7 @@ final readonly class ReportarIncidencia
         ?Gravedad $gravedad = null,
         ?string $tipoTexto = null,
         bool $guardarComun = false,
+        ?VideoData $video = null,
     ): array {
         if (! $this->puerta->examenTieneAula($examen->id, $aulaId)) {
             throw new DatoNoValidoException('aula_id', 'El aula no es de este examen.');
@@ -95,6 +99,18 @@ final readonly class ReportarIncidencia
             $evidencias[] = $ruta;
         }
 
+        $rutaVideo = null;
+
+        if ($video !== null) {
+            $rutaVideo = $this->videos->guardar($video->contenido, $video->tipo);
+
+            if ($rutaVideo === null) {
+                array_map(fn (string $guardada) => $this->imagenes->borrar($guardada), $evidencias);
+
+                throw new DatoNoValidoException('video', 'El video no se pudo guardar.');
+            }
+        }
+
         $nombre = $tipo === TipoIncidencia::Otra && $tipoTexto !== null && trim($tipoTexto) !== '' ? trim($tipoTexto) : null;
         $dueno = $this->comunes->duenoParaExamen($examen->id, $operador->usuarioId);
         $gravedad ??= ($nombre === null ? null : $this->comunes->gravedadDeNombre($dueno, $nombre))
@@ -121,6 +137,10 @@ final readonly class ReportarIncidencia
             gravedad: $gravedad,
             tipoTexto: $nombre,
         ), 'incidencia.registrar');
+
+        if ($incidenciaId !== null && $rutaVideo !== null) {
+            $this->incidencias->ponerVideo($incidenciaId, $rutaVideo, $video->tipo, $operador->usuarioId);
+        }
 
         $fila = $incidenciaId === null ? null : $this->incidencias->reportada($incidenciaId);
 

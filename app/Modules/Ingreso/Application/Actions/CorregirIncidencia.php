@@ -6,7 +6,9 @@ namespace App\Modules\Ingreso\Application\Actions;
 
 use App\Modules\Administracion\Application\Contracts\AlmacenImagenes;
 use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
+use App\Modules\Ingreso\Application\Contracts\AlmacenVideos;
 use App\Modules\Ingreso\Application\Contracts\IncidenciaGateway;
+use App\Modules\Ingreso\Application\DTOs\VideoData;
 use App\Modules\Ingreso\Domain\Enums\Gravedad;
 use App\Modules\Ingreso\Domain\Enums\TipoIncidencia;
 use App\Modules\Ingreso\Domain\Exceptions\DatoNoValidoException;
@@ -30,6 +32,7 @@ final readonly class CorregirIncidencia
         private AlcancePuesto $alcance,
         private AlmacenImagenes $imagenes,
         private EstudianteDeIncidencia $estudiantes,
+        private AlmacenVideos $videos,
     ) {}
 
     /**
@@ -48,6 +51,7 @@ final readonly class CorregirIncidencia
         ?string $detalleActual = null,
         ?Gravedad $gravedad = null,
         ?string $tipoTexto = null,
+        ?VideoData $video = null,
     ): void {
         $this->alcance->exigirDocente($usuarioId, $examenId);
 
@@ -75,6 +79,10 @@ final readonly class CorregirIncidencia
                 : sprintf('Máximo %d %s más', $libres, $libres === 1 ? 'foto' : 'fotos'));
         }
 
+        if ($video !== null && $this->incidencias->video($incidenciaId) !== null) {
+            throw new DatoNoValidoException('video', 'Ya tiene un video');
+        }
+
         $rutas = [];
 
         foreach ($imagenes as $imagen) {
@@ -99,5 +107,17 @@ final readonly class CorregirIncidencia
             $gravedad,
             $tipoTexto,
         );
+
+        if ($video !== null) {
+            $ruta = $this->videos->guardar($video->contenido, $video->tipo);
+
+            if ($ruta === null) {
+                throw new DatoNoValidoException('video', 'El video no se pudo guardar.');
+            }
+
+            if (! $this->incidencias->ponerVideo($incidenciaId, $ruta, $video->tipo, $usuarioId)) {
+                $this->videos->borrar($ruta);
+            }
+        }
     }
 }

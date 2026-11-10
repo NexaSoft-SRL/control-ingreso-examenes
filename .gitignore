@@ -43,4 +43,5 @@ docs/guia/fichas/build/
 # Respaldos generados y discos de prueba
 /storage/app/private/respaldos/
 /storage/app/private/imagenes/
+/storage/app/private/incidencias/
 /storage/framework/testing/

@@ -12,6 +12,8 @@ use Illuminate\Validation\Rule;
 
 final class ReportarIncidenciaRequest extends FormRequest
 {
+    use ConVideo;
+
     public function authorize(): bool
     {
         return true;
@@ -37,6 +39,7 @@ final class ReportarIncidenciaRequest extends FormRequest
             'evidencias' => ['nullable', 'array', 'max:3'],
             'evidencias.*' => ['file', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
             'evidencia' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
+            ...$this->reglasDeVideo(),
         ];
     }
 
@@ -63,6 +66,7 @@ final class ReportarIncidenciaRequest extends FormRequest
             'evidencia.uploaded' => 'Máximo 8 MB',
             'evidencia.max' => 'Máximo 8 MB',
             'evidencia.*' => 'Solo JPG, PNG o WebP',
+            ...$this->mensajesDeVideo(),
         ];
     }
 

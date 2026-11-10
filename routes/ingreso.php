@@ -93,6 +93,11 @@ Route::get('/api/incidencias/{incidencia}/evidencias/{numero}', [IncidenciaContr
     ->whereNumber(['incidencia', 'numero'])
     ->name('incidencias.evidencias');
 
+Route::get('/api/incidencias/{incidencia}/video', [IncidenciaController::class, 'video'])
+    ->middleware(['auth', 'permiso:seguimiento_vivo'])
+    ->whereNumber('incidencia')
+    ->name('incidencias.video');
+
 Route::get('/api/incidencias/{incidencia}/evidencia', [IncidenciaController::class, 'evidencia'])
     ->middleware(['auth', 'permiso:seguimiento_vivo'])
     ->whereNumber('incidencia')
