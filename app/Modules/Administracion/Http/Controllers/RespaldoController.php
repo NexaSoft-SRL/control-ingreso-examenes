@@ -9,6 +9,7 @@ use App\Modules\Administracion\Application\Actions\RestaurarRespaldo;
 use App\Modules\Administracion\Application\DTOs\RespaldoData;
 use App\Modules\Administracion\Application\Queries\DescargarRespaldo;
 use App\Modules\Administracion\Application\Queries\ListarRespaldos;
+use App\Modules\Administracion\Domain\Exceptions\RespaldoBloqueadoException;
 use App\Modules\Administracion\Domain\Exceptions\RespaldoFallidoException;
 use App\Modules\Administracion\Domain\Exceptions\RespaldoIncompatibleException;
 use App\Modules\Administracion\Domain\Exceptions\RespaldoNoEncontradoException;
@@ -91,6 +92,8 @@ final class RespaldoController
             return $this->error($excepcion->getMessage(), Response::HTTP_CONFLICT, 'RESPALDO_FALLIDO');
         } catch (RespaldoIncompatibleException $excepcion) {
             return $this->error($excepcion->getMessage(), Response::HTTP_CONFLICT, 'RESPALDO_INCOMPATIBLE');
+        } catch (RespaldoBloqueadoException $excepcion) {
+            return $this->error($excepcion->getMessage(), Response::HTTP_CONFLICT, 'EXAMEN_EN_CURSO');
         }
 
         return response()->json([
