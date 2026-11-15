@@ -1,0 +1,354 @@
+% ============================================================
+% REGISTRO DE EXÁMENES
+% Procedimiento funcional basado en RegistrarExamen.jsx
+% Evidencias: cuatro etapas, escritorio y móvil
+% ============================================================
+
+\subsection{Registrar un examen: procedimiento completo}
+\label{sec:registro-examen}
+
+El registro de un examen se realiza desde
+\textbf{Exámenes} mediante la opción
+\textbf{Registrar examen}. La aplicación organiza el
+procedimiento en cinco etapas: \textbf{Examen},
+\textbf{Grupos}, \textbf{Aulas},
+\textbf{Quién atiende} y \textbf{Listo}.
+
+Las primeras cuatro etapas permiten preparar los datos.
+La última muestra el resultado después de guardar
+correctamente el examen.
+
+\medskip
+\begin{center}
+\small\bfseries\color{Teal}
+01 Examen
+\quad--\quad
+02 Grupos
+\quad--\quad
+03 Aulas
+\quad--\quad
+04 Personal
+\quad--\quad
+05 Listo
+\end{center}
+\medskip
+
+\noindent\textbf{Antes de empezar.}
+La cuenta debe tener permiso para gestionar exámenes,
+disponer de una asignatura habilitada y trabajar
+dentro del período académico correspondiente.
+
+\noindent\textbf{Importante.}
+La disponibilidad de asignaturas, grupos, ambientes
+y personal depende de la información académica
+registrada en el sistema.
+
+% ============================================================
+% MACRO EDITORIAL PARA LOS PARES DE CAPTURAS
+% ============================================================
+
+\newcommand{\CapturasRegistro}[3]{%
+    \par\medskip
+    \noindent
+    \begin{minipage}{\linewidth}
+        \centering
+        \includegraphics[
+            width=0.98\linewidth,
+            height=0.39\textheight,
+            keepaspectratio
+        ]{imagenes/docente/flujo-registro/escritorio/paso-#1.png}
+        \captionof{figure}{#2: vista de escritorio.}
+        \label{fig:registro-escritorio-#1}
+    \end{minipage}
+
+    \par\medskip
+
+    \noindent
+    \begin{minipage}[t]{0.42\linewidth}
+        \vspace{0pt}
+        \centering
+        \includegraphics[
+            width=\linewidth,
+            height=0.40\textheight,
+            keepaspectratio
+        ]{imagenes/docente/flujo-registro/movil/paso-#1.png}
+        \captionof{figure}{#2: vista móvil.}
+        \label{fig:registro-movil-#1}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[t]{0.53\linewidth}
+        \vspace{3pt}
+        {\bfseries\color{Teal}Uso desde el teléfono}\par
+        \small #3
+    \end{minipage}
+
+    \par\medskip
+}
+
+% ============================================================
+% ETAPA 1
+% ============================================================
+
+\subsubsection{Etapa 1. Datos generales del examen}
+
+La primera pantalla determina qué evaluación se
+realizará, a qué asignatura pertenece y cuándo tendrá
+lugar. Estos datos condicionan las opciones de las
+etapas posteriores.
+
+\noindent\textbf{Procedimiento}
+
+\begin{enumerate}
+    \item Seleccione la \textbf{asignatura}
+    que corresponde al examen.
+
+    \item Elija el \textbf{tipo de evaluación}:
+    primer parcial, segundo parcial, final,
+    segunda instancia o mesa, según corresponda.
+
+    \item Indique la \textbf{fecha}.
+    Compruebe que pertenece al período y al
+    calendario permitido para ese tipo de examen.
+
+    \item Establezca la \textbf{hora de inicio}
+    y la \textbf{duración} en minutos.
+
+    \item Revise las \textbf{normas del examen}.
+    Si se han recuperado normas de una evaluación
+    anterior de la misma asignatura, compruebe que
+    siguen siendo adecuadas.
+
+    \item Pulse \textbf{Continuar}.
+\end{enumerate}
+
+\noindent\textbf{Validaciones que aplica el sistema}
+
+\begin{itemize}
+    \item La fecha y la hora son obligatorias.
+    \item No se admite programar una nueva evaluación
+    en una fecha anterior a la actual.
+    \item La hora de inicio debe encontrarse
+    entre las 06:00 y las 22:00.
+    \item La duración debe estar entre
+    15 y 480 minutos.
+    \item El examen no debe terminar después
+    de medianoche.
+    \item Deben respetarse las fechas del período
+    y la ventana académica correspondiente.
+\end{itemize}
+
+Si algún dato incumple estas restricciones,
+el sistema informa el motivo y mantiene al usuario
+en la etapa para que lo corrija.
+
+\CapturasRegistro
+{1}
+{Etapa 1, información general y normas}
+{Los campos se organizan verticalmente.
+Desplácese para revisar las normas y localizar
+el botón Continuar. No avance sin comprobar
+fecha, hora y duración.}
+
+% ============================================================
+% ETAPA 2
+% ============================================================
+
+\subsubsection{Etapa 2. Selección de grupos}
+
+Un examen debe vincularse a los grupos académicos
+que participarán. Esta selección determina parte
+del alcance de estudiantes y las opciones posteriores
+de asignación de ambientes.
+
+\noindent\textbf{Procedimiento}
+
+\begin{enumerate}
+    \item Compruebe que aparece la asignatura
+    seleccionada en la primera etapa.
+
+    \item Localice los grupos académicos disponibles.
+
+    \item Seleccione los grupos que rendirán
+    la evaluación.
+
+    \item Si hay numerosos grupos, utilice
+    el buscador disponible para encontrarlos.
+
+    \item Revise la selección antes de continuar.
+\end{enumerate}
+
+\noindent\textbf{Comprobación}
+
+El formulario debe conservar al menos un grupo
+seleccionado. El código del grupo y la información
+docente permiten comprobar que la selección
+corresponde a los participantes previstos.
+
+No seleccione grupos ajenos al examen únicamente
+para avanzar en el formulario.
+
+\CapturasRegistro
+{2}
+{Etapa 2, selección de grupos académicos}
+{Revise las casillas de selección.
+En pantallas estrechas puede ser necesario
+desplazarse para consultar el listado completo
+y las acciones de navegación.}
+
+% ============================================================
+% ETAPA 3
+% ============================================================
+
+\subsubsection{Etapa 3. Asignación de aulas}
+
+En esta etapa se eligen los ambientes en los
+que se realizará la evaluación. Las opciones
+disponibles se consultan tomando en cuenta
+los grupos seleccionados.
+
+\noindent\textbf{Procedimiento}
+
+\begin{enumerate}
+    \item Abra la etapa \textbf{Aulas}.
+
+    \item Examine los ambientes que presenta
+    el sistema.
+
+    \item Identifique cada aula por su nombre
+    y la ubicación informada.
+
+    \item Seleccione los ambientes necesarios
+    para organizar el examen.
+
+    \item Compruebe que la selección coincide
+    con la planificación de ambientes.
+
+    \item Continúe a la asignación de personal.
+\end{enumerate}
+
+\noindent\textbf{Comprobación}
+
+Debe existir al menos un ambiente seleccionado
+para continuar con un examen que requiere control
+de ingreso por aula.
+
+\noindent\textbf{Precaución}
+
+La selección visual no sustituye la revisión de
+la planificación académica ni la comprobación
+de restricciones que informe el servidor.
+
+\CapturasRegistro
+{3}
+{Etapa 3, selección de ambientes}
+{La vista reorganiza los controles de aulas.
+Compruebe los nombres de los ambientes seleccionados;
+si existe un panel lateral, desplácese para consultarlo.}
+
+% ============================================================
+% ETAPA 4
+% ============================================================
+
+\subsubsection{Etapa 4. Personal responsable}
+
+Cada aula seleccionada debe relacionarse con
+la información del personal que atenderá
+el examen. El formulario contempla una persona
+encargada y personal de apoyo cuando corresponda.
+
+\noindent\textbf{Procedimiento}
+
+\begin{enumerate}
+    \item Acceda a \textbf{Quién atiende}.
+
+    \item Identifique las aulas que fueron
+    seleccionadas previamente.
+
+    \item Revise la persona encargada de
+    cada ambiente.
+
+    \item Compruebe la asignación del personal
+    de apoyo correspondiente.
+
+    \item Verifique que no existan asignaciones
+    incorrectas antes de registrar.
+
+    \item Pulse \textbf{Registrar examen}
+    si se trata de uno nuevo, o
+    \textbf{Guardar examen} si está editando
+    un registro propio existente.
+\end{enumerate}
+
+\noindent\textbf{Importante}
+
+Al guardar, la aplicación envía los datos al
+servidor. Si este rechaza algún campo, el
+formulario vuelve a la etapa donde debe
+corregirse el problema.
+
+Esta operación modifica información del sistema;
+no debe ejecutarse únicamente para obtener
+capturas de documentación.
+
+\CapturasRegistro
+{4}
+{Etapa 4, encargados y personal de apoyo}
+{Revise la correspondencia entre cada aula
+y sus responsables. La acción de guardar
+debe utilizarse solamente cuando la información
+haya sido verificada.}
+
+% ============================================================
+% ETAPA 5
+% ============================================================
+
+\subsubsection{Etapa 5. Confirmación y resumen}
+
+Cuando el servidor registra o actualiza
+correctamente el examen, la aplicación muestra
+la etapa \textbf{Listo}, con el resumen de
+los datos guardados.
+
+El usuario debe revisar:
+
+\begin{enumerate}
+    \item La asignatura y el tipo de evaluación.
+    \item La fecha, hora y duración.
+    \item Los grupos vinculados.
+    \item Los ambientes asignados.
+    \item El personal responsable de cada aula.
+    \item Las normas configuradas para el examen.
+\end{enumerate}
+
+\noindent\textbf{Resultado esperado}
+
+El sistema confirma el registro y permite
+consultar la información guardada.
+
+\noindent\textbf{Si aparece un error}
+
+No considere completada la operación
+hasta que el sistema confirme el guardado.
+Regrese al campo señalado, corrija el dato
+y vuelva a comprobar la respuesta.
+
+\medskip
+\noindent
+{\color{Teal}\bfseries Continuación del proceso.}
+Una vez creado el examen, la preparación
+puede continuar con la habilitación de
+estudiantes y los códigos QR, siempre que
+la cuenta disponga de los permisos necesarios.
+
+\begin{notebox}
+\textbf{Cobertura visual de este procedimiento.}
+
+Las figuras anteriores corresponden a
+las cuatro etapas editables de un examen
+existente, capturadas sin guardar cambios.
+La confirmación de una operación nueva
+debe verificarse funcionalmente antes de
+añadir su captura como evidencia de registro.
+\end{notebox}
+
+% FIN DEL CAPÍTULO DE REGISTRO
