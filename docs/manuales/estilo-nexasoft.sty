@@ -1,0 +1,208 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{estilo-nexasoft}[2026/11/15 Plantilla editorial]
+
+\RequirePackage[T1]{fontenc}
+\RequirePackage[utf8]{inputenc}
+\RequirePackage[spanish,es-noquoting]{babel}
+\RequirePackage{lmodern,microtype}
+\RequirePackage{geometry,graphicx,xcolor,tikz}
+\RequirePackage{booktabs,tabularx,array,enumitem}
+\RequirePackage{titlesec,needspace,caption}
+\RequirePackage[most]{tcolorbox}
+\RequirePackage{fancyhdr,lastpage,hyperref,bookmark}
+
+\geometry{
+ left=23mm,right=22mm,
+ top=26mm,bottom=24mm,
+ headheight=14pt,headsep=8mm,footskip=11mm
+}
+
+\definecolor{Navy}{HTML}{12243C}
+\definecolor{Teal}{HTML}{007E89}
+\definecolor{Ink}{HTML}{253448}
+\definecolor{Muted}{HTML}{607084}
+\definecolor{Line}{HTML}{DCE4EB}
+\definecolor{Pale}{HTML}{F4F7F9}
+
+\color{Ink}
+\graphicspath{{imagenes/}}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\setlength{\emergencystretch}{2em}
+\clubpenalty=10000
+\widowpenalty=10000
+
+\hypersetup{
+ colorlinks=true,
+ linkcolor=Navy,
+ urlcolor=Teal,
+ pdftitle={Punku - Manual de usuario},
+ pdfauthor={NexaSoft S.R.L.},
+ bookmarksnumbered=true
+}
+
+\titleformat{\section}
+ {\color{Navy}\Large\bfseries}
+ {\thesection}{0.75em}{}
+
+\titleformat{\subsection}
+ {\color{Navy}\large\bfseries}
+ {\thesubsection}{0.6em}{}
+
+\titlespacing*{\section}{0pt}{21pt}{8pt}
+\titlespacing*{\subsection}{0pt}{17pt}{7pt}
+
+\setlist[enumerate]{
+ leftmargin=2em,
+ label=\textcolor{Teal}{\bfseries\arabic*.},
+ itemsep=2.5pt,topsep=4pt
+}
+
+\setlist[itemize]{
+ leftmargin=1.6em,itemsep=2pt,topsep=2pt
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+
+\fancyhead[L]{
+ \footnotesize\bfseries\color{Navy}
+ NEXASOFT\quad\textcolor{Teal}{/}\quad PUNKU
+}
+
+\fancyhead[R]{
+ \footnotesize\color{Muted}GUÍA DE OPERACIÓN
+}
+
+\fancyfoot[L]{
+ \footnotesize\color{Muted}
+ CONTROL DE INGRESO A EXÁMENES
+ \quad|\quad SPRINT 5
+}
+
+\fancyfoot[R]{
+ \footnotesize\color{Muted}
+ \thepage\ / \pageref{LastPage}
+}
+
+\renewcommand{\headrulewidth}{0.35pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\fancypagestyle{plain}{
+ \fancyhf{}
+ \fancyfoot[R]{\footnotesize\thepage}
+ \renewcommand{\headrulewidth}{0pt}
+}
+
+\captionsetup{
+ font=small,
+ labelfont=bf,
+ labelsep=period,
+ skip=6pt
+}
+
+% Cuadro editorial que puede continuar en la página siguiente.
+\newtcolorbox{notebox}[1][]{
+ enhanced,breakable,
+ boxrule=0pt,
+ colback=Pale,
+ frame hidden,
+ borderline west={2pt}{0pt}{Teal},
+ left=11pt,right=9pt,top=8pt,bottom=8pt,
+ before skip=9pt,after skip=11pt,
+ #1
+}
+
+% Identidad del módulo y ruta funcional.
+\newcommand{\modulo}[4]{%
+ \Needspace{8\baselineskip}%
+ \subsection{#1}
+ \label{mod:#4}
+ \begin{tcolorbox}[
+  enhanced,boxrule=0pt,
+  frame hidden,colback=Pale,
+  left=9pt,right=9pt,top=6pt,bottom=6pt,
+  before skip=5pt,after skip=8pt
+ ]
+ {\color{Teal}\footnotesize\bfseries PERFIL}
+ \quad\textbf{#2}
+ \quad\textcolor{Line}{|}
+ \quad{\color{Teal}\footnotesize\bfseries RUTA}
+ \quad\texttt{#3}
+ \end{tcolorbox}
+}
+
+\newcommand{\pasos}{%
+ \par\smallskip
+ {\color{Navy}\bfseries Procedimiento}
+ \par\vspace{-3pt}
+}
+
+\newcommand{\resultado}[1]{%
+ \begin{notebox}
+ \textbf{Comprobación.} #1
+ \end{notebox}
+}
+
+\newcommand{\nota}[1]{%
+ \par\noindent
+ {\color{Teal}\bfseries Nota operativa.} #1
+ \par
+}
+
+% ============================================================
+% EVIDENCIA VISUAL DINÁMICA
+%
+% #1: PNG escritorio, completo
+% #2: PNG móvil, original
+% #3: píxeles inferiores fuera del primer viewport móvil
+% #4: descripción de la pareja de capturas
+%
+% No se generan imágenes nuevas ni se alteran originales.
+% El móvil se encuadra en LaTeX en sus primeros 844 píxeles.
+% El bloque se mantiene unido, pero fluye entre páginas.
+% ============================================================
+
+\newcommand{\Pantallas}[4]{%
+ \par\smallskip
+ \Needspace{0.40\textheight}
+ \noindent
+ \begin{minipage}{\linewidth}
+ \centering
+
+ \begin{minipage}[t]{0.595\linewidth}
+ \vspace{0pt}
+ \centering
+ \includegraphics[
+  width=\linewidth,
+  height=0.49\textheight,
+  keepaspectratio
+ ]{#1}
+ \par
+ {\footnotesize\bfseries\color{Navy}ESCRITORIO}
+ \par
+ {\scriptsize\color{Muted}Captura integral}
+ \end{minipage}
+ \hfill
+ \begin{minipage}[t]{0.365\linewidth}
+ \vspace{0pt}
+ \centering
+ \includegraphics[
+  trim=0bp #3bp 0bp 0bp,
+  clip,
+  width=\linewidth,
+  height=0.49\textheight,
+  keepaspectratio
+ ]{#2}
+ \par
+ {\footnotesize\bfseries\color{Navy}MÓVIL}
+ \par
+ {\scriptsize\color{Muted}
+ Primer tramo visible; PNG original conservado}
+ \end{minipage}
+
+ \captionof{figure}{#4}
+ \end{minipage}
+ \par\medskip
+}
