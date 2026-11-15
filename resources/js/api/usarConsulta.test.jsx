@@ -80,6 +80,72 @@ describe('usarConsulta', () => {
         expect(api.get).toHaveBeenCalledTimes(2);
     });
 
+    it('EV-03: distingue resultados anteriores de la consulta vigente', async () => {
+        const segunda = respuestaDiferida();
+
+        simularApi(api, {
+            'GET /aulas-disponibles': ({ params }) =>
+                params.hora === '08:15'
+                    ? { data: { horario: '08:15', libres: [31] } }
+                    : segunda.promesa,
+        });
+
+        const { result, rerender } = renderHook(
+            ({ hora }) =>
+                usarConsulta('/aulas-disponibles', {
+                    parametros: { hora },
+                }),
+            { initialProps: { hora: '08:15' } }
+        );
+
+        await waitFor(() => expect(result.current.datos?.horario).toBe('08:15'));
+
+        expect(result.current.vigente).toBe(true);
+
+        rerender({ hora: '09:30' });
+
+        // El hook puede conservar datos antiguos, pero no certificarlos
+        // como correspondientes al horario nuevo.
+        expect(result.current.datos?.horario).toBe('08:15');
+        expect(result.current.vigente).toBe(false);
+
+        await act(async () =>
+            segunda.resolver({
+                data: { horario: '09:30', libres: [32] },
+            })
+        );
+
+        expect(result.current.datos?.horario).toBe('09:30');
+        expect(result.current.vigente).toBe(true);
+    });
+
+    it('EV-03: una respuesta antigua no sustituye a una más reciente', async () => {
+        const primera = respuestaDiferida();
+        const segunda = respuestaDiferida();
+
+        simularApi(api, {
+            'GET /aulas-disponibles': ({ params }) =>
+                params.hora === '08:15' ? primera.promesa : segunda.promesa,
+        });
+
+        const { result, rerender } = renderHook(
+            ({ hora }) => usarConsulta('/aulas-disponibles', { parametros: { hora } }),
+            { initialProps: { hora: '08:15' } }
+        );
+
+        rerender({ hora: '09:30' });
+
+        await act(async () => segunda.resolver({ data: { horario: '09:30', libres: [32] } }));
+
+        expect(result.current.datos?.horario).toBe('09:30');
+        expect(result.current.vigente).toBe(true);
+
+        await act(async () => primera.resolver({ data: { horario: '08:15', libres: [31] } }));
+
+        expect(result.current.datos?.horario).toBe('09:30');
+        expect(result.current.vigente).toBe(true);
+    });
+
     it('no consulta sin ruta ni con activa en falso', () => {
         simularApi(api, {});
         const sinRuta = renderHook(() => usarConsulta(null));

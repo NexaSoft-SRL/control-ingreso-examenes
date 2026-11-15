@@ -42,6 +42,7 @@ import { diaMes, fechaLarga, normalizar, plural } from '../../utiles/texto';
 import CodigoDeAula from './CodigoDeAula';
 import NormasDelExamen from './NormasDelExamen';
 import rutaDelExamen from './rutaDelExamen';
+import solapamientoDe from './solapamientoDe';
 import QuienAtiende from './QuienAtiende';
 
 const FOCO =
@@ -202,7 +203,23 @@ FilaGrupo.propTypes = {
 };
 
 // `compartida`: otro examen usa el aula a esa hora. Es aviso, no impide.
-function FilaAula({ aula, ubicacion, marcado, compartida, onCambiar, bloqueado = false }) {
+const textoSolapamiento = (hora, duracion, inicio, fin) => {
+    const tramo = solapamientoDe(hora, duracion, inicio, fin);
+    return tramo ? ` · Coincidencia ${tramo.inicio}–${tramo.fin} (${tramo.minutos} min)` : '';
+};
+
+function FilaAula({
+    aula,
+    ubicacion,
+    marcado,
+    compartida,
+    examenes = [],
+    clases = [],
+    horaPropuesta,
+    duracionPropuesta,
+    onCambiar,
+    bloqueado = false,
+}) {
     return (
         <li>
             <label
@@ -225,6 +242,42 @@ function FilaAula({ aula, ubicacion, marcado, compartida, onCambiar, bloqueado =
                         Compartida · {compartida}
                     </span>
                 )}
+                {examenes.map((examen, indice) => (
+                    <span
+                        key={`examen-${indice}`}
+                        className="w-full min-w-0 pl-7 text-xs text-warning-800"
+                    >
+                        {examen.docente ? `Docente: ${examen.docente}` : 'Docente no disponible'}
+                        {' · '}
+                        {examen.inicio}–{examen.fin}
+                        {textoSolapamiento(
+                            horaPropuesta,
+                            duracionPropuesta,
+                            examen.inicio,
+                            examen.fin
+                        )}
+                    </span>
+                ))}
+                {clases
+                    .filter((clase) => !clase.propio)
+                    .map((clase, indice) => (
+                        <span
+                            key={`clase-${indice}`}
+                            className="w-full min-w-0 pl-7 text-xs text-warning-800"
+                        >
+                            Clase · {clase.asignatura} · Grupo {clase.grupo}
+                            {' · '}
+                            {clase.docente ?? 'Docente no disponible'}
+                            {' · '}
+                            {clase.inicio}–{clase.fin}
+                            {textoSolapamiento(
+                                horaPropuesta,
+                                duracionPropuesta,
+                                clase.inicio,
+                                clase.fin
+                            )}
+                        </span>
+                    ))}
             </label>
         </li>
     );
@@ -236,6 +289,26 @@ FilaAula.propTypes = {
     ubicacion: PropTypes.string.isRequired,
     marcado: PropTypes.bool.isRequired,
     compartida: PropTypes.string,
+    horaPropuesta: PropTypes.string.isRequired,
+    duracionPropuesta: PropTypes.number.isRequired,
+    examenes: PropTypes.arrayOf(
+        PropTypes.shape({
+            examen: PropTypes.string.isRequired,
+            docente: PropTypes.string,
+            inicio: PropTypes.string.isRequired,
+            fin: PropTypes.string.isRequired,
+        })
+    ),
+    clases: PropTypes.arrayOf(
+        PropTypes.shape({
+            asignatura: PropTypes.string.isRequired,
+            grupo: PropTypes.string.isRequired,
+            docente: PropTypes.string,
+            inicio: PropTypes.string.isRequired,
+            fin: PropTypes.string.isRequired,
+            propio: PropTypes.bool.isRequired,
+        })
+    ),
     onCambiar: PropTypes.func.isRequired,
     bloqueado: PropTypes.bool,
 };
@@ -536,13 +609,25 @@ function Asistente({
         activa:
             enAulas && elegidosIds.length > 0 && Boolean(fecha && hora) && duracionValida(duracion),
     });
-    const sugeridas = opcionesAulas.datos?.sugeridas ?? [];
-    const clasesALaHora = opcionesAulas.datos?.clases ?? {};
-    const examenesALaHora = opcionesAulas.datos?.examenes ?? {};
-    // Libre: sin clases de otros grupos ni otros exámenes a esa hora.
+    // No certificar disponibilidad con respuestas de otros parámetros
+    // ni con una comprobación todavía en curso o fallida.
+    const falloDisponibilidad =
+        !opcionesAulas.actualizando &&
+        (opcionesAulas.error || (opcionesAulas.vigente && opcionesAulas.fallos > 0));
+    const disponibilidadComprobada =
+        opcionesAulas.vigente && !opcionesAulas.actualizando && !falloDisponibilidad;
+    const consultandoDisponibilidad = !disponibilidadComprobada && !falloDisponibilidad;
+    const datosDisponibilidad = disponibilidadComprobada ? opcionesAulas.datos : null;
+
+    const sugeridas = datosDisponibilidad?.sugeridas ?? [];
+    const clasesALaHora = datosDisponibilidad?.clases ?? {};
+    const examenesALaHora = datosDisponibilidad?.examenes ?? {};
+    // Libre: información vigente, sin clases ajenas ni otros exámenes.
     const libre = (id) =>
-        !(clasesALaHora[id] ?? []).some((c) => !c.propio) && !(examenesALaHora[id] ?? []).length;
-    const conHora = Boolean(opcionesAulas.datos);
+        disponibilidadComprobada &&
+        !(clasesALaHora[id] ?? []).some((c) => !c.propio) &&
+        !(examenesALaHora[id] ?? []).length;
+    const conHora = disponibilidadComprobada;
     const facultad = asignatura?.facultad ?? null;
     // Solo las aulas de la facultad de la asignatura; las sugeridas y las ya
     // elegidas se ven aunque sean de otra.
@@ -1116,6 +1201,27 @@ function Asistente({
                         }
                     >
                         <div className="space-y-3">
+                            {consultandoDisponibilidad && (
+                                <p role="status" className="text-sm text-slate-600">
+                                    Comprobando disponibilidad de aulas
+                                </p>
+                            )}
+                            {falloDisponibilidad && (
+                                <div
+                                    role="alert"
+                                    className="flex flex-wrap items-center gap-3 text-sm text-danger-600"
+                                >
+                                    <span>No se pudo comprobar la disponibilidad de aulas</span>
+                                    <button
+                                        type="button"
+                                        onClick={opcionesAulas.recargar}
+                                        className={`font-semibold underline ${FOCO}`}
+                                    >
+                                        Reintentar disponibilidad
+                                    </button>
+                                </div>
+                            )}
+
                             {aulas.length > 0 && (
                                 <ul
                                     className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto"
@@ -1211,6 +1317,10 @@ function Asistente({
                                                 compartida={examenesALaHora[a.id]
                                                     ?.map((x) => x.examen)
                                                     .join(', ')}
+                                                examenes={examenesALaHora[a.id] ?? []}
+                                                clases={clasesALaHora[a.id] ?? []}
+                                                horaPropuesta={hora}
+                                                duracionPropuesta={Number(duracion)}
                                                 marcado={aulas.includes(a.id)}
                                                 bloqueado={bloqueado}
                                                 onCambiar={() =>
