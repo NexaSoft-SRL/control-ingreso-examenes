@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import PortalEstudiante from './PortalEstudiante';
@@ -42,7 +42,7 @@ describe('Mi foto', () => {
         revisarFoto.mockResolvedValue({ errores: ['Debe aparecer solo usted'], avisos: [] });
         montar();
         await screen.findByRole('button', { name: 'Guardar foto' });
-        expect(precargarDetector).toHaveBeenCalled();
+        await waitFor(() => expect(precargarDetector).toHaveBeenCalled());
 
         fireEvent.change(screen.getByLabelText('Foto'), { target: { files: [foto] } });
         expect(await screen.findByText('Debe aparecer solo usted')).toBeInTheDocument();
