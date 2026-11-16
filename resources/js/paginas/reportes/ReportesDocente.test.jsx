@@ -301,6 +301,15 @@ describe('Reportes del docente', () => {
                     },
                 ],
                 aulas: [],
+                meta: {
+                    total: 1,
+                    total_general: 1,
+                    pagina: 1,
+                    por_pagina: 100,
+                    categorias: { ingreso: 1 },
+                    gravedades: {},
+                    aulas: ['691A'],
+                },
             },
         });
         await abrir();

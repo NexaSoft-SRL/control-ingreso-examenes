@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
-import { useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Ban, ClipboardList, KeyRound, LogIn, TriangleAlert, UserX } from 'lucide-react';
-import usarConsulta from '../../api/usarConsulta';
+import { api } from '../../api/cliente';
 import { useAviso } from '../../componentes/Aviso';
 import Boton from '../../componentes/Boton';
 import Buscador from '../../componentes/Buscador';
@@ -10,11 +10,12 @@ import EstadoCarga from '../../componentes/EstadoCarga';
 import { FiltroGravedad, GRAVEDADES } from '../../componentes/Incidencias';
 import Seleccion from '../../componentes/Seleccion';
 import Tarjeta from '../../componentes/Tarjeta';
-import { fechaLarga, normalizar, plural } from '../../utiles/texto';
+import { fechaLarga, plural } from '../../utiles/texto';
 import BotonesDescarga from '../reportes/BotonesDescarga';
 
 // De a cuántos sucesos se muestra la lista.
 const DE_A = 100;
+const ESPERA_BUSQUEDA = 250;
 
 // Cada categoría con su rótulo, su ícono y su color.
 const CATEGORIAS = {
@@ -30,6 +31,26 @@ const CATEGORIAS = {
     ausente: { texto: 'No se presentaron', Icono: UserX, tono: 'bg-slate-200 text-slate-700' },
 };
 
+function leerRespuesta(respuesta) {
+    const cuerpo = respuesta?.data;
+    const meta = cuerpo?.meta;
+    if (
+        !Array.isArray(cuerpo?.aulas) ||
+        !Array.isArray(cuerpo?.data) ||
+        !Number.isInteger(meta?.total) ||
+        !Number.isInteger(meta?.total_general) ||
+        !Number.isInteger(meta?.pagina) ||
+        !Number.isInteger(meta?.por_pagina) ||
+        !Array.isArray(meta?.aulas) ||
+        !meta?.categorias ||
+        !meta?.gravedades
+    ) {
+        throw new Error('La respuesta de la bitácora no tiene el formato esperado.');
+    }
+
+    return cuerpo;
+}
+
 // Todo lo ocurrido en el examen, en orden (GET /reportes/examenes/{id}/bitacora):
 // inicio y fin, ingresos, intentos rechazados, incidencias con su atención y
 // su corrección, accesos con código de aula, lo hecho con el examen y sus
@@ -39,38 +60,101 @@ const CATEGORIAS = {
 // `deLaUniversidad`: la lee el administrador, desde sus reportes.
 export default function BitacoraDelExamen({ examenId, fecha, deLaUniversidad = false }) {
     const base = deLaUniversidad ? '/reportes/universidad' : '/reportes';
-    const { datos, cuerpo, cargando, error, recargar } = usarConsulta(
-        `${base}/examenes/${examenId}/bitacora`
-    );
+    const ruta = `${base}/examenes/${examenId}/bitacora`;
     const [aviso, avisar] = useAviso();
     const [categoria, setCategoria] = useState(null);
     const [gravedad, setGravedad] = useState(null);
     const [aula, setAula] = useState('');
     const [buscado, setBuscado] = useState('');
-    const [visibles, setVisibles] = useState(DE_A);
+    const [busqueda, setBusqueda] = useState('');
+    const [respuesta, setRespuesta] = useState(null);
+    const [sucesos, setSucesos] = useState([]);
+    const [pagina, setPagina] = useState(1);
+    const [cargando, setCargando] = useState(true);
+    const [error, setError] = useState(null);
+    const [cargandoMas, setCargandoMas] = useState(false);
+    const [errorMas, setErrorMas] = useState(null);
+    const [recarga, setRecarga] = useState(0);
+    const generacion = useRef(0);
 
-    const sucesos = useMemo(() => datos ?? [], [datos]);
-    const controles = cuerpo?.aulas ?? [];
-    const aulas = [...new Set(sucesos.map((s) => s.aula).filter(Boolean))].sort();
-    const texto = normalizar(buscado.trim());
-    const filtrados = sucesos.filter(
-        (s) =>
-            (categoria === null || s.categoria === categoria) &&
-            (gravedad === null || s.gravedad === gravedad) &&
-            (!aula || s.aula === aula) &&
-            (!texto || normalizar(`${s.estudiante ?? ''} ${s.codigo ?? ''}`).includes(texto))
-    );
-    const dias = [...new Set(filtrados.slice(0, visibles).map((s) => s.instante.slice(0, 10)))];
+    useEffect(() => {
+        const temporizador = setTimeout(() => setBusqueda(buscado.trim()), ESPERA_BUSQUEDA);
+        return () => clearTimeout(temporizador);
+    }, [buscado]);
 
-    const conGravedad = sucesos.filter((s) => s.gravedad);
+    const filtros = JSON.stringify({ buscar: busqueda, categoria, gravedad, aula });
+
+    useEffect(() => {
+        const id = ++generacion.current;
+        const parametros = JSON.parse(filtros);
+        setCargando(true);
+        setError(null);
+        setCargandoMas(false);
+        setErrorMas(null);
+        setRespuesta(null);
+        setSucesos([]);
+        setPagina(1);
+
+        api.get(ruta, { params: { ...parametros, pagina: 1, por_pagina: DE_A } })
+            .then((r) => {
+                const cuerpo = leerRespuesta(r);
+                if (id !== generacion.current) return;
+                setRespuesta(cuerpo);
+                setSucesos(cuerpo.data);
+                setPagina(cuerpo.meta.pagina);
+            })
+            .catch((fallo) => {
+                if (id === generacion.current) setError(fallo);
+            })
+            .finally(() => {
+                if (id === generacion.current) setCargando(false);
+            });
+
+        return () => {
+            if (id === generacion.current) generacion.current += 1;
+        };
+    }, [filtros, recarga, ruta]);
+
+    async function cargarMas() {
+        if (!respuesta || cargandoMas || sucesos.length >= respuesta.meta.total) return;
+
+        const id = generacion.current;
+        const siguiente = pagina + 1;
+        setCargandoMas(true);
+        setErrorMas(null);
+        try {
+            const r = await api.get(ruta, {
+                params: { ...JSON.parse(filtros), pagina: siguiente, por_pagina: DE_A },
+            });
+            const cuerpo = leerRespuesta(r);
+            if (id !== generacion.current) return;
+            if (cuerpo.meta.pagina !== siguiente) {
+                throw new Error('La página recibida no coincide con la solicitada.');
+            }
+            setSucesos((anteriores) => [...anteriores, ...cuerpo.data]);
+            setPagina(cuerpo.meta.pagina);
+            setRespuesta(cuerpo);
+        } catch (fallo) {
+            if (id === generacion.current) setErrorMas(fallo);
+        } finally {
+            if (id === generacion.current) setCargandoMas(false);
+        }
+    }
+
+    const controles = respuesta?.aulas ?? [];
+    const meta = respuesta?.meta;
+    const aulas = meta?.aulas ?? [];
+    const conGravedad = Object.values(meta?.gravedades ?? {}).some((cantidad) => cantidad > 0);
+    const dias = [...new Set(sucesos.map((s) => s.instante.slice(0, 10)))];
+    const filtrando = Boolean(categoria || gravedad || aula || busqueda);
 
     const opciones = [
-        { valor: null, etiqueta: 'Todo', conteo: sucesos.length },
+        { valor: null, etiqueta: 'Todo', conteo: meta?.total_general ?? 0 },
         ...Object.entries(CATEGORIAS)
             .map(([clave, c]) => ({
                 valor: clave,
                 etiqueta: c.texto,
-                conteo: sucesos.filter((s) => s.categoria === clave).length,
+                conteo: meta?.categorias?.[clave] ?? 0,
             }))
             .filter((o) => o.conteo > 0),
     ];
@@ -86,7 +170,7 @@ export default function BitacoraDelExamen({ examenId, fecha, deLaUniversidad = f
                     ruta={`${base}/bitacora/exportar`}
                     parametros={{ examen: examenId }}
                     archivo={`bitacora_${fecha}`}
-                    deshabilitado={sucesos.length === 0}
+                    deshabilitado={!meta || meta.total_general === 0}
                     onAvisar={avisar}
                 />
             }
@@ -95,8 +179,8 @@ export default function BitacoraDelExamen({ examenId, fecha, deLaUniversidad = f
                 cargando={cargando}
                 error={error}
                 vacio={sucesos.length === 0}
-                textoVacio="Sin sucesos todavía"
-                onReintentar={recargar}
+                textoVacio={meta?.total_general ? 'Sin coincidencias' : 'Sin sucesos todavía'}
+                onReintentar={() => setRecarga((n) => n + 1)}
             >
                 {controles.length > 0 && (
                     <section
@@ -125,16 +209,15 @@ export default function BitacoraDelExamen({ examenId, fecha, deLaUniversidad = f
                         valor={categoria}
                         onCambiar={(v) => {
                             setCategoria(v);
-                            setVisibles(DE_A);
                         }}
                     />
-                    {conGravedad.length > 0 && (
+                    {conGravedad && (
                         <FiltroGravedad
-                            items={conGravedad}
+                            items={[]}
+                            conteos={meta.gravedades}
                             valor={gravedad}
                             onCambiar={(v) => {
                                 setGravedad(v);
-                                setVisibles(DE_A);
                             }}
                         />
                     )}
@@ -142,12 +225,9 @@ export default function BitacoraDelExamen({ examenId, fecha, deLaUniversidad = f
                         <div className="min-w-0 flex-1">
                             <Buscador
                                 valor={buscado}
-                                onCambiar={(v) => {
-                                    setBuscado(v);
-                                    setVisibles(DE_A);
-                                }}
-                                placeholder="Estudiante o código SIS"
-                                etiqueta="Buscar estudiante"
+                                onCambiar={setBuscado}
+                                placeholder="Estudiante, código, detalle o responsable"
+                                etiqueta="Buscar en bitácora"
                             />
                         </div>
                         {aulas.length > 1 && (
@@ -157,7 +237,6 @@ export default function BitacoraDelExamen({ examenId, fecha, deLaUniversidad = f
                                 value={aula}
                                 onChange={(e) => {
                                     setAula(e.target.value);
-                                    setVisibles(DE_A);
                                 }}
                             >
                                 <option value="">Todas las aulas</option>
@@ -171,9 +250,7 @@ export default function BitacoraDelExamen({ examenId, fecha, deLaUniversidad = f
                     </div>
                 </div>
 
-                {filtrados.length === 0 ? (
-                    <p className="py-10 text-center text-sm text-slate-600">Sin coincidencias</p>
-                ) : (
+                {sucesos.length === 0 ? null : (
                     <div className="px-4 py-3 sm:px-5">
                         {dias.map((dia) => (
                             <section key={dia} aria-label={fechaLarga(dia)}>
@@ -181,8 +258,7 @@ export default function BitacoraDelExamen({ examenId, fecha, deLaUniversidad = f
                                     {fechaLarga(dia)}
                                 </h3>
                                 <ol className="relative ml-4 border-l border-slate-200">
-                                    {filtrados
-                                        .slice(0, visibles)
+                                    {sucesos
                                         .filter((s) => s.instante.startsWith(dia))
                                         .map((s, i) => (
                                             <Suceso key={`${s.instante}-${i}`} suceso={s} />
@@ -190,20 +266,34 @@ export default function BitacoraDelExamen({ examenId, fecha, deLaUniversidad = f
                                 </ol>
                             </section>
                         ))}
-                        {filtrados.length > visibles && (
+                        {errorMas && (
+                            <div
+                                role="alert"
+                                className="flex flex-col items-center gap-2 pt-3 text-center"
+                            >
+                                <p className="text-sm text-danger-700">
+                                    No se pudieron cargar más sucesos.
+                                </p>
+                                <Boton type="button" variante="secundario" onClick={cargarMas}>
+                                    Reintentar
+                                </Boton>
+                            </div>
+                        )}
+                        {!errorMas && sucesos.length < (meta?.total ?? 0) && (
                             <div className="flex justify-center pt-3">
                                 <Boton
                                     type="button"
                                     variante="secundario"
-                                    onClick={() => setVisibles((v) => v + DE_A)}
+                                    cargando={cargandoMas}
+                                    onClick={cargarMas}
                                 >
-                                    Mostrar más · quedan {filtrados.length - visibles}
+                                    Mostrar más · quedan {meta.total - sucesos.length}
                                 </Boton>
                             </div>
                         )}
                         <p className="pt-3 text-xs text-slate-500">
-                            {plural(filtrados.length, 'suceso')}
-                            {filtrados.length !== sucesos.length && ` de ${sucesos.length}`}
+                            {plural(meta?.total ?? 0, 'suceso')}
+                            {filtrando && ` de ${meta?.total_general ?? 0}`}
                         </p>
                     </div>
                 )}

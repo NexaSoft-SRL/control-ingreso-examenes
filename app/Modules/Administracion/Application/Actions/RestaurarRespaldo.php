@@ -6,6 +6,7 @@ namespace App\Modules\Administracion\Application\Actions;
 
 use App\Modules\Administracion\Application\Contracts\RespaldoGateway;
 use App\Modules\Administracion\Application\DTOs\RespaldoRestauradoData;
+use App\Modules\Administracion\Domain\Exceptions\RespaldoBloqueadoException;
 use App\Modules\Administracion\Domain\Exceptions\RespaldoFallidoException;
 use App\Modules\Administracion\Domain\Exceptions\RespaldoIncompatibleException;
 use App\Modules\Administracion\Domain\Exceptions\RespaldoNoEncontradoException;
@@ -24,9 +25,16 @@ final readonly class RestaurarRespaldo
      * @throws RespaldoNoEncontradoException
      * @throws RespaldoFallidoException
      * @throws RespaldoIncompatibleException
+     * @throws RespaldoBloqueadoException
      */
     public function execute(int $respaldoId, ?int $usuarioId): RespaldoRestauradoData
     {
+        if ($this->respaldos->hayExamenEnCurso()) {
+            throw new RespaldoBloqueadoException(
+                'No se puede restaurar la base de datos mientras haya un examen en curso.'
+            );
+        }
+
         $respaldo = $this->respaldos->buscar($respaldoId);
 
         if ($respaldo === null) {

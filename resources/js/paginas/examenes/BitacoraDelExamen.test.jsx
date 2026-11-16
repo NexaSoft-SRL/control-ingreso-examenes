@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import BitacoraDelExamen from './BitacoraDelExamen';
 import { api } from '../../api/cliente';
@@ -45,8 +45,75 @@ const SUCESOS = [
     }),
 ];
 
+const normalizar = (texto) =>
+    texto
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+
+function respuestaBitacora(todos, parametros = {}, aulas = []) {
+    const buscar = normalizar(parametros.buscar ?? '');
+    const filtrados = todos.filter((s) => {
+        const coincideTexto =
+            !buscar ||
+            normalizar(
+                [
+                    s.instante,
+                    s.categoria,
+                    s.titulo,
+                    s.detalle,
+                    s.aula,
+                    s.estudiante,
+                    s.codigo,
+                    s.por,
+                ]
+                    .filter(Boolean)
+                    .join(' ')
+            ).includes(buscar);
+        return (
+            coincideTexto &&
+            (!parametros.categoria || s.categoria === parametros.categoria) &&
+            (!parametros.gravedad || s.gravedad === parametros.gravedad) &&
+            (!parametros.aula || s.aula === parametros.aula)
+        );
+    });
+    const pagina = Number(parametros.pagina ?? 1);
+    const porPagina = Number(parametros.por_pagina ?? 100);
+
+    return {
+        aulas,
+        data: filtrados.slice((pagina - 1) * porPagina, pagina * porPagina),
+        meta: {
+            total: filtrados.length,
+            total_general: todos.length,
+            pagina,
+            por_pagina: porPagina,
+            categorias: Object.fromEntries(
+                [...new Set(todos.map((s) => s.categoria))].map((categoria) => [
+                    categoria,
+                    todos.filter((s) => s.categoria === categoria).length,
+                ])
+            ),
+            gravedades: Object.fromEntries(
+                [...new Set(todos.map((s) => s.gravedad).filter(Boolean))].map((gravedad) => [
+                    gravedad,
+                    todos.filter((s) => s.gravedad === gravedad).length,
+                ])
+            ),
+            aulas: [...new Set(todos.map((s) => s.aula).filter(Boolean))].sort(),
+        },
+    };
+}
+
+function simularBitacora(sucesos = SUCESOS, aulas = []) {
+    simularApi(api, {
+        'GET /reportes/examenes/25/bitacora': ({ params }) =>
+            respuestaBitacora(sucesos, params, aulas),
+    });
+}
+
 beforeEach(() => {
-    simularApi(api, { 'GET /reportes/examenes/25/bitacora': { data: SUCESOS } });
+    simularBitacora();
 });
 
 const montar = () => renderConSesion(<BitacoraDelExamen examenId={25} fecha="2026-10-26" />);
@@ -74,103 +141,99 @@ describe('BitacoraDelExamen', () => {
         await screen.findByRole('region', { name: 'lunes 26 de octubre' });
 
         fireEvent.click(screen.getByRole('button', { name: /^Rechazos/ }));
-        expect(screen.getAllByRole('listitem')).toHaveLength(1);
+        await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1));
         expect(screen.getByText('1 suceso de 5')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: /^Todo/ }));
+        await screen.findByLabelText('Aula');
         fireEvent.change(screen.getByLabelText('Aula'), { target: { value: '692D' } });
-        expect(screen.getAllByRole('listitem')).toHaveLength(2);
+        await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(2));
 
-        fireEvent.change(screen.getByLabelText('Buscar estudiante'), {
+        fireEvent.change(screen.getByLabelText('Buscar en bitácora'), {
             target: { value: 'castro' },
         });
-        expect(screen.getAllByRole('listitem')).toHaveLength(1);
-        expect(screen.getByText('Dispositivo no permitido')).toBeInTheDocument();
+        expect(await screen.findByText('Dispositivo no permitido')).toBeInTheDocument();
+        await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1));
     });
 
     it('al cerrar dice cuántos ingresaron y quién no se presentó', async () => {
-        simularApi(api, {
-            'GET /reportes/examenes/25/bitacora': {
-                data: [
-                    ...SUCESOS,
-                    suceso('2026-10-26 16:00:00', 'examen', 'Cierre del examen', {
-                        detalle: 'Ingresaron 1 de 2 habilitados · 1 no se presentó',
-                        por: null,
-                    }),
-                    suceso('2026-10-26 16:00:00', 'ausente', 'No se presentó', {
-                        aula: '692D',
-                        estudiante: 'Zurita Paz Omar',
-                        codigo: '202311299',
-                        detalle: 'Habilitado',
-                        por: null,
-                    }),
-                ],
-            },
-        });
+        simularBitacora([
+            ...SUCESOS,
+            suceso('2026-10-26 16:00:00', 'examen', 'Cierre del examen', {
+                detalle: 'Ingresaron 1 de 2 habilitados · 1 no se presentó',
+                por: null,
+            }),
+            suceso('2026-10-26 16:00:00', 'ausente', 'No se presentó', {
+                aula: '692D',
+                estudiante: 'Zurita Paz Omar',
+                codigo: '202311299',
+                detalle: 'Habilitado',
+                por: null,
+            }),
+        ]);
         montar();
         await screen.findByRole('region', { name: 'lunes 26 de octubre' });
 
         fireEvent.click(screen.getByRole('button', { name: /^No se presentaron/ }));
-        expect(screen.getAllByRole('listitem')).toHaveLength(1);
+        await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1));
         expect(screen.getByRole('listitem')).toHaveTextContent(
             '16:00:00No se presentóAula 692DZurita Paz Omar · 202311299Habilitado'
         );
 
         // Buscar al estudiante responde un reclamo: «no vino».
         fireEvent.click(screen.getByRole('button', { name: /^Todo/ }));
-        fireEvent.change(screen.getByLabelText('Buscar estudiante'), {
+        await screen.findByLabelText('Buscar en bitácora');
+        fireEvent.change(screen.getByLabelText('Buscar en bitácora'), {
             target: { value: 'zurita' },
         });
-        expect(screen.getByText('No se presentó')).toBeInTheDocument();
+        expect(await screen.findByText('No se presentó')).toBeInTheDocument();
     });
 
     it('filtra por gravedad', async () => {
         montar();
         await screen.findByRole('region', { name: 'lunes 26 de octubre' });
-        const gravedad = within(screen.getByRole('group', { name: 'Gravedad' }));
+        const controles = () => within(screen.getByRole('group', { name: 'Gravedad' }));
 
-        expect(gravedad.getByRole('button', { name: /Todas/ })).toHaveTextContent('Todas3');
-        fireEvent.click(gravedad.getByRole('button', { name: /Muy grave/ }));
-        expect(screen.getAllByRole('listitem')).toHaveLength(1);
+        expect(controles().getByRole('button', { name: /Todas/ })).toHaveTextContent('Todas3');
+        fireEvent.click(controles().getByRole('button', { name: /Muy grave/ }));
+        await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1));
         expect(screen.getByText('Suplantación de identidad')).toBeInTheDocument();
 
-        fireEvent.click(gravedad.getByRole('button', { name: /^Grave/ }));
-        expect(screen.getAllByRole('listitem')).toHaveLength(2);
+        fireEvent.click(controles().getByRole('button', { name: /^Grave/ }));
+        await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(2));
         expect(screen.getByText('2 sucesos de 5')).toBeInTheDocument();
     });
 
     it('arriba dice quién controló cada aula; abajo el inicio y el fin', async () => {
-        simularApi(api, {
-            'GET /reportes/examenes/25/bitacora': {
-                aulas: [
-                    {
-                        aula: '692C',
-                        controlo: 'Blanco Coca Leticia (docente), Rojas Vera Ana (auxiliar)',
-                        ingresos: 2,
-                        primer_ingreso: '13:50',
-                        ultimo_ingreso: '14:05',
-                    },
-                    {
-                        aula: '692D',
-                        controlo: 'Mamani Diego (código de aula)',
-                        ingresos: 0,
-                        primer_ingreso: null,
-                        ultimo_ingreso: null,
-                    },
-                ],
-                data: [
-                    suceso('2026-10-26 14:00:00', 'examen', 'Inicio del examen', {
-                        detalle: 'Programado 14:00 – 15:30 · 90 min',
-                        por: null,
-                    }),
-                    ...SUCESOS.slice(1),
-                    suceso('2026-10-26 23:59:59', 'examen', 'Fin del día del examen', {
-                        detalle: 'Sin finalización manual',
-                        por: null,
-                    }),
-                ],
-            },
-        });
+        simularBitacora(
+            [
+                suceso('2026-10-26 14:00:00', 'examen', 'Inicio del examen', {
+                    detalle: 'Programado 14:00 – 15:30 · 90 min',
+                    por: null,
+                }),
+                ...SUCESOS.slice(1),
+                suceso('2026-10-26 23:59:59', 'examen', 'Fin del día del examen', {
+                    detalle: 'Sin finalización manual',
+                    por: null,
+                }),
+            ],
+            [
+                {
+                    aula: '692C',
+                    controlo: 'Blanco Coca Leticia (docente), Rojas Vera Ana (auxiliar)',
+                    ingresos: 2,
+                    primer_ingreso: '13:50',
+                    ultimo_ingreso: '14:05',
+                },
+                {
+                    aula: '692D',
+                    controlo: 'Mamani Diego (código de aula)',
+                    ingresos: 0,
+                    primer_ingreso: null,
+                    ultimo_ingreso: null,
+                },
+            ]
+        );
         montar();
 
         const control = await screen.findByRole('region', { name: 'Control por aula' });
@@ -188,10 +251,55 @@ describe('BitacoraDelExamen', () => {
     });
 
     it('sin sucesos lo dice y no ofrece descargar', async () => {
-        simularApi(api, { 'GET /reportes/examenes/25/bitacora': { data: [] } });
+        simularBitacora([]);
         montar();
 
         expect(await screen.findByText('Sin sucesos todavía')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Bitácora del examen en PDF/ })).toBeDisabled();
+    });
+
+    it('carga sucesos en páginas de cien', async () => {
+        const sucesos = Array.from({ length: 205 }, (_, i) => {
+            const minutos = 13 * 60 + i;
+            const hora = String(Math.floor(minutos / 60)).padStart(2, '0');
+            const minuto = String(minutos % 60).padStart(2, '0');
+            return suceso(`2026-10-26 ${hora}:${minuto}:00`, 'ingreso', 'Ingresó', {
+                aula: '692C',
+                estudiante: `Estudiante ${i}`,
+            });
+        });
+        simularBitacora(sucesos);
+        montar();
+
+        await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(100));
+        fireEvent.click(screen.getByRole('button', { name: 'Mostrar más · quedan 105' }));
+        await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(200));
+        fireEvent.click(screen.getByRole('button', { name: 'Mostrar más · quedan 5' }));
+        await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(205));
+        expect(screen.queryByRole('button', { name: /Mostrar más/ })).not.toBeInTheDocument();
+    });
+
+    it('busca en toda la bitácora por responsable y detalle', async () => {
+        const sucesos = Array.from({ length: 120 }, (_, i) =>
+            suceso(`2026-10-26 13:${String(i % 60).padStart(2, '0')}:00`, 'ingreso', 'Ingresó')
+        );
+        sucesos.push(
+            suceso('2026-10-26 16:00:00', 'incidencia', 'Revisión de excepción', {
+                detalle: 'Se revisó la documentación',
+                por: 'Rojas Vera Ana',
+            })
+        );
+        simularBitacora(sucesos);
+        montar();
+        await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(100));
+
+        const buscador = screen.getByLabelText('Buscar en bitácora');
+        fireEvent.change(buscador, { target: { value: 'rojas vera ana' } });
+        expect(await screen.findByText('Revisión de excepción')).toBeInTheDocument();
+        await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1));
+
+        fireEvent.change(buscador, { target: { value: 'documentación' } });
+        expect(await screen.findByText('Revisión de excepción')).toBeInTheDocument();
+        await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1));
     });
 });

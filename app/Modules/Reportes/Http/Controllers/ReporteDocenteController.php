@@ -18,6 +18,7 @@ use App\Modules\Reportes\Application\Queries\ListarMisExamenes;
 use App\Modules\Reportes\Domain\Exceptions\ExamenSinRendirException;
 use App\Modules\Reportes\Domain\Exceptions\RecursoAjenoException;
 use App\Modules\Reportes\Http\Requests\CompararReportesRequest;
+use App\Modules\Reportes\Http\Requests\FiltrosBitacoraExamenRequest;
 use App\Modules\Reportes\Http\Requests\PreferenciasAlertasRequest;
 use App\Modules\Reportes\Http\Requests\ReporteConsolidadoRequest;
 use App\Modules\Reportes\Http\Requests\ReporteExamenRequest;
@@ -180,15 +181,18 @@ final class ReporteDocenteController
         return $this->descarga($exportar->execute($tabla, $request->formato()));
     }
 
-    public function bitacora(int $examen, ConsultarBitacoraExamen $consultar): JsonResponse
-    {
+    public function bitacora(
+        FiltrosBitacoraExamenRequest $request,
+        int $examen,
+        ConsultarBitacoraExamen $consultar,
+    ): JsonResponse {
         try {
             $sucesos = $consultar->execute($examen, $this->usuarioId());
         } catch (RecursoAjenoException $ajeno) {
             return $this->ajeno($ajeno);
         }
 
-        return $this->bitacoraJson($sucesos);
+        return $this->bitacoraJson($sucesos, $request);
     }
 
     public function estudiantesDeGrupo(
