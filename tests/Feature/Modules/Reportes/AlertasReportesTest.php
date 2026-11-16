@@ -89,11 +89,20 @@ final class AlertasReportesTest extends TestCase
             ->assertJsonCount(2, 'alertas')
             ->assertJsonFragment(['tipo' => 'ASISTENCIA_BAJA'])
             ->assertJsonFragment(['tipo' => 'INCIDENCIAS_ALTAS']);
-        $alertaId = $respuesta->json('alertas.0.id');
 
         $fila = $respuesta->json('alertas.0');
+        self::assertIsArray($fila);
+        self::assertIsInt($fila['id'] ?? null);
+        self::assertIsString($fila['asignatura'] ?? null);
+        self::assertIsString($fila['tipo_examen'] ?? null);
+        self::assertIsString($fila['fecha'] ?? null);
+        self::assertIsString($fila['titulo'] ?? null);
+        self::assertIsString($fila['mensaje'] ?? null);
+        self::assertIsString($cuenta->email);
+        $alertaId = $fila['id'];
+
         $correo = new AlertaReporteMail([
-            'id' => $fila['id'],
+            'id' => $alertaId,
             'email' => $cuenta->email,
             'asignatura' => $fila['asignatura'],
             'tipo_examen' => $fila['tipo_examen'],
@@ -101,10 +110,10 @@ final class AlertasReportesTest extends TestCase
             'titulo' => $fila['titulo'],
             'mensaje' => $fila['mensaje'],
         ]);
-        $mailer = \Mockery::mock(Mailer::class);
-        $mailer->shouldReceive('send')
-            ->once()
-            ->andThrow(new \RuntimeException('SMTP no disponible'));
+        $mailer = $this->createMock(Mailer::class);
+        $mailer->expects(self::once())
+            ->method('send')
+            ->willThrowException(new \RuntimeException('SMTP no disponible'));
 
         try {
             $correo->send($mailer);

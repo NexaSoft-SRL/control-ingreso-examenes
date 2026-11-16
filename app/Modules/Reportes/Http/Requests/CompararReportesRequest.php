@@ -6,6 +6,7 @@ namespace App\Modules\Reportes\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use LogicException;
 
 final class CompararReportesRequest extends FormRequest
 {
@@ -49,9 +50,28 @@ final class CompararReportesRequest extends FormRequest
     private function ids(string $campo): array
     {
         $valores = $this->validated($campo, []);
+        if (! is_array($valores)) {
+            return [];
+        }
 
-        return is_array($valores)
-            ? array_map(static fn (string|int $id): int => (int) $id, $valores)
-            : [];
+        $ids = [];
+
+        foreach ($valores as $valor) {
+            if (is_int($valor)) {
+                $id = $valor;
+            } elseif (is_string($valor)) {
+                $id = filter_var($valor, FILTER_VALIDATE_INT);
+            } else {
+                throw new LogicException('El identificador validado no es un entero.');
+            }
+
+            if (! is_int($id) || $id < 1) {
+                throw new LogicException('El identificador validado no es un entero positivo.');
+            }
+
+            $ids[] = $id;
+        }
+
+        return $ids;
     }
 }

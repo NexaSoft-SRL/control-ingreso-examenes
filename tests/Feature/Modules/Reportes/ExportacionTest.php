@@ -182,12 +182,19 @@ final class ExportacionTest extends TestCase
                 ['Resumen consolidado de exámenes', 'Asistencia', 'Ausentes', 'Incidencias'],
                 $libro->getSheetNames(),
             );
+            $hojaAsistencia = $libro->getSheetByName('Asistencia');
+            self::assertNotNull($hojaAsistencia);
+
+            $valores = [];
+            foreach ($hojaAsistencia->toArray() as $fila) {
+                foreach ($fila as $celda) {
+                    $valores[] = is_scalar($celda) ? (string) $celda : '';
+                }
+            }
+
             self::assertStringContainsString(
                 '0021000001',
-                implode(' ', array_map(
-                    static fn (array $fila): string => implode(' ', array_map('strval', $fila)),
-                    $libro->getSheetByName('Asistencia')->toArray(),
-                )),
+                implode(' ', $valores),
             );
         } finally {
             unlink($archivo);

@@ -15,6 +15,8 @@ final readonly class CompararReportesDocente
     ) {}
 
     /**
+     * @param  list<int>  $examenIds
+     * @param  list<int>  $periodoIds
      * @return array{
      *     examenes: list<array{
      *         id: int,
@@ -40,9 +42,6 @@ final readonly class CompararReportesDocente
      *         asistencia: int,
      *     }>,
      * }
-     *
-     * @param  list<int>  $examenIds
-     * @param  list<int>  $periodoIds
      */
     public function execute(int $usuarioId, array $examenIds = [], array $periodoIds = []): array
     {
@@ -90,22 +89,20 @@ final readonly class CompararReportesDocente
                 continue;
             }
 
-            $periodo = &$porPeriodo[$fila->periodoId];
-            $periodo['examenes']++;
-            $periodo['presentes'] += $fila->presentes;
-            $periodo['habilitados'] += $fila->habilitados;
-            $periodo['ausentes'] += $fila->ausentes;
-            $periodo['incidencias'] += $fila->incidencias;
-            unset($periodo);
+            $porPeriodo[$fila->periodoId] = $this->acumularFilaPeriodo(
+                $porPeriodo[$fila->periodoId],
+                $fila,
+            );
         }
 
         $periodos = [];
 
         foreach ($periodoIds as $periodoId) {
             $periodo = $porPeriodo[$periodoId];
-            $periodo['asistencia'] = $periodo['habilitados'] === 0
-                ? 0
-                : (int) round($periodo['presentes'] * 100 / $periodo['habilitados']);
+            $periodo['asistencia'] = $this->porcentajeAsistencia(
+                $periodo['presentes'],
+                $periodo['habilitados'],
+            );
             $periodos[] = $periodo;
         }
 
@@ -199,5 +196,30 @@ final readonly class CompararReportesDocente
             'incidencias' => $fila->incidencias,
             'asistencia' => $fila->asistencia(),
         ];
+    }
+
+    /**
+     * @param  array{id: int, codigo: string, examenes: int, presentes: int, habilitados: int, ausentes: int, incidencias: int}  $periodo
+     * @return array{id: int, codigo: string, examenes: int, presentes: int, habilitados: int, ausentes: int, incidencias: int}
+     */
+    private function acumularFilaPeriodo(array $periodo, FilaComparacion $fila): array
+    {
+        return [
+            ...$periodo,
+            'examenes' => $periodo['examenes'] + 1,
+            'presentes' => $periodo['presentes'] + $fila->presentes,
+            'habilitados' => $periodo['habilitados'] + $fila->habilitados,
+            'ausentes' => $periodo['ausentes'] + $fila->ausentes,
+            'incidencias' => $periodo['incidencias'] + $fila->incidencias,
+        ];
+    }
+
+    private function porcentajeAsistencia(int $presentes, int $habilitados): int
+    {
+        if ($habilitados === 0) {
+            return 0;
+        }
+
+        return (int) round($presentes * 100 / $habilitados);
     }
 }

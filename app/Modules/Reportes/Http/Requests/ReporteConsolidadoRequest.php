@@ -6,6 +6,7 @@ namespace App\Modules\Reportes\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use LogicException;
 
 final class ReporteConsolidadoRequest extends FormRequest
 {
@@ -32,8 +33,29 @@ final class ReporteConsolidadoRequest extends FormRequest
     public function examenIds(): array
     {
         $ids = $this->validated('examenes');
+        if (! is_array($ids)) {
+            throw new LogicException('Los exámenes validados no están en formato de lista.');
+        }
 
-        return array_map(static fn (string|int $id): int => (int) $id, $ids);
+        $idsValidados = [];
+
+        foreach ($ids as $valor) {
+            if (is_int($valor)) {
+                $id = $valor;
+            } elseif (is_string($valor)) {
+                $id = filter_var($valor, FILTER_VALIDATE_INT);
+            } else {
+                throw new LogicException('El identificador validado no es un entero.');
+            }
+
+            if (! is_int($id) || $id < 1) {
+                throw new LogicException('El identificador validado no es un entero positivo.');
+            }
+
+            $idsValidados[] = $id;
+        }
+
+        return $idsValidados;
     }
 
     public function formato(): string

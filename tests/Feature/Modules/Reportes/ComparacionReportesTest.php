@@ -56,8 +56,12 @@ final class ComparacionReportesTest extends TestCase
             ->assertJsonPath('periodos.1.codigo', '2/2026')
             ->assertJsonPath('periodos.1.asistencia', 50);
 
-        self::assertCount(2, $respuesta->json('examenes'));
-        self::assertCount(2, $respuesta->json('periodos'));
+        $examenes = $respuesta->json('examenes');
+        $periodos = $respuesta->json('periodos');
+        self::assertIsArray($examenes);
+        self::assertIsArray($periodos);
+        self::assertCount(2, $examenes);
+        self::assertCount(2, $periodos);
     }
 
     public function test_comparison_options_only_include_the_teachers_exams(): void

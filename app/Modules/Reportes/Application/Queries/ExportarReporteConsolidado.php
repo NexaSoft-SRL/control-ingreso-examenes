@@ -6,7 +6,6 @@ namespace App\Modules\Reportes\Application\Queries;
 
 use App\Modules\Reportes\Application\Contracts\ExportadorReporte;
 use App\Modules\Reportes\Application\DTOs\ArchivoReporte;
-use App\Modules\Reportes\Application\DTOs\ReporteConsolidadoData;
 
 final readonly class ExportarReporteConsolidado
 {

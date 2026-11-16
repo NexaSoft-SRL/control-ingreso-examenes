@@ -21,7 +21,7 @@ final class AlertaReporteMail extends Mailable implements ShouldQueue
     public int $tries = 3;
 
     /**
-     * @param array{id:int, email:string, asignatura:string, tipo_examen:string, fecha:string, titulo:string, mensaje:string} $alerta
+     * @param  array{id:int, email:string, asignatura:string, tipo_examen:string, fecha:string, titulo:string, mensaje:string}  $alerta
      */
     public function __construct(public readonly array $alerta) {}
 

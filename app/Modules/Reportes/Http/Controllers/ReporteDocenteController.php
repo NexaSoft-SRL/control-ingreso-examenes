@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace App\Modules\Reportes\Http\Controllers;
 
-use App\Modules\Reportes\Application\DTOs\FilaMiExamen;
 use App\Modules\Reportes\Application\Actions\GuardarPreferenciasAlertas;
 use App\Modules\Reportes\Application\Contracts\AlertaReporteGateway;
+use App\Modules\Reportes\Application\DTOs\FilaMiExamen;
 use App\Modules\Reportes\Application\Queries\ArmarListaDeGrupo;
 use App\Modules\Reportes\Application\Queries\ArmarTabla;
 use App\Modules\Reportes\Application\Queries\CompararReportesDocente;
 use App\Modules\Reportes\Application\Queries\ConsultarBitacoraExamen;
-use App\Modules\Reportes\Application\Queries\ExportarTabla;
 use App\Modules\Reportes\Application\Queries\ExportarReporteConsolidado;
-use App\Modules\Reportes\Application\Queries\ListarMisExamenes;
+use App\Modules\Reportes\Application\Queries\ExportarTabla;
 use App\Modules\Reportes\Application\Queries\ListarAlertasReportes;
+use App\Modules\Reportes\Application\Queries\ListarMisExamenes;
 use App\Modules\Reportes\Domain\Exceptions\ExamenSinRendirException;
 use App\Modules\Reportes\Domain\Exceptions\RecursoAjenoException;
 use App\Modules\Reportes\Http\Requests\CompararReportesRequest;
-use App\Modules\Reportes\Http\Requests\ReporteExamenRequest;
-use App\Modules\Reportes\Http\Requests\ReporteConsolidadoRequest;
 use App\Modules\Reportes\Http\Requests\PreferenciasAlertasRequest;
+use App\Modules\Reportes\Http\Requests\ReporteConsolidadoRequest;
+use App\Modules\Reportes\Http\Requests\ReporteExamenRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
