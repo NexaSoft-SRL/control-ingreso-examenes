@@ -1,6 +1,4 @@
-# Base de datos del proyecto guia. Es independiente de la del proyecto
-# original: otro contenedor, otro volumen y el puerto 5433, para que ambos
-# puedan correr a la vez.
+# Base de datos de desarrollo: contenedor y volumen propios, en el puerto 5434.
 #
 # No corresponde al despliegue: en el servidor de TIS la base se crea desde el
 # panel de administracion y la aplicacion se transfiere por FTP. Su finalidad es

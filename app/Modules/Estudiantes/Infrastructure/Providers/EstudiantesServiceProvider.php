@@ -14,6 +14,7 @@ use App\Modules\Estudiantes\Application\Contracts\InscritosDeExamenGateway;
 use App\Modules\Estudiantes\Application\Contracts\LectorListaGateway;
 use App\Modules\Estudiantes\Application\Contracts\PadronGateway;
 use App\Modules\Estudiantes\Application\Contracts\PortalEstudianteGateway;
+use App\Modules\Estudiantes\Application\Contracts\RegistroPendienteGateway;
 use App\Modules\Estudiantes\Application\Queries\ArmarListaDeGrupo;
 use App\Modules\Estudiantes\Application\Queries\ConsultarFichaDeEstudiante;
 use App\Modules\Estudiantes\Domain\Models\Estudiante;
@@ -21,6 +22,7 @@ use App\Modules\Estudiantes\Infrastructure\Export\ListaDeGrupoXlsx;
 use App\Modules\Estudiantes\Infrastructure\Export\PlantillaInscritosXlsx;
 use App\Modules\Estudiantes\Infrastructure\Import\LectorListaPhpSpreadsheet;
 use App\Modules\Estudiantes\Infrastructure\Mail\CorreoCodigoAccesoMail;
+use App\Modules\Estudiantes\Infrastructure\Persistence\CacheRegistroPendienteGateway;
 use App\Modules\Estudiantes\Infrastructure\Persistence\EloquentConflictoGateway;
 use App\Modules\Estudiantes\Infrastructure\Persistence\EloquentInscripcionGateway;
 use App\Modules\Estudiantes\Infrastructure\Persistence\EloquentInscritosDeExamenGateway;
@@ -39,6 +41,11 @@ final class EstudiantesServiceProvider extends ServiceProvider
         $this->app->bind(
             PortalEstudianteGateway::class,
             EloquentPortalEstudianteGateway::class,
+        );
+
+        $this->app->bind(
+            RegistroPendienteGateway::class,
+            CacheRegistroPendienteGateway::class,
         );
 
         $this->app->bind(

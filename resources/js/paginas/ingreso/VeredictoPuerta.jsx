@@ -21,6 +21,7 @@ import MapaCampus from '../../componentes/MapaCampus';
 import Seleccion from '../../componentes/Seleccion';
 import { colorDeAsignatura, ubicacionSin } from '../../utiles/texto';
 import IconoAsignatura from '../../componentes/IconoAsignatura';
+import ControlDelIdentificado from './ControlDelIdentificado';
 
 // Los veredictos de la puerta (ruta 64), más «No registrado» (nadie con
 // ese código o C.I.) y la excepción ya admitida. El rechazo firme va en
@@ -229,6 +230,13 @@ export default function VeredictoPuerta({
                 {veredicto.dato && (
                     <p className="mt-3 text-base font-medium text-slate-800">{veredicto.dato}</p>
                 )}
+                {veredicto.sin_conexion && (
+                    <p className="mt-2">
+                        <Insignia tono="info" punto>
+                            Sin conexión · se envía al volver internet
+                        </Insignia>
+                    </p>
+                )}
                 {otro && (
                     <p className="text-sm text-slate-800">
                         {otro.texto}
@@ -332,6 +340,10 @@ export default function VeredictoPuerta({
                     </p>
                 )}
 
+                {conExcepciones && (
+                    <ControlDelIdentificado aulaId={aula.id} veredicto={veredicto} />
+                )}
+
                 <Boton type="button" className="mt-4 h-14 w-full text-base" onClick={onSiguiente}>
                     Siguiente <ArrowRight className="h-5 w-5" />
                 </Boton>
@@ -369,6 +381,8 @@ VeredictoPuerta.propTypes = {
         dato: PropTypes.string,
         pie: PropTypes.string,
         tarde: PropTypes.number,
+        incidencia: PropTypes.shape({ id: PropTypes.number }),
+        sin_conexion: PropTypes.bool,
         aula_correcta: PropTypes.shape({
             id: PropTypes.number,
             nombre: PropTypes.string,

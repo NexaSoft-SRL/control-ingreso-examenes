@@ -150,8 +150,8 @@ return static function (DeptracConfig $config): void {
                     )
                     ->must(
                         ClassNameRegexConfig::create(
-                            // Sesion, limite de intentos y estado efimero del acceso.
-                            '#^Illuminate\\Support\\Facades\\(?:Auth|Cache|RateLimiter)$#'
+                            // Sesion y limite de intentos del acceso.
+                            '#^Illuminate\\Support\\Facades\\(?:Auth|RateLimiter)$#'
                         )
                     ),
             ),
@@ -166,7 +166,9 @@ return static function (DeptracConfig $config): void {
                     )
                     ->must(
                         ClassNameRegexConfig::create(
-                            '#^Illuminate\\Support\\Facades\\(?:DB|Hash|Schema|Storage)$#'
+                            // La cache guarda el estado efimero del acceso: el codigo
+                            // de quien aun no esta en el padron.
+                            '#^Illuminate\\Support\\Facades\\(?:Cache|DB|Hash|Schema|Storage)$#'
                         )
                     ),
 

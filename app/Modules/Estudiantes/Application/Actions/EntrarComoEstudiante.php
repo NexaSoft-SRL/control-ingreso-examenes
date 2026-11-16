@@ -20,6 +20,9 @@ final readonly class EntrarComoEstudiante
         private PortalEstudianteGateway $portal,
     ) {}
 
+    /**
+     * @throws CodigoDeAccesoInvalidoException
+     */
     public function execute(string $codigoUniversitario, string $codigo): EstudiantePortalData
     {
         $estudiante = $this->portal->porCodigo($codigoUniversitario);

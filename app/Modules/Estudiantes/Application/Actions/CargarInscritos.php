@@ -192,7 +192,9 @@ final readonly class CargarInscritos
 
         foreach ($validas as $fila) {
             $codigos[$fila->codigoUniversitario] = true;
-            $documentos[$fila->documentoIdentidad] = true;
+            if ($fila->documentoIdentidad !== '') {
+                $documentos[$fila->documentoIdentidad] = true;
+            }
             $grupos[$fila->grupoId] = true;
         }
 
@@ -213,6 +215,7 @@ final readonly class CargarInscritos
         $enConflicto = [];
         $conflictos = [];
         $porVerificar = [];
+        $porCorregir = [];
         $cuentaNuevos = 0;
         $cuentaReutilizados = 0;
         $cuentaYaInscritos = 0;
@@ -223,7 +226,7 @@ final readonly class CargarInscritos
             $creado = $porCrear[$codigo] ?? null;
 
             if ($guardado === null && $creado === null) {
-                $dueno = $duenos[$fila->documentoIdentidad] ?? null;
+                $dueno = $fila->documentoIdentidad === '' ? null : ($duenos[$fila->documentoIdentidad] ?? null);
 
                 if ($dueno !== null && $dueno !== $codigo) {
                     $rechazos[] = new RechazoCargaData($fila->fila, self::MOTIVO_DOCUMENTO_AJENO);
@@ -231,7 +234,9 @@ final readonly class CargarInscritos
                     continue;
                 }
 
-                $duenos[$fila->documentoIdentidad] = $codigo;
+                if ($fila->documentoIdentidad !== '') {
+                    $duenos[$fila->documentoIdentidad] = $codigo;
+                }
                 $porCrear[$codigo] = $fila;
                 $nuevos[] = $fila;
                 $porInscribir[] = $fila;
@@ -240,9 +245,29 @@ final readonly class CargarInscritos
                 continue;
             }
 
-            $tipo = $guardado !== null
+            // El estudiante que se empadrono solo tiene menos peso: los datos
+            // de la carga los reemplazan, sin conflicto.
+            if ($guardado !== null && $guardado->autoempadronado) {
+                $dueno = $fila->documentoIdentidad === '' ? null : ($duenos[$fila->documentoIdentidad] ?? null);
+
+                if ($dueno !== null && $dueno !== $codigo) {
+                    $rechazos[] = new RechazoCargaData($fila->fila, self::MOTIVO_DOCUMENTO_AJENO);
+
+                    continue;
+                }
+
+                $porCorregir[$codigo] = $fila;
+
+                if ($fila->documentoIdentidad !== '') {
+                    $duenos[$fila->documentoIdentidad] = $codigo;
+                }
+            }
+
+            $tipo = $guardado !== null && ! $guardado->autoempadronado
                 ? $this->diferencia($guardado->documentoIdentidad, $guardado->nombres, $guardado->apellidos, $fila)
-                : $this->diferencia($creado->documentoIdentidad, $creado->nombres, $creado->apellidos, $fila);
+                : ($creado === null
+                    ? null
+                    : $this->diferencia($creado->documentoIdentidad, $creado->nombres, $creado->apellidos, $fila));
 
             if ($tipo !== null) {
                 $enConflicto[] = $fila->conConflicto($tipo);
@@ -300,6 +325,7 @@ final readonly class CargarInscritos
             inscripciones: $porInscribir,
             conflictos: $enConflicto,
             porVerificar: array_map(strval(...), array_keys($porVerificar)),
+            porCorregir: array_values($porCorregir),
         ));
 
         return $resultado;
@@ -358,15 +384,11 @@ final readonly class CargarInscritos
             return self::MOTIVO_FALTAN_DATOS;
         }
 
-        if ($documento === '') {
-            return self::MOTIVO_SIN_DOCUMENTO;
-        }
-
         if (! DatosDeInscrito::codigoValido($codigo)) {
             return self::MOTIVO_CODIGO;
         }
 
-        if (! DatosDeInscrito::documentoValido($documento)) {
+        if ($documento !== '' && ! DatosDeInscrito::documentoValido($documento)) {
             return self::MOTIVO_DOCUMENTO;
         }
 

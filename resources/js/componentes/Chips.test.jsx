@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import Chips from './Chips';
+import { listaDe } from '../test/apoyo';
 
 const OPCIONES = [
     { valor: null, etiqueta: 'Todas', conteo: 849 },
@@ -48,6 +49,7 @@ describe('Chips', () => {
         const lista = screen.getByRole('combobox', { name: 'Facultad' });
 
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
+        listaDe(lista);
         expect(screen.getByRole('option', { name: 'FCyT (287)' })).toBeInTheDocument();
         fireEvent.change(lista, { target: { value: '1' } });
         expect(onCambiar).toHaveBeenCalledWith('FCyT');

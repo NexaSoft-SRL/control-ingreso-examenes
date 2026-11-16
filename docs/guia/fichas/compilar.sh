@@ -1,5 +1,5 @@
 #!/bin/sh
-# Compila las fichas de historia de usuario del proyecto guia.
+# Compila las fichas de historia de usuario.
 # Ejecutar desde esta carpeta:
 #
 #   sh compilar.sh                # todas

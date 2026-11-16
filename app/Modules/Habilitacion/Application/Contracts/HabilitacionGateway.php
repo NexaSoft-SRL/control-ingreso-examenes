@@ -62,6 +62,15 @@ interface HabilitacionGateway
     public function estudiantesFiltrados(int $examenId, FiltroHabilitacionData $filtros): array;
 
     /**
+     * De esos codigos universitarios, los de estudiantes inscritos en algun
+     * grupo del examen: codigo => id del estudiante.
+     *
+     * @param  list<string>  $codigos
+     * @return array<string, int>
+     */
+    public function estudiantesPorCodigos(int $examenId, array $codigos): array;
+
+    /**
      * Cuantos de esos estudiantes no estan inscritos en ningun grupo del
      * examen (o no existen).
      *
@@ -77,6 +86,14 @@ interface HabilitacionGateway
     public function cuantosConIngreso(int $examenId, array $estudianteIds): int;
 
     /**
+     * Cuantos de esos estudiantes no tienen carnet: lo escribe cada
+     * estudiante y sin el no se lo puede habilitar en un examen.
+     *
+     * @param  list<int>  $estudianteIds
+     */
+    public function cuantosSinCarnet(array $estudianteIds): int;
+
+    /**
      * Vencido el plazo general de fotos, inhabilita a quien no subio la
      * suya y devuelve a «sin revisar» a quien ya la subio (o a todos si el
      * plazo se movio). Solo en examenes de hoy en adelante.
@@ -86,7 +103,8 @@ interface HabilitacionGateway
     /**
      * Habilita: `habilitado = true`, sin motivo, y no toca el aula. Solo
      * escribe a quienes no estaban habilitados, y no a quienes inhabilito el
-     * sistema por la foto. Devuelve cuantos cambiaron.
+     * sistema por la foto ni a quienes no tienen carnet. Devuelve cuantos
+     * cambiaron.
      *
      * @param  list<int>  $estudianteIds
      */

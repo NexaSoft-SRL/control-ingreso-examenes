@@ -2,9 +2,9 @@
 
 Propuesta de rediseño que sale de la octava revisión con la consultora (29 de septiembre
 de 2026). Es un borrador de trabajo: todavía no se implementó nada de esto en el código
-del proyecto guía. Lo que hay es el diseño (este documento y sus diagramas) y una maqueta
+del proyecto. Lo que hay es el diseño (este documento y sus diagramas) y una maqueta
 navegable en la carpeta `Maquetacion/` del espacio de trabajo, junto a este repositorio
-(`../Maquetacion` desde la raíz del proyecto guía).
+(`../Maquetacion` desde la raíz del proyecto).
 
 El contexto completo que respalda estas decisiones (qué pide el pliego, cómo se toman los
 exámenes en la universidad, las fuentes de datos, lo descartado y las preguntas abiertas)

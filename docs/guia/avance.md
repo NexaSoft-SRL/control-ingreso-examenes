@@ -1,7 +1,7 @@
-# Avance del proyecto guía
+# Avance de las historias
 
 Catálogo vigente: **30 historias y 175 puntos**, una historia por vista completa para un
-rol (criterio del ajuste del *backlog*). Las 30 están implementadas en esta copia, con sus
+rol (criterio del ajuste del *backlog*). Las 30 están implementadas, con sus
 pruebas, y cada una tiene su ficha en `fichas/sprintN/huNN.pdf`.
 
 El reparto por *sprint* es el del plan del *sprint* 3 revisado el 16 de octubre de 2026

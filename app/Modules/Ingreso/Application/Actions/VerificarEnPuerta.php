@@ -233,13 +233,14 @@ final readonly class VerificarEnPuerta
             : 'en el aula '.$previo->aula;
         $dato = sprintf('Ingresó a las %s %s', $previo->horaCorta(), $donde);
         $registrada = false;
+        $incidencia = null;
 
         if (
             $operador !== null
             && ! $this->esRelectura($previo, $aula)
             && ! $this->incidencias->repetidoReciente($previo->id, $aula->id, self::REPETIDO_MINUTOS)
         ) {
-            $this->incidencias->registrar(new NuevaIncidenciaData(
+            $incidencia = $this->incidencias->registrar(new NuevaIncidenciaData(
                 tipo: TipoIncidencia::IngresoRepetido,
                 origen: OrigenIncidencia::Sistema,
                 detalle: sprintf(
@@ -262,6 +263,7 @@ final readonly class VerificarEnPuerta
             examen: $examen,
             dato: $dato,
             pie: $registrada ? 'Incidencia registrada' : null,
+            extras: ['incidencia' => $incidencia === null ? null : ['id' => $incidencia]],
         );
     }
 
@@ -310,8 +312,10 @@ final readonly class VerificarEnPuerta
 
         // Leer otra vez al mismo estudiante en la misma puerta no suma
         // intentos: uno cada diez minutos.
+        $incidencia = null;
+
         if (! $this->incidencias->intentoReciente($estudiante->id, $aula->id, CausaIntento::NoHabilitado, self::REPETIDO_MINUTOS)) {
-            $this->incidencias->registrar(new NuevaIncidenciaData(
+            $incidencia = $this->incidencias->registrar(new NuevaIncidenciaData(
                 tipo: TipoIncidencia::IntentoNoAutorizado,
                 origen: OrigenIncidencia::Sistema,
                 detalle: $dato,
@@ -329,6 +333,7 @@ final readonly class VerificarEnPuerta
             examen: $examen,
             dato: $dato,
             pie: $condicion === null ? null : $this->pieDe($condicion),
+            extras: ['incidencia' => $incidencia === null ? null : ['id' => $incidencia]],
         );
     }
 
@@ -371,8 +376,10 @@ final readonly class VerificarEnPuerta
         $repetido = $estudiante !== null
             && $this->incidencias->intentoReciente($estudiante->id, $aula->id, $causa, self::REPETIDO_MINUTOS);
 
+        $incidencia = null;
+
         if (! $repetido) {
-            $this->incidencias->registrar(new NuevaIncidenciaData(
+            $incidencia = $this->incidencias->registrar(new NuevaIncidenciaData(
                 tipo: TipoIncidencia::IntentoNoAutorizado,
                 origen: OrigenIncidencia::Sistema,
                 detalle: $dato,
@@ -394,6 +401,7 @@ final readonly class VerificarEnPuerta
                     'texto' => $correspondiente['texto'],
                     'aula' => $correspondiente['aula'],
                 ],
+                'incidencia' => $incidencia === null ? null : ['id' => $incidencia],
             ],
         );
     }

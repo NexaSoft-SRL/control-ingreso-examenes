@@ -15,5 +15,7 @@ final readonly class NuevoIngresoData
         public MedioIdentificacion $medio,
         public bool $esExcepcion,
         public OperadorData $operador,
+        // Solo el ingreso que llega de una sesion sin conexion trae su hora.
+        public ?string $registradoEn = null,
     ) {}
 }

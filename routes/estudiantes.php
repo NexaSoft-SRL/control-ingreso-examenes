@@ -64,6 +64,13 @@ Route::prefix('api')->group(function (): void {
     Route::post('/auth/estudiante', [PortalEstudianteController::class, 'entrar'])
         ->name('auth.estudiante');
 
+    // Quien no esta en el padron y probo su correo se empadrona solo.
+    Route::get('/auth/estudiante/carreras', [PortalEstudianteController::class, 'carreras'])
+        ->name('auth.estudiante.carreras');
+
+    Route::post('/auth/estudiante/registro', [PortalEstudianteController::class, 'empadronarse'])
+        ->name('auth.estudiante.registro');
+
     Route::delete('/auth/estudiante', [PortalEstudianteController::class, 'salir'])
         ->name('auth.estudiante.salir');
 
@@ -78,6 +85,7 @@ Route::prefix('api')->group(function (): void {
                 ->name('examenes.qr');
             Route::get('/foto', [PortalEstudianteController::class, 'foto'])->name('foto');
             Route::post('/foto', [PortalEstudianteController::class, 'subirFoto'])->name('foto.subir');
+            Route::post('/carnet', [PortalEstudianteController::class, 'carnet'])->name('carnet');
         });
 
     // La plantilla la descargan los dos: alcanza con uno de los permisos.

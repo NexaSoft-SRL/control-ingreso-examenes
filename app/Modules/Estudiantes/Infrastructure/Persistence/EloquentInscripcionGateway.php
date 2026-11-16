@@ -203,7 +203,7 @@ final class EloquentInscripcionGateway implements InscripcionGateway
                 DB::table('estudiantes')->insertOrIgnore(array_map(
                     static fn (FilaInscritoData $fila): array => [
                         'codigo_universitario' => $fila->codigoUniversitario,
-                        'documento_identidad' => $fila->documentoIdentidad,
+                        'documento_identidad' => $fila->documentoIdentidad === '' ? null : $fila->documentoIdentidad,
                         'nombres' => $fila->nombres,
                         'apellidos' => $fila->apellidos,
                         'carrera_id' => $fila->carreraId,
@@ -222,6 +222,33 @@ final class EloquentInscripcionGateway implements InscripcionGateway
                 DB::table('estudiantes')
                     ->whereIn('codigo_universitario', $lote)
                     ->update(['verificado' => true, 'updated_at' => $ahora]);
+            }
+
+            // Los datos de quien se empadrono solo los reemplazan los de la
+            // carga, que pasa a ser su origen.
+            foreach ($carga->porCorregir as $fila) {
+                $cambios = [
+                    'nombres' => $fila->nombres,
+                    'apellidos' => $fila->apellidos,
+                    'origen' => $carga->via->value,
+                    'verificado' => $esAdministracion,
+                    'updated_at' => $ahora,
+                ];
+
+                // El carnet lo escribe el estudiante: una carga sin carnet no lo borra.
+                if ($fila->documentoIdentidad !== '') {
+                    $cambios['documento_identidad'] = $fila->documentoIdentidad;
+                }
+
+                if ($fila->carreraId !== null) {
+                    $cambios['carrera_id'] = $fila->carreraId;
+                    $cambios['facultad_id'] = $fila->facultadId;
+                }
+
+                DB::table('estudiantes')
+                    ->where('codigo_universitario', $fila->codigoUniversitario)
+                    ->where('origen', OrigenEstudiante::Estudiante->value)
+                    ->update($cambios);
             }
 
             $ids = $this->idsPorCodigo([...$carga->inscripciones, ...$carga->conflictos]);
@@ -385,7 +412,7 @@ final class EloquentInscripcionGateway implements InscripcionGateway
             if ($estudianteId === null) {
                 $estudianteId = $this->entero(DB::table('estudiantes')->insertGetId([
                     'codigo_universitario' => $alta->codigoUniversitario,
-                    'documento_identidad' => $alta->documentoIdentidad,
+                    'documento_identidad' => $alta->documentoIdentidad === '' ? null : $alta->documentoIdentidad,
                     'nombres' => $alta->nombres,
                     'apellidos' => $alta->apellidos,
                     'carrera_id' => null,
@@ -396,6 +423,19 @@ final class EloquentInscripcionGateway implements InscripcionGateway
                     'created_at' => $ahora,
                     'updated_at' => $ahora,
                 ]));
+            }
+
+            if (! $nuevo && $alta->corregir) {
+                DB::table('estudiantes')
+                    ->where('id', $estudianteId)
+                    ->where('origen', OrigenEstudiante::Estudiante->value)
+                    ->update([
+                        'nombres' => $alta->nombres,
+                        'apellidos' => $alta->apellidos,
+                        'origen' => OrigenEstudiante::Docente->value,
+                        'verificado' => false,
+                        'updated_at' => $ahora,
+                    ] + ($alta->documentoIdentidad === '' ? [] : ['documento_identidad' => $alta->documentoIdentidad]));
             }
 
             $grupo = $this->grupo($alta->grupoId);

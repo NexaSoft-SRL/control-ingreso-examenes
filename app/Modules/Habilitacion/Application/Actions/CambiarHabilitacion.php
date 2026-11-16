@@ -54,7 +54,10 @@ final readonly class CambiarHabilitacion
             }
         }
 
+        $sinCarnet = 0;
+
         if ($cambio->habilitado) {
+            $sinCarnet = $this->habilitaciones->cuantosSinCarnet($estudiantes);
             $afectados = $this->habilitaciones->habilitar($examenId, $estudiantes, $usuarioId);
         } else {
             $conIngreso = $this->habilitaciones->cuantosConIngreso($examenId, $estudiantes);
@@ -75,6 +78,7 @@ final readonly class CambiarHabilitacion
             habilitado: $cambio->habilitado,
             afectados: $afectados,
             cifras: $this->habilitaciones->cifras($examenId),
+            sinCarnet: $sinCarnet,
         );
     }
 }

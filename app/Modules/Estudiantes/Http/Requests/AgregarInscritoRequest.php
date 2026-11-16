@@ -25,7 +25,7 @@ final class AgregarInscritoRequest extends FormRequest
     {
         return [
             'codigo' => ['required', 'string', 'regex:'.DatosDeInscrito::PATRON_CODIGO],
-            'documento' => ['required', 'string', 'max:'.DatosDeInscrito::MAXIMO_DOCUMENTO, 'regex:'.DatosDeInscrito::PATRON_DOCUMENTO],
+            'documento' => ['nullable', 'string', 'max:'.DatosDeInscrito::MAXIMO_DOCUMENTO, 'regex:'.DatosDeInscrito::PATRON_DOCUMENTO],
             'nombres' => ['required', 'string', 'max:'.DatosDeInscrito::MAXIMO_NOMBRE, 'regex:'.DatosDeInscrito::PATRON_NOMBRE],
             'apellidos' => ['required', 'string', 'max:'.DatosDeInscrito::MAXIMO_NOMBRE, 'regex:'.DatosDeInscrito::PATRON_NOMBRE],
         ];

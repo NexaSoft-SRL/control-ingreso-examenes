@@ -67,6 +67,11 @@ interface PuertaGateway
     public function estudiante(int $estudianteId): ?EstudianteData;
 
     /**
+     * El carnet que el estudiante escribio; null si todavia no lo hizo.
+     */
+    public function documentoDe(int $estudianteId): ?string;
+
+    /**
      * Busca por codigo universitario y, si no, por documento de identidad.
      *
      * @return array{estudiante: EstudianteData, medio: MedioIdentificacion}|null

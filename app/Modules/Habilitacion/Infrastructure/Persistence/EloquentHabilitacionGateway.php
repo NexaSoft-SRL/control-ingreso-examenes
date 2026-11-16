@@ -281,6 +281,44 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
         return $conIngreso;
     }
 
+    public function estudiantesPorCodigos(int $examenId, array $codigos): array
+    {
+        $hallados = [];
+
+        foreach (array_chunk($codigos, self::LOTE) as $lote) {
+            $filas = $this->base($examenId)
+                ->whereIn('estudiante.codigo_universitario', $lote)
+                ->get(['estudiante.codigo_universitario as codigo', 'lista.estudiante_id as id']);
+
+            foreach ($filas as $fila) {
+                $columnas = get_object_vars($fila);
+                $codigo = $this->texto($columnas['codigo'] ?? null);
+
+                if ($codigo !== null) {
+                    $hallados[$codigo] = $this->entero($columnas['id'] ?? null);
+                }
+            }
+        }
+
+        return $hallados;
+    }
+
+    public function cuantosSinCarnet(array $estudianteIds): int
+    {
+        $sinCarnet = 0;
+
+        foreach (array_chunk($estudianteIds, self::LOTE) as $lote) {
+            $sinCarnet += DB::table('estudiantes')
+                ->whereIn('id', $lote)
+                ->where(function (Builder $fila): void {
+                    $fila->whereNull('documento_identidad')->orWhere('documento_identidad', '');
+                })
+                ->count();
+        }
+
+        return $sinCarnet;
+    }
+
     public function aplicarPlazosDeFoto(int $examenId, string $hoy): void
     {
         $fecha = $this->texto(DB::table('examenes')->where('id', $examenId)->value('fecha'));
@@ -395,7 +433,24 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                 ];
             }
 
-            $porHabilitar = array_values(array_diff($estudianteIds, $yaHabilitados));
+            // Sin carnet no se habilita: lo escribe el estudiante.
+            $conCarnet = [];
+
+            foreach (array_chunk($estudianteIds, self::LOTE) as $lote) {
+                $conCarnet = [
+                    ...$conCarnet,
+                    ...$this->enteros(
+                        DB::table('estudiantes')
+                            ->whereIn('id', $lote)
+                            ->whereNotNull('documento_identidad')
+                            ->where('documento_identidad', '<>', '')
+                            ->pluck('id')
+                            ->all(),
+                    ),
+                ];
+            }
+
+            $porHabilitar = array_values(array_intersect(array_diff($estudianteIds, $yaHabilitados), $conCarnet));
 
             if ($porHabilitar === []) {
                 return 0;

@@ -18,6 +18,7 @@ final readonly class RegistroCargaData
      * @param  list<FilaInscritoData>  $inscripciones  filas que inscriben (nuevos y reutilizados)
      * @param  list<FilaInscritoData>  $conflictos  filas en espera
      * @param  list<string>  $porVerificar  codigos que la carga de administracion confirma
+     * @param  list<FilaInscritoData>  $porCorregir  estudiantes empadronados por si mismos: los datos de la carga los reemplazan
      */
     public function __construct(
         public AlcanceCarga $alcance,
@@ -31,5 +32,6 @@ final readonly class RegistroCargaData
         public array $inscripciones,
         public array $conflictos,
         public array $porVerificar,
+        public array $porCorregir = [],
     ) {}
 }

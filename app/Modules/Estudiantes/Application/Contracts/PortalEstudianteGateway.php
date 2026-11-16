@@ -6,6 +6,8 @@ namespace App\Modules\Estudiantes\Application\Contracts;
 
 use App\Modules\Estudiantes\Application\DTOs\EstudiantePortalData;
 use App\Modules\Estudiantes\Application\DTOs\PlazoFotoData;
+use App\Modules\Estudiantes\Domain\Exceptions\CarnetYaRegistradoException;
+use App\Modules\Estudiantes\Domain\Exceptions\DocumentoEnUsoException;
 
 /**
  * Lo que el estudiante hace por si mismo: entrar con un codigo, ver sus
@@ -19,6 +21,34 @@ interface PortalEstudianteGateway
     public function porCodigo(string $codigoUniversitario): ?EstudiantePortalData;
 
     public function estudiante(int $estudianteId): ?EstudiantePortalData;
+
+    /**
+     * Las carreras para elegir al empadronarse, con su facultad.
+     *
+     * @return list<array{id: int, nombre: string, facultad_id: int, facultad: string}>
+     */
+    public function carreras(): array;
+
+    /**
+     * Guarda el carnet del estudiante, una sola vez.
+     *
+     * @throws CarnetYaRegistradoException si ya tiene uno
+     * @throws DocumentoEnUsoException si es de otro estudiante
+     */
+    public function registrarCarnet(int $estudianteId, string $documento): void;
+
+    /**
+     * Crea al estudiante con origen «Estudiante», sin verificar.
+     *
+     * @throws DocumentoEnUsoException si el documento es de otro estudiante
+     */
+    public function empadronar(
+        string $codigoUniversitario,
+        string $documentoIdentidad,
+        string $nombres,
+        string $apellidos,
+        int $carreraId,
+    ): EstudiantePortalData;
 
     /**
      * Deja vigente un solo codigo: el nuevo anula los anteriores.

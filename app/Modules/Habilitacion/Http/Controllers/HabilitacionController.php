@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Habilitacion\Http\Controllers;
 
 use App\Modules\Habilitacion\Application\Actions\CambiarHabilitacion;
+use App\Modules\Habilitacion\Application\Actions\CambiarHabilitacionPorCodigos;
 use App\Modules\Habilitacion\Application\Contracts\HabilitacionGateway;
 use App\Modules\Habilitacion\Application\DTOs\AulaRepartoData;
 use App\Modules\Habilitacion\Application\DTOs\CifrasHabilitacionData;
@@ -16,6 +17,7 @@ use App\Modules\Habilitacion\Domain\Exceptions\EstudianteConIngresoException;
 use App\Modules\Habilitacion\Domain\Exceptions\EstudianteNoInscritoException;
 use App\Modules\Habilitacion\Domain\Exceptions\ExamenAjenoException;
 use App\Modules\Habilitacion\Http\Requests\CambiarHabilitacionRequest;
+use App\Modules\Habilitacion\Http\Requests\CambiarPorCodigosRequest;
 use App\Modules\Habilitacion\Http\Requests\ListarHabilitacionRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
@@ -133,9 +135,65 @@ final class HabilitacionController
                 '%d %s.',
                 $resultado->afectados,
                 $resultado->afectados === 1 ? $palabra : $palabra.'s',
-            ),
+            ).($resultado->sinCarnet > 0 ? sprintf(' %d sin carnet no se habilitó.', $resultado->sinCarnet) : ''),
             'afectados' => $resultado->afectados,
+            'sin_carnet' => $resultado->sinCarnet,
             'cifras' => $this->cifras($resultado->cifras),
+        ]);
+    }
+
+    /**
+     * Habilita o inhabilita a quienes estan en una lista de codigos: los
+     * que no son del examen se devuelven aparte.
+     */
+    public function porCodigos(
+        CambiarPorCodigosRequest $request,
+        int $examen,
+        CambiarHabilitacionPorCodigos $cambiar,
+        HabilitacionGateway $habilitaciones,
+    ): JsonResponse {
+        $usuarioId = Auth::id();
+
+        if (! is_int($usuarioId)) {
+            return $this->sinSesion();
+        }
+
+        if (! $habilitaciones->existeExamen($examen)) {
+            return $this->noEncontrado();
+        }
+
+        $codigos = $request->codigos();
+
+        if ($codigos === []) {
+            return response()->json([
+                'message' => 'No hay códigos válidos en la lista.',
+                'errors' => ['codigos' => ['Ningún código de 5 a 10 dígitos']],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        try {
+            $resultado = $cambiar->execute($examen, $codigos, $request->habilitado(), $request->motivo(), $usuarioId);
+        } catch (ExamenAjenoException $excepcion) {
+            return $this->ajeno($excepcion);
+        } catch (EstudianteConIngresoException $excepcion) {
+            return response()->json([
+                'message' => $excepcion->getMessage(),
+                'codigo' => 'ESTUDIANTE_CON_INGRESO',
+            ], Response::HTTP_CONFLICT);
+        }
+
+        $cambio = $resultado->cambio;
+        $palabra = $cambio->habilitado ? 'habilitado' : 'inhabilitado';
+
+        return response()->json([
+            'message' => sprintf('%d %s.', $cambio->afectados, $cambio->afectados === 1 ? $palabra : $palabra.'s')
+                .($resultado->noEncontrados === [] ? '' : sprintf(' %d %s del examen.', count($resultado->noEncontrados), count($resultado->noEncontrados) === 1 ? 'código no es' : 'códigos no son'))
+                .($cambio->sinCarnet > 0 ? sprintf(' %d sin carnet no se habilitó.', $cambio->sinCarnet) : ''),
+            'afectados' => $cambio->afectados,
+            'encontrados' => $resultado->encontrados,
+            'no_encontrados' => array_slice($resultado->noEncontrados, 0, 50),
+            'sin_carnet' => $cambio->sinCarnet,
+            'cifras' => $this->cifras($cambio->cifras),
         ]);
     }
 

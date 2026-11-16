@@ -10,7 +10,8 @@ use App\Modules\Estudiantes\Domain\Enums\TipoConflicto;
  * Un estudiante que el docente agrega suelto a la lista de su grupo, ya
  * contrastado con el padron. `estudianteId` null = no existe y se crea;
  * con `conflicto` sus datos difieren del padron y la inscripcion queda en
- * espera de la administracion, igual que en una carga.
+ * espera de la administracion, igual que en una carga. Con `corregir`, el
+ * estudiante se empadrono solo y los datos del docente reemplazan a los suyos.
  */
 final readonly class AltaDeInscritoData
 {
@@ -24,5 +25,6 @@ final readonly class AltaDeInscritoData
         public string $apellidos,
         public ?int $estudianteId = null,
         public ?TipoConflicto $conflicto = null,
+        public bool $corregir = false,
     ) {}
 }

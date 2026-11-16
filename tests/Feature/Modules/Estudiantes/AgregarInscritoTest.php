@@ -127,6 +127,68 @@ final class AgregarInscritoTest extends TestCase
         ]);
     }
 
+    public function test_the_teacher_data_replace_those_of_a_student_who_registered_himself(): void
+    {
+        $docente = $this->docente();
+        $grupo = $this->grupo($docente);
+        $estudiante = $this->estudiante([
+            'documento_identidad' => '1111111',
+            'nombres' => 'Kevn',
+            'apellidos' => 'Alvaro',
+            'origen' => OrigenEstudiante::Estudiante,
+            'verificado' => false,
+        ]);
+
+        // Los datos son distintos, pero no hay conflicto: pesan mas los del docente.
+        $this->agregar($docente, $grupo, self::KEVIN)
+            ->assertCreated()
+            ->assertJsonPath('resultado', 'INSCRITO');
+
+        $estudiante->refresh();
+        $this->assertSame('7928194', $estudiante->documento_identidad);
+        $this->assertSame('Kevin René', $estudiante->nombres);
+        $this->assertSame('Alvarado Claros', $estudiante->apellidos);
+        $this->assertSame(OrigenEstudiante::Docente, $estudiante->origen);
+        $this->assertDatabaseCount('conflictos_padron', 0);
+        $this->assertDatabaseHas('inscripciones', ['estudiante_id' => $estudiante->id, 'grupo_id' => $grupo->id]);
+    }
+
+    public function test_a_load_replaces_the_data_of_a_student_who_registered_himself(): void
+    {
+        $docente = $this->docente();
+        $grupo = $this->grupo($docente);
+        $estudiante = $this->estudiante([
+            'documento_identidad' => '1111111',
+            'nombres' => 'Kevn',
+            'origen' => OrigenEstudiante::Estudiante,
+            'verificado' => false,
+        ]);
+
+        $this->cargarLista($docente, $grupo, [
+            'codigo_universitario,documento_identidad,nombres,apellidos',
+            '202104821,7928194,Kevin René,Alvarado Claros',
+        ])->assertOk();
+
+        $estudiante->refresh();
+        $this->assertSame('7928194', $estudiante->documento_identidad);
+        $this->assertSame('Kevin René', $estudiante->nombres);
+        $this->assertSame(OrigenEstudiante::Docente, $estudiante->origen);
+        $this->assertDatabaseCount('conflictos_padron', 0);
+    }
+
+    public function test_a_student_loaded_by_the_administration_still_wins_over_the_teacher(): void
+    {
+        $docente = $this->docente();
+        $grupo = $this->grupo($docente);
+        $estudiante = $this->estudiante();
+
+        $this->agregar($docente, $grupo, [...self::KEVIN, 'nombres' => 'Otro Nombre'])
+            ->assertAccepted()
+            ->assertJsonPath('resultado', 'CONFLICTO');
+
+        $this->assertSame('Kevin René', $estudiante->refresh()->nombres);
+    }
+
     public function test_a_name_difference_is_a_name_conflict_and_repeating_it_does_not_open_another(): void
     {
         $docente = $this->docente();
@@ -223,12 +285,23 @@ final class AgregarInscritoTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors([
                 'codigo' => 'El código SIS es obligatorio.',
-                'documento' => 'El documento es obligatorio.',
                 'nombres' => 'Los nombres son obligatorios.',
                 'apellidos' => 'Los apellidos son obligatorios.',
             ]);
 
         $this->assertDatabaseCount('estudiantes', 0);
+    }
+
+    public function test_the_carnet_is_optional_when_a_teacher_adds_a_student(): void
+    {
+        $docente = $this->docente();
+        $grupo = $this->grupo($docente);
+
+        $this->agregar($docente, $grupo, ['codigo' => '202104821', 'nombres' => 'Kevin René', 'apellidos' => 'Alvarado Claros'])
+            ->assertCreated()
+            ->assertJsonPath('resultado', 'NUEVO');
+
+        $this->assertNull(DB::table('estudiantes')->where('codigo_universitario', '202104821')->value('documento_identidad'));
     }
 
     public function test_the_code_must_have_between_5_and_10_digits(): void

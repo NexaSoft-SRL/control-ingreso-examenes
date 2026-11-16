@@ -10,6 +10,7 @@ import {
     respuestaDiferida,
     simularApi,
     usuarioDePrueba,
+    listaDe,
 } from '../../test/apoyo';
 
 vi.mock('../../api/cliente');
@@ -162,6 +163,7 @@ describe('Reportes de la universidad', () => {
                 por_pagina: 10,
             })
         );
+        listaDe(screen.getByLabelText('Período'));
         expect(screen.getByRole('option', { name: '1/2026' })).toBeInTheDocument();
     });
 
@@ -351,6 +353,7 @@ describe('Reportes de la universidad', () => {
             }),
         });
 
+        listaDe(await screen.findByLabelText('Período'));
         expect(await screen.findByRole('option', { name: '2/2026' })).toBeInTheDocument();
         expect(screen.queryByRole('option', { name: '1/2026' })).not.toBeInTheDocument();
         expect(api.get.mock.calls.some(([url]) => url === '/periodos')).toBe(false);

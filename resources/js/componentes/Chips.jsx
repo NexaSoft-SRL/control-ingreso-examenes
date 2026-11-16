@@ -1,34 +1,26 @@
 import PropTypes from 'prop-types';
+import Seleccion from './Seleccion';
 // Filtro de una sola elección en forma de fichas. Cada opción puede llevar
 // un punto de color y un conteo. `valor` nulo es la opción «todas». Con más
 // de `maximo` opciones las fichas no caben: pasa a ser una lista desplegable.
 export default function Chips({ opciones, valor, onCambiar, etiqueta, extra, maximo = 6 }) {
     if (opciones.length > maximo) {
         const indice = opciones.findIndex((o) => o.valor === valor);
-        const color = opciones[indice]?.color;
         return (
             <div className="flex flex-wrap items-center gap-2">
-                <label className="flex min-h-10 min-w-0 max-w-full items-center gap-2 rounded-full border border-slate-300 bg-white pl-3.5 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/40">
-                    {color && (
-                        <span
-                            className="h-2.5 w-2.5 shrink-0 rounded-full"
-                            style={{ backgroundColor: color }}
-                        />
-                    )}
-                    <select
-                        className="min-h-10 min-w-0 max-w-full truncate bg-transparent py-2 text-sm font-medium text-slate-800 focus:outline-none"
-                        aria-label={etiqueta}
-                        value={indice}
-                        onChange={(e) => onCambiar(opciones[Number(e.target.value)].valor)}
-                    >
-                        {opciones.map((o, i) => (
-                            <option key={o.etiqueta} value={i}>
-                                {o.etiqueta}
-                                {o.conteo !== undefined ? ` (${o.conteo})` : ''}
-                            </option>
-                        ))}
-                    </select>
-                </label>
+                <Seleccion
+                    aria-label={etiqueta}
+                    className="min-w-0 max-w-full"
+                    value={String(indice)}
+                    onChange={(e) => onCambiar(opciones[Number(e.target.value)].valor)}
+                >
+                    {opciones.map((o, i) => (
+                        <option key={o.etiqueta} value={i} data-color={o.color}>
+                            {o.etiqueta}
+                            {o.conteo !== undefined ? ` (${o.conteo})` : ''}
+                        </option>
+                    ))}
+                </Seleccion>
                 {extra}
             </div>
         );

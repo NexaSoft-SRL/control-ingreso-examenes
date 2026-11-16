@@ -30,6 +30,7 @@ import Seleccion, { AreaTexto } from '../../componentes/Seleccion';
 import SelectorExamen from '../../componentes/SelectorExamen';
 import Tarjeta from '../../componentes/Tarjeta';
 import usarExamen from '../../componentes/usarExamen';
+import PorListaDeCodigos from './PorListaDeCodigos';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { fechaCorta, plural } from '../../utiles/texto';
 
@@ -359,6 +360,10 @@ export function ListaDelExamen({ examenId, onCifras }) {
                 <Dato etiqueta="Sin revisar" icono={Hourglass} valor={cifras.sin_revisar ?? 0} />
             </div>
 
+            <div className="flex justify-end">
+                <PorListaDeCodigos examenId={examenId} alCambiar={recargar} />
+            </div>
+
             <Tarjeta
                 titulo={
                     aulas.length > 0
@@ -548,7 +553,14 @@ export function ListaDelExamen({ examenId, onCifras }) {
                                                 <p className="min-w-0 break-words text-sm font-medium text-slate-800">
                                                     {e.nombre}
                                                 </p>
-                                                <Condicion estado={e.estado} />
+                                                <span className="flex shrink-0 items-center gap-1.5">
+                                                    {e.documento === null && (
+                                                        <Insignia tono="advertencia">
+                                                            Sin carnet
+                                                        </Insignia>
+                                                    )}
+                                                    <Condicion estado={e.estado} />
+                                                </span>
                                             </div>
                                             <p className="text-xs text-slate-600">
                                                 <span className="font-mono">{e.codigo}</span> ·
@@ -619,7 +631,14 @@ export function ListaDelExamen({ examenId, onCifras }) {
                                             </td>
                                             <td className="px-3 py-2 text-slate-700">{e.grupo}</td>
                                             <td className="px-3 py-2">
-                                                <Condicion estado={e.estado} />
+                                                <span className="flex flex-wrap items-center gap-1.5">
+                                                    <Condicion estado={e.estado} />
+                                                    {e.documento === null && (
+                                                        <Insignia tono="advertencia">
+                                                            Sin carnet
+                                                        </Insignia>
+                                                    )}
+                                                </span>
                                             </td>
                                             <td className="px-3 py-2 text-slate-700">
                                                 {e.aula ?? '—'}
