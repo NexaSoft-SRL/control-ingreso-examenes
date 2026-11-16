@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, LogOut } from 'lucide-react';
+import { Menu, X, LogOut, KeyRound } from 'lucide-react';
 import Escudo, { Marca } from './Escudo';
 import { useAviso } from './Aviso';
+import CambiarContrasena from './CambiarContrasena';
 import { usarSesion } from '../sesion/SesionContexto';
 import usarEnVivo from '../navegacion/usarEnVivo';
 import { vistaDeRuta, vistasDe } from '../navegacion/vistas';
@@ -49,6 +50,7 @@ function itemClases(activo) {
 export default function EsquemaApp({ children }) {
     const [menuAbierto, setMenuAbierto] = useState(false);
     const [saliendo, setSaliendo] = useState(false);
+    const [cambiandoClave, setCambiandoClave] = useState(false);
     const [aviso, avisar] = useAviso();
     const location = useLocation();
     const navegar = useNavigate();
@@ -97,7 +99,7 @@ export default function EsquemaApp({ children }) {
                 {iniciales(nombre)}
             </span>
             <span className="min-w-0">
-                <span className="line-clamp-2 block break-words text-sm font-medium leading-tight text-slate-800">
+                <span className="line-clamp-2 break-words text-sm font-medium leading-tight text-slate-800">
                     {nombre}
                 </span>
                 <span className="block truncate text-xs text-slate-600">{rol}</span>
@@ -105,15 +107,32 @@ export default function EsquemaApp({ children }) {
         </div>
     );
 
-    const botonSalir = (tamano) => (
+    // En el teléfono los dos botones van solo con ícono: con texto no queda
+    // sitio para el nombre, que se partiría a mitad de palabra.
+    const botonSalir = (tamano, conTexto) => (
         <button
             type="button"
             onClick={cerrarSesion}
             disabled={saliendo}
-            className={`flex shrink-0 items-center gap-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-danger-50 hover:text-danger-700 ${tamano} ${FOCO}`}
+            aria-label={conTexto ? undefined : 'Cerrar sesión'}
+            title="Cerrar sesión"
+            className={`flex shrink-0 items-center justify-center gap-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-danger-50 hover:text-danger-700 ${tamano} ${FOCO}`}
         >
             <LogOut className="h-[18px] w-[18px]" strokeWidth={2} />
-            Cerrar sesión
+            {conTexto && 'Cerrar sesión'}
+        </button>
+    );
+
+    const botonClave = (tamano, conTexto) => (
+        <button
+            type="button"
+            onClick={() => setCambiandoClave(true)}
+            aria-label={conTexto ? undefined : 'Cambiar contraseña'}
+            title="Cambiar contraseña"
+            className={`flex shrink-0 items-center justify-center gap-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 ${tamano} ${FOCO}`}
+        >
+            <KeyRound className="h-[18px] w-[18px]" strokeWidth={2} />
+            {conTexto && 'Cambiar contraseña'}
         </button>
     );
 
@@ -166,7 +185,10 @@ export default function EsquemaApp({ children }) {
                     <Escudo className="h-9" />
                     {usuario}
                 </div>
-                {botonSalir('h-11 px-3')}
+                <div className="flex shrink-0 items-center">
+                    {botonClave('h-11 w-11', false)}
+                    {botonSalir('h-11 w-11', false)}
+                </div>
             </header>
 
             <main
@@ -178,7 +200,8 @@ export default function EsquemaApp({ children }) {
                     </p>
                     {usuario}
                     <span className="h-8 w-px bg-slate-200" aria-hidden="true" />
-                    {botonSalir('h-10 px-3')}
+                    {botonClave('h-10 px-3', true)}
+                    {botonSalir('h-10 px-3', true)}
                 </div>
                 <div className="mx-auto max-w-6xl px-4 py-5 md:px-8 md:py-8">{children}</div>
             </main>
@@ -277,6 +300,15 @@ export default function EsquemaApp({ children }) {
                         </button>
                     )}
                 </nav>
+            )}
+            {cambiandoClave && (
+                <CambiarContrasena
+                    onCerrar={() => setCambiandoClave(false)}
+                    onGuardada={() => {
+                        setCambiandoClave(false);
+                        avisar('Contraseña actualizada');
+                    }}
+                />
             )}
             {aviso}
         </div>

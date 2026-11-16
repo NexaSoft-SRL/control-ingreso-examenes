@@ -1,0 +1,226 @@
+[
+  {
+    "rol": "Administrador",
+    "dispositivo": "escritorio",
+    "pantalla": "periodo",
+    "ruta": "/periodo",
+    "imagen": "administrador/escritorio/periodo.png"
+  },
+  {
+    "rol": "Administrador",
+    "dispositivo": "escritorio",
+    "pantalla": "oferta",
+    "ruta": "/oferta",
+    "imagen": "administrador/escritorio/oferta.png"
+  },
+  {
+    "rol": "Administrador",
+    "dispositivo": "escritorio",
+    "pantalla": "aulas",
+    "ruta": "/aulas",
+    "imagen": "administrador/escritorio/aulas.png"
+  },
+  {
+    "rol": "Administrador",
+    "dispositivo": "escritorio",
+    "pantalla": "docentes",
+    "ruta": "/docentes",
+    "imagen": "administrador/escritorio/docentes.png"
+  },
+  {
+    "rol": "Administrador",
+    "dispositivo": "escritorio",
+    "pantalla": "padron",
+    "ruta": "/estudiantes",
+    "imagen": "administrador/escritorio/padron.png"
+  },
+  {
+    "rol": "Administrador",
+    "dispositivo": "escritorio",
+    "pantalla": "reportes",
+    "ruta": "/reportes",
+    "imagen": "administrador/escritorio/reportes.png"
+  },
+  {
+    "rol": "Administrador",
+    "dispositivo": "escritorio",
+    "pantalla": "usuarios-roles",
+    "ruta": "/admin",
+    "imagen": "administrador/escritorio/usuarios-roles.png"
+  },
+  {
+    "rol": "Administrador",
+    "dispositivo": "escritorio",
+    "pantalla": "bitacora",
+    "ruta": "/bitacora",
+    "imagen": "administrador/escritorio/bitacora.png"
+  },
+  {
+    "rol": "Administrador",
+    "dispositivo": "escritorio",
+    "pantalla": "respaldos",
+    "ruta": "/respaldo",
+    "imagen": "administrador/escritorio/respaldos.png"
+  },
+  {
+    "rol": "Administrador",
+    "dispositivo": "movil",
+    "pantalla": "periodo",
+    "ruta": "/periodo",
+    "imagen": "administrador/movil/periodo.png"
+  },
+  {
+    "rol": "Administrador",
+    "dispositivo": "movil",
+    "pantalla": "oferta",
+    "ruta": "/oferta",
+    "imagen": "administrador/movil/oferta.png"
+  },
+  {
+    "rol": "Administrador",
+    "dispositivo": "movil",
+    "pantalla": "aulas",
+    "ruta": "/aulas",
+    "imagen": "administrador/movil/aulas.png"
+  },
+  {
+    "rol": "Administrador",
+    "dispositivo": "movil",
+    "pantalla": "docentes",
+    "ruta": "/docentes",
+    "imagen": "administrador/movil/docentes.png"
+  },
+  {
+    "rol": "Administrador",
+    "dispositivo": "movil",
+    "pantalla": "padron",
+    "ruta": "/estudiantes",
+    "imagen": "administrador/movil/padron.png"
+  },
+  {
+    "rol": "Administrador",
+    "dispositivo": "movil",
+    "pantalla": "reportes",
+    "ruta": "/reportes",
+    "imagen": "administrador/movil/reportes.png"
+  },
+  {
+    "rol": "Administrador",
+    "dispositivo": "movil",
+    "pantalla": "usuarios-roles",
+    "ruta": "/admin",
+    "imagen": "administrador/movil/usuarios-roles.png"
+  },
+  {
+    "rol": "Administrador",
+    "dispositivo": "movil",
+    "pantalla": "bitacora",
+    "ruta": "/bitacora",
+    "imagen": "administrador/movil/bitacora.png"
+  },
+  {
+    "rol": "Administrador",
+    "dispositivo": "movil",
+    "pantalla": "respaldos",
+    "ruta": "/respaldo",
+    "imagen": "administrador/movil/respaldos.png"
+  },
+  {
+    "rol": "Docente",
+    "dispositivo": "escritorio",
+    "pantalla": "examenes",
+    "ruta": "/examenes",
+    "imagen": "docente/escritorio/examenes.png"
+  },
+  {
+    "rol": "Docente",
+    "dispositivo": "escritorio",
+    "pantalla": "grupos",
+    "ruta": "/mis-grupos",
+    "imagen": "docente/escritorio/grupos.png"
+  },
+  {
+    "rol": "Docente",
+    "dispositivo": "escritorio",
+    "pantalla": "mis-reportes",
+    "ruta": "/mis-reportes",
+    "imagen": "docente/escritorio/mis-reportes.png"
+  },
+  {
+    "rol": "Docente",
+    "dispositivo": "escritorio",
+    "pantalla": "en-curso",
+    "ruta": "/en-curso",
+    "imagen": "docente/escritorio/en-curso.png"
+  },
+  {
+    "rol": "Docente",
+    "dispositivo": "escritorio",
+    "pantalla": "control",
+    "ruta": "/control",
+    "imagen": "docente/escritorio/control.png"
+  },
+  {
+    "rol": "Docente",
+    "dispositivo": "movil",
+    "pantalla": "examenes",
+    "ruta": "/examenes",
+    "imagen": "docente/movil/examenes.png"
+  },
+  {
+    "rol": "Docente",
+    "dispositivo": "movil",
+    "pantalla": "grupos",
+    "ruta": "/mis-grupos",
+    "imagen": "docente/movil/grupos.png"
+  },
+  {
+    "rol": "Docente",
+    "dispositivo": "movil",
+    "pantalla": "mis-reportes",
+    "ruta": "/mis-reportes",
+    "imagen": "docente/movil/mis-reportes.png"
+  },
+  {
+    "rol": "Docente",
+    "dispositivo": "movil",
+    "pantalla": "en-curso",
+    "ruta": "/en-curso",
+    "imagen": "docente/movil/en-curso.png"
+  },
+  {
+    "rol": "Docente",
+    "dispositivo": "movil",
+    "pantalla": "control",
+    "ruta": "/control",
+    "imagen": "docente/movil/control.png"
+  },
+  {
+    "rol": "Auxiliar",
+    "dispositivo": "escritorio",
+    "pantalla": "punto-control",
+    "ruta": "/ingreso",
+    "imagen": "auxiliar/escritorio/punto-control.png"
+  },
+  {
+    "rol": "Auxiliar",
+    "dispositivo": "escritorio",
+    "pantalla": "mi-aula",
+    "ruta": "/mi-aula",
+    "imagen": "auxiliar/escritorio/mi-aula.png"
+  },
+  {
+    "rol": "Auxiliar",
+    "dispositivo": "movil",
+    "pantalla": "punto-control",
+    "ruta": "/ingreso",
+    "imagen": "auxiliar/movil/punto-control.png"
+  },
+  {
+    "rol": "Auxiliar",
+    "dispositivo": "movil",
+    "pantalla": "mi-aula",
+    "ruta": "/mi-aula",
+    "imagen": "auxiliar/movil/mi-aula.png"
+  }
+]

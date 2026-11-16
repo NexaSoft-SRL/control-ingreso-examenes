@@ -1,0 +1,768 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage{estilo-nexasoft}
+
+\begin{document}
+\hypersetup{pageanchor=false}
+
+% ============================================================
+% PORTADA
+% ============================================================
+
+\begin{titlepage}
+\thispagestyle{empty}
+
+\begin{tikzpicture}[remember picture,overlay]
+\fill[Navy]
+ (current page.south west)
+ rectangle (current page.north east);
+
+\fill[Teal]
+ ([xshift=-17mm]current page.north east)
+ rectangle
+ ([xshift=-11mm]current page.south east);
+
+\draw[white,opacity=.13,line width=1.1pt]
+ ([xshift=-77mm,yshift=-50mm]current page.north east)
+ circle (64mm);
+
+\fill[Teal]
+ ([xshift=23mm,yshift=-61mm]current page.north west)
+ rectangle ++(28mm,2mm);
+\end{tikzpicture}
+
+\color{white}
+\vspace*{15mm}
+
+{\Large\bfseries NEXASOFT\par}
+\vspace{2mm}
+{\small SOFTWARE INSTITUCIONAL\par}
+
+\vspace{49mm}
+
+{\fontsize{37}{40}\selectfont\bfseries
+Manual de\par usuario\par}
+
+\vspace{14mm}
+
+{\Large
+Sistema de control de ingreso a exámenes\par}
+
+\vspace{5mm}
+
+{\small
+GUÍA ILUSTRADA DE OPERACIÓN POR PERFILES\par}
+
+\vfill
+
+{\normalsize Universidad Mayor de San Simón\par}
+{\small Taller de Ingeniería de Software\par}
+
+\vspace{15mm}
+
+{\small
+Gestión 2/2026\qquad
+Sprint 5\qquad
+Edición de estabilización\par}
+
+\end{titlepage}
+
+\hypersetup{pageanchor=true}
+\pagenumbering{roman}
+
+% ============================================================
+% CONTROL DOCUMENTAL
+% ============================================================
+
+\section*{Ficha de publicación}
+
+\begin{tabularx}{\linewidth}{
+ >{\bfseries}p{34mm}X
+}
+\toprule
+Producto &
+Punku — Sistema de control de ingreso a exámenes masivos\\
+Elaborado por & NexaSoft S.R.L.\\
+Destino & Personal administrativo, docente y auxiliar\\
+Versión &
+Manual de usuario — edición de estabilización, gestión 2/2026\\
+Evidencia &
+32 capturas locales: 16 pantallas en escritorio y 16 en móvil\\
+\bottomrule
+\end{tabularx}
+
+\begin{notebox}
+\textbf{Cómo leer este manual.}
+Cada módulo reúne su propósito, la secuencia de uso,
+la comprobación de resultados y dos vistas verificadas.
+La captura de escritorio se reproduce completa; en móvil
+se presenta el primer tramo visible del navegador para
+mantener su legibilidad. Los 32 archivos PNG originales
+permanecen íntegros en
+\texttt{docs/manuales/imagenes/}.
+\end{notebox}
+
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
+% ============================================================
+\section{Antes de comenzar}
+% ============================================================
+
+\textbf{Acceso institucional:}
+\url{https://nexasoft.tis.cs.umss.edu.bo/login}.
+
+El menú depende de los permisos y asignaciones efectivos;
+dos cuentas del mismo rol pueden ver opciones distintas.
+Para comenzar, escriba el identificador de usuario y su
+contraseña y confirme el acceso. Tras finalizar, utilice
+\textit{Cerrar sesión}.
+
+\begin{notebox}
+\textbf{Protección de datos.}
+No comparta contraseñas, códigos QR de acceso ni capturas
+con datos personales. Las ilustraciones proceden de una
+instalación local y no constituyen instrucciones para
+modificar registros reales sin autorización.
+\end{notebox}
+
+% ============================================================
+\section{Mapa de tareas por perfil}
+% ============================================================
+
+\begin{tabularx}{\linewidth}{>{\bfseries}p{30mm}X}
+\toprule
+Administrador &
+Preparar período, oferta, aulas, docentes y padrón;
+consultar reportes; administrar cuentas, bitácora y respaldos.\\
+Docente &
+Localizar exámenes, comprobar grupos, consultar reportes
+propios, seguimiento y punto de control.\\
+Auxiliar &
+Consultar el punto de control y la lista de aula asignada.\\
+Estudiante &
+Dispone de un acceso propio; sus pantallas no forman parte
+de las 32 capturas recopiladas.\\
+\bottomrule
+\end{tabularx}
+
+% ============================================================
+\section{Administrador: preparación y supervisión}
+% ============================================================
+
+\modulo{Períodos académicos}
+{Administrador}{/periodo}{periodo}
+
+Aquí se establece el contexto temporal de la actividad
+académica. La vista muestra períodos detectados, pendientes
+y la situación de la importación por facultad; no confunda
+un período visible con uno necesariamente vigente.
+
+\pasos
+\begin{enumerate}
+\item Acceda a \textbf{Período} desde el menú de preparación.
+\item Localice el período por su etiqueta y fechas.
+\item Compruebe el indicador de estado y, cuando corresponda,
+los pendientes de docentes y grupos.
+\item Abra el detalle o la opción de importación únicamente
+si su cuenta está autorizada.
+\end{enumerate}
+
+\resultado{
+Se identifican el período de trabajo, su estado
+y las tareas de preparación pendientes.
+}
+
+\Pantallas
+{administrador/escritorio/periodo.png}
+{administrador/movil/periodo.png}
+{853}
+{Período académico: información global en escritorio
+y navegación vertical en móvil.}
+
+% ------------------------------------------------------------
+
+\modulo{Oferta académica}
+{Administrador}{/oferta}{oferta}
+
+La sección organiza las asignaturas y sus grupos.
+Los filtros de período, facultad, carrera, nivel y búsqueda
+permiten acotar una lista extensa sin cambiar su contenido.
+
+\pasos
+\begin{enumerate}
+\item Abra \textbf{Oferta}.
+\item Seleccione los criterios disponibles de período
+y unidad académica.
+\item Escriba una asignatura o código en el buscador
+si necesita localizar un registro.
+\item Despliegue la asignatura para comprobar sus grupos.
+\item Verifique que los filtros activos correspondan
+a la consulta antes de continuar.
+\end{enumerate}
+
+\resultado{
+La lista refleja el subconjunto de asignaturas y grupos
+coincidente con los filtros seleccionados.
+}
+
+\Pantallas
+{administrador/escritorio/oferta.png}
+{administrador/movil/oferta.png}
+{826}
+{Oferta académica: filtros y listado de asignaturas
+adaptados al dispositivo.}
+
+% ------------------------------------------------------------
+
+\modulo{Aulas y mapa}
+{Administrador}{/aulas}{aulas}
+
+El módulo permite identificar ambientes por campus,
+edificio y aula. Su mapa es una referencia visual que
+complementa el listado, no sustituye la verificación
+del ambiente asignado al examen.
+
+\pasos
+\begin{enumerate}
+\item Abra \textbf{Aulas y mapa}.
+\item Seleccione el campus o la unidad académica cuando
+el filtro esté disponible.
+\item Busque el edificio y revise los ambientes asociados.
+\item Contraste el aula seleccionada con su ubicación
+en el mapa.
+\end{enumerate}
+
+\resultado{
+Se puede relacionar el nombre del aula con el edificio
+y la ubicación mostrada.
+}
+
+\Pantallas
+{administrador/escritorio/aulas.png}
+{administrador/movil/aulas.png}
+{830}
+{Aulas: mapa del campus y panel de ambientes;
+en móvil los controles se apilan.}
+
+% ------------------------------------------------------------
+
+\modulo{Docentes}
+{Administrador}{/docentes}{docentes}
+
+La consulta docente permite revisar el directorio académico
+y detectar registros que requieren atención. Los indicadores
+de resumen y los filtros no deben confundirse con la
+autorización para editar datos personales.
+
+\pasos
+\begin{enumerate}
+\item Entre a \textbf{Docentes}.
+\item Seleccione facultad o criterios de búsqueda
+para restringir los resultados.
+\item Revise el estado del registro localizado.
+\item Consulte la información académica o de cuenta
+únicamente si su permiso lo permite.
+\end{enumerate}
+
+\resultado{
+El registro se encuentra sin confundir personas con nombres
+similares y se visualiza su estado.
+}
+
+\Pantallas
+{administrador/escritorio/docentes.png}
+{administrador/movil/docentes.png}
+{1197}
+{Directorio docente y filtros; las tarjetas de resumen
+permiten identificar registros pendientes.}
+
+% ------------------------------------------------------------
+
+\modulo{Padrón estudiantil}
+{Administrador}{/estudiantes}{padron}
+
+La vista del padrón contiene indicadores de población
+y una lista de estudiantes. Una búsqueda debe verificarse
+tanto por el criterio introducido como por los resultados,
+especialmente si se gestionan registros masivos.
+
+\pasos
+\begin{enumerate}
+\item Abra \textbf{Padrón}.
+\item Seleccione facultad, carrera o estado según
+los filtros disponibles.
+\item Busque el estudiante mediante el identificador permitido.
+\item Compruebe que la lista y los contadores correspondan
+a la consulta.
+\item Para cualquier carga masiva, use únicamente
+el procedimiento autorizado y revise las validaciones
+de archivo.
+\end{enumerate}
+
+\resultado{
+El resultado corresponde a los filtros y no se asume
+que una búsqueda sin coincidencias implique ausencia
+definitiva del estudiante.
+}
+
+\nota{
+Los registros estudiantiles son datos personales.
+Evite divulgar listados obtenidos de esta sección.
+}
+
+\Pantallas
+{administrador/escritorio/padron.png}
+{administrador/movil/padron.png}
+{2570}
+{Padrón estudiantil: indicadores, búsqueda
+y estado de los registros.}
+
+% ------------------------------------------------------------
+
+\modulo{Reportes institucionales}
+{Administrador}{/reportes}{reportes}
+
+Este módulo permite comparar exámenes por período,
+facultad, texto de búsqueda y rango de fechas.
+Las cifras agregadas y los archivos exportados
+deben leerse con los mismos filtros activos.
+
+\pasos
+\begin{enumerate}
+\item Abra \textbf{Reportes}.
+\item Confirme el período y aplique los filtros de facultad,
+búsqueda o fechas.
+\item Revise los indicadores de ingresos, estudiantes
+registrados e intentos rechazados.
+\item Seleccione un examen para consultar su detalle
+o bitácora.
+\item Elija el reporte requerido y el formato habilitado
+(PDF o XLSX).
+\item Compruebe el período, filtros y contenido
+del archivo descargado.
+\end{enumerate}
+
+\resultado{
+Los indicadores y la exportación se interpretan con
+el mismo alcance de consulta.
+}
+
+\Pantallas
+{administrador/escritorio/reportes.png}
+{administrador/movil/reportes.png}
+{1369}
+{Reportes institucionales: filtros, indicadores,
+listado de exámenes y exportaciones.}
+
+% ------------------------------------------------------------
+
+\modulo{Usuarios, roles y permisos}
+{Administrador}{/admin}{usuarios}
+
+La sección muestra cuentas y una matriz de permisos
+por rol. Un permiso modifica el alcance de acceso:
+revisar la matriz es distinto de realizar una
+modificación de seguridad.
+
+\pasos
+\begin{enumerate}
+\item Abra \textbf{Usuarios y roles}.
+\item Utilice búsqueda o filtro de rol para localizar
+una cuenta.
+\item Compruebe su estado y el rol asignado.
+\item Examine la matriz de permisos y el alcance
+de cada columna.
+\item Solo si está autorizado, revise los cambios
+antes de guardarlos y confirme su efecto.
+\end{enumerate}
+
+\resultado{
+Se identifica quién puede acceder a una función
+y con qué rol, sin asumir permisos por el título
+del puesto.
+}
+
+\nota{
+Los cambios de permisos son sensibles.
+Deben coordinarse con la política de acceso institucional.
+}
+
+\Pantallas
+{administrador/escritorio/usuarios-roles.png}
+{administrador/movil/usuarios-roles.png}
+{2678}
+{Administración: listado de cuentas
+y matriz de permisos por rol.}
+
+% ------------------------------------------------------------
+
+\modulo{Bitácora de operaciones}
+{Administrador}{/bitacora}{bitacora}
+
+La bitácora reúne eventos de auditoría. Su utilidad
+depende de consultar el actor, la operación y el
+momento correcto, preservando la integridad de los registros.
+
+\pasos
+\begin{enumerate}
+\item Abra \textbf{Bitácora}.
+\item Acote la búsqueda por usuario, operación y fechas
+cuando esos filtros estén disponibles.
+\item Examine el evento relacionado con la consulta
+o incidencia.
+\item Documente el hallazgo sin alterar ni borrar
+el registro original.
+\end{enumerate}
+
+\resultado{
+Los eventos consultados quedan identificados
+por sus datos de auditoría.
+}
+
+\Pantallas
+{administrador/escritorio/bitacora.png}
+{administrador/movil/bitacora.png}
+{1648}
+{Bitácora: filtros de auditoría
+y registros de operaciones.}
+
+% ------------------------------------------------------------
+
+\modulo{Respaldos}
+{Administrador}{/respaldo}{respaldos}
+
+La pantalla permite consultar el estado de los respaldos
+y distinguir los programados, manuales o fallidos cuando
+existan. Generar un respaldo no equivale a comprobar que
+su restauración sea viable.
+
+\pasos
+\begin{enumerate}
+\item Abra \textbf{Respaldo}.
+\item Revise el estado y el historial disponible.
+\item Identifique la última ejecución y cualquier
+fallo registrado.
+\item Si necesita un respaldo manual, solicite o ejecute
+la operación únicamente con el permiso requerido.
+\item Para una restauración, siga un procedimiento
+técnico previamente verificado.
+\end{enumerate}
+
+\resultado{
+Se reconoce el estado de los respaldos y se identifican
+situaciones que requieren intervención.
+}
+
+\nota{
+Nunca restaure datos en el entorno institucional
+para probar una captura o un procedimiento del manual.
+}
+
+\Pantallas
+{administrador/escritorio/respaldos.png}
+{administrador/movil/respaldos.png}
+{0}
+{Respaldo: estado del módulo; las vistas de ejemplo
+pueden mostrar ausencia de registros.}
+
+% ============================================================
+\section{Docente: preparación y control de exámenes}
+% ============================================================
+
+\modulo{Exámenes}{Docente}{/examenes}{examenes}
+
+El panel organiza las evaluaciones por período y muestra
+estados de preparación como grupos, aulas, personal
+responsable, habilitación y códigos QR.
+No todos los exámenes están listos para iniciar.
+
+\pasos
+\begin{enumerate}
+\item Ingrese con la cuenta docente y abra \textbf{Exámenes}.
+\item Localice la evaluación por fecha, asignatura y estado.
+\item Revise los indicadores de grupos, aulas, quién atiende,
+habilitación y QR.
+\item Abra la acción disponible en la tarjeta,
+según el estado del examen.
+\item Antes de ingresar al control, confirme
+que la preparación está completa.
+\end{enumerate}
+
+\resultado{
+Cada tarjeta permite identificar el estado del examen
+y la siguiente operación disponible.
+}
+
+\Pantallas
+{docente/escritorio/examenes.png}
+{docente/movil/examenes.png}
+{1498}
+{Panel docente: exámenes programados
+y sus condiciones de preparación.}
+
+% ------------------------------------------------------------
+
+\input{capitulos/registro-examen}
+
+\modulo{Mis grupos}{Docente}{/mis-grupos}{grupos}
+
+La vista presenta grupos asociados al docente
+y la lista de estudiantes correspondiente al grupo
+seleccionado. Los registros deben consultarse
+dentro del período pertinente.
+
+\pasos
+\begin{enumerate}
+\item Abra \textbf{Mis grupos}.
+\item Busque o seleccione la asignatura.
+\item Seleccione el grupo deseado.
+\item Consulte la lista de estudiantes y verifique
+los datos académicos mostrados.
+\item Si existe una opción de edición,
+compruebe la autorización antes de utilizarla.
+\end{enumerate}
+
+\resultado{
+El grupo activo coincide con el listado
+que está siendo consultado.
+}
+
+\Pantallas
+{docente/escritorio/grupos.png}
+{docente/movil/grupos.png}
+{2846}
+{Mis grupos: selector de asignatura
+y detalle del estudiantado.}
+
+% ------------------------------------------------------------
+
+\modulo{Mis reportes}
+{Docente}{/mis-reportes}{misreportes}
+
+A diferencia del reporte institucional, esta sección
+presenta los reportes asociados a los exámenes del docente.
+Puede incluir indicadores de habilitados, ausentes,
+incidencias o intentos según el examen y el estado registrado.
+
+\pasos
+\begin{enumerate}
+\item Abra \textbf{Mis reportes}.
+\item Seleccione el examen correspondiente.
+\item Revise los indicadores y categorías visibles.
+\item Active los filtros de reporte pertinentes.
+\item Descargue únicamente la información
+permitida por su cuenta.
+\end{enumerate}
+
+\resultado{
+La consulta y los archivos descargados corresponden
+al examen seleccionado.
+}
+
+\Pantallas
+{docente/escritorio/mis-reportes.png}
+{docente/movil/mis-reportes.png}
+{1856}
+{Reportes del docente: selección de examen,
+indicadores y descargas.}
+
+% ------------------------------------------------------------
+
+\modulo{Exámenes en curso}
+{Docente}{/en-curso}{encurso}
+
+La pantalla de seguimiento muestra indicadores del examen,
+distribución por aulas y opciones relacionadas con ingreso
+e incidencias. Los números reflejan el estado de la
+evaluación en ese momento.
+
+\pasos
+\begin{enumerate}
+\item Abra \textbf{En curso} desde el menú docente.
+\item Identifique el examen activo.
+\item Revise los indicadores de ingresos, faltantes,
+aulas e incidencias.
+\item Consulte el personal asignado a cada ambiente.
+\item Abra el detalle de aula o incidencia solo
+si requiere una actuación autorizada.
+\end{enumerate}
+
+\resultado{
+El docente obtiene una vista consolidada del progreso
+sin confundir conteos globales con un aula concreta.
+}
+
+\Pantallas
+{docente/escritorio/en-curso.png}
+{docente/movil/en-curso.png}
+{1173}
+{En curso: indicadores, responsables,
+aulas y vista de ubicación.}
+
+% ------------------------------------------------------------
+
+\modulo{Control}{Docente}{/control}{control}
+
+El punto de control muestra la información del examen
+y del ambiente asignado cuando existe una sesión activa.
+Las opciones de lectura o verificación dependen del estado
+del examen y de los permisos.
+
+\pasos
+\begin{enumerate}
+\item Abra \textbf{Punto de control}.
+\item Confirme el examen y aula asignados.
+\item Compruebe la disponibilidad del método de identificación.
+\item Antes de confirmar un ingreso, verifique la habilitación
+y el resultado presentado por el sistema.
+\item Si no hay un examen activo,
+no intente producir registros ficticios.
+\end{enumerate}
+
+\resultado{
+El panel muestra controles acordes con la asignación
+o informa que no existe una operación habilitada.
+}
+
+\Pantallas
+{docente/escritorio/control.png}
+{docente/movil/control.png}
+{42}
+{Punto de control docente: controles visibles
+según el examen y su estado.}
+
+% ============================================================
+\section{Auxiliar: operación del punto de ingreso}
+% ============================================================
+
+\modulo{Punto de control}
+{Auxiliar}{/ingreso}{ingreso}
+
+El auxiliar trabaja exclusivamente sobre los exámenes
+y ambientes asignados. En la evidencia recopilada puede
+aparecer un estado vacío: no significa un error del sistema,
+sino ausencia de una sesión abierta para esa cuenta.
+
+\pasos
+\begin{enumerate}
+\item Acceda con la cuenta auxiliar.
+\item Abra \textbf{Punto de control}.
+\item Confirme si existe un examen abierto
+en el aula asignada.
+\item Cuando el sistema habilite el control,
+siga el método de verificación y examine
+la respuesta antes de autorizar un ingreso.
+\item Si aparece un rechazo o incidencia,
+remítalo al procedimiento institucional correspondiente.
+\end{enumerate}
+
+\resultado{
+Si no hay examen asignado, la interfaz lo indica
+y no permite registrar ingresos fuera de contexto.
+}
+
+\Pantallas
+{auxiliar/escritorio/punto-control.png}
+{auxiliar/movil/punto-control.png}
+{0}
+{Punto de control auxiliar: estado inicial condicionado
+por las asignaciones.}
+
+% ------------------------------------------------------------
+
+\modulo{Mi aula}{Auxiliar}{/mi-aula}{miaula}
+
+El módulo de lista del aula permite consultar
+el estado de la asistencia. Su disponibilidad depende
+de la ventana operativa del examen; la captura de referencia
+muestra explícitamente un estado sin examen abierto.
+
+\pasos
+\begin{enumerate}
+\item Abra \textbf{Mi aula}.
+\item Revise el mensaje de estado que presenta el sistema.
+\item Si hay examen activo, consulte la lista
+y la información disponible para el aula.
+\item Si no aparece ningún examen, verifique el período
+y la asignación antes de solicitar soporte.
+\end{enumerate}
+
+\resultado{
+La pantalla informa si existe una lista disponible
+o si aún no se ha abierto el examen del aula.
+}
+
+\Pantallas
+{auxiliar/escritorio/mi-aula.png}
+{auxiliar/movil/mi-aula.png}
+{0}
+{Mi aula: la consulta de asistencia puede presentar
+un estado vacío legítimo.}
+
+% ============================================================
+\section{Guía de resolución de incidencias habituales}
+% ============================================================
+
+{\small
+\renewcommand{\arraystretch}{1.25}
+
+\begin{tabularx}{\linewidth}{
+ >{\raggedright\arraybackslash\bfseries}p{46mm}
+ >{\raggedright\arraybackslash}X
+}
+\toprule
+Situación & Comprobación y acción recomendada\\
+\midrule
+
+No aparece una opción &
+Verifique el rol, los permisos efectivos y la asignación
+académica; no suponga que todas las cuentas del rol poseen
+el mismo acceso.\\
+
+Examen no localizado &
+Confirme el período, asignatura, filtros y fecha;
+contraste con el docente responsable.\\
+
+Punto de control vacío &
+Revise si existe examen activo y aula asignada;
+no genere datos de prueba en producción.\\
+
+Error al exportar &
+Revise filtros, sesión, conexión y permisos.
+Informe el mensaje exacto al equipo responsable.\\
+
+Registro o cifra inesperada &
+Verifique el examen seleccionado, el alcance
+de los filtros y la actualización de la consulta.\\
+
+Respaldo fallido &
+Documente el estado de ejecución y derive
+el incidente a personal técnico autorizado.\\
+
+\bottomrule
+\end{tabularx}
+}
+
+% ============================================================
+\section{Cobertura y límites de esta edición}
+% ============================================================
+
+Las \textbf{32 capturas} incluidas documentan
+16 superficies verificadas, cada una en escritorio y móvil.
+
+No se dispone todavía de imágenes del flujo estudiantil
+ni de las etapas internas de creación de examen,
+habilitación, emisión de QR y registro efectivo de ingresos;
+por tanto, esas operaciones requieren capturas y validaciones
+adicionales antes de declarar completo el manual operativo.
+
+\begin{notebox}
+\textbf{Control de calidad documental.}
+Una captura de pantalla acredita la interfaz visible,
+pero no sustituye una prueba de éxito de un procedimiento.
+Al actualizar esta edición, cada paso crítico debe vincularse
+con evidencia funcional y con el estado de la versión desplegada.
+\end{notebox}
+
+\end{document}

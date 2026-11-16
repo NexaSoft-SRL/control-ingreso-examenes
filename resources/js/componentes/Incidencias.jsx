@@ -826,6 +826,11 @@ function CorregirIncidencia({ incidencia, corregir, onCerrar }) {
         incidencia.gravedad ?? GRAVEDAD_DE_TIPO[incidencia.tipo] ?? 'LEVE'
     );
     const [nombre, setNombre] = useState(incidencia.nombre_propio ?? '');
+    // Una incidencia propia se guarda como OTRA con su nombre: se muestra así.
+    const nombreOtra =
+        incidencia.tipo === 'OTRA' && incidencia.nombre_propio
+            ? incidencia.nombre_propio
+            : 'Otra no prevista';
     const [detalle, setDetalle] = useState(incidencia.detalle ?? '');
     const [estudiante, setEstudiante] = useState(incidencia.estudiante ?? '');
     const [tocoEstudiante, setTocoEstudiante] = useState(false);
@@ -903,7 +908,7 @@ function CorregirIncidencia({ incidencia, corregir, onCerrar }) {
                     >
                         {REPORTABLES.map((clave) => (
                             <option key={clave} value={clave}>
-                                {clave === 'OTRA' ? 'Otra no prevista' : TIPOS_INCIDENCIA[clave]}
+                                {clave === 'OTRA' ? nombreOtra : TIPOS_INCIDENCIA[clave]}
                             </option>
                         ))}
                     </Seleccion>

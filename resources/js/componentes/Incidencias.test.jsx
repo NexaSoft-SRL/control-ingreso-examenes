@@ -527,6 +527,34 @@ describe('ListaIncidencias', () => {
         });
     });
 
+    it('una incidencia propia se corrige con su nombre, no como «Otra no prevista»', () => {
+        render(
+            <ListaIncidencias
+                items={[
+                    {
+                        ...ITEMS[0],
+                        tipo: 'OTRA',
+                        tipo_texto: 'Hoja de respuestas rota',
+                        nombre_propio: 'Hoja de respuestas rota',
+                    },
+                ]}
+                corregir={vi.fn()}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Corregir' }));
+        const dialogo = within(screen.getByRole('dialog', { name: 'Corregir incidencia' }));
+        const tipo = dialogo.getByRole('combobox', { name: /Tipo/ });
+        expect(tipo).toHaveValue('OTRA');
+        expect(within(tipo).getByRole('option', { name: 'Hoja de respuestas rota' }).selected).toBe(
+            true
+        );
+        expect(within(tipo).queryByRole('option', { name: 'Otra no prevista' })).toBeNull();
+        expect(dialogo.getByRole('textbox', { name: /Qué pasó/ })).toHaveValue(
+            'Hoja de respuestas rota'
+        );
+    });
+
     it('un ingreso repetido conserva su tipo al corregirlo', () => {
         render(
             <ListaIncidencias

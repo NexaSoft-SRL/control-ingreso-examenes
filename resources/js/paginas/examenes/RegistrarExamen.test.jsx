@@ -1,9 +1,15 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import RegistrarExamen from './RegistrarExamen';
 import { api } from '../../api/cliente';
 import { olvidarEdificios } from '../../api/usarEdificios';
-import { errorHttp, renderConSesion, simularApi, usuarioDePrueba } from '../../test/apoyo';
+import {
+    errorHttp,
+    renderConSesion,
+    respuestaDiferida,
+    simularApi,
+    usuarioDePrueba,
+} from '../../test/apoyo';
 
 vi.mock('../../api/cliente');
 
@@ -719,6 +725,91 @@ describe('RegistrarExamen · paso 2, grupos', () => {
 });
 
 describe('RegistrarExamen · paso 3, aulas', () => {
+    it('EV-03: muestra la coincidencia exacta en cada aula afectada', async () => {
+        montar();
+        await irAAulas();
+
+        const aulaExamen = screen.getByRole('checkbox', { name: 'Aula 691A' }).closest('li');
+        const aulaClase = screen.getByRole('checkbox', { name: 'Aula 691C' }).closest('li');
+
+        expect(aulaExamen).toHaveTextContent('Coincidencia 08:15–09:45 (90 min)');
+        expect(aulaClase).toHaveTextContent('Coincidencia 09:00–09:45 (45 min)');
+    });
+
+    it('EV-03: informa mientras se comprueba la disponibilidad', async () => {
+        const pendiente = respuestaDiferida();
+        const obtener = api.get.getMockImplementation();
+
+        api.get.mockImplementation((url, opciones) =>
+            url === '/examenes/opciones/aulas' ? pendiente.promesa : obtener(url, opciones)
+        );
+
+        montar();
+        await irAAulas();
+
+        expect(screen.getByText('Comprobando disponibilidad de aulas')).toBeInTheDocument();
+
+        await act(async () => {
+            pendiente.resolver({ data: OPCIONES_AULAS });
+        });
+
+        await waitFor(() =>
+            expect(
+                screen.queryByText('Comprobando disponibilidad de aulas')
+            ).not.toBeInTheDocument()
+        );
+    });
+
+    it('EV-03: informa si falla la comprobación y permite reintentar', async () => {
+        const obtener = api.get.getMockImplementation();
+
+        api.get.mockImplementation((url, opciones) =>
+            url === '/examenes/opciones/aulas'
+                ? Promise.reject(errorHttp(500))
+                : obtener(url, opciones)
+        );
+
+        montar();
+        await irAAulas();
+
+        expect(
+            await screen.findByText('No se pudo comprobar la disponibilidad de aulas')
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByRole('button', {
+                name: 'Reintentar disponibilidad',
+            })
+        ).toBeEnabled();
+    });
+
+    it('EV-03: muestra el docente y horario del examen coincidente', async () => {
+        montar();
+        await irAAulas();
+
+        const aula = within(screen.getByRole('list', { name: 'Aulas' })).getAllByRole(
+            'listitem'
+        )[0];
+
+        expect(aula).toHaveTextContent('Cálculo I · Primer parcial');
+        expect(aula).toHaveTextContent('Mendez Paz Luis');
+        expect(aula).toHaveTextContent('08:15');
+        expect(aula).toHaveTextContent('09:45');
+    });
+
+    it('EV-03: informa de una clase ajena coincidente', async () => {
+        montar();
+        await irAAulas();
+
+        const aula = screen.getByRole('checkbox', { name: 'Aula 691C' }).closest('li');
+
+        expect(aula).not.toBeNull();
+        expect(aula).toHaveTextContent('Física I');
+        expect(aula).toHaveTextContent('Rojas Paz Ana');
+        expect(aula).toHaveTextContent('09:00');
+        expect(aula).toHaveTextContent('10:30');
+    });
+
     it('pone primero las aulas de los grupos y avisa las compartidas sin impedir elegirlas', async () => {
         montar();
         await irAAulas();
@@ -738,7 +829,7 @@ describe('RegistrarExamen · paso 3, aulas', () => {
         );
         expect(filas[1]).toHaveTextContent(/^691BEdificio Académico 2 · 1° Piso$/);
         expect(filas[2]).toHaveTextContent('Compartida · Análisis Numérico · Primer parcial');
-        expect(filas[3]).toHaveTextContent(/^691CEdificio Académico 2 · 1° Piso$/);
+        expect(filas[3]).toHaveTextContent('691CEdificio Académico 2 · 1° Piso');
         expect(screen.queryByText(/Sugerida/)).not.toBeInTheDocument();
         expect(screen.queryByRole('checkbox', { name: 'Aula 004' })).not.toBeInTheDocument();
         expect(screen.queryByRole('checkbox', { name: 'Aula 003' })).not.toBeInTheDocument();

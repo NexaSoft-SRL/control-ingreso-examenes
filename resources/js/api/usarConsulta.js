@@ -85,6 +85,7 @@ export default function useConsulta(ruta, { parametros, activa = true } = {}) {
 
     return {
         datos: cuerpo === null ? null : tieneData ? cuerpo.data : cuerpo,
+        vigente: clave !== null && estado.clave === clave && estado.cuerpo !== null,
         meta: cuerpo?.meta ?? null,
         cuerpo,
         cargando: clave !== null && cuerpo === null && error === null,
