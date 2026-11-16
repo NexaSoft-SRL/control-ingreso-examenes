@@ -12,6 +12,7 @@ use Dompdf\Options;
 use LogicException;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
@@ -174,6 +175,78 @@ final class ExportadorReporteArchivo implements ExportadorReporte
         }
 
         return $contenido;
+    }
+
+    /**
+     * @param  list<TablaReporte>  $tablas
+     */
+    public function hojaConsolidada(array $tablas): string
+    {
+        if ($tablas === []) {
+            throw new LogicException('El reporte consolidado no tiene hojas para exportar.');
+        }
+
+        $libro = new Spreadsheet;
+
+        foreach ($tablas as $indice => $tabla) {
+            $hoja = $indice === 0 ? $libro->getActiveSheet() : $libro->createSheet();
+            $this->llenarHojaConsolidada($hoja, $tabla);
+        }
+
+        $escritor = new Xlsx($libro);
+
+        ob_start();
+        $escritor->save('php://output');
+        $contenido = ob_get_clean();
+
+        $libro->disconnectWorksheets();
+
+        if (! is_string($contenido)) {
+            throw new LogicException('La hoja de cálculo consolidada no se pudo generar.');
+        }
+
+        return $contenido;
+    }
+
+    private function llenarHojaConsolidada(Worksheet $hoja, TablaReporte $tabla): void
+    {
+        $hoja->setTitle(mb_substr($tabla->titulo, 0, 31));
+        $linea = 1;
+        $hoja->setCellValue([1, $linea++], $tabla->titulo);
+
+        foreach ($tabla->filtros as $filtro) {
+            $hoja->setCellValue([1, $linea++], $filtro);
+        }
+
+        $hoja->setCellValue([1, $linea++], 'Emitido el '.$tabla->emitidoEn);
+        $linea++;
+
+        foreach ($tabla->encabezados as $indice => $encabezado) {
+            $columna = $indice + 1;
+            $hoja->setCellValue([$columna, $linea], $encabezado);
+            $hoja->getStyle([$columna, $linea])->getFont()->setBold(true);
+            $hoja->getColumnDimensionByColumn($columna)->setAutoSize(true);
+        }
+
+        $linea++;
+
+        foreach ($tabla->filas as $fila) {
+            foreach ($fila as $indice => $celda) {
+                $hoja->setCellValueExplicit(
+                    [$indice + 1, $linea],
+                    $celda,
+                    DataType::TYPE_STRING,
+                );
+            }
+
+            $linea++;
+        }
+
+        $linea++;
+
+        foreach ($tabla->totales as $total) {
+            $hoja->setCellValue([1, $linea++], $total);
+        }
     }
 
     /**

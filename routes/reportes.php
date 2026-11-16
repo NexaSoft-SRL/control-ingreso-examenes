@@ -7,8 +7,8 @@ use App\Modules\Reportes\Http\Controllers\ReporteUniversidadController;
 use Illuminate\Support\Facades\Route;
 
 // Reportes (rutas 73 a 80, mas el resumen por estudiante y las
-// incidencias de un examen). Todas son de lectura: un reporte no modifica
-// nada, por eso solo hay `GET`.
+// incidencias de un examen). Las descargas y consultas son de lectura;
+// las alertas del docente añaden cambios acotados a sus preferencias/lectura.
 
 // Del administrador: toda la universidad.
 Route::middleware(['auth', 'permiso:reportes_universidad'])->group(function (): void {
@@ -43,6 +43,36 @@ Route::middleware(['auth', 'permiso:reportes_examenes'])->group(function (): voi
         '/api/reportes/mis-examenes',
         [ReporteDocenteController::class, 'misExamenes'],
     )->name('reportes.mis-examenes');
+
+    Route::get(
+        '/api/reportes/comparacion/opciones',
+        [ReporteDocenteController::class, 'opcionesComparacion'],
+    )->name('reportes.comparacion.opciones');
+
+    Route::get(
+        '/api/reportes/comparacion',
+        [ReporteDocenteController::class, 'comparar'],
+    )->name('reportes.comparacion');
+
+    Route::get(
+        '/api/reportes/consolidado/exportar',
+        [ReporteDocenteController::class, 'exportarConsolidado'],
+    )->name('reportes.consolidado.exportar');
+
+    Route::get(
+        '/api/reportes/alertas',
+        [ReporteDocenteController::class, 'alertas'],
+    )->name('reportes.alertas');
+
+    Route::put(
+        '/api/reportes/alertas/preferencias',
+        [ReporteDocenteController::class, 'guardarPreferenciasAlertas'],
+    )->name('reportes.alertas.preferencias');
+
+    Route::post(
+        '/api/reportes/alertas/{alerta}/leida',
+        [ReporteDocenteController::class, 'marcarAlertaLeida'],
+    )->whereNumber('alerta')->name('reportes.alertas.leida');
 
     Route::get(
         '/api/reportes/examenes/{examen}/bitacora',

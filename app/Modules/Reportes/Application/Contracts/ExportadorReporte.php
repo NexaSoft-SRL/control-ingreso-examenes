@@ -17,4 +17,11 @@ interface ExportadorReporte
      * Devuelve el contenido de la hoja de calculo en formato xlsx (HU-34).
      */
     public function hojaDeCalculo(TablaReporte $tabla): string;
+
+    /**
+     * Devuelve un libro con una hoja por cada reporte consolidado.
+     *
+     * @param  list<TablaReporte>  $tablas
+     */
+    public function hojaConsolidada(array $tablas): string;
 }

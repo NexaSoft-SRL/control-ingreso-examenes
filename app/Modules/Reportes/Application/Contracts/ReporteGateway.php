@@ -8,6 +8,7 @@ use App\Modules\Reportes\Application\DTOs\AlcanceReporte;
 use App\Modules\Reportes\Application\DTOs\ExamenReporteData;
 use App\Modules\Reportes\Application\DTOs\FilaAsistencia;
 use App\Modules\Reportes\Application\DTOs\FilaAusente;
+use App\Modules\Reportes\Application\DTOs\FilaComparacion;
 use App\Modules\Reportes\Application\DTOs\FilaEstudianteGrupo;
 use App\Modules\Reportes\Application\DTOs\FilaExamenReporte;
 use App\Modules\Reportes\Application\DTOs\FilaIncidencia;
@@ -125,6 +126,13 @@ interface ReporteGateway
      * @return list<FilaMiExamen>
      */
     public function examenesDelDocente(int $usuarioId, ?int $periodoId): array;
+
+    /**
+     * Examenes de todos los periodos a los que el docente tiene acceso.
+     *
+     * @return list<FilaComparacion>
+     */
+    public function comparablesDelDocente(int $usuarioId): array;
 
     public function grupo(int $grupoId): ?GrupoReporteData;
 

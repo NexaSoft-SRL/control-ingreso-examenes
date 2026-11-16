@@ -10,6 +10,7 @@ use App\Modules\Examenes\Domain\Models\Examen;
 use App\Modules\Reportes\Application\Contracts\ExportadorReporte;
 use App\Modules\Reportes\Application\DTOs\TablaReporte;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
 
 /**
@@ -132,6 +133,71 @@ final class ExportacionTest extends TestCase
                 ->assertHeader('Content-Disposition', "attachment; filename=\"{$reporte}_".self::HOY.'.xlsx"');
 
             $this->assertStringStartsWith('PK', $this->contenido($hoja));
+        }
+    }
+
+    public function test_the_consolidated_report_contains_a_summary_and_a_sheet_per_report(): void
+    {
+        $docente = $this->docente('Quiroga Marcela');
+        $aula = $this->aula('Aula Magna');
+        $examenes = [];
+
+        foreach (['Redes de Computadoras', 'Introducción a la Programación'] as $asignatura) {
+            $grupo = $this->grupo($docente, $this->asignatura($asignatura));
+            $examen = $this->examen($docente, [$grupo], [$aula]);
+            [$estudiante] = $this->estudiantesInscritos($grupo, 1);
+            Estudiante::whereKey($estudiante->id)->update([
+                'codigo_universitario' => '00210000'.count($examenes).'1',
+            ]);
+            $this->habilitar($examen, [$estudiante], $aula);
+            $this->ingresar($examen, $estudiante, $aula);
+            $examenes[] = $examen;
+        }
+
+        $cuenta = $this->cuentaDe($docente);
+        $parametros = implode('&', array_map(
+            static fn ($examen): string => 'examenes[]='.$examen->id,
+            $examenes,
+        ));
+
+        $pdf = $this->actingAs($cuenta)
+            ->get("/api/reportes/consolidado/exportar?{$parametros}&formato=pdf")
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('Content-Disposition', 'attachment; filename="reportes_consolidados_'.self::HOY.'.pdf"');
+        self::assertStringStartsWith('%PDF-', $this->contenido($pdf));
+
+        $respuesta = $this->actingAs($cuenta)
+            ->get("/api/reportes/consolidado/exportar?{$parametros}&formato=xlsx")
+            ->assertOk()
+            ->assertHeader('Content-Type', self::XLSX)
+            ->assertHeader('Content-Disposition', 'attachment; filename="reportes_consolidados_'.self::HOY.'.xlsx"');
+
+        $archivo = tempnam(sys_get_temp_dir(), 'consolidado').'.xlsx';
+        file_put_contents($archivo, $this->contenido($respuesta));
+
+        try {
+            $libro = IOFactory::load($archivo);
+            self::assertSame(
+                ['Resumen consolidado de exámenes', 'Asistencia', 'Ausentes', 'Incidencias'],
+                $libro->getSheetNames(),
+            );
+            $hojaAsistencia = $libro->getSheetByName('Asistencia');
+            self::assertNotNull($hojaAsistencia);
+
+            $valores = [];
+            foreach ($hojaAsistencia->toArray() as $fila) {
+                foreach ($fila as $celda) {
+                    $valores[] = is_scalar($celda) ? (string) $celda : '';
+                }
+            }
+
+            self::assertStringContainsString(
+                '0021000001',
+                implode(' ', $valores),
+            );
+        } finally {
+            unlink($archivo);
         }
     }
 

@@ -9,6 +9,7 @@ use App\Modules\Reportes\Application\DTOs\AlcanceReporte;
 use App\Modules\Reportes\Application\DTOs\ExamenReporteData;
 use App\Modules\Reportes\Application\DTOs\FilaAsistencia;
 use App\Modules\Reportes\Application\DTOs\FilaAusente;
+use App\Modules\Reportes\Application\DTOs\FilaComparacion;
 use App\Modules\Reportes\Application\DTOs\FilaEstudianteGrupo;
 use App\Modules\Reportes\Application\DTOs\FilaExamenReporte;
 use App\Modules\Reportes\Application\DTOs\FilaIncidencia;
@@ -873,6 +874,84 @@ final class EloquentReporteGateway implements ReporteGateway
                 incidencias: $this->entero($columnas['incidencias'] ?? 0),
                 // Rendido: de un dia anterior, o de hoy y ya empezado.
                 rendido: $fecha < $hoy || ($fecha === $hoy && $this->hora($columnas['hora_inicio'] ?? null) <= now()->format('H:i')),
+            );
+        }
+
+        return $examenes;
+    }
+
+    /**
+     * @return list<FilaComparacion>
+     */
+    public function comparablesDelDocente(int $usuarioId): array
+    {
+        $hoy = now()->toDateString();
+        $filas = DB::table('examenes as examen')
+            ->join('periodos as periodo', 'periodo.id', '=', 'examen.periodo_id')
+            ->join('asignaturas as asignatura', 'asignatura.id', '=', 'examen.asignatura_id')
+            ->where(function (Builder $propio) use ($usuarioId): void {
+                $propio->where('examen.creado_por', $usuarioId)
+                    ->orWhereExists(function (Builder $existe) use ($usuarioId): void {
+                        $existe->selectRaw('1')
+                            ->from('examen_grupo as eg')
+                            ->join('grupos as grupo', 'grupo.id', '=', 'eg.grupo_id')
+                            ->join('docentes as docente', 'docente.id', '=', 'grupo.docente_id')
+                            ->whereColumn('eg.examen_id', 'examen.id')
+                            ->where('docente.user_id', $usuarioId);
+                    });
+            })
+            ->orderByDesc('periodo.fecha_inicio')
+            ->orderBy('examen.fecha')
+            ->orderBy('examen.hora_inicio')
+            ->orderBy('examen.id')
+            ->select([
+                'examen.id',
+                'examen.tipo',
+                'examen.fecha',
+                'examen.hora_inicio',
+                'periodo.id as periodo_id',
+                'periodo.codigo as periodo',
+                'asignatura.nombre as asignatura',
+            ])
+            ->selectRaw(
+                '(select count(*) from ingresos as ingreso where ingreso.examen_id = examen.id) as presentes'
+            )
+            ->selectRaw(
+                '(select count(*) from habilitaciones as h where h.examen_id = examen.id and h.habilitado) as habilitados'
+            )
+            ->selectRaw(
+                '(select count(*) from habilitaciones as h where h.examen_id = examen.id and h.habilitado'
+                .' and not exists (select 1 from ingresos as i where i.examen_id = h.examen_id'
+                .' and i.estudiante_id = h.estudiante_id)) as ausentes'
+            )
+            ->selectRaw(
+                '(select count(*) from incidencias as incidencia where '.$this->incidenciaDelExamen().') as incidencias',
+                [$this->apertura()],
+            )
+            ->get();
+
+        $examenes = [];
+
+        foreach ($filas as $fila) {
+            $columnas = $this->columnas($fila);
+            $fecha = $this->fecha($columnas['fecha'] ?? null);
+            $rendido = $fecha < $hoy || (
+                $fecha === $hoy
+                && $this->hora($columnas['hora_inicio'] ?? null) <= now()->format('H:i')
+            );
+
+            $examenes[] = new FilaComparacion(
+                id: $this->entero($columnas['id'] ?? null),
+                periodoId: $this->entero($columnas['periodo_id'] ?? null),
+                periodo: $this->texto($columnas['periodo'] ?? null) ?? '',
+                asignatura: $this->texto($columnas['asignatura'] ?? null) ?? '',
+                tipo: $this->tipo($columnas['tipo'] ?? null),
+                fecha: $fecha,
+                presentes: $this->entero($columnas['presentes'] ?? 0),
+                habilitados: $this->entero($columnas['habilitados'] ?? 0),
+                ausentes: $this->entero($columnas['ausentes'] ?? 0),
+                incidencias: $this->entero($columnas['incidencias'] ?? 0),
+                rendido: $rendido,
             );
         }
 

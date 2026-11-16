@@ -28,6 +28,7 @@ import { colorDeAsignatura, diaMes, fechaCorta, plural } from '../../utiles/text
 import BotonesDescarga from './BotonesDescarga';
 import BitacoraDelExamen from '../examenes/BitacoraDelExamen';
 import IconoAsignatura from '../../componentes/IconoAsignatura';
+import ComparacionReportes from './ComparacionReportes';
 
 const POR_PAGINA = 8;
 // El examen elegido y sus cifras salen de una sola lectura con
@@ -59,13 +60,15 @@ export default function ReportesDocente() {
 
     const [examen, elegir] = usarExamen(todos.datos ?? []);
     const [parametros, setParametros] = useSearchParams();
-    const vista = parametros.get('vista') === 'bitacora' ? 'bitacora' : 'reportes';
+    const vista = ['bitacora', 'comparacion'].includes(parametros.get('vista'))
+        ? parametros.get('vista')
+        : 'reportes';
     const elegirVista = (clave) =>
         setParametros(
             (previos) => {
                 const siguiente = new URLSearchParams(previos);
-                if (clave === 'bitacora') siguiente.set('vista', 'bitacora');
-                else siguiente.delete('vista');
+                if (clave === 'reportes') siguiente.delete('vista');
+                else siguiente.set('vista', clave);
                 return siguiente;
             },
             { replace: true }
@@ -237,29 +240,32 @@ export default function ReportesDocente() {
                             </EstadoCarga>
                         </Tarjeta>
 
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-2">
-                            <IconoAsignatura
-                                nombre={examen.asignatura.nombre}
-                                color={colorDeAsignatura(examen.asignatura.nombre)}
-                                tamano="md"
-                            />
-                            <h2 className="min-w-0 text-lg font-semibold text-slate-900">
-                                {examen.tipo} · {examen.asignatura.nombre}
-                                <span className="font-normal text-slate-600">
-                                    {` · ${fechaCorta(examen.fecha)}`}
-                                </span>
-                            </h2>
-                            {!rendido && <Insignia tono="neutro">Sin rendir</Insignia>}
-                        </div>
+                        {vista !== 'comparacion' && (
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-2">
+                                <IconoAsignatura
+                                    nombre={examen.asignatura.nombre}
+                                    color={colorDeAsignatura(examen.asignatura.nombre)}
+                                    tamano="md"
+                                />
+                                <h2 className="min-w-0 text-lg font-semibold text-slate-900">
+                                    {examen.tipo} · {examen.asignatura.nombre}
+                                    <span className="font-normal text-slate-600">
+                                        {` · ${fechaCorta(examen.fecha)}`}
+                                    </span>
+                                </h2>
+                                {!rendido && <Insignia tono="neutro">Sin rendir</Insignia>}
+                            </div>
+                        )}
 
                         <div
                             role="tablist"
-                            aria-label="Del examen"
-                            className="flex gap-1 border-b border-slate-200"
+                            aria-label="Reportes del docente"
+                            className="flex flex-wrap gap-1 border-b border-slate-200"
                         >
                             {[
                                 ['reportes', 'Reportes', ChartColumn],
                                 ['bitacora', 'Bitácora', History],
+                                ['comparacion', 'Comparar', ChartColumn],
                             ].map(([clave, texto, Icono]) => (
                                 <button
                                     key={clave}
@@ -285,6 +291,8 @@ export default function ReportesDocente() {
                                 examenId={examen.id}
                                 fecha={examen.fecha}
                             />
+                        ) : vista === 'comparacion' ? (
+                            <ComparacionReportes />
                         ) : (
                             <>
                                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
