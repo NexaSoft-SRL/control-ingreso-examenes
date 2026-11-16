@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Http\Controllers;
 
 use App\Modules\Estudiantes\Application\Contracts\FotosDeEstudiantes;
+use App\Modules\Ingreso\Application\Actions\AgregarFotoDeIntento;
 use App\Modules\Ingreso\Application\Actions\RegistrarExcepcion;
 use App\Modules\Ingreso\Application\Actions\RegistrarExpulsion;
+use App\Modules\Ingreso\Application\Actions\VerificarCarnetEnPuerta;
 use App\Modules\Ingreso\Application\Actions\VerificarEnPuerta;
 use App\Modules\Ingreso\Application\Contracts\IngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\PuertaGateway;
@@ -18,7 +20,9 @@ use App\Modules\Ingreso\Domain\Exceptions\DatoNoValidoException;
 use App\Modules\Ingreso\Domain\Exceptions\FueraDeAlcanceException;
 use App\Modules\Ingreso\Domain\Exceptions\IngresoNoPermitidoException;
 use App\Modules\Ingreso\Domain\Exceptions\YaExpulsadoException;
+use App\Modules\Ingreso\Http\Requests\CarnetEnPuertaRequest;
 use App\Modules\Ingreso\Http\Requests\ConsultarPuertaRequest;
+use App\Modules\Ingreso\Http\Requests\FotoDeIntentoRequest;
 use App\Modules\Ingreso\Http\Requests\RegistrarExcepcionRequest;
 use App\Modules\Ingreso\Http\Requests\RegistrarExpulsionRequest;
 use App\Modules\Ingreso\Http\Requests\VerificarRequest;
@@ -129,6 +133,66 @@ final class PuertaController
         }
 
         return response()->json($respuesta);
+    }
+
+    /**
+     * La foto de quien intenta entrar sin corresponderle, como evidencia de
+     * la incidencia que el sistema asento.
+     */
+    public function fotoDeIntento(
+        int $aula,
+        int $incidencia,
+        FotoDeIntentoRequest $request,
+        AgregarFotoDeIntento $agregar,
+        PuertaGateway $puerta,
+    ): JsonResponse {
+        $datos = $puerta->aula($aula);
+
+        if ($datos === null) {
+            return $this->noEncontrado('Aula no encontrada.');
+        }
+
+        try {
+            $fotos = $agregar->execute($datos, $this->operador($request), $incidencia, $request->contenido());
+        } catch (FueraDeAlcanceException $error) {
+            return $this->fueraDeAlcance($error);
+        } catch (DatoNoValidoException $error) {
+            return $this->noValido($error);
+        }
+
+        return response()->json(['message' => 'Foto guardada.', 'evidencias' => $fotos], Response::HTTP_CREATED);
+    }
+
+    /**
+     * Compara el carnet que presenta quien llega con el del estudiante.
+     */
+    public function carnet(
+        int $aula,
+        CarnetEnPuertaRequest $request,
+        VerificarCarnetEnPuerta $verificar,
+        PuertaGateway $puerta,
+    ): JsonResponse {
+        $datos = $puerta->aula($aula);
+
+        if ($datos === null) {
+            return $this->noEncontrado('Aula no encontrada.');
+        }
+
+        try {
+            $resultado = $verificar->execute(
+                $datos,
+                $this->operador($request),
+                $request->integer('estudiante_id'),
+                $request->integer('examen_id'),
+                $request->string('documento')->toString(),
+            );
+        } catch (FueraDeAlcanceException $error) {
+            return $this->fueraDeAlcance($error);
+        } catch (DatoNoValidoException $error) {
+            return $this->noValido($error);
+        }
+
+        return response()->json($resultado);
     }
 
     public function excepcion(

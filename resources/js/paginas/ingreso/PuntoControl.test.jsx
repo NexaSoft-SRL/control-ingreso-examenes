@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PuntoControl from './PuntoControl';
 import { api } from '../../api/cliente';
 import { AccesoAulaContexto } from '../../sesion/AccesoAulaContexto';
+import { cola, guardarInstantanea } from '../../sinConexion/almacen';
 import { errorHttp, renderConSesion, simularApi, usuarioDePrueba } from '../../test/apoyo';
 
 vi.mock('../../api/cliente');
@@ -509,7 +510,8 @@ describe('Punto de control', () => {
 
         const tarjeta = (await screen.findByText(dato)).closest('[role=status]');
         expect(within(tarjeta).getByText(titulo)).toBeInTheDocument();
-        expect(within(tarjeta).getAllByRole('button')).toHaveLength(1);
+        // Quien ya ingresó puede verificarse además por su carnet.
+        expect(within(tarjeta).getAllByRole('button')).toHaveLength(clave === 'ya_ingreso' ? 2 : 1);
         expect(within(tarjeta).getByRole('button', { name: /Siguiente/ })).toBeInTheDocument();
     });
 
@@ -781,5 +783,126 @@ describe('Punto de control', () => {
         fireEvent.change(campo, { target: { value: '202105878' } });
         fireEvent.click(screen.getByRole('button', { name: 'Verificar' }));
         expect(await screen.findByText('No habilitado')).toBeInTheDocument();
+    });
+
+    describe('modo sin conexión', () => {
+        // Una instantánea del aula 31 con el examen abierto ahora mismo.
+        const instantaneaAbierta = () => {
+            const ahora = Date.now();
+            const iso = (ms) => new Date(ms).toISOString();
+            return {
+                dispositivo: 'puesto-abc',
+                instantanea_en: iso(ahora),
+                servidor_ahora: iso(ahora),
+                aula: { id: 31, nombre: '691A' },
+                examenes: [
+                    {
+                        id: 1,
+                        asignatura: 'Introducción a la Programación',
+                        tipo: 'Primer parcial',
+                        fecha: iso(ahora).slice(0, 10),
+                        hora: '08:15',
+                        abre: iso(ahora - 3600000),
+                        cierra: iso(ahora + 3600000),
+                    },
+                ],
+                estudiantes: [
+                    {
+                        id: 7,
+                        codigo: '202105877',
+                        nombre: 'Mamani Diego',
+                        examenes: [
+                            {
+                                examen_id: 1,
+                                condicion: {
+                                    habilitado: true,
+                                    motivo: null,
+                                    aula_id: 31,
+                                    aula: '691A',
+                                },
+                                ingreso: null,
+                            },
+                        ],
+                    },
+                ],
+                claves: {},
+            };
+        };
+
+        beforeEach(() => {
+            window.localStorage.clear();
+        });
+
+        it('si se cae la red decide con la lista guardada y deja la lectura por enviar', async () => {
+            guardarInstantanea(31, instantaneaAbierta());
+            simularApi(api, {
+                ...rutas,
+                'POST /puerta/aulas/31/verificaciones': new Error('Network Error'),
+            });
+            montar();
+            await cargada();
+
+            await verificarManual('202105877');
+
+            expect(await screen.findByText('Ingreso admitido')).toBeInTheDocument();
+            expect(
+                screen.getByText('Sin conexión · se envía al volver internet')
+            ).toBeInTheDocument();
+            expect(cola(31)).toHaveLength(1);
+            expect(cola(31)[0]).toMatchObject({ resultado: 'ADMITIDO', estudiante_id: 7 });
+            // Lo que pide conexión no se ofrece.
+            expect(screen.queryByRole('button', { name: /Verificar carnet/ })).toBeNull();
+            expect(screen.queryByRole('button', { name: 'Situación excepcional' })).toBeNull();
+        });
+
+        it('sin la lista preparada avisa que falta prepararla', async () => {
+            simularApi(api, {
+                ...rutas,
+                'POST /puerta/aulas/31/verificaciones': new Error('Network Error'),
+            });
+            montar();
+            await cargada();
+
+            await verificarManual('202105877');
+
+            expect(
+                await screen.findByText('Sin conexión · falta preparar el modo sin conexión')
+            ).toBeInTheDocument();
+            expect(screen.queryByText('Ingreso admitido')).toBeNull();
+        });
+
+        it('un código que nadie tiene se dice como sin registro', async () => {
+            guardarInstantanea(31, instantaneaAbierta());
+            simularApi(api, {
+                ...rutas,
+                'POST /puerta/aulas/31/verificaciones': new Error('Network Error'),
+            });
+            montar();
+            await cargada();
+
+            await verificarManual('999999999');
+
+            expect(
+                await screen.findByText(/sin registro en la lista guardada/)
+            ).toBeInTheDocument();
+        });
+
+        it('un rechazo del servidor no se confunde con una falla de red', async () => {
+            guardarInstantanea(31, instantaneaAbierta());
+            simularApi(api, {
+                ...rutas,
+                'POST /puerta/aulas/31/verificaciones': errorHttp(409, {
+                    message: 'Sin examen a esta hora.',
+                    codigo: 'AULA_SIN_EXAMEN',
+                }),
+            });
+            montar();
+            await cargada();
+
+            await verificarManual('202105877');
+
+            expect(await screen.findByText('Sin examen a esta hora')).toBeInTheDocument();
+            expect(cola(31)).toHaveLength(0);
+        });
     });
 });

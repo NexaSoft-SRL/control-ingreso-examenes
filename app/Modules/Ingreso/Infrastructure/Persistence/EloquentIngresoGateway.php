@@ -51,7 +51,7 @@ final class EloquentIngresoGateway implements IngresoGateway
                     'aula_id' => $datos->aulaId,
                     'medio' => $datos->medio->value,
                     'es_excepcion' => $datos->esExcepcion,
-                    'registrado_en' => $ahora,
+                    'registrado_en' => $datos->registradoEn ?? $ahora,
                     'registrado_por' => $datos->operador->usuarioId,
                     'acceso_aula_id' => $datos->operador->accesoAulaId,
                     'created_at' => $ahora,

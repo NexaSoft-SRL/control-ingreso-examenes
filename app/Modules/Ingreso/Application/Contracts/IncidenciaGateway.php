@@ -62,6 +62,21 @@ interface IncidenciaGateway
     ): void;
 
     /**
+     * Donde y de que tipo es una incidencia, sea de la persona o del
+     * sistema; null si no existe.
+     *
+     * @return array{aula_id: int|null, tipo: string}|null
+     */
+    public function ubicacion(int $incidenciaId): ?array;
+
+    /**
+     * Agrega una foto de evidencia (ya guardada) a la incidencia, despues
+     * de las que tenia. Quien la agrega puede no tener cuenta (la puerta
+     * con codigo de aula).
+     */
+    public function agregarEvidencia(int $incidenciaId, string $ruta, ?int $usuarioId): void;
+
+    /**
      * Cuantas fotos de evidencia tiene ya la incidencia.
      */
     public function cuantasEvidencias(int $incidenciaId): int;

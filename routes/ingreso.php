@@ -8,6 +8,7 @@ use App\Modules\Ingreso\Http\Controllers\ControlDelExamenController;
 use App\Modules\Ingreso\Http\Controllers\IncidenciaController;
 use App\Modules\Ingreso\Http\Controllers\IncidenciasComunesController;
 use App\Modules\Ingreso\Http\Controllers\PuertaController;
+use App\Modules\Ingreso\Http\Controllers\SinConexionController;
 use Illuminate\Support\Facades\Route;
 
 // Codigos QR, puerta, incidencias y acceso con codigo de aula (Ingreso).
@@ -49,8 +50,33 @@ Route::middleware('puesto')
         Route::get('/aulas/{aula}/edificios', [PuertaController::class, 'edificios'])->name('edificios');
         Route::post('/aulas/{aula}/verificaciones', [PuertaController::class, 'verificar'])->name('verificar');
         Route::post('/aulas/{aula}/excepciones', [PuertaController::class, 'excepcion'])->name('excepcion');
+        Route::post('/aulas/{aula}/incidencias/{incidencia}/foto', [PuertaController::class, 'fotoDeIntento'])
+            ->whereNumber(['aula', 'incidencia'])
+            ->name('foto-de-intento');
+        Route::post('/aulas/{aula}/carnet', [PuertaController::class, 'carnet'])
+            ->whereNumber('aula')
+            ->name('carnet');
         Route::post('/ingresos/{ingreso}/expulsion', [PuertaController::class, 'expulsion'])->name('expulsion');
+
+        // Modo sin conexion: la instantanea que el puesto descarga y lo que
+        // envia al volver la conexion.
+        Route::get('/aulas/{aula}/instantanea', [SinConexionController::class, 'instantanea'])
+            ->whereNumber('aula')
+            ->name('instantanea');
+        Route::post('/aulas/{aula}/sincronizacion', [SinConexionController::class, 'sincronizar'])
+            ->whereNumber('aula')
+            ->name('sincronizacion');
     });
+
+// La revision del docente de lo ocurrido sin conexion.
+Route::middleware(['auth', 'permiso:seguimiento_vivo'])->group(function (): void {
+    Route::get('/api/examenes/{examen}/sin-conexion', [SinConexionController::class, 'revision'])
+        ->whereNumber('examen')
+        ->name('sin-conexion.revision');
+    Route::post('/api/sin-conexion/irregularidades/{irregularidad}/resolucion', [SinConexionController::class, 'resolver'])
+        ->whereNumber('irregularidad')
+        ->name('sin-conexion.resolver');
+});
 
 Route::get('/api/examenes/{examen}/incidencias', [IncidenciaController::class, 'index'])
     ->middleware(['auth', 'permiso:seguimiento_vivo'])

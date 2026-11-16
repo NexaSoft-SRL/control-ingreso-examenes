@@ -15,6 +15,7 @@ import {
     Trash2,
     UserCheck,
     UserRound,
+    WifiOff,
 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import usarConsulta from '../../api/usarConsulta';
@@ -28,6 +29,7 @@ import { colorDeAsignatura, fechaLarga, plural } from '../../utiles/texto';
 import { CodigosDelExamen } from '../docente/CodigosQr';
 import { ListaDelExamen } from '../habilitacion/Habilitacion';
 import BitacoraDelExamen from './BitacoraDelExamen';
+import RevisionSinConexion from './RevisionSinConexion';
 import EliminarExamen from './EliminarExamen';
 import { FORMA_EXAMEN, PASOS, accionDe, pendiente, tipoDe } from './avanceDelExamen';
 import rutaDelExamen from './rutaDelExamen';
@@ -43,6 +45,7 @@ const PESTANAS = [
     { clave: 'habilitacion', texto: 'Habilitación', Icono: UserCheck, permiso: 'habilitacion' },
     { clave: 'qr', texto: 'Códigos QR', Icono: QrCode, permiso: 'codigos_qr' },
     { clave: 'bitacora', texto: 'Bitácora', Icono: History, permiso: 'reportes_examenes' },
+    { clave: 'sin-conexion', texto: 'Sin conexión', Icono: WifiOff, permiso: 'seguimiento_vivo' },
 ];
 
 // A dónde lleva cada paso del resumen. Los tres primeros son del registro
@@ -326,6 +329,7 @@ export default function DetalleExamen() {
                     <ListaDelExamen key={e.id} examenId={e.id} onCifras={alCambiarCifras} />
                 )}
                 {pestana === 'qr' && <CodigosDelExamen key={e.id} examen={e} incrustado />}
+                {pestana === 'sin-conexion' && <RevisionSinConexion key={e.id} examenId={e.id} />}
                 {pestana === 'bitacora' && (
                     <BitacoraDelExamen key={e.id} examenId={e.id} fecha={e.fecha} />
                 )}

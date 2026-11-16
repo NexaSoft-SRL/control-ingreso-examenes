@@ -6,7 +6,9 @@ namespace Tests\Feature\Modules\Ingreso;
 
 use Database\Factories\UserFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -119,6 +121,142 @@ final class VerificacionEnPuertaTest extends TestCase
             'causa' => 'NO_HABILITADO',
             'reportada_por' => $this->cuentaDocente->id,
         ]);
+    }
+
+    // ----- Mejoras de la 14.a revision --------------------------------
+
+    public function test_a_qr_already_sent_warns_the_reason_after_the_student_is_disabled(): void
+    {
+        [$estudiante] = $this->estudiantesInscritos($this->grupo, 1);
+        $this->habilitar($this->examen, [$estudiante]);
+        $token = $this->emitirCodigo($estudiante);
+        // El QR ya salio por correo; despues se lo inhabilita.
+        $this->inhabilitar($this->examen, [$estudiante], 'Debe la práctica 3');
+
+        $this->actingAs($this->cuentaDocente)
+            ->postJson("/api/puerta/aulas/{$this->aula->id}/verificaciones", ['token' => $token])
+            ->assertOk()
+            ->assertJsonPath('veredicto', 'no_habilitado')
+            ->assertJsonPath('dato', 'Debe la práctica 3')
+            ->assertJsonStructure(['incidencia' => ['id']]);
+
+        $this->assertDatabaseCount('ingresos', 0);
+    }
+
+    public function test_a_photo_of_the_intruder_is_added_to_the_incident_of_the_rejection(): void
+    {
+        Storage::fake('local');
+        [$estudiante] = $this->estudiantesInscritos($this->grupo, 1);
+        $this->inhabilitar($this->examen, [$estudiante], 'Adeuda la matrícula');
+
+        $incidencia = $this->verificar($this->cuentaDocente, $estudiante->codigo_universitario)
+            ->assertOk()
+            ->json('incidencia.id');
+        self::assertIsInt($incidencia);
+
+        $this->actingAs($this->cuentaDocente)
+            ->post("/api/puerta/aulas/{$this->aula->id}/incidencias/{$incidencia}/foto", [
+                'foto' => UploadedFile::fake()->image('intruso.jpg', 800, 800),
+            ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('evidencias', 1);
+
+        $this->assertDatabaseCount('evidencias_incidencia', 1);
+    }
+
+    public function test_at_most_three_photos_go_with_an_incident_and_only_of_this_door(): void
+    {
+        Storage::fake('local');
+        [$estudiante] = $this->estudiantesInscritos($this->grupo, 1);
+        $this->inhabilitar($this->examen, [$estudiante], 'Adeuda la matrícula');
+        $incidencia = $this->verificar($this->cuentaDocente, $estudiante->codigo_universitario)->json('incidencia.id');
+        self::assertIsInt($incidencia);
+
+        foreach ([1, 2, 3] as $numero) {
+            $this->actingAs($this->cuentaDocente)
+                ->post("/api/puerta/aulas/{$this->aula->id}/incidencias/{$incidencia}/foto", [
+                    'foto' => UploadedFile::fake()->image("i{$numero}.jpg", 400, 400),
+                ], ['Accept' => 'application/json'])
+                ->assertCreated();
+        }
+
+        $this->actingAs($this->cuentaDocente)
+            ->post("/api/puerta/aulas/{$this->aula->id}/incidencias/{$incidencia}/foto", [
+                'foto' => UploadedFile::fake()->image('cuarta.jpg', 400, 400),
+            ], ['Accept' => 'application/json'])
+            ->assertStatus(422);
+
+        // Una incidencia que no existe no se acepta.
+        $this->actingAs($this->cuentaDocente)
+            ->post("/api/puerta/aulas/{$this->aula->id}/incidencias/999999/foto", [
+                'foto' => UploadedFile::fake()->image('x.jpg', 400, 400),
+            ], ['Accept' => 'application/json'])
+            ->assertStatus(422);
+    }
+
+    public function test_the_carnet_shown_at_the_door_is_compared_with_the_one_the_student_wrote(): void
+    {
+        [$estudiante] = $this->estudiantesInscritos($this->grupo, 1);
+        $estudiante->update(['documento_identidad' => '5003748-1A']);
+        $url = "/api/puerta/aulas/{$this->aula->id}/carnet";
+        $cuerpo = ['estudiante_id' => $estudiante->id, 'examen_id' => $this->examen->id];
+
+        // Mayusculas, espacios y guiones no cuentan.
+        $this->actingAs($this->cuentaDocente)
+            ->postJson($url, $cuerpo + ['documento' => '5003748 1a'])
+            ->assertOk()
+            ->assertExactJson(['coincide' => true, 'sin_carnet' => false, 'incidencia' => null]);
+        $this->assertDatabaseMissing('incidencias', ['tipo' => 'SUPLANTACION']);
+
+        $respuesta = $this->actingAs($this->cuentaDocente)
+            ->postJson($url, $cuerpo + ['documento' => '7777777'])
+            ->assertOk()
+            ->assertJsonPath('coincide', false)
+            ->assertJsonStructure(['incidencia' => ['id']]);
+
+        // No coincide: queda asentada una suplantacion, sin mostrar el carnet guardado.
+        $this->assertStringNotContainsString('5003748', (string) $respuesta->getContent());
+        $this->assertDatabaseHas('incidencias', [
+            'tipo' => 'SUPLANTACION',
+            'estudiante_id' => $estudiante->id,
+            'aula_id' => $this->aula->id,
+            'examen_id' => $this->examen->id,
+        ]);
+    }
+
+    public function test_without_a_carnet_written_there_is_nothing_to_compare(): void
+    {
+        [$estudiante] = $this->estudiantesInscritos($this->grupo, 1);
+        $estudiante->update(['documento_identidad' => null]);
+
+        $this->actingAs($this->cuentaDocente)
+            ->postJson("/api/puerta/aulas/{$this->aula->id}/carnet", [
+                'estudiante_id' => $estudiante->id,
+                'examen_id' => $this->examen->id,
+                'documento' => '5003748',
+            ])
+            ->assertOk()
+            ->assertExactJson(['coincide' => null, 'sin_carnet' => true, 'incidencia' => null]);
+        $this->assertDatabaseMissing('incidencias', ['tipo' => 'SUPLANTACION']);
+    }
+
+    public function test_the_carnet_check_is_closed_to_who_does_not_control_the_door(): void
+    {
+        [$estudiante] = $this->estudiantesInscritos($this->grupo, 1);
+
+        $this->postJson("/api/puerta/aulas/{$this->aula->id}/carnet", [
+            'estudiante_id' => $estudiante->id,
+            'examen_id' => $this->examen->id,
+            'documento' => '5003748',
+        ])->assertUnauthorized();
+
+        $this->actingAs($this->docenteAjeno())
+            ->postJson("/api/puerta/aulas/{$this->aula->id}/carnet", [
+                'estudiante_id' => $estudiante->id,
+                'examen_id' => $this->examen->id,
+                'documento' => '5003748',
+            ])
+            ->assertForbidden();
     }
 
     public function test_an_unreviewed_student_does_not_enter(): void

@@ -220,6 +220,30 @@ final class EloquentIncidenciaGateway implements IncidenciaGateway
         }, 3);
     }
 
+    public function ubicacion(int $incidenciaId): ?array
+    {
+        $fila = DB::table('incidencias')->where('id', $incidenciaId)->first(['aula_id', 'tipo']);
+
+        if ($fila === null) {
+            return null;
+        }
+
+        $columnas = get_object_vars($fila);
+
+        return [
+            'aula_id' => $this->enteroONulo($columnas['aula_id'] ?? null),
+            'tipo' => $this->texto($columnas['tipo'] ?? null) ?? '',
+        ];
+    }
+
+    public function agregarEvidencia(int $incidenciaId, string $ruta, ?int $usuarioId): void
+    {
+        DB::transaction(function () use ($incidenciaId, $ruta, $usuarioId): void {
+            DB::table('incidencias')->where('id', $incidenciaId)->lockForUpdate()->value('id');
+            $this->agregarEvidencias($incidenciaId, [$ruta], $usuarioId, $this->cuantasEvidencias($incidenciaId));
+        }, 3);
+    }
+
     public function cuantasEvidencias(int $incidenciaId): int
     {
         return DB::table('evidencias_incidencia')->where('incidencia_id', $incidenciaId)->count();
