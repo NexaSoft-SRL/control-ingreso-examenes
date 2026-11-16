@@ -1,76 +1,11 @@
-# Proyecto guía
+# Documentación de las historias
 
-Copia independiente del repositorio del sistema, donde están implementadas las 30
-historias de usuario del catálogo vigente: el detalle y su reparto por *sprint*, en
-`docs/guia/avance.md`. Sirve de referencia para el equipo: cada historia queda terminada de
-punta a punta, con sus pruebas, y documentada en su ficha
-(`docs/guia/fichas/sprintN/huNN.pdf`). El catálogo anterior, de 35 historias, y sus notas
-de desarrollo quedan en `docs/guia/v1/`.
+Aquí está la documentación de las 30 historias de usuario del catálogo vigente: el detalle y
+su reparto por *sprint*, en `docs/guia/avance.md`. Cada historia queda terminada de punta a
+punta, con sus pruebas, y documentada en su ficha (`docs/guia/fichas/sprintN/huNN.pdf`). El
+catálogo anterior, de 35 historias, y sus notas de desarrollo quedan en `docs/guia/v1/`.
 
-No sustituye al repositorio del equipo. Nada de aquí se copia y pega a ciegas: es una
-referencia de cómo resolver cada historia respetando la arquitectura y los criterios de
-aceptación del *backlog*.
-
-## Diferencias con el proyecto original
-
-| | Proyecto del equipo | Proyecto guía |
-|---|---|---|
-| Base de datos | `control_ingreso`, puerto 5432 | `control_ingreso_guia`, puerto 5434 |
-| Contenedor | `control_ingreso_db` | `control_ingreso_guia_db` |
-| Volumen | `datos_postgres` | `datos_postgres_guia` |
-| Servidor local | `http://localhost:8000` | `http://localhost:8001` |
-
-Las dos bases pueden correr a la vez. El motor es el mismo, PostgreSQL 15.10, la versión
-del servidor de destino.
-
-## Cómo levantarlo
-
-```bash
-docker compose up -d                 # base de datos propia, puerto 5434
-composer install && npm install      # solo la primera vez
-php artisan migrate
-php artisan serve --port=8001        # y, aparte, npm run dev
-```
-
-La base de pruebas `control_ingreso_testing` se crea una sola vez dentro del contenedor:
-
-```bash
-docker exec control_ingreso_guia_db \
-  psql -U nexasoft -d control_ingreso_guia -c "CREATE DATABASE control_ingreso_testing;"
-```
-
-## Datos de demostración
-
-```bash
-composer datos:demo                            # rehace la base y la siembra
-composer datos:volumen                         # lo anterior más un examen de 400
-php artisan db:seed --class=DemoGuiaSeeder     # agrega lo que falte, sin borrar
-```
-
-Deja una cuenta por rol, el padrón con ocho estudiantes (uno dado de baja), tres
-docentes, cuatro ambientes, tres asignaturas y cuatro exámenes. El primero está en curso:
-con los habilitados repartidos en dos aulas, cuatro ingresos ---uno con observación---,
-una expulsión, dos situaciones excepcionales y dos intentos de ingreso que no
-correspondían. Con eso el punto de control, el tablero, la lista de presentes y los cinco
-reportes muestran datos reales. Es lo que se ve en las capturas de las fichas.
-
-`DatosMasivosSeeder` agrega encima un examen masivo de hoy ---400 estudiantes, tres
-ambientes, 293 ingresos escalonados--- y un examen vecino a la misma hora, que es lo que
-hace falta para mirar el tablero, la lista de presentes y los cinco reportes con la
-cantidad de filas que van a tener el día del examen. El detalle está en el README de la
-raíz.
-
-| Rol | Correo | Contraseña |
-| --- | --- | --- |
-| Administrador | `admin@umss.edu.bo` | `Admin12345` |
-| Docente | `docente@umss.edu.bo` | `Docente12345` |
-| Personal de control | `control@umss.edu.bo` | `Control12345` |
-| Responsable académico | `responsable@umss.edu.bo` | `Responsable12345` |
-
-Cada rol entra solo a las secciones que tiene habilitadas. Para probar la carga masiva
-hay dos archivos en `docs/ejemplos/`: `padron_ejemplo.csv`, con los mismos ocho
-estudiantes del seeder, y `padron_con_errores.csv`, con tres filas que el sistema tiene
-que rechazar indicando fila y motivo.
+La puesta en marcha, los usuarios y los datos de prueba están en el `README.md` de la raíz.
 
 ## Controles antes de cada confirmación
 

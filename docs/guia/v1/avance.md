@@ -1,4 +1,4 @@
-# Avance del proyecto guía
+# Avance de las historias
 
 Estado de las 35 historias. Una historia está **terminada** cuando cumple sus criterios
 de aceptación de punta a punta (backend, frontend y pruebas), pasa los tres controles de
