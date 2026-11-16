@@ -310,6 +310,16 @@ describe('Reportes de la universidad', () => {
                         por: 'Blanco Coca Leticia',
                     },
                 ],
+                aulas: [],
+                meta: {
+                    total: 1,
+                    total_general: 1,
+                    pagina: 1,
+                    por_pagina: 100,
+                    categorias: { rechazo: 1 },
+                    gravedades: { GRAVE: 1 },
+                    aulas: ['691A'],
+                },
             },
         });
         const tabla = await abrir();

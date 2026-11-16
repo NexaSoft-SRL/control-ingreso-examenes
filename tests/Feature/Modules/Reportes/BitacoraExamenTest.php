@@ -241,6 +241,72 @@ final class BitacoraExamenTest extends TestCase
         ], $sucesos);
     }
 
+    public function test_the_log_is_paginated_and_searchable_across_all_sucesos(): void
+    {
+        $docente = $this->docente('Blanco Coca Leticia');
+        $examen = $this->examen(
+            $docente,
+            [$this->grupo($docente, $this->asignatura('Introducción a la Programación'))],
+            [$this->aula('691A')],
+        );
+        $operaciones = [];
+
+        for ($i = 0; $i < 101; $i++) {
+            $operaciones[] = [
+                'usuario_id' => $docente->user_id,
+                'operacion' => 'examen.modificar',
+                'tabla_afectada' => 'examenes',
+                'registro_id' => $examen->id,
+                'descripcion' => $i === 100
+                    ? 'Verificación especial con excepción'
+                    : "Ajuste de configuración {$i}",
+                'fecha_operacion' => self::HOY.sprintf(' 10:%02d:%02d', intdiv($i, 60), $i % 60),
+            ];
+        }
+        DB::table('bitacora_operaciones')->insert($operaciones);
+
+        $ruta = "/api/reportes/examenes/{$examen->id}/bitacora";
+        $cuenta = $this->cuentaDe($docente);
+        $primera = $this->actingAs($cuenta)
+            ->getJson("{$ruta}?pagina=1&por_pagina=100")
+            ->assertOk()
+            ->assertJsonPath('meta.pagina', 1)
+            ->assertJsonPath('meta.por_pagina', 100);
+
+        $total = $primera->json('meta.total');
+        $this->assertGreaterThan(100, $total);
+        $this->assertCount(100, $primera->json('data'));
+        $primera->assertJsonMissing(['detalle' => 'Verificación especial con excepción']);
+
+        $segunda = $this->actingAs($cuenta)
+            ->getJson("{$ruta}?pagina=2&por_pagina=100")
+            ->assertOk()
+            ->assertJsonPath('meta.total', $total);
+        $this->assertCount($total - 100, $segunda->json('data'));
+        $segunda->assertJsonFragment(['detalle' => 'Verificación especial con excepción']);
+
+        $this->actingAs($cuenta)
+            ->getJson("{$ruta}?buscar=Verificaci%C3%B3n%20especial")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.detalle', 'Verificación especial con excepción');
+
+        $this->actingAs($cuenta)
+            ->getJson("{$ruta}?buscar=Blanco%20Coca%20Leticia")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 101);
+
+        $this->actingAs($cuenta)
+            ->getJson("{$ruta}?por_pagina=101")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('por_pagina');
+
+        $texto = $this->texto($this->hoja(
+            $this->actingAs($cuenta)->get("/api/reportes/bitacora/exportar?formato=xlsx&examen={$examen->id}")
+        ));
+        $this->assertStringContainsString('Verificación especial con excepción', $texto);
+    }
+
     public function test_a_future_exam_has_no_start_in_its_log_yet(): void
     {
         $docente = $this->docente();
