@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Modules\Reportes\Infrastructure\Providers;
 
 use App\Modules\Reportes\Application\Contracts\BitacoraExamenGateway;
+use App\Modules\Reportes\Application\Contracts\AlertaReporteGateway;
 use App\Modules\Reportes\Application\Contracts\ExportadorReporte;
 use App\Modules\Reportes\Application\Contracts\ReporteGateway;
 use App\Modules\Reportes\Application\Queries\ArmarListaDeGrupo;
 use App\Modules\Reportes\Infrastructure\Export\ExportadorReporteArchivo;
 use App\Modules\Reportes\Infrastructure\Persistence\EloquentBitacoraExamenGateway;
+use App\Modules\Reportes\Infrastructure\Persistence\EloquentAlertaReporteGateway;
 use App\Modules\Reportes\Infrastructure\Persistence\EloquentReporteGateway;
 use Illuminate\Support\ServiceProvider;
 
@@ -33,6 +35,11 @@ final class ReportesServiceProvider extends ServiceProvider
         $this->app->bind(
             BitacoraExamenGateway::class,
             EloquentBitacoraExamenGateway::class,
+        );
+
+        $this->app->bind(
+            AlertaReporteGateway::class,
+            EloquentAlertaReporteGateway::class,
         );
 
         $this->app->when(ArmarListaDeGrupo::class)

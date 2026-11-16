@@ -5,6 +5,7 @@ use App\Modules\Academico\Application\Actions\ImportarOferta;
 use App\Modules\Academico\Application\Contracts\FuenteOfertaGateway;
 use App\Modules\Academico\Domain\Exceptions\FuenteNoDisponibleException;
 use App\Modules\Administracion\Application\Actions\GenerarRespaldo;
+use App\Modules\Reportes\Application\Actions\ProcesarAlertasDeExamen;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -120,5 +121,15 @@ Schedule::command('respaldo:generar')
  * se vacia cada minuto desde el planificador.
  */
 Schedule::command('queue:work --stop-when-empty --tries=3')
+    ->everyMinute()
+    ->withoutOverlapping();
+
+Artisan::command('reportes:alertas-cierre', function (ProcesarAlertasDeExamen $procesar) {
+    $cantidad = $procesar->execute();
+
+    $this->info(sprintf('%d examenes cerrados procesados para alertas.', $cantidad));
+})->purpose('Procesa las alertas de los examenes cerrados');
+
+Schedule::command('reportes:alertas-cierre')
     ->everyMinute()
     ->withoutOverlapping();
