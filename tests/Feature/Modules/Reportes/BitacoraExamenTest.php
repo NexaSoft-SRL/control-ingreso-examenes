@@ -286,7 +286,7 @@ final class BitacoraExamenTest extends TestCase
         $segunda->assertJsonFragment(['detalle' => 'Verificación especial con excepción']);
 
         $this->actingAs($cuenta)
-            ->getJson("{$ruta}?buscar=Verificaci%C3%B3n%20especial")
+            ->getJson("{$ruta}?buscar=Verificacion%20especial")
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.detalle', 'Verificación especial con excepción');

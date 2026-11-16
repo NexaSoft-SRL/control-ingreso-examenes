@@ -11,13 +11,21 @@ use App\Modules\Reportes\Domain\Enums\GravedadIncidencia;
 use App\Modules\Reportes\Http\Requests\FiltrosBitacoraExamenRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
-use Illuminate\Support\Str;
 
 /**
  * La bitacora de un examen, igual para el docente y para el administrador.
  */
 trait RespondeBitacora
 {
+    private const SIN_TILDES = [
+        'á' => 'a', 'à' => 'a', 'ä' => 'a', 'â' => 'a',
+        'é' => 'e', 'è' => 'e', 'ë' => 'e', 'ê' => 'e',
+        'í' => 'i', 'ì' => 'i', 'ï' => 'i', 'î' => 'i',
+        'ñ' => 'n',
+        'ó' => 'o', 'ò' => 'o', 'ö' => 'o', 'ô' => 'o',
+        'ú' => 'u', 'ù' => 'u', 'ü' => 'u', 'û' => 'u',
+    ];
+
     /**
      * @param  BitacoraExamenData|null  $bitacora  null si el examen no existe
      */
@@ -128,9 +136,8 @@ trait RespondeBitacora
 
     private function normalizarBusqueda(string $texto): string
     {
-        $normalizado = Str::ascii($texto);
-        $normalizado = mb_strtolower($normalizado);
+        $normalizado = strtr(mb_strtolower($texto), self::SIN_TILDES);
 
-        return preg_replace('/\s+/', ' ', trim($normalizado)) ?? '';
+        return preg_replace('/\s+/u', ' ', trim($normalizado)) ?? '';
     }
 }
