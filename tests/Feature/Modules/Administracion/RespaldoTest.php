@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\UsuarioConPermisos;
 use Tests\TestCase;
 
@@ -337,24 +338,91 @@ final class RespaldoTest extends TestCase
     {
         $this->travelTo('2026-10-12 03:00:00');
         $respaldo = $this->generar();
+        $this->examenDeLas10();
 
-        $periodoId = DB::table('periodos')->insertGetId([
-            'codigo' => '2-2026',
-            'anio' => 2026,
-            'numero' => 2,
-            'tipo' => 'SEMESTRAL',
-            'fecha_inicio' => '2026-08-01',
-            'fecha_fin' => '2026-12-31',
-        ]);
+        // Intentar restaurar a las 10:30 durante el examen activo
+        $this->travelTo('2026-10-12 10:30:00');
 
-        $asignaturaId = DB::table('asignaturas')->insertGetId([
-            'codigo' => '2010010',
-            'nombre' => 'Taller de Ingeniería de Software',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $this->actingAs($this->administrador)
+            ->postJson("/api/respaldos/{$respaldo['id']}/restaurar")
+            ->assertStatus(409)
+            ->assertJsonPath('codigo', 'EXAMEN_EN_CURSO')
+            ->assertJsonPath('message', 'No se puede restaurar la base de datos mientras haya un examen en curso.');
+    }
 
-        DB::table('examenes')->insert([
+    /**
+     * La puerta registra ingresos desde una hora antes del inicio hasta que
+     * el docente finaliza el examen: en todo ese tramo no se restaura.
+     *
+     * @return array<string, array{string}>
+     */
+    public static function momentosConLaPuertaAbierta(): array
+    {
+        return [
+            'puerta abierta antes del inicio' => ['2026-10-12 09:15:00'],
+            'pasada la hora de fin, sin finalizar' => ['2026-10-12 12:30:00'],
+        ];
+    }
+
+    #[DataProvider('momentosConLaPuertaAbierta')]
+    public function test_cannot_restore_while_the_door_of_an_exam_is_open(string $momento): void
+    {
+        $this->travelTo('2026-10-12 03:00:00');
+        $respaldo = $this->generar();
+        $this->examenDeLas10();
+        $this->travelTo($momento);
+
+        $this->actingAs($this->administrador)
+            ->postJson("/api/respaldos/{$respaldo['id']}/restaurar")
+            ->assertStatus(409)
+            ->assertJsonPath('codigo', 'EXAMEN_EN_CURSO');
+    }
+
+    public function test_can_restore_before_the_door_opens_and_after_the_exam_is_finalized(): void
+    {
+        $this->travelTo('2026-10-12 03:00:00');
+        $respaldo = $this->generar();
+        $examenId = $this->examenDeLas10();
+
+        $this->travelTo('2026-10-12 08:30:00');
+        $this->actingAs($this->administrador)
+            ->postJson("/api/respaldos/{$respaldo['id']}/restaurar")
+            ->assertOk();
+
+        $examenId = $this->examenDeLas10();
+        $this->travelTo('2026-10-12 11:00:00');
+        DB::table('examenes')->where('id', $examenId)->update(['finalizado_en' => now()]);
+        $this->travelTo('2026-10-12 11:05:00');
+
+        $this->actingAs($this->administrador)
+            ->postJson("/api/respaldos/{$respaldo['id']}/restaurar")
+            ->assertOk();
+    }
+
+    /**
+     * Un examen el 12 de octubre de 10:00 a 12:00, sin finalizar.
+     */
+    private function examenDeLas10(): int
+    {
+        $periodoId = DB::table('periodos')->where('codigo', '2-2026')->value('id')
+            ?? DB::table('periodos')->insertGetId([
+                'codigo' => '2-2026',
+                'anio' => 2026,
+                'numero' => 2,
+                'tipo' => 'SEMESTRAL',
+                'fecha_inicio' => '2026-08-01',
+                'fecha_fin' => '2026-12-31',
+            ]);
+
+        $asignaturaId = DB::table('asignaturas')->where('codigo', '2010010')->value('id')
+            ?? DB::table('asignaturas')->insertGetId([
+                'codigo' => '2010010',
+                'nombre' => 'Taller de Ingeniería de Software',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+        return DB::table('examenes')->insertGetId([
             'periodo_id' => $periodoId,
             'asignatura_id' => $asignaturaId,
             'tipo' => 'PARCIAL_1',
@@ -366,14 +434,5 @@ final class RespaldoTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-
-        // Intentar restaurar a las 10:30 durante el examen activo
-        $this->travelTo('2026-10-12 10:30:00');
-
-        $this->actingAs($this->administrador)
-            ->postJson("/api/respaldos/{$respaldo['id']}/restaurar")
-            ->assertStatus(409)
-            ->assertJsonPath('codigo', 'EXAMEN_EN_CURSO')
-            ->assertJsonPath('message', 'No se puede restaurar la base de datos mientras haya un examen en curso.');
     }
 }
