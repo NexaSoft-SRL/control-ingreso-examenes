@@ -95,6 +95,12 @@ function servidor({ generar = null } = {}) {
                 codigo: 'RESPALDO_INCOMPATIBLE',
             });
         }
+        if (id === 16) {
+            return errorHttp(409, {
+                message: 'No se puede restaurar la base de datos mientras haya un examen en curso.',
+                codigo: 'EXAMEN_EN_CURSO',
+            });
+        }
         filas = filas.map((r) => ({ ...r, restaurado: r.id === id }));
         return { message: 'Restaurado al 11 oct 2026, 03:00.', tablas: 34 };
     };
@@ -321,6 +327,27 @@ describe('Respaldo', () => {
         expect(within(rechazada).getByRole('button', { name: /^Descargar/ })).toBeInTheDocument();
         // No se volvió a leer: nada cambió en el servidor.
         expect(api.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('si hay un examen en curso se avisa que no se puede restaurar', async () => {
+        await montar();
+
+        fireEvent.click(
+            within(tabla()).getByRole('button', {
+                name: 'Restaurar el respaldo del 10 oct 2026, 18:20',
+            })
+        );
+        fireEvent.click(
+            within(
+                within(tabla()).getByRole('group', {
+                    name: 'Restaurar el respaldo del 10 oct 2026, 18:20',
+                })
+            ).getByRole('button', { name: 'Restaurar' })
+        );
+
+        expect(
+            await screen.findByText('No se puede restaurar: hay un examen en curso.')
+        ).toBeInTheDocument();
     });
 
     it('sin respaldos dice «Sin respaldos» y no hay «último»', async () => {

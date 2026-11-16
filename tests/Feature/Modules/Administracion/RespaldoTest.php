@@ -332,4 +332,48 @@ final class RespaldoTest extends TestCase
         $this->assertDatabaseCount('respaldos', 1);
         $this->assertDatabaseMissing('bitacora_operaciones', ['operacion' => 'respaldo.restaurar']);
     }
+
+    public function test_cannot_restore_when_an_exam_is_currently_in_progress(): void
+    {
+        $this->travelTo('2026-10-12 03:00:00');
+        $respaldo = $this->generar();
+
+        $periodoId = DB::table('periodos')->insertGetId([
+            'codigo' => '2-2026',
+            'anio' => 2026,
+            'numero' => 2,
+            'tipo' => 'SEMESTRAL',
+            'fecha_inicio' => '2026-08-01',
+            'fecha_fin' => '2026-12-31',
+        ]);
+
+        $asignaturaId = DB::table('asignaturas')->insertGetId([
+            'codigo' => '2010010',
+            'nombre' => 'Taller de Ingeniería de Software',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('examenes')->insert([
+            'periodo_id' => $periodoId,
+            'asignatura_id' => $asignaturaId,
+            'tipo' => 'PARCIAL_1',
+            'fecha' => '2026-10-12',
+            'hora_inicio' => '10:00:00',
+            'duracion_minutos' => 120,
+            'creado_por' => $this->administrador->id,
+            'finalizado_en' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Intentar restaurar a las 10:30 durante el examen activo
+        $this->travelTo('2026-10-12 10:30:00');
+
+        $this->actingAs($this->administrador)
+            ->postJson("/api/respaldos/{$respaldo['id']}/restaurar")
+            ->assertStatus(409)
+            ->assertJsonPath('codigo', 'EXAMEN_EN_CURSO')
+            ->assertJsonPath('message', 'No se puede restaurar la base de datos mientras haya un examen en curso.');
+    }
 }
