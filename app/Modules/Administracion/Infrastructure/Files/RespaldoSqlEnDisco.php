@@ -192,6 +192,24 @@ final class RespaldoSqlEnDisco implements RespaldoGateway
         ) === 1;
     }
 
+    public function hayExamenEnCurso(): bool
+    {
+        if (! Schema::hasTable('examenes')) {
+            return false;
+        }
+
+        $ahora = now();
+        $hoy = $ahora->toDateString();
+        $hora = $ahora->format('H:i:s');
+
+        return DB::table('examenes')
+            ->whereDate('fecha', $hoy)
+            ->whereNull('finalizado_en')
+            ->where('hora_inicio', '<=', $hora)
+            ->whereRaw("(hora_inicio + (duracion_minutos * interval '1 minute')) >= ?", [$hora])
+            ->exists();
+    }
+
     public function restaurar(int $respaldoId, ?int $usuarioId): int
     {
         $contenido = $this->contenido($respaldoId);

@@ -40,6 +40,11 @@ interface RespaldoGateway
     public function esCompatible(string $contenido): bool;
 
     /**
+     * Si hay algun examen activo o en curso en este momento (evaluacion en vivo).
+     */
+    public function hayExamenEnCurso(): bool;
+
+    /**
      * Repone los datos del respaldo, conserva el historial de respaldos,
      * marca la fila como restaurada y lo asienta en la bitacora, todo en
      * una transaccion. Devuelve cuantas tablas se repusieron.
