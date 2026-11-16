@@ -95,7 +95,7 @@ final class EloquentReporteGateway implements ReporteGateway
     /**
      * @var array<string, string>
      */
-    private const TIPOS = [
+    public const TIPOS = [
         'PRIMER_PARCIAL' => 'Primer parcial',
         'SEGUNDO_PARCIAL' => 'Segundo parcial',
         'FINAL' => 'Examen final',
