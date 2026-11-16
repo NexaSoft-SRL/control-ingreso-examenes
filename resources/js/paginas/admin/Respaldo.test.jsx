@@ -346,7 +346,7 @@ describe('Respaldo', () => {
         );
 
         expect(
-            await screen.findByText('No se puede restaurar: hay un examen en curso.')
+            await screen.findByText('No se puede restaurar: hay un examen en curso')
         ).toBeInTheDocument();
     });
 

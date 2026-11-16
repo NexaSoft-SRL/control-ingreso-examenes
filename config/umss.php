@@ -29,4 +29,9 @@ return [
 
     // La puerta de un examen abre estos minutos antes de su inicio.
     'minutos_apertura' => (int) env('UMSS_MINUTOS_APERTURA', 60),
+
+    // El servidor no tiene tareas programadas: las alertas de reportes de los
+    // examenes cerrados se procesan al terminar una peticion web, una vez por
+    // minuto como mucho. Con `false` quedan solo para el programador.
+    'alertas_al_responder' => (bool) env('UMSS_ALERTAS_AL_RESPONDER', true),
 ];

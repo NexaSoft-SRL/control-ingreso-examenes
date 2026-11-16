@@ -56,6 +56,52 @@ final class AlertasReportesTest extends TestCase
         ])->assertUnprocessable();
     }
 
+    public function test_alerts_are_processed_after_a_web_request_without_a_scheduler(): void
+    {
+        Mail::fake();
+        config(['umss.alertas_al_responder' => true]);
+        $docente = $this->docente('Blanco Coca Leticia');
+        $grupo = $this->grupo($docente);
+        $examen = $this->examen($docente, [$grupo]);
+        $aula = $this->aula();
+        $estudiantes = $this->estudiantesInscritos($grupo, 4);
+        $this->habilitar($examen, $estudiantes, $aula);
+        $this->ingresar($examen, $estudiantes[0], $aula);
+        DB::table('examenes')->where('id', $examen->id)->update(['finalizado_en' => now()]);
+
+        $cuenta = $this->cuentaDe($docente);
+        $this->actingAs($cuenta)->getJson('/api/reportes/alertas')->assertOk();
+
+        $this->assertDatabaseHas('alertas_reportes', [
+            'user_id' => $cuenta->id,
+            'examen_id' => $examen->id,
+            'tipo' => 'ASISTENCIA_BAJA',
+        ]);
+        $this->assertDatabaseHas('alertas_reportes_procesadas', ['examen_id' => $examen->id]);
+
+        // En el mismo minuto no se vuelve a procesar.
+        $otro = $this->examen($docente, [$grupo]);
+        DB::table('examenes')->where('id', $otro->id)->update(['finalizado_en' => now()]);
+        $this->getJson('/api/reportes/alertas')->assertOk();
+        $this->assertDatabaseMissing('alertas_reportes_procesadas', ['examen_id' => $otro->id]);
+
+        $this->travel(61)->seconds();
+        $this->getJson('/api/reportes/alertas')->assertOk();
+        $this->assertDatabaseHas('alertas_reportes_procesadas', ['examen_id' => $otro->id]);
+    }
+
+    public function test_without_the_option_a_web_request_does_not_process_alerts(): void
+    {
+        config(['umss.alertas_al_responder' => false]);
+        $docente = $this->docente('Blanco Coca Leticia');
+        $examen = $this->examen($docente, [$this->grupo($docente)]);
+        DB::table('examenes')->where('id', $examen->id)->update(['finalizado_en' => now()]);
+
+        $this->actingAs($this->cuentaDe($docente))->getJson('/api/reportes/alertas')->assertOk();
+
+        $this->assertDatabaseMissing('alertas_reportes_procesadas', ['examen_id' => $examen->id]);
+    }
+
     public function test_closed_exam_alerts_are_queued_once_and_not_duplicated(): void
     {
         Mail::fake();

@@ -124,7 +124,7 @@ export default function Respaldo() {
                     return undefined;
                 }
                 if (codigoDe(rechazo) === 'EXAMEN_EN_CURSO') {
-                    avisar('No se puede restaurar: hay un examen en curso.', 'error');
+                    avisar('No se puede restaurar: hay un examen en curso', 'error');
                     return undefined;
                 }
                 avisar(sinPunto(mensajeDe(rechazo, 'No se pudo restaurar')), 'error');

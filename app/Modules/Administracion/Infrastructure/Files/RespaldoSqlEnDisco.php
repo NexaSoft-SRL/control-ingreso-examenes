@@ -192,21 +192,24 @@ final class RespaldoSqlEnDisco implements RespaldoGateway
         ) === 1;
     }
 
+    /**
+     * La misma ventana en la que la puerta registra ingresos: desde que abre,
+     * `umss.minutos_apertura` antes del inicio, hasta que el docente finaliza
+     * el examen o, si no lo hace, hasta el final de su dia.
+     */
     public function hayExamenEnCurso(): bool
     {
         if (! Schema::hasTable('examenes')) {
             return false;
         }
 
-        $ahora = now();
-        $hoy = $ahora->toDateString();
-        $hora = $ahora->format('H:i:s');
+        $apertura = config('umss.minutos_apertura', 60);
+        $apertura = is_numeric($apertura) ? (int) $apertura : 60;
+        $ahora = now()->format('Y-m-d H:i:s');
 
         return DB::table('examenes')
-            ->whereDate('fecha', $hoy)
-            ->whereNull('finalizado_en')
-            ->where('hora_inicio', '<=', $hora)
-            ->whereRaw("(hora_inicio + (duracion_minutos * interval '1 minute')) >= ?", [$hora])
+            ->whereRaw("(fecha + hora_inicio) - (? * interval '1 minute') <= ?::timestamp", [$apertura, $ahora])
+            ->whereRaw("?::timestamp < coalesce(finalizado_en, fecha + interval '1 day')", [$ahora])
             ->exists();
     }
 

@@ -6,6 +6,7 @@ import EstadoCarga from '../../componentes/EstadoCarga';
 import Tarjeta from '../../componentes/Tarjeta';
 import BotonesDescarga from './BotonesDescarga';
 import AlertasReportes from './AlertasReportes';
+import { fechaCorta } from '../../utiles/texto';
 
 const SIN_EXAMENES = [];
 
@@ -72,52 +73,44 @@ export default function ComparacionReportes() {
                 textoVacio="No hay exámenes para comparar"
                 onReintentar={opciones.recargar}
             >
-                <Tarjeta titulo="Comparar períodos">
-                    <p className="mb-4 text-sm text-slate-600">
-                        Selecciona al menos dos períodos. El porcentaje de asistencia se calcula
-                        sobre el total de estudiantes habilitados de los exámenes rendidos.
-                    </p>
-                    <div className="flex flex-wrap gap-3">
-                        {periodos.map((periodo) => (
-                            <label
-                                key={periodo.id}
-                                className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm text-slate-800"
+                {periodos.length >= 2 && (
+                    <Tarjeta titulo="Comparar períodos">
+                        <div className="flex flex-wrap gap-3">
+                            {periodos.map((periodo) => (
+                                <label
+                                    key={periodo.id}
+                                    className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm text-slate-800"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        aria-label={`Período ${periodo.codigo}`}
+                                        checked={periodosElegidos.includes(periodo.id)}
+                                        onChange={() => alternarPeriodo(periodo.id)}
+                                        className="h-4 w-4 accent-primary-700"
+                                    />
+                                    <span>
+                                        {periodo.codigo} · {periodo.examenes} exámenes
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                        {periodosElegidos.length >= 2 && (
+                            <EstadoCarga
+                                cargando={resultadoPeriodos.cargando}
+                                error={resultadoPeriodos.error}
+                                onReintentar={resultadoPeriodos.recargar}
+                                filas={2}
                             >
-                                <input
-                                    type="checkbox"
-                                    aria-label={`Período ${periodo.codigo}`}
-                                    checked={periodosElegidos.includes(periodo.id)}
-                                    onChange={() => alternarPeriodo(periodo.id)}
-                                    className="h-4 w-4 accent-primary-700"
-                                />
-                                <span>
-                                    {periodo.codigo} · {periodo.examenes} exámenes
-                                </span>
-                            </label>
-                        ))}
-                    </div>
-                    {periodosElegidos.length >= 2 && (
-                        <EstadoCarga
-                            cargando={resultadoPeriodos.cargando}
-                            error={resultadoPeriodos.error}
-                            onReintentar={resultadoPeriodos.recargar}
-                            filas={2}
-                        >
-                            <TablaPeriodos periodos={resultadoPeriodos.datos?.periodos ?? []} />
-                        </EstadoCarga>
-                    )}
-                </Tarjeta>
+                                <TablaPeriodos periodos={resultadoPeriodos.datos?.periodos ?? []} />
+                            </EstadoCarga>
+                        )}
+                    </Tarjeta>
+                )}
 
                 <Tarjeta titulo="Comparar exámenes">
-                    <p className="mb-4 text-sm text-slate-600">
-                        Selecciona entre dos y veinte exámenes rendidos. Sin períodos seleccionados,
-                        se muestran los exámenes de todos tus períodos.
-                    </p>
                     <div className="max-h-72 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
                         {disponibles.length === 0 ? (
-                            <p className="p-3 text-sm text-slate-600">
-                                No hay exámenes rendidos en los períodos elegidos.
-                            </p>
+                            <p className="p-3 text-sm text-slate-600">Sin exámenes rendidos</p>
                         ) : (
                             disponibles.map((examen) => (
                                 <label
@@ -126,7 +119,7 @@ export default function ComparacionReportes() {
                                 >
                                     <input
                                         type="checkbox"
-                                        aria-label={`Examen ${examen.asignatura}, ${examen.tipo}, ${examen.fecha}`}
+                                        aria-label={`Examen ${examen.asignatura}, ${examen.tipo}, ${fechaCorta(examen.fecha)}`}
                                         checked={examenesElegidos.includes(examen.id)}
                                         disabled={
                                             !examenesElegidos.includes(examen.id) &&
@@ -136,7 +129,8 @@ export default function ComparacionReportes() {
                                         className="h-4 w-4 accent-primary-700"
                                     />
                                     <span className="min-w-0 flex-1 truncate">
-                                        {examen.asignatura} · {examen.tipo} · {examen.fecha}
+                                        {examen.asignatura} · {examen.tipo} ·{' '}
+                                        {fechaCorta(examen.fecha)}
                                     </span>
                                     <span className="shrink-0 text-xs text-slate-500">
                                         {examen.periodo} · {examen.asistencia}% asistencia
@@ -147,7 +141,7 @@ export default function ComparacionReportes() {
                     </div>
                     {examenesElegidos.length > 0 && (
                         <p className="mt-2 text-xs text-slate-600" aria-live="polite">
-                            {examenesElegidos.length} de 20 exámenes seleccionados
+                            {examenesElegidos.length} de 20 elegidos
                         </p>
                     )}
                     {examenesElegidos.length >= 2 && (
@@ -214,7 +208,7 @@ function TablaPeriodos({ periodos }) {
 
 function TablaExamenes({ examenes }) {
     if (examenes.length === 0) {
-        return <p className="text-sm text-slate-600">Elige al menos dos exámenes rendidos.</p>;
+        return <p className="text-sm text-slate-600">Mínimo dos exámenes rendidos</p>;
     }
 
     return (
@@ -234,7 +228,7 @@ function TablaExamenes({ examenes }) {
                     {examenes.map((examen) => (
                         <tr key={examen.id}>
                             <th scope="row" className="py-3 pr-3 font-medium">
-                                {examen.asignatura} · {examen.tipo} · {examen.fecha}
+                                {examen.asignatura} · {examen.tipo} · {fechaCorta(examen.fecha)}
                             </th>
                             <td className="px-3 py-3">{examen.periodo}</td>
                             <td className="px-3 py-3">
