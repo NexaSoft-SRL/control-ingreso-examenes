@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Modules\Estudiantes;
 
+use App\Modules\Estudiantes\Domain\Enums\OrigenEstudiante;
 use App\Modules\Estudiantes\Domain\Models\Estudiante;
 use App\Modules\Estudiantes\Infrastructure\Mail\CodigoAccesoMail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Tests\Feature\Modules\Ingreso\EscenarioDePuerta;
+use Tests\Support\DatosAcademicos;
 use Tests\TestCase;
 
 /**
@@ -20,6 +22,7 @@ use Tests\TestCase;
  */
 final class PortalEstudianteTest extends TestCase
 {
+    use DatosAcademicos;
     use EscenarioDePuerta;
     use RefreshDatabase;
 
@@ -91,13 +94,198 @@ final class PortalEstudianteTest extends TestCase
         $this->assertSame(64, strlen($hash));
     }
 
-    public function test_an_unknown_code_answers_the_same_and_sends_nothing(): void
+    public function test_an_unknown_code_gets_a_real_code_at_its_own_address(): void
     {
         $this->postJson('/api/auth/estudiante/codigo', ['codigo_universitario' => '199900001'])
             ->assertOk()
-            ->assertJsonPath('message', 'Código enviado.');
+            ->assertJsonPath('message', 'Código enviado.')
+            ->assertJsonPath('correo', '1999•••01@est.umss.edu');
 
-        Mail::assertNothingSent();
+        Mail::assertSent(CodigoAccesoMail::class, fn (CodigoAccesoMail $correo): bool => $correo->hasTo('199900001@est.umss.edu')
+            && preg_match('/^\d{6}$/', $correo->codigo) === 1);
+        // Sin fila en el padron: nadie queda registrado por pedir un codigo.
+        $this->assertDatabaseMissing('estudiantes', ['codigo_universitario' => '199900001']);
+    }
+
+    /**
+     * Quien no esta en el padron pide su codigo y prueba su correo.
+     */
+    private function verificarCorreo(string $sis): void
+    {
+        $this->postJson('/api/auth/estudiante/codigo', ['codigo_universitario' => $sis])->assertOk();
+
+        $codigo = null;
+        Mail::assertSent(CodigoAccesoMail::class, function (CodigoAccesoMail $correo) use (&$codigo, $sis): bool {
+            if ($correo->hasTo($sis.'@est.umss.edu')) {
+                $codigo = $correo->codigo;
+            }
+
+            return true;
+        });
+        self::assertIsString($codigo);
+
+        $this->postJson('/api/auth/estudiante', ['codigo_universitario' => $sis, 'codigo' => $codigo])
+            ->assertOk()
+            ->assertJsonPath('registro.codigo_universitario', $sis);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function datosPropios(): array
+    {
+        $carreraId = DB::table('carreras')->value('id');
+
+        if ($carreraId === null) {
+            $carreraId = DB::table('carreras')->insertGetId([
+                'facultad_id' => $this->facultad()->id,
+                'codigo' => 'ISI',
+                'nombre' => 'Ingeniería de Sistemas',
+                'regimen' => 'SEMESTRAL',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        self::assertIsInt($carreraId);
+
+        return [
+            'documento' => '5003748',
+            'nombres' => 'Rodrigo Andres',
+            'apellidos' => 'Velasquez Rojas',
+            'carrera_id' => $carreraId,
+            'confirmo' => true,
+        ];
+    }
+
+    public function test_a_student_not_in_the_roll_registers_himself_after_proving_his_mail(): void
+    {
+        $this->verificarCorreo('199900001');
+
+        $this->getJson('/api/auth/estudiante/carreras')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+        $datos = $this->datosPropios();
+
+        $this->getJson('/api/auth/estudiante/carreras')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $datos['carrera_id'])
+            ->assertJsonPath('data.0.nombre', 'Ingeniería de Sistemas')
+            ->assertJsonPath('data.0.facultad_id', DB::table('carreras')->value('facultad_id'));
+
+        $this->postJson('/api/auth/estudiante/registro', $datos)
+            ->assertCreated()
+            ->assertJsonPath('estudiante.codigo', '199900001')
+            ->assertJsonPath('estudiante.nombre', 'Velasquez Rojas Rodrigo Andres');
+
+        $guardado = Estudiante::query()->where('codigo_universitario', '199900001')->sole();
+        $this->assertSame(OrigenEstudiante::Estudiante, $guardado->origen);
+        $this->assertFalse($guardado->verificado);
+        $this->assertSame($datos['carrera_id'], $guardado->carrera_id);
+        $this->assertNotNull($guardado->facultad_id);
+
+        // Queda con la sesion abierta, como quien entro con su codigo.
+        $this->getJson('/api/estudiante/sesion')->assertOk()->assertJsonPath('estudiante.id', $guardado->id);
+        // El codigo valio una sola vez.
+        $this->postJson('/api/auth/estudiante/registro', $datos)->assertUnauthorized();
+    }
+
+    public function test_a_student_writes_his_carnet_once_and_cannot_change_it(): void
+    {
+        $this->estudiante->update(['documento_identidad' => null]);
+        $this->entrar();
+
+        $this->getJson('/api/estudiante/sesion')->assertOk()->assertJsonPath('estudiante.con_carnet', false);
+
+        // Sin confirmar que reviso sus datos no se guarda.
+        $this->postJson('/api/estudiante/carnet', ['documento' => '5003748'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['confirmo']);
+
+        $this->postJson('/api/estudiante/carnet', ['documento' => '5003748', 'confirmo' => true])
+            ->assertCreated()
+            ->assertJsonPath('estudiante.con_carnet', true);
+        $this->assertSame('5003748', $this->estudiante->refresh()->documento_identidad);
+
+        // Despues no lo modifica.
+        $this->postJson('/api/estudiante/carnet', ['documento' => '7777777', 'confirmo' => true])
+            ->assertStatus(409);
+        $this->assertSame('5003748', $this->estudiante->refresh()->documento_identidad);
+    }
+
+    public function test_a_carnet_of_another_student_is_rejected(): void
+    {
+        $this->estudiante->update(['documento_identidad' => null]);
+        Estudiante::query()->where('id', '<>', $this->estudiante->id)->limit(1)->get();
+        $otro = Estudiante::query()->create([
+            'codigo_universitario' => '199900002',
+            'documento_identidad' => '5003748',
+            'nombres' => 'Otra',
+            'apellidos' => 'Persona',
+            'origen' => OrigenEstudiante::Administracion,
+            'verificado' => true,
+            'activo' => true,
+        ]);
+        $this->entrar();
+
+        $this->postJson('/api/estudiante/carnet', ['documento' => '5003748', 'confirmo' => true])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['documento']);
+        $this->assertNull($this->estudiante->refresh()->documento_identidad);
+        $this->assertSame('5003748', $otro->refresh()->documento_identidad);
+    }
+
+    public function test_the_form_is_closed_to_who_did_not_prove_his_mail(): void
+    {
+        $this->getJson('/api/auth/estudiante/carreras')->assertUnauthorized();
+        $this->postJson('/api/auth/estudiante/registro', $this->datosPropios())->assertUnauthorized();
+        $this->assertDatabaseMissing('estudiantes', ['codigo_universitario' => '199900001']);
+    }
+
+    public function test_a_wrong_code_of_an_unknown_student_counts_attempts_like_a_real_one(): void
+    {
+        $this->postJson('/api/auth/estudiante/codigo', ['codigo_universitario' => '199900001'])->assertOk();
+
+        $this->postJson('/api/auth/estudiante', ['codigo_universitario' => '199900001', 'codigo' => '000000'])
+            ->assertStatus(422)
+            ->assertJsonPath('intentos_restantes', 4);
+        $this->getJson('/api/auth/estudiante/carreras')->assertUnauthorized();
+    }
+
+    public function test_a_document_that_belongs_to_another_student_is_rejected(): void
+    {
+        $this->verificarCorreo('199900001');
+        $datos = $this->datosPropios();
+        $this->estudiante->update(['documento_identidad' => $datos['documento']]);
+
+        $this->postJson('/api/auth/estudiante/registro', $datos)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['documento']);
+        $this->assertDatabaseMissing('estudiantes', ['codigo_universitario' => '199900001']);
+    }
+
+    public function test_registering_requires_to_confirm_the_data_were_reviewed(): void
+    {
+        $this->verificarCorreo('199900001');
+        $datos = $this->datosPropios();
+        unset($datos['confirmo']);
+
+        $this->postJson('/api/auth/estudiante/registro', $datos)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['confirmo']);
+        $this->assertDatabaseMissing('estudiantes', ['codigo_universitario' => '199900001']);
+    }
+
+    public function test_the_data_has_the_same_rules_as_a_load(): void
+    {
+        $this->verificarCorreo('199900001');
+
+        $this->postJson('/api/auth/estudiante/registro', [
+            'documento' => 'abc',
+            'nombres' => '1',
+            'apellidos' => '',
+            'carrera_id' => 99999,
+        ])->assertStatus(422)->assertJsonValidationErrors(['documento', 'nombres', 'apellidos', 'carrera_id']);
     }
 
     public function test_the_student_enters_with_the_code_once(): void

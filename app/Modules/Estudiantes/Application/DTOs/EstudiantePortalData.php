@@ -15,10 +15,11 @@ final readonly class EstudiantePortalData
         public string $nombre,
         public string $correo,
         public bool $conFoto,
+        public bool $conCarnet = true,
     ) {}
 
     /**
-     * @return array{id: int, codigo: string, nombre: string, correo: string, con_foto: bool}
+     * @return array{id: int, codigo: string, nombre: string, correo: string, con_foto: bool, con_carnet: bool}
      */
     public function comoArreglo(): array
     {
@@ -28,6 +29,7 @@ final readonly class EstudiantePortalData
             'nombre' => $this->nombre,
             'correo' => $this->correo,
             'con_foto' => $this->conFoto,
+            'con_carnet' => $this->conCarnet,
         ];
     }
 }

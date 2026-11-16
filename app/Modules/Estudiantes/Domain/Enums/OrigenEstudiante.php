@@ -7,12 +7,15 @@ namespace App\Modules\Estudiantes\Domain\Enums;
 /**
  * Quien trajo al estudiante o su inscripcion: una carga de administracion
  * o la lista que sube un docente para su grupo. Es tambien la via de una
- * inscripcion y de un conflicto.
+ * inscripcion y de un conflicto. `Estudiante` es quien se empadrono solo
+ * tras verificar su correo: es el origen de menos peso, lo que cargue un
+ * docente o la administracion lo reemplaza.
  */
 enum OrigenEstudiante: string
 {
     case Administracion = 'ADMINISTRACION';
     case Docente = 'DOCENTE';
+    case Estudiante = 'ESTUDIANTE';
 
     /**
      * @return list<string>
@@ -30,6 +33,7 @@ enum OrigenEstudiante: string
         return match ($this) {
             self::Administracion => 'Administración',
             self::Docente => 'Docente',
+            self::Estudiante => 'Estudiante',
         };
     }
 }

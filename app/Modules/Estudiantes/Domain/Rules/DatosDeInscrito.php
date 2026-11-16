@@ -73,7 +73,13 @@ final class DatosDeInscrito
         string $nombres,
         string $apellidos,
     ): ?TipoConflicto {
-        if (self::documento((string) $documentoGuardado) !== self::documento($documento)) {
+        // El carnet lo escribe el estudiante: si falta de un lado no hay con
+        // que compararlo y solo cuentan los nombres.
+        if (
+            self::documento((string) $documentoGuardado) !== ''
+            && self::documento($documento) !== ''
+            && self::documento((string) $documentoGuardado) !== self::documento($documento)
+        ) {
             return TipoConflicto::DocumentoDistinto;
         }
 

@@ -17,6 +17,7 @@ final readonly class EstudianteData
         public string $nombres,
         public string $apellidos,
         public bool $verificado,
+        public bool $autoempadronado = false,
     ) {}
 
     public function nombreCompleto(): string
