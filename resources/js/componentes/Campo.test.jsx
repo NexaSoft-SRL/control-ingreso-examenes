@@ -68,4 +68,30 @@ describe('Campo', () => {
         fireEvent.blur(screen.getByLabelText(/Correo/));
         expect(screen.queryByText('Obligatorio')).not.toBeInTheDocument();
     });
+
+    it('muestra y oculta la contraseña con el ojito, sin perder lo escrito', () => {
+        render(<Campo etiqueta="Contraseña" type="password" />);
+        const campo = screen.getByLabelText('Contraseña');
+        fireEvent.change(campo, { target: { value: 'Clave-segura1' } });
+
+        expect(campo).toHaveAttribute('type', 'password');
+        const ojito = screen.getByRole('button', { name: 'Mostrar contraseña' });
+        expect(ojito).toHaveAttribute('aria-pressed', 'false');
+
+        fireEvent.click(ojito);
+        expect(campo).toHaveAttribute('type', 'text');
+        expect(campo).toHaveValue('Clave-segura1');
+        expect(screen.getByRole('button', { name: 'Ocultar contraseña' })).toHaveAttribute(
+            'aria-pressed',
+            'true'
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Ocultar contraseña' }));
+        expect(campo).toHaveAttribute('type', 'password');
+    });
+
+    it('solo las contraseñas llevan el ojito', () => {
+        render(<Campo etiqueta="Usuario" />);
+        expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    });
 });

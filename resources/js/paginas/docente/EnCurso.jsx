@@ -12,6 +12,7 @@ import Boton from '../../componentes/Boton';
 import Chips from '../../componentes/Chips';
 import Dato from '../../componentes/Dato';
 import Dialogo from '../../componentes/Dialogo';
+import Seleccion from '../../componentes/Seleccion';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
 import SinActividad from '../../componentes/SinActividad';
@@ -388,10 +389,11 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
                                     },
                                 ]}
                             />
-                            <label className="flex min-h-10 items-center gap-2 text-sm text-slate-600">
+                            <div className="flex items-center gap-2 text-sm text-slate-600">
                                 Orden
-                                <select
-                                    className="min-h-10 rounded-lg border border-slate-300 bg-white pl-3 text-sm font-medium text-slate-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                                <Seleccion
+                                    aria-label="Orden"
+                                    className="w-52"
                                     value={orden}
                                     onChange={(e) => setOrden(e.target.value)}
                                 >
@@ -400,8 +402,8 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
                                             {texto}
                                         </option>
                                     ))}
-                                </select>
-                            </label>
+                                </Seleccion>
+                            </div>
                         </div>
                     )}
 

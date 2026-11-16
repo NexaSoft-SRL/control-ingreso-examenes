@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Usuarios from './Usuarios';
 import { api } from '../../api/cliente';
 import RutaProtegida from '../../sesion/RutaProtegida';
-import { errorHttp, renderConSesion, simularApi, usuarioDePrueba } from '../../test/apoyo';
+import { errorHttp, renderConSesion, simularApi, usuarioDePrueba, listaDe } from '../../test/apoyo';
 
 vi.mock('../../api/cliente');
 
@@ -458,7 +458,7 @@ describe('Usuarios y roles · cuentas', () => {
         // El rol del filtro vigente es el propuesto; los roles son los que existen.
         const selector = within(dialogo).getByLabelText(/^Rol/);
         expect(selector).toHaveValue('Coordinador');
-        expect(within(selector).getAllByRole('option')).toHaveLength(4);
+        expect(within(listaDe(selector)).getAllByRole('option')).toHaveLength(4);
         escribir(dialogo, 'Nombre', '  Quispe Ana  ');
         escribir(dialogo, 'Usuario', 'Ana.Quispe');
         escribir(dialogo, 'Rol', 'Auxiliar');
@@ -810,7 +810,7 @@ describe('Usuarios y roles · permisos por rol', () => {
 
         const cuenta = abrirNuevoUsuario();
         expect(
-            within(within(cuenta).getByLabelText(/^Rol/))
+            within(listaDe(within(cuenta).getByLabelText(/^Rol/)))
                 .getAllByRole('option')
                 .map((o) => o.textContent)
         ).toEqual(['Administrador', 'Docente', 'Auxiliar', 'Coordinador', 'Supervisor']);

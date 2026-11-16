@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Padron from './Padron';
 import { api } from '../../api/cliente';
 import descargar from '../../api/descargar';
-import { errorHttp, renderConSesion, simularApi, usuarioDePrueba } from '../../test/apoyo';
+import { errorHttp, renderConSesion, simularApi, usuarioDePrueba, listaDe } from '../../test/apoyo';
 import { normalizar } from '../../utiles/texto';
 
 vi.mock('../../api/cliente');
@@ -450,12 +450,14 @@ describe('Padrón · búsqueda y filtros (criterios 2 a 4)', () => {
 
         const filtro = screen.getByRole('group', { name: 'Filtrar por facultad' });
         const selector = screen.getByLabelText('Filtrar por carrera');
-        await waitFor(() => expect(within(selector).getAllByRole('option')).toHaveLength(4));
+        await waitFor(() =>
+            expect(within(listaDe(selector)).getAllByRole('option')).toHaveLength(4)
+        );
 
         fireEvent.click(within(filtro).getByRole('button', { name: /FCyT/ }));
         await waitFor(() =>
             expect(
-                within(selector)
+                within(listaDe(selector))
                     .getAllByRole('option')
                     .map((o) => o.textContent)
             ).toEqual(['Todas las carreras', 'Licenciatura en Fisica', 'Licenciatura en Biologia'])

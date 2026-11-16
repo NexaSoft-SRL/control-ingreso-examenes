@@ -5,6 +5,7 @@ import { api } from '../../api/cliente';
 import { olvidarEdificios } from '../../api/usarEdificios';
 import {
     errorHttp,
+    listaDe,
     renderConSesion,
     respuestaDiferida,
     simularApi,
@@ -516,9 +517,9 @@ describe('RegistrarExamen · paso 1, examen', () => {
         montar();
 
         fireEvent.click(await screen.findByRole('button', { name: /^Asignatura/ }));
-        const opciones = within(screen.getByRole('listbox', { name: /Asignatura/ })).getAllByRole(
-            'option'
-        );
+        const opciones = within(
+            listaDe(screen.getByRole('listbox', { name: /Asignatura/ }))
+        ).getAllByRole('option');
         expect(opciones.map((o) => o.textContent)).toEqual([
             expect.stringMatching(
                 /^Introducción a la Programación.*2010010 · Grupo 2 · 65 inscritos/
@@ -529,7 +530,7 @@ describe('RegistrarExamen · paso 1, examen', () => {
         fireEvent.keyDown(screen.getByRole('button', { name: /^Asignatura/ }), { key: 'Escape' });
         expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
         expect(
-            within(screen.getByLabelText(/^Tipo/))
+            within(listaDe(screen.getByLabelText(/^Tipo/)))
                 .getAllByRole('option')
                 .map((o) => o.textContent)
         ).toEqual([
@@ -631,8 +632,10 @@ describe('RegistrarExamen · paso 1, examen', () => {
             const tipo = await campo(/^Tipo/);
             expect(tipo).toHaveValue('SEGUNDO_PARCIAL');
             expect(
-                screen.getByRole('option', { name: 'Primer parcial · calendario cerrado' })
-            ).toBeDisabled();
+                within(listaDe(tipo)).getByRole('option', {
+                    name: 'Primer parcial · calendario cerrado',
+                })
+            ).toHaveAttribute('aria-disabled', 'true');
             expect(screen.getByText('Calendario: 19 oct – 31 oct')).toBeInTheDocument();
 
             cambiar(await campo(/^Fecha/), '2026-11-05');
@@ -868,7 +871,7 @@ describe('RegistrarExamen · paso 3, aulas', () => {
         expect(filtro()).toHaveAccessibleName('Edificio: Todos los edificios');
         fireEvent.click(filtro());
         expect(
-            within(screen.getByRole('listbox', { name: 'Edificio' }))
+            within(listaDe(screen.getByRole('listbox', { name: 'Edificio' })))
                 .getAllByRole('option')
                 .map((o) => o.textContent)
         ).toEqual([
@@ -973,7 +976,7 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         expect(aCargo).toHaveValue('7');
         await waitFor(() =>
             expect(
-                within(aCargo)
+                within(listaDe(aCargo))
                     .getAllByRole('option')
                     .map((o) => o.textContent)
             ).toEqual(['Blanco Coca Leticia', 'Rojas Ledezma Andrea', 'Vargas Arce Sergio'])
@@ -989,7 +992,7 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         // Quien queda a cargo no se ofrece como apoyo.
         const apoyo = within(b).getByLabelText('Apoyo');
         expect(
-            within(apoyo)
+            within(listaDe(apoyo))
                 .getAllByRole('option')
                 .map((o) => o.textContent)
         ).toEqual(['Nadie', 'Rojas Ledezma Andrea']);
@@ -1073,7 +1076,7 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
 
         expect(
             ['691A', '691B', '606', '691C'].map(
-                (a) => within(filaDeAula(a)).getByLabelText('A cargo').value
+                (a) => within(filaDeAula(a)).getByLabelText('A cargo').dataset.valor
             )
         ).toEqual(['7', '9', '12', '7']);
         expect(screen.queryByText(/aulas a la vez/)).not.toBeInTheDocument();
@@ -1188,7 +1191,7 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         const aCargo = within(filaDeAula('691B')).getByLabelText('A cargo');
         await waitFor(() =>
             expect(
-                within(aCargo)
+                within(listaDe(aCargo))
                     .getAllByRole('option')
                     .map((o) => o.textContent)
             ).toEqual([
@@ -1200,7 +1203,7 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         );
         // Un docente no se ofrece como apoyo ni cuenta como auxiliar.
         expect(
-            within(within(filaDeAula('691B')).getByLabelText('Apoyo'))
+            within(listaDe(within(filaDeAula('691B')).getByLabelText('Apoyo')))
                 .getAllByRole('option')
                 .map((o) => o.textContent)
         ).toEqual(['Nadie', 'Rojas Ledezma Andrea', 'Vargas Arce Sergio']);
