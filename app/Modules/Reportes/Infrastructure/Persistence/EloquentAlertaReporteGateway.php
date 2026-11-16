@@ -8,6 +8,7 @@ use App\Modules\Reportes\Application\Contracts\AlertaReporteGateway;
 use App\Modules\Reportes\Application\Contracts\ReporteGateway;
 use App\Modules\Reportes\Application\DTOs\AlertaReporteData;
 use App\Modules\Reportes\Application\DTOs\PreferenciasAlertaData;
+use App\Modules\Reportes\Domain\Rules\FechaLegible;
 use App\Modules\Reportes\Infrastructure\Mail\AlertaReporteMail;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -228,7 +229,7 @@ final class EloquentAlertaReporteGateway implements AlertaReporteGateway
                         'mensaje' => sprintf(
                             '%s (%s): asistencia de %d%%, por debajo del umbral configurado de %d%%.',
                             $asignatura,
-                            $fecha,
+                            FechaLegible::dia($fecha),
                             $porcentaje,
                             $asistenciaMinima,
                         ),
@@ -244,7 +245,7 @@ final class EloquentAlertaReporteGateway implements AlertaReporteGateway
                         'mensaje' => sprintf(
                             '%s (%s): se registraron %d incidencias, alcanzando el umbral configurado de %d.',
                             $asignatura,
-                            $fecha,
+                            FechaLegible::dia($fecha),
                             $incidencias,
                             $incidenciasMinimas,
                         ),
@@ -266,8 +267,8 @@ final class EloquentAlertaReporteGateway implements AlertaReporteGateway
                         'id' => $this->entero($alertaId),
                         'email' => $email,
                         'asignatura' => $asignatura,
-                        'tipo_examen' => $tipoExamen,
-                        'fecha' => $fecha,
+                        'tipo_examen' => EloquentReporteGateway::TIPOS[$tipoExamen] ?? $tipoExamen,
+                        'fecha' => FechaLegible::dia($fecha),
                         'titulo' => $candidata['titulo'],
                         'mensaje' => $candidata['mensaje'],
                     ];

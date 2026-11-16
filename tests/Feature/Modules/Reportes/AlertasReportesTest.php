@@ -78,6 +78,14 @@ final class AlertasReportesTest extends TestCase
             'tipo' => 'ASISTENCIA_BAJA',
         ]);
         $this->assertDatabaseHas('alertas_reportes_procesadas', ['examen_id' => $examen->id]);
+        $mensaje = DB::table('alertas_reportes')->where('examen_id', $examen->id)->value('mensaje');
+        self::assertIsString($mensaje);
+        self::assertMatchesRegularExpression('/\(\d{1,2} [a-z]{3} \d{4}\)/', $mensaje);
+        Mail::assertQueued(
+            AlertaReporteMail::class,
+            static fn (AlertaReporteMail $correo): bool => ! str_contains($correo->alerta['tipo_examen'], '_')
+                && preg_match('/^\d{1,2} [a-z]{3} \d{4}$/', $correo->alerta['fecha']) === 1,
+        );
 
         // En el mismo minuto no se vuelve a procesar.
         $otro = $this->examen($docente, [$grupo]);
