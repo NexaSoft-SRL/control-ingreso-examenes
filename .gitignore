@@ -30,6 +30,7 @@ yarn-error.log
 # ---- Paquete de despliegue ----
 /deploy/
 *.zip
+*.mp4
 
 # ---- Editor y sistema ----
 .idea/
