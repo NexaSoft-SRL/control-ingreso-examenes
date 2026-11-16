@@ -19,6 +19,11 @@ Route::middleware(['auth', 'permiso:habilitacion'])->group(function (): void {
         [HabilitacionController::class, 'store'],
     )->whereNumber('examen')->name('habilitacion.cambiar');
 
+    Route::post(
+        '/api/examenes/{examen}/habilitaciones/por-codigos',
+        [HabilitacionController::class, 'porCodigos'],
+    )->whereNumber('examen')->name('habilitacion.por-codigos');
+
     Route::get(
         '/api/examenes/{examen}/habilitaciones/{estudiante}/foto',
         [HabilitacionController::class, 'foto'],

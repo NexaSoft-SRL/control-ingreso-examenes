@@ -1,8 +1,10 @@
 @component('mail::message')
 # Código de acceso
 
+@if ($nombre !== '')
 {{ $nombre }}:
 
+@endif
 Su código para entrar al sistema de control de exámenes es:
 
 @component('mail::panel')

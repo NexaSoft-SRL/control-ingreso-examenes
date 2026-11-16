@@ -20,7 +20,9 @@ use App\Modules\Estudiantes\Domain\Rules\DatosDeInscrito;
  * El docente agrega a un estudiante suelto a la lista de su grupo, con las
  * reglas de una fila del archivo de carga: si no esta en el padron se crea
  * con origen docente; si esta, solo se inscribe, y si sus datos difieren
- * no se tocan: queda el conflicto para la administracion.
+ * no se tocan: queda el conflicto para la administracion. La excepcion es
+ * quien se empadrono solo: sus datos pesan menos y los del docente los
+ * reemplazan.
  */
 final readonly class AgregarInscrito
 {
@@ -68,7 +70,9 @@ final readonly class AgregarInscrito
         $guardado = $this->padron->porCodigos([$codigo])[$codigo] ?? null;
 
         if ($guardado === null) {
-            $dueno = $this->padron->codigosPorDocumento([$alta->documentoIdentidad])[$alta->documentoIdentidad] ?? null;
+            $dueno = $alta->documentoIdentidad === ''
+                ? null
+                : ($this->padron->codigosPorDocumento([$alta->documentoIdentidad])[$alta->documentoIdentidad] ?? null);
 
             if ($dueno !== null && $dueno !== $codigo) {
                 throw new DocumentoEnUsoException;
@@ -83,14 +87,26 @@ final readonly class AgregarInscrito
             throw new YaInscritoException;
         }
 
-        $conflicto = DatosDeInscrito::diferencia(
-            $guardado->documentoIdentidad,
-            $guardado->nombres,
-            $guardado->apellidos,
-            $alta->documentoIdentidad,
-            $alta->nombres,
-            $alta->apellidos,
-        );
+        // Quien se empadrono solo tiene menos peso: los datos del docente
+        // los reemplazan, sin conflicto.
+        if ($guardado->autoempadronado && $alta->documentoIdentidad !== '') {
+            $dueno = $this->padron->codigosPorDocumento([$alta->documentoIdentidad])[$alta->documentoIdentidad] ?? null;
+
+            if ($dueno !== null && $dueno !== $codigo) {
+                throw new DocumentoEnUsoException;
+            }
+        }
+
+        $conflicto = $guardado->autoempadronado
+            ? null
+            : DatosDeInscrito::diferencia(
+                $guardado->documentoIdentidad,
+                $guardado->nombres,
+                $guardado->apellidos,
+                $alta->documentoIdentidad,
+                $alta->nombres,
+                $alta->apellidos,
+            );
 
         $reinscrito = $this->inscripciones->agregar(new AltaDeInscritoData(
             usuarioId: $alta->usuarioId,
@@ -102,6 +118,7 @@ final readonly class AgregarInscrito
             apellidos: $alta->apellidos,
             estudianteId: $guardado->id,
             conflicto: $conflicto,
+            corregir: $guardado->autoempadronado,
         ));
 
         return match (true) {

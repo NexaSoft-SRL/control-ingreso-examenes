@@ -59,6 +59,95 @@ describe('AccesoEstudiante', () => {
         });
     });
 
+    it('un SIS que no está en el padrón pide sus datos y se empadrona', async () => {
+        montar({
+            'POST /auth/estudiante': { registro: { codigo_universitario: '199900001' } },
+            'GET /auth/estudiante/carreras': {
+                data: [
+                    {
+                        id: 3,
+                        nombre: 'Ingeniería de Sistemas',
+                        facultad_id: 1,
+                        facultad: 'Ciencias y Tecnología',
+                    },
+                    {
+                        id: 8,
+                        nombre: 'Arquitectura',
+                        facultad_id: 2,
+                        facultad: 'Arquitectura y Hábitat',
+                    },
+                ],
+            },
+            'POST /auth/estudiante/registro': { estudiante: { id: 9 } },
+        });
+        escribir(/Código SIS/, '199900001');
+        fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
+        await screen.findByText('2021•••17@est.umss.edu');
+        escribir(/^Código/, '482913');
+        fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+
+        expect(await screen.findByRole('button', { name: 'Registrarme' })).toBeInTheDocument();
+
+        // Sin datos no se envía nada.
+        fireEvent.click(screen.getByRole('button', { name: 'Registrarme' }));
+        expect(screen.getByText('Elija su facultad')).toBeInTheDocument();
+        expect(api.post).not.toHaveBeenCalledWith('/auth/estudiante/registro', expect.anything());
+
+        escribir(/Nombres/, 'Rodrigo Andres');
+        escribir(/Apellidos/, 'Velasquez Rojas');
+        escribir(/Carnet/, '5003748');
+        // La carrera espera a la facultad y solo ofrece las de esa facultad.
+        expect(screen.getByLabelText(/Carrera/)).toBeDisabled();
+        escribir(/Facultad/, '1');
+        expect(screen.queryByRole('option', { name: 'Arquitectura' })).not.toBeInTheDocument();
+        escribir(/Carrera/, '3');
+        // Sin confirmar que reviso sus datos no se envía.
+        fireEvent.click(screen.getByRole('button', { name: 'Registrarme' }));
+        expect(screen.getByText('Confirme que revisó sus datos')).toBeInTheDocument();
+        expect(api.post).not.toHaveBeenCalledWith('/auth/estudiante/registro', expect.anything());
+        fireEvent.click(screen.getByLabelText('Mis datos son correctos'));
+        fireEvent.click(screen.getByRole('button', { name: 'Registrarme' }));
+
+        expect(await screen.findByText('Estoy en /estudiante')).toBeInTheDocument();
+        expect(api.post).toHaveBeenLastCalledWith('/auth/estudiante/registro', {
+            nombres: 'Rodrigo Andres',
+            apellidos: 'Velasquez Rojas',
+            documento: '5003748',
+            carrera_id: 3,
+            confirmo: true,
+        });
+    });
+
+    it('un carnet ya registrado se dice bajo el campo', async () => {
+        montar({
+            'POST /auth/estudiante': { registro: { codigo_universitario: '199900001' } },
+            'GET /auth/estudiante/carreras': {
+                data: [{ id: 3, nombre: 'Sistemas', facultad_id: 1, facultad: 'FCyT' }],
+            },
+            'POST /auth/estudiante/registro': errorHttp(422, {
+                errors: { documento: ['Ya está registrado · pida ayuda a su docente'] },
+            }),
+        });
+        escribir(/Código SIS/, '199900001');
+        fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
+        await screen.findByText('2021•••17@est.umss.edu');
+        escribir(/^Código/, '482913');
+        fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+        await screen.findByRole('button', { name: 'Registrarme' });
+
+        escribir(/Nombres/, 'Rodrigo');
+        escribir(/Apellidos/, 'Velasquez');
+        escribir(/Carnet/, '5003748');
+        escribir(/Facultad/, '1');
+        escribir(/Carrera/, '3');
+        fireEvent.click(screen.getByLabelText('Mis datos son correctos'));
+        fireEvent.click(screen.getByRole('button', { name: 'Registrarme' }));
+
+        expect(
+            await screen.findByText('Ya está registrado · pida ayuda a su docente')
+        ).toBeInTheDocument();
+    });
+
     it('muestra el código de prueba cuando el servidor lo devuelve', async () => {
         montar({
             'POST /auth/estudiante/codigo': {

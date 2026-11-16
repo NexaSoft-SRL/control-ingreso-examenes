@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { CalendarDays, Camera, LogOut, MapPin } from 'lucide-react';
+import { CalendarDays, Camera, IdCard, LogOut, MapPin } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
@@ -16,6 +16,7 @@ import Tarjeta from '../../componentes/Tarjeta';
 import { PantallaDeCarga } from '../../sesion/SesionContexto';
 import { encuadrarFoto } from '../../utiles/encuadrarFoto';
 import { precargarDetector, revisarFoto } from '../../utiles/revisarFoto';
+import MiCarnet from './MiCarnet';
 import QrDelExamen from './QrDelExamen';
 import usarTituloPestana from '../../utiles/usarTituloPestana';
 import {
@@ -488,9 +489,23 @@ export default function PortalEstudiante() {
                     {PESTANAS.find((p) => p.ruta === pathname)?.titulo ?? 'Mis exámenes'}
                 </h1>
                 {pathname === '/estudiante/foto' ? (
-                    <MiFoto sesion={sesion} alGuardar={cargar} />
+                    <>
+                        <MiCarnet conCarnet={estudiante.con_carnet !== false} alGuardar={cargar} />
+                        <MiFoto sesion={sesion} alGuardar={cargar} />
+                    </>
                 ) : (
-                    <MisExamenes codigo={estudiante.codigo} />
+                    <>
+                        {estudiante.con_carnet === false && (
+                            <Link
+                                to="/estudiante/foto"
+                                className={`mb-4 flex items-center gap-2 rounded-lg bg-warning-50 px-3 py-2 text-sm font-medium text-warning-800 hover:underline ${FOCO}`}
+                            >
+                                <IdCard className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                Falta su carnet · sin él no puede ser habilitado
+                            </Link>
+                        )}
+                        <MisExamenes codigo={estudiante.codigo} />
+                    </>
                 )}
             </main>
             {avisoSalida}

@@ -8,7 +8,7 @@ import {
     TIPOS_INCIDENCIA,
 } from './Incidencias';
 import { api } from '../api/cliente';
-import { errorHttp, simularApi } from '../test/apoyo';
+import { errorHttp, simularApi, listaDe } from '../test/apoyo';
 
 vi.mock('../api/cliente');
 
@@ -48,7 +48,7 @@ describe('BotonIncidencia', () => {
 
         expect(dialogo.getByText('Aula 624 · 08:21 · Mamani Torrez Diego')).toBeInTheDocument();
         expect(dialogo.queryByRole('combobox', { name: /Aula/ })).not.toBeInTheDocument();
-        const tipos = within(dialogo.getByRole('combobox', { name: /Tipo/ })).getAllByRole(
+        const tipos = within(listaDe(dialogo.getByRole('combobox', { name: /Tipo/ }))).getAllByRole(
             'option'
         );
         expect(tipos.map((o) => o.textContent)).toEqual([
@@ -255,6 +255,7 @@ describe('BotonIncidencia', () => {
         );
         const dialogo = abrir();
 
+        listaDe(dialogo.getByRole('combobox', { name: /Tipo/ }));
         const propias = await dialogo.findByRole('group', { name: 'Mis incidencias' });
         expect(
             within(propias).getByRole('option', { name: 'Uso de corrector' })
@@ -546,10 +547,8 @@ describe('ListaIncidencias', () => {
         const dialogo = within(screen.getByRole('dialog', { name: 'Corregir incidencia' }));
         const tipo = dialogo.getByRole('combobox', { name: /Tipo/ });
         expect(tipo).toHaveValue('OTRA');
-        expect(within(tipo).getByRole('option', { name: 'Hoja de respuestas rota' }).selected).toBe(
-            true
-        );
-        expect(within(tipo).queryByRole('option', { name: 'Otra no prevista' })).toBeNull();
+        expect(tipo).toHaveTextContent('Hoja de respuestas rota');
+        expect(tipo).not.toHaveTextContent('Otra no prevista');
         expect(dialogo.getByRole('textbox', { name: /Qué pasó/ })).toHaveValue(
             'Hoja de respuestas rota'
         );

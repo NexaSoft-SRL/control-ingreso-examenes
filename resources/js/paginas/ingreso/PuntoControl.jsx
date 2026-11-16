@@ -21,6 +21,8 @@ import { usarSesion } from '../../sesion/SesionContexto';
 import { colorDeAsignatura, diaMes, normalizar, ubicacionSin } from '../../utiles/texto';
 import { senal } from '../../utiles/senal';
 import IngresosDelAula from './IngresosDelAula';
+import { decidirSinConexion, esFalloDeRed } from '../../sinConexion/flujo';
+import ModoSinConexion from './ModoSinConexion';
 import VeredictoPuerta, { VEREDICTOS } from './VeredictoPuerta';
 import IconoAsignatura from '../../componentes/IconoAsignatura';
 
@@ -166,6 +168,8 @@ function Puesto({ resumen, aulas, hoy, elegirAula }) {
     const [todos, setTodos] = useState(false);
     const [buscar, setBuscar] = useState('');
     const [buscado, setBuscado] = useState('');
+    // Sube cada vez que el puesto decide sin conexión: refresca su panel.
+    const [sinConexionCambio, setSinConexionCambio] = useState(0);
 
     useEffect(() => {
         const texto = buscar.trim();
@@ -205,6 +209,10 @@ function Puesto({ resumen, aulas, hoy, elegirAula }) {
             setBuscado('');
             vivo.recargar();
         } catch (fallo) {
+            if (esFalloDeRed(fallo)) {
+                decidirSinRed(cuerpo, medio);
+                return;
+            }
             const campos = erroresDe(fallo);
             if (campos.identificador === 'Sin registro') {
                 // Nadie con ese código o C.I.: un veredicto a la vista, no
@@ -229,6 +237,39 @@ function Puesto({ resumen, aulas, hoy, elegirAula }) {
             }
         } finally {
             setVerificando(false);
+        }
+    };
+
+    // El servidor no responde: el puesto decide con la lista que guardó y
+    // envía lo decidido al volver la conexión.
+    const decidirSinRed = (cuerpo, medio) => {
+        const r = decidirSinConexion(resumen.aula_id, cuerpo);
+        if (r.veredicto) {
+            setVeredicto({ ...r.veredicto, medio });
+            senal(VEREDICTOS[r.veredicto.veredicto]?.tono ?? 'peligro');
+            setManual('');
+            setBuscar('');
+            setBuscado('');
+            setSinConexionCambio((n) => n + 1);
+        } else if (r.error === 'SIN_REGISTRO') {
+            setVeredicto({
+                veredicto: 'no_registrado',
+                dato: `${cuerpo.identificador} · sin registro en la lista guardada`,
+                medio,
+                sin_conexion: true,
+            });
+            senal('peligro');
+            setManual('');
+        } else {
+            avisar(
+                {
+                    SIN_INSTANTANEA: 'Sin conexión · falta preparar el modo sin conexión',
+                    OTRO_DIA: 'Sin conexión · la lista guardada es de otro día',
+                    SIN_EXAMEN: 'Sin examen a esta hora',
+                    NO_GUARDA: 'El navegador no pudo guardar la lectura',
+                }[r.error] ?? 'Sin conexión',
+                'error'
+            );
         }
     };
 
@@ -445,6 +486,16 @@ function Puesto({ resumen, aulas, hoy, elegirAula }) {
                 )}
             </div>
 
+            {puerta && examenes.length > 0 && (
+                <ModoSinConexion
+                    aulaId={aula.id}
+                    enLinea={!vivo.sinConexion}
+                    cambio={sinConexionCambio}
+                    examenId={examenes[0].id}
+                    conRevision={Boolean(usuario && puede('seguimiento_vivo'))}
+                />
+            )}
+
             {!puerta && (
                 <div className="rounded-2xl border border-slate-200 bg-white">
                     {sinAlcance ? (
@@ -539,7 +590,7 @@ function Puesto({ resumen, aulas, hoy, elegirAula }) {
                     hora={hora}
                     registrarExcepcion={registrarExcepcion}
                     // Con código de aula solo se verifica y se reportan incidencias.
-                    conExcepciones={!acceso}
+                    conExcepciones={!acceso && !veredicto.sin_conexion}
                     onSiguiente={siguiente}
                 />
             )}

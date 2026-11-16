@@ -8,6 +8,7 @@ import {
     simularApi,
     usuarioDePrueba,
     elegirExamen,
+    listaDe,
 } from '../../test/apoyo';
 
 vi.mock('../../api/cliente');
@@ -307,8 +308,10 @@ describe('Habilitacion', () => {
         await cargada();
 
         const grupo = screen.getByRole('combobox', { name: 'Grupo' });
-        expect(within(grupo).getByRole('option', { name: 'Grupo 2 · Grupo propio' })).toBeVisible();
-        expect(within(grupo).getByRole('option', { name: 'Grupo 1' })).toBeVisible();
+        expect(
+            within(listaDe(grupo)).getByRole('option', { name: 'Grupo 2 · Grupo propio' })
+        ).toBeVisible();
+        expect(within(listaDe(grupo)).getByRole('option', { name: 'Grupo 1' })).toBeVisible();
 
         fireEvent.change(grupo, { target: { value: '37' } });
         await waitFor(() =>

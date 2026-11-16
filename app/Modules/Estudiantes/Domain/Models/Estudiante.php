@@ -75,9 +75,17 @@ final class Estudiante extends Model
 
     public function correo(): string
     {
+        return self::correoDe($this->codigo_universitario);
+    }
+
+    /**
+     * El correo de un codigo universitario, este o no en el padron.
+     */
+    public static function correoDe(string $codigoUniversitario): string
+    {
         $dominio = config('umss.dominio_correo_estudiantes');
 
-        return $this->codigo_universitario.'@'.(is_string($dominio) && $dominio !== '' ? $dominio : self::DOMINIO_CORREO);
+        return $codigoUniversitario.'@'.(is_string($dominio) && $dominio !== '' ? $dominio : self::DOMINIO_CORREO);
     }
 
     public function nombreCompleto(): string

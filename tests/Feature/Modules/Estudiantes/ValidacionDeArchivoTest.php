@@ -179,7 +179,7 @@ final class ValidacionDeArchivoTest extends TestCase
             '202104821,7928194,Kevin René,Alvarado Claros',
             '',
             ' , , , ',
-            '201901349,,Diego Andrés,Camacho Zeballos',
+            '201901349,6492818,,Camacho Zeballos',
             '',
             '12,6492819,Sofía,Mamani Quispe',
         ])
@@ -187,7 +187,7 @@ final class ValidacionDeArchivoTest extends TestCase
             ->assertJsonPath('resumen.filas', 3)
             ->assertJsonPath('resumen.nuevos', 1)
             ->assertJsonPath('rechazos', [
-                ['fila' => 7, 'motivo' => 'Sin documento de identidad'],
+                ['fila' => 7, 'motivo' => 'Faltan datos obligatorios'],
                 ['fila' => 9, 'motivo' => 'Código universitario no válido'],
             ]);
     }
@@ -201,7 +201,7 @@ final class ValidacionDeArchivoTest extends TestCase
             ['', '', '', ''],
             [202104821, 7928194, 'Kevin René', 'Alvarado Claros'],
             ['', '', '', ''],
-            [201901349, '', 'Diego Andrés', 'Camacho Zeballos'],
+            [201901349, 6492818, '', 'Camacho Zeballos'],
         ]))
             ->assertOk()
             ->assertJsonPath('resumen.filas', 2)

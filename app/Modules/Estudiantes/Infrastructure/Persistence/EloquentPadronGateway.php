@@ -64,6 +64,7 @@ final class EloquentPadronGateway implements PadronGateway
                 'e.nombres',
                 'e.apellidos',
                 'e.verificado',
+                'e.origen',
                 'e.foto',
                 'f.sigla as facultad',
                 'c.nombre as carrera',
@@ -94,7 +95,7 @@ final class EloquentPadronGateway implements PadronGateway
                 'facultad' => $this->texto($fila->facultad),
                 'carrera' => $this->texto($fila->carrera),
                 'grupos' => $this->entero($fila->grupos),
-                'origen' => (bool) $fila->verificado ? 'Administración' : 'Docente',
+                'origen' => $this->origenDe($fila->verificado, $fila->origen ?? null),
                 'con_foto' => $this->texto($fila->foto) !== null,
             ];
         }
@@ -115,6 +116,7 @@ final class EloquentPadronGateway implements PadronGateway
                 'e.nombres',
                 'e.apellidos',
                 'e.verificado',
+                'e.origen',
                 'e.foto',
                 'e.foto_subida_en',
                 'f.sigla as facultad',
@@ -180,7 +182,7 @@ final class EloquentPadronGateway implements PadronGateway
             'correo' => $codigo.'@'.$dominioCorreo,
             'facultad' => $this->texto($datos['facultad'] ?? null),
             'carrera' => $this->texto($datos['carrera'] ?? null),
-            'origen' => (bool) ($datos['verificado'] ?? false) ? 'Administración' : 'Docente',
+            'origen' => $this->origenDe($datos['verificado'] ?? false, $datos['origen'] ?? null),
             'con_foto' => $this->texto($datos['foto'] ?? null) !== null,
             'foto_subida_en' => $this->texto($datos['foto_subida_en'] ?? null),
             'materias' => $materias,
@@ -217,7 +219,7 @@ final class EloquentPadronGateway implements PadronGateway
         foreach (array_chunk($codigos, 1000) as $lote) {
             $filas = DB::table('estudiantes')
                 ->whereIn('codigo_universitario', $lote)
-                ->get(['id', 'codigo_universitario', 'documento_identidad', 'nombres', 'apellidos', 'verificado']);
+                ->get(['id', 'codigo_universitario', 'documento_identidad', 'nombres', 'apellidos', 'verificado', 'origen']);
 
             foreach ($filas as $fila) {
                 $estudiante = $this->estudiante($fila);
@@ -343,6 +345,13 @@ final class EloquentPadronGateway implements PadronGateway
                 ->where('id', $edicion->estudianteId)
                 ->update($nuevos + ['updated_at' => now()]);
 
+            // Corregir los datos de quien se empadrono solo los respalda quien
+            // los corrige: dejan de ser del estudiante.
+            DB::table('estudiantes')
+                ->where('id', $edicion->estudianteId)
+                ->where('origen', OrigenEstudiante::Estudiante->value)
+                ->update(['origen' => OrigenEstudiante::Docente->value]);
+
             $codigo = is_scalar($previos['codigo_universitario'] ?? null) ? (string) $previos['codigo_universitario'] : '';
             $this->bitacora->registrar(
                 $edicion->usuarioId,
@@ -352,5 +361,20 @@ final class EloquentPadronGateway implements PadronGateway
                 sprintf('Estudiante %s corregido. %s.', $codigo, implode('; ', $cambios)),
             );
         }, 3);
+    }
+
+    /**
+     * Quien respalda los datos: la administracion si los confirmo, el
+     * estudiante si se empadrono solo y nadie los reviso, o el docente.
+     */
+    private function origenDe(mixed $verificado, mixed $origen): string
+    {
+        if ((bool) $verificado) {
+            return OrigenEstudiante::Administracion->etiqueta();
+        }
+
+        return $origen === OrigenEstudiante::Estudiante->value
+            ? OrigenEstudiante::Estudiante->etiqueta()
+            : OrigenEstudiante::Docente->etiqueta();
     }
 }

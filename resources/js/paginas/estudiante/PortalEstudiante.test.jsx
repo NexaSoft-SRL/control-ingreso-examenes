@@ -78,6 +78,62 @@ describe('PortalEstudiante', () => {
         expect(screen.getByText('Edificio Académico 2 · 1° Piso')).toBeInTheDocument();
     });
 
+    it('sin carnet avisa en sus exámenes y lo pide junto a la foto', async () => {
+        const sin = { estudiante: { ...ESTUDIANTE, con_carnet: false }, plazo_foto: PLAZO };
+        montar('/estudiante', { 'GET /estudiante/sesion': sin });
+
+        expect(
+            await screen.findByText('Falta su carnet · sin él no puede ser habilitado')
+        ).toBeInTheDocument();
+    });
+
+    it('guarda el carnet solo si confirma que lo revisó', async () => {
+        const sin = { estudiante: { ...ESTUDIANTE, con_carnet: false }, plazo_foto: PLAZO };
+        const con = { estudiante: { ...ESTUDIANTE, con_carnet: true }, plazo_foto: PLAZO };
+        let guardado = false;
+        montar('/estudiante/foto', {
+            'GET /estudiante/sesion': () => (guardado ? con : sin),
+            'POST /estudiante/carnet': () => {
+                guardado = true;
+                return { estudiante: con.estudiante };
+            },
+        });
+
+        const boton = await screen.findByRole('button', { name: 'Guardar carnet' });
+        expect(
+            screen.getByText('Obligatorio para dar un examen · después no se puede cambiar')
+        ).toBeInTheDocument();
+
+        fireEvent.change(screen.getByLabelText(/^Carnet/), { target: { value: '5003748' } });
+        fireEvent.click(boton);
+        expect(screen.getByText('Confirme que revisó su carnet')).toBeInTheDocument();
+        expect(api.post).not.toHaveBeenCalled();
+
+        fireEvent.click(screen.getByLabelText('Revisé que mi carnet es correcto'));
+        fireEvent.click(screen.getByRole('button', { name: 'Guardar carnet' }));
+
+        await waitFor(() =>
+            expect(api.post).toHaveBeenCalledWith('/estudiante/carnet', {
+                documento: '5003748',
+                confirmo: true,
+            })
+        );
+        expect(await screen.findByText('Registrado')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Guardar carnet' })).not.toBeInTheDocument();
+    });
+
+    it('con carnet registrado no vuelve a pedirlo', async () => {
+        montar('/estudiante/foto', {
+            'GET /estudiante/sesion': {
+                estudiante: { ...ESTUDIANTE, con_carnet: true },
+                plazo_foto: PLAZO,
+            },
+        });
+
+        expect(await screen.findByText('Registrado')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Guardar carnet' })).not.toBeInTheDocument();
+    });
+
     it('sube la foto dentro del plazo', async () => {
         montar('/estudiante/foto', { 'POST /estudiante/foto': { message: 'Foto registrada.' } });
 

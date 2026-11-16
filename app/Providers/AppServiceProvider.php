@@ -6,6 +6,7 @@ namespace App\Providers;
 
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
@@ -45,6 +46,14 @@ class AppServiceProvider extends ServiceProvider
         $oculta = self::filtrar($correo->getBcc(), $permitidos);
 
         if ($para === [] && $copia === [] && $oculta === []) {
+            Log::warning('Correo descartado: ninguna direccion esta en MAIL_PERMITIDOS.', [
+                'asunto' => $correo->getSubject(),
+                'destinos' => array_map(
+                    static fn (Address $direccion): string => $direccion->getAddress(),
+                    [...$correo->getTo(), ...$correo->getCc(), ...$correo->getBcc()],
+                ),
+            ]);
+
             return false;
         }
 

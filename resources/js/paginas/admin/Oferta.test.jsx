@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Oferta, { ordenarNiveles } from './Oferta';
 import { api } from '../../api/cliente';
 import RutaProtegida from '../../sesion/RutaProtegida';
-import { errorHttp, renderConSesion, simularApi, usuarioDePrueba } from '../../test/apoyo';
+import { errorHttp, renderConSesion, simularApi, usuarioDePrueba, listaDe } from '../../test/apoyo';
 
 vi.mock('../../api/cliente');
 
@@ -182,7 +182,9 @@ describe('Oferta', () => {
 
         fireEvent.change(screen.getByLabelText('Facultad'), { target: { value: 'fach' } });
         const carrera = screen.getByLabelText('Carrera');
-        await waitFor(() => expect(within(carrera).getAllByRole('option')).toHaveLength(2));
+        await waitFor(() =>
+            expect(within(listaDe(carrera)).getAllByRole('option')).toHaveLength(2)
+        );
         fireEvent.change(carrera, { target: { value: '36' } });
 
         expect(
@@ -195,9 +197,11 @@ describe('Oferta', () => {
         await fila('Algebra I');
 
         const periodo = screen.getByLabelText('Período');
-        await waitFor(() => expect(within(periodo).getAllByRole('option')).toHaveLength(4));
+        await waitFor(() =>
+            expect(within(listaDe(periodo)).getAllByRole('option')).toHaveLength(4)
+        );
         expect(
-            within(periodo)
+            within(listaDe(periodo))
                 .getAllByRole('option')
                 .map((o) => o.textContent)
         ).toEqual(['Vigentes', '2/2026', '0/2026', '1/2026 · Cerrado']);
@@ -224,13 +228,15 @@ describe('Oferta', () => {
         await fila('Algebra I');
 
         const carrera = screen.getByLabelText('Carrera');
-        await waitFor(() => expect(within(carrera).getAllByRole('option')).toHaveLength(3));
-        expect(within(carrera).getAllByRole('option')[0]).toHaveTextContent('Todas');
+        await waitFor(() =>
+            expect(within(listaDe(carrera)).getAllByRole('option')).toHaveLength(3)
+        );
+        expect(within(listaDe(carrera)).getAllByRole('option')[0]).toHaveTextContent('Todas');
 
         // Los niveles llegan por orden alfabético y se muestran por orden del plan.
         const nivel = screen.getByLabelText('Nivel');
         expect(
-            within(nivel)
+            within(listaDe(nivel))
                 .getAllByRole('option')
                 .map((o) => o.textContent)
         ).toEqual(['Todos', 'Semestre 1', 'Semestre 2', 'Semestre 10']);

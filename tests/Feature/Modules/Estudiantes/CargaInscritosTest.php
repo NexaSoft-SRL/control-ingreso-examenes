@@ -115,7 +115,7 @@ final class CargaInscritosTest extends TestCase
             self::ENCABEZADO,
             '202104821,7928194,Kevin René,Alvarado Claros',
             ',,,',
-            '201901349,,Diego Andrés,Camacho Zeballos',
+            '201901349,6492818,,Camacho Zeballos',
         ])->assertOk();
 
         $respuesta->assertJsonPath('resumen.filas', 2);
@@ -224,7 +224,7 @@ final class CargaInscritosTest extends TestCase
         $respuesta->assertJsonPath('rechazos.1.motivo', 'Faltan datos obligatorios');
     }
 
-    public function test_a_row_without_document_is_rejected(): void
+    public function test_a_row_without_document_is_accepted_and_stores_no_carnet(): void
     {
         $docente = $this->docente();
 
@@ -232,10 +232,48 @@ final class CargaInscritosTest extends TestCase
             '201901349,,Diego Andrés,Camacho Zeballos',
         ])
             ->assertOk()
-            ->assertJsonPath('rechazos.0.fila', 1)
-            ->assertJsonPath('rechazos.0.motivo', 'Sin documento de identidad');
+            ->assertJsonPath('resumen.nuevos', 1)
+            ->assertJsonPath('rechazos', []);
 
-        $this->assertDatabaseCount('estudiantes', 0);
+        // El carnet lo escribe el estudiante: queda vacio, no como texto vacio.
+        $this->assertNull(DB::table('estudiantes')->where('codigo_universitario', '201901349')->value('documento_identidad'));
+    }
+
+    public function test_a_row_without_document_does_not_conflict_with_the_saved_carnet(): void
+    {
+        $docente = $this->docente();
+        $grupo = $this->grupo($docente);
+        $estudiante = $this->estudiante(['codigo_universitario' => '201901349', 'documento_identidad' => '5555555', 'nombres' => 'Diego Andrés', 'apellidos' => 'Camacho Zeballos']);
+
+        $this->cargarLista($docente, $grupo, [
+            '201901349,,Diego Andrés,Camacho Zeballos',
+        ])
+            ->assertOk()
+            ->assertJsonPath('resumen.conflictos', 0);
+
+        $this->assertSame('5555555', $estudiante->refresh()->documento_identidad);
+    }
+
+    public function test_a_load_without_carnet_does_not_erase_the_one_a_student_wrote(): void
+    {
+        $docente = $this->docente();
+        $grupo = $this->grupo($docente);
+        $estudiante = $this->estudiante([
+            'codigo_universitario' => '201901349',
+            'documento_identidad' => '5555555',
+            'nombres' => 'Diego',
+            'apellidos' => 'Camacho',
+            'origen' => OrigenEstudiante::Estudiante,
+            'verificado' => false,
+        ]);
+
+        $this->cargarLista($docente, $grupo, [
+            '201901349,,Diego Andrés,Camacho Zeballos',
+        ])->assertOk();
+
+        $estudiante->refresh();
+        $this->assertSame('5555555', $estudiante->documento_identidad);
+        $this->assertSame('Diego Andrés', $estudiante->nombres);
     }
 
     public function test_a_code_that_is_not_five_to_ten_digits_is_rejected(): void
@@ -480,7 +518,7 @@ final class CargaInscritosTest extends TestCase
             self::ENCABEZADO,
             '202104821,7928194,Kevin René,Alvarado Claros',
             '202000001,5555555,Kevin René,Alvarado Claros',
-            '202000002,,Sin,Documento',
+            '202000002,5555556,,Documento',
         ], 'inscritos_g1.csv'))->assertOk();
 
         $this->assertDatabaseHas('cargas_inscritos', [
@@ -502,7 +540,7 @@ final class CargaInscritosTest extends TestCase
 
         $this->assertIsString($rechazos);
         $this->assertSame(
-            [['fila' => 4, 'motivo' => 'Sin documento de identidad']],
+            [['fila' => 4, 'motivo' => 'Faltan datos obligatorios']],
             json_decode($rechazos, true),
         );
     }

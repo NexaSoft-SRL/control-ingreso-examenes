@@ -7,6 +7,9 @@ namespace App\Modules\Estudiantes\Infrastructure\Persistence;
 use App\Modules\Estudiantes\Application\Contracts\PortalEstudianteGateway;
 use App\Modules\Estudiantes\Application\DTOs\EstudiantePortalData;
 use App\Modules\Estudiantes\Application\DTOs\PlazoFotoData;
+use App\Modules\Estudiantes\Domain\Enums\OrigenEstudiante;
+use App\Modules\Estudiantes\Domain\Exceptions\CarnetYaRegistradoException;
+use App\Modules\Estudiantes\Domain\Exceptions\DocumentoEnUsoException;
 use App\Modules\Estudiantes\Domain\Models\Estudiante;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +41,82 @@ final class EloquentPortalEstudianteGateway implements PortalEstudianteGateway
         $estudiante = Estudiante::query()->whereKey($estudianteId)->where('activo', true)->first();
 
         return $estudiante === null ? null : $this->datos($estudiante);
+    }
+
+    public function carreras(): array
+    {
+        $filas = DB::table('carreras as carrera')
+            ->join('facultades as facultad', 'facultad.id', '=', 'carrera.facultad_id')
+            ->orderBy('facultad.nombre')
+            ->orderBy('carrera.nombre')
+            ->get(['carrera.id', 'carrera.nombre', 'facultad.id as facultad_id', 'facultad.nombre as facultad']);
+
+        $lista = [];
+
+        foreach ($filas as $fila) {
+            $columnas = get_object_vars($fila);
+            $lista[] = [
+                'id' => $this->entero($columnas['id'] ?? null),
+                'nombre' => $this->texto($columnas['nombre'] ?? null) ?? '',
+                'facultad_id' => $this->entero($columnas['facultad_id'] ?? null),
+                'facultad' => $this->texto($columnas['facultad'] ?? null) ?? '',
+            ];
+        }
+
+        return $lista;
+    }
+
+    public function registrarCarnet(int $estudianteId, string $documento): void
+    {
+        DB::transaction(function () use ($estudianteId, $documento): void {
+            $actual = DB::table('estudiantes')->where('id', $estudianteId)->lockForUpdate()->value('documento_identidad');
+
+            if (is_string($actual) && $actual !== '') {
+                throw new CarnetYaRegistradoException;
+            }
+
+            $ajeno = Estudiante::query()
+                ->whereRaw('upper(documento_identidad) = ?', [mb_strtoupper($documento)])
+                ->whereKeyNot($estudianteId)
+                ->exists();
+
+            if ($ajeno) {
+                throw new DocumentoEnUsoException;
+            }
+
+            DB::table('estudiantes')->where('id', $estudianteId)->update([
+                'documento_identidad' => $documento,
+                'updated_at' => now(),
+            ]);
+        });
+    }
+
+    public function empadronar(
+        string $codigoUniversitario,
+        string $documentoIdentidad,
+        string $nombres,
+        string $apellidos,
+        int $carreraId,
+    ): EstudiantePortalData {
+        if (Estudiante::query()->whereRaw('upper(documento_identidad) = ?', [mb_strtoupper($documentoIdentidad)])->exists()) {
+            throw new DocumentoEnUsoException;
+        }
+
+        $facultadId = DB::table('carreras')->where('id', $carreraId)->value('facultad_id');
+
+        $estudiante = Estudiante::query()->create([
+            'codigo_universitario' => $codigoUniversitario,
+            'documento_identidad' => $documentoIdentidad,
+            'nombres' => $nombres,
+            'apellidos' => $apellidos,
+            'carrera_id' => $carreraId,
+            'facultad_id' => is_numeric($facultadId) ? (int) $facultadId : null,
+            'origen' => OrigenEstudiante::Estudiante,
+            'verificado' => false,
+            'activo' => true,
+        ]);
+
+        return $this->datos($estudiante);
     }
 
     public function guardarCodigo(int $estudianteId, string $hash, int $minutos): void
@@ -315,6 +394,7 @@ final class EloquentPortalEstudianteGateway implements PortalEstudianteGateway
             nombre: trim($estudiante->apellidos.' '.$estudiante->nombres),
             correo: $estudiante->correo(),
             conFoto: is_string($estudiante->getAttribute('foto')) && $estudiante->getAttribute('foto') !== '',
+            conCarnet: is_string($estudiante->documento_identidad) && $estudiante->documento_identidad !== '',
         );
     }
 }

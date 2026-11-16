@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import { Eye, EyeOff } from 'lucide-react';
 import { useId, useState } from 'react';
 
 // Campo de formulario. Para todas las pantallas a la vez:
@@ -8,6 +9,7 @@ import { useId, useState } from 'react';
 //  - `icono` (un componente de lucide) va al inicio del campo.
 //  - `iconoEtiqueta` (otro de lucide) acompaña a la etiqueta.
 //  - `error` muestra el mensaje del servidor (validación 422) bajo el campo.
+//  - Con `type="password"` aparece el ojito para ver u ocultar lo escrito.
 //  - El mensaje queda ligado al campo (`aria-describedby`) y se anuncia.
 export default function Campo({
     etiqueta,
@@ -24,6 +26,8 @@ export default function Campo({
     const id = useId();
     const [valor, setValor] = useState(props.defaultValue ?? '');
     const [tocado, setTocado] = useState(false);
+    const [visible, setVisible] = useState(false);
+    const esContrasena = props.type === 'password';
 
     const actual = props.value ?? valor;
     const vacio = requerido && String(actual).trim() === '';
@@ -64,6 +68,7 @@ export default function Campo({
                     aria-invalid={errorVivo ? 'true' : undefined}
                     aria-describedby={errorVivo ? `${id}-error` : ayuda ? `${id}-ayuda` : undefined}
                     {...props}
+                    type={esContrasena && visible ? 'text' : props.type}
                     onChange={(e) => {
                         setValor(e.target.value);
                         setTocado(true);
@@ -76,6 +81,21 @@ export default function Campo({
                         props.onBlur?.(e);
                     }}
                 />
+                {esContrasena && (
+                    <button
+                        type="button"
+                        className="flex min-h-11 w-11 shrink-0 items-center justify-center text-slate-500 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-600"
+                        aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                        aria-pressed={visible}
+                        onClick={() => setVisible((v) => !v)}
+                    >
+                        {visible ? (
+                            <EyeOff className="h-4 w-4" aria-hidden="true" />
+                        ) : (
+                            <Eye className="h-4 w-4" aria-hidden="true" />
+                        )}
+                    </button>
+                )}
                 {sufijo && (
                     <span className="flex shrink-0 items-center border-l border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
                         {sufijo}
@@ -111,6 +131,7 @@ Campo.propTypes = {
     iconoEtiqueta: PropTypes.elementType,
     ayuda: PropTypes.node,
     className: PropTypes.string,
+    type: PropTypes.string,
     value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     defaultValue: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     onChange: PropTypes.func,

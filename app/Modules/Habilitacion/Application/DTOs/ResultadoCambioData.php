@@ -10,5 +10,6 @@ final readonly class ResultadoCambioData
         public bool $habilitado,
         public int $afectados,
         public CifrasHabilitacionData $cifras,
+        public int $sinCarnet = 0,
     ) {}
 }

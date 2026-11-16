@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Estudiantes\Infrastructure\Persistence;
 
 use App\Modules\Estudiantes\Application\DTOs\EstudianteData;
+use App\Modules\Estudiantes\Domain\Enums\OrigenEstudiante;
 use Illuminate\Database\Query\Builder;
 
 /**
@@ -65,6 +66,7 @@ trait ConsultasDePadron
             nombres: (string) $this->texto($datos['nombres'] ?? null),
             apellidos: (string) $this->texto($datos['apellidos'] ?? null),
             verificado: (bool) ($datos['verificado'] ?? false),
+            autoempadronado: ($datos['origen'] ?? null) === OrigenEstudiante::Estudiante->value,
         );
     }
 

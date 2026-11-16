@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Bitacora from './Bitacora';
 import { api } from '../../api/cliente';
 import RutaProtegida from '../../sesion/RutaProtegida';
-import { errorHttp, renderConSesion, simularApi, usuarioDePrueba } from '../../test/apoyo';
+import { errorHttp, renderConSesion, simularApi, usuarioDePrueba, listaDe } from '../../test/apoyo';
 
 vi.mock('../../api/cliente');
 
@@ -131,7 +131,7 @@ describe('Bitacora', () => {
         montar();
         await screen.findByRole('list');
 
-        const opciones = within(screen.getByLabelText('Operación')).getAllByRole('option');
+        const opciones = within(listaDe(screen.getByLabelText('Operación'))).getAllByRole('option');
         expect(opciones.map((o) => o.textContent)).toEqual([
             'Todas',
             'Generó el respaldo',
@@ -154,9 +154,11 @@ describe('Bitacora', () => {
 
         const rol = screen.getByLabelText('Rol');
         await waitFor(() =>
-            expect(within(rol).getByRole('option', { name: 'Coordinación' })).toBeInTheDocument()
+            expect(
+                within(listaDe(rol)).getByRole('option', { name: 'Coordinación' })
+            ).toBeInTheDocument()
         );
-        expect(within(rol).getAllByRole('option')).toHaveLength(5);
+        expect(within(listaDe(rol)).getAllByRole('option')).toHaveLength(5);
 
         fireEvent.change(rol, { target: { value: 'Coordinación' } });
         await waitFor(() => expect(ultima()).toMatchObject({ rol: 'Coordinación', pagina: 1 }));
@@ -166,7 +168,7 @@ describe('Bitacora', () => {
         montar(usuarioDePrueba('Docente', { rol: 'Auditoría', permisos: ['bitacora'] }));
         await screen.findByRole('list');
 
-        const opciones = within(screen.getByLabelText('Rol')).getAllByRole('option');
+        const opciones = within(listaDe(screen.getByLabelText('Rol'))).getAllByRole('option');
         expect(opciones.map((o) => o.textContent)).toEqual([
             'Todos',
             'Administrador',
@@ -269,7 +271,9 @@ describe('Bitacora', () => {
         expect(await screen.findByRole('alert')).toHaveTextContent('Filtros no válidos');
         expect(screen.getByText(mensaje)).toBeInTheDocument();
         expect(screen.getByLabelText(/^Hasta/)).toHaveAttribute('aria-invalid', 'true');
-        expect(within(screen.getByLabelText('Operación')).getAllByRole('option')).toHaveLength(5);
+        expect(
+            within(listaDe(screen.getByLabelText('Operación'))).getAllByRole('option')
+        ).toHaveLength(5);
 
         fireEvent.change(screen.getByLabelText(/^Hasta/), { target: { value: '' } });
         expect(await screen.findByRole('list')).toBeInTheDocument();

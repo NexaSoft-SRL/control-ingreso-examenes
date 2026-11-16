@@ -227,3 +227,11 @@ export function elegirExamen(texto) {
     if (!opcion) throw new Error(`No hay un examen «${texto}» en el selector`);
     fireEvent.click(opcion);
 }
+
+// La lista desplegable (Seleccion) con sus opciones a la vista: la abre si
+// está cerrada y devuelve la lista de opciones, para `within(listaDe(x))`.
+export function listaDe(selector) {
+    if (selector.getAttribute('role') !== 'combobox') return selector;
+    if (selector.getAttribute('aria-expanded') !== 'true') fireEvent.click(selector);
+    return document.getElementById(selector.getAttribute('aria-controls'));
+}

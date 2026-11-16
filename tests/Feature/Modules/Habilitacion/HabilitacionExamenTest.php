@@ -509,6 +509,119 @@ final class HabilitacionExamenTest extends TestCase
 
     // ----- Ruta 55: habilitar / inhabilitar ----------------------------
 
+    public function test_a_student_without_carnet_is_not_enabled(): void
+    {
+        $grupo = $this->grupo($this->docente);
+        [$uno, $dos] = $this->estudiantesInscritos($grupo, 2);
+        $examen = $this->examen($this->docente, [$grupo]);
+        // El carnet lo escribe el estudiante: sin el no se lo habilita.
+        $dos->update(['documento_identidad' => null]);
+
+        $this->actingAs($this->cuenta)
+            ->postJson("/api/examenes/{$examen->id}/habilitaciones", [
+                'habilitado' => true,
+                'estudiantes' => [$uno->id, $dos->id],
+            ])
+            ->assertOk()
+            ->assertJsonPath('afectados', 1)
+            ->assertJsonPath('sin_carnet', 1)
+            ->assertJsonPath('message', '1 habilitado. 1 sin carnet no se habilitó.');
+
+        $this->assertDatabaseHas('habilitaciones', ['examen_id' => $examen->id, 'estudiante_id' => $uno->id, 'habilitado' => true]);
+        $this->assertDatabaseMissing('habilitaciones', ['examen_id' => $examen->id, 'estudiante_id' => $dos->id, 'habilitado' => true]);
+    }
+
+    // ----- Habilitar / inhabilitar desde una lista de codigos ---------
+
+    public function test_students_are_disabled_from_a_pasted_list_of_codes(): void
+    {
+        $grupo = $this->grupo($this->docente);
+        [$uno, $dos, $tres] = $this->estudiantesInscritos($grupo, 3);
+        $examen = $this->examen($this->docente, [$grupo]);
+        $ajeno = '199999999';
+
+        $this->actingAs($this->cuenta)
+            ->postJson("/api/examenes/{$examen->id}/habilitaciones/por-codigos", [
+                'habilitado' => false,
+                'motivo' => 'No cumplió las prácticas',
+                // Saltos de linea, comas, espacios y basura se toleran.
+                'codigos' => "{$uno->codigo_universitario}\n{$dos->codigo_universitario}, {$ajeno} x {$uno->codigo_universitario}",
+            ])
+            ->assertOk()
+            ->assertJsonPath('afectados', 2)
+            ->assertJsonPath('encontrados', 2)
+            ->assertJsonPath('no_encontrados', [$ajeno])
+            ->assertJsonPath('message', '2 inhabilitados. 1 código no es del examen.');
+
+        foreach ([$uno, $dos] as $estudiante) {
+            $this->assertDatabaseHas('habilitaciones', [
+                'examen_id' => $examen->id,
+                'estudiante_id' => $estudiante->id,
+                'habilitado' => false,
+                'motivo' => 'No cumplió las prácticas',
+            ]);
+        }
+        $this->assertDatabaseMissing('habilitaciones', ['examen_id' => $examen->id, 'estudiante_id' => $tres->id]);
+    }
+
+    public function test_students_are_enabled_from_a_pasted_list_of_codes(): void
+    {
+        $grupo = $this->grupo($this->docente);
+        [$uno, $dos] = $this->estudiantesInscritos($grupo, 2);
+        $examen = $this->examen($this->docente, [$grupo]);
+
+        $this->actingAs($this->cuenta)
+            ->postJson("/api/examenes/{$examen->id}/habilitaciones/por-codigos", [
+                'habilitado' => true,
+                'codigos' => $uno->codigo_universitario.' '.$dos->codigo_universitario,
+            ])
+            ->assertOk()
+            ->assertJsonPath('afectados', 2)
+            ->assertJsonPath('no_encontrados', []);
+
+        $this->assertDatabaseHas('habilitaciones', ['examen_id' => $examen->id, 'estudiante_id' => $uno->id, 'habilitado' => true]);
+    }
+
+    public function test_the_list_of_codes_needs_a_motive_to_disable_and_at_least_one_code(): void
+    {
+        $grupo = $this->grupo($this->docente);
+        [$uno] = $this->estudiantesInscritos($grupo, 1);
+        $examen = $this->examen($this->docente, [$grupo]);
+
+        $this->actingAs($this->cuenta)
+            ->postJson("/api/examenes/{$examen->id}/habilitaciones/por-codigos", [
+                'habilitado' => false,
+                'codigos' => $uno->codigo_universitario,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['motivo']);
+
+        $this->actingAs($this->cuenta)
+            ->postJson("/api/examenes/{$examen->id}/habilitaciones/por-codigos", [
+                'habilitado' => true,
+                'codigos' => 'abc, 12',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['codigos']);
+    }
+
+    public function test_a_list_of_codes_does_not_enable_a_student_without_carnet(): void
+    {
+        $grupo = $this->grupo($this->docente);
+        [$uno] = $this->estudiantesInscritos($grupo, 1);
+        $examen = $this->examen($this->docente, [$grupo]);
+        $uno->update(['documento_identidad' => null]);
+
+        $this->actingAs($this->cuenta)
+            ->postJson("/api/examenes/{$examen->id}/habilitaciones/por-codigos", [
+                'habilitado' => true,
+                'codigos' => $uno->codigo_universitario,
+            ])
+            ->assertOk()
+            ->assertJsonPath('afectados', 0)
+            ->assertJsonPath('sin_carnet', 1);
+    }
+
     public function test_a_batch_of_students_is_enabled_by_their_ids(): void
     {
         $grupo = $this->grupo($this->docente);
@@ -524,6 +637,7 @@ final class HabilitacionExamenTest extends TestCase
             ->assertExactJson([
                 'message' => '2 habilitados.',
                 'afectados' => 2,
+                'sin_carnet' => 0,
                 'cifras' => [
                     'inscritos' => 3,
                     'habilitados' => 2,

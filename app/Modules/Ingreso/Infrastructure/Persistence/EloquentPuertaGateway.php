@@ -281,6 +281,13 @@ final class EloquentPuertaGateway implements PuertaGateway
         return $facultades;
     }
 
+    public function documentoDe(int $estudianteId): ?string
+    {
+        $documento = DB::table('estudiantes')->where('id', $estudianteId)->value('documento_identidad');
+
+        return is_string($documento) && trim($documento) !== '' ? $documento : null;
+    }
+
     public function estudiante(int $estudianteId): ?EstudianteData
     {
         $fila = DB::table('estudiantes')->where('id', $estudianteId)->first();
