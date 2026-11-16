@@ -4,14 +4,23 @@ declare(strict_types=1);
 
 namespace App\Modules\Reportes\Http\Controllers;
 
+use App\Modules\Reportes\Application\Actions\GuardarPreferenciasAlertas;
+use App\Modules\Reportes\Application\Contracts\AlertaReporteGateway;
 use App\Modules\Reportes\Application\DTOs\FilaMiExamen;
 use App\Modules\Reportes\Application\Queries\ArmarListaDeGrupo;
 use App\Modules\Reportes\Application\Queries\ArmarTabla;
+use App\Modules\Reportes\Application\Queries\CompararReportesDocente;
 use App\Modules\Reportes\Application\Queries\ConsultarBitacoraExamen;
+use App\Modules\Reportes\Application\Queries\ExportarReporteConsolidado;
 use App\Modules\Reportes\Application\Queries\ExportarTabla;
+use App\Modules\Reportes\Application\Queries\ListarAlertasReportes;
 use App\Modules\Reportes\Application\Queries\ListarMisExamenes;
 use App\Modules\Reportes\Domain\Exceptions\ExamenSinRendirException;
 use App\Modules\Reportes\Domain\Exceptions\RecursoAjenoException;
+use App\Modules\Reportes\Http\Requests\CompararReportesRequest;
+use App\Modules\Reportes\Http\Requests\FiltrosBitacoraExamenRequest;
+use App\Modules\Reportes\Http\Requests\PreferenciasAlertasRequest;
+use App\Modules\Reportes\Http\Requests\ReporteConsolidadoRequest;
 use App\Modules\Reportes\Http\Requests\ReporteExamenRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
@@ -19,7 +28,8 @@ use Illuminate\Support\Facades\Auth;
 
 /**
  * Reportes del docente: sus examenes con la asistencia, las descargas de
- * un examen suyo (asistencia, ausentes e incidencias) y la lista de inscritos de un grupo suyo. Solo lectura.
+ * un examen suyo (asistencia, ausentes e incidencias), la lista de inscritos
+ * de un grupo suyo y las preferencias/alertas de sus examenes.
  */
 final class ReporteDocenteController
 {
@@ -74,6 +84,77 @@ final class ReporteDocenteController
         ]);
     }
 
+    public function opcionesComparacion(CompararReportesDocente $comparar): JsonResponse
+    {
+        return response()->json($comparar->opciones($this->usuarioId()));
+    }
+
+    public function alertas(ListarAlertasReportes $listar): JsonResponse
+    {
+        return response()->json($listar->execute($this->usuarioId()));
+    }
+
+    public function guardarPreferenciasAlertas(
+        PreferenciasAlertasRequest $request,
+        GuardarPreferenciasAlertas $guardar,
+    ): JsonResponse {
+        return response()->json([
+            'preferencias' => $guardar->execute(
+                $this->usuarioId(),
+                $request->asistenciaMinima(),
+                $request->incidenciasMinimas(),
+            ),
+        ]);
+    }
+
+    public function marcarAlertaLeida(int $alerta, AlertaReporteGateway $gateway): JsonResponse
+    {
+        if (! $gateway->marcarLeida($this->usuarioId(), $alerta)) {
+            return response()->json(['message' => 'Alerta no encontrada.'], 404);
+        }
+
+        return response()->json(status: 204);
+    }
+
+    public function comparar(
+        CompararReportesRequest $request,
+        CompararReportesDocente $comparar,
+    ): JsonResponse {
+        try {
+            $resultado = $comparar->execute(
+                $this->usuarioId(),
+                $request->examenIds(),
+                $request->periodoIds(),
+            );
+        } catch (RecursoAjenoException $ajeno) {
+            return $this->ajeno($ajeno);
+        }
+
+        return response()->json($resultado);
+    }
+
+    public function exportarConsolidado(
+        ReporteConsolidadoRequest $request,
+        ExportarReporteConsolidado $exportar,
+    ): JsonResponse|Response {
+        try {
+            $archivo = $exportar->execute(
+                $request->examenIds(),
+                $this->usuarioId(),
+                $request->formato(),
+            );
+        } catch (RecursoAjenoException $ajeno) {
+            return $this->ajeno($ajeno);
+        } catch (ExamenSinRendirException $sinRendir) {
+            return response()->json([
+                'message' => $sinRendir->getMessage(),
+                'codigo' => 'SIN_RENDIR',
+            ], Response::HTTP_CONFLICT);
+        }
+
+        return $this->descarga($archivo);
+    }
+
     public function exportar(
         ReporteExamenRequest $request,
         string $reporte,
@@ -100,15 +181,18 @@ final class ReporteDocenteController
         return $this->descarga($exportar->execute($tabla, $request->formato()));
     }
 
-    public function bitacora(int $examen, ConsultarBitacoraExamen $consultar): JsonResponse
-    {
+    public function bitacora(
+        FiltrosBitacoraExamenRequest $request,
+        int $examen,
+        ConsultarBitacoraExamen $consultar,
+    ): JsonResponse {
         try {
             $sucesos = $consultar->execute($examen, $this->usuarioId());
         } catch (RecursoAjenoException $ajeno) {
             return $this->ajeno($ajeno);
         }
 
-        return $this->bitacoraJson($sucesos);
+        return $this->bitacoraJson($sucesos, $request);
     }
 
     public function estudiantesDeGrupo(

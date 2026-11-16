@@ -119,6 +119,11 @@ function servidor(examenes = POCOS, rutas = {}) {
         'GET /periodos/vigentes': UN_PERIODO,
         'GET /reportes/mis-examenes': lista,
         'GET /examenes/*/incidencias': { data: INCIDENCIAS, meta: { sin_atender: 1, todas: 2 } },
+        'GET /reportes/comparacion/opciones': { examenes: [], periodos: [] },
+        'GET /reportes/alertas': {
+            preferencias: { asistencia_minima: 70, incidencias_minimas: 5 },
+            alertas: [],
+        },
         ...rutas,
     });
 }
@@ -296,6 +301,15 @@ describe('Reportes del docente', () => {
                     },
                 ],
                 aulas: [],
+                meta: {
+                    total: 1,
+                    total_general: 1,
+                    pagina: 1,
+                    por_pagina: 100,
+                    categorias: { ingreso: 1 },
+                    gravedades: {},
+                    aulas: ['691A'],
+                },
             },
         });
         await abrir();
@@ -317,6 +331,16 @@ describe('Reportes del docente', () => {
 
         fireEvent.click(screen.getByRole('tab', { name: 'Reportes' }));
         expect(screen.getByRole('heading', { name: 'Asistencia por examen' })).toBeInTheDocument();
+    });
+
+    it('ofrece las alertas configurables desde la pestaña de comparación', async () => {
+        await abrir();
+
+        fireEvent.click(screen.getByRole('tab', { name: 'Comparar' }));
+
+        expect(await screen.findByRole('heading', { name: 'Alertas de exámenes' })).toBeVisible();
+        expect(screen.getByLabelText('Asistencia mínima (%)')).toHaveValue(70);
+        expect(screen.getByLabelText('Incidencias para alertar')).toHaveValue(5);
     });
 
     it('filtra las incidencias del examen por gravedad', async () => {

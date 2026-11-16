@@ -89,13 +89,13 @@ final class ComandosTest extends TestCase
         $tareas = [];
 
         foreach ($this->app->make(Schedule::class)->events() as $tarea) {
-            $tareas[$tarea->expression] = (string) $tarea->command;
+            $tareas[$tarea->expression][] = (string) $tarea->command;
         }
 
         $this->assertArrayHasKey('0 3 * * *', $tareas);
-        $this->assertStringContainsString('respaldo:generar', $tareas['0 3 * * *']);
+        $this->assertStringContainsString('respaldo:generar', implode("\n", $tareas['0 3 * * *']));
         $this->assertArrayHasKey('* * * * *', $tareas);
-        $this->assertStringContainsString('queue:work --stop-when-empty', $tareas['* * * * *']);
+        $this->assertStringContainsString('queue:work --stop-when-empty', implode("\n", $tareas['* * * * *']));
     }
 
     /**

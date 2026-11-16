@@ -30,9 +30,9 @@ trait EscenarioDeReportes
     use DatosDeExamen;
     use UsuarioConPermisos;
 
-    private const AHORA = '2026-10-12 08:20:00';
-
     private const HOY = '2026-10-12';
+
+    private const AHORA = self::HOY.' 08:20:00';
 
     protected function administrador(): User
     {

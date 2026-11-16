@@ -661,18 +661,24 @@ export const gravedadDe = (i) => i.gravedad ?? GRAVEDAD_DE_TIPO[i.tipo] ?? null;
 
 // Filtro por gravedad de una lista de incidencias (o de sucesos con
 // `gravedad`). `valor` nulo: todas.
-export function FiltroGravedad({ items, valor, onCambiar }) {
+export function FiltroGravedad({ items, valor, onCambiar, conteos }) {
+    const total = conteos
+        ? Object.values(conteos).reduce((suma, cantidad) => suma + cantidad, 0)
+        : items.length;
+
     return (
         <Chips
             etiqueta="Gravedad"
             valor={valor}
             onCambiar={onCambiar}
             opciones={[
-                { valor: null, etiqueta: 'Todas', conteo: items.length },
+                { valor: null, etiqueta: 'Todas', conteo: total },
                 ...Object.entries(GRAVEDADES).map(([clave, g]) => ({
                     valor: clave,
                     etiqueta: g.texto,
-                    conteo: items.filter((i) => gravedadDe(i) === clave).length,
+                    conteo: conteos
+                        ? (conteos[clave] ?? 0)
+                        : items.filter((i) => gravedadDe(i) === clave).length,
                 })),
             ]}
         />
@@ -683,6 +689,7 @@ FiltroGravedad.propTypes = {
     items: PropTypes.arrayOf(PropTypes.object).isRequired,
     valor: PropTypes.string,
     onCambiar: PropTypes.func.isRequired,
+    conteos: PropTypes.objectOf(PropTypes.number),
 };
 const tonoDe = (i) => (i.atendida ? 'neutro' : (GRAVEDADES[gravedadDe(i)]?.tono ?? 'peligro'));
 
