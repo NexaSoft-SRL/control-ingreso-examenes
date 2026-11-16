@@ -12,6 +12,7 @@ use App\Modules\Reportes\Application\Queries\ListarExamenesParaReporte;
 use App\Modules\Reportes\Domain\Exceptions\ExamenSinRendirException;
 use App\Modules\Reportes\Domain\Exceptions\ReporteSinDatosException;
 use App\Modules\Reportes\Http\Requests\AlcanceReporteRequest;
+use App\Modules\Reportes\Http\Requests\FiltrosBitacoraExamenRequest;
 use App\Modules\Reportes\Http\Requests\ReporteExamenRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
@@ -60,9 +61,15 @@ final class ReporteUniversidadController
         ]);
     }
 
-    public function bitacora(int $examen, ConsultarBitacoraExamen $consultar): JsonResponse
-    {
-        return $this->bitacoraJson($consultar->execute($examen, 0, deLaUniversidad: true));
+    public function bitacora(
+        FiltrosBitacoraExamenRequest $request,
+        int $examen,
+        ConsultarBitacoraExamen $consultar,
+    ): JsonResponse {
+        return $this->bitacoraJson(
+            $consultar->execute($examen, 0, deLaUniversidad: true),
+            $request,
+        );
     }
 
     public function exportarBitacora(
