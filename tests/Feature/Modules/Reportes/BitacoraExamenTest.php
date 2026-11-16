@@ -274,15 +274,16 @@ final class BitacoraExamenTest extends TestCase
             ->assertJsonPath('meta.por_pagina', 100);
 
         $total = $primera->json('meta.total');
+        self::assertIsInt($total);
         $this->assertGreaterThan(100, $total);
-        $this->assertCount(100, $primera->json('data'));
+        $primera->assertJsonCount(100, 'data');
         $primera->assertJsonMissing(['detalle' => 'Verificación especial con excepción']);
 
         $segunda = $this->actingAs($cuenta)
             ->getJson("{$ruta}?pagina=2&por_pagina=100")
             ->assertOk()
             ->assertJsonPath('meta.total', $total);
-        $this->assertCount($total - 100, $segunda->json('data'));
+        $segunda->assertJsonCount($total - 100, 'data');
         $segunda->assertJsonFragment(['detalle' => 'Verificación especial con excepción']);
 
         $this->actingAs($cuenta)
