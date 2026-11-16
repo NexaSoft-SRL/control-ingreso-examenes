@@ -224,7 +224,7 @@ export default function AccesoAula() {
                         <div className="flex min-w-0 items-center gap-3">
                             <Escudo className="h-9" />
                             <span className="min-w-0">
-                                <span className="line-clamp-2 block break-words text-sm font-medium leading-tight text-slate-800">
+                                <span className="line-clamp-2 break-words text-sm font-medium leading-tight text-slate-800">
                                     {acceso.nombre ?? `Aula ${acceso.aula}`}
                                 </span>
                                 <span className="block truncate text-xs text-slate-600">
