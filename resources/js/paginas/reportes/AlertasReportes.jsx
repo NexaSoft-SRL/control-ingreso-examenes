@@ -4,6 +4,7 @@ import { mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
 import { useAviso } from '../../componentes/Aviso';
 import Boton from '../../componentes/Boton';
+import Campo from '../../componentes/Campo';
 import EstadoCarga from '../../componentes/EstadoCarga';
 import Tarjeta from '../../componentes/Tarjeta';
 
@@ -56,41 +57,31 @@ export default function AlertasReportes() {
     return (
         <div className="space-y-4">
             <Tarjeta titulo="Alertas de exámenes">
-                <p className="mb-4 text-sm text-slate-600">
-                    Al cerrar un examen, te avisaremos si la asistencia queda por debajo del
-                    porcentaje o si las incidencias alcanzan los umbrales configurados.
-                </p>
                 <form onSubmit={guardar} className="grid gap-4 sm:grid-cols-3 sm:items-end">
-                    <label className="block text-sm font-medium text-slate-700">
-                        Asistencia mínima (%)
-                        <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            required
-                            value={preferencias.asistencia_minima}
-                            onChange={(evento) =>
-                                cambiarPreferencia('asistencia_minima', evento.target.value)
-                            }
-                            className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 px-3 text-slate-900"
-                        />
-                    </label>
-                    <label className="block text-sm font-medium text-slate-700">
-                        Incidencias para alertar
-                        <input
-                            type="number"
-                            min="1"
-                            max="999"
-                            required
-                            value={preferencias.incidencias_minimas}
-                            onChange={(evento) =>
-                                cambiarPreferencia('incidencias_minimas', evento.target.value)
-                            }
-                            className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 px-3 text-slate-900"
-                        />
-                    </label>
+                    <Campo
+                        etiqueta="Asistencia mínima (%)"
+                        type="number"
+                        min="0"
+                        max="100"
+                        required
+                        value={preferencias.asistencia_minima}
+                        onChange={(evento) =>
+                            cambiarPreferencia('asistencia_minima', evento.target.value)
+                        }
+                    />
+                    <Campo
+                        etiqueta="Incidencias para alertar"
+                        type="number"
+                        min="1"
+                        max="999"
+                        required
+                        value={preferencias.incidencias_minimas}
+                        onChange={(evento) =>
+                            cambiarPreferencia('incidencias_minimas', evento.target.value)
+                        }
+                    />
                     <Boton type="submit" cargando={guardando}>
-                        {guardando ? 'Guardando…' : 'Guardar umbrales'}
+                        Guardar umbrales
                     </Boton>
                 </form>
             </Tarjeta>
@@ -101,7 +92,7 @@ export default function AlertasReportes() {
                     error={consulta.error}
                     onReintentar={consulta.recargar}
                     vacio={(consulta.datos?.alertas ?? []).length === 0}
-                    textoVacio="Todavía no tienes alertas"
+                    textoVacio="Sin alertas"
                     filas={2}
                 >
                     <ul className="divide-y divide-slate-200">
