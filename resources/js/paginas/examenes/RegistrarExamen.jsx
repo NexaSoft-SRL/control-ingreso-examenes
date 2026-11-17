@@ -568,9 +568,12 @@ function Asistente({
     const [enviando, setEnviando] = useState(false);
     const [aviso, avisar] = useAviso();
 
-    // Con ingresos registrados solo cambian las normas y quién atiende: lo
-    // mismo que acepta el servidor.
+    // Con ingresos registrados solo cambian las normas, quién atiende y se
+    // suman aulas (un aula inutilizable o llena se reemplaza en pleno
+    // examen): lo mismo que acepta el servidor. Las que ya estaban no se quitan.
     const bloqueado = Boolean(examen?.con_ingresos);
+    const aulasGuardadas = bloqueado ? (examen?.aulas_detalle ?? []).map((a) => a.aula_id) : [];
+    const aulaFija = (id) => aulasGuardadas.includes(id);
     const asignatura = asignaturas.find((a) => a.id === asignaturaId) ?? null;
     const periodo = periodos.find((p) => p.codigo === asignatura?.periodo) ?? null;
     const ventana = ventanaDe(periodo, tipo);
@@ -901,7 +904,7 @@ function Asistente({
                 <Tarjeta titulo="1. Examen" icono={ClipboardList}>
                     {bloqueado && (
                         <p className="mb-4 rounded-lg bg-warning-50 px-3 py-2 text-sm font-medium text-warning-800">
-                            Con ingresos · solo normas y quién atiende
+                            Con ingresos · solo normas, quién atiende y aulas nuevas
                         </p>
                     )}
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -1233,7 +1236,7 @@ function Asistente({
                                             className="inline-flex items-center rounded-full bg-primary-50 pl-3 text-sm font-medium text-primary-900"
                                         >
                                             {nombreAula(id)}
-                                            {!bloqueado && (
+                                            {!aulaFija(id) && (
                                                 <button
                                                     type="button"
                                                     aria-label={`Quitar el aula ${nombreAula(id)}`}
@@ -1322,7 +1325,7 @@ function Asistente({
                                                 horaPropuesta={hora}
                                                 duracionPropuesta={Number(duracion)}
                                                 marcado={aulas.includes(a.id)}
-                                                bloqueado={bloqueado}
+                                                bloqueado={aulaFija(a.id)}
                                                 onCambiar={() =>
                                                     cambiarAulas(alternar(aulas, a.id))
                                                 }

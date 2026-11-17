@@ -17,8 +17,10 @@ use App\Modules\Examenes\Domain\Exceptions\ExamenConIngresosException;
 
 /**
  * Solo quien registro el examen lo modifica. Con ingresos registrados se
- * pueden cambiar las normas (las marcadas y el texto libre) y el personal
- * de las aulas, nada mas.
+ * pueden cambiar las normas (las marcadas y el texto libre), el personal
+ * de las aulas y sumar aulas nuevas, nada mas: un aula que no se puede usar
+ * o que se lleno se reemplaza por otra en pleno examen, y cualquier puerta
+ * del examen admite. Las aulas que ya estaban no se quitan.
  */
 final readonly class ActualizarExamen
 {
@@ -74,7 +76,7 @@ final readonly class ActualizarExamen
             || $actual->horaInicio !== $datos->horaInicio
             || $actual->duracionMinutos !== $datos->duracionMinutos
             || $this->ordenados($actual->grupos) !== $this->ordenados($datos->grupos)
-            || $this->ordenados($actual->aulas) !== $this->ordenados($aulas);
+            || array_diff($actual->aulas, $aulas) !== [];
     }
 
     /**
