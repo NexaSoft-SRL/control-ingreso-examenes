@@ -8,7 +8,7 @@ use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
 use App\Modules\Ingreso\Application\Contracts\PuertaGateway;
 use App\Modules\Ingreso\Application\Contracts\SinConexionGateway;
 use App\Modules\Ingreso\Domain\Exceptions\FueraDeAlcanceException;
-use Carbon\CarbonImmutable;
+use DateTimeImmutable;
 
 /**
  * Lo que el docente revisa de un examen donde se uso el modo sin conexion:
@@ -40,7 +40,7 @@ final readonly class ConsultarSinConexionDelExamen
         // eventos, si los hubo, se perdieron o siguen en su celular.
         $terminado = $examen !== null
             && $examen->hasta !== ''
-            && CarbonImmutable::parse($examen->hasta)->addMinutes(30)->isPast();
+            && (new DateTimeImmutable($examen->hasta))->modify('+30 minutes') < DateTimeImmutable::createFromInterface(now());
 
         $sinSincronizar = $terminado
             ? array_values(array_filter($sesiones, static fn (array $sesion): bool => $sesion['estado'] === 'DESCARGADA'))
