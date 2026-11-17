@@ -852,6 +852,10 @@ final class EloquentReporteGateway implements ReporteGateway
                 '(select count(*) from incidencias as incidencia where '.$this->incidenciaDelExamen().') as incidencias',
                 [$this->apertura()],
             )
+            ->selectRaw(
+                '(select count(*) from ingresos as ingreso where ingreso.examen_id = examen.id'
+                .' and ingreso.es_excepcion) as excepciones'
+            )
             ->get();
 
         $examenes = [];
@@ -874,6 +878,7 @@ final class EloquentReporteGateway implements ReporteGateway
                 incidencias: $this->entero($columnas['incidencias'] ?? 0),
                 // Rendido: de un dia anterior, o de hoy y ya empezado.
                 rendido: $fecha < $hoy || ($fecha === $hoy && $this->hora($columnas['hora_inicio'] ?? null) <= now()->format('H:i')),
+                excepciones: $this->entero($columnas['excepciones'] ?? 0),
             );
         }
 

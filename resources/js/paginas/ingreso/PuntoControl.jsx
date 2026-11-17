@@ -591,6 +591,7 @@ function Puesto({ resumen, aulas, hoy, elegirAula }) {
                     registrarExcepcion={registrarExcepcion}
                     // Con código de aula solo se verifica y se reportan incidencias.
                     conExcepciones={!acceso && !veredicto.sin_conexion}
+                    puedeAdmitir={esDocente}
                     onSiguiente={siguiente}
                 />
             )}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Modules\Ingreso;
 
+use App\Modules\Examenes\Domain\Models\ExamenAula;
 use Database\Factories\UserFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
@@ -167,6 +168,80 @@ final class ExcepcionEnPuertaTest extends TestCase
 
         $this->assertDatabaseCount('ingresos', 0);
         $this->assertDatabaseCount('incidencias', 0);
+    }
+
+    public function test_the_teacher_admits_a_disabled_student_by_decision_and_the_report_keeps_it(): void
+    {
+        [$estudiante] = $this->estudiantesInscritos($this->grupo, 1);
+        $this->inhabilitar($this->examen, [$estudiante]);
+
+        $respuesta = $this->excepcion([
+            'tipo' => 'ADMISION_EXCEPCIONAL',
+            'motivo' => 'Mostró que sí presentó la práctica',
+            'estudiante_id' => $estudiante->id,
+            'examen_id' => $this->examen->id,
+        ])
+            ->assertCreated()
+            ->assertJsonPath('message', 'Situación excepcional registrada: admitir por decisión del docente.');
+
+        $this->assertDatabaseHas('ingresos', [
+            'id' => $respuesta->json('ingreso.id'),
+            'estudiante_id' => $estudiante->id,
+            'es_excepcion' => true,
+        ]);
+        $this->assertDatabaseHas('incidencias', [
+            'ingreso_id' => $respuesta->json('ingreso.id'),
+            'tipo' => 'ADMISION_EXCEPCIONAL',
+            'detalle' => 'Mostró que sí presentó la práctica',
+        ]);
+        // La habilitacion no cambia: queda a quien se admitio pese a ella.
+        $this->assertDatabaseHas('habilitaciones', [
+            'examen_id' => $this->examen->id,
+            'estudiante_id' => $estudiante->id,
+            'habilitado' => false,
+        ]);
+    }
+
+    public function test_only_a_teacher_of_the_exam_admits_a_disabled_student(): void
+    {
+        [$estudiante] = $this->estudiantesInscritos($this->grupo, 1);
+        $this->inhabilitar($this->examen, [$estudiante]);
+        $auxiliar = $this->cuentaAuxiliar();
+        ExamenAula::query()
+            ->where('examen_id', $this->examen->id)
+            ->update(['encargado_id' => $auxiliar->id]);
+
+        $this->actingAs($auxiliar)
+            ->postJson("/api/puerta/aulas/{$this->aula->id}/excepciones", [
+                'tipo' => 'ADMISION_EXCEPCIONAL',
+                'motivo' => 'Dice que sí presentó',
+                'estudiante_id' => $estudiante->id,
+                'examen_id' => $this->examen->id,
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('codigo', 'SOLO_DOCENTE');
+
+        $this->assertDatabaseCount('ingresos', 0);
+        $this->assertDatabaseCount('incidencias', 0);
+    }
+
+    public function test_an_admission_by_decision_still_needs_the_student_and_does_not_admit_twice(): void
+    {
+        [$estudiante] = $this->habilitados(1);
+        $this->ingresar($this->examen, $estudiante, $this->aula);
+
+        $this->excepcion([
+            'tipo' => 'ADMISION_EXCEPCIONAL',
+            'motivo' => 'Quiere entrar de nuevo',
+            'estudiante_id' => $estudiante->id,
+            'examen_id' => $this->examen->id,
+        ])
+            ->assertStatus(409)
+            ->assertJsonPath('codigo', 'YA_INGRESO');
+
+        $this->excepcion(['tipo' => 'ADMISION_EXCEPCIONAL', 'motivo' => 'Sin estudiante'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['estudiante_id', 'examen_id']);
     }
 
     public function test_a_room_change_does_not_admit_someone_who_already_entered_or_was_expelled(): void

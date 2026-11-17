@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature\Modules\Reportes;
 
 use App\Modules\Academico\Domain\Models\Docente;
+use App\Modules\Academico\Domain\Models\Grupo;
 use App\Modules\Estudiantes\Domain\Models\Estudiante;
 use App\Modules\Examenes\Domain\Models\Examen;
 use App\Modules\Reportes\Application\Contracts\ExportadorReporte;
 use App\Modules\Reportes\Application\DTOs\TablaReporte;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
 
@@ -117,7 +119,7 @@ final class ExportacionTest extends TestCase
         $examen = $this->examenConUnIngreso();
         $cuenta = $this->cuentaDe($this->docente);
 
-        foreach (['asistencia', 'ausentes', 'incidencias', 'bitacora'] as $reporte) {
+        foreach (['asistencia', 'ausentes', 'incidencias', 'excepciones', 'bitacora'] as $reporte) {
             $pdf = $this->actingAs($cuenta)
                 ->get("/api/reportes/{$reporte}/exportar?formato=pdf&examen={$examen->id}")
                 ->assertOk()
@@ -134,6 +136,38 @@ final class ExportacionTest extends TestCase
 
             $this->assertStringStartsWith('PK', $this->contenido($hoja));
         }
+    }
+
+    public function test_the_exceptions_report_lists_who_entered_by_exception_and_why(): void
+    {
+        $examen = $this->examenConUnIngreso();
+        $aula = $this->aula('Aula 617');
+        $grupo = Grupo::query()->whereKey(DB::table('examen_grupo')->where('examen_id', $examen->id)->value('grupo_id'))->firstOrFail();
+        [$admitido, $cambiado] = $this->estudiantesInscritos($grupo, 2);
+        Estudiante::whereKey($admitido->id)->update(['codigo_universitario' => '002100002']);
+        $this->ingresar($examen, $admitido, $aula, excepcion: true);
+        $this->ingresar($examen, $cambiado, $aula, excepcion: true);
+        $this->reportar($examen, $aula, 'ADMISION_EXCEPCIONAL', 'Mostró que sí presentó la práctica', $admitido);
+        $this->reportar($examen, $aula, 'CAMBIO_AULA', 'Su aula estaba llena', $cambiado);
+        $this->reportar($examen, $aula, 'MATERIAL_NO_PERMITIDO', 'Calculadora', $cambiado);
+
+        $hoja = $this->hoja($this->actingAs($this->cuentaDe($this->docente))
+            ->get("/api/reportes/excepciones/exportar?formato=xlsx&examen={$examen->id}"));
+        $datos = $this->datos($hoja, 'Hora');
+
+        self::assertCount(2, $datos);
+        self::assertSame(
+            ['002100002', 'No habilitado, admitido por el docente', 'Mostró que sí presentó la práctica'],
+            [$datos[0][2], $datos[0][4], $datos[0][5]],
+        );
+        self::assertSame('Cambio de aula', $datos[1][4]);
+        self::assertStringContainsString('Reporte de excepciones', $this->texto($hoja));
+        self::assertStringContainsString('1 no habilitados admitidos por el docente.', $this->texto($hoja));
+
+        $this->actingAs($this->cuentaDe($this->docente))
+            ->getJson('/api/reportes/mis-examenes')
+            ->assertOk()
+            ->assertJsonPath('data.0.excepciones', 2);
     }
 
     public function test_the_consolidated_report_contains_a_summary_and_a_sheet_per_report(): void

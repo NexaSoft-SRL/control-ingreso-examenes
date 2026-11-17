@@ -428,6 +428,54 @@ describe('Punto de control', () => {
         expect(screen.queryByRole('img', { name: 'Mapa de edificios del campus' })).toBeNull();
     });
 
+    it('no habilitado: el docente lo admite por decisión suya, con motivo', async () => {
+        veredicto = VEREDICTOS.no_habilitado;
+        rutas['POST /puerta/aulas/31/excepciones'] = () => ({
+            message: 'Situación excepcional registrada: admitir por decisión del docente.',
+            incidencia_id: 42,
+            ingreso: { id: 7003, hora: '08:23:00' },
+        });
+        simularApi(api, rutas);
+        montar();
+        await cargada();
+        await verificarManual('202105877');
+
+        expect(await screen.findByText('No habilitado')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Situación excepcional' }));
+        fireEvent.change(screen.getByLabelText('Tipo'), {
+            target: { value: 'ADMISION_EXCEPCIONAL' },
+        });
+        fireEvent.change(screen.getByLabelText(/Motivo/), {
+            target: { value: 'Mostró que sí presentó la práctica' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Registrar' }));
+
+        expect(await screen.findByText('Admitido como excepción')).toBeInTheDocument();
+        expect(enviados('/excepciones')).toEqual([
+            {
+                tipo: 'ADMISION_EXCEPCIONAL',
+                motivo: 'Mostró que sí presentó la práctica',
+                estudiante_id: 9,
+                examen_id: 1,
+            },
+        ]);
+    });
+
+    it('el auxiliar no puede admitir a un no habilitado', async () => {
+        veredicto = VEREDICTOS.no_habilitado;
+        montar({ ruta: '/ingreso', rol: 'Auxiliar' });
+        await cargada();
+        await verificarManual('202105877');
+
+        expect(await screen.findByText('No habilitado')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Situación excepcional' }));
+        expect(() =>
+            fireEvent.change(screen.getByLabelText('Tipo'), {
+                target: { value: 'ADMISION_EXCEPCIONAL' },
+            })
+        ).toThrow();
+    });
+
     it('no es de esta aula: muestra dónde le toca y registra la situación con motivo', async () => {
         veredicto = VEREDICTOS.no_corresponde;
         rutas['POST /puerta/aulas/31/excepciones'] = ({ data }) =>
