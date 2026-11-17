@@ -116,6 +116,14 @@ export default function ReportesDocente() {
                           ? `${plural(examen.incidencias, 'registro')} · con intentos rechazados`
                           : '—',
               },
+              {
+                  clave: 'excepciones',
+                  nombre: 'Admitidos por excepción',
+                  dato:
+                      rendido && examen.excepciones != null
+                          ? `${plural(examen.excepciones, 'estudiante')} · con su motivo`
+                          : '—',
+              },
           ]
         : [];
 
@@ -320,7 +328,7 @@ export default function ReportesDocente() {
                                     />
                                 </div>
 
-                                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                                     {reportes.map((r) => (
                                         <Tarjeta key={r.clave}>
                                             <h2 className="text-base font-semibold text-slate-800">

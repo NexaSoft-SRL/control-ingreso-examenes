@@ -53,6 +53,7 @@ final readonly class ArmarTabla
         'asistencia' => 'Reporte de asistencia',
         'ausentes' => 'Reporte de estudiantes ausentes',
         'incidencias' => 'Reporte de incidencias',
+        'excepciones' => 'Reporte de excepciones',
         'bitacora' => 'Bitácora del examen',
     ];
 
@@ -69,6 +70,7 @@ final readonly class ArmarTabla
         'INGRESO_REPETIDO' => 'Ingreso repetido',
         'EXPULSION' => 'Expulsión',
         'CAMBIO_AULA' => 'Cambio de aula',
+        'ADMISION_EXCEPCIONAL' => 'Admisión excepcional',
         'OTRA' => 'Otra',
     ];
 
@@ -168,6 +170,7 @@ final readonly class ArmarTabla
         [$encabezados, $filas, $totales] = match ($clave) {
             'asistencia' => $this->asistencia($examenId),
             'incidencias' => $this->incidencias($examenId),
+            'excepciones' => $this->excepciones($examenId),
             'bitacora' => $this->bitacora($examenId),
             default => $this->ausentes($examenId),
         };
@@ -442,7 +445,7 @@ final readonly class ArmarTabla
             match (true) {
                 $fila->origen === 'SISTEMA' => $intentos++,
                 $fila->tipo === 'EXPULSION' => $expulsiones++,
-                $fila->tipo === 'CAMBIO_AULA' => $excepciones++,
+                in_array($fila->tipo, ['CAMBIO_AULA', 'ADMISION_EXCEPCIONAL'], true) => $excepciones++,
                 default => $reportadas++,
             };
             $gravedad = GravedadIncidencia::deFila($fila->gravedad, $fila->tipo);
@@ -537,6 +540,50 @@ final readonly class ArmarTabla
             [
                 sprintf('%d estudiantes con ingreso registrado.', count($datos)),
                 sprintf('%d expulsados.', $expulsados),
+            ],
+        ];
+    }
+
+    /**
+     * Quien entro por excepcion y por que: el cambio de aula de un
+     * habilitado y la admision de un no habilitado por decision del docente,
+     * con el motivo que se dejo asentado.
+     *
+     * @return array{list<string>, list<list<string>>, list<string>}
+     */
+    private function excepciones(int $examenId): array
+    {
+        $datos = array_values(array_filter(
+            $this->reportes->incidenciasDeExamen($examenId),
+            static fn (FilaIncidencia $fila): bool => $fila->origen !== 'SISTEMA'
+                && in_array($fila->tipo, ['CAMBIO_AULA', 'ADMISION_EXCEPCIONAL'], true),
+        ));
+        $admisiones = 0;
+        $filas = [];
+
+        foreach ($datos as $fila) {
+            if ($fila->tipo === 'ADMISION_EXCEPCIONAL') {
+                $admisiones++;
+            }
+
+            $filas[] = [
+                $fila->hora,
+                $fila->aula ?? 'Sin aula',
+                $fila->codigoUniversitario ?? '',
+                $fila->estudiante ?? '',
+                $fila->tipo === 'ADMISION_EXCEPCIONAL' ? 'No habilitado, admitido por el docente' : 'Cambio de aula',
+                $fila->detalle,
+                $this->quienRegistro($fila),
+            ];
+        }
+
+        return [
+            ['Hora', 'Aula', 'Código SIS', 'Estudiante', 'Situación', 'Motivo', 'Registrado por'],
+            $filas,
+            [
+                sprintf('%d excepciones.', count($datos)),
+                sprintf('%d no habilitados admitidos por el docente.', $admisiones),
+                sprintf('%d cambios de aula.', count($datos) - $admisiones),
             ],
         ];
     }

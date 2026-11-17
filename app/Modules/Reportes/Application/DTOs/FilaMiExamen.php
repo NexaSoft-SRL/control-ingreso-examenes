@@ -24,6 +24,8 @@ final readonly class FilaMiExamen
         public int $ausentes,
         public int $incidencias,
         public bool $rendido,
+        /** Admitidos por cambio de aula o por decision del docente. */
+        public int $excepciones = 0,
     ) {}
 
     /**

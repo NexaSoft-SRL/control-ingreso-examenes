@@ -25,6 +25,7 @@ const rendido = (id, asignatura, fecha, cambios = {}) => ({
     ausentes: 57,
     asistencia: 78,
     incidencias: 9,
+    excepciones: 2,
     ...cambios,
 });
 const sinRendir = (id, asignatura, fecha, cambios = {}) =>
@@ -35,6 +36,7 @@ const sinRendir = (id, asignatura, fecha, cambios = {}) =>
         ausentes: null,
         asistencia: null,
         incidencias: null,
+        excepciones: null,
         habilitados: 44,
         no_habilitados: 0,
         ...cambios,
@@ -251,6 +253,23 @@ describe('Reportes del docente', () => {
             expect(descargar).toHaveBeenLastCalledWith('/reportes/incidencias/exportar', {
                 parametros: { examen: 1, formato: 'xlsx' },
                 nombre: 'incidencias_2026-10-12.xlsx',
+            })
+        );
+    });
+
+    it('descarga a los admitidos por excepción, con su motivo', async () => {
+        await abrir();
+
+        expect(tarjeta('Admitidos por excepción')).toHaveTextContent(
+            '2 estudiantes · con su motivo'
+        );
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Admitidos por excepción en hoja de cálculo' })
+        );
+        await waitFor(() =>
+            expect(descargar).toHaveBeenLastCalledWith('/reportes/excepciones/exportar', {
+                parametros: { examen: 1, formato: 'xlsx' },
+                nombre: 'excepciones_2026-10-12.xlsx',
             })
         );
     });
