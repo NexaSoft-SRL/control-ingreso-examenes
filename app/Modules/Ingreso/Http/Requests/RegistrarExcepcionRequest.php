@@ -20,7 +20,7 @@ final class RegistrarExcepcionRequest extends FormRequest
      */
     public function rules(): array
     {
-        $admite = TipoExcepcion::CambioAula->value;
+        $admite = implode(',', TipoExcepcion::queAdmiten());
 
         return [
             'tipo' => ['required', 'string', Rule::in(TipoExcepcion::valores())],

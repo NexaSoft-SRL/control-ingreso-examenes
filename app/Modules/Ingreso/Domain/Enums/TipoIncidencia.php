@@ -22,6 +22,9 @@ enum TipoIncidencia: string
     // Exige un ingreso previo y se asienta una sola vez por ingreso.
     case Expulsion = 'EXPULSION';
     case CambioAula = 'CAMBIO_AULA';
+    // El docente del examen deja entrar a un estudiante no habilitado; lo
+    // asienta la puerta junto con el ingreso.
+    case AdmisionExcepcional = 'ADMISION_EXCEPCIONAL';
     case Otra = 'OTRA';
 
     /**
@@ -45,6 +48,7 @@ enum TipoIncidencia: string
             self::IngresoRepetido => 'Ingreso repetido',
             self::Expulsion => 'Expulsión',
             self::CambioAula => 'Cambio de aula',
+            self::AdmisionExcepcional => 'Admisión excepcional',
             self::Otra => 'Otra',
         };
     }
@@ -62,14 +66,14 @@ enum TipoIncidencia: string
             self::IntentoNoAutorizado,
             self::MaterialNoPermitido,
             self::DispositivoNoPermitido => Gravedad::Grave,
-            self::CambioAula, self::Otra => Gravedad::Leve,
+            self::CambioAula, self::AdmisionExcepcional, self::Otra => Gravedad::Leve,
         };
     }
 
     /**
      * Los tipos que una persona puede elegir al reportar. La expulsion
      * tiene su propia operacion porque exige el ingreso, y el ingreso
-     * repetido lo asienta la puerta.
+     * repetido y la admision excepcional los asienta la puerta.
      *
      * @return list<string>
      */
@@ -77,7 +81,7 @@ enum TipoIncidencia: string
     {
         return array_values(array_filter(
             self::valores(),
-            static fn (string $valor): bool => ! in_array($valor, [self::Expulsion->value, self::IngresoRepetido->value], true),
+            static fn (string $valor): bool => ! in_array($valor, [self::Expulsion->value, self::IngresoRepetido->value, self::AdmisionExcepcional->value], true),
         ));
     }
 }

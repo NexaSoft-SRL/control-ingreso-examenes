@@ -40,6 +40,7 @@ final class EloquentBitacoraExamenGateway implements BitacoraExamenGateway
         'INGRESO_REPETIDO' => 'Intento de ingreso repetido',
         'EXPULSION' => 'Expulsión',
         'CAMBIO_AULA' => 'Cambio de aula',
+        'ADMISION_EXCEPCIONAL' => 'Admisión excepcional',
         'OTRA' => 'Incidencia',
     ];
 
