@@ -55,11 +55,13 @@ const BORDE = {
     info: 'border-info-600',
 };
 
-// Situaciones excepcionales (ruta 65). Solo el cambio de aula admite.
+// Situaciones excepcionales (ruta 65). Admiten el cambio de aula y la
+// admisión por decisión del docente, que deja entrar a un no habilitado.
 const TIPOS_EXCEPCION = {
     PROBLEMA_IDENTIFICACION: 'Problema de identificación',
     CAMBIO_AULA: 'Cambio de aula',
     NO_HABILITADO: 'Estudiante no habilitado',
+    ADMISION_EXCEPCIONAL: 'Admitir por decisión del docente',
 };
 const SUGERIDO = { otra_aula: 'CAMBIO_AULA', no_habilitado: 'NO_HABILITADO' };
 const CON_EXCEPCION = ['no_habilitado', 'otra_aula', 'no_corresponde'];
@@ -114,6 +116,7 @@ export default function VeredictoPuerta({
     hora,
     registrarExcepcion,
     conExcepciones = true,
+    puedeAdmitir = false,
     onSiguiente,
 }) {
     const clave = veredicto.veredicto;
@@ -121,10 +124,14 @@ export default function VeredictoPuerta({
     const destino = veredicto.aula_correcta ?? null;
     const otro = veredicto.examen_correspondiente ?? null;
     // El cambio de aula exige estudiante y examen resueltos, y que esté
-    // habilitado: a un no habilitado el servidor se lo rechaza siempre.
-    const tipos = Object.keys(TIPOS_EXCEPCION).filter(
-        (t) => t !== 'CAMBIO_AULA' || (estudiante && examen && clave !== 'no_habilitado')
-    );
+    // habilitado. Admitir a un no habilitado solo lo decide el docente.
+    const conEstudiante = Boolean(estudiante && examen);
+    const tipos = Object.keys(TIPOS_EXCEPCION).filter((t) => {
+        if (t === 'CAMBIO_AULA') return conEstudiante && clave !== 'no_habilitado';
+        if (t === 'ADMISION_EXCEPCIONAL')
+            return conEstudiante && clave === 'no_habilitado' && puedeAdmitir;
+        return true;
+    });
 
     const [abierta, setAbierta] = useState(false);
     const [tipo, setTipo] = useState(SUGERIDO[clave] ?? 'PROBLEMA_IDENTIFICACION');
@@ -405,5 +412,6 @@ VeredictoPuerta.propTypes = {
     hora: PropTypes.string,
     registrarExcepcion: PropTypes.func.isRequired,
     conExcepciones: PropTypes.bool,
+    puedeAdmitir: PropTypes.bool,
     onSiguiente: PropTypes.func.isRequired,
 };

@@ -79,7 +79,7 @@ Route::middleware(['auth', 'permiso:reportes_examenes'])->group(function (): voi
         [ReporteDocenteController::class, 'bitacora'],
     )->whereNumber('examen')->name('reportes.bitacora');
 
-    foreach (['asistencia', 'ausentes', 'incidencias', 'bitacora'] as $reporte) {
+    foreach (['asistencia', 'ausentes', 'incidencias', 'excepciones', 'bitacora'] as $reporte) {
         Route::get(
             "/api/reportes/{$reporte}/exportar",
             [ReporteDocenteController::class, 'exportar'],

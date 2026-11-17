@@ -1020,12 +1020,12 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         ]);
     });
 
-    it('con ingresos solo deja cambiar las normas y quién atiende', async () => {
+    it('con ingresos solo deja cambiar las normas, quién atiende y sumar aulas', async () => {
         detalle = { ...DETALLE, con_ingresos: true };
         montar('/examenes/nuevo?examen=4');
 
         expect(
-            await screen.findByText('Con ingresos · solo normas y quién atiende')
+            await screen.findByText('Con ingresos · solo normas, quién atiende y aulas nuevas')
         ).toBeInTheDocument();
         expect(screen.getByLabelText(/^Fecha/)).toBeDisabled();
         expect(screen.getByLabelText(/^Hora de inicio/)).toBeDisabled();
@@ -1034,6 +1034,17 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         pulsar(/Continuar/);
         await screen.findByRole('heading', { name: '2. Grupos' });
         screen.getAllByRole('checkbox').forEach((c) => expect(c).toBeDisabled());
+
+        // Un aula inutilizable o llena se reemplaza: las que estaban quedan,
+        // y se puede sumar otra.
+        pulsar(/Continuar/);
+        await screen.findByRole('heading', { name: '3. Aulas' });
+        expect(await screen.findByRole('checkbox', { name: 'Aula 691B' })).toBeDisabled();
+        expect(screen.queryByRole('button', { name: 'Quitar el aula 691B' })).toBeNull();
+        const nueva = screen.getByRole('checkbox', { name: 'Aula 606' });
+        expect(nueva).toBeEnabled();
+        fireEvent.click(nueva);
+        expect(screen.getByRole('button', { name: 'Quitar el aula 606' })).toBeInTheDocument();
     });
 
     it('quitar a alguien del apoyo y pasar a cargo a quien apoyaba', async () => {

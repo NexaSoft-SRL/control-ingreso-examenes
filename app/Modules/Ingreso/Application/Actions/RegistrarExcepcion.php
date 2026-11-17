@@ -25,9 +25,11 @@ use App\Modules\Ingreso\Domain\Exceptions\IngresoNoPermitidoException;
 use LogicException;
 
 /**
- * La situacion excepcional de la puerta. Siempre queda como incidencia;
- * solo el cambio de aula admite al estudiante, con las mismas
- * comprobaciones que un ingreso normal salvo la del aula.
+ * La situacion excepcional de la puerta. Siempre queda como incidencia.
+ * El cambio de aula admite con las mismas comprobaciones que un ingreso
+ * normal salvo la del aula; la admision excepcional, ademas, deja entrar a
+ * un no habilitado y solo la decide un docente del examen. La habilitacion
+ * no cambia: el reporte muestra a quien se admitio pese a ella.
  */
 final readonly class RegistrarExcepcion
 {
@@ -81,7 +83,14 @@ final readonly class RegistrarExcepcion
                 throw new DatoNoValidoException('estudiante_id', 'Indique el estudiante.');
             }
 
-            $this->comprobarAdmision($examenId, $estudianteId);
+            if ($tipo->exigeDocente() && ! $this->alcance->esDocente($operador->usuarioId, $examenId)) {
+                throw new IngresoNoPermitidoException(
+                    'Solo un docente del examen puede admitir a un estudiante no habilitado.',
+                    'SOLO_DOCENTE',
+                );
+            }
+
+            $this->comprobarAdmision($examenId, $estudianteId, $tipo->pasaPorAltoLaHabilitacion());
         }
 
         return $this->transaccion->ejecutar(function () use (
@@ -128,7 +137,7 @@ final readonly class RegistrarExcepcion
         });
     }
 
-    private function comprobarAdmision(int $examenId, int $estudianteId): void
+    private function comprobarAdmision(int $examenId, int $estudianteId, bool $sinHabilitacion): void
     {
         if ($this->puerta->examenesDondeEstaInscrito($estudianteId, [$examenId]) === []) {
             throw new IngresoNoPermitidoException(
@@ -143,6 +152,10 @@ final readonly class RegistrarExcepcion
             throw $previo->expulsadoA === null
                 ? $this->yaIngreso()
                 : new IngresoNoPermitidoException('El estudiante fue expulsado de este examen.', 'EXPULSADO');
+        }
+
+        if ($sinHabilitacion) {
+            return;
         }
 
         $condicion = $this->habilitaciones->condicionDe($examenId, $estudianteId);

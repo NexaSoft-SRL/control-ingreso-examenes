@@ -522,7 +522,7 @@ final class RegistroExamenTest extends TestCase
         $this->assertDatabaseHas('examenes', ['id' => $examen->id]);
     }
 
-    public function test_with_entries_only_rules_and_staff_can_change(): void
+    public function test_with_entries_only_rules_staff_and_new_rooms_can_change(): void
     {
         $docente = $this->docente();
         $asignatura = $this->asignatura();
@@ -548,7 +548,8 @@ final class RegistroExamenTest extends TestCase
             ['duracion_minutos' => 45],
             ['tipo' => 'FINAL'],
             ['fecha' => now()->addDay()->toDateString()],
-            ['aulas' => [['aula_id' => $aula->id], ['aula_id' => $otraAula->id]]],
+            // Las aulas que ya estaban no se quitan.
+            ['aulas' => [['aula_id' => $otraAula->id]]],
             ['aulas' => []],
             ['grupos' => [$grupo->id, $this->grupo($docente, $asignatura)->id]],
         ] as $cambio) {
@@ -568,6 +569,21 @@ final class RegistroExamenTest extends TestCase
             ->assertJsonPath('data.aulas_detalle.0.encargado.id', $auxiliar->id);
 
         $this->assertDatabaseHas('examen_aula', ['examen_id' => $examen->id, 'encargado_id' => $auxiliar->id]);
+        $this->assertDatabaseCount('ingresos', 1);
+
+        // Un aula inutilizable o llena se reemplaza en pleno examen: se suma
+        // otra y la que estaba sigue con su ingreso.
+        $this->actingAs($cuenta)
+            ->putJson("/api/examenes/{$examen->id}", array_merge($igual, [
+                'aulas' => [
+                    ['aula_id' => $aula->id, 'encargado_id' => $auxiliar->id],
+                    ['aula_id' => $otraAula->id],
+                ],
+            ]))
+            ->assertOk();
+
+        $this->assertDatabaseHas('examen_aula', ['examen_id' => $examen->id, 'aula_id' => $otraAula->id]);
+        $this->assertDatabaseHas('examen_aula', ['examen_id' => $examen->id, 'aula_id' => $aula->id, 'encargado_id' => $auxiliar->id]);
         $this->assertDatabaseCount('ingresos', 1);
     }
 

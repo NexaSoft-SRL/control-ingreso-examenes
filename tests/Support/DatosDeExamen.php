@@ -223,13 +223,14 @@ trait DatosDeExamen
         Estudiante $estudiante,
         Aula $aula,
         ?User $registradoPor = null,
+        bool $excepcion = false,
     ): Ingreso {
         return Ingreso::create([
             'examen_id' => $examen->id,
             'estudiante_id' => $estudiante->id,
             'aula_id' => $aula->id,
             'medio' => MedioIdentificacion::Codigo,
-            'es_excepcion' => false,
+            'es_excepcion' => $excepcion,
             'registrado_en' => now(),
             'registrado_por' => $registradoPor?->getKey() ?? $examen->creado_por,
         ]);

@@ -32,6 +32,7 @@ export const TIPOS_INCIDENCIA = {
     INGRESO_REPETIDO: 'Ingreso repetido',
     EXPULSION: 'Expulsión',
     CAMBIO_AULA: 'Cambio de aula',
+    ADMISION_EXCEPCIONAL: 'Admisión excepcional',
     OTRA: 'Otra',
 };
 
@@ -51,12 +52,13 @@ export const GRAVEDAD_DE_TIPO = {
     MATERIAL_NO_PERMITIDO: 'GRAVE',
     DISPOSITIVO_NO_PERMITIDO: 'GRAVE',
     CAMBIO_AULA: 'LEVE',
+    ADMISION_EXCEPCIONAL: 'LEVE',
     OTRA: 'LEVE',
 };
 
 // La gravedad que sugiere cada tipo cuando no hay otra elegida.
 // Los que asienta otra operación: no se eligen ni se cambian.
-const FIJOS = ['EXPULSION', 'INGRESO_REPETIDO'];
+const FIJOS = ['EXPULSION', 'INGRESO_REPETIDO', 'ADMISION_EXCEPCIONAL'];
 
 // Hasta tres fotos de evidencia por incidencia.
 const MAXIMO_FOTOS = 3;
