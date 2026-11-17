@@ -78,6 +78,7 @@ final class PostgreSqlMigrationTest extends TestCase
             'edificios',
             'envios_correo',
             'estudiantes',
+            'eventos_sin_conexion',
             'evidencias_incidencia',
             'examen_aula',
             'examen_aula_apoyo',
@@ -94,6 +95,7 @@ final class PostgreSqlMigrationTest extends TestCase
             'incidencias_comunes',
             'ingresos',
             'inscripciones',
+            'irregularidades_sin_conexion',
             'job_batches',
             'jobs',
             'login_attempts',
@@ -109,6 +111,7 @@ final class PostgreSqlMigrationTest extends TestCase
             'presencias_puerta',
             'respaldos',
             'roles',
+            'sesiones_sin_conexion',
             'sessions',
             'users',
         ];

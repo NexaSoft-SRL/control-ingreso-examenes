@@ -32,21 +32,25 @@ final class ValidacionDeArchivoTest extends TestCase
 
     // --- Criterio 8: faltan columnas ---
 
-    public function test_a_header_without_a_column_is_rejected_and_names_the_missing_one(): void
+    public function test_a_university_sheet_without_the_carnet_column_loads(): void
     {
-        $respuesta = $this->cargar([
-            'codigo_universitario,nombres,apellidos',
-            '202104821,Kevin René,Alvarado Claros',
-        ]);
+        // Como las planillas de la universidad: numero de fila, codigo y
+        // nombres, sin carnet. El carnet lo escribe despues el estudiante.
+        $this->cargar([
+            'Nro,Código SIS,Apellidos,Nombres',
+            '1,202104821,Alvarado Claros,Kevin René',
+            '2,202104822,Rojas Peredo,Fabiola',
+        ])->assertOk();
 
-        $this->assertRechazado($respuesta, 'FALTAN_COLUMNAS')
-            ->assertJsonPath('columnas', ['documento_identidad'])
-            ->assertJsonPath('orden_esperado', self::COLUMNAS)
-            ->assertJsonPath('message', 'Faltan columnas: documento_identidad.')
-            ->assertJsonValidationErrors(['archivo' => 'Faltan columnas: documento_identidad.']);
+        $this->assertDatabaseHas('estudiantes', [
+            'codigo_universitario' => '202104821',
+            'apellidos' => 'Alvarado Claros',
+            'documento_identidad' => null,
+        ]);
+        $this->assertDatabaseCount('inscripciones', 2);
     }
 
-    public function test_several_missing_columns_are_all_named(): void
+    public function test_a_header_without_another_column_is_rejected_and_names_only_that_one(): void
     {
         $respuesta = $this->cargar([
             'Código;Nombres',
@@ -54,7 +58,9 @@ final class ValidacionDeArchivoTest extends TestCase
         ]);
 
         $this->assertRechazado($respuesta, 'FALTAN_COLUMNAS')
-            ->assertJsonPath('columnas', ['documento_identidad', 'apellidos']);
+            ->assertJsonPath('columnas', ['apellidos'])
+            ->assertJsonPath('orden_esperado', self::COLUMNAS)
+            ->assertJsonPath('message', 'Faltan columnas: apellidos.');
     }
 
     public function test_a_file_without_header_and_with_fewer_columns_is_rejected(): void

@@ -12,7 +12,8 @@ use App\Modules\Ingreso\Application\DTOs\ExamenData;
 use App\Modules\Ingreso\Application\DTOs\OperadorData;
 use App\Modules\Ingreso\Domain\Exceptions\AulaSinExamenException;
 use App\Modules\Ingreso\Domain\Exceptions\FueraDeAlcanceException;
-use Carbon\CarbonImmutable;
+use DateTimeImmutable;
+use DateTimeInterface;
 
 /**
  * El puesto descarga con conexion lo que necesita para seguir controlando
@@ -46,7 +47,7 @@ final readonly class ObtenerInstantaneaSinConexion
             throw new AulaSinExamenException;
         }
 
-        $ahora = CarbonImmutable::now();
+        $ahora = DateTimeImmutable::createFromInterface(now());
         $ids = array_map(static fn (ExamenData $examen): int => $examen->id, $delDia);
 
         $this->sinConexion->abrirSesion($dispositivo, $aula->id, $operador, $ahora->format('Y-m-d H:i:s'), $ids);
@@ -54,8 +55,8 @@ final readonly class ObtenerInstantaneaSinConexion
 
         return [
             'dispositivo' => $dispositivo,
-            'instantanea_en' => $ahora->toIso8601String(),
-            'servidor_ahora' => $ahora->toIso8601String(),
+            'instantanea_en' => $ahora->format(DateTimeInterface::ATOM),
+            'servidor_ahora' => $ahora->format(DateTimeInterface::ATOM),
             'aula' => ['id' => $aula->id, 'nombre' => $aula->nombre],
             'examenes' => array_map(fn (ExamenData $examen): array => $this->examen($examen), $delDia),
             'estudiantes' => $datos['estudiantes'],
@@ -68,7 +69,7 @@ final readonly class ObtenerInstantaneaSinConexion
      */
     private function examen(ExamenData $examen): array
     {
-        $inicio = CarbonImmutable::parse($examen->fecha.' '.$examen->hora);
+        $inicio = new DateTimeImmutable($examen->fecha.' '.$examen->hora);
         $minutos = config('umss.minutos_apertura', 60);
 
         return [
@@ -77,7 +78,7 @@ final readonly class ObtenerInstantaneaSinConexion
             'tipo' => $examen->tipo,
             'fecha' => $examen->fecha,
             'hora' => $examen->hora,
-            'abre' => $inicio->subMinutes(is_int($minutos) ? $minutos : 60)->toIso8601String(),
+            'abre' => $inicio->modify(sprintf('-%d minutes', is_int($minutos) ? $minutos : 60))->format(DateTimeInterface::ATOM),
             'cierra' => $examen->hasta,
         ];
     }
