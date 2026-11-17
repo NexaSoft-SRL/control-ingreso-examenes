@@ -13,9 +13,12 @@ use App\Modules\Estudiantes\Domain\Exceptions\ArchivoRechazadoException;
  * entero.
  *
  * Con encabezado, cada columna se reconoce por su nombre y puede venir en
- * cualquier orden: las filas se devuelven en el orden de la carga. Sin
+ * cualquier orden: las filas se devuelven en el orden de la carga. Las
+ * planillas de la universidad no traen el carnet (lo escribe el estudiante),
+ * asi que con encabezado esa columna puede faltar y queda vacia. Sin
  * encabezado solo se puede inferir por el contenido: el codigo
- * universitario (5 a 10 digitos) tiene que estar en la primera columna.
+ * universitario (5 a 10 digitos) tiene que estar en la primera columna y
+ * las demas en su orden.
  */
 final class FormatoDeLista
 {
@@ -38,6 +41,12 @@ final class FormatoDeLista
      * delata un codigo universitario fuera de lugar.
      */
     private const NUMERICAS = ['documento_identidad', 'codigo_asignatura', 'grupo', 'carrera'];
+
+    /**
+     * Columnas que, con encabezado, pueden faltar aunque la carga las
+     * espere: quedan vacias en cada fila.
+     */
+    private const PUEDEN_FALTAR = ['documento_identidad'];
 
     /**
      * Las filas con datos, sin el encabezado, por su numero de fila en el
@@ -148,7 +157,8 @@ final class FormatoDeLista
     {
         $faltan = array_values(array_filter(
             $obligatorias,
-            static fn (string $columna): bool => ! isset($encabezado[$columna]),
+            static fn (string $columna): bool => ! isset($encabezado[$columna])
+                && ! in_array($columna, self::PUEDEN_FALTAR, true),
         ));
 
         if ($faltan !== []) {

@@ -24,7 +24,9 @@ use App\Modules\Ingreso\Domain\Enums\TipoIncidencia;
 use App\Modules\Ingreso\Domain\Enums\TipoIrregularidad;
 use App\Modules\Ingreso\Domain\Exceptions\DatoNoValidoException;
 use App\Modules\Ingreso\Domain\Exceptions\FueraDeAlcanceException;
-use Carbon\CarbonImmutable;
+use DateTimeImmutable;
+use DateTimeInterface;
+use DateTimeZone;
 
 /**
  * Un puesto que trabajo sin conexion envia lo que decidio. El servidor
@@ -72,7 +74,7 @@ final readonly class SincronizarSinConexion
             throw FueraDeAlcanceException::aula();
         }
 
-        $instantanea = CarbonImmutable::parse($instantaneaEn)->setTimezone($this->zona())->format('Y-m-d H:i:s');
+        $instantanea = (new DateTimeImmutable($instantaneaEn))->setTimezone($this->zona())->format('Y-m-d H:i:s');
         $sesionId = $this->sinConexion->sesion($dispositivo, $aula->id, $instantanea);
 
         if ($sesionId === null) {
@@ -100,7 +102,7 @@ final readonly class SincronizarSinConexion
             $resumen['aplicados']++;
         }
 
-        $this->sinConexion->cerrarSesion($sesionId, $resumen['aplicados'], CarbonImmutable::now()->format('Y-m-d H:i:s'));
+        $this->sinConexion->cerrarSesion($sesionId, $resumen['aplicados'], DateTimeImmutable::createFromInterface(now())->format('Y-m-d H:i:s'));
 
         return $resumen;
     }
@@ -110,13 +112,13 @@ final readonly class SincronizarSinConexion
      */
     private function aplicar(AulaData $aula, OperadorData $operador, int $sesionId, string $dispositivo, EventoSinConexionData $evento, array &$resumen): void
     {
-        $hora = CarbonImmutable::parse($evento->hora)->setTimezone($this->zona());
+        $hora = (new DateTimeImmutable($evento->hora))->setTimezone($this->zona());
         $resultado = $evento->resultado;
         $medio = MedioIdentificacion::tryFrom($evento->medio ?? '') ?? MedioIdentificacion::Codigo;
         $estudianteId = $evento->estudianteId;
         $examenId = $evento->examenId;
         $token = $evento->token;
-        $datos = ['dispositivo' => substr($dispositivo, -6), 'hora_local' => $hora->toIso8601String(), 'resultado_local' => $resultado, 'medio' => $medio->value];
+        $datos = ['dispositivo' => substr($dispositivo, -6), 'hora_local' => $hora->format(DateTimeInterface::ATOM), 'resultado_local' => $resultado, 'medio' => $medio->value];
 
         // Un QR que el puesto no conocia (se emitio despues de preparar): el
         // servidor si lo conoce.
@@ -163,7 +165,7 @@ final readonly class SincronizarSinConexion
      * @param  array<string, mixed>  $datos
      * @param  array{recibidos: int, aplicados: int, repetidos: int, ingresos: int, incidencias: int, irregularidades: int}  $resumen
      */
-    private function admitir(AulaData $aula, OperadorData $operador, int $sesionId, ExamenData $examen, int $estudianteId, MedioIdentificacion $medio, CarbonImmutable $hora, array $datos, array &$resumen): ?int
+    private function admitir(AulaData $aula, OperadorData $operador, int $sesionId, ExamenData $examen, int $estudianteId, MedioIdentificacion $medio, DateTimeImmutable $hora, array $datos, array &$resumen): ?int
     {
         $estudiante = $this->puerta->estudiante($estudianteId);
         $codigoEstudiante = $estudiante === null ? (string) $estudianteId : $estudiante->codigo;
@@ -293,21 +295,22 @@ final readonly class SincronizarSinConexion
      * La hora con que se asienta el ingreso y si la del puesto era dudosa:
      * en el futuro, o lejos de la ventana del examen.
      *
-     * @return array{CarbonImmutable, bool}
+     * @return array{DateTimeImmutable, bool}
      */
-    private function horaAplicable(CarbonImmutable $hora, ExamenData $examen): array
+    private function horaAplicable(DateTimeImmutable $hora, ExamenData $examen): array
     {
-        $ahora = CarbonImmutable::now();
+        $ahora = DateTimeImmutable::createFromInterface(now());
 
-        if ($hora->greaterThan($ahora->addMinutes(self::FUTURO_MINUTOS))) {
+        if ($hora > $ahora->modify(sprintf('+%d minutes', self::FUTURO_MINUTOS))) {
             return [$ahora, true];
         }
 
         $minutos = config('umss.minutos_apertura', 60);
-        $abre = CarbonImmutable::parse($examen->fecha.' '.$examen->hora, $this->zona())->subMinutes(is_int($minutos) ? $minutos : 60);
-        $cierra = $examen->hasta === '' ? null : CarbonImmutable::parse($examen->hasta)->setTimezone($this->zona());
+        $abre = (new DateTimeImmutable($examen->fecha.' '.$examen->hora, $this->zona()))->modify(sprintf('-%d minutes', is_int($minutos) ? $minutos : 60));
+        $cierra = $examen->hasta === '' ? null : (new DateTimeImmutable($examen->hasta))->setTimezone($this->zona());
+        $margen = sprintf('%d minutes', self::MARGEN_MINUTOS);
 
-        if ($hora->lessThan($abre->subMinutes(self::MARGEN_MINUTOS)) || ($cierra !== null && $hora->greaterThan($cierra->addMinutes(self::MARGEN_MINUTOS)))) {
+        if ($hora < $abre->modify('-'.$margen) || ($cierra !== null && $hora > $cierra->modify('+'.$margen))) {
             return [$ahora, true];
         }
 
@@ -324,10 +327,10 @@ final readonly class SincronizarSinConexion
         $resumen['irregularidades']++;
     }
 
-    private function zona(): string
+    private function zona(): DateTimeZone
     {
         $zona = config('app.timezone');
 
-        return is_string($zona) ? $zona : 'UTC';
+        return new DateTimeZone(is_string($zona) ? $zona : 'UTC');
     }
 }
