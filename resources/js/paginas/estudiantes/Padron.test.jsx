@@ -196,6 +196,10 @@ function servidor({ estudiantes = ESTUDIANTES, conflictos = CONFLICTOS, rutas = 
                 facultad: e.facultad,
                 carrera: CARRERAS.find((c) => c.id === e.carrera_id)?.nombre ?? null,
                 origen: e.origen,
+                verificado: e.origen === 'Administración',
+                registrado_en: '2026-10-01 10:00',
+                actualizado_en: '2026-10-02 11:00',
+                conflictos: [],
                 materias: e.materias,
             },
         };

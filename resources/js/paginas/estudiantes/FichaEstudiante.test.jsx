@@ -27,11 +27,51 @@ const FICHA = {
     facultad: 'FCyT',
     carrera: 'Ing. Informática',
     origen: 'Administración',
+    verificado: true,
+    registrado_en: '2026-10-01 10:00',
+    actualizado_en: '2026-10-02 11:00',
     con_foto: false,
+    conflictos: [],
     materias: [],
 };
 
 describe('FichaEstudiante', () => {
+    it('muestra la procedencia y el historial de conflictos del padrón', async () => {
+        simularApi(api, {
+            'GET /estudiantes/5': {
+                data: {
+                    ...FICHA,
+                    conflictos: [
+                        {
+                            id: 8,
+                            tipo: 'DOCUMENTO_DISTINTO',
+                            estado: 'resuelto',
+                            resolucion: 'MANTENER_PADRON',
+                            nombre_nuevo: 'Aguilar Cossío Mariana',
+                            documento_nuevo: '7928149',
+                            reportado_por: 'Blanco Coca Leticia',
+                            reportado_en: '2026-10-10 12:00',
+                            resuelto_por: 'Rojas Vargas Ana',
+                            resuelto_en: '2026-10-11 13:30',
+                        },
+                    ],
+                },
+            },
+        });
+        renderConSesion(
+            <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={vi.fn()} />
+        );
+
+        expect(await screen.findByText(/Datos verificados/)).toBeInTheDocument();
+        expect(screen.getByText('Historial de conflictos')).toBeInTheDocument();
+        expect(screen.getByText('Documento distinto')).toBeInTheDocument();
+        expect(
+            screen.getByText(/Propuesto: Aguilar Cossío Mariana · C\.I\. 7928149/)
+        ).toBeInTheDocument();
+        expect(screen.getByText(/Reportado por Blanco Coca Leticia/)).toBeInTheDocument();
+        expect(screen.getByText(/Mantener padrón · Rojas Vargas Ana/)).toBeInTheDocument();
+    });
+
     it('sin foto la sube apenas se elige, sin pasos de más', async () => {
         simularApi(api, {
             'GET /estudiantes/5': { data: FICHA },

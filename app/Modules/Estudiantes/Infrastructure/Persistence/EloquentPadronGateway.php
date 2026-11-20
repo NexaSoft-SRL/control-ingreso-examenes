@@ -14,6 +14,7 @@ use App\Modules\Estudiantes\Domain\Enums\EstadoConflicto;
 use App\Modules\Estudiantes\Domain\Enums\OrigenEstudiante;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentPadronGateway implements PadronGateway
@@ -119,6 +120,8 @@ final class EloquentPadronGateway implements PadronGateway
                 'e.origen',
                 'e.foto',
                 'e.foto_subida_en',
+                'e.created_at',
+                'e.updated_at',
                 'f.sigla as facultad',
                 'c.nombre as carrera',
             ]);
@@ -171,6 +174,31 @@ final class EloquentPadronGateway implements PadronGateway
 
         $datos = get_object_vars($estudiante);
         $codigo = (string) $this->texto($datos['codigo_universitario'] ?? null);
+        $conflictos = DB::table('conflictos_padron as cp')
+            ->leftJoin('grupos as g', 'g.id', '=', 'cp.grupo_id')
+            ->leftJoin('asignaturas as a', 'a.id', '=', 'g.asignatura_id')
+            ->leftJoin('users as reportante', 'reportante.id', '=', 'cp.reportado_por')
+            ->leftJoin('users as resolutor', 'resolutor.id', '=', 'cp.resuelto_por')
+            ->where('cp.estudiante_id', $estudianteId)
+            ->orderBy('cp.created_at')
+            ->orderBy('cp.id')
+            ->get([
+                'cp.id',
+                'cp.tipo',
+                'cp.estado',
+                'cp.resolucion',
+                'cp.fila',
+                'cp.documento_nuevo',
+                'cp.nombres_nuevos',
+                'cp.apellidos_nuevos',
+                'cp.via',
+                'cp.created_at',
+                'cp.resuelto_en',
+                'reportante.name as reportado_por',
+                'resolutor.name as resuelto_por',
+                'a.nombre as asignatura',
+                'g.codigo as grupo',
+            ]);
 
         return [
             'id' => $this->entero($datos['id'] ?? null),
@@ -183,10 +211,51 @@ final class EloquentPadronGateway implements PadronGateway
             'facultad' => $this->texto($datos['facultad'] ?? null),
             'carrera' => $this->texto($datos['carrera'] ?? null),
             'origen' => $this->origenDe($datos['verificado'] ?? false, $datos['origen'] ?? null),
+            'verificado' => (bool) ($datos['verificado'] ?? false),
+            'registrado_en' => $this->fecha($datos['created_at'] ?? null),
+            'actualizado_en' => $this->fecha($datos['updated_at'] ?? null),
             'con_foto' => $this->texto($datos['foto'] ?? null) !== null,
             'foto_subida_en' => $this->texto($datos['foto_subida_en'] ?? null),
             'materias' => $materias,
+            'conflictos' => array_map(
+                fn (object $conflicto): array => [
+                    'id' => $this->entero($conflicto->id),
+                    'tipo' => $this->texto($conflicto->tipo),
+                    'estado' => mb_strtolower((string) $this->texto($conflicto->estado)),
+                    'resolucion' => $this->texto($conflicto->resolucion),
+                    'fila' => $this->enteroONulo($conflicto->fila),
+                    'documento_nuevo' => $this->texto($conflicto->documento_nuevo),
+                    'nombre_nuevo' => $this->nombreCompleto(
+                        $conflicto->apellidos_nuevos,
+                        $conflicto->nombres_nuevos,
+                    ),
+                    'via' => OrigenEstudiante::tryFrom((string) $this->texto($conflicto->via))
+                        ?->etiqueta(),
+                    'reportado_por' => $this->texto($conflicto->reportado_por),
+                    'reportado_en' => $this->fecha($conflicto->created_at),
+                    'resuelto_por' => $this->texto($conflicto->resuelto_por),
+                    'resuelto_en' => $this->fecha($conflicto->resuelto_en),
+                    'asignatura' => $this->texto($conflicto->asignatura),
+                    'grupo' => $this->texto($conflicto->grupo),
+                ],
+                $conflictos->all(),
+            ),
         ];
+    }
+
+    private function fecha(mixed $fecha): ?string
+    {
+        if (! is_string($fecha) || $fecha === '') {
+            return null;
+        }
+
+        $zona = config('app.timezone');
+
+        if (! is_string($zona)) {
+            throw new \UnexpectedValueException('La zona horaria de la aplicación no es válida.');
+        }
+
+        return Carbon::parse($fecha)->timezone($zona)->format('Y-m-d H:i');
     }
 
     public function resumen(): array

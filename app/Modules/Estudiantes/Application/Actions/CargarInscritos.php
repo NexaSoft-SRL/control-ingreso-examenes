@@ -22,6 +22,7 @@ use App\Modules\Estudiantes\Domain\Enums\TipoConflicto;
 use App\Modules\Estudiantes\Domain\Exceptions\ArchivoRechazadoException;
 use App\Modules\Estudiantes\Domain\Exceptions\GrupoAjenoException;
 use App\Modules\Estudiantes\Domain\Exceptions\PeriodoCerradoException;
+use App\Modules\Estudiantes\Domain\Exceptions\VistaPreviaDesactualizadaException;
 use App\Modules\Estudiantes\Domain\Rules\DatosDeInscrito;
 use App\Modules\Estudiantes\Domain\Rules\FormatoDeLista;
 
@@ -98,10 +99,14 @@ final readonly class CargarInscritos
      *
      * @throws GrupoAjenoException
      * @throws PeriodoCerradoException
+     * @throws VistaPreviaDesactualizadaException
      * @throws ArchivoRechazadoException si el archivo se rechaza entero; no se guarda nada
      */
-    public function execute(SolicitudCargaData $solicitud): ?ResultadoCargaData
-    {
+    public function execute(
+        SolicitudCargaData $solicitud,
+        bool $previsualizar = false,
+        ?string $confirmacion = null,
+    ): ?ResultadoCargaData {
         $grupoId = null;
         $gruposPorClave = [];
         $carreras = [];
@@ -312,6 +317,40 @@ final readonly class CargarInscritos
             rechazos: $rechazos,
             conflictos: $conflictos,
         );
+
+        if ($previsualizar || $solicitud->alcance === AlcanceCarga::Grupo) {
+            $hashArchivo = hash_file('sha256', $solicitud->rutaArchivo);
+
+            if ($hashArchivo === false) {
+                throw new \RuntimeException('No se pudo calcular la huella del archivo de carga.');
+            }
+
+            $huella = hash('sha256', serialize([
+                $solicitud->alcance->value,
+                $grupoId,
+                $facultadId,
+                $periodoId,
+                $solicitud->usuarioId,
+                $hashArchivo,
+                $resultado,
+                $guardados,
+                $duenos,
+                $inscritos,
+                $nuevos,
+                $porInscribir,
+                $enConflicto,
+                array_keys($porVerificar),
+                $porCorregir,
+            ]));
+
+            if ($previsualizar) {
+                return $resultado->conConfirmacion($huella);
+            }
+
+            if ($confirmacion === null || ! hash_equals($huella, $confirmacion)) {
+                throw new VistaPreviaDesactualizadaException;
+            }
+        }
 
         $this->inscripciones->registrar(new RegistroCargaData(
             alcance: $solicitud->alcance,

@@ -713,8 +713,10 @@ export function ListaDelExamen({ examenId, onCifras }) {
                     }
                 >
                     <p className="text-sm text-slate-700">
-                        {plural(cantidad, 'estudiante')}
-                        {!porConfirmar && motivo.trim() && ` · ${motivo.trim()}`}
+                        {todos
+                            ? `${plural(cantidad, 'estudiante')} que ${cantidad === 1 ? 'coincide' : 'coinciden'} con los filtros actuales${excluidos.size > 0 ? `, excepto ${plural(excluidos.size, 'estudiante')}` : ''}.`
+                            : `${plural(cantidad, 'estudiante')} seleccionado${cantidad === 1 ? '' : 's'}.`}
+                        {!porConfirmar && motivo.trim() && ` Motivo: ${motivo.trim()}`}
                     </p>
                 </Dialogo>
             )}

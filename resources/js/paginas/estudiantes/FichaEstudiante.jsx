@@ -26,6 +26,7 @@ import Insignia from '../../componentes/Insignia';
 import { dimensionesDe, ImagenNoValida, reducirImagen } from '../../utiles/imagen';
 import { encuadrarFoto } from '../../utiles/encuadrarFoto';
 import { revisarFoto } from '../../utiles/revisarFoto';
+import { fechaCorta } from '../../utiles/texto';
 import { EditarEstudiante } from '../docente/EdicionDeLista';
 
 // De dónde salió el dato del estudiante: «Administración» si lo cargó la
@@ -260,6 +261,92 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
                                 </dl>
                             </div>
                         </div>
+
+                        <section aria-label="Procedencia e historial">
+                            <h3 className="text-sm font-semibold text-slate-900">
+                                Procedencia de los datos
+                            </h3>
+                            <p className="mt-1 text-sm text-slate-700">
+                                Origen: {ficha.origen} ·{' '}
+                                {ficha.verificado
+                                    ? 'Datos verificados'
+                                    : 'Pendiente de verificación'}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                                Registro creado {fechaCorta(ficha.registrado_en) || 'sin fecha'} ·{' '}
+                                última actualización{' '}
+                                {fechaCorta(ficha.actualizado_en) || 'sin fecha'}
+                            </p>
+                        </section>
+
+                        <section aria-label="Historial de conflictos">
+                            <h3 className="text-sm font-semibold text-slate-900">
+                                Historial de conflictos
+                                <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                                    {ficha.conflictos?.length ?? 0}
+                                </span>
+                            </h3>
+                            {ficha.conflictos?.length ? (
+                                <ol className="mt-2 space-y-2">
+                                    {ficha.conflictos.map((conflicto) => (
+                                        <li
+                                            key={conflicto.id}
+                                            className="rounded-lg border border-slate-200 p-3 text-sm"
+                                        >
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <strong className="text-slate-800">
+                                                    {conflicto.tipo === 'DOCUMENTO_DISTINTO'
+                                                        ? 'Documento distinto'
+                                                        : 'Nombre distinto'}
+                                                </strong>
+                                                <Insignia
+                                                    tono={
+                                                        conflicto.estado === 'resuelto'
+                                                            ? 'exito'
+                                                            : 'advertencia'
+                                                    }
+                                                >
+                                                    {conflicto.estado === 'resuelto'
+                                                        ? 'Resuelto'
+                                                        : 'Pendiente'}
+                                                </Insignia>
+                                            </div>
+                                            <p className="mt-1 break-words text-slate-700">
+                                                Propuesto: {conflicto.nombre_nuevo}
+                                                {conflicto.documento_nuevo &&
+                                                    ` · C.I. ${conflicto.documento_nuevo}`}
+                                            </p>
+                                            <p className="text-xs text-slate-500">
+                                                {[
+                                                    conflicto.asignatura &&
+                                                        `${conflicto.asignatura}${conflicto.grupo ? `, grupo ${conflicto.grupo}` : ''}`,
+                                                    `Reportado por ${conflicto.reportado_por ?? conflicto.via ?? '—'}`,
+                                                    fechaCorta(conflicto.reportado_en),
+                                                ]
+                                                    .filter(Boolean)
+                                                    .join(' · ')}
+                                            </p>
+                                            {conflicto.estado === 'resuelto' && (
+                                                <p className="text-xs text-slate-500">
+                                                    Resolución:{' '}
+                                                    {conflicto.resolucion === 'USAR_CARGA'
+                                                        ? 'Usar carga nueva'
+                                                        : 'Mantener padrón'}
+                                                    {conflicto.resuelto_por &&
+                                                        ` · ${conflicto.resuelto_por}`}
+                                                    {conflicto.resuelto_en &&
+                                                        ` · ${fechaCorta(conflicto.resuelto_en)}`}
+                                                </p>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ol>
+                            ) : (
+                                <p className="mt-1 text-sm text-slate-600">
+                                    Sin conflictos registrados.
+                                </p>
+                            )}
+                        </section>
 
                         <section aria-label="Materias">
                             <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">

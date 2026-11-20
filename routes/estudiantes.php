@@ -103,6 +103,10 @@ Route::prefix('api')->group(function (): void {
             ->whereNumber('grupo')
             ->name('docente.grupos.inscritos.carga');
 
+        Route::post('/docente/grupos/{grupo}/inscritos/carga/preview', [CargaInscritosController::class, 'previsualizarGrupo'])
+            ->whereNumber('grupo')
+            ->name('docente.grupos.inscritos.carga.preview');
+
         Route::get('/docente/grupos/{grupo}/inscritos/descarga', [InscritosController::class, 'descarga'])
             ->whereNumber('grupo')
             ->name('docente.grupos.inscritos.descarga');

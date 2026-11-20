@@ -118,7 +118,14 @@ final class BitacoraConsultaControllerTest extends TestCase
     public function test_a_deleted_user_does_not_hide_the_record(): void
     {
         $borrada = $this->usuarioConRol('Auxiliar');
-        $id = $this->asiento($borrada, 'ingreso.registrar', '2026-10-12 13:00:00');
+        app(BitacoraGateway::class)->registrar(
+            (int) $borrada->id,
+            'ingreso.registrar',
+            'ingresos',
+            1,
+            'Ingreso registrado.',
+        );
+        $id = (int) DB::table('bitacora_operaciones')->value('id');
 
         $borrada->delete();
 
@@ -127,7 +134,24 @@ final class BitacoraConsultaControllerTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', $id)
-            ->assertJsonPath('data.0.usuario', 'Sistema');
+            ->assertJsonPath('data.0.usuario', $borrada->name);
+    }
+
+    public function test_a_renamed_user_keeps_the_name_that_was_recorded(): void
+    {
+        app(BitacoraGateway::class)->registrar(
+            (int) $this->docente->id,
+            'examen.registrar',
+            'examenes',
+            1,
+            'Examen registrado.',
+        );
+        $this->docente->forceFill(['name' => 'Nuevo Nombre'])->save();
+
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora')
+            ->assertOk()
+            ->assertJsonPath('data.0.usuario', 'Blanco Coca Leticia');
     }
 
     public function test_an_unknown_operation_shows_its_own_key(): void

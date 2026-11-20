@@ -406,6 +406,17 @@ describe('Habilitacion', () => {
         expect(casillaPagina()).not.toBeChecked();
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Habilitar' })[0]);
+        const confirmacion = screen.getByRole('dialog');
+        expect(confirmacion).toHaveTextContent(
+            '29 estudiantes que coinciden con los filtros actuales, excepto 1 estudiante.'
+        );
+        fireEvent.click(within(confirmacion).getByRole('button', { name: 'Cancelar' }));
+        expect(lotes()).toHaveLength(0);
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Habilitar' })[0]);
+        expect(screen.getByRole('dialog')).toHaveTextContent(
+            '29 estudiantes que coinciden con los filtros actuales, excepto 1 estudiante.'
+        );
         confirmarLote();
 
         await waitFor(() => expect(lotes()).toHaveLength(1));

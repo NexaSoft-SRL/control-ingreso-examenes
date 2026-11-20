@@ -5,6 +5,7 @@ import { api } from '../../api/cliente';
 import descargar from '../../api/descargar';
 import { codigoDe, erroresDe, estadoDe, mensajeDe } from '../../api/errores';
 import Boton from '../../componentes/Boton';
+import ResumenDeCarga from './ResumenDeCarga';
 
 const COLUMNAS = {
     codigo_universitario: 'Código SIS',
@@ -57,6 +58,7 @@ function rechazoDe(error) {
 export default function CargaDeLista({ grupoId, onCargada, onCancelar, onAvisar }) {
     const entrada = useRef(null);
     const [archivo, setArchivo] = useState(null);
+    const [previsualizacion, setPrevisualizacion] = useState(null);
     const [rechazo, setRechazo] = useState(null);
     const [enviando, setEnviando] = useState(false);
 
@@ -66,10 +68,11 @@ export default function CargaDeLista({ grupoId, onCargada, onCancelar, onAvisar 
         if (!elegido) return;
         const reparo = reparoDe(elegido);
         setArchivo(reparo ? null : elegido);
+        setPrevisualizacion(null);
         setRechazo(reparo ? { titulo: reparo, columnas: [], orden: [] } : null);
     }
 
-    async function cargar(evento) {
+    async function previsualizar(evento) {
         evento.preventDefault();
         const reparo = reparoDe(archivo);
         if (reparo) {
@@ -83,12 +86,37 @@ export default function CargaDeLista({ grupoId, onCargada, onCancelar, onAvisar 
         setRechazo(null);
         try {
             const respuesta = await api.post(
+                `/docente/grupos/${grupoId}/inscritos/carga/preview`,
+                formulario
+            );
+            setPrevisualizacion({
+                ...respuesta.data,
+                archivo: respuesta.data?.archivo ?? archivo.name,
+            });
+        } catch (error) {
+            setRechazo(rechazoDe(error));
+        } finally {
+            setEnviando(false);
+        }
+    }
+
+    async function confirmar() {
+        if (!archivo || !previsualizacion?.confirmacion || enviando) return;
+        const formulario = new FormData();
+        formulario.append('archivo', archivo);
+        formulario.append('confirmacion', previsualizacion.confirmacion);
+        setEnviando(true);
+        setRechazo(null);
+        try {
+            const respuesta = await api.post(
                 `/docente/grupos/${grupoId}/inscritos/carga`,
                 formulario
             );
             setArchivo(null);
+            setPrevisualizacion(null);
             onCargada({ ...respuesta.data, archivo: respuesta.data?.archivo ?? archivo.name });
         } catch (error) {
+            if (estadoDe(error) === 409) setPrevisualizacion(null);
             setRechazo(rechazoDe(error));
         } finally {
             setEnviando(false);
@@ -108,78 +136,88 @@ export default function CargaDeLista({ grupoId, onCargada, onCancelar, onAvisar 
     }
 
     return (
-        <form noValidate onSubmit={cargar} className="border-b border-slate-200 p-4 sm:p-5">
-            <div className="rounded-lg border-2 border-dashed border-slate-300 p-4 text-center sm:p-6">
-                <FileSpreadsheet className="mx-auto h-8 w-8 text-slate-500" />
-                <p className="mt-2 text-sm font-medium text-slate-800">
-                    Lista de inscritos de la WebSIS
-                </p>
-                <p className="mx-auto mt-1 max-w-md text-xs text-slate-600">
-                    .xlsx o .csv · código universitario, documento, nombres y apellidos
-                </p>
-
-                <input
-                    ref={entrada}
-                    type="file"
-                    accept=".csv,.xlsx"
-                    aria-label="Archivo de la lista"
-                    className="sr-only"
-                    tabIndex={-1}
-                    onChange={elegir}
+        <form noValidate onSubmit={previsualizar} className="border-b border-slate-200 p-4 sm:p-5">
+            {previsualizacion ? (
+                <ResumenDeCarga
+                    resultado={previsualizacion}
+                    modoVistaPrevia
+                    confirmando={enviando}
+                    onConfirmar={confirmar}
+                    onCerrar={() => setPrevisualizacion(null)}
                 />
-
-                {archivo && (
-                    <p className="mt-3 break-all text-sm font-medium text-slate-800">
-                        {archivo.name}
+            ) : (
+                <div className="rounded-lg border-2 border-dashed border-slate-300 p-4 text-center sm:p-6">
+                    <FileSpreadsheet className="mx-auto h-8 w-8 text-slate-500" />
+                    <p className="mt-2 text-sm font-medium text-slate-800">
+                        Lista de inscritos de la WebSIS
                     </p>
-                )}
+                    <p className="mx-auto mt-1 max-w-md text-xs text-slate-600">
+                        .xlsx o .csv · código universitario, documento, nombres y apellidos
+                    </p>
 
-                {rechazo && (
-                    <div
-                        role="alert"
-                        className="mx-auto mt-3 max-w-md rounded-lg bg-danger-50 px-3 py-2 text-left text-sm text-danger-700"
-                    >
-                        <p className="font-medium">{rechazo.titulo}</p>
-                        {rechazo.columnas.length > 0 && (
-                            <p className="mt-1 break-words text-xs">
-                                Faltan: {rechazo.columnas.map(columna).join(' · ')}
-                            </p>
-                        )}
-                        {rechazo.orden.length > 0 && (
-                            <p className="mt-1 break-words text-xs">
-                                Orden esperado: {rechazo.orden.map(columna).join(' · ')}
-                            </p>
-                        )}
-                    </div>
-                )}
+                    <input
+                        ref={entrada}
+                        type="file"
+                        accept=".csv,.xlsx"
+                        aria-label="Archivo de la lista"
+                        className="sr-only"
+                        tabIndex={-1}
+                        onChange={elegir}
+                    />
 
-                <div className="mt-4 flex flex-col justify-center gap-2 sm:flex-row sm:flex-wrap">
-                    <Boton
-                        type="button"
-                        variante="secundario"
-                        cargando={enviando}
-                        onClick={() => entrada.current?.click()}
-                    >
-                        <Upload className="h-4 w-4" /> Elegir archivo
-                    </Boton>
-                    <Boton type="submit" cargando={enviando}>
-                        {enviando ? 'Cargando' : 'Cargar lista'}
-                    </Boton>
-                    <Boton type="button" variante="fantasma" onClick={plantilla}>
-                        <Download className="h-4 w-4" /> Descargar plantilla
-                    </Boton>
-                    {onCancelar && (
+                    {archivo && (
+                        <p className="mt-3 break-all text-sm font-medium text-slate-800">
+                            {archivo.name}
+                        </p>
+                    )}
+
+                    {rechazo && (
+                        <div
+                            role="alert"
+                            className="mx-auto mt-3 max-w-md rounded-lg bg-danger-50 px-3 py-2 text-left text-sm text-danger-700"
+                        >
+                            <p className="font-medium">{rechazo.titulo}</p>
+                            {rechazo.columnas.length > 0 && (
+                                <p className="mt-1 break-words text-xs">
+                                    Faltan: {rechazo.columnas.map(columna).join(' · ')}
+                                </p>
+                            )}
+                            {rechazo.orden.length > 0 && (
+                                <p className="mt-1 break-words text-xs">
+                                    Orden esperado: {rechazo.orden.map(columna).join(' · ')}
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="mt-4 flex flex-col justify-center gap-2 sm:flex-row sm:flex-wrap">
                         <Boton
                             type="button"
-                            variante="fantasma"
+                            variante="secundario"
                             cargando={enviando}
-                            onClick={onCancelar}
+                            onClick={() => entrada.current?.click()}
                         >
-                            Cancelar
+                            <Upload className="h-4 w-4" /> Elegir archivo
                         </Boton>
-                    )}
+                        <Boton type="submit" cargando={enviando}>
+                            {enviando ? 'Analizando' : 'Previsualizar carga'}
+                        </Boton>
+                        <Boton type="button" variante="fantasma" onClick={plantilla}>
+                            <Download className="h-4 w-4" /> Descargar plantilla
+                        </Boton>
+                        {onCancelar && (
+                            <Boton
+                                type="button"
+                                variante="fantasma"
+                                cargando={enviando}
+                                onClick={onCancelar}
+                            >
+                                Cancelar
+                            </Boton>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
         </form>
     );
 }

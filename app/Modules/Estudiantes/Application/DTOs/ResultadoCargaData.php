@@ -22,5 +22,20 @@ final readonly class ResultadoCargaData
         public int $yaInscritos,
         public array $rechazos,
         public array $conflictos,
+        public ?string $confirmacion = null,
     ) {}
+
+    public function conConfirmacion(string $confirmacion): self
+    {
+        return new self(
+            archivo: $this->archivo,
+            filas: $this->filas,
+            nuevos: $this->nuevos,
+            reutilizados: $this->reutilizados,
+            yaInscritos: $this->yaInscritos,
+            rechazos: $this->rechazos,
+            conflictos: $this->conflictos,
+            confirmacion: $confirmacion,
+        );
+    }
 }

@@ -29,7 +29,9 @@ plantilla para descargar. La carga no duplica: un estudiante que ya está en el 
 inscribe al grupo. Es aditiva: volver a cargar suma inscritos, nunca los quita. Al
 terminar, un resumen dice cuántos fueron nuevos, cuántos ya estaban en el padrón,
 cuántos ya estaban inscritos, y cuáles filas se rechazaron o quedaron en conflicto, cada
-una con su motivo.
+una con su motivo. Antes de guardar, el docente puede previsualizar ese mismo resumen;
+solo al confirmar se aplica la carga. Si el archivo o el padrón cambian entre la revisión
+y la confirmación, el sistema rechaza el plan desactualizado para que se vuelva a revisar.
 
 El sistema revisa el contenido del archivo y no solo su extensión. Un archivo al que le
 faltan columnas, que las trae en otro orden o que no es una lista de inscritos se
@@ -60,10 +62,17 @@ deja las diferencias como conflicto y revisa el contenido del archivo.}
       muestra «Sin lista cargada» y la zona de carga, que indica el formato y las
       columnas esperadas.
 \item Dado que el docente elige un archivo .csv o .xlsx con las cuatro columnas en orden,
-      con o sin encabezado, Cuando lo carga, Entonces el sistema inscribe en el grupo a
-      cada estudiante: crea al que no existía y reutiliza, sin duplicarlo, al que ya
-      estaba en el padrón aunque lo haya cargado otro docente; si el grupo ya tenía
-      lista, suma a los nuevos y no quita a nadie.
+      con o sin encabezado, Cuando solicita la vista previa, Entonces el sistema informa
+      las filas y su clasificación, sin crear estudiantes, inscripciones, conflictos ni
+      asientos de bitácora.
+\item Dado que el docente revisó la vista previa, Cuando confirma el mismo archivo y el
+      padrón no cambió, Entonces el sistema inscribe en el grupo a cada estudiante: crea
+      al que no existía y reutiliza, sin duplicarlo, al que ya estaba en el padrón aunque
+      lo haya cargado otro docente; si el grupo ya tenía lista, suma a los nuevos y no
+      quita a nadie.
+\item Dado que el padrón o el archivo cambió después de la vista previa, Cuando el docente
+      confirma, Entonces el sistema no aplica la carga y solicita revisar una nueva vista
+      previa.
 \item Dado que la carga terminó, Cuando se muestra el resumen, Entonces el sistema indica
       el nombre del archivo, las filas leídas y cuántos fueron nuevos, ya en el padrón,
       ya inscritos, rechazados y en conflicto, y «Ver filas» despliega cada fila
@@ -108,6 +117,8 @@ deja las diferencias como conflicto y revisa el contenido del archivo.}
 \item \texttt{GruposDelDocenteTest}: el docente ve solo sus grupos, con horario e
       inscritos, del período vigente; una cuenta que no es de docente no tiene grupos
       (criterios 1 y 3).
+\item \texttt{CargaInscritosTest}: vista previa sin mutaciones, confirmación del plan,
+      y rechazo de una confirmación obsoleta (criterios 4 a 6).
 \item \texttt{CargaInscritosTest}: archivo .csv con y sin encabezado, separado por punto
       y coma, y .xlsx; estudiante nuevo, estudiante reutilizado sin duplicar, ya inscrito
       y carga aditiva (criterio 4).

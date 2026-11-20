@@ -31,6 +31,10 @@ final class CargarInscritosRequest extends FormRequest
             $reglas['facultad'] = ['required', 'string', 'max:10', 'exists:facultades,clave'];
         }
 
+        if ($this->routeIs('docente.grupos.inscritos.carga')) {
+            $reglas['confirmacion'] = ['required', 'string', 'size:64'];
+        }
+
         return $reglas;
     }
 
@@ -49,6 +53,9 @@ final class CargarInscritosRequest extends FormRequest
             'facultad.string' => 'La facultad no es válida.',
             'facultad.max' => 'La facultad no es válida.',
             'facultad.exists' => 'La facultad no existe.',
+            'confirmacion.required' => 'Debe revisar la vista previa antes de confirmar.',
+            'confirmacion.string' => 'La vista previa no es válida.',
+            'confirmacion.size' => 'La vista previa no es válida.',
         ];
     }
 
@@ -62,5 +69,12 @@ final class CargarInscritosRequest extends FormRequest
     public function facultad(): string
     {
         return $this->string('facultad')->trim()->toString();
+    }
+
+    public function confirmacion(): ?string
+    {
+        $confirmacion = $this->validated('confirmacion');
+
+        return is_string($confirmacion) ? $confirmacion : null;
     }
 }

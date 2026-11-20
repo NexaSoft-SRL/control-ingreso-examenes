@@ -85,6 +85,16 @@ function servidor(grupos, { inscritos = {}, carga = RESULTADO, rutas = {} } = {}
         return respuesta;
     };
 
+    const previsualizar = (pedido) => {
+        const respuesta = typeof carga === 'function' ? carga(pedido) : carga;
+        if (respuesta instanceof Error) return respuesta;
+        return {
+            ...respuesta,
+            message: 'Vista previa lista. No se guardó ningún cambio.',
+            confirmacion: 'a'.repeat(64),
+        };
+    };
+
     simularApi(api, {
         'GET /docente/grupos': () => ({
             data: grupos.map((g) => ({ ...g })),
@@ -98,6 +108,7 @@ function servidor(grupos, { inscritos = {}, carga = RESULTADO, rutas = {} } = {}
         'GET /docente/grupos/*/inscritos/descarga': () => new Blob(['x']),
         'GET /inscritos/plantilla': () => new Blob(['x']),
         'POST /docente/grupos/*/inscritos/carga': cargar,
+        'POST /docente/grupos/*/inscritos/carga/preview': previsualizar,
         ...rutas,
     });
 }
@@ -418,7 +429,7 @@ describe('Mis grupos · grupo sin lista', () => {
     it('el archivo es obligatorio', async () => {
         await abrirSinLista();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Cargar lista' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Previsualizar carga' }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent('El archivo es obligatorio.');
         expect(api.post).not.toHaveBeenCalled();
@@ -432,7 +443,7 @@ describe('Mis grupos · grupo sin lista', () => {
         expect(await screen.findByRole('alert')).toHaveTextContent(
             'El archivo debe ser .csv o .xlsx.'
         );
-        fireEvent.click(screen.getByRole('button', { name: 'Cargar lista' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Previsualizar carga' }));
         expect(api.post).not.toHaveBeenCalled();
     });
 
@@ -441,13 +452,24 @@ describe('Mis grupos · grupo sin lista', () => {
 
         elegirArchivo(archivo('inscritos_g2.csv'));
         expect(screen.getByText('inscritos_g2.csv')).toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'Cargar lista' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Previsualizar carga' }));
 
         expect(await screen.findByText('34 filas', { exact: false })).toBeInTheDocument();
-        const [url, cuerpo] = api.post.mock.calls[0];
+        expect(screen.getByText(/Vista previa; no se aplicaron cambios/)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Confirmar carga' })).toBeInTheDocument();
+        expect(screen.getByText('Sin lista cargada')).toBeInTheDocument();
+        const [previewUrl, previewForm] = api.post.mock.calls[0];
+        expect(previewUrl).toBe('/docente/grupos/66/inscritos/carga/preview');
+        expect(previewForm).toBeInstanceOf(FormData);
+        expect(previewForm.get('archivo').name).toBe('inscritos_g2.csv');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmar carga' }));
+        await screen.findByText('9 nuevos');
+        const [url, cuerpo] = api.post.mock.calls[1];
         expect(url).toBe('/docente/grupos/66/inscritos/carga');
         expect(cuerpo).toBeInstanceOf(FormData);
         expect(cuerpo.get('archivo').name).toBe('inscritos_g2.csv');
+        expect(cuerpo.get('confirmacion')).toBe('a'.repeat(64));
 
         expect(screen.getByText('inscritos_g2.csv')).toBeInTheDocument();
         [
@@ -493,7 +515,7 @@ describe('Mis grupos · grupo sin lista', () => {
         });
 
         elegirArchivo(archivo('lista.xlsx'));
-        fireEvent.click(screen.getByRole('button', { name: 'Cargar lista' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Previsualizar carga' }));
 
         expect(await screen.findByText('0 rechazados')).toBeInTheDocument();
         expect(screen.getByText('0 en conflicto')).toBeInTheDocument();
@@ -512,7 +534,7 @@ describe('Mis grupos · grupo sin lista', () => {
         });
 
         elegirArchivo(archivo('lista.csv'));
-        fireEvent.click(screen.getByRole('button', { name: 'Cargar lista' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Previsualizar carga' }));
 
         const alerta = await screen.findByRole('alert');
         expect(alerta).toHaveTextContent('Faltan columnas');
@@ -533,7 +555,7 @@ describe('Mis grupos · grupo sin lista', () => {
         });
 
         elegirArchivo(archivo('lista.csv'));
-        fireEvent.click(screen.getByRole('button', { name: 'Cargar lista' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Previsualizar carga' }));
 
         const alerta = await screen.findByRole('alert');
         expect(alerta).toHaveTextContent('Columnas en otro orden');
@@ -555,7 +577,7 @@ describe('Mis grupos · grupo sin lista', () => {
         });
 
         elegirArchivo(archivo('lista.xlsx'));
-        fireEvent.click(screen.getByRole('button', { name: 'Cargar lista' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Previsualizar carga' }));
 
         const alerta = await screen.findByRole('alert');
         expect(alerta).toHaveTextContent(texto);
@@ -572,7 +594,7 @@ describe('Mis grupos · grupo sin lista', () => {
         });
 
         elegirArchivo(archivo('lista.csv'));
-        fireEvent.click(screen.getByRole('button', { name: 'Cargar lista' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Previsualizar carga' }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent(
             'El archivo no puede superar los 8 MB.'
@@ -586,7 +608,7 @@ describe('Mis grupos · grupo sin lista', () => {
         await abrirSinLista({ carga: errorHttp(estado, cuerpo) });
 
         elegirArchivo(archivo('lista.csv'));
-        fireEvent.click(screen.getByRole('button', { name: 'Cargar lista' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Previsualizar carga' }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent(cuerpo.message);
     });
@@ -613,9 +635,14 @@ describe('Mis grupos · grupo con lista', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /Cargar archivo/ }));
         elegirArchivo(archivo('inscritos_g2.csv'));
-        fireEvent.click(screen.getByRole('button', { name: 'Cargar lista' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Previsualizar carga' }));
 
         expect(await screen.findByText('9 nuevos')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: /Introducción a la Programación/ })
+        ).toHaveTextContent('65 inscritos');
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmar carga' }));
+        await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
         expect(await screen.findByText('1–25 de 94 inscritos')).toBeInTheDocument();
         await waitFor(() =>
             expect(

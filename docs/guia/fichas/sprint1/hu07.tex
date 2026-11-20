@@ -28,8 +28,9 @@ filtros se combinan entre sí. Una operación que falla o que es rechazada por v
 deja rastro: solo se asienta lo que llegó a completarse.
 
 La bitácora es de solo lectura. No existe ruta para crear, modificar ni borrar un asiento,
-y el intento devuelve un error del método, no una pantalla en blanco. Si el usuario que
-hizo la operación se elimina, el asiento se conserva igual.}
+y el intento devuelve un error del método, no una pantalla en blanco. Cada asiento guarda
+el nombre y el rol del actor como estaban al operar: un cambio posterior de nombre o rol
+no reescribe la historia; si luego se elimina la cuenta, el nombre histórico sigue visible.}
 
 \def\HUCriterios{%
 \item Dado que el administrador entra a la pantalla de Bitácora, Cuando se carga, Entonces
@@ -54,8 +55,10 @@ hizo la operación se elimina, el asiento se conserva igual.}
       búsqueda, Entonces el sistema lo informa en pantalla.
 \item Dado que un usuario intenta crear, modificar o eliminar un asiento, Cuando envía la
       petición, Entonces el sistema la rechaza: la bitácora es de solo lectura.
-\item Dado que el usuario que realizó una operación fue eliminado, Cuando se consulta la
-      bitácora, Entonces el asiento se conserva y se muestra sin su nombre.
+\item Dado que cambia el nombre o se elimina la cuenta de quien realizó una operación,
+      Cuando se consulta la bitácora, Entonces se conserva y se muestra el nombre que tenía
+      al momento de operar; los asientos antiguos sin snapshot siguen mostrando el nombre
+      disponible o «Sistema».
 \item Dado que un rol no tiene el permiso de bitácora, Cuando intenta consultarla,
       Entonces el sistema responde con una negativa explícita que nombra el permiso.
 \item Dado que el administrador accede desde un dispositivo móvil, Cuando abre la
@@ -65,6 +68,8 @@ hizo la operación se elimina, el asiento se conserva igual.}
 \item \texttt{BitacoraConsultaControllerTest}: listado ordenado, filtros por usuario, por
       fecha, por rango, por tipo de operación y todos combinados (criterios 1, 4, 5, 7
       y 8).
+\item \texttt{BitacoraConsultaControllerTest}: nombre del autor conservado al cambiarlo o
+      eliminar su cuenta, y compatibilidad con asientos antiguos (criterio 11).
 \item \texttt{BitacoraConsultaControllerTest::audit\_filters\_are\_validated}: rechazo de
       un rango incoherente y de filtros mal formados (criterio 6).
 \item \texttt{BitacoraConsultaControllerTest::deleted\_user\_does\_not\_hide\_audit\_record}:
