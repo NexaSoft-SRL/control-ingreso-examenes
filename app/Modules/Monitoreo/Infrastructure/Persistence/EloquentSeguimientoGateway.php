@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace App\Modules\Monitoreo\Infrastructure\Persistence;
+
 use App\Modules\Examenes\Application\Contracts\ExamenGateway;
 use App\Modules\Monitoreo\Application\Contracts\SeguimientoGateway;
 use App\Modules\Monitoreo\Application\DTOs\AulaEnCursoData;
@@ -78,7 +79,7 @@ final class EloquentSeguimientoGateway implements SeguimientoGateway
 
         $examenId = $this->entero($columnas['id'] ?? null);
         $suspendido = app(ExamenGateway::class)->estaSuspendido($examenId);
-        
+
         return new ExamenSeguidoData(
             id: $this->entero($columnas['id'] ?? null),
             asignatura: $this->texto($columnas['asignatura'] ?? null) ?? '',
