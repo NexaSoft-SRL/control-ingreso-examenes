@@ -15,6 +15,7 @@ use App\Modules\Examenes\Domain\Models\ExamenAulaApoyo;
 use App\Modules\Examenes\Domain\Models\ExamenGrupo;
 use App\Modules\Examenes\Domain\Models\ExamenNorma;
 use App\Modules\Examenes\Domain\Models\PlantillaNorma;
+use App\Modules\Examenes\Domain\Models\SuspensionExamen;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -218,6 +219,99 @@ final class EloquentExamenGateway implements ExamenGateway
                 'examenes',
                 $examenId,
                 $this->descripcion($examen, 'finalizado'),
+            );
+
+            return $ahora;
+        }, 3);
+    }
+
+    public function estaSuspendido(int $examenId): bool
+    {
+        return SuspensionExamen::query()
+            ->where('examen_id', $examenId)
+            ->whereNull('reanudado_en')
+            ->exists();
+    }
+
+    public function suspender(
+        int $examenId,
+        int $usuarioId,
+        string $motivo,
+        ?string $descripcion,
+    ): ?string {
+        return DB::transaction(function () use (
+            $examenId,
+            $usuarioId,
+            $motivo,
+            $descripcion
+        ): ?string {
+
+            $ahora = now()->format('Y-m-d H:i:s');
+
+            $examen = Examen::whereKey($examenId)
+                ->whereNull('finalizado_en')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $examen instanceof Examen) {
+                return null;
+            }
+
+            if ($this->estaSuspendido($examenId)) {
+                return null;
+            }
+
+            SuspensionExamen::create([
+                'examen_id' => $examenId,
+                'user_id' => $usuarioId,
+                'motivo' => $motivo,
+                'descripcion' => $descripcion,
+                'suspendido_en' => $ahora,
+            ]);
+
+            $this->bitacora->registrar(
+                $usuarioId,
+                'examen.suspender',
+                'examenes',
+                $examenId,
+                sprintf('Examen suspendido. Motivo: %s', $motivo),
+            );
+
+            return $ahora;
+        }, 3);
+    }
+
+    public function reanudar(
+        int $examenId,
+        int $usuarioId,
+    ): ?string {
+        return DB::transaction(function () use (
+            $examenId,
+            $usuarioId
+        ): ?string {
+
+            $ahora = now()->format('Y-m-d H:i:s');
+
+            $suspension = SuspensionExamen::query()
+                ->where('examen_id', $examenId)
+                ->whereNull('reanudado_en')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $suspension instanceof SuspensionExamen) {
+                return null;
+            }
+
+            $suspension->forceFill([
+                'reanudado_en' => $ahora,
+            ])->save();
+
+            $this->bitacora->registrar(
+                $usuarioId,
+                'examen.reanudar',
+                'examenes',
+                $examenId,
+                'Examen reanudado.',
             );
 
             return $ahora;

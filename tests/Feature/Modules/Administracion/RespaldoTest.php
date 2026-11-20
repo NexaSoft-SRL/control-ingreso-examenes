@@ -191,8 +191,8 @@ final class RespaldoTest extends TestCase
             ->assertOk()
             ->json('tablas');
 
-        // Las 54 del esquema menos las diez que no se vuelcan.
-        $this->assertSame(44, $tablas);
+        // Las 55 del esquema menos las diez que no se vuelcan. (Cambiado de 44 a 45 por suspensiones_examen)
+        $this->assertSame(45, $tablas);
         $this->assertSame($tablas, DB::table('respaldos')->where('id', $respaldo['id'])->value('tablas'));
     }
 

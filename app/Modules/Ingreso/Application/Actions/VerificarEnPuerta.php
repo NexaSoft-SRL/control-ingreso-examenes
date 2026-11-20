@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Ingreso\Application\Actions;
 
+use App\Modules\Examenes\Application\Contracts\ExamenGateway;
 use App\Modules\Ingreso\Application\Authorization\AlcancePuesto;
 use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\CondicionHabilitacionGateway;
@@ -56,6 +57,7 @@ final readonly class VerificarEnPuerta
         private IngresoGateway $ingresos,
         private IncidenciaGateway $incidencias,
         private AlcancePuesto $alcance,
+        private ExamenGateway $examenes, // <-- AGREGADO
     ) {}
 
     /**
@@ -120,6 +122,18 @@ final readonly class VerificarEnPuerta
 
         [$examenId, $previo, $condicion] = $this->elegir($candidatos, $estudiante->id, $aula->id);
         $examen = $abiertos[$examenId];
+
+        // --- NUEVA VALIDACIÓN: Bloqueo si el examen está suspendido ---
+        if ($this->examenes->estaSuspendido($examen->id)) {
+            return new VeredictoData(
+                veredicto: Veredicto::ExamenSuspendido,
+                estudiante: $estudiante,
+                examen: $examen,
+                dato: 'El examen fue suspendido temporalmente por el docente.',
+                pie: 'Espere la reanudación del examen.',
+            );
+        }
+        // -------------------------------------------------------------
 
         if ($previo !== null) {
             return $this->yaIngreso($previo, $aula, $estudiante, $examen, $operador, $medio);
