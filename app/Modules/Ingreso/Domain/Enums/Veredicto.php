@@ -16,6 +16,7 @@ enum Veredicto: string
     case YaIngreso = 'ya_ingreso';
     case Expulsado = 'expulsado';
     case NoCorresponde = 'no_corresponde';
+    case ExamenSuspendido = 'examen_suspendido'; // <-- AGREGADO
 
     /**
      * @return list<string>
@@ -37,6 +38,7 @@ enum Veredicto: string
             self::YaIngreso => 'Ya ingresó',
             self::Expulsado => 'Expulsado',
             self::NoCorresponde => 'No es de esta aula',
+            self::ExamenSuspendido => 'Examen suspendido',
         };
     }
 }

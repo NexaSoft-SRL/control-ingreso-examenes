@@ -7,7 +7,9 @@ namespace App\Modules\Examenes\Http\Controllers;
 use App\Modules\Examenes\Application\Actions\ActualizarExamen;
 use App\Modules\Examenes\Application\Actions\EliminarExamen;
 use App\Modules\Examenes\Application\Actions\FinalizarExamen;
+use App\Modules\Examenes\Application\Actions\ReanudarExamen;
 use App\Modules\Examenes\Application\Actions\RegistrarExamen;
+use App\Modules\Examenes\Application\Actions\SuspenderExamen;
 use App\Modules\Examenes\Application\DTOs\AulaDetalleData;
 use App\Modules\Examenes\Application\DTOs\ExamenDetalleData;
 use App\Modules\Examenes\Application\DTOs\ExamenResumenData;
@@ -23,6 +25,7 @@ use App\Modules\Examenes\Domain\Exceptions\ExamenConIngresosException;
 use App\Modules\Examenes\Domain\Exceptions\ExamenNoAbiertoException;
 use App\Modules\Examenes\Http\Requests\GuardarExamenRequest;
 use App\Modules\Examenes\Http\Requests\ListarExamenesRequest;
+use App\Modules\Examenes\Http\Requests\SuspenderExamenRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 
@@ -152,6 +155,57 @@ final class ExamenController
         return response()->json([
             'message' => 'Examen finalizado.',
             'finalizado_en' => $cierre,
+        ]);
+    }
+
+    public function suspender(SuspenderExamenRequest $request, int $examen, SuspenderExamen $suspender): JsonResponse
+    {
+        try {
+            $instante = $suspender->execute(
+                $examen,
+                $this->usuarioId(),
+                $request->motivo(),
+                $request->descripcion()
+            );
+        } catch (ExamenAjenoException) {
+            return $this->ajeno();
+        } catch (ExamenNoAbiertoException) {
+            return response()->json([
+                'message' => 'El examen no está abierto o ya está suspendido.',
+                'codigo' => 'EXAMEN_NO_ABIERTO',
+            ], Response::HTTP_CONFLICT);
+        }
+
+        if ($instante === null) {
+            return $this->noEncontrado();
+        }
+
+        return response()->json([
+            'message' => 'Examen suspendido.',
+            'suspendido_en' => $instante,
+        ]);
+    }
+
+    public function reanudar(int $examen, ReanudarExamen $reanudar): JsonResponse
+    {
+        try {
+            $instante = $reanudar->execute($examen, $this->usuarioId());
+        } catch (ExamenAjenoException) {
+            return $this->ajeno();
+        } catch (ExamenNoAbiertoException) {
+            return response()->json([
+                'message' => 'El examen no está suspendido actualmente.',
+                'codigo' => 'EXAMEN_NO_ABIERTO',
+            ], Response::HTTP_CONFLICT);
+        }
+
+        if ($instante === null) {
+            return $this->noEncontrado();
+        }
+
+        return response()->json([
+            'message' => 'Examen reanudado.',
+            'reanudado_en' => $instante,
         ]);
     }
 

@@ -688,4 +688,122 @@ describe('EnCurso', () => {
         );
         expect(api.get.mock.calls.some(([url]) => url.endsWith('/incidencias'))).toBe(false);
     });
+
+    // --- PRUEBAS DE SUSPENSIÓN Y REANUDACIÓN ---
+
+    it('muestra el botón de Suspender cuando el examen está abierto y no suspendido', async () => {
+        montar();
+        await cargado();
+
+        expect(screen.getByRole('button', { name: /Suspender examen/i })).toBeVisible();
+        expect(screen.queryByRole('button', { name: /Reanudar examen/i })).toBeNull();
+    });
+
+    it('abre el diálogo de suspensión, valida el motivo y envía la petición', async () => {
+        rutas['POST /examenes/1/suspender'] = { message: 'Examen suspendido.' };
+        simularApi(api, rutas);
+
+        montar();
+        await cargado();
+
+        fireEvent.click(screen.getByRole('button', { name: /Suspender examen/i }));
+
+        const dialogo = await screen.findByRole('dialog', { name: 'Suspender examen' });
+        
+        fireEvent.change(within(dialogo).getByPlaceholderText(/Ej. Fuga de examen/i), {
+            target: { value: '  Fuga de examen  ' }, 
+        });
+        
+        // CORRECCIÓN: Usamos getAllByRole('textbox')[1] para el textarea
+        const descripcionInput = within(dialogo).getAllByRole('textbox')[1];
+        fireEvent.change(descripcionInput, {
+            target: { value: 'Encontrados con apuntes.' },
+        });
+
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Suspender' }));
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/examenes/1/suspender', {
+                motivo: 'Fuga de examen',
+                descripcion: 'Encontrados con apuntes.',
+            });
+        });
+    });
+
+    it('deshabilita el botón de suspender si el motivo está vacío o solo tiene espacios', async () => {
+        montar();
+        await cargado();
+
+        fireEvent.click(screen.getByRole('button', { name: /Suspender examen/i }));
+        
+        const dialogo = await screen.findByRole('dialog', { name: 'Suspender examen' });
+        const botonSuspender = within(dialogo).getByRole('button', { name: 'Suspender' });
+        
+        expect(botonSuspender).toBeDisabled();
+
+        fireEvent.change(within(dialogo).getByPlaceholderText(/Ej. Fuga de examen/i), {
+            target: { value: '   ' },
+        });
+        
+        await waitFor(() => {
+            expect(botonSuspender).toBeDisabled();
+        });
+
+        fireEvent.change(within(dialogo).getByPlaceholderText(/Ej. Fuga de examen/i), {
+            target: { value: 'Problema técnico' },
+        });
+        
+        await waitFor(() => {
+            expect(botonSuspender).not.toBeDisabled();
+        });
+    });
+
+    it('muestra el botón de Reanudar y el banner rojo si el examen está suspendido', async () => {
+        rutas['GET /examenes/1/en-curso'] = () =>
+            tablero(AULAS, {
+                suspendido: true,
+                motivo_suspension: 'Fuga de examen',
+                descripcion_suspension: 'Se encontraron hojas en el baño.',
+            });
+        simularApi(api, rutas);
+
+        montar();
+        await cargado();
+
+        expect(screen.queryByRole('button', { name: /Suspender examen/i })).toBeNull();
+        expect(screen.getByRole('button', { name: /Reanudar examen/i })).toBeVisible();
+
+        expect(screen.getByText(/Examen suspendido/i)).toBeVisible();
+        expect(screen.getByText(/Motivo: Fuga de examen/i)).toBeVisible();
+        expect(screen.getByText(/Se encontraron hojas en el baño/i)).toBeVisible();
+    });
+
+    it('llama a la API al hacer clic en Reanudar examen', async () => {
+        rutas['GET /examenes/1/en-curso'] = () =>
+            tablero(AULAS, { suspendido: true, motivo_suspension: 'Fuga' });
+        
+        rutas['POST /examenes/1/reanudar'] = { message: 'Examen reanudado.' };
+        simularApi(api, rutas);
+
+        montar();
+        await cargado();
+
+        fireEvent.click(screen.getByRole('button', { name: /Reanudar examen/i }));
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/examenes/1/reanudar');
+        });
+    });
+
+    it('no muestra el botón de suspender si el examen no está abierto', async () => {
+        rutas['GET /en-curso'] = { data: [EXAMENES[1]] }; // Solo el examen cerrado
+        simularApi(api, rutas);
+
+        montar();
+        
+        expect(await screen.findByText('Ningún examen en curso')).toBeVisible();
+
+        expect(screen.queryByRole('button', { name: /Suspender examen/i })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Reanudar examen/i })).toBeNull();
+    });
 });
