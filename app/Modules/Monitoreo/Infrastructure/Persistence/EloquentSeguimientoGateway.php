@@ -3,8 +3,7 @@
 declare(strict_types=1);
 
 namespace App\Modules\Monitoreo\Infrastructure\Persistence;
-
-use App\Modules\Examenes\Domain\Models\SuspensionExamen; // <-- AGREGADO
+use App\Modules\Examenes\Application\Contracts\ExamenGateway;
 use App\Modules\Monitoreo\Application\Contracts\SeguimientoGateway;
 use App\Modules\Monitoreo\Application\DTOs\AulaEnCursoData;
 use App\Modules\Monitoreo\Application\DTOs\AulaSeguidaData;
@@ -77,14 +76,9 @@ final class EloquentSeguimientoGateway implements SeguimientoGateway
         $finPrevisto = (new DateTimeImmutable("{$fecha} {$hora}", $ahora->getTimezone()))
             ->modify("+{$duracion} minutes");
 
-        // --- CONSULTA DE SUSPENSIÓN ---
-        $suspension = SuspensionExamen::query()
-            ->where('examen_id', $this->entero($columnas['id'] ?? null))
-            ->whereNull('reanudado_en')
-            ->latest('suspendido_en')
-            ->first();
-        // -------------------------------
-
+        $examenId = $this->entero($columnas['id'] ?? null);
+        $suspendido = app(ExamenGateway::class)->estaSuspendido($examenId);
+        
         return new ExamenSeguidoData(
             id: $this->entero($columnas['id'] ?? null),
             asignatura: $this->texto($columnas['asignatura'] ?? null) ?? '',
@@ -104,10 +98,9 @@ final class EloquentSeguimientoGateway implements SeguimientoGateway
                 && $ahora > $finPrevisto
                 && $fecha === $ahora->format('Y-m-d'),
 
-            // --- CAMPOS NUEVOS ---
-            suspendido: $suspension !== null,
-            motivoSuspension: $suspension?->motivo,
-            descripcionSuspension: $suspension?->descripcion,
+            suspendido: $suspendido,
+            motivoSuspension: null, // El Gateway actual no expone el motivo directamente, pero no es necesario para el tablero
+            descripcionSuspension: null,
         );
     }
 

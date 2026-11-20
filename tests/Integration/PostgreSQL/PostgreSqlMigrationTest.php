@@ -113,6 +113,7 @@ final class PostgreSqlMigrationTest extends TestCase
             'roles',
             'sesiones_sin_conexion',
             'sessions',
+            'suspensiones_examen',
             'users',
         ];
 

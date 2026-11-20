@@ -709,11 +709,11 @@ describe('EnCurso', () => {
         fireEvent.click(screen.getByRole('button', { name: /Suspender examen/i }));
 
         const dialogo = await screen.findByRole('dialog', { name: 'Suspender examen' });
-        
+
         fireEvent.change(within(dialogo).getByPlaceholderText(/Ej. Fuga de examen/i), {
-            target: { value: '  Fuga de examen  ' }, 
+            target: { value: '  Fuga de examen  ' },
         });
-        
+
         // CORRECCIÓN: Usamos getAllByRole('textbox')[1] para el textarea
         const descripcionInput = within(dialogo).getAllByRole('textbox')[1];
         fireEvent.change(descripcionInput, {
@@ -735,16 +735,16 @@ describe('EnCurso', () => {
         await cargado();
 
         fireEvent.click(screen.getByRole('button', { name: /Suspender examen/i }));
-        
+
         const dialogo = await screen.findByRole('dialog', { name: 'Suspender examen' });
         const botonSuspender = within(dialogo).getByRole('button', { name: 'Suspender' });
-        
+
         expect(botonSuspender).toBeDisabled();
 
         fireEvent.change(within(dialogo).getByPlaceholderText(/Ej. Fuga de examen/i), {
             target: { value: '   ' },
         });
-        
+
         await waitFor(() => {
             expect(botonSuspender).toBeDisabled();
         });
@@ -752,7 +752,7 @@ describe('EnCurso', () => {
         fireEvent.change(within(dialogo).getByPlaceholderText(/Ej. Fuga de examen/i), {
             target: { value: 'Problema técnico' },
         });
-        
+
         await waitFor(() => {
             expect(botonSuspender).not.toBeDisabled();
         });
@@ -781,7 +781,7 @@ describe('EnCurso', () => {
     it('llama a la API al hacer clic en Reanudar examen', async () => {
         rutas['GET /examenes/1/en-curso'] = () =>
             tablero(AULAS, { suspendido: true, motivo_suspension: 'Fuga' });
-        
+
         rutas['POST /examenes/1/reanudar'] = { message: 'Examen reanudado.' };
         simularApi(api, rutas);
 
@@ -800,7 +800,7 @@ describe('EnCurso', () => {
         simularApi(api, rutas);
 
         montar();
-        
+
         expect(await screen.findByText('Ningún examen en curso')).toBeVisible();
 
         expect(screen.queryByRole('button', { name: /Suspender examen/i })).toBeNull();

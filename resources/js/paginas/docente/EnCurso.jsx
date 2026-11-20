@@ -1,4 +1,13 @@
-import { DoorOpen, Flag, Hourglass, LogIn, PauseCircle, PlayCircle, Radio, TriangleAlert } from 'lucide-react';
+import {
+    DoorOpen,
+    Flag,
+    Hourglass,
+    LogIn,
+    PauseCircle,
+    PlayCircle,
+    Radio,
+    TriangleAlert,
+} from 'lucide-react';
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -235,7 +244,7 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
                     />
                 )}
                 <BotonIncidenciasComunes />
-                
+
                 {/* --- BOTONES SUSPENDER / REANUDAR --- */}
                 {finalizable &&
                     (suspendido ? (
@@ -243,11 +252,15 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
                             <PlayCircle className="h-4 w-4" /> Reanudar examen
                         </Boton>
                     ) : (
-                        <Boton type="button" variante="secundario" onClick={() => setPorSuspender(true)}>
+                        <Boton
+                            type="button"
+                            variante="secundario"
+                            onClick={() => setPorSuspender(true)}
+                        >
                             <PauseCircle className="h-4 w-4" /> Suspender examen
                         </Boton>
                     ))}
-                
+
                 {finalizable && (
                     <Boton
                         type="button"
