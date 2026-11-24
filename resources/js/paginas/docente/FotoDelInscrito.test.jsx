@@ -20,6 +20,9 @@ const montar = (foto, onHabilitada = vi.fn()) =>
 beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-23T10:00:00'));
+    globalThis.URL.createObjectURL = vi.fn(() => 'blob:foto');
+    globalThis.URL.revokeObjectURL = vi.fn();
+    simularApi(api, { 'GET /docente/grupos/4/inscritos/9/foto': new Blob(['x']) });
 });
 
 afterEach(() => vi.useRealTimers());
@@ -35,7 +38,8 @@ describe('FotoDelInscrito', () => {
         const onHabilitada = vi.fn();
         montar({ subida_en: null, habilitada_hasta: null }, onHabilitada);
 
-        expect(screen.getByText('Sin foto')).toBeInTheDocument();
+        expect(screen.getAllByText('Sin foto').length).toBeGreaterThan(0);
+        expect(api.get).not.toHaveBeenCalled();
         const dia = screen.getByLabelText(/Puede subirla hasta/);
         expect(dia).toHaveValue('2026-10-30');
         expect(dia).toHaveAttribute('min', '2026-10-23');
@@ -113,5 +117,32 @@ describe('FotoDelInscrito', () => {
                 'Foto del 12 oct 2026: el cambio se puede habilitar desde el 12 oct 2027'
             )
         ).toBeInTheDocument();
+    });
+});
+
+describe('FotoDelInscrito: la foto', () => {
+    beforeEach(() => {
+        globalThis.URL.createObjectURL = vi.fn(() => 'blob:foto');
+        globalThis.URL.revokeObjectURL = vi.fn();
+    });
+
+    it('muestra la foto del estudiante cuando la tiene', async () => {
+        simularApi(api, { 'GET /docente/grupos/4/inscritos/9/foto': new Blob(['x']) });
+        montar({ subida_en: '2026-10-12', habilitada_hasta: null });
+
+        const foto = await screen.findByRole('img', { name: 'Foto de Romero Rojas Camila' });
+        expect(foto).toHaveAttribute('src', 'blob:foto');
+        expect(api.get).toHaveBeenCalledWith('/docente/grupos/4/inscritos/9/foto', {
+            responseType: 'blob',
+        });
+    });
+
+    it('si la foto no carga deja la silueta, sin romper el cuadro', async () => {
+        simularApi(api, { 'GET /docente/grupos/4/inscritos/9/foto': errorHttp(404, {}) });
+        montar({ subida_en: '2026-10-12', habilitada_hasta: null });
+
+        await waitFor(() => expect(api.get).toHaveBeenCalled());
+        expect(screen.queryByRole('img')).toBeNull();
+        expect(screen.getByText('Con foto · del 12 oct 2026')).toBeInTheDocument();
     });
 });
