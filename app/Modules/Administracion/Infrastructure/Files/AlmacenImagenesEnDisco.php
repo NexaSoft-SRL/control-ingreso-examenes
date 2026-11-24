@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Administracion\Infrastructure\Files;
 
 use App\Modules\Administracion\Application\Contracts\AlmacenImagenes;
+use App\Modules\Administracion\Domain\Exceptions\AlmacenamientoNoDisponibleException;
 use GdImage;
 use Illuminate\Support\Facades\Storage;
 
@@ -43,7 +44,18 @@ final class AlmacenImagenesEnDisco implements AlmacenImagenes
 
         $ruta = sprintf('%s/%s/%s.jpg', self::RAIZ, trim($carpeta, '/'), $nombre);
 
-        return Storage::disk('local')->put($ruta, $jpeg) ? $ruta : null;
+        if (! Storage::disk('local')->put($ruta, $jpeg)) {
+            // La imagen se leyo bien: lo que falla es el disco (por ejemplo,
+            // una carpeta sin permiso de escritura). No es culpa de la foto:
+            // se dice como un error del servidor, no como «imagen no valida».
+            report(new \RuntimeException("No se pudo escribir {$ruta} en el disco."));
+
+            throw new AlmacenamientoNoDisponibleException(
+                'No se pudo guardar la foto en el servidor · avise a la administración'
+            );
+        }
+
+        return $ruta;
     }
 
     public function leer(string $ruta): ?string

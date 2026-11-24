@@ -7,11 +7,13 @@ namespace Tests\Feature\Modules\Estudiantes;
 use App\Modules\Estudiantes\Domain\Enums\OrigenEstudiante;
 use App\Modules\Estudiantes\Domain\Models\Estudiante;
 use App\Modules\Estudiantes\Infrastructure\Mail\CodigoAccesoMail;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
 use Tests\Feature\Modules\Ingreso\EscenarioDePuerta;
 use Tests\Support\DatosAcademicos;
 use Tests\TestCase;
@@ -276,8 +278,6 @@ final class PortalEstudianteTest extends TestCase
         $this->assertDatabaseMissing('estudiantes', ['codigo_universitario' => '199900001']);
     }
 
-    public function test_the_data_has_the_same_rules_as_a_load(): void
-    {
     public function test_the_carnet_of_the_student_is_only_digits_without_complement(): void
     {
         // Al registrarse y al escribir su carnet: sin complemento ni letras.
@@ -301,6 +301,8 @@ final class PortalEstudianteTest extends TestCase
         $this->assertNull($this->estudiante->refresh()->documento_identidad);
     }
 
+    public function test_the_data_has_the_same_rules_as_a_load(): void
+    {
         $this->verificarCorreo('199900001');
 
         $this->postJson('/api/auth/estudiante/registro', [
@@ -656,6 +658,36 @@ final class PortalEstudianteTest extends TestCase
             ->post("/api/estudiantes/{$this->estudiante->id}/foto", ['foto' => UploadedFile::fake()->image('a.png', 1, 1)], ['Accept' => 'application/json'])
             ->assertStatus(422)
             ->assertJsonPath('errors.foto.0', 'Resolución insuficiente · mínimo 240 px');
+    }
+
+    public function test_a_photo_that_cannot_be_read_says_so(): void
+    {
+        $imagen = imagecreatetruecolor(300, 400);
+        for ($y = 0; $y < 400; $y += 3) {
+            imagefilledrectangle($imagen, 0, $y, 300, $y + 2, random_int(0, 0xFFFFFF));
+        }
+        ob_start();
+        imagepng($imagen);
+        $png = (string) ob_get_clean();
+        // Cabecera buena, datos cortados: pasa la validacion y no se puede leer.
+        $cortada = UploadedFile::fake()->createWithContent('a.png', substr($png, 0, intdiv(strlen($png), 2)));
+
+        $this->actingAs($this->usuarioConPermisos(['padron_estudiantes']))
+            ->post("/api/estudiantes/{$this->estudiante->id}/foto", ['foto' => $cortada], ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.foto.0', 'No se pudo leer la imagen · use JPG, PNG o WebP');
+    }
+
+    public function test_a_disk_failure_is_not_reported_as_an_invalid_image(): void
+    {
+        $disco = Mockery::mock(Filesystem::class);
+        $disco->shouldReceive('put')->andReturn(false);
+        Storage::set('local', $disco);
+
+        $this->actingAs($this->usuarioConPermisos(['padron_estudiantes']))
+            ->post("/api/estudiantes/{$this->estudiante->id}/foto", ['foto' => UploadedFile::fake()->image('a.png', 300, 400)], ['Accept' => 'application/json'])
+            ->assertStatus(500)
+            ->assertJsonPath('message', 'No se pudo guardar la foto en el servidor · avise a la administración');
     }
 
     public function test_three_requests_per_student_code_but_classmates_on_the_same_network_go_on(): void

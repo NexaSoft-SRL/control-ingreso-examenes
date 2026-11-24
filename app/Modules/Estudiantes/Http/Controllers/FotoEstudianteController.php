@@ -56,7 +56,7 @@ final class FotoEstudianteController
         } catch (ImagenNoValidaException $error) {
             return response()->json([
                 'message' => $error->getMessage(),
-                'errors' => ['foto' => ['Imagen no válida']],
+                'errors' => ['foto' => [$error->getMessage()]],
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
