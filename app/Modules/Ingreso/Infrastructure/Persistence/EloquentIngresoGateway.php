@@ -18,7 +18,7 @@ final class EloquentIngresoGateway implements IngresoGateway
 {
     use LeeFilas;
 
-    private const UNICO = 'uq_ingreso_examen_estudiante';
+    private const UNICO = 'uq_ingreso_examen_estudiante_intento';
 
     public function __construct(
         private readonly BitacoraGateway $bitacora,
@@ -41,9 +41,31 @@ final class EloquentIngresoGateway implements IngresoGateway
     public function registrar(NuevoIngresoData $datos): ?IngresoData
     {
         try {
-            /** @var int $id */
-            $id = DB::transaction(function () use ($datos): int {
+            /** @var int|null $id */
+            $id = DB::transaction(function () use ($datos): ?int {
                 $ahora = now();
+
+                // El único ya no basta por sí solo: un ingreso anulado deja
+                // pasar de nuevo al estudiante. El candado hace una fila a la
+                // vez por examen y estudiante, y adentro se comprueba que no
+                // haya un ingreso vigente.
+                if (DB::connection()->getDriverName() === 'pgsql') {
+                    DB::select('select pg_advisory_xact_lock(?, ?)', [$datos->examenId, $datos->estudianteId]);
+                }
+
+                if (DB::table('ingresos_vigentes')
+                    ->where('examen_id', $datos->examenId)
+                    ->where('estudiante_id', $datos->estudianteId)
+                    ->exists()) {
+                    return null;
+                }
+
+                // Tras una anulación, el ingreso nuevo es el intento siguiente.
+                $ultimo = DB::table('ingresos')
+                    ->where('examen_id', $datos->examenId)
+                    ->where('estudiante_id', $datos->estudianteId)
+                    ->max('intento');
+                $intento = (is_numeric($ultimo) ? (int) $ultimo : 0) + 1;
 
                 $id = DB::table('ingresos')->insertGetId([
                     'examen_id' => $datos->examenId,
@@ -55,6 +77,7 @@ final class EloquentIngresoGateway implements IngresoGateway
                     'registrado_por' => $datos->operador->usuarioId,
                     'acceso_aula_id' => $datos->operador->accesoAulaId,
                     'created_at' => $ahora,
+                    'intento' => $intento,
                 ]);
 
                 $this->bitacora->registrar(
@@ -89,7 +112,7 @@ final class EloquentIngresoGateway implements IngresoGateway
             throw $error;
         }
 
-        return $this->porId($id);
+        return $id === null ? null : $this->porId($id);
     }
 
     private function esDuplicado(QueryException $error): bool
@@ -100,7 +123,7 @@ final class EloquentIngresoGateway implements IngresoGateway
 
     private function consulta(): Builder
     {
-        return DB::table('ingresos as ingreso')
+        return DB::table('ingresos_vigentes as ingreso')
             ->join('aulas as aula', 'aula.id', '=', 'ingreso.aula_id')
             ->leftJoin('incidencias as expulsion', function (JoinClause $union): void {
                 $union->on('expulsion.ingreso_id', '=', 'ingreso.id')

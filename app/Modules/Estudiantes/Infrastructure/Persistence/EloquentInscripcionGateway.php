@@ -506,7 +506,7 @@ final class EloquentInscripcionGateway implements InscripcionGateway
 
     public function tieneIngresoEnGrupo(int $estudianteId, int $grupoId): bool
     {
-        return DB::table('ingresos as ingreso')
+        return DB::table('ingresos_vigentes as ingreso')
             ->join('examen_grupo as incluido', 'incluido.examen_id', '=', 'ingreso.examen_id')
             ->where('incluido.grupo_id', $grupoId)
             ->where('ingreso.estudiante_id', $estudianteId)

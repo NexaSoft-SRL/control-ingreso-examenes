@@ -272,7 +272,7 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
         $conIngreso = 0;
 
         foreach (array_chunk($estudianteIds, self::LOTE) as $lote) {
-            $conIngreso += DB::table('ingresos')
+            $conIngreso += DB::table('ingresos_vigentes as ingresos')
                 ->where('examen_id', $examenId)
                 ->whereIn('estudiante_id', $lote)
                 ->count();
@@ -591,7 +591,7 @@ final class EloquentHabilitacionGateway implements HabilitacionGateway
                 $sinFoto->whereNull('estudiante.foto')->orWhere('estudiante.foto', '');
             })
             ->whereNotExists(function (Builder $ingreso) use ($examenId): void {
-                $ingreso->from('ingresos')
+                $ingreso->from('ingresos_vigentes as ingresos')
                     ->whereColumn('ingresos.estudiante_id', 'inscripcion.estudiante_id')
                     ->where('ingresos.examen_id', $examenId);
             });

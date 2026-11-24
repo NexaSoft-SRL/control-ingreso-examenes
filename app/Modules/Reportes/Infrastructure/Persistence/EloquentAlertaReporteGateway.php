@@ -188,7 +188,7 @@ final class EloquentAlertaReporteGateway implements AlertaReporteGateway
                 ->where('examen_id', $examenId)
                 ->where('habilitado', true)
                 ->count();
-            $presentes = DB::table('ingresos')
+            $presentes = DB::table('ingresos_vigentes as ingresos')
                 ->where('examen_id', $examenId)
                 ->count();
             $incidencias = count($this->reportes->incidenciasDeExamen($examenId));

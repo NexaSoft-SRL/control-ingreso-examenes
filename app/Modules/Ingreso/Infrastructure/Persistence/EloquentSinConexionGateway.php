@@ -55,7 +55,7 @@ final class EloquentSinConexionGateway implements SinConexionGateway
 
         $ingresos = [];
 
-        foreach (DB::table('ingresos as ingreso')
+        foreach (DB::table('ingresos_vigentes as ingreso')
             ->join('aulas as aula', 'aula.id', '=', 'ingreso.aula_id')
             ->leftJoin('incidencias as expulsion', function (JoinClause $union): void {
                 $union->on('expulsion.ingreso_id', '=', 'ingreso.id')->where('expulsion.tipo', '=', 'EXPULSION');

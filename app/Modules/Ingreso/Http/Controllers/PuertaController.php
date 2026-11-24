@@ -6,6 +6,7 @@ namespace App\Modules\Ingreso\Http\Controllers;
 
 use App\Modules\Estudiantes\Application\Contracts\FotosDeEstudiantes;
 use App\Modules\Ingreso\Application\Actions\AgregarFotoDeIntento;
+use App\Modules\Ingreso\Application\Actions\AnularIngreso;
 use App\Modules\Ingreso\Application\Actions\RegistrarExcepcion;
 use App\Modules\Ingreso\Application\Actions\RegistrarExpulsion;
 use App\Modules\Ingreso\Application\Actions\VerificarCarnetEnPuerta;
@@ -15,11 +16,14 @@ use App\Modules\Ingreso\Application\Contracts\PuertaGateway;
 use App\Modules\Ingreso\Application\Queries\ConsultarMapaDePuerta;
 use App\Modules\Ingreso\Application\Queries\ConsultarPuerta;
 use App\Modules\Ingreso\Application\Queries\ListarAulasDelPuesto;
+use App\Modules\Ingreso\Domain\Exceptions\AnulacionFueraDeDiaException;
 use App\Modules\Ingreso\Domain\Exceptions\AulaSinExamenException;
 use App\Modules\Ingreso\Domain\Exceptions\DatoNoValidoException;
 use App\Modules\Ingreso\Domain\Exceptions\FueraDeAlcanceException;
 use App\Modules\Ingreso\Domain\Exceptions\IngresoNoPermitidoException;
+use App\Modules\Ingreso\Domain\Exceptions\IngresoYaAnuladoException;
 use App\Modules\Ingreso\Domain\Exceptions\YaExpulsadoException;
+use App\Modules\Ingreso\Http\Requests\AnularIngresoRequest;
 use App\Modules\Ingreso\Http\Requests\CarnetEnPuertaRequest;
 use App\Modules\Ingreso\Http\Requests\ConsultarPuertaRequest;
 use App\Modules\Ingreso\Http\Requests\FotoDeIntentoRequest;
@@ -267,6 +271,33 @@ final class PuertaController
             'message' => 'Expulsión registrada.',
             'incidencia_id' => $incidenciaId,
         ], Response::HTTP_CREATED);
+    }
+
+    /**
+     * La anulación de un ingreso hecho por error: la hace el docente del
+     * examen, el mismo día, con su motivo. El ingreso original queda.
+     */
+    public function anulacion(int $ingreso, AnularIngresoRequest $request, AnularIngreso $anular): JsonResponse
+    {
+        $operador = $this->operador($request);
+
+        if ($operador->esAcceso() || $operador->usuarioId === null) {
+            return $this->soloConCuenta();
+        }
+
+        try {
+            if (! $anular->execute($ingreso, $request->motivo(), $operador->usuarioId)) {
+                return $this->noEncontrado('Ingreso no encontrado.');
+            }
+        } catch (FueraDeAlcanceException $error) {
+            return $this->fueraDeAlcance($error);
+        } catch (IngresoYaAnuladoException $error) {
+            return $this->conflicto($error->getMessage(), 'YA_ANULADO');
+        } catch (AnulacionFueraDeDiaException $error) {
+            return $this->conflicto($error->getMessage(), 'FUERA_DE_DIA');
+        }
+
+        return response()->json(['message' => 'Ingreso anulado.']);
     }
 
     /**

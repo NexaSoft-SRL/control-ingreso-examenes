@@ -72,6 +72,7 @@ final class ReporteDocenteController
                     'asistencia' => $fila->rendido ? $fila->asistencia() : null,
                     'incidencias' => $fila->rendido ? $fila->incidencias : null,
                     'excepciones' => $fila->rendido ? $fila->excepciones : null,
+                    'anulados' => $fila->rendido ? $fila->anulados : null,
                 ],
                 $resultado['filas'],
             ),

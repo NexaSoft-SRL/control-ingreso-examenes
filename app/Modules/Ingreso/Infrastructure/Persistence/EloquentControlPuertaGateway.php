@@ -145,7 +145,7 @@ final class EloquentControlPuertaGateway implements ControlPuertaGateway
                 ->where('habilitacion.habilitado', true)
                 ->whereNotExists(function (Builder $ingreso): void {
                     $ingreso->selectRaw('1')
-                        ->from('ingresos')
+                        ->from('ingresos_vigentes as ingresos')
                         ->whereColumn('ingresos.examen_id', 'habilitacion.examen_id')
                         ->whereColumn('ingresos.estudiante_id', 'habilitacion.estudiante_id');
                 })

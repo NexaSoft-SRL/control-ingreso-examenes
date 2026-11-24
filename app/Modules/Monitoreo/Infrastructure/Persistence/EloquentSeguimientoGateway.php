@@ -234,19 +234,19 @@ final class EloquentSeguimientoGateway implements SeguimientoGateway
             ->where('habilitacion.habilitado', true)
             ->whereNotExists(function (Builder $ingreso): void {
                 $ingreso->selectRaw('1')
-                    ->from('ingresos as ingreso')
+                    ->from('ingresos_vigentes as ingreso')
                     ->whereColumn('ingreso.examen_id', 'habilitacion.examen_id')
                     ->whereColumn('ingreso.estudiante_id', 'habilitacion.estudiante_id');
             })
             ->count();
 
         return new CifrasEnCursoData(
-            ingresaron: DB::table('ingresos')->where('examen_id', $examenId)->count(),
+            ingresaron: DB::table('ingresos_vigentes as ingresos')->where('examen_id', $examenId)->count(),
             faltan: $faltan,
             aulas: DB::table('examen_aula')->where('examen_id', $examenId)->count(),
             incidenciasSinAtender: $this->incidenciasSinAtender($examenId)->count(),
             ultimoIngreso: $this->instante(
-                DB::table('ingresos')->where('examen_id', $examenId)->max('registrado_en')
+                DB::table('ingresos_vigentes as ingresos')->where('examen_id', $examenId)->max('registrado_en')
             ),
             llegadas: $this->llegadas($examenId),
         );
@@ -262,7 +262,7 @@ final class EloquentSeguimientoGateway implements SeguimientoGateway
     {
         $porTramo = [];
 
-        foreach (DB::table('ingresos')->where('examen_id', $examenId)->pluck('registrado_en') as $instante) {
+        foreach (DB::table('ingresos_vigentes as ingresos')->where('examen_id', $examenId)->pluck('registrado_en') as $instante) {
             $texto = $this->texto($instante);
 
             if ($texto === null || strlen($texto) < 16) {
@@ -325,7 +325,7 @@ final class EloquentSeguimientoGateway implements SeguimientoGateway
                 ->whereNotNull('aula_id')
         );
         $ingresados = $this->conteoPorAula(
-            DB::table('ingresos')->where('examen_id', $examenId)
+            DB::table('ingresos_vigentes as ingresos')->where('examen_id', $examenId)
         );
         $faltan = $this->conteoPorAula(
             DB::table('habilitaciones as habilitacion')
@@ -334,14 +334,14 @@ final class EloquentSeguimientoGateway implements SeguimientoGateway
                 ->whereNotNull('habilitacion.aula_id')
                 ->whereNotExists(function (Builder $ingreso): void {
                     $ingreso->selectRaw('1')
-                        ->from('ingresos as ingreso')
+                        ->from('ingresos_vigentes as ingreso')
                         ->whereColumn('ingreso.examen_id', 'habilitacion.examen_id')
                         ->whereColumn('ingreso.estudiante_id', 'habilitacion.estudiante_id');
                 })
         );
         // Quienes entraron por la puerta de un aula que no era la suya, desde
         // cada lado: los que llegaron de otra y los que se fueron a otra.
-        $cruzados = fn (): Builder => DB::table('ingresos as ingreso')
+        $cruzados = fn (): Builder => DB::table('ingresos_vigentes as ingreso')
             ->join('habilitaciones as habilitacion', function (JoinClause $union): void {
                 $union->on('habilitacion.examen_id', '=', 'ingreso.examen_id')
                     ->on('habilitacion.estudiante_id', '=', 'ingreso.estudiante_id');
@@ -476,7 +476,7 @@ final class EloquentSeguimientoGateway implements SeguimientoGateway
             filas: $pagina,
             total: $total,
             enOtraAula: DB::table('habilitaciones as habilitacion')
-                ->join('ingresos as ingreso', function (JoinClause $union): void {
+                ->join('ingresos_vigentes as ingreso', function (JoinClause $union): void {
                     $union->on('ingreso.examen_id', '=', 'habilitacion.examen_id')
                         ->on('ingreso.estudiante_id', '=', 'habilitacion.estudiante_id');
                 })
@@ -485,7 +485,7 @@ final class EloquentSeguimientoGateway implements SeguimientoGateway
                 ->where('habilitacion.habilitado', true)
                 ->where('ingreso.aula_id', '<>', $consulta->aulaId)
                 ->count(),
-            deOtraAula: DB::table('ingresos as ingreso')
+            deOtraAula: DB::table('ingresos_vigentes as ingreso')
                 ->leftJoin('habilitaciones as habilitacion', function (JoinClause $union): void {
                     $union->on('habilitacion.examen_id', '=', 'ingreso.examen_id')
                         ->on('habilitacion.estudiante_id', '=', 'ingreso.estudiante_id');
@@ -512,7 +512,7 @@ final class EloquentSeguimientoGateway implements SeguimientoGateway
             ->where('habilitacion.habilitado', true)
             ->whereNotExists(function (Builder $ingreso): void {
                 $ingreso->selectRaw('1')
-                    ->from('ingresos as ingreso')
+                    ->from('ingresos_vigentes as ingreso')
                     ->whereColumn('ingreso.examen_id', 'habilitacion.examen_id')
                     ->whereColumn('ingreso.estudiante_id', 'habilitacion.estudiante_id');
             });
@@ -523,7 +523,7 @@ final class EloquentSeguimientoGateway implements SeguimientoGateway
      */
     private function ingresaron(ConsultaAsistenciaData $consulta): Builder
     {
-        return DB::table('ingresos as ingreso')
+        return DB::table('ingresos_vigentes as ingreso')
             ->join('estudiantes as estudiante', 'estudiante.id', '=', 'ingreso.estudiante_id')
             ->where('ingreso.examen_id', $consulta->examenId)
             ->where('ingreso.aula_id', $consulta->aulaId);
@@ -599,7 +599,7 @@ final class EloquentSeguimientoGateway implements SeguimientoGateway
      */
     private function ultimoIngresoPorAula(int $examenId): array
     {
-        $filas = DB::table('ingresos')
+        $filas = DB::table('ingresos_vigentes as ingresos')
             ->where('examen_id', $examenId)
             ->groupBy('aula_id')
             ->select(['aula_id'])

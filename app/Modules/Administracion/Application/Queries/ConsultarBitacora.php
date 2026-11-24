@@ -100,6 +100,7 @@ final readonly class ConsultarBitacora
         'ingreso.registrar' => 'Registró el ingreso',
         'ingreso.excepcion' => 'Registró una excepción',
         'ingreso.expulsar' => 'Expulsó al estudiante',
+        'ingreso.anular' => 'Anuló un ingreso',
         'incidencia.reportar' => 'Reportó una incidencia',
         'incidencia.registrar' => 'Reportó una incidencia',
         'incidencia.expulsion' => 'Expulsó al estudiante',

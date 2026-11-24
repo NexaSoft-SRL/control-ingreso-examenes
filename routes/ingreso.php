@@ -57,6 +57,7 @@ Route::middleware('puesto')
             ->whereNumber('aula')
             ->name('carnet');
         Route::post('/ingresos/{ingreso}/expulsion', [PuertaController::class, 'expulsion'])->name('expulsion');
+        Route::post('/ingresos/{ingreso}/anulacion', [PuertaController::class, 'anulacion'])->name('anulacion');
 
         // Modo sin conexion: la instantanea que el puesto descarga y lo que
         // envia al volver la conexion.
