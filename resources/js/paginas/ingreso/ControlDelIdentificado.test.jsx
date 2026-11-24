@@ -27,14 +27,14 @@ describe('ControlDelIdentificado', () => {
         );
 
         fireEvent.click(screen.getByRole('button', { name: /Verificar carnet/ }));
-        fireEvent.click(screen.getByRole('button', { name: 'Comparar' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Comparar carnet' }));
         expect(screen.getByText('Escriba el carnet')).toBeInTheDocument();
         expect(api.post).not.toHaveBeenCalled();
 
         fireEvent.change(screen.getByLabelText(/Carnet que presenta/), {
             target: { value: '5003748' },
         });
-        fireEvent.click(screen.getByRole('button', { name: 'Comparar' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Comparar carnet' }));
 
         await waitFor(() =>
             expect(api.post).toHaveBeenCalledWith('/puerta/aulas/5/carnet', {
@@ -67,7 +67,7 @@ describe('ControlDelIdentificado', () => {
         fireEvent.change(screen.getByLabelText(/Carnet que presenta/), {
             target: { value: '7777777' },
         });
-        fireEvent.click(screen.getByRole('button', { name: 'Comparar' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Comparar carnet' }));
 
         expect(await screen.findByText(/No coincide/)).toBeInTheDocument();
         const boton = screen.getByRole('button', { name: /Foto del intruso/ });
@@ -102,7 +102,7 @@ describe('ControlDelIdentificado', () => {
         fireEvent.change(screen.getByLabelText(/Carnet que presenta/), {
             target: { value: '5003748' },
         });
-        fireEvent.click(screen.getByRole('button', { name: 'Comparar' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Comparar carnet' }));
 
         expect(await screen.findByText(/Sin carnet registrado/)).toBeInTheDocument();
     });
@@ -136,5 +136,15 @@ describe('ControlDelIdentificado', () => {
         );
 
         expect(container).toBeEmptyDOMElement();
+    });
+
+    it('el carnet solo admite número y complemento: lo demás no entra', async () => {
+        montar({ veredicto: 'admitido' });
+        fireEvent.click(screen.getByRole('button', { name: /Verificar carnet/ }));
+
+        const campo = screen.getByLabelText(/Carnet que presenta/);
+        fireEvent.change(campo, { target: { value: '5003748-1A#?' } });
+
+        expect(campo).toHaveValue('5003748-1A');
     });
 });

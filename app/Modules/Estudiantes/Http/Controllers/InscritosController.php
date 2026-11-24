@@ -14,6 +14,7 @@ use App\Modules\Estudiantes\Application\DTOs\SolicitudAltaData;
 use App\Modules\Estudiantes\Application\Queries\ArmarListaDeGrupo;
 use App\Modules\Estudiantes\Application\Queries\ArmarPlantilla;
 use App\Modules\Estudiantes\Application\Queries\ListarInscritosDeGrupo;
+use App\Modules\Estudiantes\Application\Queries\VerFotoDeInscrito;
 use App\Modules\Estudiantes\Domain\Enums\ResultadoAlta;
 use App\Modules\Estudiantes\Domain\Exceptions\CambioDeFotoNoPermitidoException;
 use App\Modules\Estudiantes\Domain\Exceptions\DocumentoEnUsoException;
@@ -204,6 +205,26 @@ final class InscritosController
         }
 
         return response()->json(['hasta' => $hasta, 'message' => 'Foto habilitada.']);
+    }
+
+    public function foto(int $grupo, int $estudiante, VerFotoDeInscrito $ver): JsonResponse|Response
+    {
+        try {
+            $jpeg = $ver->execute((int) Auth::id(), $grupo, $estudiante);
+        } catch (GrupoAjenoException $excepcion) {
+            return $this->ajeno($excepcion);
+        } catch (NoInscritoException $excepcion) {
+            return response()->json(['message' => $excepcion->getMessage()], Response::HTTP_NOT_FOUND);
+        }
+
+        if ($jpeg === null) {
+            return response()->json(['message' => 'Sin foto.'], Response::HTTP_NOT_FOUND);
+        }
+
+        return response($jpeg, Response::HTTP_OK, [
+            'Content-Type' => 'image/jpeg',
+            'Cache-Control' => 'private, no-store',
+        ]);
     }
 
     private function ajeno(GrupoAjenoException $excepcion): JsonResponse

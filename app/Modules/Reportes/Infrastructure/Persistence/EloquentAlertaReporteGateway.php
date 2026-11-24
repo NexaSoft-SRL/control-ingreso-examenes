@@ -227,7 +227,7 @@ final class EloquentAlertaReporteGateway implements AlertaReporteGateway
                         'tipo' => 'ASISTENCIA_BAJA',
                         'titulo' => 'Asistencia por debajo del umbral',
                         'mensaje' => sprintf(
-                            '%s (%s): asistencia de %d%%, por debajo del umbral configurado de %d%%.',
+                            '%s (%s): asistencia de %d%%, por debajo del umbral de %d%% al generarla.',
                             $asignatura,
                             FechaLegible::dia($fecha),
                             $porcentaje,
@@ -243,7 +243,7 @@ final class EloquentAlertaReporteGateway implements AlertaReporteGateway
                         'tipo' => 'INCIDENCIAS_ALTAS',
                         'titulo' => 'Incidencias en el examen',
                         'mensaje' => sprintf(
-                            '%s (%s): se registraron %d incidencias, alcanzando el umbral configurado de %d.',
+                            '%s (%s): se registraron %d incidencias, alcanzando el umbral de %d al generarla.',
                             $asignatura,
                             FechaLegible::dia($fecha),
                             $incidencias,

@@ -41,4 +41,44 @@ final readonly class EloquentAjustePeriodoGateway implements AjustePeriodoGatewa
             return true;
         }, 3);
     }
+
+    public function ajustarCalendario(int $periodoId, array $ventanas, ?int $autorId): bool
+    {
+        return DB::transaction(function () use ($periodoId, $ventanas, $autorId): bool {
+            $periodo = Periodo::query()->lockForUpdate()->find($periodoId);
+
+            if (! $periodo instanceof Periodo) {
+                return false;
+            }
+
+            $actuales = [];
+
+            foreach ($periodo->ventanas ?? [] as $clave => $rango) {
+                if (is_string($clave)) {
+                    $actuales[$clave] = $rango;
+                }
+            }
+
+            $periodo->forceFill([
+                'ventanas' => [...$actuales, ...$ventanas],
+                'ajustado_por' => $autorId,
+            ])->save();
+
+            $detalle = implode('; ', array_map(
+                static fn (string $clave, array $rango): string => str_replace('_', ' ', $clave).' del '.$rango[0].' al '.$rango[1],
+                array_keys($ventanas),
+                $ventanas,
+            ));
+
+            $this->bitacora->registrar(
+                $autorId,
+                'periodo.calendario',
+                'periodos',
+                $periodo->id,
+                "Calendario de exámenes del período {$periodo->codigo}: {$detalle}",
+            );
+
+            return true;
+        }, 3);
+    }
 }

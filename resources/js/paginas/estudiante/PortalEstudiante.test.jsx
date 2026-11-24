@@ -61,6 +61,49 @@ function montar(ruta = '/estudiante', rutas = {}) {
 }
 
 describe('PortalEstudiante', () => {
+    it('sin exámenes dice cuándo aparecen', async () => {
+        montar('/estudiante', { 'GET /estudiante/examenes': { data: [], hoy: '2026-10-22' } });
+
+        expect(
+            await screen.findByText('Sin exámenes · aparecen cuando su docente los registra')
+        ).toBeInTheDocument();
+    });
+
+    it('el carnet solo admite número y complemento', async () => {
+        const sin = { estudiante: { ...ESTUDIANTE, con_carnet: false }, plazo_foto: PLAZO };
+        montar('/estudiante/foto', { 'GET /estudiante/sesion': sin });
+        await screen.findByRole('button', { name: 'Guardar carnet' });
+
+        fireEvent.change(screen.getByLabelText(/^Carnet/), { target: { value: '5003 748-1A#!' } });
+
+        expect(screen.getByLabelText(/^Carnet/)).toHaveValue('5003748-1A');
+        expect(screen.getByLabelText(/^Carnet/)).toHaveAttribute('maxlength', '30');
+        expect(screen.getByLabelText(/^Carnet/)).toHaveAttribute('aria-required', 'true');
+    });
+
+    it('sin foto y con el plazo abierto lo avisa con un botón para subirla', async () => {
+        montar();
+        const enlace = await screen.findByRole('link', { name: /Falta su foto/ });
+        expect(enlace).toHaveAttribute('href', '/estudiante/foto');
+        expect(enlace).toHaveTextContent('Subir foto');
+    });
+
+    it('con foto no avisa nada', async () => {
+        montar('/estudiante', {
+            'GET /estudiante/sesion': {
+                estudiante: { ...ESTUDIANTE, con_foto: true },
+                plazo_foto: PLAZO,
+            },
+        });
+        await screen.findByText('Cálculo I');
+        expect(screen.queryByText('Falta su foto')).toBeNull();
+    });
+
+    it('dice hasta cuándo puede subir la foto', async () => {
+        montar('/estudiante/foto');
+        expect(await screen.findByText('Subir foto hasta el 31 oct 2026')).toBeInTheDocument();
+    });
+
     it('sin sesión vuelve al acceso', async () => {
         montar('/estudiante', { 'GET /estudiante/sesion': errorHttp(401) });
         expect(await screen.findByText('Estoy en /estudiante/ingreso')).toBeInTheDocument();
@@ -139,8 +182,8 @@ describe('PortalEstudiante', () => {
 
         await screen.findByRole('button', { name: 'Guardar foto' });
         const foto = new File(['jpeg'], 'yo.jpg', { type: 'image/jpeg' });
-        fireEvent.change(screen.getByLabelText('Foto'), { target: { files: [foto] } });
-        await screen.findByRole('img', { name: 'Foto' });
+        fireEvent.change(screen.getByLabelText('Nueva foto'), { target: { files: [foto] } });
+        await screen.findByRole('img', { name: 'Nueva foto' });
         fireEvent.click(screen.getByRole('button', { name: 'Guardar foto' }));
         expect(api.post).not.toHaveBeenCalled();
         expect(screen.getByText('Después no se puede cambiar')).toBeInTheDocument();
@@ -282,12 +325,12 @@ describe('PortalEstudiante', () => {
         montar('/estudiante/foto');
         await screen.findByRole('button', { name: 'Guardar foto' });
         const foto = new File(['jpeg'], 'yo.jpg', { type: 'image/jpeg' });
-        fireEvent.change(screen.getByLabelText('Foto'), { target: { files: [foto] } });
-        await screen.findByRole('img', { name: 'Foto' });
+        fireEvent.change(screen.getByLabelText('Nueva foto'), { target: { files: [foto] } });
+        await screen.findByRole('img', { name: 'Nueva foto' });
         fireEvent.click(screen.getByRole('button', { name: 'Guardar foto' }));
 
         expect(screen.getByRole('button', { name: 'Confirmar' })).toHaveFocus();
         fireEvent.click(screen.getByRole('button', { name: 'Elegir otra' }));
-        expect(screen.queryByRole('img', { name: 'Foto' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('img', { name: 'Nueva foto' })).not.toBeInTheDocument();
     });
 });

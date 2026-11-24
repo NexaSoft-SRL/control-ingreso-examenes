@@ -12,6 +12,7 @@ use App\Modules\Estudiantes\Application\DTOs\SolicitudCargaData;
 use App\Modules\Estudiantes\Domain\Exceptions\ArchivoRechazadoException;
 use App\Modules\Estudiantes\Domain\Exceptions\GrupoAjenoException;
 use App\Modules\Estudiantes\Domain\Exceptions\PeriodoCerradoException;
+use App\Modules\Estudiantes\Domain\Exceptions\VistaPreviaDesactualizadaException;
 use App\Modules\Estudiantes\Http\Requests\CargarInscritosRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
@@ -65,13 +66,40 @@ final class CargaInscritosController
                 (int) Auth::id(),
             ),
             'Grupo no encontrado.',
+            false,
+            $request->confirmacion(),
         );
     }
 
-    private function procesar(SolicitudCargaData $solicitud, string $noEncontrado): JsonResponse
+    public function previsualizarGrupo(CargarInscritosRequest $request, int $grupo): JsonResponse
     {
+        $archivo = $request->archivo();
+
+        if ($archivo === null) {
+            return $this->sinArchivo();
+        }
+
+        return $this->procesar(
+            SolicitudCargaData::deGrupo(
+                $grupo,
+                (string) $archivo->getRealPath(),
+                $archivo->getClientOriginalExtension(),
+                $archivo->getClientOriginalName(),
+                (int) Auth::id(),
+            ),
+            'Grupo no encontrado.',
+            true,
+        );
+    }
+
+    private function procesar(
+        SolicitudCargaData $solicitud,
+        string $noEncontrado,
+        bool $previsualizar = false,
+        ?string $confirmacion = null,
+    ): JsonResponse {
         try {
-            $resultado = $this->cargar->execute($solicitud);
+            $resultado = $this->cargar->execute($solicitud, $previsualizar, $confirmacion);
         } catch (GrupoAjenoException $excepcion) {
             return response()->json([
                 'message' => $excepcion->getMessage(),
@@ -82,6 +110,11 @@ final class CargaInscritosController
                 'message' => $excepcion->getMessage(),
                 'codigo' => 'PERIODO_CERRADO',
             ], Response::HTTP_CONFLICT);
+        } catch (VistaPreviaDesactualizadaException $excepcion) {
+            return response()->json([
+                'message' => $excepcion->getMessage(),
+                'codigo' => 'VISTA_PREVIA_DESACTUALIZADA',
+            ], Response::HTTP_CONFLICT);
         } catch (ArchivoRechazadoException $excepcion) {
             return $this->archivoRechazado($excepcion);
         }
@@ -90,7 +123,7 @@ final class CargaInscritosController
             return response()->json(['message' => $noEncontrado], Response::HTTP_NOT_FOUND);
         }
 
-        return response()->json($this->serializar($resultado));
+        return response()->json($this->serializar($resultado, $previsualizar));
     }
 
     /**
@@ -125,10 +158,12 @@ final class CargaInscritosController
     /**
      * @return array<string, mixed>
      */
-    private function serializar(ResultadoCargaData $resultado): array
+    private function serializar(ResultadoCargaData $resultado, bool $previsualizar = false): array
     {
-        return [
-            'message' => 'Carga procesada.',
+        $respuesta = [
+            'message' => $previsualizar
+                ? 'Vista previa lista. No se guardó ningún cambio.'
+                : 'Carga procesada.',
             'archivo' => $resultado->archivo,
             'resumen' => [
                 'filas' => $resultado->filas,
@@ -154,5 +189,11 @@ final class CargaInscritosController
                 $resultado->conflictos,
             ),
         ];
+
+        if ($previsualizar) {
+            $respuesta['confirmacion'] = $resultado->confirmacion;
+        }
+
+        return $respuesta;
     }
 }

@@ -68,8 +68,12 @@ export default function MiCarnet({ conCarnet, alGuardar }) {
                 <Campo
                     etiqueta="Carnet"
                     iconoEtiqueta={IdCard}
+                    formato="documento"
+                    maxLength={30}
+                    requerido
                     placeholder="5003748"
                     value={documento}
+                    ayuda="Complemento con guion: 5003748-1A"
                     error={errores.documento}
                     onChange={(e) => {
                         setDocumento(e.target.value);

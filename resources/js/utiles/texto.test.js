@@ -3,6 +3,7 @@ import {
     COLORES_ASIGNATURA,
     colorDeAsignatura,
     diaMes,
+    errorDeNombre,
     ubicacionSin,
     fechaCorta,
     fechaLarga,
@@ -63,5 +64,22 @@ describe('ubicacionSin', () => {
             'Aula 617-617C · Planta baja'
         );
         expect(ubicacionSin('691A', 'Edificio Académico 2', null)).toBe('Edificio Académico 2');
+    });
+});
+
+describe('errorDeNombre', () => {
+    it('pide letras reales: ni muy cortas ni todas iguales', () => {
+        expect(errorDeNombre('')).toBe('Obligatorio');
+        expect(errorDeNombre('A', 3)).toBe('Mínimo 3 letras');
+        expect(errorDeNombre('PP', 3)).toBe('Mínimo 3 letras');
+        expect(errorDeNombre('aaa', 3)).toBe('Escriba un nombre real');
+        expect(errorDeNombre('Aa A', 3)).toBe('Escriba un nombre real');
+        expect(errorDeNombre('Ana--María', 3)).toBe('Solo letras, sin signos seguidos');
+    });
+
+    it('acepta nombres con puntos, apóstrofos y guiones', () => {
+        ['Ana', 'Ma. José', "D'Alessandro", 'Pérez-Gómez', 'Li Wu'].forEach((n) =>
+            expect(errorDeNombre(n, 3)).toBeNull()
+        );
     });
 });

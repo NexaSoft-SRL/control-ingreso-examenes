@@ -26,6 +26,7 @@ import Insignia from '../../componentes/Insignia';
 import { dimensionesDe, ImagenNoValida, reducirImagen } from '../../utiles/imagen';
 import { encuadrarFoto } from '../../utiles/encuadrarFoto';
 import { revisarFoto } from '../../utiles/revisarFoto';
+import { fechaCorta } from '../../utiles/texto';
 import { EditarEstudiante } from '../docente/EdicionDeLista';
 
 // De dónde salió el dato del estudiante: «Administración» si lo cargó la
@@ -90,6 +91,9 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
     const [url, setUrl] = useState(null);
     const [version, setVersion] = useState(0);
     const [enviando, setEnviando] = useState(false);
+    // El resultado queda a la vista hasta el siguiente intento: el aviso
+    // fugaz no alcanza a leerse.
+    const [resultado, setResultado] = useState(null);
     const [aviso, avisar] = useAviso();
     const accion = conFoto ? 'Cambiar foto' : 'Poner foto';
 
@@ -116,6 +120,7 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
     async function subir(elegida) {
         if (!elegida || enviando) return;
         setEnviando(true);
+        setResultado(null);
         try {
             const medidas = await dimensionesDe(elegida);
             if (medidas && Math.min(medidas.ancho, medidas.alto) < MINIMO_PX) {
@@ -127,16 +132,18 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
             const formulario = new FormData();
             formulario.append('foto', reducida);
             await api.post(`/estudiantes/${id}/foto`, formulario);
-            avisar(['Foto guardada', ...avisos].join(' · '));
+            const texto = ['Foto guardada', ...avisos].join(' · ');
+            avisar(texto);
+            setResultado({ texto, error: false });
             setVersion((v) => v + 1);
             alCambiar();
         } catch (fallo) {
-            avisar(
+            const texto =
                 fallo instanceof ImagenNoValida
                     ? fallo.message
-                    : (erroresDe(fallo).foto ?? mensajeDe(fallo, 'No se pudo guardar')),
-                'error'
-            );
+                    : (erroresDe(fallo).foto ?? mensajeDe(fallo, 'No se pudo guardar'));
+            avisar(texto, 'error');
+            setResultado({ texto, error: true });
         } finally {
             setEnviando(false);
         }
@@ -164,16 +171,15 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
             )}
             <label
                 htmlFor={entrada}
-                title={accion}
-                className="absolute -bottom-2 -right-2 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-primary-50 hover:text-primary-700 focus-within:outline focus-within:outline-2 focus-within:outline-primary-600"
+                className="mt-2 flex min-h-10 w-28 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-primary-50 hover:text-primary-700 focus-within:outline focus-within:outline-2 focus-within:outline-primary-600"
             >
                 <Camera className="h-4 w-4" aria-hidden="true" />
+                {accion}
                 <input
                     id={entrada}
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                     className="sr-only"
-                    aria-label={accion}
                     disabled={enviando}
                     onChange={(e) => {
                         subir(e.target.files?.[0] ?? null);
@@ -181,6 +187,14 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
                     }}
                 />
             </label>
+            {resultado && (
+                <p
+                    role={resultado.error ? 'alert' : 'status'}
+                    className={`mt-4 max-w-28 text-xs font-medium ${resultado.error ? 'text-danger-700' : 'text-success-700'}`}
+                >
+                    {resultado.texto}
+                </p>
+            )}
             {aviso}
         </div>
     );
@@ -260,6 +274,92 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
                                 </dl>
                             </div>
                         </div>
+
+                        <section aria-label="Procedencia e historial">
+                            <h3 className="text-sm font-semibold text-slate-900">
+                                Origen del dato
+                            </h3>
+                            <p className="mt-1 text-sm text-slate-700">
+                                Origen: {ficha.origen} ·{' '}
+                                {ficha.verificado
+                                    ? 'Datos verificados'
+                                    : 'Pendiente de verificación'}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                                Registro creado {fechaCorta(ficha.registrado_en) || 'sin fecha'} ·{' '}
+                                última actualización{' '}
+                                {fechaCorta(ficha.actualizado_en) || 'sin fecha'}
+                            </p>
+                        </section>
+
+                        <section aria-label="Historial de conflictos">
+                            <h3 className="text-sm font-semibold text-slate-900">
+                                Historial de conflictos
+                                <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                                    {ficha.conflictos?.length ?? 0}
+                                </span>
+                            </h3>
+                            {ficha.conflictos?.length ? (
+                                <ol className="mt-2 space-y-2">
+                                    {ficha.conflictos.map((conflicto) => (
+                                        <li
+                                            key={conflicto.id}
+                                            className="rounded-lg border border-slate-200 p-3 text-sm"
+                                        >
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <strong className="text-slate-800">
+                                                    {conflicto.tipo === 'DOCUMENTO_DISTINTO'
+                                                        ? 'Documento distinto'
+                                                        : 'Nombre distinto'}
+                                                </strong>
+                                                <Insignia
+                                                    tono={
+                                                        conflicto.estado === 'resuelto'
+                                                            ? 'exito'
+                                                            : 'advertencia'
+                                                    }
+                                                >
+                                                    {conflicto.estado === 'resuelto'
+                                                        ? 'Resuelto'
+                                                        : 'Pendiente'}
+                                                </Insignia>
+                                            </div>
+                                            <p className="mt-1 break-words text-slate-700">
+                                                Propuesto: {conflicto.nombre_nuevo}
+                                                {conflicto.documento_nuevo &&
+                                                    ` · C.I. ${conflicto.documento_nuevo}`}
+                                            </p>
+                                            <p className="text-xs text-slate-500">
+                                                {[
+                                                    conflicto.asignatura &&
+                                                        `${conflicto.asignatura}${conflicto.grupo ? `, grupo ${conflicto.grupo}` : ''}`,
+                                                    `Reportado por ${conflicto.reportado_por ?? conflicto.via ?? '—'}`,
+                                                    fechaCorta(conflicto.reportado_en),
+                                                ]
+                                                    .filter(Boolean)
+                                                    .join(' · ')}
+                                            </p>
+                                            {conflicto.estado === 'resuelto' && (
+                                                <p className="text-xs text-slate-500">
+                                                    Resolución:{' '}
+                                                    {conflicto.resolucion === 'USAR_CARGA'
+                                                        ? 'Se usó el nuevo'
+                                                        : 'Se dejó el actual'}
+                                                    {conflicto.resuelto_por &&
+                                                        ` · ${conflicto.resuelto_por}`}
+                                                    {conflicto.resuelto_en &&
+                                                        ` · ${fechaCorta(conflicto.resuelto_en)}`}
+                                                </p>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ol>
+                            ) : (
+                                <p className="mt-1 text-sm text-slate-600">
+                                    Sin conflictos registrados.
+                                </p>
+                            )}
+                        </section>
 
                         <section aria-label="Materias">
                             <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">

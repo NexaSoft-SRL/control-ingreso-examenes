@@ -50,4 +50,18 @@ interface ExamenGateway
      * de cierre, o null si no estaba abierto.
      */
     public function finalizar(int $examenId, int $usuarioId): ?string;
+
+    public function suspender(
+        int $examenId,
+        int $usuarioId,
+        string $motivo,
+        ?string $descripcion,
+    ): ?string;
+
+    public function reanudar(
+        int $examenId,
+        int $usuarioId,
+    ): ?string;
+
+    public function estaSuspendido(int $examenId): bool;
 }

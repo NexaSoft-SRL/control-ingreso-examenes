@@ -146,6 +146,90 @@ final class CargaInscritosTest extends TestCase
             ->assertJsonValidationErrors(['archivo' => 'El archivo es obligatorio.']);
     }
 
+    public function test_the_group_load_requires_a_preview_confirmation(): void
+    {
+        $docente = $this->docente();
+        $grupo = $this->grupo($docente);
+
+        $this->actingAs($this->cuentaDe($docente))
+            ->post("/api/docente/grupos/{$grupo->id}/inscritos/carga", [
+                'archivo' => $this->csv(['202104821,7928194,Kevin René,Alvarado Claros']),
+            ], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'confirmacion' => 'Debe revisar la vista previa antes de confirmar.',
+            ]);
+
+        $this->assertDatabaseCount('cargas_inscritos', 0);
+    }
+
+    public function test_the_preview_does_not_mutate_until_the_same_plan_is_confirmed(): void
+    {
+        $docente = $this->docente();
+        $grupo = $this->grupo($docente);
+        $cuenta = $this->cuentaDe($docente);
+        $archivo = $this->csv(['202104821,7928194,Kevin René,Alvarado Claros']);
+
+        $previa = $this->actingAs($cuenta)
+            ->post("/api/docente/grupos/{$grupo->id}/inscritos/carga/preview", [
+                'archivo' => $archivo,
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('message', 'Vista previa lista. No se guardó ningún cambio.')
+            ->assertJsonPath('resumen.nuevos', 1)
+            ->assertJsonStructure(['confirmacion']);
+
+        $confirmacion = $previa->json('confirmacion');
+        self::assertIsString($confirmacion);
+        $this->assertSame(64, strlen($confirmacion));
+        $this->assertDatabaseCount('estudiantes', 0);
+        $this->assertDatabaseCount('cargas_inscritos', 0);
+        $this->assertDatabaseCount('inscripciones', 0);
+
+        $this->actingAs($cuenta)
+            ->post("/api/docente/grupos/{$grupo->id}/inscritos/carga", [
+                'archivo' => $archivo,
+                'confirmacion' => $confirmacion,
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('resumen.nuevos', 1);
+
+        $this->assertDatabaseCount('estudiantes', 1);
+        $this->assertDatabaseCount('cargas_inscritos', 1);
+        $this->assertDatabaseCount('inscripciones', 1);
+    }
+
+    public function test_confirmation_is_rejected_if_the_plan_changed_after_preview(): void
+    {
+        $docente = $this->docente();
+        $grupo = $this->grupo($docente);
+        $cuenta = $this->cuentaDe($docente);
+        $filas = ['202104821,7928194,Kevin René,Alvarado Claros'];
+        $previa = $this->actingAs($cuenta)
+            ->post("/api/docente/grupos/{$grupo->id}/inscritos/carga/preview", [
+                'archivo' => $this->csv($filas),
+            ], ['Accept' => 'application/json'])
+            ->assertOk();
+
+        $this->estudiante([
+            'codigo_universitario' => '202104821',
+            'documento_identidad' => '7928194',
+            'nombres' => 'Kevin René',
+            'apellidos' => 'Alvarado Claros',
+        ]);
+
+        $this->actingAs($cuenta)
+            ->post("/api/docente/grupos/{$grupo->id}/inscritos/carga", [
+                'archivo' => $this->csv($filas),
+                'confirmacion' => $previa->json('confirmacion'),
+            ], ['Accept' => 'application/json'])
+            ->assertConflict()
+            ->assertJsonPath('codigo', 'VISTA_PREVIA_DESACTUALIZADA');
+
+        $this->assertDatabaseCount('cargas_inscritos', 0);
+        $this->assertDatabaseCount('inscripciones', 0);
+    }
+
     public function test_a_file_without_rows_is_rejected(): void
     {
         $docente = $this->docente();
@@ -586,7 +670,10 @@ final class CargaInscritosTest extends TestCase
         $docente = $this->docente();
 
         $this->actingAs($this->cuentaDe($docente))
-            ->postJson('/api/docente/grupos/999999/inscritos/carga', ['archivo' => $this->csv(['x'])])
+            ->postJson('/api/docente/grupos/999999/inscritos/carga', [
+                'archivo' => $this->csv(['x']),
+                'confirmacion' => str_repeat('a', 64),
+            ])
             ->assertNotFound()
             ->assertJsonPath('message', 'Grupo no encontrado.');
     }

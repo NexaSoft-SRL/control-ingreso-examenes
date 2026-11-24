@@ -49,6 +49,10 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
             $consulta->whereRaw('coalesce(bitacora.rol, rol.name) = ?', [$filtros->rol]);
         }
 
+        if ($filtros->operacion === null && $filtros->sinSesiones) {
+            $consulta->whereNotIn('bitacora.operacion', ['sesion.iniciar', 'sesion.cerrar']);
+        }
+
         if ($filtros->operacion !== null) {
             $consulta->where('bitacora.operacion', $filtros->operacion);
         }
@@ -79,8 +83,9 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
             ->forPage($filtros->pagina, $filtros->porPagina)
             ->select([
                 'bitacora.id',
-                DB::raw('coalesce(usuario.name, bitacora.actor) as usuario'),
-                // El rol guardado al operar; los asientos viejos, el actual.
+                // El nombre guardado al operar; los asientos antiguos, el actual.
+                DB::raw("coalesce(bitacora.actor, usuario.name, 'Sistema') as usuario"),
+                // El rol guardado al operar; los asientos antiguos, el actual.
                 DB::raw('coalesce(bitacora.rol, rol.name) as rol'),
                 'bitacora.operacion',
                 'bitacora.descripcion',

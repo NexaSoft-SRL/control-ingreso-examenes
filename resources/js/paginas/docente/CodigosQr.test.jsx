@@ -305,17 +305,25 @@ describe('Códigos QR', () => {
         await cargada();
 
         expect(dato('Emitidos')).toHaveTextContent('0');
-        expect(screen.queryByRole('button', { name: /Enviar por correo/ })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Enviar QR por correo/ })).toBeNull();
         expect(screen.queryByRole('button', { name: /Imprimir credenciales/ })).toBeNull();
         expect(screen.getAllByText('Sin emitir').length).toBeGreaterThan(1);
 
         fireEvent.click(screen.getByRole('button', { name: /Emitir códigos/ }));
+        // Antes de emitir, se confirma cuántos.
+        const confirmacion = screen.getByRole('dialog', { name: 'Emitir códigos QR' });
+        expect(api.post).not.toHaveBeenCalled();
+        fireEvent.click(within(confirmacion).getByRole('button', { name: /Emitir 45 códigos QR/ }));
 
         expect(await screen.findByText('45 códigos emitidos')).toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith(RUTA);
         await waitFor(() => expect(dato('Emitidos')).toHaveTextContent('45'));
         expect(screen.queryByRole('button', { name: /Emitir códigos/ })).toBeNull();
         expect(screen.getByRole('button', { name: /Imprimir credenciales/ })).toBeEnabled();
+        // Emitidos y sin enviar: lo que sigue es enviarlos.
+        expect(screen.getByRole('button', { name: /Enviar QR por correo/ })).toHaveClass(
+            'bg-primary-600'
+        );
         expect(await screen.findByAltText('Código QR')).toBeInTheDocument();
     });
 
@@ -331,7 +339,7 @@ describe('Códigos QR', () => {
             '/examenes/detalle?examen=1&pestana=habilitacion'
         );
         expect(screen.getByRole('button', { name: /Emitir códigos QR/ })).toBeDisabled();
-        expect(screen.getAllByRole('button', { name: /Enviar aviso/ })[0]).toBeDisabled();
+        expect(screen.getAllByRole('button', { name: /Avisar fecha y aula/ })[0]).toBeDisabled();
         sinAulaSimulados = 0;
     });
 
@@ -346,6 +354,11 @@ describe('Códigos QR', () => {
         await cargada();
 
         fireEvent.click(screen.getByRole('button', { name: /Emitir códigos/ }));
+        fireEvent.click(
+            within(screen.getByRole('dialog', { name: 'Emitir códigos QR' })).getByRole('button', {
+                name: /^Emitir/,
+            })
+        );
 
         expect(await screen.findByText('Sin estudiantes habilitados')).toBeInTheDocument();
     });
@@ -354,8 +367,8 @@ describe('Códigos QR', () => {
         montar();
         await cargada();
 
-        fireEvent.click(screen.getByRole('button', { name: /Enviar por correo/ }));
-        const dialogo = screen.getByRole('dialog', { name: 'Enviar por correo' });
+        fireEvent.click(screen.getByRole('button', { name: /Enviar QR por correo/ }));
+        const dialogo = screen.getByRole('dialog', { name: 'Enviar QR por correo' });
         expect(dialogo).toHaveTextContent('Primer parcial · Introducción a la Programación');
         expect(dialogo).toHaveTextContent('45 estudiantes');
         expect(dialogo).toHaveTextContent('Institucional');
@@ -384,8 +397,8 @@ describe('Códigos QR', () => {
             'noopener'
         );
 
-        fireEvent.click(screen.getByRole('button', { name: /Enviar por correo/ }));
-        const dialogo = screen.getByRole('dialog', { name: 'Enviar por correo' });
+        fireEvent.click(screen.getByRole('button', { name: /Enviar QR por correo/ }));
+        const dialogo = screen.getByRole('dialog', { name: 'Enviar QR por correo' });
         expect(dialogo).toHaveTextContent('22 estudiantes · Aula 691B');
         fireEvent.click(within(dialogo).getByRole('button', { name: /^Enviar$/ }));
 
@@ -404,7 +417,7 @@ describe('Códigos QR', () => {
         montar();
         await cargada();
 
-        fireEvent.click(screen.getByRole('button', { name: /Enviar por correo/ }));
+        fireEvent.click(screen.getByRole('button', { name: /Enviar QR por correo/ }));
         fireEvent.click(
             within(screen.getByRole('dialog')).getByRole('button', { name: /^Enviar$/ })
         );
@@ -435,8 +448,8 @@ describe('Códigos QR', () => {
         expect(within(tarjeta).getByRole('button', { name: /Reenviar/ })).toBeEnabled();
 
         // El envío en lote va solo a los fallidos.
-        fireEvent.click(screen.getByRole('button', { name: /Enviar por correo/ }));
-        const dialogo = screen.getByRole('dialog', { name: 'Enviar por correo' });
+        fireEvent.click(screen.getByRole('button', { name: /Enviar QR por correo/ }));
+        const dialogo = screen.getByRole('dialog', { name: 'Enviar QR por correo' });
         expect(dialogo).toHaveTextContent('1 estudiante · Fallidos');
         fireEvent.click(within(dialogo).getByRole('button', { name: /^Enviar$/ }));
         await waitFor(() => expect(envios()).toEqual([{ envio: 'fallido' }]));
@@ -446,8 +459,8 @@ describe('Códigos QR', () => {
         montar();
         await cargada();
 
-        fireEvent.click(screen.getByRole('button', { name: /Enviar aviso/ }));
-        const dialogo = screen.getByRole('dialog', { name: 'Aviso por correo' });
+        fireEvent.click(screen.getByRole('button', { name: /Avisar fecha y aula/ }));
+        const dialogo = screen.getByRole('dialog', { name: 'Avisar fecha y aula' });
         expect(dialogo).toHaveTextContent('Primer parcial · Introducción a la Programación');
         expect(dialogo).toHaveTextContent('lunes 12 de octubre');
         expect(dialogo).toHaveTextContent('45 estudiantes');
@@ -476,8 +489,8 @@ describe('Códigos QR', () => {
 
         fireEvent.change(screen.getByLabelText('Aula'), { target: { value: '32' } });
         await screen.findByText('22 códigos');
-        fireEvent.click(screen.getByRole('button', { name: /Enviar aviso/ }));
-        const dialogo = screen.getByRole('dialog', { name: 'Aviso por correo' });
+        fireEvent.click(screen.getByRole('button', { name: /Avisar fecha y aula/ }));
+        const dialogo = screen.getByRole('dialog', { name: 'Avisar fecha y aula' });
         expect(dialogo).toHaveTextContent('22 estudiantes · Aula 691B');
         fireEvent.click(within(dialogo).getByRole('button', { name: /Enviar aviso/ }));
 
@@ -494,8 +507,8 @@ describe('Códigos QR', () => {
         montar();
         await cargada();
 
-        fireEvent.click(screen.getByRole('button', { name: /Enviar aviso/ }));
-        const dialogo = screen.getByRole('dialog', { name: 'Aviso por correo' });
+        fireEvent.click(screen.getByRole('button', { name: /Avisar fecha y aula/ }));
+        const dialogo = screen.getByRole('dialog', { name: 'Avisar fecha y aula' });
         fireEvent.change(within(dialogo).getByLabelText('Recomendaciones'), {
             target: { value: 'a'.repeat(2001) },
         });

@@ -85,7 +85,7 @@ async function enTandas(ruta, cuerpo, alAvanzar) {
 // examen (`key`): el cambio limpia filtros, búsqueda y credencial elegida.
 // `incrustado` la muestra dentro de la página del examen: sin encabezado
 // propio, con las acciones arriba a la derecha.
-export function CodigosDelExamen({ examen, selector, incrustado = false }) {
+export function CodigosDelExamen({ examen, selector, incrustado = false, onCambio }) {
     const ruta = `/examenes/${examen.id}/codigos-qr`;
     const lista = usarPaginaServidor({ porPagina: POR_PAGINA, filtros: SIN_FILTROS });
     const { datos, meta, cargando, error, recargar } = usarConsulta(ruta, {
@@ -93,6 +93,7 @@ export function CodigosDelExamen({ examen, selector, incrustado = false }) {
     });
     const [elegido, setElegido] = useState(null);
     const [dialogo, setDialogo] = useState(false);
+    const [porEmitir, setPorEmitir] = useState(false);
     const [ocupado, setOcupado] = useState(null);
     const [quedan, setQuedan] = useState(null);
     const [avisando, setAvisando] = useState(false);
@@ -161,7 +162,13 @@ export function CodigosDelExamen({ examen, selector, incrustado = false }) {
         .map((parte) => ` · ${parte}`)
         .join('');
 
-    const refrescar = () => Promise.all([recargar(), credencial.recargar()]);
+    // Lo emitido o enviado cambia también las cifras del examen (sus pestañas).
+    const refrescar = () => {
+        onCambio?.();
+        return Promise.all([recargar(), credencial.recargar()]);
+    };
+    const faltanEmitir = Math.max(0, habilitados - emitidos);
+    const pendientesDeEnvio = sinEnviar + fallidos;
     const rechazo = (fallo, porDefecto) => {
         const codigo = codigoDe(fallo);
         if (codigo === 'SIN_HABILITADOS') return avisar('Sin estudiantes habilitados', 'error');
@@ -173,6 +180,7 @@ export function CodigosDelExamen({ examen, selector, incrustado = false }) {
 
     const emitir = async () => {
         if (ocupado) return;
+        setPorEmitir(false);
         setOcupado('emitir');
         try {
             const { data } = await api.post(ruta);
@@ -258,6 +266,10 @@ export function CodigosDelExamen({ examen, selector, incrustado = false }) {
         window.open(`/api${ruta}/hoja${consulta ? `?${consulta}` : ''}`, '_blank', 'noopener');
     };
 
+    // Una sola acción principal, la que toca: primero emitir, luego enviar
+    // los QR; con todo enviado, imprimir.
+    const principal =
+        emitidos < habilitados ? 'emitir' : pendientesDeEnvio > 0 ? 'enviar' : 'imprimir';
     const acciones = (
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             {emitidos < habilitados && (
@@ -265,32 +277,24 @@ export function CodigosDelExamen({ examen, selector, incrustado = false }) {
                     type="button"
                     disabled={ocupado !== null || sinAula > 0}
                     cargando={ocupado === 'emitir'}
-                    onClick={emitir}
+                    onClick={() => setPorEmitir(true)}
                 >
                     <QrCode className="h-4 w-4" /> Emitir códigos QR
                 </Boton>
             )}
-            <Boton
-                type="button"
-                variante="secundario"
-                disabled={total === 0 || ocupado !== null || sinAula > 0}
-                onClick={() => setAvisando(true)}
-            >
-                <Megaphone className="h-4 w-4" /> Enviar aviso
-            </Boton>
             {emitidos > 0 && (
                 <>
                     <Boton
                         type="button"
-                        variante="secundario"
+                        variante={principal === 'enviar' ? 'primario' : 'secundario'}
                         disabled={cuantos === 0 || ocupado !== null}
                         onClick={() => setDialogo(true)}
                     >
-                        <Send className="h-4 w-4" /> Enviar por correo
+                        <Send className="h-4 w-4" /> Enviar QR por correo
                     </Boton>
                     <Boton
                         type="button"
-                        variante={emitidos < habilitados ? 'secundario' : 'primario'}
+                        variante={principal === 'imprimir' ? 'primario' : 'secundario'}
                         disabled={cuantos === 0}
                         onClick={imprimir}
                     >
@@ -298,6 +302,14 @@ export function CodigosDelExamen({ examen, selector, incrustado = false }) {
                     </Boton>
                 </>
             )}
+            <Boton
+                type="button"
+                variante="secundario"
+                disabled={total === 0 || ocupado !== null || sinAula > 0}
+                onClick={() => setAvisando(true)}
+            >
+                <Megaphone className="h-4 w-4" /> Avisar fecha y aula
+            </Boton>
         </div>
     );
 
@@ -321,8 +333,14 @@ export function CodigosDelExamen({ examen, selector, incrustado = false }) {
             )}
 
             {habilitados === 0 ? (
-                <p className="py-10 text-center text-sm text-slate-600">
+                <p className="flex flex-col items-center gap-2 py-10 text-center text-sm text-slate-600">
                     Sin estudiantes habilitados
+                    <Link
+                        to={rutaDelExamen(examen.id, 'habilitacion')}
+                        className="font-semibold text-primary-700 underline-offset-2 hover:underline"
+                    >
+                        Habilitar estudiantes
+                    </Link>
                 </p>
             ) : (
                 <>
@@ -484,7 +502,32 @@ export function CodigosDelExamen({ examen, selector, incrustado = false }) {
             )}
 
             <Dialogo
-                titulo="Enviar por correo"
+                titulo="Emitir códigos QR"
+                abierto={porEmitir}
+                onCerrar={() => setPorEmitir(false)}
+                acciones={
+                    <>
+                        <Boton
+                            type="button"
+                            variante="secundario"
+                            onClick={() => setPorEmitir(false)}
+                        >
+                            Cancelar
+                        </Boton>
+                        <Boton type="button" onClick={emitir}>
+                            <QrCode className="h-4 w-4" /> Emitir{' '}
+                            {plural(faltanEmitir, 'código QR', 'códigos QR')}
+                        </Boton>
+                    </>
+                }
+            >
+                <p className="text-sm text-slate-700">
+                    Uno por habilitado. Después se envían por correo o se imprimen.
+                </p>
+            </Dialogo>
+
+            <Dialogo
+                titulo="Enviar QR por correo"
                 abierto={dialogo}
                 onCerrar={() => ocupado === null && setDialogo(false)}
                 acciones={
@@ -530,7 +573,7 @@ export function CodigosDelExamen({ examen, selector, incrustado = false }) {
             </Dialogo>
 
             <Dialogo
-                titulo="Aviso por correo"
+                titulo="Avisar fecha y aula"
                 abierto={avisando}
                 onCerrar={() => ocupado === null && setAvisando(false)}
                 acciones={
@@ -618,6 +661,7 @@ CodigosDelExamen.propTypes = {
     }).isRequired,
     selector: PropTypes.node,
     incrustado: PropTypes.bool,
+    onCambio: PropTypes.func,
 };
 
 // Códigos QR del examen elegido (`?examen=`). Cada código es de un

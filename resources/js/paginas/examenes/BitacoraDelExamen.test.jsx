@@ -248,6 +248,41 @@ describe('BitacoraDelExamen', () => {
         ).getAllByRole('listitem');
         expect(items[0]).toHaveTextContent('Inicio del examenProgramado 14:00 – 15:30 · 90 min');
         expect(items.at(-1)).toHaveTextContent('Fin del día del examen');
+        // Sin la hora ficticia del cierre y dicho llano.
+        expect(items.at(-1)).not.toHaveTextContent('23:59:59');
+        expect(items.at(-1)).toHaveTextContent('Cerrado automáticamente al final del día');
+    });
+
+    it('junta a los que no se presentaron en una fila que se despliega', async () => {
+        const ausente = (nombre, codigo) =>
+            suceso('2026-10-26 23:59:59', 'ausente', 'No se presentó', {
+                aula: '692D',
+                estudiante: nombre,
+                codigo,
+                detalle: 'Habilitado',
+                por: null,
+            });
+        simularBitacora([
+            ...SUCESOS,
+            ausente('Zurita Paz Omar', '202311299'),
+            ausente('Arce Lima Rosa', '202311300'),
+            ausente('Vega Soto Luis', '202311301'),
+        ]);
+        montar();
+        const dia = await screen.findByRole('region', { name: 'lunes 26 de octubre' });
+
+        expect(within(dia).getByText('3 no se presentaron')).toBeInTheDocument();
+        expect(within(dia).queryByText('Zurita Paz Omar')).toBeNull();
+
+        const ver = within(dia).getByRole('button', { name: 'Ver' });
+        expect(ver).toHaveAttribute('aria-expanded', 'false');
+        fireEvent.click(ver);
+
+        const lista = within(dia).getByRole('list', { name: 'No se presentaron' });
+        expect(within(lista).getAllByRole('listitem')).toHaveLength(3);
+        expect(lista).toHaveTextContent('Zurita Paz Omar · 202311299 · Aula 692D');
+        fireEvent.click(within(dia).getByRole('button', { name: 'Ocultar' }));
+        expect(within(dia).queryByRole('list', { name: 'No se presentaron' })).toBeNull();
     });
 
     it('sin sucesos lo dice y no ofrece descargar', async () => {

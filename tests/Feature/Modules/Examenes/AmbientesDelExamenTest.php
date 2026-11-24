@@ -437,7 +437,7 @@ final class AmbientesDelExamenTest extends TestCase
 
         $this->actingAs($this->cuenta($docente))
             ->putJson("/api/examenes/{$examen->id}", $this->cuerpo($asignatura, [$grupo], [$aula], [
-                'fecha' => now()->addDays(6)->toDateString(),
+                'fecha' => $this->diaHabil(6),
                 'hora_inicio' => '16:00',
             ]))
             ->assertOk();

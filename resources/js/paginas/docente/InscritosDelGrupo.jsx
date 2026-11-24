@@ -21,10 +21,9 @@ import { FORMA_GRUPO } from './SelectorDeGrupos';
 // El C.I. bajo el nombre, o que falta.
 const ci = (e) => (e.documento ? `C.I. ${e.documento}` : 'Sin C.I.');
 
-// De dónde viene el registro del estudiante, bajo su nombre: del padrón que
-// verificó la administración o registrado por el docente.
-const origenDe = (origen) =>
-    origen === 'Docente' ? 'Registrado por el docente' : 'Padrón verificado';
+// De dónde viene el registro del estudiante, bajo su nombre, en corto:
+// verificado por la administración o agregado por un docente (sin verificar).
+const origenDe = (origen) => (origen === 'Docente' ? 'Sin verificar' : 'Verificado');
 
 // La lista de inscritos del grupo elegido: carga desde archivo, resumen de
 // la última carga, búsqueda, páginas de 25 y descarga. También se agrega a
@@ -68,6 +67,12 @@ export default function InscritosDelGrupo({
         onAvisar(aviso);
         onCambiada();
         recargar();
+    }
+
+    // El recién agregado queda a la vista: la lista se filtra por su código.
+    function agregado(aviso, codigo) {
+        cambiada(aviso);
+        if (codigo) lista.ponerBuscar(codigo);
     }
 
     // Quitar al único de la última página la dejaría vacía.
@@ -293,7 +298,7 @@ export default function InscritosDelGrupo({
             {agregando && (
                 <AgregarEstudiante
                     grupo={grupo}
-                    onAgregado={cambiada}
+                    onAgregado={agregado}
                     onCerrar={() => setAgregando(false)}
                 />
             )}

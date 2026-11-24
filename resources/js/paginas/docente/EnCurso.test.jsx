@@ -409,7 +409,7 @@ describe('EnCurso', () => {
         );
 
         fireEvent.click(within(tarjeta).getAllByRole('button', { name: 'Atender' })[0]);
-        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Confirmar' }));
+        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Marcar atendida' }));
 
         expect(await screen.findByText('Incidencia atendida')).toBeVisible();
         expect(api.post).toHaveBeenCalledWith('/incidencias/5/atencion');
@@ -443,7 +443,7 @@ describe('EnCurso', () => {
         await screen.findByRole('heading', { name: 'Incidencias · 3' });
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Atender' })[0]);
-        fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Marcar atendida' }));
 
         expect(await screen.findByText('La incidencia ya fue atendida.')).toBeVisible();
     });
@@ -687,5 +687,136 @@ describe('EnCurso', () => {
             '/en-curso/aula?examen=1&aula=31'
         );
         expect(api.get.mock.calls.some(([url]) => url.endsWith('/incidencias'))).toBe(false);
+    });
+
+    // --- PRUEBAS DE SUSPENSIÓN Y REANUDACIÓN ---
+
+    it('muestra el botón de Suspender cuando el examen está abierto y no suspendido', async () => {
+        montar();
+        await cargado();
+
+        expect(screen.getByRole('button', { name: /Suspender examen/i })).toBeVisible();
+        expect(screen.queryByRole('button', { name: /Reanudar examen/i })).toBeNull();
+    });
+
+    it('abre el diálogo de suspensión, valida el motivo y envía la petición', async () => {
+        rutas['POST /examenes/1/suspender'] = { message: 'Examen suspendido.' };
+        simularApi(api, rutas);
+
+        montar();
+        await cargado();
+
+        fireEvent.click(screen.getByRole('button', { name: /Suspender examen/i }));
+
+        const dialogo = await screen.findByRole('dialog', { name: 'Suspender examen' });
+
+        fireEvent.change(within(dialogo).getByLabelText(/Motivo/), {
+            target: { value: '  Fuga de examen  ' },
+        });
+
+        const descripcionInput = within(dialogo).getByLabelText('Detalle');
+        fireEvent.change(descripcionInput, {
+            target: { value: 'Encontrados con apuntes.' },
+        });
+
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Suspender' }));
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/examenes/1/suspender', {
+                motivo: 'Fuga de examen',
+                descripcion: 'Encontrados con apuntes.',
+            });
+        });
+    });
+
+    it('el diálogo de suspensión respeta los límites del servidor y dice qué pasa', async () => {
+        montar();
+        await cargado();
+
+        fireEvent.click(screen.getByRole('button', { name: /Suspender examen/i }));
+        const dialogo = await screen.findByRole('dialog', { name: 'Suspender examen' });
+
+        expect(within(dialogo).getByLabelText(/Motivo/)).toHaveAttribute('maxlength', '100');
+        expect(within(dialogo).getByLabelText('Detalle')).toHaveAttribute('maxlength', '1000');
+        expect(
+            within(dialogo).getByText('La puerta deja de admitir ingresos hasta reanudar')
+        ).toBeInTheDocument();
+    });
+
+    it('deshabilita el botón de suspender si el motivo está vacío o solo tiene espacios', async () => {
+        montar();
+        await cargado();
+
+        fireEvent.click(screen.getByRole('button', { name: /Suspender examen/i }));
+
+        const dialogo = await screen.findByRole('dialog', { name: 'Suspender examen' });
+        const botonSuspender = within(dialogo).getByRole('button', { name: 'Suspender' });
+
+        expect(botonSuspender).toBeDisabled();
+
+        fireEvent.change(within(dialogo).getByLabelText(/Motivo/), {
+            target: { value: '   ' },
+        });
+
+        await waitFor(() => {
+            expect(botonSuspender).toBeDisabled();
+        });
+
+        fireEvent.change(within(dialogo).getByLabelText(/Motivo/), {
+            target: { value: 'Problema técnico' },
+        });
+
+        await waitFor(() => {
+            expect(botonSuspender).not.toBeDisabled();
+        });
+    });
+
+    it('muestra el botón de Reanudar y el banner rojo si el examen está suspendido', async () => {
+        rutas['GET /examenes/1/en-curso'] = () =>
+            tablero(AULAS, {
+                suspendido: true,
+                motivo_suspension: 'Fuga de examen',
+                descripcion_suspension: 'Se encontraron hojas en el baño.',
+            });
+        simularApi(api, rutas);
+
+        montar();
+        await cargado();
+
+        expect(screen.queryByRole('button', { name: /Suspender examen/i })).toBeNull();
+        expect(screen.getByRole('button', { name: /Reanudar examen/i })).toBeVisible();
+
+        expect(screen.getByText(/Examen suspendido/i)).toBeVisible();
+        expect(screen.getByText(/Motivo: Fuga de examen/i)).toBeVisible();
+        expect(screen.getByText(/Se encontraron hojas en el baño/i)).toBeVisible();
+    });
+
+    it('llama a la API al hacer clic en Reanudar examen', async () => {
+        rutas['GET /examenes/1/en-curso'] = () =>
+            tablero(AULAS, { suspendido: true, motivo_suspension: 'Fuga' });
+
+        rutas['POST /examenes/1/reanudar'] = { message: 'Examen reanudado.' };
+        simularApi(api, rutas);
+
+        montar();
+        await cargado();
+
+        fireEvent.click(screen.getByRole('button', { name: /Reanudar examen/i }));
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/examenes/1/reanudar');
+        });
+    });
+
+    it('no muestra el botón de suspender si el examen no está abierto', async () => {
+        rutas['GET /en-curso'] = { data: [EXAMENES[1]] }; // Solo el examen cerrado
+        simularApi(api, rutas);
+
+        montar();
+
+        expect(await screen.findByText('Ningún examen en curso')).toBeVisible();
+
+        expect(screen.queryByRole('button', { name: /Suspender examen/i })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Reanudar examen/i })).toBeNull();
     });
 });

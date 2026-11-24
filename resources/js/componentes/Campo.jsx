@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { Eye, EyeOff } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { FORMATOS } from '../utiles/formatos';
 
 // Campo de formulario. Para todas las pantallas a la vez:
 //  - `requerido` pone el asterisco: se sabe qué es obligatorio antes de enviar.
@@ -10,6 +11,9 @@ import { useId, useState } from 'react';
 //  - `iconoEtiqueta` (otro de lucide) acompaña a la etiqueta.
 //  - `error` muestra el mensaje del servidor (validación 422) bajo el campo.
 //  - Con `type="password"` aparece el ojito para ver u ocultar lo escrito.
+//  - `formato` ('letras', 'digitos', 'documento', 'usuario') encarrila lo que
+//    se escribe o se pega: lo que no corresponde no entra y un aviso corto dice
+//    qué se admite. Ver utiles/formatos.js.
 //  - El mensaje queda ligado al campo (`aria-describedby`) y se anuncia.
 export default function Campo({
     etiqueta,
@@ -20,6 +24,7 @@ export default function Campo({
     icono: Icono = null,
     iconoEtiqueta: IconoEtiqueta = null,
     ayuda,
+    formato,
     className = '',
     ...props
 }) {
@@ -28,11 +33,28 @@ export default function Campo({
     const [tocado, setTocado] = useState(false);
     const [visible, setVisible] = useState(false);
     const esContrasena = props.type === 'password';
+    const reglaDeFormato = formato ? FORMATOS[formato] : null;
+    const [descartado, setDescartado] = useState(false);
+    const reloj = useRef(null);
+    useEffect(() => () => clearTimeout(reloj.current), []);
+    // Si React reutiliza este campo para otro (otro formulario que alterna en
+    // la misma posición), no hereda el «tocado» del anterior: nacería
+    // diciendo «Obligatorio». Solo con etiquetas de texto, que son estables.
+    const etiquetaDeTexto = typeof etiqueta === 'string' ? etiqueta : null;
+    const anterior = useRef(etiquetaDeTexto);
+    useEffect(() => {
+        if (anterior.current !== etiquetaDeTexto) {
+            anterior.current = etiquetaDeTexto;
+            setTocado(false);
+        }
+    }, [etiquetaDeTexto]);
 
     const actual = props.value ?? valor;
     const vacio = requerido && String(actual).trim() === '';
     const errorVivo =
         error ?? (tocado ? (vacio ? 'Obligatorio' : validar ? validar(actual) : null) : null);
+    // Lo descartado se avisa un instante, salvo que haya un error que decir.
+    const avisoDeFormato = !errorVivo && descartado ? reglaDeFormato?.aviso : null;
 
     return (
         <label className={`block ${className}`}>
@@ -67,9 +89,27 @@ export default function Campo({
                     aria-required={requerido || undefined}
                     aria-invalid={errorVivo ? 'true' : undefined}
                     aria-describedby={errorVivo ? `${id}-error` : ayuda ? `${id}-ayuda` : undefined}
+                    {...(reglaDeFormato?.propiedades ?? {})}
                     {...props}
                     type={esContrasena && visible ? 'text' : props.type}
                     onChange={(e) => {
+                        if (reglaDeFormato) {
+                            const campo = e.target;
+                            const limpio = reglaDeFormato.limpiar(campo.value);
+                            if (limpio !== campo.value) {
+                                // Conserva el cursor donde estaba, descontando lo quitado.
+                                const quitado = campo.value.length - limpio.length;
+                                const cursor = Math.max(0, (campo.selectionStart ?? 0) - quitado);
+                                campo.value = limpio;
+                                campo.setSelectionRange?.(cursor, cursor);
+                                // Solo se avisa si algo se quitó (no por pasar a mayúsculas).
+                                if (quitado > 0) {
+                                    setDescartado(true);
+                                    clearTimeout(reloj.current);
+                                    reloj.current = setTimeout(() => setDescartado(false), 2000);
+                                }
+                            }
+                        }
                         setValor(e.target.value);
                         setTocado(true);
                         props.onChange?.(e);
@@ -110,6 +150,10 @@ export default function Campo({
                 >
                     {errorVivo}
                 </span>
+            ) : avisoDeFormato ? (
+                <span aria-live="polite" className="mt-1.5 block text-xs text-warning-700">
+                    {avisoDeFormato}
+                </span>
             ) : (
                 ayuda && (
                     <span id={`${id}-ayuda`} className="mt-1.5 block text-xs text-slate-500">
@@ -130,6 +174,7 @@ Campo.propTypes = {
     icono: PropTypes.elementType,
     iconoEtiqueta: PropTypes.elementType,
     ayuda: PropTypes.node,
+    formato: PropTypes.oneOf(['letras', 'digitos', 'documento', 'usuario']),
     className: PropTypes.string,
     type: PropTypes.string,
     value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),

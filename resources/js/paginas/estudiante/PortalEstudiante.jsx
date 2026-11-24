@@ -15,7 +15,7 @@ import Escudo from '../../componentes/Escudo';
 import Tarjeta from '../../componentes/Tarjeta';
 import { PantallaDeCarga } from '../../sesion/SesionContexto';
 import { encuadrarFoto } from '../../utiles/encuadrarFoto';
-import { precargarDetector, revisarFoto } from '../../utiles/revisarFoto';
+import { MENSAJES, precargarDetector, revisarFoto } from '../../utiles/revisarFoto';
 import MiCarnet from './MiCarnet';
 import QrDelExamen from './QrDelExamen';
 import usarTituloPestana from '../../utiles/usarTituloPestana';
@@ -36,6 +36,9 @@ const ESTADOS = {
     NO_HABILITADO: { texto: 'No habilitado', tono: 'peligro' },
     PENDIENTE: { texto: 'Sin revisar', tono: 'neutro' },
 };
+
+// Lo que dice la revisión de la foto, en palabras que dicen qué hacer.
+const SIN_ROSTRO = 'No se ve su rostro · tome otra de frente y con buena luz';
 
 const PESTANAS = [
     { ruta: '/estudiante', titulo: 'Mis exámenes', Icono: CalendarDays },
@@ -133,7 +136,7 @@ function MisExamenes({ codigo }) {
             cargando={consulta.cargando}
             error={consulta.error}
             vacio={examenes.length === 0}
-            textoVacio="Sin exámenes"
+            textoVacio="Sin exámenes · aparecen cuando su docente los registra"
             onReintentar={consulta.recargar}
             className="rounded-xl border border-slate-200 bg-white"
         >
@@ -162,7 +165,19 @@ function MiFoto({ sesion, alGuardar }) {
     const [archivo, setArchivo] = useState(null);
     const [error, setError] = useState(null);
     const [enviando, setEnviando] = useState(false);
+    // La última foto elegida fue rechazada (por la revisión o el servidor).
+    const [rechazada, setRechazada] = useState(false);
     const [aviso, avisar] = useAviso();
+
+    async function revisar(foto) {
+        const revision = await revisarFoto(foto);
+        const errores = revision?.errores ?? [];
+        setRechazada(errores.length > 0);
+        return {
+            ...revision,
+            errores: errores.map((m) => (m === MENSAJES.sinRostro ? SIN_ROSTRO : m)),
+        };
+    }
 
     useEffect(() => {
         if (puede) precargarDetector();
@@ -210,8 +225,11 @@ function MiFoto({ sesion, alGuardar }) {
             await alGuardar();
         } catch (fallo) {
             const campo = erroresDe(fallo).foto;
-            if (campo) setError(campo);
-            else avisar(mensajeDe(fallo, 'No se pudo guardar').replace(/\.$/, ''), 'error');
+            if (campo) {
+                setError(campo);
+                setArchivo(null);
+                setRechazada(true);
+            } else avisar(mensajeDe(fallo, 'No se pudo guardar').replace(/\.$/, ''), 'error');
             // Ya registrada en otra pestaña: se muestra la que quedó.
             if (estadoDe(fallo) === 409) await alGuardar();
         } finally {
@@ -224,7 +242,7 @@ function MiFoto({ sesion, alGuardar }) {
     const rango = plazo ? `${diaMes(plazo.desde)} – ${fechaCorta(plazo.hasta)}` : null;
 
     return (
-        <Tarjeta titulo="Mi foto">
+        <Tarjeta titulo="Foto" icono={Camera}>
             {sesion.foto?.sin_foto_vencido && (
                 <p
                     role="alert"
@@ -257,7 +275,9 @@ function MiFoto({ sesion, alGuardar }) {
                             {sesion.foto?.habilitada_por && ` · por ${sesion.foto.habilitada_por}`}
                         </p>
                     ) : (
-                        <p className="text-sm text-slate-700">Plazo · {rango}</p>
+                        <p className="text-sm text-slate-700">
+                            Subir foto hasta el {fechaCorta(plazo?.hasta)}
+                        </p>
                     )}
                     {estudiante.con_foto && url && (
                         <div className="flex items-center gap-3">
@@ -278,16 +298,17 @@ function MiFoto({ sesion, alGuardar }) {
                         <li>Fondo claro y liso</li>
                     </ul>
                     <CampoImagen
-                        etiqueta="Foto"
+                        etiqueta="Nueva foto"
                         archivo={archivo}
                         onCambiar={(f) => {
                             setArchivo(f);
                             setError(null);
+                            if (f) setRechazada(false);
                         }}
                         error={error}
                         camara={null}
                         minimo={240}
-                        revisar={revisarFoto}
+                        revisar={revisar}
                         preparar={encuadrarFoto}
                         cuadrada
                         tomarFoto
@@ -334,11 +355,20 @@ function MiFoto({ sesion, alGuardar }) {
                                 ref={guardarRef}
                                 type="button"
                                 className="w-full"
+                                disabled={!archivo}
                                 onClick={guardar}
                             >
                                 Guardar foto
                             </Boton>
-                            <p className="text-xs text-slate-500">Una sola vez</p>
+                            <p className="text-xs text-slate-500">
+                                {archivo
+                                    ? estudiante.con_foto
+                                        ? 'Reemplaza la actual'
+                                        : 'Una sola vez'
+                                    : rechazada
+                                      ? 'Elija otra foto'
+                                      : 'Primero elija o tome la foto'}
+                            </p>
                         </>
                     )}
                 </div>
@@ -502,6 +532,20 @@ export default function PortalEstudiante() {
                             >
                                 <IdCard className="h-4 w-4 shrink-0" aria-hidden="true" />
                                 Falta su carnet · sin él no puede ser habilitado
+                            </Link>
+                        )}
+                        {!estudiante.con_foto && puedeSubir(sesion) && (
+                            <Link
+                                to="/estudiante/foto"
+                                className={`mb-4 flex min-h-11 items-center justify-between gap-2 rounded-lg bg-warning-50 px-3 py-2 text-sm font-medium text-warning-800 ${FOCO}`}
+                            >
+                                <span className="flex items-center gap-2">
+                                    <Camera className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                    Falta su foto
+                                </span>
+                                <span className="rounded-md bg-white px-2.5 py-1 text-primary-700 shadow-sm">
+                                    Subir foto
+                                </span>
                             </Link>
                         )}
                         <MisExamenes codigo={estudiante.codigo} />

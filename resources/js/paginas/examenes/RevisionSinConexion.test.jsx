@@ -64,6 +64,9 @@ describe('RevisionSinConexion', () => {
         expect(
             await screen.findByText('No se usó el modo sin conexión en este examen')
         ).toBeInTheDocument();
+        expect(
+            screen.getByText('Aquí aparecen los ingresos registrados sin internet')
+        ).toBeInTheDocument();
     });
 
     it('muestra los totales, las irregularidades y los puestos', async () => {

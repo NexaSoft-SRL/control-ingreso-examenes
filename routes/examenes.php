@@ -42,6 +42,14 @@ Route::prefix('api')
             ->whereNumber('examen')
             ->name('examenes.finalizar');
 
+        Route::post('/examenes/{examen}/suspender', [ExamenController::class, 'suspender'])
+            ->whereNumber('examen')
+            ->name('examenes.suspender');
+
+        Route::post('/examenes/{examen}/reanudar', [ExamenController::class, 'reanudar'])
+            ->whereNumber('examen')
+            ->name('examenes.reanudar');
+
         Route::get('/examenes/{examen}/aulas/{aula}/codigo', [CodigoAulaController::class, 'show'])
             ->whereNumber(['examen', 'aula'])
             ->name('examenes.aulas.codigo.show');

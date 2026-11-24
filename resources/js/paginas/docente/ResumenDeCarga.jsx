@@ -21,14 +21,14 @@ function cifrasDe(resultado) {
             tono: 'text-primary-700 bg-primary-50',
             cantidad: resumen.nuevos ?? 0,
             texto: ['nuevo', 'nuevos'],
-            detalle: 'Creados en el padrón',
+            detalle: 'Creados en la lista general',
         },
         {
             id: 'reutilizados',
             Icono: Recycle,
             tono: 'text-success-700 bg-success-50',
             cantidad: resumen.reutilizados ?? 0,
-            texto: ['ya en el padrón', 'ya en el padrón'],
+            texto: ['ya en la lista general', 'ya en la lista general'],
             detalle: 'Inscritos al grupo',
         },
         {
@@ -61,7 +61,13 @@ function cifrasDe(resultado) {
     ];
 }
 
-export default function ResumenDeCarga({ resultado, onCerrar }) {
+export default function ResumenDeCarga({
+    resultado,
+    onCerrar,
+    modoVistaPrevia = false,
+    onConfirmar,
+    confirmando = false,
+}) {
     const [abierta, setAbierta] = useState(null);
 
     return (
@@ -70,6 +76,11 @@ export default function ResumenDeCarga({ resultado, onCerrar }) {
                 <p className="min-w-0 text-sm text-slate-700">
                     <strong className="break-all">{resultado.archivo}</strong> ·{' '}
                     {plural(resultado.resumen?.filas ?? 0, 'fila')}
+                    {modoVistaPrevia && (
+                        <span className="ml-1 font-medium text-primary-700">
+                            · Vista previa; no se aplicaron cambios
+                        </span>
+                    )}
                 </p>
                 <button
                     type="button"
@@ -134,6 +145,21 @@ export default function ResumenDeCarga({ resultado, onCerrar }) {
                     );
                 })}
             </ul>
+            {modoVistaPrevia && (
+                <div className="mt-4 flex flex-wrap justify-end gap-2">
+                    <Boton
+                        type="button"
+                        variante="secundario"
+                        onClick={onCerrar}
+                        cargando={confirmando}
+                    >
+                        Cancelar
+                    </Boton>
+                    <Boton type="button" onClick={onConfirmar} cargando={confirmando}>
+                        Confirmar carga
+                    </Boton>
+                </div>
+            )}
         </div>
     );
 }
@@ -141,6 +167,7 @@ export default function ResumenDeCarga({ resultado, onCerrar }) {
 ResumenDeCarga.propTypes = {
     resultado: PropTypes.shape({
         archivo: PropTypes.string,
+        confirmacion: PropTypes.string,
         resumen: PropTypes.shape({
             filas: PropTypes.number,
             nuevos: PropTypes.number,
@@ -161,4 +188,7 @@ ResumenDeCarga.propTypes = {
         ),
     }).isRequired,
     onCerrar: PropTypes.func.isRequired,
+    modoVistaPrevia: PropTypes.bool,
+    onConfirmar: PropTypes.func,
+    confirmando: PropTypes.bool,
 };

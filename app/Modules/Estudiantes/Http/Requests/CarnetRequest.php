@@ -36,7 +36,7 @@ final class CarnetRequest extends FormRequest
     {
         return [
             'documento.required' => 'Obligatorio',
-            'documento.regex' => 'De 4 a 10 dígitos y su complemento («5003748-1A»)',
+            'documento.regex' => 'Número de 4 a 10 dígitos; si tiene complemento, con guion: 5003748-1A',
             'documento.max' => 'Demasiado largo',
             'confirmo.accepted' => 'Confirme que revisó sus datos',
         ];

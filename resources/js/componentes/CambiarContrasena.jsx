@@ -56,7 +56,7 @@ export default function CambiarContrasena({ onCerrar, onGuardada }) {
                         disabled={!listo}
                         cargando={enviando}
                     >
-                        Guardar
+                        Cambiar contraseña
                     </Boton>
                 </>
             }

@@ -1,15 +1,5 @@
 import { useState } from 'react';
-import {
-    Camera,
-    ClipboardList,
-    Download,
-    GraduationCap,
-    TriangleAlert,
-    Upload,
-    UserPen,
-} from 'lucide-react';
-import descargar from '../../api/descargar';
-import { mensajeDe } from '../../api/errores';
+import { Camera, ClipboardList, GraduationCap, TriangleAlert, Upload, UserPen } from 'lucide-react';
 import usarConsulta from '../../api/usarConsulta';
 import usarPaginaServidor from '../../api/usarPaginaServidor';
 import { useAviso } from '../../componentes/Aviso';
@@ -66,17 +56,6 @@ export default function Padron() {
     const conteos = estudiantes.meta?.conteos ?? {};
     const filas = estudiantes.datos ?? [];
 
-    function plantilla() {
-        descargar('/inscritos/plantilla', {
-            parametros: { alcance: 'facultad' },
-            nombre: 'plantilla_inscritos.xlsx',
-        })
-            .then((nombre) => avisar(`${nombre} descargado`))
-            .catch((fallo) =>
-                avisar(mensajeDe(fallo, 'No se pudo descargar').replace(/\.$/, ''), 'error')
-            );
-    }
-
     function refrescar() {
         resumen.recargar();
         estudiantes.recargar();
@@ -88,18 +67,19 @@ export default function Padron() {
                 <Boton variante="secundario" onClick={() => setFijandoPlazo(true)}>
                     <Camera className="h-4 w-4" aria-hidden="true" />
                     {plazo.datos
-                        ? `Fotos: ${diaMes(plazo.datos.desde)} – ${fechaCorta(plazo.datos.hasta)}`
-                        : 'Plazo de fotos'}
+                        ? `Plazo de fotos: ${diaMes(plazo.datos.desde)} – ${fechaCorta(plazo.datos.hasta)}`
+                        : 'Fijar plazo de fotos'}
                     {plazo.datos && !plazo.datos.abierto && (
                         <Insignia tono={plazo.datos.estado === 'proximo' ? 'info' : 'neutro'}>
                             {plazo.datos.estado === 'proximo' ? 'Próximo' : 'Cerrado'}
                         </Insignia>
                     )}
                 </Boton>
-                <Boton variante="secundario" onClick={plantilla}>
-                    <Download className="h-4 w-4" aria-hidden="true" /> Plantilla
-                </Boton>
-                <Boton onClick={() => setCargando(true)}>
+                {/* En el teléfono la acción principal va primera y a todo el ancho. */}
+                <Boton
+                    className="order-first w-full sm:order-none sm:w-auto"
+                    onClick={() => setCargando(true)}
+                >
                     <Upload className="h-4 w-4" aria-hidden="true" /> Cargar inscripciones
                 </Boton>
             </Encabezado>
@@ -224,7 +204,23 @@ export default function Padron() {
                             cargando={estudiantes.cargando}
                             error={estudiantes.error}
                             vacio={filas.length === 0}
-                            textoVacio="Sin resultados"
+                            textoVacio={
+                                lista.buscar ? (
+                                    <span className="flex flex-col items-center gap-2">
+                                        Sin resultados
+                                        <Boton
+                                            variante="secundario"
+                                            tamano="chico"
+                                            className="min-h-10"
+                                            onClick={() => lista.ponerBuscar('')}
+                                        >
+                                            Quitar búsqueda
+                                        </Boton>
+                                    </span>
+                                ) : (
+                                    'Sin resultados'
+                                )
+                            }
                             onReintentar={estudiantes.recargar}
                             filas={8}
                         >

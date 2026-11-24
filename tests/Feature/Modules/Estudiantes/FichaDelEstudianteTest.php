@@ -11,6 +11,7 @@ use App\Modules\Academico\Domain\Models\Periodo;
 use App\Modules\Estudiantes\Domain\Enums\OrigenEstudiante;
 use App\Modules\Estudiantes\Domain\Models\Inscripcion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\Support\DatosAcademicos;
 use Tests\Support\UsuarioConPermisos;
 use Tests\TestCase;
@@ -74,8 +75,12 @@ final class FichaDelEstudianteTest extends TestCase
                     'facultad' => 'FCyT',
                     'carrera' => 'Ing. Informática',
                     'origen' => 'Administración',
+                    'verificado' => true,
+                    'registrado_en' => $estudiante->created_at?->format('Y-m-d H:i'),
+                    'actualizado_en' => $estudiante->updated_at?->format('Y-m-d H:i'),
                     'con_foto' => false,
                     'foto_subida_en' => null,
+                    'conflictos' => [],
                     'materias' => [
                         [
                             'asignatura' => ['codigo' => '2010010', 'nombre' => 'Introducción a la Programación'],
@@ -114,6 +119,51 @@ final class FichaDelEstudianteTest extends TestCase
             ->assertJsonPath('data.facultad', null)
             ->assertJsonPath('data.carrera', null)
             ->assertJsonPath('data.materias', []);
+    }
+
+    public function test_the_record_shows_its_provenance_and_conflict_resolution_history(): void
+    {
+        $estudiante = $this->estudiante([
+            'origen' => OrigenEstudiante::Docente,
+            'verificado' => false,
+        ]);
+        $grupo = $this->grupo();
+        $reportante = $this->usuarioConRol('Docente', ['name' => 'Blanco Coca Leticia']);
+        $resolutor = $this->administrador();
+        $reportadoEn = '2026-10-10 12:00:00';
+        $resueltoEn = '2026-10-11 13:30:00';
+
+        DB::table('conflictos_padron')->insert([
+            'estudiante_id' => $estudiante->id,
+            'grupo_id' => $grupo->id,
+            'fila' => 3,
+            'tipo' => 'DOCUMENTO_DISTINTO',
+            'documento_nuevo' => '7928149',
+            'nombres_nuevos' => 'Mariana',
+            'apellidos_nuevos' => 'Aguilar Cossío',
+            'via' => 'DOCENTE',
+            'estado' => 'RESUELTO',
+            'resolucion' => 'MANTENER_PADRON',
+            'reportado_por' => $reportante->id,
+            'resuelto_por' => $resolutor->id,
+            'resuelto_en' => $resueltoEn,
+            'created_at' => $reportadoEn,
+            'updated_at' => $resueltoEn,
+        ]);
+
+        $this->actingAs($resolutor)
+            ->getJson("/api/estudiantes/{$estudiante->id}")
+            ->assertOk()
+            ->assertJsonPath('data.origen', 'Docente')
+            ->assertJsonPath('data.verificado', false)
+            ->assertJsonPath('data.conflictos.0.tipo', 'DOCUMENTO_DISTINTO')
+            ->assertJsonPath('data.conflictos.0.estado', 'resuelto')
+            ->assertJsonPath('data.conflictos.0.resolucion', 'MANTENER_PADRON')
+            ->assertJsonPath('data.conflictos.0.documento_nuevo', '7928149')
+            ->assertJsonPath('data.conflictos.0.reportado_por', 'Blanco Coca Leticia')
+            ->assertJsonPath('data.conflictos.0.reportado_en', '2026-10-10 12:00')
+            ->assertJsonPath('data.conflictos.0.resuelto_por', $resolutor->name)
+            ->assertJsonPath('data.conflictos.0.resuelto_en', '2026-10-11 13:30');
     }
 
     public function test_the_subjects_are_only_those_of_current_periods(): void

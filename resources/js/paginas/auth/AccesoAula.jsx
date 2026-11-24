@@ -256,7 +256,7 @@ export default function AccesoAula() {
                     <CabeceraAcceso
                         icono={DoorOpen}
                         titulo="Punto de control"
-                        subtitulo="Código de aula"
+                        subtitulo="Sin cuenta · código de aula"
                     />
 
                     <form className="space-y-4" noValidate onSubmit={entrar}>
@@ -264,15 +264,17 @@ export default function AccesoAula() {
                             etiqueta="Código"
                             iconoEtiqueta={Hash}
                             requerido
-                            inputMode="numeric"
+                            formato="digitos"
+                            autoFocus
                             autoComplete="one-time-code"
                             maxLength={6}
                             placeholder="000000"
+                            ayuda="Lo entrega el docente del examen"
                             value={codigo}
                             validar={SEIS_DIGITOS}
                             error={errores.codigo}
                             onChange={(e) => {
-                                setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6));
+                                setCodigo(e.target.value.slice(0, 6));
                                 setErrores({});
                             }}
                         />
@@ -280,7 +282,9 @@ export default function AccesoAula() {
                             etiqueta="Nombre"
                             iconoEtiqueta={User}
                             requerido
+                            formato="letras"
                             autoComplete="name"
+                            maxLength={120}
                             placeholder="Apellidos y nombres"
                             value={nombre}
                             validar={NOMBRE}
@@ -292,17 +296,17 @@ export default function AccesoAula() {
                         />
                         <Boton type="submit" className="w-full" cargando={enviando}>
                             {!enviando && <LogIn className="h-4 w-4" aria-hidden="true" />}
-                            Iniciar sesión
+                            Entrar al aula
                         </Boton>
                     </form>
-                </div>
 
-                <Link
-                    to="/login"
-                    className={`mt-4 flex min-h-11 w-full items-center justify-center rounded-lg text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
-                >
-                    <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" /> Cuenta institucional
-                </Link>
+                    <Link
+                        to="/login"
+                        className={`mt-5 flex min-h-11 w-full items-center justify-center rounded-lg border-t border-slate-100 pt-1 text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
+                    >
+                        <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" /> Volver al inicio
+                    </Link>
+                </div>
             </div>
         </FondoAcceso>
     );

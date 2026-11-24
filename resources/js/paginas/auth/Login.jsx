@@ -33,21 +33,25 @@ function leerRechazo(error) {
     const datos = error?.response?.data ?? {};
 
     if (estado === 423) {
+        // Con minutos es el bloqueo por intentos, que se levanta solo; sin
+        // minutos la cuenta la desactivó la administración.
         return {
             bloqueo: datos.minutos
-                ? `Cuenta bloqueada · ${plural(datos.minutos, 'minuto')}`
-                : 'Cuenta bloqueada',
+                ? `Cuenta bloqueada por intentos fallidos · se habilita sola en ${plural(datos.minutos, 'minuto')}`
+                : 'Cuenta bloqueada · pida que la habiliten en la administración',
         };
     }
     if (estado === 401 && datos.codigo === 'TEMPORAL_VENCIDA') {
-        return { fallo: 'Contraseña temporal vencida' };
+        return { fallo: 'Contraseña temporal vencida · pida otra a la administración' };
     }
     if (estado === 401) {
         const restantes = datos.intentos_restantes;
         return {
             fallo:
                 typeof restantes === 'number'
-                    ? `Usuario o contraseña incorrectos · ${plural(restantes, 'intento restante', 'intentos restantes')}`
+                    ? restantes === 1
+                        ? 'Usuario o contraseña incorrectos · último intento antes del bloqueo'
+                        : `Usuario o contraseña incorrectos · le quedan ${plural(restantes, 'intento')}`
                     : 'Usuario o contraseña incorrectos',
         };
     }
@@ -70,11 +74,14 @@ export default function Login() {
     const [falloUsuario, setFalloUsuario] = useState(null);
     const [bloqueo, setBloqueo] = useState(null);
     const [enviando, setEnviando] = useState(false);
-    const [recuperando, setRecuperando] = useState(false);
+    // Desde un enlace vencido se llega con el cuadro de recuperar ya abierto.
+    const [recuperando, setRecuperando] = useState(Boolean(state?.recuperar));
     // «Obligatorio» aparece al intentar enviar, no apenas se abre el diálogo.
     const [intentoEnlace, setIntentoEnlace] = useState(false);
     const [usuarioRecuperar, setUsuarioRecuperar] = useState('');
     const [enviandoEnlace, setEnviandoEnlace] = useState(false);
+    // Pedido el enlace, el diálogo queda con la confirmación hasta cerrarlo.
+    const [enlaceEnviado, setEnlaceEnviado] = useState(false);
     const [aviso, avisar] = useAviso();
     const avisoInicial = state?.aviso;
 
@@ -120,11 +127,8 @@ export default function Login() {
         setEnviandoEnlace(true);
         try {
             await api.post('/auth/contrasena/olvide', { usuario: nombre });
-            setRecuperando(false);
             // No dice si la cuenta existe ni si tiene correo: el servidor tampoco.
-            avisar(
-                `Si ${nombre} tiene correo registrado, le llegará el enlace. ${PISTA_SIN_CORREO}`
-            );
+            setEnlaceEnviado(true);
         } catch {
             avisar('No se pudo enviar el enlace', 'error');
         } finally {
@@ -139,7 +143,7 @@ export default function Login() {
                     <CabeceraAcceso
                         icono={ShieldCheck}
                         titulo="Control de exámenes"
-                        subtitulo="Cuenta institucional"
+                        subtitulo="Docente o administración"
                     />
 
                     <form className="space-y-4" onSubmit={iniciar} noValidate>
@@ -147,8 +151,10 @@ export default function Login() {
                             etiqueta="Usuario"
                             iconoEtiqueta={User}
                             requerido
-                            placeholder="nombre apellido"
+                            placeholder="ej. leticia blanco"
                             value={usuario}
+                            maxLength={60}
+                            formato="usuario"
                             autoFocus
                             autoComplete="username"
                             autoCapitalize="none"
@@ -165,7 +171,6 @@ export default function Login() {
                             iconoEtiqueta={Lock}
                             requerido
                             type="password"
-                            placeholder="••••••••"
                             value={clave}
                             autoComplete="current-password"
                             error={fallo ?? undefined}
@@ -196,6 +201,7 @@ export default function Login() {
                             onClick={() => {
                                 setUsuarioRecuperar(usuario);
                                 setIntentoEnlace(false);
+                                setEnlaceEnviado(false);
                                 setRecuperando(true);
                             }}
                         >
@@ -215,7 +221,7 @@ export default function Login() {
                         ],
                         [
                             '/acceso-aula',
-                            'Código de aula',
+                            'Soy personal de control',
                             KeyRound,
                             'bg-primary-100 text-primary-700',
                         ],
@@ -223,14 +229,14 @@ export default function Login() {
                         <Link
                             key={a}
                             to={a}
-                            className={`group flex min-h-14 items-center justify-center gap-2.5 rounded-xl border border-slate-200/70 bg-white px-3 text-left text-sm font-medium text-umss-marino shadow-sm transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md ${FOCO}`}
+                            className={`group flex min-h-14 items-center justify-start gap-2.5 rounded-xl border border-slate-200/70 bg-white px-3 text-left text-sm font-medium text-umss-marino shadow-sm transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md ${FOCO}`}
                         >
                             <span
                                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tono}`}
                             >
                                 <Icono className="h-5 w-5" aria-hidden="true" />
                             </span>
-                            <span className="whitespace-nowrap">{texto}</span>
+                            <span className="min-w-0 leading-tight">{texto}</span>
                         </Link>
                     ))}
                 </div>
@@ -242,43 +248,65 @@ export default function Login() {
                     titulo="Recuperar contraseña"
                     onCerrar={() => setRecuperando(false)}
                     acciones={
-                        <>
-                            <Boton
-                                type="button"
-                                variante="secundario"
-                                onClick={() => setRecuperando(false)}
-                            >
-                                Cancelar
+                        enlaceEnviado ? (
+                            <Boton type="button" onClick={() => setRecuperando(false)}>
+                                Cerrar
                             </Boton>
-                            <Boton
-                                type="submit"
-                                form="formulario-recuperar"
-                                cargando={enviandoEnlace}
-                            >
-                                Enviar enlace
-                            </Boton>
-                        </>
+                        ) : (
+                            <>
+                                <Boton
+                                    type="button"
+                                    variante="secundario"
+                                    onClick={() => setRecuperando(false)}
+                                >
+                                    Cancelar
+                                </Boton>
+                                <Boton
+                                    type="submit"
+                                    form="formulario-recuperar"
+                                    cargando={enviandoEnlace}
+                                >
+                                    Enviar enlace
+                                </Boton>
+                            </>
+                        )
                     }
                 >
-                    <form id="formulario-recuperar" onSubmit={enviarEnlace} noValidate>
-                        <Campo
-                            etiqueta="Usuario"
-                            requerido
-                            placeholder="nombre apellido"
-                            value={usuarioRecuperar}
-                            autoCapitalize="none"
-                            spellCheck={false}
-                            validar={SOLO_USUARIO}
-                            ayuda={PISTA_SIN_CORREO}
-                            autoFocus
-                            error={
-                                intentoEnlace && !usuarioRecuperar.trim()
-                                    ? 'Obligatorio'
-                                    : undefined
-                            }
-                            onChange={(e) => setUsuarioRecuperar(e.target.value)}
-                        />
-                    </form>
+                    {enlaceEnviado ? (
+                        <div role="status" className="space-y-1.5 text-sm text-slate-700">
+                            <p className="flex items-center gap-2 text-base font-semibold text-slate-900">
+                                <Mail className="h-5 w-5 text-primary-700" aria-hidden="true" />
+                                Enlace enviado
+                            </p>
+                            <p>Revise su correo; vale 60 minutos.</p>
+                            <p>
+                                Si no llega en unos minutos, mire en no deseados o pida una
+                                contraseña temporal a la administración.
+                            </p>
+                        </div>
+                    ) : (
+                        <form id="formulario-recuperar" onSubmit={enviarEnlace} noValidate>
+                            <Campo
+                                etiqueta="Usuario"
+                                requerido
+                                placeholder="nombre apellido"
+                                value={usuarioRecuperar}
+                                maxLength={60}
+                                formato="usuario"
+                                autoCapitalize="none"
+                                spellCheck={false}
+                                validar={SOLO_USUARIO}
+                                ayuda={PISTA_SIN_CORREO}
+                                autoFocus
+                                error={
+                                    intentoEnlace && !usuarioRecuperar.trim()
+                                        ? 'Obligatorio'
+                                        : undefined
+                                }
+                                onChange={(e) => setUsuarioRecuperar(e.target.value)}
+                            />
+                        </form>
+                    )}
                 </Dialogo>
             )}
             {aviso}

@@ -46,7 +46,7 @@ describe('Login', () => {
 
     it('enlaza al acceso con código de aula y al de estudiantes', () => {
         montar();
-        expect(screen.getByRole('link', { name: 'Código de aula' })).toHaveAttribute(
+        expect(screen.getByRole('link', { name: 'Soy personal de control' })).toHaveAttribute(
             'href',
             '/acceso-aula'
         );
@@ -63,7 +63,13 @@ describe('Login', () => {
         enviar();
         expect(screen.getByText('Obligatorio')).toBeInTheDocument();
 
+        // Lo que el usuario no admite ni entra al campo, y se avisa.
         escribir(campoUsuario(), 'leticia/blanco');
+        expect(campoUsuario()).toHaveValue('leticiablanco');
+        expect(screen.getByText('En minúsculas, sin tildes ni signos')).toBeInTheDocument();
+
+        // Lo que entra pero no tiene forma de usuario se rechaza antes de enviar.
+        escribir(campoUsuario(), '.leticia');
         enviar();
         expect(
             screen.getByText('Solo letras y números, separados por un espacio')
@@ -91,7 +97,10 @@ describe('Login', () => {
     it('acepta el usuario escrito como nombre y apellido', async () => {
         const entrar = vi.fn(() => Promise.resolve(usuarioDePrueba('Docente')));
         montar({ entrar });
-        expect(campoUsuario()).toHaveAttribute('placeholder', 'nombre apellido');
+        expect(campoUsuario()).toHaveAttribute('placeholder', 'ej. leticia blanco');
+        // La contraseña vacía no aparenta tener algo escrito.
+        expect(screen.getByLabelText(/^Contraseña/)).not.toHaveAttribute('placeholder');
+        expect(screen.getByText('Docente o administración')).toBeInTheDocument();
         intentar('Letícia Blanco');
 
         expect(await screen.findByText('Estoy en /examenes')).toBeInTheDocument();
@@ -115,13 +124,13 @@ describe('Login', () => {
         intentar();
 
         expect(
-            await screen.findByText('Usuario o contraseña incorrectos · 3 intentos restantes')
+            await screen.findByText('Usuario o contraseña incorrectos · le quedan 3 intentos')
         ).toBeInTheDocument();
         expect(campoClave()).toHaveAttribute('aria-invalid', 'true');
         expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toBeEnabled();
 
         escribir(campoClave(), 'otra');
-        expect(screen.queryByText(/intentos restantes/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/le quedan/)).not.toBeInTheDocument();
     });
 
     it('escribe el último intento en singular y omite la cifra si la cuenta no existe', async () => {
@@ -135,7 +144,9 @@ describe('Login', () => {
 
         intentar();
         expect(
-            await screen.findByText('Usuario o contraseña incorrectos · 1 intento restante')
+            await screen.findByText(
+                'Usuario o contraseña incorrectos · último intento antes del bloqueo'
+            )
         ).toBeInTheDocument();
         intentar('nadie.existe');
         expect(await screen.findByText('Usuario o contraseña incorrectos')).toBeInTheDocument();
@@ -149,7 +160,9 @@ describe('Login', () => {
         });
         intentar();
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('Cuenta bloqueada · 15 minutos');
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'Cuenta bloqueada por intentos fallidos · se habilita sola en 15 minutos'
+        );
     });
 
     it('una cuenta desactivada no lleva minutos', async () => {
@@ -159,7 +172,9 @@ describe('Login', () => {
         intentar();
 
         const alerta = await screen.findByRole('alert');
-        expect(alerta).toHaveTextContent('Cuenta bloqueada');
+        expect(alerta).toHaveTextContent(
+            'Cuenta bloqueada · pida que la habiliten en la administración'
+        );
         expect(alerta).not.toHaveTextContent('minuto');
     });
 
@@ -171,7 +186,9 @@ describe('Login', () => {
         montar({ entrar });
 
         intentar();
-        expect(await screen.findByText('Contraseña temporal vencida')).toBeInTheDocument();
+        expect(
+            await screen.findByText('Contraseña temporal vencida · pida otra a la administración')
+        ).toBeInTheDocument();
         intentar();
         expect(await screen.findByText('No se pudo iniciar sesión')).toBeInTheDocument();
     });
@@ -185,19 +202,28 @@ describe('Login', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Recuperar contraseña' }));
         const dialogo = within(screen.getByRole('dialog', { name: 'Recuperar contraseña' }));
-        expect(dialogo.getByLabelText(/Usuario/)).toHaveValue('Leticia.Blanco');
+        expect(dialogo.getByLabelText(/Usuario/)).toHaveValue('leticia.blanco');
         // Quien no tiene correo sabe a quién acudir.
         expect(
             dialogo.getByText('Si no llega, pida una contraseña temporal a la administración.')
         ).toBeInTheDocument();
         fireEvent.click(dialogo.getByRole('button', { name: 'Enviar enlace' }));
 
-        expect(await screen.findByRole('status')).toHaveTextContent(
-            'Si leticia.blanco tiene correo registrado, le llegará el enlace. Si no llega, pida una contraseña temporal a la administración.'
+        // La confirmación queda dentro del diálogo hasta cerrarlo.
+        const confirmacion = await screen.findByRole('status');
+        expect(confirmacion).toHaveTextContent('Enlace enviado');
+        expect(confirmacion).toHaveTextContent('Revise su correo; vale 60 minutos.');
+        expect(confirmacion).toHaveTextContent(
+            'Si no llega en unos minutos, mire en no deseados o pida una contraseña temporal a la administración.'
         );
         expect(api.post).toHaveBeenCalledWith('/auth/contrasena/olvide', {
             usuario: 'leticia.blanco',
         });
+        expect(screen.getByRole('dialog', { name: 'Recuperar contraseña' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Enviar enlace' })).not.toBeInTheDocument();
+
+        // El botón del pie es el último de los que se llaman «Cerrar».
+        fireEvent.click(screen.getAllByRole('button', { name: 'Cerrar' }).at(-1));
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
@@ -229,5 +255,20 @@ describe('Login', () => {
         await waitFor(() =>
             expect(screen.getByRole('status')).toHaveTextContent('Contraseña actualizada')
         );
+    });
+
+    it('llega con el cuadro de recuperar abierto desde un enlace vencido', async () => {
+        renderConSesion(<Login />, {
+            usuario: null,
+            ruta: { pathname: '/login', state: { recuperar: true } },
+        });
+
+        expect(await screen.findByRole('dialog', { name: 'Recuperar contraseña' })).toBeVisible();
+    });
+
+    it('el usuario no pasa de 60 caracteres, como en el servidor', () => {
+        montar();
+
+        expect(campoUsuario()).toHaveAttribute('maxlength', '60');
     });
 });

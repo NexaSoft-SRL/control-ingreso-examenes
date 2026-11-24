@@ -28,8 +28,8 @@ const ESTADOS = {
 // `valor` es lo que viaja en `?filtro=`; `clave`, la de `meta.conteos`.
 const FILTROS = [
     { valor: null, clave: 'todos', etiqueta: 'Todos' },
-    { valor: 'programados', clave: 'programados', etiqueta: 'Programados' },
-    { valor: 'puntuales', clave: 'puntuales', etiqueta: 'Puntuales' },
+    { valor: 'programados', clave: 'programados', etiqueta: 'Automáticos' },
+    { valor: 'puntuales', clave: 'puntuales', etiqueta: 'Manuales' },
     { valor: 'fallidos', clave: 'fallidos', etiqueta: 'Fallidos' },
 ];
 
@@ -46,6 +46,10 @@ export function tamanoLegible(bytes) {
     if (bytes >= 1024) return `${decimal(bytes / 1024)} KB`;
     return `${bytes} B`;
 }
+
+// El tipo que da el servidor, en palabras de quien no sabe de bases de datos.
+const TIPO = { Programado: 'Automático', Puntual: 'Manual' };
+const tipoDe = (tipo) => TIPO[tipo] ?? tipo;
 
 // HU-25 · Respaldo y restauración: a demanda y programado. Restaurar es
 // destructivo: pide confirmación en la misma fila. El servidor rechaza el
@@ -245,7 +249,7 @@ export default function Respaldo() {
                                             {fechaCorta(r.fecha)}
                                         </p>
                                         <p className="text-xs text-slate-600">
-                                            {r.tipo} · {tamanoLegible(r.tamano_bytes)}
+                                            {tipoDe(r.tipo)} · {tamanoLegible(r.tamano_bytes)}
                                         </p>
                                     </div>
                                     <Insignia tono={estadoDe(r).tono}>{estadoDe(r).texto}</Insignia>
@@ -283,7 +287,7 @@ export default function Respaldo() {
                                     <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-800">
                                         {fechaCorta(r.fecha)}
                                     </td>
-                                    <td className="px-4 py-3 text-slate-700">{r.tipo}</td>
+                                    <td className="px-4 py-3 text-slate-700">{tipoDe(r.tipo)}</td>
                                     <td className="whitespace-nowrap px-4 py-3 text-slate-700">
                                         {tamanoLegible(r.tamano_bytes)}
                                     </td>

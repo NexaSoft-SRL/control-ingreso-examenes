@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { Camera, Loader2 } from 'lucide-react';
+import { Camera, ImageUp, Loader2 } from 'lucide-react';
 import Boton from './Boton';
 import Dialogo from './Dialogo';
 
@@ -9,8 +9,8 @@ export const hayCamara = () =>
     typeof navigator !== 'undefined' && typeof navigator.mediaDevices?.getUserMedia === 'function';
 
 const ERRORES = {
-    NotAllowedError: 'Permiso de cámara denegado',
-    SecurityError: 'Permiso de cámara denegado',
+    NotAllowedError: 'Sin acceso a la cámara',
+    SecurityError: 'Sin acceso a la cámara',
     NotFoundError: 'No se encontró una cámara',
     OverconstrainedError: 'No se encontró una cámara',
     NotReadableError: 'La cámara está en uso',
@@ -24,6 +24,7 @@ export default function CamaraFoto({ onTomar, onCerrar, trasera = false }) {
     const video = useRef(null);
     const [listo, setListo] = useState(false);
     const [error, setError] = useState(null);
+    const idArchivo = useId();
 
     useEffect(() => {
         let flujo = null;
@@ -83,9 +84,29 @@ export default function CamaraFoto({ onTomar, onCerrar, trasera = false }) {
                     <Boton variante="secundario" onClick={onCerrar}>
                         Cancelar
                     </Boton>
-                    <Boton onClick={tomar} disabled={!listo || Boolean(error)}>
-                        <Camera className="h-4 w-4" aria-hidden="true" /> Tomar
-                    </Boton>
+                    {error ? (
+                        // Sin cámara, se elige una foto del equipo ahí mismo.
+                        <label
+                            htmlFor={idArchivo}
+                            className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary-600"
+                        >
+                            <ImageUp className="h-4 w-4" aria-hidden="true" /> Elegir foto
+                            <input
+                                id={idArchivo}
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                                className="sr-only"
+                                onChange={(e) => {
+                                    const elegido = e.target.files?.[0];
+                                    if (elegido) onTomar(elegido);
+                                }}
+                            />
+                        </label>
+                    ) : (
+                        <Boton onClick={tomar} disabled={!listo}>
+                            <Camera className="h-4 w-4" aria-hidden="true" /> Tomar
+                        </Boton>
+                    )}
                 </>
             }
         >
@@ -100,7 +121,7 @@ export default function CamaraFoto({ onTomar, onCerrar, trasera = false }) {
                     onLoadedData={() => setListo(true)}
                 />
                 {/* La guía: un óvalo para el rostro, con el resto oscurecido. */}
-                {!trasera && (
+                {!trasera && !error && (
                     <span
                         aria-hidden="true"
                         className="pointer-events-none absolute left-1/2 top-[42%] h-[58%] w-[44%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-2 border-white/90 shadow-[0_0_0_9999px_rgba(15,23,42,0.45)]"
@@ -115,9 +136,10 @@ export default function CamaraFoto({ onTomar, onCerrar, trasera = false }) {
                 {error && (
                     <span
                         role="alert"
-                        className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm font-medium text-white"
+                        className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-6 text-center text-sm font-medium text-white"
                     >
-                        {error}
+                        <span>{error}</span>
+                        <span className="font-normal text-slate-300">Use «Elegir foto»</span>
                     </span>
                 )}
             </div>

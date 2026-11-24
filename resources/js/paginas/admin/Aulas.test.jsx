@@ -248,30 +248,31 @@ describe('Aulas y mapa', () => {
 
         expect(pestana('Aulas')).toHaveAttribute('aria-selected', 'true');
         expect(nombres(listaAulas())).toEqual([
-            '003Sin edificioFHCE',
             '617Edificio Académico 2FCyT · 1° Piso',
             '624Edificio Académico 2FCyT · 1° Piso',
             '690AEdificio Académico 2FCyT · Planta Baja',
             '691BEdificio Académico 2FCyT · Planta Baja',
-            'A706Sin edificioFACH',
             'E101Bloque CentralFCE',
             'E102Bloque CentralFCE',
             'H1Pabellón 1FHCE',
             'H2Pabellón 2FHCE',
             'H3Pabellón 3FHCE',
             'H4Pabellón 4FHCE',
+            'H5Pabellón 5FHCE',
+            'H6Pabellón 6FHCE',
         ]);
         expect(screen.getByText('1–12 de 19 aulas')).toBeInTheDocument();
 
+        // Las aulas sin edificio van al final.
         fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }));
-        expect(nombres(listaAulas()).map((t) => t.match(/^H\d+/)[0])).toEqual([
-            'H5',
-            'H6',
+        expect(nombres(listaAulas()).map((t) => t.match(/^(H\d+|003|A706)/)[0])).toEqual([
             'H7',
             'H8',
             'H9',
             'H10',
             'H11',
+            '003',
+            'A706',
         ]);
         expect(document.body.textContent).not.toMatch(SIN_DATO);
     });
@@ -279,6 +280,7 @@ describe('Aulas y mapa', () => {
     it('un aula sin edificio figura en la lista, no se puede elegir y no se dibuja en el mapa', async () => {
         const { container } = await montarCargada();
         fireEvent.click(pestana('Aulas'));
+        fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }));
 
         const fila = within(listaAulas()).getByText('003').closest('li');
         expect(fila).toHaveTextContent('Sin edificio');
@@ -527,7 +529,7 @@ describe('Aulas y mapa', () => {
         expect(Element.prototype.scrollIntoView.mock.instances[0]).toBe(detalle());
         expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
             behavior: 'smooth',
-            block: 'start',
+            block: 'nearest',
         });
 
         // Al quitar la selección desde la fila no hay a dónde ir.
@@ -546,7 +548,7 @@ describe('Aulas y mapa', () => {
         expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(2);
     });
 
-    it('en escritorio no desplaza: el detalle queda junto a la lista (criterio 14)', async () => {
+    it('en escritorio solo acerca la vista al detalle si no se ve entero (criterio 14)', async () => {
         enMovil(false);
         await montarCargada();
 
@@ -554,7 +556,10 @@ describe('Aulas y mapa', () => {
         pintar();
 
         expect(detalle()).not.toBeNull();
-        expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+        expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
+            behavior: 'smooth',
+            block: 'nearest',
+        });
     });
 
     it('si falla la carga muestra el error y «Reintentar» vuelve a pedir', async () => {

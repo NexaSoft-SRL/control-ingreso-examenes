@@ -73,9 +73,25 @@ trait ApoyoDeCargas
      */
     protected function cargarLista(Docente $docente, Grupo $grupo, array|UploadedFile $archivo): TestResponse
     {
-        return $this->actingAs($this->cuentaDe($docente))->post(
-            "/api/docente/grupos/{$grupo->id}/inscritos/carga",
-            ['archivo' => is_array($archivo) ? $this->csv($archivo) : $archivo],
+        $cuenta = $this->cuentaDe($docente);
+        $subido = is_array($archivo) ? $this->csv($archivo) : $archivo;
+        $ruta = "/api/docente/grupos/{$grupo->id}/inscritos";
+        $previsualizacion = $this->actingAs($cuenta)->post(
+            "{$ruta}/carga/preview",
+            ['archivo' => $subido],
+            ['Accept' => 'application/json'],
+        );
+
+        if (! $previsualizacion->isSuccessful()) {
+            return $previsualizacion;
+        }
+
+        return $this->actingAs($cuenta)->post(
+            "{$ruta}/carga",
+            [
+                'archivo' => $subido,
+                'confirmacion' => $previsualizacion->json('confirmacion'),
+            ],
             ['Accept' => 'application/json'],
         );
     }

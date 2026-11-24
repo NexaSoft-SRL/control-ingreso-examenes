@@ -277,7 +277,7 @@ const DETALLE = {
     grupos: ['2', '3'],
     inscritos: 75,
     aulas: ['691B'],
-    estado: 'Falta habilitar',
+    estado: 'Falta habilitar estudiantes',
     accion: { clave: 'habilitar', paso: null },
     propio: true,
     registrado_por: 'Blanco Coca Leticia',
@@ -326,7 +326,7 @@ function guardado(cuerpo, id = 9) {
         grupos: grupos.map((g) => g.codigo),
         inscritos: grupos.reduce((s, g) => s + g.inscritos, 0),
         aulas: aulas.map((a) => a.nombre),
-        estado: aulas.length ? 'Falta habilitar' : 'Faltan aulas',
+        estado: aulas.length ? 'Falta habilitar estudiantes' : 'Faltan aulas',
         propio: true,
         registrado_por: 'Blanco Coca Leticia',
         normas: cuerpo.normas || null,
@@ -383,14 +383,22 @@ async function irAAulas(datos) {
     await screen.findByRole('list', { name: 'Aulas' });
 }
 
+// Sin un aula no se continúa: si no hay ninguna elegida, se elige la 691B.
+function elegirAulaSiFalta() {
+    const continuar = screen.getByRole('button', { name: /Continuar: Quién atiende/ });
+    if (continuar.disabled) fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
+}
+
 async function irAQuienAtiende(datos) {
     await irAAulas(datos);
+    elegirAulaSiFalta();
     pulsar(/Continuar/);
     await screen.findByRole('heading', { name: '4. Quién atiende' });
 }
 
 // Del paso de aulas al de quién atiende, y a guardar.
 async function guardar(nombre) {
+    elegirAulaSiFalta();
     pulsar(/Continuar/);
     await screen.findByRole('heading', { name: '4. Quién atiende' });
     pulsar(nombre);
@@ -498,7 +506,7 @@ describe('RegistrarExamen · normas del examen anterior', () => {
             'Sin gorra\nTraer calculadora básica'
         );
         expect(
-            screen.getByText(/^Como en Primer parcial · Introducción a la Programación/)
+            screen.getByText(/^Copiadas de: Primer parcial · Introducción a la Programación/)
         ).toBeInTheDocument();
         await waitFor(() => expect(api.get).toHaveBeenCalledWith('/examenes/31'));
         expect(api.get).not.toHaveBeenCalledWith('/examenes/33');
@@ -508,7 +516,7 @@ describe('RegistrarExamen · normas del examen anterior', () => {
         montar();
 
         expect(await casilla('Sin celular')).not.toBeChecked();
-        expect(screen.queryByText(/^Como en/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/^Copiadas de/)).not.toBeInTheDocument();
     });
 });
 
@@ -558,6 +566,25 @@ describe('RegistrarExamen · paso 1, examen', () => {
         expect(screen.getByLabelText(/^Hora de inicio/)).toHaveValue('08:15');
     });
 
+    it('la duración solo admite números', async () => {
+        montar();
+        cambiar(await campo(/^Duración/), '9a0 min');
+
+        expect(screen.getByLabelText(/^Duración/)).toHaveValue('90');
+    });
+
+    it('sin grupos elegidos dice qué falta en vez de solo bloquear «Continuar»', async () => {
+        montar();
+        await campo(/^Fecha/);
+        pulsar(/Continuar/);
+        await screen.findByRole('heading', { name: '2. Grupos' });
+        const grupos = screen.getAllByRole('checkbox');
+        grupos.filter((c) => c.checked).forEach((c) => fireEvent.click(c));
+
+        expect(screen.getByText('Elija al menos un grupo')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Continuar: Aulas/ })).toBeDisabled();
+    });
+
     it('sin fecha u hora no avanza y señala «Obligatorio»', async () => {
         montar();
         cambiar(await campo(/^Fecha/), '');
@@ -579,7 +606,7 @@ describe('RegistrarExamen · paso 1, examen', () => {
         pulsar(/Continuar/);
 
         expect(screen.getByText('La fecha ya pasó')).toBeInTheDocument();
-        expect(screen.getByText('Entre 06:00 y 22:00')).toBeInTheDocument();
+        expect(screen.getByText('Entre 06:45 y 21:45')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: '1. Examen' })).toBeInTheDocument();
     });
 
@@ -610,16 +637,31 @@ describe('RegistrarExamen · paso 1, examen', () => {
         expect(await screen.findByRole('heading', { name: '2. Grupos' })).toBeInTheDocument();
     });
 
-    it('un examen que terminaría después de medianoche se señala en la duración', async () => {
+    it('un examen que terminaría después del horario de clases se señala en la duración', async () => {
         montar();
         cambiar(await campo(/^Fecha/), '2026-10-20');
-        cambiar(await campo(/^Hora de inicio/), '22:00');
+        cambiar(await campo(/^Hora de inicio/), '21:00');
         cambiar(await campo(/^Duración/), '180');
 
         pulsar(/Continuar/);
 
-        expect(screen.getByText('Terminaría después de medianoche')).toBeInTheDocument();
+        expect(screen.getByText('Debe terminar a las 21:45 como máximo')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: '1. Examen' })).toBeInTheDocument();
+    });
+
+    it('no deja registrar un examen en domingo', async () => {
+        montar();
+        cambiar(await campo(/^Fecha/), '2026-10-18');
+        cambiar(await campo(/^Hora de inicio/), '08:15');
+
+        pulsar(/Continuar/);
+
+        expect(screen.getByText('No hay exámenes los domingos')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: '1. Examen' })).toBeInTheDocument();
+
+        cambiar(screen.getByLabelText(/^Fecha/), '2026-10-19');
+        pulsar(/Continuar/);
+        expect(await screen.findByRole('heading', { name: '2. Grupos' })).toBeInTheDocument();
     });
 
     it('muestra la ventana del calendario del tipo y no ofrece la que ya cerró', async () => {
@@ -807,8 +849,9 @@ describe('RegistrarExamen · paso 3, aulas', () => {
         const aula = screen.getByRole('checkbox', { name: 'Aula 691C' }).closest('li');
 
         expect(aula).not.toBeNull();
-        expect(aula).toHaveTextContent('Física I');
-        expect(aula).toHaveTextContent('Rojas Paz Ana');
+        expect(aula).toHaveTextContent('Ocupada 09:00–10:30 · Física I');
+        // El docente y el grupo quedan en el detalle, sin alargar la fila.
+        expect(within(aula).getByTitle(/Rojas Paz Ana/)).toBeInTheDocument();
         expect(aula).toHaveTextContent('09:00');
         expect(aula).toHaveTextContent('10:30');
     });
@@ -985,7 +1028,10 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
             within(screen.getByRole('list', { name: 'Auxiliares' }))
                 .getAllByRole('listitem')
                 .map((x) => x.textContent)
-        ).toEqual(['Rojas Ledezma Andrea', 'Vargas Arce Sergio']);
+        ).toEqual([
+            'Rojas Ledezma Andrea · usuario: andrea.rojas',
+            'Vargas Arce Sergio · usuario: sergio.vargas',
+        ]);
         expect(screen.getByText('Auxiliares · 2')).toBeInTheDocument();
 
         cambiar(aCargo, '12');
@@ -1093,14 +1139,76 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         expect(screen.queryByText(/aulas a la vez/)).not.toBeInTheDocument();
     });
 
-    it('con dos aulas o sin auxiliares no ofrece «Repartir»; sin aulas lo dice', async () => {
+    it('sin aulas no deja continuar y dice qué falta', async () => {
+        montar();
+        await irAAulas();
+
+        expect(screen.getByRole('button', { name: /Continuar: Quién atiende/ })).toBeDisabled();
+        expect(screen.getByText('Elija al menos un aula')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
+        expect(screen.getByRole('button', { name: /Continuar: Quién atiende/ })).toBeEnabled();
+        expect(screen.queryByText('Elija al menos un aula')).not.toBeInTheDocument();
+    });
+
+    it('el aula elegida que está ocupada a esa hora lo sigue diciendo', async () => {
+        montar();
+        await irAAulas();
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691C' }));
+
+        const elegidas = screen.getByRole('list', { name: 'Aulas elegidas' });
+        expect(elegidas).toHaveTextContent('691C· ocupada');
+    });
+
+    it('con un aula y sin auxiliares no ofrece «Repartir»', async () => {
         montar();
         await irAQuienAtiende();
 
-        expect(screen.getByText('Sin aulas')).toBeInTheDocument();
-        expect(screen.getByText('0 aulas')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Repartir/ })).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Registrar examen' })).toBeEnabled();
+    });
+
+    it('el auxiliar nuevo no deja escribir números en el nombre ni letras en el código', async () => {
+        montar();
+        await irAAulas();
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
+        pulsar(/Continuar/);
+        await screen.findByRole('heading', { name: '4. Quién atiende' });
+
+        cambiar(screen.getByLabelText(/^Nombre completo/), 'Rosa 2 Quispe');
+        cambiar(screen.getByLabelText(/^Código SIS del auxiliar/), 'SIS 2020-0123');
+
+        expect(screen.getByLabelText(/^Nombre completo/)).toHaveValue('Rosa Quispe');
+        expect(screen.getByLabelText(/^Código SIS del auxiliar/)).toHaveValue('20200123');
+    });
+
+    it('Enter agrega al auxiliar nuevo, como el botón', async () => {
+        montar();
+        await irAAulas();
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
+        pulsar(/Continuar/);
+        await screen.findByRole('heading', { name: '4. Quién atiende' });
+
+        cambiar(screen.getByLabelText(/^Nombre completo/), 'Quispe Mamani Rosa');
+        cambiar(screen.getByLabelText(/^Código SIS del auxiliar/), '202000123');
+        fireEvent.keyDown(screen.getByLabelText(/^Código SIS del auxiliar/), { key: 'Enter' });
+
+        await waitFor(() =>
+            expect(api.post).toHaveBeenCalledWith('/auxiliares', {
+                nombre: 'Quispe Mamani Rosa',
+                codigo_universitario: '202000123',
+            })
+        );
+    });
+
+    it('sin auxiliares, el apoyo dice qué falta', async () => {
+        auxiliares = [];
+        montar();
+        await irAQuienAtiende();
+
+        expect(within(filaDeAula('691B')).getByLabelText('Apoyo')).toBeDisabled();
+        expect(
+            within(filaDeAula('691B')).getByText('Para apoyo, agregue un auxiliar')
+        ).toBeInTheDocument();
     });
 
     it('da de alta un auxiliar nuevo y queda disponible para las aulas', async () => {
@@ -1114,23 +1222,32 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         pulsar(/Agregar/);
         expect(screen.getAllByText('Obligatorio')).toHaveLength(2);
         cambiar(screen.getByLabelText(/^Nombre completo/), 'Quispe Mamani Rosa');
-        cambiar(screen.getByLabelText(/^Correo institucional/), '2020-1');
+        cambiar(screen.getByLabelText(/^Código SIS del auxiliar/), '2020');
         pulsar(/Agregar/);
         expect(screen.getByText('Entre 5 y 10 dígitos')).toBeInTheDocument();
         expect(api.post).not.toHaveBeenCalled();
 
-        cambiar(screen.getByLabelText(/^Correo institucional/), '202000123');
+        cambiar(screen.getByLabelText(/^Código SIS del auxiliar/), '202000123');
         pulsar(/Agregar/);
 
-        expect(await screen.findByText('Auxiliar agregado')).toBeInTheDocument();
+        expect(
+            await screen.findByText(
+                'Cuenta creada · usuario nuevo.auxiliar · la contraseña temporal se envió a 202000123@est.umss.edu'
+            )
+        ).toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith('/auxiliares', {
             nombre: 'Quispe Mamani Rosa',
             codigo_universitario: '202000123',
         });
         expect(screen.getByLabelText(/^Nombre completo/)).toHaveValue('');
+        // En la lista se ve con qué usuario entra.
         expect(screen.getByRole('list', { name: 'Auxiliares' })).toHaveTextContent(
-            'Quispe Mamani Rosa'
+            'Quispe Mamani Rosa · usuario: nuevo.auxiliar'
         );
+        // Con una sola aula queda de apoyo en ella sin más pasos.
+        expect(
+            within(filaDeAula('691B')).getByRole('list', { name: 'Apoyo del aula 691B' })
+        ).toHaveTextContent('Quispe Mamani Rosa');
         cambiar(within(filaDeAula('691B')).getByLabelText('A cargo'), '40');
         pulsar('Registrar examen');
         await screen.findByText('Examen registrado');
@@ -1143,7 +1260,7 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         montar();
         await irAQuienAtiende();
         cambiar(screen.getByLabelText(/^Nombre completo/), 'Mamani Torrez Diego');
-        cambiar(screen.getByLabelText(/^Correo institucional/), '201900456');
+        cambiar(screen.getByLabelText(/^Código SIS del auxiliar/), '201900456');
 
         api.post.mockRejectedValueOnce(
             errorHttp(422, {
@@ -1157,7 +1274,7 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         api.post.mockRejectedValueOnce(
             errorHttp(409, { message: 'Auxiliar ya registrado.', data: AJENOS[0] })
         );
-        cambiar(screen.getByLabelText(/^Correo institucional/), '201900457');
+        cambiar(screen.getByLabelText(/^Código SIS del auxiliar/), '201900457');
         pulsar(/Agregar/);
 
         expect(await screen.findByText('Auxiliar ya registrado')).toBeInTheDocument();
@@ -1545,24 +1662,15 @@ describe('RegistrarExamen · guardar', () => {
         );
     });
 
-    it('sin aulas ni normas también se registra y queda «Faltan aulas»', async () => {
+    it('sin normas también se registra', async () => {
         montar();
         await irAAulas();
 
         await guardar('Registrar examen');
 
         expect(await screen.findByText('Examen registrado')).toBeInTheDocument();
-        expect(api.post.mock.calls[0][1]).toMatchObject({
-            normas: '',
-            normas_marcadas: [],
-            aulas: [],
-        });
-        expect(screen.getByText('Faltan aulas')).toBeInTheDocument();
-        expect(screen.getByText('Sin aulas')).toBeInTheDocument();
+        expect(api.post.mock.calls[0][1]).toMatchObject({ normas: '', normas_marcadas: [] });
         expect(screen.getByText('Sin normas')).toBeInTheDocument();
-        expect(
-            screen.queryByRole('link', { name: /Habilitar estudiantes/ })
-        ).not.toBeInTheDocument();
     });
 
     it('tras registrar, volver a un paso guarda sobre el mismo examen', async () => {
@@ -1573,6 +1681,7 @@ describe('RegistrarExamen · guardar', () => {
 
         pulsar(/Aulas/);
         await screen.findByRole('list', { name: 'Aulas' });
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
         fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691A' }));
         await guardar('Guardar examen');
 

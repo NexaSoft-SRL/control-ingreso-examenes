@@ -53,7 +53,7 @@ const completa = (cifras) =>
 const CONDICION = {
     habilitado: ['exito', 'Habilitado'],
     no: ['peligro', 'No habilitado'],
-    pendiente: ['neutro', 'Sin revisar'],
+    pendiente: ['neutro', 'Pendiente'],
 };
 const SIN_FILTROS = { grupo: null, aula: null, condicion: null };
 const COLUMNAS = ['Código SIS', 'Estudiante', 'Grupo', 'Condición', 'Aula', 'Motivo'];
@@ -140,6 +140,8 @@ export function ListaDelExamen({ examenId, onCifras }) {
     const [enviando, setEnviando] = useState(false);
     // Un lote grande se confirma antes: no se deshace con un clic.
     const [porConfirmar, setPorConfirmar] = useState(null);
+    // El resultado del último reparto queda a la vista, no solo en el aviso.
+    const [repartido, setRepartido] = useState(null);
     const [ampliada, setAmpliada] = useState(null);
     const urlFoto = (e) => `/api${ruta}/${e.estudiante_id}/foto`;
     const foto = (e) => (
@@ -275,9 +277,11 @@ export function ListaDelExamen({ examenId, onCifras }) {
         setEnviando(true);
         try {
             const { data } = await api.post(ruta, cuerpo);
+            // Los que no tienen carnet no se habilitan: se dice cuántos.
+            const sinCarnet = habilitado ? (data?.sin_carnet ?? 0) : 0;
             avisar(
                 data?.afectados !== undefined
-                    ? plural(data.afectados, habilitado ? 'habilitado' : 'inhabilitado')
+                    ? `${plural(data.afectados, habilitado ? 'habilitado' : 'inhabilitado')}${sinCarnet > 0 ? ` · ${sinCarnet} sin carnet, quedan pendientes` : ''}`
                     : sinPunto(data?.message)
             );
             cerrarSeleccion();
@@ -300,7 +304,9 @@ export function ListaDelExamen({ examenId, onCifras }) {
         setEnviando(true);
         try {
             const { data } = await api.post(`/examenes/${examenId}/reparto`);
-            avisar(sinPunto(data?.message) || 'Sin estudiantes por repartir');
+            const texto = sinPunto(data?.message) || 'Sin estudiantes por repartir';
+            avisar(texto);
+            setRepartido(texto);
             await recargar();
         } catch (fallo) {
             rechazo(fallo, 'No se pudo repartir');
@@ -357,7 +363,7 @@ export function ListaDelExamen({ examenId, onCifras }) {
                     valor={cifras.no_habilitados ?? 0}
                     tono={cifras.no_habilitados ? 'advertencia' : 'neutro'}
                 />
-                <Dato etiqueta="Sin revisar" icono={Hourglass} valor={cifras.sin_revisar ?? 0} />
+                <Dato etiqueta="Pendientes" icono={Hourglass} valor={cifras.sin_revisar ?? 0} />
             </div>
 
             <div className="flex justify-end">
@@ -375,16 +381,24 @@ export function ListaDelExamen({ examenId, onCifras }) {
                         {cifras.sin_aula > 0 && (
                             <Insignia tono="advertencia">{cifras.sin_aula} sin aula</Insignia>
                         )}
+                        {aulas.length > 0 && !cifras.habilitados && (
+                            <span className="text-xs text-slate-600">
+                                Primero habilite estudiantes
+                            </span>
+                        )}
                         <Boton
                             variante="secundario"
-                            disabled={aulas.length === 0 || enviando}
+                            disabled={aulas.length === 0 || !cifras.habilitados || enviando}
                             onClick={repartir}
                         >
-                            <Shuffle className="h-4 w-4" /> Repartir
+                            <Shuffle className="h-4 w-4" /> Repartir por aula
                         </Boton>
                     </>
                 }
             >
+                {repartido && aulas.length > 0 && (
+                    <p className="mb-3 text-sm text-slate-700">{repartido}</p>
+                )}
                 {aulas.length > 0 ? (
                     <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
                         {aulas.map((a) => {
@@ -410,7 +424,15 @@ export function ListaDelExamen({ examenId, onCifras }) {
                         })}
                     </ul>
                 ) : (
-                    <p className="py-4 text-center text-sm text-slate-600">Sin aulas</p>
+                    <div className="space-y-2 py-4 text-center">
+                        <p className="text-sm text-slate-600">Sin aulas</p>
+                        <Link
+                            to={`/examenes/nuevo?examen=${examenId}&paso=2`}
+                            className={`inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-primary-700 hover:bg-primary-50 ${FOCO}`}
+                        >
+                            Elegir aulas
+                        </Link>
+                    </div>
                 )}
             </Tarjeta>
 
@@ -471,7 +493,7 @@ export function ListaDelExamen({ examenId, onCifras }) {
                             },
                             {
                                 valor: 'pendiente',
-                                etiqueta: 'Sin revisar',
+                                etiqueta: 'Pendientes',
                                 conteo: condiciones.pendiente ?? 0,
                             },
                         ]}
@@ -487,7 +509,7 @@ export function ListaDelExamen({ examenId, onCifras }) {
                             {resumenSeleccion}
                         </div>
                         <AreaTexto
-                            etiqueta="Motivo para inhabilitar"
+                            etiqueta="Motivo para inhabilitar · no hace falta al habilitar"
                             rows={2}
                             maxLength={MOTIVO_MAXIMO}
                             value={motivo}
@@ -523,9 +545,19 @@ export function ListaDelExamen({ examenId, onCifras }) {
                 )}
 
                 {filas.length === 0 ? (
-                    <p className="border-t border-slate-200 py-10 text-center text-sm text-slate-600">
-                        {(cifras.inscritos ?? 0) === 0 ? 'Sin estudiantes' : 'Sin resultados'}
-                    </p>
+                    <div className="space-y-2 border-t border-slate-200 py-10 text-center">
+                        <p className="text-sm text-slate-600">
+                            {(cifras.inscritos ?? 0) === 0 ? 'Sin estudiantes' : 'Sin resultados'}
+                        </p>
+                        {(cifras.inscritos ?? 0) === 0 && (
+                            <Link
+                                to="/mis-grupos"
+                                className={`inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-primary-700 hover:bg-primary-50 ${FOCO}`}
+                            >
+                                Cargar las listas
+                            </Link>
+                        )}
+                    </div>
                 ) : (
                     <>
                         <div className="border-t border-slate-200 md:hidden">
@@ -695,7 +727,7 @@ export function ListaDelExamen({ examenId, onCifras }) {
             )}
             {porConfirmar !== null && (
                 <Dialogo
-                    titulo={porConfirmar ? 'Habilitar' : 'Inhabilitar'}
+                    titulo={porConfirmar ? 'Habilitar estudiantes' : 'Inhabilitar estudiantes'}
                     onCerrar={() => setPorConfirmar(null)}
                     acciones={
                         <>
@@ -713,9 +745,16 @@ export function ListaDelExamen({ examenId, onCifras }) {
                     }
                 >
                     <p className="text-sm text-slate-700">
-                        {plural(cantidad, 'estudiante')}
-                        {!porConfirmar && motivo.trim() && ` · ${motivo.trim()}`}
+                        {todos
+                            ? `${plural(cantidad, 'estudiante')} que ${cantidad === 1 ? 'coincide' : 'coinciden'} con los filtros actuales${excluidos.size > 0 ? `, excepto ${plural(excluidos.size, 'estudiante')}` : ''}.`
+                            : `${plural(cantidad, 'estudiante')} seleccionado${cantidad === 1 ? '' : 's'}.`}
+                        {!porConfirmar && motivo.trim() && ` Motivo: ${motivo.trim()}`}
                     </p>
+                    {porConfirmar && (
+                        <p className="mt-2 text-sm text-slate-600">
+                            Quien no tiene carnet queda pendiente.
+                        </p>
+                    )}
                 </Dialogo>
             )}
             {aviso}

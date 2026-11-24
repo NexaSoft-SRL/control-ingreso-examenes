@@ -72,6 +72,8 @@ final readonly class ConsultarBitacora
         'examen.actualizar' => 'Modificó el examen',
         'examen.modificar' => 'Modificó el examen',
         'examen.finalizar' => 'Finalizó el examen',
+        'examen.suspender' => 'Suspendió el examen',
+        'examen.reanudar' => 'Reanudó el examen',
         'examen.eliminar' => 'Eliminó el examen',
         'norma.plantilla_crear' => 'Creó la plantilla de norma',
         'norma.plantilla_editar' => 'Modificó la plantilla de norma',

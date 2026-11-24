@@ -29,14 +29,17 @@ y se filtra por facultad y por carrera. Cada fila indica el origen del dato: «V
 si lo cargó la administración, «Docente» si llegó en la lista de un grupo. Desde la fila
 se abre la ficha del estudiante, con las materias que lleva en el período, el grupo y el
 docente de cada una: es lo que permite ver si la misma persona aparece en incidentes de
-más de una materia.
+más de una materia. La ficha también detalla la procedencia y verificación del registro,
+las fechas de creación y actualización y el historial de conflictos de carga, con su
+propuesta, reportante y, si fueron resueltos, decisión, responsable y fecha.
 
 «Cargar inscripciones» recibe un archivo de una facultad, con una fila por inscripción.
 Un estudiante nuevo se crea como verificado; uno que ya existe se reutiliza. Las filas
 con error se rechazan con su número y su motivo, y el resto sigue. Cuando una carga trae para un código un documento o un nombre distinto del guardado, no
 se modifica nada: queda un conflicto y la inscripción en espera. Solo la administración
-lo resuelve, eligiendo «Mantener padrón» o «Usar carga nueva». Los datos de un
-estudiante no se editan a mano. El estudiante no tiene cuenta en el sistema.
+lo resuelve, eligiendo «Mantener padrón» o «Usar carga nueva». La administración puede
+corregir los datos desde la ficha (HU-30); el docente no modifica datos del padrón
+directamente. El estudiante no tiene cuenta en el sistema.
 
 La vista depende de la oferta importada (HU-10), porque cada inscripción apunta a un
 grupo, y recibe los conflictos que dejan las cargas de los docentes (HU-14). La carga y
@@ -64,6 +67,9 @@ materias.}
 \item Dado que el administrador pulsa una fila, Cuando se abre la ficha del estudiante,
       Entonces ve sus datos, su origen y las materias que lleva en el período, con el
       grupo y el docente de cada una; si no tiene inscripciones, «Sin materias».
+\item Dado que el administrador abre la ficha, Cuando revisa la procedencia e historial,
+      Entonces ve si los datos están verificados, las fechas de creación y actualización,
+      y los conflictos previos con su propuesta, reportante, estado y resolución.
 \item Dado que el administrador pulsa «Cargar inscripciones», Cuando no elige archivo o
       elige uno que no es .csv ni .xlsx, Entonces el sistema no carga nada y señala el
       campo con «Obligatorio» o «Solo .csv o .xlsx».
@@ -103,8 +109,8 @@ materias.}
 \item \texttt{PadronTest}: lista con facultad, carrera, grupos y origen, orden y
       paginación, búsqueda por nombre, código y documento, filtros por facultad y
       carrera, y cifras del resumen (criterios 1 a 4).
-\item \texttt{FichaEstudianteTest} (por escribir): materias del período con su grupo y su
-      docente, y estudiante sin inscripciones (criterio 5).
+\item \texttt{FichaDelEstudianteTest}: materias del período con su grupo y su docente,
+      estudiante sin inscripciones, procedencia y conflictos resueltos (criterios 5 y 6).
 \item \texttt{CargaDeFacultadTest}: cada fila inscribe en el grupo de su asignatura, los
       nuevos quedan verificados, facultad obligatoria, grupo fuera de la oferta y fila
       sin asignatura o grupo (criterios 6, 7 y 9).

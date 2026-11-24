@@ -139,7 +139,7 @@ export default function NormasDelExamen({
                 </legend>
                 {copiadasDe && (
                     <span className="mr-auto pl-2 text-xs text-slate-500">
-                        Como en {copiadasDe}
+                        Copiadas de: {copiadasDe}
                     </span>
                 )}
                 <Boton

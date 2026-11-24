@@ -210,7 +210,7 @@ describe('Habilitacion', () => {
         expect(dato('Inscritos · 2 grupos')).toHaveTextContent('60');
         expect(dato('Habilitados')).toHaveTextContent('39');
         expect(dato('No habilitados')).toHaveTextContent('1');
-        expect(dato('Sin revisar')).toHaveTextContent('20');
+        expect(dato('Pendientes')).toHaveTextContent('20');
         expect(screen.getByText('Distribución por aula · 2')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Aula 691A, 20 estudiantes' })).toBeVisible();
         expect(screen.getByRole('button', { name: 'Aula 691B, 19 estudiantes' })).toBeVisible();
@@ -280,6 +280,11 @@ describe('Habilitacion', () => {
 
         expect(await screen.findByText('Sin estudiantes')).toBeInTheDocument();
         expect(screen.queryByText('Sin resultados')).not.toBeInTheDocument();
+        // Dice qué hacer: las listas se cargan en Mis grupos.
+        expect(screen.getByRole('link', { name: 'Cargar las listas' })).toHaveAttribute(
+            'href',
+            '/mis-grupos'
+        );
     });
 
     it('filtra por condición y cada opción lleva su conteo', async () => {
@@ -290,15 +295,15 @@ describe('Habilitacion', () => {
         expect(opcion(/^Todos/)).toHaveTextContent('Todos60');
         expect(opcion(/^Habilitados/)).toHaveTextContent('Habilitados39');
         expect(opcion(/^No habilitados/)).toHaveTextContent('No habilitados1');
-        expect(opcion(/^Sin revisar/)).toHaveTextContent('Sin revisar20');
+        expect(opcion(/^Pendientes/)).toHaveTextContent('Pendientes20');
 
-        fireEvent.click(opcion(/^Sin revisar/));
+        fireEvent.click(opcion(/^Pendientes/));
 
         await waitFor(() =>
             expect(ultimaConsulta()).toEqual({ condicion: 'pendiente', pagina: 1, por_pagina: 25 })
         );
         expect(await screen.findByText('20 estudiantes')).toBeInTheDocument();
-        expect(opcion(/^Sin revisar/)).toHaveAttribute('aria-pressed', 'true');
+        expect(opcion(/^Pendientes/)).toHaveAttribute('aria-pressed', 'true');
         // Los conteos siguen siendo los de lo filtrado por grupo, aula y texto.
         expect(opcion(/^Todos/)).toHaveTextContent('Todos60');
     });
@@ -375,7 +380,7 @@ describe('Habilitacion', () => {
     it('«Seleccionar los N» envía todos con los filtros, sin descargar la lista', async () => {
         montar();
         await cargada();
-        fireEvent.click(screen.getByRole('button', { name: /^Sin revisar/ }));
+        fireEvent.click(screen.getByRole('button', { name: /^Pendientes/ }));
         await screen.findByText('20 estudiantes');
         fireEvent.change(screen.getByRole('combobox', { name: 'Grupo' }), {
             target: { value: '37' },
@@ -406,6 +411,17 @@ describe('Habilitacion', () => {
         expect(casillaPagina()).not.toBeChecked();
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Habilitar' })[0]);
+        const confirmacion = screen.getByRole('dialog');
+        expect(confirmacion).toHaveTextContent(
+            '29 estudiantes que coinciden con los filtros actuales, excepto 1 estudiante.'
+        );
+        fireEvent.click(within(confirmacion).getByRole('button', { name: 'Cancelar' }));
+        expect(lotes()).toHaveLength(0);
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Habilitar' })[0]);
+        expect(screen.getByRole('dialog')).toHaveTextContent(
+            '29 estudiantes que coinciden con los filtros actuales, excepto 1 estudiante.'
+        );
         confirmarLote();
 
         await waitFor(() => expect(lotes()).toHaveLength(1));
@@ -558,7 +574,7 @@ describe('Habilitacion', () => {
         await cargada();
         const pedidas = consultas().length;
 
-        fireEvent.click(screen.getByRole('button', { name: 'Repartir' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Repartir por aula' }));
 
         expect(await screen.findByRole('status')).toHaveTextContent('12 estudiantes en 2 aulas');
         expect(api.post).toHaveBeenCalledWith('/examenes/1/reparto');
@@ -575,7 +591,7 @@ describe('Habilitacion', () => {
         montar();
         await cargada();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Repartir' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Repartir por aula' }));
 
         const aviso = await screen.findByRole('status');
         expect(aviso.textContent).toBe('Sin estudiantes por repartir');
@@ -585,8 +601,12 @@ describe('Habilitacion', () => {
         montar('/habilitacion?examen=3');
 
         expect(await screen.findByText('Sin aulas')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Elegir aulas' })).toHaveAttribute(
+            'href',
+            '/examenes/nuevo?examen=3&paso=2'
+        );
         expect(screen.getByText('Distribución por aula')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Repartir' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Repartir por aula' })).toBeDisabled();
         expect(screen.getByRole('combobox', { name: 'Aula' })).toBeDisabled();
     });
 
@@ -599,7 +619,7 @@ describe('Habilitacion', () => {
         montar();
         await cargada();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Repartir' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Repartir por aula' }));
 
         expect(await screen.findByRole('status')).toHaveTextContent('Sin aulas');
     });
@@ -614,7 +634,7 @@ describe('Habilitacion', () => {
             'Este examen no está a su cargo'
         );
         expect(screen.queryByRole('table')).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Repartir' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Repartir por aula' })).not.toBeInTheDocument();
     });
 
     it('avisa la negativa si el servidor rechaza un lote por alcance', async () => {
@@ -680,7 +700,7 @@ describe('Habilitacion', () => {
 
         // Repartidos, queda completa.
         alumnos = alumnos.map((e) => ({ ...e, aula: e.aula ?? AULAS[0].nombre }));
-        fireEvent.click(screen.getByRole('button', { name: 'Repartir' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Repartir por aula' }));
         await waitFor(() =>
             expect(screen.getByRole('link', { name: /Emitir códigos QR/ })).toHaveClass(
                 'bg-primary-600'
@@ -728,5 +748,42 @@ describe('Habilitacion', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
 
         expect(await cargada()).not.toHaveLength(0);
+    });
+
+    it('al habilitar dice cuántos sin carnet quedan pendientes', async () => {
+        const base = rutas['POST /examenes/*/habilitaciones'];
+        rutas['POST /examenes/*/habilitaciones'] = (pedido) => ({
+            ...base(pedido),
+            afectados: 1,
+            sin_carnet: 2,
+        });
+        simularApi(api, rutas);
+        montar();
+        await cargada();
+
+        fireEvent.click(casillaDe('Apellido03, Nombre'));
+        fireEvent.click(screen.getByRole('button', { name: /^Habilitar/ }));
+        confirmarLote();
+
+        expect(await screen.findByRole('status')).toHaveTextContent(
+            '1 habilitado · 2 sin carnet, quedan pendientes'
+        );
+    });
+
+    it('«Repartir por aula» espera a que haya habilitados y deja el resultado a la vista', async () => {
+        alumnos = alumnos.map((e) => ({ ...e, estado: 'pendiente', aula: null }));
+        montar();
+        await cargada();
+        expect(screen.getByRole('button', { name: 'Repartir por aula' })).toBeDisabled();
+        expect(screen.getByText('Primero habilite estudiantes')).toBeInTheDocument();
+    });
+
+    it('el resultado del reparto queda escrito bajo la distribución', async () => {
+        montar();
+        await cargada();
+        fireEvent.click(screen.getByRole('button', { name: 'Repartir por aula' }));
+        await waitFor(() =>
+            expect(screen.getAllByText('12 estudiantes en 2 aulas').length).toBeGreaterThan(1)
+        );
     });
 });

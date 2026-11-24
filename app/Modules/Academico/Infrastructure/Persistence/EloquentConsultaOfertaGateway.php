@@ -520,10 +520,33 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
                 'fecha_fin' => $periodo->fecha_fin?->toDateString(),
                 'estado' => $periodo->estado()->etiqueta(),
                 'nota' => $this->nota($carreras[$periodo->id] ?? 0, $grupos[$periodo->id] ?? 0),
+                'calendario' => $this->calendarioDe($periodo),
+                'calendario_ajustado' => $periodo->ajustado_por !== null,
             ];
         }
 
         return $filas;
+    }
+
+    /**
+     * Las ventanas del calendario de examenes que se pueden ajustar:
+     * clave => [desde, hasta], o null si la fuente no la trajo.
+     *
+     * @return array<string, array{0: string, 1: string}|null>
+     */
+    private function calendarioDe(Periodo $periodo): array
+    {
+        $ventanas = is_array($periodo->ventanas) ? $periodo->ventanas : [];
+        $calendario = [];
+
+        foreach (['primeros_parciales', 'segundos_parciales', 'finales_y_segunda_instancia', 'examenes_de_mesa'] as $clave) {
+            $rango = $ventanas[$clave] ?? null;
+            $calendario[$clave] = is_array($rango) && is_string($rango[0] ?? null) && is_string($rango[1] ?? null)
+                ? [$rango[0], $rango[1]]
+                : null;
+        }
+
+        return $calendario;
     }
 
     private function nota(int $carreras, int $grupos): string

@@ -15,5 +15,7 @@ final readonly class ConsultarBitacoraData
         public ?string $hasta,
         public int $pagina,
         public int $porPagina,
+        // Oculta los inicios y cierres de sesión, que tapan los cambios.
+        public bool $sinSesiones = false,
     ) {}
 }

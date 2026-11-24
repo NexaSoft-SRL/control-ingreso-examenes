@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Monitoreo\Infrastructure\Persistence;
 
+use App\Modules\Examenes\Application\Contracts\ExamenGateway;
 use App\Modules\Monitoreo\Application\Contracts\SeguimientoGateway;
 use App\Modules\Monitoreo\Application\DTOs\AulaEnCursoData;
 use App\Modules\Monitoreo\Application\DTOs\AulaSeguidaData;
@@ -76,6 +77,9 @@ final class EloquentSeguimientoGateway implements SeguimientoGateway
         $finPrevisto = (new DateTimeImmutable("{$fecha} {$hora}", $ahora->getTimezone()))
             ->modify("+{$duracion} minutes");
 
+        $examenId = $this->entero($columnas['id'] ?? null);
+        $suspendido = app(ExamenGateway::class)->estaSuspendido($examenId);
+
         return new ExamenSeguidoData(
             id: $this->entero($columnas['id'] ?? null),
             asignatura: $this->texto($columnas['asignatura'] ?? null) ?? '',
@@ -94,6 +98,10 @@ final class EloquentSeguimientoGateway implements SeguimientoGateway
             excedido: ($columnas['finalizado_en'] ?? null) === null
                 && $ahora > $finPrevisto
                 && $fecha === $ahora->format('Y-m-d'),
+
+            suspendido: $suspendido,
+            motivoSuspension: null, // El Gateway actual no expone el motivo directamente, pero no es necesario para el tablero
+            descripcionSuspension: null,
         );
     }
 

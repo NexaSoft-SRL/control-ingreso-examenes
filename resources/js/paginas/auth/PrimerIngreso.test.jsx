@@ -50,6 +50,20 @@ describe('PrimerIngreso', () => {
         expect(guardar()).toBeDisabled();
     });
 
+    it('junto al botón dice qué falta para guardar', () => {
+        montar();
+        expect(screen.getByLabelText(/^Contraseña nueva/)).toBeInTheDocument();
+        expect(screen.getByLabelText(/Repetir contraseña nueva/)).toBeInTheDocument();
+        expect(screen.getByText('Falta cumplir los requisitos')).toBeInTheDocument();
+
+        escribir(clave(), 'Abcdefghi1');
+        expect(screen.getByText('Falta repetir la misma contraseña')).toBeInTheDocument();
+
+        escribir(repetida(), 'Abcdefghi1');
+        expect(screen.queryByText(/^Falta/)).toBeNull();
+        expect(guardar()).toBeEnabled();
+    });
+
     it('exige que la repetición coincida', () => {
         montar();
         escribir(clave(), 'Abcdefghi1');

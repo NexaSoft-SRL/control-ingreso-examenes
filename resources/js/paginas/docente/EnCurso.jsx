@@ -1,4 +1,13 @@
-import { DoorOpen, Flag, Hourglass, LogIn, Radio, TriangleAlert } from 'lucide-react';
+import {
+    DoorOpen,
+    Flag,
+    Hourglass,
+    LogIn,
+    PauseCircle,
+    PlayCircle,
+    Radio,
+    TriangleAlert,
+} from 'lucide-react';
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -12,7 +21,8 @@ import Boton from '../../componentes/Boton';
 import Chips from '../../componentes/Chips';
 import Dato from '../../componentes/Dato';
 import Dialogo from '../../componentes/Dialogo';
-import Seleccion from '../../componentes/Seleccion';
+import Campo from '../../componentes/Campo';
+import Seleccion, { AreaTexto } from '../../componentes/Seleccion';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
 import SinActividad from '../../componentes/SinActividad';
@@ -80,6 +90,12 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
     const [gravedad, setGravedad] = useState(null);
     const { edificios, caja } = usarEdificios();
 
+    // --- ESTADOS DE SUSPENSIÓN ---
+    const [porSuspender, setPorSuspender] = useState(false);
+    const [suspendiendo, setSuspendiendo] = useState(false);
+    const [motivoSuspension, setMotivoSuspension] = useState('');
+    const [descripcionSuspension, setDescripcionSuspension] = useState('');
+
     const vivo = usarSondeo(`/examenes/${examen.id}/en-curso`, { intervalo: INTERVALO });
     const cuerpo = vivo.cuerpo;
     const reportes = usarSondeo(`/examenes/${examen.id}/incidencias`, {
@@ -88,6 +104,7 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
     });
 
     const abierto = cuerpo?.abierto ?? false;
+    const suspendido = cuerpo?.suspendido ?? false;
     // Las incidencias solo se reportan el día del examen.
     const esHoy = cuerpo !== null && String(cuerpo.hora_servidor).slice(0, 10) === examen.fecha;
     const aulas = useMemo(() => cuerpo?.aulas ?? [], [cuerpo]);
@@ -166,6 +183,36 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
         }
     };
 
+    // --- FUNCIONES DE SUSPENSIÓN ---
+    const suspender = async () => {
+        setSuspendiendo(true);
+        try {
+            await api.post(`/examenes/${examen.id}/suspender`, {
+                motivo: motivoSuspension.trim(),
+                descripcion: descripcionSuspension.trim(),
+            });
+            setPorSuspender(false);
+            setMotivoSuspension('');
+            setDescripcionSuspension('');
+            avisar('Examen suspendido');
+            vivo.recargar();
+        } catch (fallo) {
+            avisar(mensajeDe(fallo, 'No se pudo suspender'), 'error');
+        } finally {
+            setSuspendiendo(false);
+        }
+    };
+
+    const reanudar = async () => {
+        try {
+            await api.post(`/examenes/${examen.id}/reanudar`);
+            avisar('Examen reanudado');
+            vivo.recargar();
+        } catch (fallo) {
+            avisar(mensajeDe(fallo, 'No se pudo reanudar'), 'error');
+        }
+    };
+
     return (
         <>
             <Encabezado
@@ -198,6 +245,23 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
                     />
                 )}
                 <BotonIncidenciasComunes />
+
+                {/* --- BOTONES SUSPENDER / REANUDAR --- */}
+                {finalizable &&
+                    (suspendido ? (
+                        <Boton type="button" variante="primario" onClick={reanudar}>
+                            <PlayCircle className="h-4 w-4" /> Reanudar examen
+                        </Boton>
+                    ) : (
+                        <Boton
+                            type="button"
+                            variante="secundario"
+                            onClick={() => setPorSuspender(true)}
+                        >
+                            <PauseCircle className="h-4 w-4" /> Suspender examen
+                        </Boton>
+                    ))}
+
                 {finalizable && (
                     <Boton
                         type="button"
@@ -214,7 +278,22 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
 
             <SelectorExamen valor={examen.id} onCambiar={elegir} examenes={examenes} />
 
-            {finalizable && excedido && (
+            {/* --- BANNER DE SUSPENSIÓN --- */}
+            {suspendido && (
+                <p
+                    role="status"
+                    className="flex items-center gap-2 rounded-lg bg-danger-50 px-4 py-3 text-sm font-medium text-danger-700"
+                >
+                    <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span>
+                        <strong>Examen suspendido.</strong>
+                        {cuerpo?.motivo_suspension && ` Motivo: ${cuerpo.motivo_suspension}.`}
+                        {cuerpo?.descripcion_suspension && ` ${cuerpo.descripcion_suspension}`}
+                    </span>
+                </p>
+            )}
+
+            {finalizable && excedido && !suspendido && (
                 <p
                     role="status"
                     className="flex items-center gap-2 rounded-lg bg-warning-50 px-4 py-3 text-sm font-medium text-warning-800"
@@ -262,6 +341,60 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
                         {rechazo}
                     </p>
                 )}
+            </Dialogo>
+
+            {/* --- DIÁLOGO SUSPENDER EXAMEN --- */}
+            <Dialogo
+                titulo="Suspender examen"
+                abierto={porSuspender}
+                onCerrar={() => setPorSuspender(false)}
+                acciones={
+                    <>
+                        <Boton
+                            type="button"
+                            variante="secundario"
+                            onClick={() => setPorSuspender(false)}
+                        >
+                            Cancelar
+                        </Boton>
+                        <Boton
+                            type="button"
+                            variante="peligro"
+                            cargando={suspendiendo}
+                            onClick={suspender}
+                            disabled={!motivoSuspension.trim()}
+                        >
+                            Suspender
+                        </Boton>
+                    </>
+                }
+            >
+                <form
+                    className="space-y-4"
+                    noValidate
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        if (motivoSuspension.trim() && !suspendiendo) suspender();
+                    }}
+                >
+                    <Campo
+                        etiqueta="Motivo"
+                        requerido
+                        autoFocus
+                        maxLength={100}
+                        placeholder="Ej.: Problema técnico"
+                        value={motivoSuspension}
+                        onChange={(e) => setMotivoSuspension(e.target.value)}
+                        ayuda="La puerta deja de admitir ingresos hasta reanudar"
+                    />
+                    <AreaTexto
+                        etiqueta="Detalle"
+                        rows={3}
+                        maxLength={1000}
+                        value={descripcionSuspension}
+                        onChange={(e) => setDescripcionSuspension(e.target.value)}
+                    />
+                </form>
             </Dialogo>
 
             {ajeno ? (

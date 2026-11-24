@@ -17,16 +17,22 @@ final class EloquentBitacoraGateway implements BitacoraGateway
         ?string $descripcion,
         ?string $actor = null,
     ): void {
-        // El rol de ese momento: si despues cambia, el asiento no.
-        $rol = $usuarioId === null ? null : DB::table('users')
+        // Nombre y rol del momento: los cambios posteriores no reescriben el asiento.
+        $autor = $usuarioId === null ? null : DB::table('users')
             ->join('roles', 'roles.id', '=', 'users.role_id')
             ->where('users.id', $usuarioId)
-            ->value('roles.name');
+            ->first(['users.name as nombre', 'roles.name as rol']);
+        $rol = data_get($autor, 'rol');
+        $nombre = data_get($autor, 'nombre');
 
         DB::table('bitacora_operaciones')->insert([
             'usuario_id' => $usuarioId,
             'rol' => is_string($rol) ? $rol : null,
-            'actor' => $usuarioId === null && $actor !== null ? mb_substr($actor, 0, 150) : null,
+            'actor' => $usuarioId === null
+                ? ($actor === null ? null : mb_substr($actor, 0, 150))
+                : (is_string($nombre)
+                    ? mb_substr($nombre, 0, 150)
+                    : null),
             'operacion' => $operacion,
             'tabla_afectada' => $tablaAfectada,
             'registro_id' => $registroId,

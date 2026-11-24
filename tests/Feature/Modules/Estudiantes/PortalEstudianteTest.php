@@ -512,6 +512,36 @@ final class PortalEstudianteTest extends TestCase
         $this->assertDatabaseHas('estudiantes', ['id' => $this->estudiante->id, 'foto_habilitada_hasta' => null]);
     }
 
+    public function test_the_teacher_of_the_group_sees_the_photo_of_a_student_and_nobody_else(): void
+    {
+        $ruta = "/api/docente/grupos/{$this->grupo->id}/inscritos/{$this->estudiante->id}/foto";
+
+        // Sin foto todavia.
+        $this->actingAs($this->cuentaDocente)->getJson($ruta)->assertNotFound()->assertJsonPath('message', 'Sin foto.');
+
+        $this->abrirPlazo();
+        $this->entrar();
+        $this->post('/api/estudiante/foto', ['foto' => UploadedFile::fake()->image('yo.jpg', 600, 800)], ['Accept' => 'application/json'])
+            ->assertCreated();
+        $this->app['auth']->forgetGuards();
+
+        $this->actingAs($this->cuentaDocente)->get($ruta)
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/jpeg');
+
+        // Un docente que no es del grupo no la ve.
+        $this->actingAs($this->usuarioConPermisos(['mis_grupos']))->getJson($ruta)->assertForbidden();
+
+        // Un estudiante que no esta inscrito en el grupo, tampoco.
+        $otroGrupo = $this->grupo($this->docente, $this->asignatura('Cálculo I'), '9');
+        [$ajeno] = $this->estudiantesInscritos($otroGrupo, 1);
+        $this->actingAs($this->cuentaDocente)
+            ->getJson("/api/docente/grupos/{$this->grupo->id}/inscritos/{$ajeno->id}/foto")
+            ->assertNotFound();
+
+        $this->actingAs($this->cuentaDocente)->getJson('/api/docente/grupos/999999/inscritos/1/foto')->assertNotFound();
+    }
+
     public function test_only_images_are_accepted(): void
     {
         $this->abrirPlazo();

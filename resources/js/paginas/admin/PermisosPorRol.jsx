@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { api } from '../../api/cliente';
 import { erroresDe, mensajeDe } from '../../api/errores';
@@ -57,7 +57,10 @@ function FormularioRol({ rol = null, permisos, onGuardado, onCerrar }) {
           : null;
     const errorPermisos =
         errorDePermisos(errores) ??
-        (enviado && marcados.length === 0 ? 'Al menos un permiso' : null);
+        (enviado && marcados.length === 0 ? 'Marque al menos un permiso' : null);
+    // La lista de permisos puede pasar del alto de la ventana: al fallar se
+    // lleva la vista a ella y el motivo se repite junto al botón.
+    const listaPermisos = useRef(null);
 
     function marcar(clave) {
         setMarcados((previos) =>
@@ -70,6 +73,7 @@ function FormularioRol({ rol = null, permisos, onGuardado, onCerrar }) {
         e.preventDefault();
         setEnviado(true);
         setRechazo(null);
+        if (marcados.length === 0) listaPermisos.current?.scrollIntoView?.({ block: 'center' });
         if (errorNombre || marcados.length === 0 || enviando) return;
 
         const cuerpo = {
@@ -95,11 +99,16 @@ function FormularioRol({ rol = null, permisos, onGuardado, onCerrar }) {
             onCerrar={onCerrar}
             acciones={
                 <>
+                    {errorPermisos && (
+                        <span className="mr-auto text-sm text-danger-600" aria-hidden="true">
+                            {errorPermisos}
+                        </span>
+                    )}
                     <Boton variante="secundario" onClick={onCerrar}>
                         Cancelar
                     </Boton>
                     <Boton type="submit" form="formulario-rol" cargando={enviando}>
-                        {nuevo ? 'Crear' : 'Guardar'}
+                        {nuevo ? 'Crear rol' : 'Guardar cambios'}
                     </Boton>
                 </>
             }
@@ -108,7 +117,9 @@ function FormularioRol({ rol = null, permisos, onGuardado, onCerrar }) {
                 <Campo
                     etiqueta="Nombre"
                     requerido
+                    formato="letras"
                     maxLength={40}
+                    placeholder="Nombre del rol"
                     value={nombre}
                     error={errores.nombre ?? (enviado ? (errorNombre ?? undefined) : undefined)}
                     validar={() => errorNombre}
@@ -117,7 +128,7 @@ function FormularioRol({ rol = null, permisos, onGuardado, onCerrar }) {
                         setErrores((previos) => ({ ...previos, nombre: undefined }));
                     }}
                 />
-                <fieldset>
+                <fieldset ref={listaPermisos}>
                     <legend className="mb-1.5 text-sm font-medium text-slate-700">
                         Permisos
                         <span className="ml-0.5 text-danger-600" aria-hidden="true">

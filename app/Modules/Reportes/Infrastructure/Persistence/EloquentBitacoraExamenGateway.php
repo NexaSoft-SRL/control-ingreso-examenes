@@ -58,6 +58,8 @@ final class EloquentBitacoraExamenGateway implements BitacoraExamenGateway
         'examen.modificar' => 'Examen modificado',
         'examen.asignar_auxiliar' => 'Personal de aulas asignado',
         'examen.finalizar' => 'Examen finalizado',
+        'examen.suspender' => 'Examen suspendido',
+        'examen.reanudar' => 'Examen reanudado',
         'habilitacion.habilitar' => 'Estudiantes habilitados',
         'habilitacion.inhabilitar' => 'Estudiantes no habilitados',
         'habilitacion.sin_foto' => 'No habilitados por no subir su foto',
