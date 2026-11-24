@@ -358,6 +358,8 @@ function guardado(cuerpo, id = 9) {
 }
 
 let detalle;
+// GET /examenes/opciones/choques: los estudiantes con otro examen a esa hora.
+let choques;
 
 const montar = (ruta = '/examenes/nuevo', usuario = usuarioDePrueba('Docente')) =>
     renderConSesion(<RegistrarExamen />, { usuario, ruta });
@@ -419,6 +421,7 @@ beforeEach(() => {
     codigo = '482913';
     auxiliares = AUXILIARES;
     detalle = DETALLE;
+    choques = { total: 0, estudiantes: [] };
     anteriores = [];
     simularApi(api, {
         'GET /examenes': () => ({ data: anteriores }),
@@ -428,6 +431,7 @@ beforeEach(() => {
         'GET /normas/plantillas': { data: PLANTILLAS },
         'GET /examenes/opciones/grupos': ({ params }) => OPCIONES_GRUPOS[params.asignatura_id],
         'GET /examenes/opciones/aulas': OPCIONES_AULAS,
+        'GET /examenes/opciones/choques': () => choques,
         'GET /aulas': { data: AULAS },
         'GET /edificios': EDIFICIOS,
         'GET /examenes/*': () => ({ data: detalle }),
@@ -583,6 +587,52 @@ describe('RegistrarExamen · paso 1, examen', () => {
 
         expect(screen.getByText('Elija al menos un grupo')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Continuar: Aulas/ })).toBeDisabled();
+    });
+
+    it('en Grupos avisa de los estudiantes que ya tienen otro examen a esa hora', async () => {
+        choques = {
+            total: 2,
+            estudiantes: [
+                {
+                    nombre: 'Aguilar Rojas Cristian',
+                    codigo: '202100123',
+                    examenes: [
+                        { examen: 'Física I · Primer parcial', inicio: '08:15', fin: '09:45' },
+                    ],
+                },
+            ],
+        };
+        montar();
+        await llenarExamen({ fecha: '2026-10-20', hora: '08:15', duracion: '90' });
+
+        expect(
+            await screen.findByText('2 estudiantes tienen otro examen a esa hora')
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('Podrá inhabilitarlos con motivo en Habilitación')
+        ).toBeInTheDocument();
+        expect(api.get).toHaveBeenCalledWith(
+            '/examenes/opciones/choques',
+            expect.objectContaining({
+                params: expect.objectContaining({
+                    fecha: '2026-10-20',
+                    hora_inicio: '08:15',
+                    duracion_minutos: 90,
+                }),
+            })
+        );
+        // Es un aviso: no impide continuar.
+        expect(screen.getByRole('button', { name: /Continuar: Aulas/ })).toBeEnabled();
+    });
+
+    it('sin estudiantes con otro examen, Grupos no muestra el aviso', async () => {
+        montar();
+        await llenarExamen();
+
+        await vi.waitFor(() =>
+            expect(api.get).toHaveBeenCalledWith('/examenes/opciones/choques', expect.anything())
+        );
+        expect(screen.queryByText(/tienen? otro examen a esa hora/)).not.toBeInTheDocument();
     });
 
     it('sin fecha u hora no avanza y señala «Obligatorio»', async () => {

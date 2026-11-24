@@ -39,6 +39,7 @@ import SelectorAsignatura from '../../componentes/SelectorAsignatura';
 import Tarjeta from '../../componentes/Tarjeta';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { diaMes, fechaLarga, normalizar, plural } from '../../utiles/texto';
+import ChoquesDeEstudiantes from './ChoquesDeEstudiantes';
 import CodigoDeAula from './CodigoDeAula';
 import NormasDelExamen from './NormasDelExamen';
 import rutaDelExamen from './rutaDelExamen';
@@ -610,6 +611,7 @@ function Asistente({
 
     const todasLasAulas = usarConsulta('/aulas');
     const { edificios, caja } = usarEdificios();
+    const enGrupos = paso === 1;
     const enAulas = paso === 2;
     const opcionesAulas = usarConsulta('/examenes/opciones/aulas', {
         parametros: {
@@ -1189,6 +1191,17 @@ function Asistente({
                             {errorDe('grupos')}
                         </p>
                     )}
+                    <div className="mt-4">
+                        <ChoquesDeEstudiantes
+                            grupos={elegidosIds}
+                            fecha={fecha}
+                            hora={hora}
+                            duracion={Number(duracion)}
+                            examenId={examen?.id}
+                            activa={enGrupos && !cargandoGrupos}
+                            guia="Podrá inhabilitarlos con motivo en Habilitación"
+                        />
+                    </div>
                     <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
                         <Boton type="button" variante="secundario" onClick={() => setPaso(0)}>
                             Atrás

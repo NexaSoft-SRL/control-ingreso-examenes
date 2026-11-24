@@ -85,6 +85,23 @@ interface ConsultaExamenGateway
     ): array;
 
     /**
+     * Los estudiantes inscritos (sin baja) en esos grupos que ya tienen otro
+     * examen que se solapa con ese horario: quien esta inscrito en algun
+     * grupo de ese otro examen. Por estudiante, sus otros examenes. Aviso:
+     * no impide registrar nada.
+     *
+     * @param  list<int>  $grupoIds
+     * @return list<array{estudiante_id: int, nombre: string, codigo: string, examenes: list<array{examen: string, inicio: string, fin: string}>}>
+     */
+    public function estudiantesConOtroExamen(
+        array $grupoIds,
+        string $fecha,
+        string $horaInicio,
+        int $duracionMinutos,
+        ?int $exceptoExamenId,
+    ): array;
+
+    /**
      * El periodo pedido en `?periodo=`, por id o por codigo (`2/2026`).
      *
      * @return array{id: int, codigo: string}|null
