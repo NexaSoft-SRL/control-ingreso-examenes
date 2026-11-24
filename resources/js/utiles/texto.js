@@ -124,8 +124,11 @@ export function ubicacionSin(aula, ...partes) {
 export function errorDeNombre(valor, minimoLetras = 2) {
     const texto = String(valor ?? '').trim();
     if (!texto) return 'Obligatorio';
-    if ((texto.match(/\p{L}/gu) ?? []).length < minimoLetras)
-        return `Mínimo ${minimoLetras} letras`;
+    const letras = texto.match(/\p{L}/gu) ?? [];
+    if (letras.length < minimoLetras) return `Mínimo ${minimoLetras} letras`;
+    // «AA», «pp», «aaa»: no es un nombre.
+    if (letras.length > 1 && new Set(letras.map((l) => l.toLowerCase())).size === 1)
+        return 'Escriba un nombre real';
     return /^\p{L}+(?:(?:\.\s*|\s+|['-])\p{L}+)*\.?$/u.test(texto)
         ? null
         : 'Solo letras, sin signos seguidos';

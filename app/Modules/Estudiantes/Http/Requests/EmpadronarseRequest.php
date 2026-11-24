@@ -39,12 +39,12 @@ final class EmpadronarseRequest extends FormRequest
     {
         return [
             'documento.required' => 'Obligatorio',
-            'documento.regex' => 'De 4 a 10 dígitos y su complemento («5003748-1A»)',
+            'documento.regex' => 'Número de 4 a 10 dígitos; si tiene complemento, con guion: 5003748-1A',
             'documento.max' => 'Demasiado largo',
             'nombres.required' => 'Obligatorio',
-            'nombres.regex' => 'Solo letras, sin signos seguidos',
+            'nombres.regex' => 'Escriba un nombre real: solo letras, mínimo 3',
             'apellidos.required' => 'Obligatorio',
-            'apellidos.regex' => 'Solo letras, sin signos seguidos',
+            'apellidos.regex' => 'Escriba un nombre real: solo letras, mínimo 3',
             'carrera_id.required' => 'Elija su carrera',
             'carrera_id.exists' => 'Elija su carrera',
             'confirmo.accepted' => 'Confirme que revisó sus datos',

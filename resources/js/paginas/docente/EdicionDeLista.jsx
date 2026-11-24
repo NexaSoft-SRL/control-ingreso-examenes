@@ -30,8 +30,8 @@ function errorDe(campo, valor) {
     if (!texto) return 'Obligatorio';
     if (campo === 'codigo') return validarCodigo(texto);
     if (campo === 'documento' && !DOCUMENTO.test(texto))
-        return 'De 4 a 10 dígitos y complemento («5003748-1A»)';
-    if (campo === 'nombres' || campo === 'apellidos') return errorDeNombre(texto);
+        return 'Número de 4 a 10 dígitos; con complemento: 5003748-1A';
+    if (campo === 'nombres' || campo === 'apellidos') return errorDeNombre(texto, 3);
     return null;
 }
 
@@ -125,6 +125,7 @@ export function AgregarEstudiante({ grupo, onAgregado, onCerrar }) {
                     maxLength={MAXIMOS.documento}
                     value={datos.documento}
                     onChange={cambiar('documento')}
+                    ayuda="Complemento con guion: 5003748-1A"
                     error={errores.documento ?? undefined}
                 />
                 <Campo
@@ -245,6 +246,7 @@ export function EditarEstudiante({ estudiante, ruta, onEditado, onCerrar }) {
                     maxLength={MAXIMOS.documento}
                     value={datos.documento}
                     onChange={cambiar('documento')}
+                    ayuda="Complemento con guion: 5003748-1A"
                     error={errores.documento ?? undefined}
                     autoFocus
                 />
