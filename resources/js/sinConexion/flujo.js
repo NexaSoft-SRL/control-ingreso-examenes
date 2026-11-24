@@ -2,11 +2,13 @@ import decidir from './decidir';
 import {
     agregarEvento,
     cola,
+    pendientesPorAula,
     dispositivo,
     esDeHoy,
     estaCerrada,
     guardarInstantanea,
     horaCorregida,
+    horaDelServidor,
     huboUso,
     instantaneaDe,
     marcarCerrada,
@@ -68,6 +70,32 @@ export function estadoSinConexion(aulaId, ahoraMs = Date.now()) {
     };
 }
 
+// Lo que la pantalla de la puerta puede mostrar cuando el servidor no
+// responde: el aula y sus exámenes según la lista guardada hoy. Sin cifras de
+// ingresos: sin conexión no se conocen. Nulo si el equipo no la preparó o es
+// de otro día.
+export function puertaSinConexion(aulaId, ahoraMs = Date.now()) {
+    const guardada = instantaneaDe(aulaId);
+    if (!guardada || !esDeHoy(guardada, ahoraMs)) return null;
+    const { aula, examenes } = guardada.instantanea;
+    return {
+        aula: { id: aulaId, nombre: aula?.nombre ?? String(aulaId) },
+        abierta: examenes.length > 0,
+        examenes: examenes.map((e) => ({
+            id: e.id,
+            asignatura: e.asignatura,
+            tipo: e.tipo,
+            hora: e.hora,
+            ingresados: null,
+            faltan: null,
+        })),
+        ingresos: [],
+        total_ingresos: 0,
+        hora_servidor: horaDelServidor(guardada, horaCorregida(guardada, ahoraMs)),
+        sin_cifras: true,
+    };
+}
+
 // Decide con la instantánea cuando el servidor no responde. Devuelve el
 // veredicto con `sin_conexion: true`, o por qué no se puede:
 //   SIN_INSTANTANEA  el puesto no preparó el modo
@@ -100,7 +128,36 @@ export function decidirSinConexion(aulaId, peticion, ahoraMs = Date.now()) {
 // para que el docente sepa que no quedó nada en su celular; solo se pide al
 // salir de la puerta o cuando el examen termina, no al descargar. Devuelve
 // el resumen o null si no había nada que hacer.
-export async function sincronizar(api, aulaId, { cerrar = false } = {}) {
+// Un solo envío por aula a la vez: si el panel del puesto y el aviso general
+// piden sincronizar al mismo tiempo, comparten la misma respuesta y no se
+// manda dos veces lo mismo.
+const enviando = new Map();
+
+export function sincronizar(api, aulaId, opciones = {}) {
+    const llave = `${aulaId}:${opciones.cerrar ? 'cierre' : 'envio'}`;
+    if (enviando.has(llave)) return enviando.get(llave);
+    const envio = enviarCola(api, aulaId, opciones).finally(() => enviando.delete(llave));
+    enviando.set(llave, envio);
+    return envio;
+}
+
+// Envía lo pendiente de todas las aulas de este navegador (al volver la
+// conexión, esté o no abierta la pantalla de la puerta). Devuelve cuántas
+// lecturas se aplicaron; lo que no pueda enviar queda guardado.
+export async function sincronizarTodo(api) {
+    let aplicadas = 0;
+    for (const { aulaId } of pendientesPorAula()) {
+        try {
+            const hecho = await sincronizar(api, aulaId);
+            aplicadas += hecho?.aplicados ?? 0;
+        } catch {
+            // Sigue sin conexión o sin sesión: queda para el próximo intento.
+        }
+    }
+    return aplicadas;
+}
+
+async function enviarCola(api, aulaId, { cerrar = false } = {}) {
     const guardada = instantaneaDe(aulaId);
     if (!guardada) return null;
 

@@ -12,8 +12,8 @@ export default defineConfig({
         }),
         react(),
         tailwindcss(),
-        // Aplicación instalable. El service worker solo precachea los estáticos
-        // compilados: las navegaciones y toda /api/ van siempre a la red.
+        // Aplicación instalable. El service worker precachea los estáticos
+        // compilados y la página base; toda /api/ va siempre a la red.
         // Vite lo deja en public/build/ y routes/web.php lo sirve desde /sw.js.
         VitePWA({
             registerType: 'autoUpdate',
@@ -54,11 +54,27 @@ export default defineConfig({
                 // código de workbox, dentro del propio sw.js.
                 modifyURLPrefix: { '': '/build/' },
                 inlineWorkboxRuntime: true,
-                navigateFallback: null,
+                // La página base de la aplicación (la vista Blade, igual para
+                // todos: solo monta React) queda guardada, y toda navegación
+                // sin internet arranca con ella; React resuelve la ruta. No
+                // lleva datos de nadie: la sesión y los datos siguen en /api/,
+                // que va siempre a la red. Cada compilación cambia su revisión.
+                additionalManifestEntries: [{ url: '/', revision: String(Date.now()) }],
+                navigateFallback: '/',
+                navigateFallbackDenylist: [/^\/api\//, /^\/sw\.js$/, /^\/manifest\.webmanifest$/],
                 runtimeCaching: [
                     {
                         urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
                         handler: 'NetworkOnly',
+                    },
+                    // El escudo y los íconos, para que la página no quede rota
+                    // sin internet.
+                    {
+                        urlPattern: ({ url }) =>
+                            url.pathname.startsWith('/iconos/') ||
+                            url.pathname.startsWith('/images/'),
+                        handler: 'StaleWhileRevalidate',
+                        options: { cacheName: 'imagenes' },
                     },
                 ],
             },

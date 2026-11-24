@@ -949,6 +949,55 @@ describe('Punto de control', () => {
             expect(screen.queryByRole('button', { name: 'Situación excepcional' })).toBeNull();
         });
 
+        const sinInternet = () =>
+            simularApi(api, {
+                ...rutas,
+                'GET /puerta/aulas': new Error('Network Error'),
+                'GET /puerta/aulas/31': new Error('Network Error'),
+                'POST /puerta/aulas/31/verificaciones': new Error('Network Error'),
+            });
+
+        it('recargada sin internet abre la puerta con la lista guardada y lee con ella', async () => {
+            guardarInstantanea(31, instantaneaAbierta());
+            sinInternet();
+            montar();
+
+            expect(await screen.findByText('Aula 691A')).toBeInTheDocument();
+            // Sin servidor no hay cifras: no se inventan.
+            const examenes = within(await screen.findByRole('list', { name: 'Exámenes del aula' }));
+            expect(examenes.getByText('Introducción a la Programación')).toBeInTheDocument();
+            expect(examenes.getByText('Sin cifras')).toBeInTheDocument();
+            expect(examenes.queryByText(/ingresaron/)).toBeNull();
+            expect(screen.getByText('Sin conexión')).toBeInTheDocument();
+
+            await verificarManual('202105877');
+
+            expect(await screen.findByText('Ingreso admitido')).toBeInTheDocument();
+            expect(cola(31)).toHaveLength(1);
+        });
+
+        it('recargada sin internet y sin lista guardada no inventa una puerta', async () => {
+            sinInternet();
+            montar();
+
+            expect(await screen.findByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+            expect(screen.queryByRole('list', { name: 'Exámenes del aula' })).toBeNull();
+            expect(screen.queryByRole('button', { name: 'Código SIS o C.I. manual' })).toBeNull();
+        });
+
+        it('la lista guardada de otro día no abre la puerta sin internet', async () => {
+            const vieja = instantaneaAbierta();
+            const ayer = Date.now() - 36 * 3600 * 1000;
+            vieja.servidor_ahora = new Date(ayer).toISOString();
+            vieja.instantanea_en = vieja.servidor_ahora;
+            guardarInstantanea(31, vieja, ayer);
+            sinInternet();
+            montar();
+
+            expect(await screen.findByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+            expect(screen.queryByText('Aula 691A')).toBeNull();
+        });
+
         it('sin la lista preparada avisa que falta prepararla', async () => {
             simularApi(api, {
                 ...rutas,

@@ -8,6 +8,34 @@ export const api = axios.create({
     withXSRFToken: true,
 });
 
+// El estado de la red según las peticiones: cuántas fallaron seguidas sin
+// recibir respuesta alguna. Un 401, 422 o 500 es una respuesta: el servidor
+// está ahí. Sin respuesta (o 502, 503 y 504 de un intermediario) no hubo
+// conexión. Una petición cancelada a propósito no cuenta.
+let fallosDeRed = 0;
+const oyentesDeRed = new Set();
+
+export const fallosDeRedSeguidos = () => fallosDeRed;
+
+// `oyente(fallosSeguidos)` se llama cada vez que el contador cambia.
+export function suscribirRed(oyente) {
+    oyentesDeRed.add(oyente);
+    return () => oyentesDeRed.delete(oyente);
+}
+
+function anotarRed(huboRespuesta) {
+    const siguiente = huboRespuesta ? 0 : fallosDeRed + 1;
+    if (siguiente === fallosDeRed) return;
+    fallosDeRed = siguiente;
+    oyentesDeRed.forEach((oyente) => oyente(fallosDeRed));
+}
+
+function sinRespuestaDelServidor(error) {
+    if (axios.isCancel(error)) return false;
+    const estado = error?.response?.status;
+    return !error?.response || estado === 502 || estado === 503 || estado === 504;
+}
+
 export const SIN_SESION = 'sin_sesion';
 export const CAMBIAR_CONTRASENA = 'cambiar_contrasena';
 
@@ -27,6 +55,7 @@ function emitir(evento) {
 // `debe_cambiar_contrasena` → falta definir la contraseña propia. Una
 // petición con `{ silencioso: true }` no emite nada.
 export function interpretarError(error) {
+    if (!axios.isCancel(error)) anotarRed(!sinRespuestaDelServidor(error));
     const estado = error?.response?.status;
     const ruta = String(error?.config?.url ?? '');
     const deAcceso = /(^|\/)auth\//.test(ruta);
@@ -41,6 +70,9 @@ export function interpretarError(error) {
     return Promise.reject(error);
 }
 
-api.interceptors.response.use((respuesta) => respuesta, interpretarError);
+api.interceptors.response.use((respuesta) => {
+    anotarRed(true);
+    return respuesta;
+}, interpretarError);
 
 export default api;

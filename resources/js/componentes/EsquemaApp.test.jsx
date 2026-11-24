@@ -40,8 +40,14 @@ describe('EsquemaApp', () => {
         expect(screen.getAllByText('Docente')).toHaveLength(2);
         expect(screen.getAllByText('BC')).toHaveLength(2);
         expect(screen.getAllByRole('button', { name: 'Cerrar sesión' })).toHaveLength(2);
-        expect(screen.getByRole('banner')).toHaveClass('sticky', 'top-0');
-        expect(screen.getByRole('complementary')).toHaveClass('md:sticky', 'md:h-dvh');
+        // Fijos arriba, pero debajo de la banda de «sin conexión» cuando se ve
+        // (`--banda` es su alto; sin banda vale 0).
+        expect(screen.getByRole('banner')).toHaveClass('sticky', 'top-[var(--banda,0px)]');
+        expect(screen.getByRole('complementary')).toHaveClass(
+            'md:sticky',
+            'md:top-[var(--banda,0px)]',
+            'md:h-[calc(100dvh-var(--banda,0px))]'
+        );
         expect(screen.getByText('Estoy en /examenes')).toBeInTheDocument();
     });
 

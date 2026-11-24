@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
 import { ProveedorSesion, PantallaDeCarga, usarSesion } from '../sesion/SesionContexto';
 import RutaProtegida from '../sesion/RutaProtegida';
+import BandaSinConexion from '../componentes/BandaSinConexion';
 import EsquemaApp from '../componentes/EsquemaApp';
 import EstadoCarga from '../componentes/EstadoCarga';
 import Boton from '../componentes/Boton';
@@ -143,6 +144,7 @@ export default function Aplicacion() {
     return (
         <BrowserRouter>
             <ProveedorSesion>
+                <BandaSinConexion />
                 <Rutas />
             </ProveedorSesion>
         </BrowserRouter>
