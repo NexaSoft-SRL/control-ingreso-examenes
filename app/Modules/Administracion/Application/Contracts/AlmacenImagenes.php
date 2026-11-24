@@ -14,7 +14,8 @@ interface AlmacenImagenes
     /**
      * Reduce la imagen a `$lado` pixeles en su lado mayor y la guarda en
      * `$carpeta` con ese `$nombre`. Devuelve la ruta, o nulo si el
-     * contenido no es una imagen que se pueda leer.
+     * contenido no es una imagen que se pueda leer. Si la imagen es buena
+     * pero no se puede escribir en el disco, lanza un error del servidor.
      */
     public function guardar(string $carpeta, string $nombre, string $contenido, int $lado): ?string;
 

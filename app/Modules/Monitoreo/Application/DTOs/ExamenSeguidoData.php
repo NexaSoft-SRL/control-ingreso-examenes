@@ -22,8 +22,7 @@ final readonly class ExamenSeguidoData
         public string $horaServidor,
         public string $fin = '',
         public bool $excedido = false,
-
-        // --- NUEVOS CAMPOS PARA SUSPENSIÓN ---
+        // Suspendido por el docente: la puerta no admite hasta reanudar.
         public bool $suspendido = false,
         public ?string $motivoSuspension = null,
         public ?string $descripcionSuspension = null,

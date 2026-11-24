@@ -30,6 +30,8 @@ export default function MiCarnet({ conCarnet, alGuardar }) {
     async function guardar(e) {
         e.preventDefault();
         if (documento.trim() === '') return setErrores({ documento: 'Obligatorio' });
+        if (!/^\d{4,10}$/.test(documento.trim()))
+            return setErrores({ documento: 'Solo números, de 4 a 10 dígitos' });
         if (!confirmo) return setErrores({ confirmo: 'Confirme que revisó su carnet' });
         if (enviando) return undefined;
         setEnviando(true);
@@ -69,11 +71,11 @@ export default function MiCarnet({ conCarnet, alGuardar }) {
                     etiqueta="Carnet"
                     iconoEtiqueta={IdCard}
                     formato="documento"
-                    maxLength={30}
+                    maxLength={10}
                     requerido
                     placeholder="5003748"
                     value={documento}
-                    ayuda="Complemento con guion: 5003748-1A"
+                    ayuda="Ej. 5003748"
                     error={errores.documento}
                     onChange={(e) => {
                         setDocumento(e.target.value);

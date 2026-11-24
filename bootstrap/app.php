@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Administracion\Domain\Exceptions\AlmacenamientoNoDisponibleException;
 use App\Modules\Administracion\Http\Middleware\ExigirContrasenaPropia;
 use App\Modules\Administracion\Http\Middleware\ExigirPermiso;
 use App\Modules\Ingreso\Http\Middleware\ExigirPuesto;
@@ -48,6 +49,16 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return new JsonResponse(['message' => 'No hay una sesión activa.'], 401);
+        });
+
+        // El disco del servidor no deja escribir: se dice como error del servidor,
+        // con su causa, y no como un archivo mal subido.
+        $exceptions->render(static function (AlmacenamientoNoDisponibleException $error, Request $request): ?JsonResponse {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return new JsonResponse(['message' => $error->getMessage()], 500);
         });
 
         // Los errores del marco que el cliente puede llegar a mostrar, en espanol.

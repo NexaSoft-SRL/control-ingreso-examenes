@@ -744,14 +744,14 @@ describe('Mis grupos · agregar y quitar estudiantes', () => {
         expect(within(dialogo()).getByText(/se corrige en todas sus asignaturas/)).toBeVisible();
         expect(within(dialogo()).queryByLabelText('Código SIS', { exact: false })).toBeNull();
 
-        escribir('C.I.', '7928194-1A');
+        escribir('C.I.', '7928194');
         escribir('Apellidos', 'Alvarado Claros');
         escribir('Nombres', 'Kevin René');
         fireEvent.click(within(dialogo()).getByRole('button', { name: /Guardar/ }));
 
         expect(await screen.findByText('Estudiante actualizado')).toBeVisible();
         expect(api.put).toHaveBeenCalledWith('/docente/grupos/37/inscritos/1', {
-            documento: '7928194-1A',
+            documento: '7928194',
             apellidos: 'Alvarado Claros',
             nombres: 'Kevin René',
         });
@@ -765,12 +765,12 @@ describe('Mis grupos · agregar y quitar estudiantes', () => {
         fireEvent.click(
             within(screen.getAllByRole('row')[1]).getByRole('button', { name: /^Editar a/ })
         );
-        expect(within(dialogo()).getByText('Ej. 5003748 o 5003748-1A')).toBeVisible();
+        expect(within(dialogo()).getByText('Ej. 5003748')).toBeVisible();
 
         escribir('C.I.', '12');
         fireEvent.click(within(dialogo()).getByRole('button', { name: /Guardar/ }));
 
-        expect(within(dialogo()).getByText('Revise el formato: 5003748-1A')).toBeVisible();
+        expect(within(dialogo()).getByText('Solo números, de 4 a 10 dígitos')).toBeVisible();
         expect(api.put).not.toHaveBeenCalled();
     });
 
@@ -835,14 +835,15 @@ describe('Mis grupos · agregar y quitar estudiantes', () => {
 
         llenar({
             'Código SIS': 'SIS 2021-04821',
-            'C.I.': '7928194-1A!',
+            'C.I.': '7928-194-1A!',
             Apellidos: 'Alvarado2 Claros#',
             Nombres: 'Kevin3 René',
         });
 
         const campo = (e) => within(dialogo()).getByLabelText(e, { exact: false });
         expect(campo('Código SIS')).toHaveValue('202104821');
-        expect(campo('C.I.')).toHaveValue('7928194-1A');
+        // Sin guion ni letras: el C.I. es solo numérico.
+        expect(campo('C.I.')).toHaveValue('79281941');
         expect(campo('Apellidos')).toHaveValue('Alvarado Claros');
         expect(campo('Nombres')).toHaveValue('Kevin René');
     });

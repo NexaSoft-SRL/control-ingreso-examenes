@@ -80,13 +80,9 @@ final class EnCursoController
                 'hora' => $enCurso->examen->hora,
             ],
             'abierto' => $enCurso->examen->abierto,
-
-            // --- NUEVOS CAMPOS DE SUSPENSIÓN ---
             'suspendido' => $enCurso->examen->suspendido,
             'motivo_suspension' => $enCurso->examen->motivoSuspension,
             'descripcion_suspension' => $enCurso->examen->descripcionSuspension,
-            // -----------------------------------
-
             'fin' => $enCurso->examen->fin,
             'excedido' => $enCurso->examen->excedido,
             'hora_servidor' => $enCurso->examen->horaServidor,

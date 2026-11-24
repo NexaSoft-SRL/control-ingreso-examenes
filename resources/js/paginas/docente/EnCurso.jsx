@@ -90,7 +90,7 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
     const [gravedad, setGravedad] = useState(null);
     const { edificios, caja } = usarEdificios();
 
-    // --- ESTADOS DE SUSPENSIÓN ---
+    // La suspensión detiene la puerta hasta reanudar.
     const [porSuspender, setPorSuspender] = useState(false);
     const [suspendiendo, setSuspendiendo] = useState(false);
     const [motivoSuspension, setMotivoSuspension] = useState('');
@@ -183,7 +183,6 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
         }
     };
 
-    // --- FUNCIONES DE SUSPENSIÓN ---
     const suspender = async () => {
         setSuspendiendo(true);
         try {
@@ -246,7 +245,6 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
                 )}
                 <BotonIncidenciasComunes />
 
-                {/* --- BOTONES SUSPENDER / REANUDAR --- */}
                 {finalizable &&
                     (suspendido ? (
                         <Boton type="button" variante="primario" onClick={reanudar}>
@@ -278,7 +276,6 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
 
             <SelectorExamen valor={examen.id} onCambiar={elegir} examenes={examenes} />
 
-            {/* --- BANNER DE SUSPENSIÓN --- */}
             {suspendido && (
                 <p
                     role="status"
@@ -286,9 +283,15 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
                 >
                     <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
                     <span>
-                        <strong>Examen suspendido.</strong>
-                        {cuerpo?.motivo_suspension && ` Motivo: ${cuerpo.motivo_suspension}.`}
-                        {cuerpo?.descripcion_suspension && ` ${cuerpo.descripcion_suspension}`}
+                        <strong>
+                            Suspendido
+                            {cuerpo?.motivo_suspension && ` · ${cuerpo.motivo_suspension}`}
+                        </strong>
+                        {cuerpo?.descripcion_suspension && (
+                            <span className="block font-normal">
+                                {cuerpo.descripcion_suspension}
+                            </span>
+                        )}
                     </span>
                 </p>
             )}
@@ -343,7 +346,6 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
                 )}
             </Dialogo>
 
-            {/* --- DIÁLOGO SUSPENDER EXAMEN --- */}
             <Dialogo
                 titulo="Suspender examen"
                 abierto={porSuspender}

@@ -39,13 +39,13 @@ describe('AccesoEstudiante', () => {
         expect(api.post).not.toHaveBeenCalled();
     });
 
-    it('dice a qué correo se envía el código apenas el código SIS tiene formato', () => {
+    it('muestra fijo el dominio del correo: solo se escribe el código SIS', () => {
         montar();
-        escribir(/Código SIS/, '2021');
-        expect(screen.queryByText(/Se enviará a/)).not.toBeInTheDocument();
 
+        expect(screen.getByText('@est.umss.edu')).toBeInTheDocument();
         escribir(/Código SIS/, '202100417');
-        expect(screen.getByText('Se enviará a 202100417@est.umss.edu')).toBeInTheDocument();
+        expect(screen.getByLabelText(/Código SIS/)).toHaveValue('202100417');
+        expect(screen.queryByText(/Se enviará a/)).not.toBeInTheDocument();
     });
 
     it('envía el código al correo y entra con él', async () => {
@@ -249,7 +249,7 @@ describe('AccesoEstudiante', () => {
             await screen.findByRole('button', { name: 'Registrarme' });
         };
 
-        it('nombres solo letras, carnet con su complemento y todo lo obligatorio marcado', async () => {
+        it('nombres solo letras, carnet solo numérico y todo lo obligatorio marcado', async () => {
             await entrarAlRegistro([
                 { id: 3, nombre: 'Sistemas', facultad_id: 1, facultad: 'FCyT' },
                 { id: 8, nombre: 'Arquitectura', facultad_id: 2, facultad: 'Hábitat' },
@@ -257,8 +257,8 @@ describe('AccesoEstudiante', () => {
 
             // Recién abierto, ningún campo acusa «Obligatorio» ni arrastra lo del paso anterior.
             expect(screen.queryByText('Obligatorio')).toBeNull();
-            // La pista del complemento está a la vista antes de escribir.
-            expect(screen.getByText('Complemento con guion: 5003748-1A')).toBeInTheDocument();
+            // El ejemplo del carnet está a la vista antes de escribir.
+            expect(screen.getByText('Ej. 5003748')).toBeInTheDocument();
 
             escribir(/Nombres/, 'Ana2 María#');
             escribir(/Apellidos/, "D'Alessandro 7");
@@ -266,11 +266,11 @@ describe('AccesoEstudiante', () => {
 
             expect(screen.getByLabelText(/Nombres/)).toHaveValue('Ana María');
             expect(screen.getByLabelText(/Apellidos/)).toHaveValue("D'Alessandro ");
-            expect(screen.getByLabelText(/Carnet/)).toHaveValue('5003748-1A');
+            expect(screen.getByLabelText(/Carnet/)).toHaveValue('50037481');
             expect(screen.getByLabelText(/Nombres/)).toHaveAttribute('maxlength', '100');
-            expect(screen.getByLabelText(/Carnet/)).toHaveAttribute('maxlength', '30');
+            expect(screen.getByLabelText(/Carnet/)).toHaveAttribute('maxlength', '10');
             expect(screen.getByLabelText(/Nombres/)).toHaveAttribute('aria-required', 'true');
-            expect(screen.getByText('Número y complemento: 5003748-1A')).toBeInTheDocument();
+            expect(screen.getByText('Solo números')).toBeInTheDocument();
         });
 
         it('la carrera dice que espera la facultad', async () => {

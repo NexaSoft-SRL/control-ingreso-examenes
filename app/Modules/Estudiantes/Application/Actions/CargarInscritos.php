@@ -72,7 +72,7 @@ final readonly class CargarInscritos
 
     public const MOTIVO_CODIGO = 'Código universitario no válido';
 
-    public const MOTIVO_DOCUMENTO = 'Documento de identidad no válido';
+    public const MOTIVO_DOCUMENTO = 'C.I. no válido: solo números, de 4 a 10 dígitos';
 
     public const MOTIVO_REPETIDO = 'Se repite en el archivo';
 

@@ -22,7 +22,7 @@ final class PlantillaInscritosXlsx implements GeneradorPlantilla
      */
     private const NOTAS = [
         'codigo_universitario' => 'Código SIS: 5 a 10 dígitos. Ej.: 202104821',
-        'documento_identidad' => 'C.I. con su complemento si tiene. Ej.: 7928194 o 5003748-1A',
+        'documento_identidad' => 'C.I.: solo números, de 4 a 10 dígitos. Ej.: 7928194',
         'nombres' => 'Solo letras. Ej.: Kevin René',
         'apellidos' => 'Solo letras. Ej.: Alvarado Claros',
         'codigo_asignatura' => 'Código de la asignatura en la oferta. Ej.: 2008019',

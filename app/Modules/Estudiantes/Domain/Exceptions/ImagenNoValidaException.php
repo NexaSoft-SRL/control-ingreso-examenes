@@ -11,7 +11,7 @@ use RuntimeException;
  */
 final class ImagenNoValidaException extends RuntimeException
 {
-    public function __construct(string $mensaje = 'La imagen no se pudo leer.')
+    public function __construct(string $mensaje = 'No se pudo leer la imagen · use JPG, PNG o WebP')
     {
         parent::__construct($mensaje);
     }

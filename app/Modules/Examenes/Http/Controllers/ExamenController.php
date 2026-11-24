@@ -23,6 +23,8 @@ use App\Modules\Examenes\Domain\Exceptions\DatoInvalidoException;
 use App\Modules\Examenes\Domain\Exceptions\ExamenAjenoException;
 use App\Modules\Examenes\Domain\Exceptions\ExamenConIngresosException;
 use App\Modules\Examenes\Domain\Exceptions\ExamenNoAbiertoException;
+use App\Modules\Examenes\Domain\Exceptions\ExamenNoSuspendidoException;
+use App\Modules\Examenes\Domain\Exceptions\ExamenYaSuspendidoException;
 use App\Modules\Examenes\Http\Requests\GuardarExamenRequest;
 use App\Modules\Examenes\Http\Requests\ListarExamenesRequest;
 use App\Modules\Examenes\Http\Requests\SuspenderExamenRequest;
@@ -171,8 +173,13 @@ final class ExamenController
             return $this->ajeno();
         } catch (ExamenNoAbiertoException) {
             return response()->json([
-                'message' => 'El examen no está abierto o ya está suspendido.',
+                'message' => 'Solo se suspende un examen abierto.',
                 'codigo' => 'EXAMEN_NO_ABIERTO',
+            ], Response::HTTP_CONFLICT);
+        } catch (ExamenYaSuspendidoException) {
+            return response()->json([
+                'message' => 'El examen ya está suspendido.',
+                'codigo' => 'EXAMEN_SUSPENDIDO',
             ], Response::HTTP_CONFLICT);
         }
 
@@ -192,10 +199,10 @@ final class ExamenController
             $instante = $reanudar->execute($examen, $this->usuarioId());
         } catch (ExamenAjenoException) {
             return $this->ajeno();
-        } catch (ExamenNoAbiertoException) {
+        } catch (ExamenNoSuspendidoException) {
             return response()->json([
-                'message' => 'El examen no está suspendido actualmente.',
-                'codigo' => 'EXAMEN_NO_ABIERTO',
+                'message' => 'El examen no está suspendido.',
+                'codigo' => 'EXAMEN_NO_SUSPENDIDO',
             ], Response::HTTP_CONFLICT);
         }
 

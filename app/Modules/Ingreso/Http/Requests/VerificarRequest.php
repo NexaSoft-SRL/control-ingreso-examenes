@@ -24,9 +24,9 @@ final class VerificarRequest extends FormRequest
     {
         return [
             'token' => ['required_without:identificador', 'nullable', 'string', 'max:64'],
-            // Codigo universitario, o C.I. con su complemento opcional
-            // («5003748», «5003748-1A», «5003748 1A»).
-            'identificador' => ['required_without:token', 'nullable', 'string', 'regex:/^\d{5,10}([\s-][0-9A-Za-z]{1,3}|[A-Za-z][0-9A-Za-z]{0,2})?$/'],
+            // Codigo universitario (5 a 10 digitos) o C.I. (4 a 10 digitos):
+            // solo numeros, sin complemento.
+            'identificador' => ['required_without:token', 'nullable', 'string', 'regex:/^\d{4,10}$/'],
         ];
     }
 

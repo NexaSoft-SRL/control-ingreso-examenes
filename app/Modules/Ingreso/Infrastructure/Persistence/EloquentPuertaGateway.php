@@ -79,6 +79,22 @@ final class EloquentPuertaGateway implements PuertaGateway
             ->exists();
     }
 
+    public function suspendido(int $examenId, ?string $instante = null): bool
+    {
+        $consulta = DB::table('suspensiones_examen')->where('examen_id', $examenId);
+
+        if ($instante === null) {
+            return $consulta->whereNull('reanudado_en')->exists();
+        }
+
+        return $consulta
+            ->where('suspendido_en', '<=', $instante)
+            ->where(function (Builder $vigente) use ($instante): void {
+                $vigente->whereNull('reanudado_en')->orWhere('reanudado_en', '>', $instante);
+            })
+            ->exists();
+    }
+
     /**
      * @return list<ExamenData>
      */
@@ -311,14 +327,19 @@ final class EloquentPuertaGateway implements PuertaGateway
             ];
         }
 
-        // El C.I. se compara sin espacios, guiones ni mayusculas: «5003748-1A»,
-        // «5003748 1A» y «50037481a» son el mismo documento.
+        // El C.I. es solo numerico, pero los guardados antes de esa regla
+        // pueden llevar complemento («5003748-1A»): se reconocen por su parte
+        // numerica si no hay uno exacto. Sin migracion que los reescriba.
         $normalizado = mb_strtoupper(str_replace([' ', '-'], '', $identificador));
 
         $porDocumento = DB::table('estudiantes')
             ->whereRaw("upper(replace(replace(documento_identidad, ' ', ''), '-', '')) = ?", [$normalizado])
             ->orderBy('id')
-            ->first();
+            ->first()
+            ?? DB::table('estudiantes')
+                ->whereRaw("replace(documento_identidad, ' ', '-') like ?", [$normalizado.'-%'])
+                ->orderBy('id')
+                ->first();
 
         if ($porDocumento === null) {
             return null;

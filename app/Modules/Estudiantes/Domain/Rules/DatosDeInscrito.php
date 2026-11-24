@@ -19,11 +19,11 @@ final class DatosDeInscrito
     public const PATRON_CODIGO = '/^\d{5,10}$/';
 
     /**
-     * El C.I.: digitos con, opcionalmente, su complemento o extension, que
-     * es de una a tres letras o digitos separado por guion o espacio
-     * («5003748», «5003748-1A», «5003748 LP»).
+     * El C.I.: solo digitos, de 4 a 10, sin complemento («5003748»).
      */
-    public const PATRON_DOCUMENTO = '/^\d{4,10}([\s-][0-9A-Za-z]{1,3}){0,2}$/';
+    public const PATRON_DOCUMENTO = '/^\d{4,10}$/';
+
+    public const MENSAJE_DOCUMENTO = 'Solo números, de 4 a 10 dígitos';
 
     /**
      * Nombres y apellidos: palabras de letras separadas por un espacio, un
@@ -32,7 +32,7 @@ final class DatosDeInscrito
      */
     public const PATRON_NOMBRE = "/^(?=(?:.*\\p{L}){3})(?![^\\p{L}]*(\\p{L})(?:[^\\p{L}]*\\1)*[^\\p{L}]*$)\\p{L}+(?:(?:\\.\\s*|\\s+|['-])\\p{L}+)*\\.?$/iu";
 
-    public const MAXIMO_DOCUMENTO = 30;
+    public const MAXIMO_DOCUMENTO = 10;
 
     public const MAXIMO_NOMBRE = 100;
 
