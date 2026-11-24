@@ -39,14 +39,13 @@ final readonly class ProcesarRebotesDeCorreo
             return 0;
         }
 
-        $rebotes = $this->buzon->rebotes();
+        $rebotes = $this->buzon->rebotes(self::DIAS);
 
         if ($rebotes === []) {
             return 0;
         }
 
         $porDestinatario = [];
-        $mensajes = [];
 
         foreach ($rebotes as $rebote) {
             $marcados = $this->registro->marcarRebotados(
@@ -57,7 +56,6 @@ final readonly class ProcesarRebotesDeCorreo
             );
 
             $porDestinatario[$rebote->destinatario] = ($porDestinatario[$rebote->destinatario] ?? 0) + $marcados;
-            $mensajes[$rebote->mensajeId] = true;
         }
 
         $total = 0;
@@ -81,8 +79,6 @@ final readonly class ProcesarRebotesDeCorreo
                 ),
             );
         }
-
-        $this->buzon->archivar(array_map('strval', array_keys($mensajes)));
 
         return $total;
     }

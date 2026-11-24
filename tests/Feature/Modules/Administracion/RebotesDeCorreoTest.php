@@ -72,7 +72,19 @@ final class RebotesDeCorreoTest extends TestCase
         $this->assertDatabaseHas('envios_correo', ['id' => $viejo, 'estado' => 'ENVIADO']);
         $this->assertDatabaseHas('envios_correo', ['id' => $otro, 'estado' => 'ENVIADO']);
         $this->assertDatabaseHas('envios_correo', ['id' => $pendiente, 'estado' => 'PENDIENTE']);
-        self::assertSame([['41']], $this->buzon->archivados);
+    }
+
+    public function test_reading_the_same_bounce_again_changes_nothing(): void
+    {
+        $this->envio('20012030@est.umss.edu', 'ENVIADO', '2026-11-21 19:25:00');
+        $this->buzon->avisos = [
+            new ReboteData('20012030@est.umss.edu', new DateTimeImmutable('2026-11-21 19:30:00'), '41'),
+        ];
+
+        self::assertSame(1, $this->procesar());
+        self::assertSame(0, $this->procesar());
+
+        self::assertSame(1, DB::table('bitacora_operaciones')->where('operacion', 'correo.rebote')->count());
     }
 
     public function test_the_bounce_is_written_to_the_audit_log_by_the_system(): void
@@ -102,7 +114,6 @@ final class RebotesDeCorreoTest extends TestCase
         self::assertSame(0, $this->procesar());
 
         $this->assertDatabaseMissing('bitacora_operaciones', ['operacion' => 'correo.rebote']);
-        self::assertSame([['9']], $this->buzon->archivados);
     }
 
     public function test_disabled_the_mailbox_is_never_read(): void

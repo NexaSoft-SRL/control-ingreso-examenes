@@ -13,17 +13,12 @@ use App\Modules\Administracion\Application\DTOs\ReboteData;
 interface BuzonDeRebotes
 {
     /**
-     * Los rebotes permanentes aun no procesados. Un fallo al leer el buzon
+     * Los rebotes permanentes de los ultimos dias, leidos o no por una
+     * persona: el buzon no se modifica. Volver a leer un aviso no hace dano,
+     * porque sus envios ya quedaron como fallidos. Un fallo al leer el buzon
      * no es un error de la aplicacion: devuelve una lista vacia.
      *
      * @return list<ReboteData>
      */
-    public function rebotes(): array;
-
-    /**
-     * Deja los avisos ya procesados fuera de la proxima lectura.
-     *
-     * @param  list<string>  $mensajeIds
-     */
-    public function archivar(array $mensajeIds): void;
+    public function rebotes(int $dias): array;
 }
