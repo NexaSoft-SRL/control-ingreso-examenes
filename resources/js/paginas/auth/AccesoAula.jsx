@@ -256,7 +256,7 @@ export default function AccesoAula() {
                     <CabeceraAcceso
                         icono={DoorOpen}
                         titulo="Punto de control"
-                        subtitulo="Código de aula"
+                        subtitulo="Sin cuenta · código de aula"
                     />
 
                     <form className="space-y-4" noValidate onSubmit={entrar}>
@@ -268,6 +268,7 @@ export default function AccesoAula() {
                             autoComplete="one-time-code"
                             maxLength={6}
                             placeholder="000000"
+                            ayuda="Lo entrega el docente del examen"
                             value={codigo}
                             validar={SEIS_DIGITOS}
                             error={errores.codigo}

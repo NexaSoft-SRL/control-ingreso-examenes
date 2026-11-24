@@ -465,6 +465,13 @@ export default function AccesoEstudiante() {
                                 placeholder="202100417"
                                 autoFocus
                                 value={sis}
+                                // El correo es el código SIS con el dominio institucional
+                                // (`umss.dominio_correo_estudiantes` en el servidor).
+                                ayuda={
+                                    /^\d{5,10}$/.test(sis)
+                                        ? `Se enviará a ${sis}@est.umss.edu`
+                                        : undefined
+                                }
                                 error={errores.sis}
                                 onChange={(e) => {
                                     setSis(soloDigitos(e.target.value, 10));

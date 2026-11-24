@@ -236,7 +236,7 @@ export default function Oferta() {
     return (
         <div className="space-y-6">
             <Encabezado titulo="Oferta" subtitulo={subtitulo || undefined}>
-                <Insignia tono="neutro">Importado · solo lectura</Insignia>
+                <Insignia tono="neutro">De la universidad · no se edita</Insignia>
             </Encabezado>
 
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-[9.5rem_7rem_minmax(0,1.4fr)_9.5rem_minmax(0,1fr)]">

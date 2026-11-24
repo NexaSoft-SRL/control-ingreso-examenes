@@ -196,7 +196,7 @@ describe('Docentes', () => {
         expect(cespedes).toHaveTextContent('Sin cuenta');
         expect(fila('Agreda Corrales')).toHaveTextContent('Activo');
         expect(fila('Acha Perez')).toHaveTextContent('FCyT · 1 grupo');
-        expect(fila('Acha Perez')).toHaveTextContent('Temporal');
+        expect(fila('Acha Perez')).toHaveTextContent('Contraseña temporal');
         expect(
             await screen.findByText('Período 2/2026 · 4 docentes · 1 en más de una facultad')
         ).toBeInTheDocument();
@@ -363,7 +363,7 @@ describe('Docentes', () => {
 
         await elegir('Acha Perez');
         expect(await screen.findByText('samuel.acha')).toBeInTheDocument();
-        expect(screen.getByText('Contraseña temporal')).toBeInTheDocument();
+        expect(screen.getAllByText('Contraseña temporal').length).toBeGreaterThan(0);
         expect(screen.queryByText(TEMPORAL)).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Activar cuenta/ })).not.toBeInTheDocument();
     });
@@ -454,7 +454,7 @@ describe('Docentes', () => {
         expect(fila('Cespedes Guizada')).toHaveTextContent('Sin cuenta');
     });
 
-    it('activa: avisa «Cuenta activada» y el estado pasa a «Temporal» (criterio 11)', async () => {
+    it('activa: avisa «Cuenta activada» y el estado pasa a «Contraseña temporal» (criterio 11)', async () => {
         montar();
         await elegir('Cespedes Guizada');
         await activar({ correo: 'Maria.Cespedes@umss.edu.bo ' });
@@ -464,7 +464,9 @@ describe('Docentes', () => {
             usuario: 'maria.cespedes',
             correo: 'Maria.Cespedes@umss.edu.bo',
         });
-        await waitFor(() => expect(fila('Cespedes Guizada')).toHaveTextContent('Temporal'));
+        await waitFor(() =>
+            expect(fila('Cespedes Guizada')).toHaveTextContent('Contraseña temporal')
+        );
     });
 
     it('la contraseña temporal se muestra una vez, con «Copiar» y la caducidad (criterio 12)', async () => {
@@ -494,7 +496,7 @@ describe('Docentes', () => {
         await screen.findByText('luis.agreda');
         fireEvent.click(fila('Cespedes Guizada'));
         expect(await screen.findByText('maria.cespedes')).toBeInTheDocument();
-        expect(screen.getByText('Contraseña temporal')).toBeInTheDocument();
+        expect(screen.getAllByText('Contraseña temporal').length).toBeGreaterThan(0);
         expect(screen.queryByText(TEMPORAL)).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Copiar/ })).not.toBeInTheDocument();
     });
@@ -554,7 +556,7 @@ describe('Docentes', () => {
         await elegir('Flores Soliz');
         await activar();
         await screen.findByText(TEMPORAL);
-        await waitFor(() => expect(fila('Flores Soliz')).toHaveTextContent('Temporal'));
+        await waitFor(() => expect(fila('Flores Soliz')).toHaveTextContent('Contraseña temporal'));
 
         expect(
             screen.queryByRole('button', { name: /Siguiente sin cuenta/ })

@@ -57,7 +57,7 @@ const FORMA_CUENTA = PropTypes.shape({
 // Los mismos estados que en Docentes.
 const ESTADOS = {
     activo: { tono: 'exito', texto: 'Activo' },
-    temporal: { tono: 'primario', texto: 'Temporal' },
+    temporal: { tono: 'primario', texto: 'Contraseña temporal' },
     bloqueado: { tono: 'peligro', texto: 'Bloqueado' },
 };
 

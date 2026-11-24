@@ -94,10 +94,42 @@ export default function PorListaDeCodigos({ examenId, alCambiar }) {
                 >
                     {resultado ? (
                         <div className="space-y-3 text-sm text-slate-800" role="status">
-                            <p className="font-medium">{resultado.message}</p>
+                            <p
+                                className={`rounded-lg px-3 py-2 font-medium ${resultado.afectados > 0 ? 'bg-success-50 text-success-800' : 'bg-warning-50 text-warning-800'}`}
+                            >
+                                {resultado.afectados > 0
+                                    ? resultado.message
+                                    : `Ninguno cambió. ${resultado.message}`}
+                            </p>
+                            <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
+                                <dt className="text-slate-600">En el examen</dt>
+                                <dd className="font-semibold">{resultado.encontrados}</dd>
+                                <dt className="text-slate-600">
+                                    {habilitado ? 'Habilitados' : 'Inhabilitados'}
+                                </dt>
+                                <dd className="font-semibold">{resultado.afectados}</dd>
+                                {resultado.sin_carnet > 0 && (
+                                    <>
+                                        <dt className="text-slate-600">
+                                            Sin carnet · no se habilitaron
+                                        </dt>
+                                        <dd className="font-semibold">{resultado.sin_carnet}</dd>
+                                    </>
+                                )}
+                                {resultado.no_encontrados.length > 0 && (
+                                    <>
+                                        <dt className="text-slate-600">No son del examen</dt>
+                                        <dd className="font-semibold">
+                                            {resultado.no_encontrados.length}
+                                        </dd>
+                                    </>
+                                )}
+                            </dl>
                             {resultado.no_encontrados.length > 0 && (
                                 <div>
-                                    <p className="mb-1 text-xs text-slate-600">No son del examen</p>
+                                    <p className="mb-1 text-xs text-slate-600">
+                                        Códigos que no son del examen
+                                    </p>
                                     <p className="break-words font-mono text-xs text-slate-700">
                                         {resultado.no_encontrados.join(', ')}
                                     </p>

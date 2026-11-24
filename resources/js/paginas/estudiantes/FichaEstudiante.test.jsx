@@ -88,7 +88,7 @@ describe('FichaEstudiante', () => {
         await waitFor(() =>
             expect(api.post).toHaveBeenCalledWith('/estudiantes/5/foto', expect.any(FormData))
         );
-        expect(await screen.findByText('Foto guardada')).toBeInTheDocument();
+        expect((await screen.findAllByText('Foto guardada')).length).toBeGreaterThan(0);
         expect(screen.queryByRole('dialog', { name: 'Poner foto' })).not.toBeInTheDocument();
     });
 
@@ -149,7 +149,7 @@ describe('FichaEstudiante', () => {
         const pdf = new File(['%PDF'], 'doc.pdf', { type: 'application/pdf' });
         fireEvent.change(screen.getByLabelText('Poner foto'), { target: { files: [pdf] } });
 
-        expect(await screen.findByText('Solo JPG, PNG o WebP')).toBeInTheDocument();
+        expect(await screen.findByRole('alert')).toHaveTextContent('Solo JPG, PNG o WebP');
         expect(api.post).not.toHaveBeenCalled();
     });
 
@@ -166,13 +166,37 @@ describe('FichaEstudiante', () => {
 
         revisarFoto.mockResolvedValueOnce({ errores: ['No se detecta un rostro'], avisos: [] });
         fireEvent.change(screen.getByLabelText('Poner foto'), { target: { files: [foto] } });
-        expect(await screen.findByText('No se detecta un rostro')).toBeInTheDocument();
+        expect(await screen.findByRole('alert')).toHaveTextContent('No se detecta un rostro');
         expect(api.post).not.toHaveBeenCalled();
 
         revisarFoto.mockResolvedValueOnce({ errores: [], avisos: ['Use un fondo claro'] });
         fireEvent.change(screen.getByLabelText('Poner foto'), { target: { files: [foto] } });
-        expect(await screen.findByText('Foto guardada · Use un fondo claro')).toBeInTheDocument();
+        expect(await screen.findByRole('status')).toHaveTextContent(
+            'Foto guardada · Use un fondo claro'
+        );
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith('/estudiantes/5/foto', expect.any(FormData));
+    });
+
+    it('deja a la vista el motivo del rechazo hasta el siguiente intento', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        try {
+            simularApi(api, { 'GET /estudiantes/5': { data: FICHA } });
+            renderConSesion(
+                <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={vi.fn()} />
+            );
+            await screen.findByText('Sin foto');
+            revisarFoto.mockResolvedValueOnce({ errores: ['No se detecta un rostro'], avisos: [] });
+            const foto = new File(['jpeg'], 'm.jpg', { type: 'image/jpeg' });
+            fireEvent.change(screen.getByLabelText('Poner foto'), { target: { files: [foto] } });
+            expect(await screen.findByRole('alert')).toHaveTextContent('No se detecta un rostro');
+
+            // El aviso de 3 s se va; el mensaje bajo la foto no.
+            await vi.advanceTimersByTimeAsync(5000);
+            expect(screen.getByRole('alert')).toHaveTextContent('No se detecta un rostro');
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });
 

@@ -91,6 +91,9 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
     const [url, setUrl] = useState(null);
     const [version, setVersion] = useState(0);
     const [enviando, setEnviando] = useState(false);
+    // El resultado queda a la vista hasta el siguiente intento: el aviso
+    // fugaz no alcanza a leerse.
+    const [resultado, setResultado] = useState(null);
     const [aviso, avisar] = useAviso();
     const accion = conFoto ? 'Cambiar foto' : 'Poner foto';
 
@@ -117,6 +120,7 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
     async function subir(elegida) {
         if (!elegida || enviando) return;
         setEnviando(true);
+        setResultado(null);
         try {
             const medidas = await dimensionesDe(elegida);
             if (medidas && Math.min(medidas.ancho, medidas.alto) < MINIMO_PX) {
@@ -128,16 +132,18 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
             const formulario = new FormData();
             formulario.append('foto', reducida);
             await api.post(`/estudiantes/${id}/foto`, formulario);
-            avisar(['Foto guardada', ...avisos].join(' · '));
+            const texto = ['Foto guardada', ...avisos].join(' · ');
+            avisar(texto);
+            setResultado({ texto, error: false });
             setVersion((v) => v + 1);
             alCambiar();
         } catch (fallo) {
-            avisar(
+            const texto =
                 fallo instanceof ImagenNoValida
                     ? fallo.message
-                    : (erroresDe(fallo).foto ?? mensajeDe(fallo, 'No se pudo guardar')),
-                'error'
-            );
+                    : (erroresDe(fallo).foto ?? mensajeDe(fallo, 'No se pudo guardar'));
+            avisar(texto, 'error');
+            setResultado({ texto, error: true });
         } finally {
             setEnviando(false);
         }
@@ -182,6 +188,14 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
                     }}
                 />
             </label>
+            {resultado && (
+                <p
+                    role={resultado.error ? 'alert' : 'status'}
+                    className={`mt-4 max-w-28 text-xs font-medium ${resultado.error ? 'text-danger-700' : 'text-success-700'}`}
+                >
+                    {resultado.texto}
+                </p>
+            )}
             {aviso}
         </div>
     );

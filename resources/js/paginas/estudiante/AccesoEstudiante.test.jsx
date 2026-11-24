@@ -39,6 +39,15 @@ describe('AccesoEstudiante', () => {
         expect(api.post).not.toHaveBeenCalled();
     });
 
+    it('dice a qué correo se envía el código apenas el código SIS tiene formato', () => {
+        montar();
+        escribir(/Código SIS/, '2021');
+        expect(screen.queryByText(/Se enviará a/)).not.toBeInTheDocument();
+
+        escribir(/Código SIS/, '202100417');
+        expect(screen.getByText('Se enviará a 202100417@est.umss.edu')).toBeInTheDocument();
+    });
+
     it('envía el código al correo y entra con él', async () => {
         montar();
         escribir(/Código SIS/, '202100417');

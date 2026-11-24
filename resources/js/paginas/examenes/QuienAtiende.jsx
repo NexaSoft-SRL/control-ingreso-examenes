@@ -49,6 +49,7 @@ function AuxiliarNuevo({ onAgregado, onAviso }) {
 
         setEnviando(true);
         try {
+            const correo = `${codigo.trim()}@est.umss.edu`;
             const { data } = await api.post('/auxiliares', {
                 nombre: nombre.trim(),
                 codigo_universitario: codigo.trim(),
@@ -57,7 +58,13 @@ function AuxiliarNuevo({ onAgregado, onAviso }) {
             setNombre('');
             setCodigo('');
             setVuelta((n) => n + 1);
-            onAviso(sinPunto(data.message ?? 'Auxiliar agregado'));
+            // Quien lo agrega sabe con qué usuario entra y a dónde llegó su
+            // contraseña temporal.
+            onAviso(
+                data.data?.usuario
+                    ? `Cuenta creada · usuario ${data.data.usuario} · la contraseña temporal se envió a ${correo}`
+                    : sinPunto(data.message ?? 'Auxiliar agregado')
+            );
         } catch (fallo) {
             const existente = fallo?.response?.data?.data;
             if (estadoDe(fallo) === 409 && existente?.id) {
@@ -414,7 +421,12 @@ export default function QuienAtiende({
                                 key={x.id}
                                 className={`inline-flex min-h-10 min-w-0 max-w-full items-center rounded-full border border-slate-200 bg-white pl-3 text-sm text-slate-800 ${quitable(x.id) ? '' : 'pr-3'}`}
                             >
-                                <span className="truncate">{x.nombre}</span>
+                                <span className="truncate">{x.nombre}</span>{' '}
+                                {x.usuario && (
+                                    <span className="ml-1.5 shrink-0 text-xs text-slate-500">
+                                        · {x.usuario}
+                                    </span>
+                                )}
                                 {quitable(x.id) && (
                                     <button
                                         type="button"

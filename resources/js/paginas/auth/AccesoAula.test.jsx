@@ -60,6 +60,9 @@ describe('AccesoAula', () => {
 
         expect(await codigo()).toHaveAttribute('inputmode', 'numeric');
         expect(screen.getByRole('heading', { name: 'Punto de control' })).toBeInTheDocument();
+        // Para quien no tiene cuenta, y de dónde sale el código.
+        expect(screen.getByText('Sin cuenta · código de aula')).toBeInTheDocument();
+        expect(screen.getByText('Lo entrega el docente del examen')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Cuenta institucional' })).toHaveAttribute(
             'href',
             '/login'

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import PorListaDeCodigos from './PorListaDeCodigos';
 import { api } from '../../api/cliente';
@@ -59,6 +59,56 @@ describe('PorListaDeCodigos', () => {
         ).toBeInTheDocument();
         expect(screen.getByText('199999999')).toBeInTheDocument();
         expect(alCambiar).toHaveBeenCalled();
+    });
+
+    it('el resultado queda en el diálogo con sus cifras hasta cerrarlo', async () => {
+        abrir({
+            'POST /examenes/8/habilitaciones/por-codigos': {
+                message: '1 habilitado. 1 código no es del examen. 1 sin carnet no se habilitó.',
+                afectados: 1,
+                encontrados: 2,
+                sin_carnet: 1,
+                no_encontrados: ['199999999'],
+            },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Habilitar' }));
+        fireEvent.change(screen.getByLabelText(/Códigos SIS/), {
+            target: { value: '202100417\n202101256\n199999999' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
+
+        const resultado = within(await screen.findByRole('dialog')).getByRole('status');
+        expect(resultado).toHaveTextContent('1 habilitado. 1 código no es del examen.');
+        expect(resultado).toHaveTextContent('En el examen2');
+        expect(resultado).toHaveTextContent('Habilitados1');
+        expect(resultado).toHaveTextContent('Sin carnet · no se habilitaron1');
+        expect(resultado).toHaveTextContent('No son del examen1');
+        // No se cierra solo: queda hasta pulsar «Cerrar».
+        expect(screen.getByRole('dialog', { name: 'Por lista de códigos' })).toBeInTheDocument();
+        fireEvent.click(screen.getAllByRole('button', { name: 'Cerrar' }).at(-1));
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('si no cambió a nadie lo dice con claridad', async () => {
+        abrir({
+            'POST /examenes/8/habilitaciones/por-codigos': {
+                message: '0 habilitados. 1 sin carnet no se habilitó.',
+                afectados: 0,
+                encontrados: 1,
+                sin_carnet: 1,
+                no_encontrados: [],
+            },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Habilitar' }));
+        fireEvent.change(screen.getByLabelText(/Códigos SIS/), { target: { value: '202100417' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
+
+        const resultado = within(await screen.findByRole('dialog')).getByRole('status');
+        expect(resultado).toHaveTextContent('Ninguno cambió. 0 habilitados.');
+        expect(resultado).toHaveTextContent('Sin carnet · no se habilitaron1');
+        expect(resultado).not.toHaveTextContent('No son del examen');
     });
 
     it('habilitar no pide motivo', async () => {
