@@ -238,7 +238,7 @@ export default function CargaInscripciones({
                     </Boton>
                     <Boton onClick={cargar} cargando={enviando}>
                         <Upload className="h-4 w-4" aria-hidden="true" />{' '}
-                        {enviando ? 'Cargando' : 'Cargar'}
+                        {enviando ? 'Cargando' : 'Cargar inscripciones'}
                     </Boton>
                 </>
             }

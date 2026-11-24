@@ -233,7 +233,7 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
                         Cancelar
                     </Boton>
                     <Boton type="submit" form="formulario-cuenta" cargando={enviando}>
-                        {nueva ? 'Crear' : 'Guardar'}
+                        {nueva ? 'Crear usuario' : 'Guardar cambios'}
                     </Boton>
                 </>
             }
@@ -243,6 +243,10 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
                     etiqueta="Nombre"
                     icono={UserRound}
                     requerido
+                    formato="letras"
+                    maxLength={255}
+                    placeholder="Apellidos y nombres"
+                    autoFocus
                     value={nombre}
                     error={errores.nombre ?? (enviado ? (errorNombre ?? undefined) : undefined)}
                     validar={() => errorNombre}
@@ -252,6 +256,9 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
                     etiqueta="Usuario"
                     icono={AtSign}
                     requerido
+                    maxLength={60}
+                    formato="usuario"
+                    placeholder="nombre apellido"
                     autoCapitalize="none"
                     autoComplete="off"
                     spellCheck={false}

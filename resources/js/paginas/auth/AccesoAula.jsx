@@ -264,7 +264,8 @@ export default function AccesoAula() {
                             etiqueta="Código"
                             iconoEtiqueta={Hash}
                             requerido
-                            inputMode="numeric"
+                            formato="digitos"
+                            autoFocus
                             autoComplete="one-time-code"
                             maxLength={6}
                             placeholder="000000"
@@ -273,7 +274,7 @@ export default function AccesoAula() {
                             validar={SEIS_DIGITOS}
                             error={errores.codigo}
                             onChange={(e) => {
-                                setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6));
+                                setCodigo(e.target.value.slice(0, 6));
                                 setErrores({});
                             }}
                         />
@@ -281,7 +282,9 @@ export default function AccesoAula() {
                             etiqueta="Nombre"
                             iconoEtiqueta={User}
                             requerido
+                            formato="letras"
                             autoComplete="name"
+                            maxLength={120}
                             placeholder="Apellidos y nombres"
                             value={nombre}
                             validar={NOMBRE}

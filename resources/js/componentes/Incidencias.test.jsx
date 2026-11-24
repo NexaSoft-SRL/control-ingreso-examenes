@@ -85,6 +85,22 @@ describe('BotonIncidencia', () => {
         expect(registrar).not.toHaveBeenCalled();
     });
 
+    it('mientras el botón espera dice qué falta', () => {
+        render(<BotonIncidencia aula={AULAS[0]} registrar={vi.fn()} />);
+        const dialogo = abrir();
+
+        expect(dialogo.getByText('Falta: tipo · detalle')).toBeInTheDocument();
+
+        elegirTipo(dialogo);
+        expect(dialogo.getByText('Falta: detalle')).toBeInTheDocument();
+
+        fireEvent.change(dialogo.getByRole('textbox', { name: /Detalle/ }), {
+            target: { value: 'Detalle largo' },
+        });
+        expect(dialogo.queryByText(/^Falta:/)).toBeNull();
+        expect(dialogo.getByRole('button', { name: 'Registrar' })).toBeEnabled();
+    });
+
     it('al cerrar vuelve a pedir el tipo', () => {
         render(<BotonIncidencia aula={AULAS[0]} registrar={vi.fn()} />);
         let dialogo = abrir();

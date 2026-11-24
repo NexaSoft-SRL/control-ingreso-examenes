@@ -152,7 +152,7 @@ export default function CargaDeLista({ grupoId, onCargada, onCancelar, onAvisar 
                         Lista de inscritos de la WebSIS
                     </p>
                     <p className="mx-auto mt-1 max-w-md text-xs text-slate-600">
-                        .xlsx o .csv · código universitario, documento, nombres y apellidos
+                        .xlsx o .csv · código SIS, apellidos y nombres (el C.I. puede faltar)
                     </p>
 
                     <input
@@ -191,15 +191,21 @@ export default function CargaDeLista({ grupoId, onCargada, onCancelar, onAvisar 
                     )}
 
                     <div className="mt-4 flex flex-col justify-center gap-2 sm:flex-row sm:flex-wrap">
+                        {/* Un solo paso principal a la vez: primero elegir, luego revisar. */}
                         <Boton
                             type="button"
-                            variante="secundario"
+                            variante={archivo ? 'secundario' : 'primario'}
                             cargando={enviando}
                             onClick={() => entrada.current?.click()}
                         >
-                            <Upload className="h-4 w-4" /> Elegir archivo
+                            <Upload className="h-4 w-4" />{' '}
+                            {archivo ? 'Cambiar archivo' : 'Elegir archivo'}
                         </Boton>
-                        <Boton type="submit" cargando={enviando}>
+                        <Boton
+                            type="submit"
+                            variante={archivo ? 'primario' : 'secundario'}
+                            cargando={enviando}
+                        >
                             {enviando ? 'Analizando' : 'Previsualizar carga'}
                         </Boton>
                         <Boton type="button" variante="fantasma" onClick={plantilla}>

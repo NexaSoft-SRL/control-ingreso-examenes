@@ -74,7 +74,8 @@ export default function Login() {
     const [falloUsuario, setFalloUsuario] = useState(null);
     const [bloqueo, setBloqueo] = useState(null);
     const [enviando, setEnviando] = useState(false);
-    const [recuperando, setRecuperando] = useState(false);
+    // Desde un enlace vencido se llega con el cuadro de recuperar ya abierto.
+    const [recuperando, setRecuperando] = useState(Boolean(state?.recuperar));
     // «Obligatorio» aparece al intentar enviar, no apenas se abre el diálogo.
     const [intentoEnlace, setIntentoEnlace] = useState(false);
     const [usuarioRecuperar, setUsuarioRecuperar] = useState('');
@@ -152,6 +153,8 @@ export default function Login() {
                             requerido
                             placeholder="nombre apellido"
                             value={usuario}
+                            maxLength={60}
+                            formato="usuario"
                             autoFocus
                             autoComplete="username"
                             autoCapitalize="none"
@@ -219,7 +222,7 @@ export default function Login() {
                         ],
                         [
                             '/acceso-aula',
-                            'Código de aula',
+                            'Personal de control',
                             KeyRound,
                             'bg-primary-100 text-primary-700',
                         ],
@@ -289,6 +292,8 @@ export default function Login() {
                                 requerido
                                 placeholder="nombre apellido"
                                 value={usuarioRecuperar}
+                                maxLength={60}
+                                formato="usuario"
                                 autoCapitalize="none"
                                 spellCheck={false}
                                 validar={SOLO_USUARIO}

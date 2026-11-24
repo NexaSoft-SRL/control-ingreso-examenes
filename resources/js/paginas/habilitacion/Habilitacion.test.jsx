@@ -280,6 +280,11 @@ describe('Habilitacion', () => {
 
         expect(await screen.findByText('Sin estudiantes')).toBeInTheDocument();
         expect(screen.queryByText('Sin resultados')).not.toBeInTheDocument();
+        // Dice qué hacer: las listas se cargan en Mis grupos.
+        expect(screen.getByRole('link', { name: 'Cargar las listas' })).toHaveAttribute(
+            'href',
+            '/mis-grupos'
+        );
     });
 
     it('filtra por condición y cada opción lleva su conteo', async () => {
@@ -596,6 +601,10 @@ describe('Habilitacion', () => {
         montar('/habilitacion?examen=3');
 
         expect(await screen.findByText('Sin aulas')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Elegir aulas' })).toHaveAttribute(
+            'href',
+            '/examenes/nuevo?examen=3&paso=2'
+        );
         expect(screen.getByText('Distribución por aula')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Repartir' })).toBeDisabled();
         expect(screen.getByRole('combobox', { name: 'Aula' })).toBeDisabled();

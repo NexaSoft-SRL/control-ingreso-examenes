@@ -142,6 +142,7 @@ export default function ComparacionReportes() {
                     {examenesElegidos.length > 0 && (
                         <p className="mt-2 text-xs text-slate-600" aria-live="polite">
                             {examenesElegidos.length} de 20 elegidos
+                            {examenesElegidos.length === 1 && ' · elija al menos otro'}
                         </p>
                     )}
                     {examenesElegidos.length >= 2 && (

@@ -21,7 +21,8 @@ import Boton from '../../componentes/Boton';
 import Chips from '../../componentes/Chips';
 import Dato from '../../componentes/Dato';
 import Dialogo from '../../componentes/Dialogo';
-import Seleccion from '../../componentes/Seleccion';
+import Campo from '../../componentes/Campo';
+import Seleccion, { AreaTexto } from '../../componentes/Seleccion';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
 import SinActividad from '../../componentes/SinActividad';
@@ -368,31 +369,32 @@ function Tablero({ examen, examenes, elegir, onFinalizado }) {
                     </>
                 }
             >
-                <div className="space-y-4">
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-slate-700">
-                            Motivo (requerido)
-                        </label>
-                        <input
-                            type="text"
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                            value={motivoSuspension}
-                            onChange={(e) => setMotivoSuspension(e.target.value)}
-                            placeholder="Ej. Fuga de examen, Problema técnico..."
-                        />
-                    </div>
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-slate-700">
-                            Descripción (opcional)
-                        </label>
-                        <textarea
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                            rows={3}
-                            value={descripcionSuspension}
-                            onChange={(e) => setDescripcionSuspension(e.target.value)}
-                        />
-                    </div>
-                </div>
+                <form
+                    className="space-y-4"
+                    noValidate
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        if (motivoSuspension.trim() && !suspendiendo) suspender();
+                    }}
+                >
+                    <Campo
+                        etiqueta="Motivo"
+                        requerido
+                        autoFocus
+                        maxLength={100}
+                        placeholder="Ej.: Problema técnico"
+                        value={motivoSuspension}
+                        onChange={(e) => setMotivoSuspension(e.target.value)}
+                        ayuda="La puerta deja de admitir ingresos hasta reanudar"
+                    />
+                    <AreaTexto
+                        etiqueta="Detalle"
+                        rows={3}
+                        maxLength={1000}
+                        value={descripcionSuspension}
+                        onChange={(e) => setDescripcionSuspension(e.target.value)}
+                    />
+                </form>
             </Dialogo>
 
             {ajeno ? (

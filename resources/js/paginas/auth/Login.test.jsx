@@ -46,7 +46,7 @@ describe('Login', () => {
 
     it('enlaza al acceso con código de aula y al de estudiantes', () => {
         montar();
-        expect(screen.getByRole('link', { name: 'Código de aula' })).toHaveAttribute(
+        expect(screen.getByRole('link', { name: 'Personal de control' })).toHaveAttribute(
             'href',
             '/acceso-aula'
         );
@@ -63,7 +63,13 @@ describe('Login', () => {
         enviar();
         expect(screen.getByText('Obligatorio')).toBeInTheDocument();
 
+        // Lo que el usuario no admite ni entra al campo, y se avisa.
         escribir(campoUsuario(), 'leticia/blanco');
+        expect(campoUsuario()).toHaveValue('leticiablanco');
+        expect(screen.getByText('Solo letras y números')).toBeInTheDocument();
+
+        // Lo que entra pero no tiene forma de usuario se rechaza antes de enviar.
+        escribir(campoUsuario(), '.leticia');
         enviar();
         expect(
             screen.getByText('Solo letras y números, separados por un espacio')
@@ -246,5 +252,20 @@ describe('Login', () => {
         await waitFor(() =>
             expect(screen.getByRole('status')).toHaveTextContent('Contraseña actualizada')
         );
+    });
+
+    it('llega con el cuadro de recuperar abierto desde un enlace vencido', async () => {
+        renderConSesion(<Login />, {
+            usuario: null,
+            ruta: { pathname: '/login', state: { recuperar: true } },
+        });
+
+        expect(await screen.findByRole('dialog', { name: 'Recuperar contraseña' })).toBeVisible();
+    });
+
+    it('el usuario no pasa de 60 caracteres, como en el servidor', () => {
+        montar();
+
+        expect(campoUsuario()).toHaveAttribute('maxlength', '60');
     });
 });

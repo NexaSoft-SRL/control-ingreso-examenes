@@ -249,6 +249,13 @@ export function BotonIncidencia({
     const esNueva = tipo === NUEVA;
     const faltaNombre = esNueva && nueva.trim().length < 3;
     const listo = Boolean(tipo) && Boolean(gravedad) && !corto && !faltaNombre;
+    // Lo que falta para poder registrar, a la vista mientras el botón espera.
+    const faltan = [
+        !tipo && 'tipo',
+        tipo && faltaNombre && 'qué pasó',
+        tipo && !gravedad && 'gravedad',
+        corto && 'detalle',
+    ].filter(Boolean);
 
     const elegir = (clave) => {
         setTipo(clave);
@@ -460,6 +467,11 @@ export function BotonIncidencia({
                         error={errorDeFotos(errores)}
                     />
                     <VideoEvidencia video={video} onCambiar={setVideo} error={errores.video} />
+                    {faltan.length > 0 && (
+                        <p className="text-sm font-medium text-slate-700" aria-live="polite">
+                            Falta: {faltan.join(' · ')}
+                        </p>
+                    )}
                 </div>
             </Dialogo>
             {aviso}

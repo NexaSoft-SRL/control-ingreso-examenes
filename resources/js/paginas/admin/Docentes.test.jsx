@@ -408,13 +408,32 @@ describe('Docentes', () => {
         expect(screen.getByText('mb.cespedes · sin correo')).toBeInTheDocument();
     });
 
+    it('el botón deshabilitado dice qué falta', async () => {
+        montar();
+        await elegir('Cespedes Guizada');
+        const usuario = await screen.findByLabelText(/Usuario/);
+
+        fireEvent.change(usuario, { target: { value: '' } });
+        expect(screen.getByText('Falta el usuario')).toBeInTheDocument();
+
+        fireEvent.change(usuario, { target: { value: 'maria cespedes' } });
+        fireEvent.change(screen.getByLabelText(/^Correo/), { target: { value: 'maria@' } });
+        expect(screen.getByText('Revise el correo')).toBeInTheDocument();
+
+        fireEvent.change(screen.getByLabelText(/^Correo/), { target: { value: '' } });
+        expect(screen.queryByText('Falta el usuario')).toBeNull();
+        expect(screen.queryByText('Revise el correo')).toBeNull();
+    });
+
     it('usuario o correo no válidos: el botón no procede y el campo lo dice (criterio 9)', async () => {
         montar();
         await elegir('Cespedes Guizada');
         const usuario = await screen.findByLabelText(/Usuario/);
         const boton = screen.getByRole('button', { name: /Activar cuenta/ });
 
-        fireEvent.change(usuario, { target: { value: 'maría/cespedes' } });
+        fireEvent.change(usuario, { target: { value: 'maria/cespedes' } });
+        expect(usuario).toHaveValue('mariacespedes');
+        fireEvent.change(usuario, { target: { value: '.maria' } });
         expect(screen.getByText('Nombre y apellido, separados por un espacio')).toBeInTheDocument();
         expect(boton).toBeDisabled();
 

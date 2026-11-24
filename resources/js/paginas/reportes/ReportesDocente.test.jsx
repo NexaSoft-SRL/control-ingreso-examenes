@@ -358,8 +358,8 @@ describe('Reportes del docente', () => {
         fireEvent.click(screen.getByRole('tab', { name: 'Comparar' }));
 
         expect(await screen.findByRole('heading', { name: 'Alertas de exámenes' })).toBeVisible();
-        expect(screen.getByLabelText('Asistencia mínima (%)')).toHaveValue(70);
-        expect(screen.getByLabelText('Incidencias para alertar')).toHaveValue(5);
+        expect(screen.getByLabelText(/^Asistencia mínima/)).toHaveValue('70');
+        expect(screen.getByLabelText(/^Incidencias para alertar/)).toHaveValue('5');
     });
 
     it('filtra las incidencias del examen por gravedad', async () => {

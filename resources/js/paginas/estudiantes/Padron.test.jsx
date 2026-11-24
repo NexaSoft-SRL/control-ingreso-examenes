@@ -548,7 +548,7 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
         await listaCargada();
         const dialogo = await abrirCarga();
 
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar inscripciones' }));
 
         expect(within(dialogo).getByText('Obligatorio')).toBeInTheDocument();
         expect(pedidos.cargas).toHaveLength(0);
@@ -563,7 +563,7 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
         elegirArchivo(dialogo, archivoDe('foto.png', 'image/png'));
         expect(within(dialogo).getByText('Solo .csv o .xlsx')).toBeInTheDocument();
 
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar inscripciones' }));
         expect(pedidos.cargas).toHaveLength(0);
     });
 
@@ -578,7 +578,7 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
             target: { value: 'fce' },
         });
         elegirArchivo(dialogo, archivo);
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar inscripciones' }));
 
         const resultado = await screen.findByRole('dialog', { name: 'Resultado de la carga' });
         expect(pedidos.cargas).toHaveLength(1);
@@ -658,7 +658,7 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
         const dialogo = await abrirCarga();
 
         elegirArchivo(dialogo, archivoDe('lista.csv'));
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar inscripciones' }));
 
         const alerta = await within(dialogo).findByRole('alert');
         expect(alerta).toHaveTextContent('Faltan columnas en el archivo');
@@ -697,7 +697,7 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
         const dialogo = await abrirCarga();
 
         elegirArchivo(dialogo, archivoDe('lista.xlsx'));
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar inscripciones' }));
 
         const alerta = await within(dialogo).findByRole('alert');
         expect(alerta).toHaveTextContent(mensaje.replace(/\.$/, ''));
@@ -724,7 +724,7 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
         const dialogo = await abrirCarga();
 
         elegirArchivo(dialogo, archivoDe('lista.csv'));
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar inscripciones' }));
 
         expect(
             await within(dialogo).findByText('El archivo no puede superar los 8 MB')
@@ -746,7 +746,7 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
         const dialogo = await abrirCarga();
 
         elegirArchivo(dialogo, archivoDe('lista.csv'));
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar inscripciones' }));
 
         expect(await within(dialogo).findByRole('alert')).toHaveTextContent(
             'No tiene permiso para esta acción'
@@ -847,7 +847,7 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
         expect(
             within(tarjeta).getByText('Nombre Torrico Condori Adriana → Torrico Condori Adriana A.')
         ).toBeInTheDocument();
-        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Reemplazar' }));
+        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Sí, reemplazar' }));
 
         expect(await screen.findByText('202312058 actualizado')).toBeInTheDocument();
         await waitFor(() =>
@@ -871,7 +871,7 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
         const tarjeta = screen.getByText('Código SIS 202311988').closest('section');
         fireEvent.click(within(tarjeta).getByRole('button', { name: 'Usar carga nueva' }));
         expect(api.post).not.toHaveBeenCalled();
-        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Reemplazar' }));
+        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Sí, reemplazar' }));
 
         expect(await within(tarjeta).findByRole('alert')).toHaveTextContent(
             'Ese documento pertenece a otro estudiante'
@@ -924,7 +924,7 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
         montar({ usuario: usuarioDePrueba('Administrador') });
         await listaCargada();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Plantilla' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Descargar plantilla' }));
 
         expect(descargar).toHaveBeenCalledWith('/inscritos/plantilla', {
             parametros: { alcance: 'facultad' },

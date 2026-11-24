@@ -173,7 +173,13 @@ export default function AccesoEstudiante() {
             });
             if (data?.registro) {
                 const respuesta = await api.get('/auth/estudiante/carreras');
-                setCarreras(respuesta.data?.data ?? []);
+                const lista = respuesta.data?.data ?? [];
+                setCarreras(lista);
+                // Con una sola facultad no hay nada que elegir.
+                const unicas = [...new Set(lista.map((c) => String(c.facultad_id)))];
+                if (unicas.length === 1) {
+                    setDatos((previos) => ({ ...previos, facultad_id: unicas[0] }));
+                }
                 setRegistro(true);
                 return undefined;
             }
@@ -239,7 +245,12 @@ export default function AccesoEstudiante() {
                     />
 
                     {registro ? (
-                        <form className="space-y-4" noValidate onSubmit={empadronarse}>
+                        <form
+                            key="registro"
+                            className="space-y-4"
+                            noValidate
+                            onSubmit={empadronarse}
+                        >
                             <div className="flex gap-3 rounded-lg border border-primary-100 bg-primary-50 px-3.5 py-3 text-sm text-slate-700">
                                 <Info
                                     className="mt-0.5 h-4 w-4 shrink-0 text-primary-600"
@@ -261,7 +272,10 @@ export default function AccesoEstudiante() {
                             <Campo
                                 etiqueta="Nombres"
                                 iconoEtiqueta={UserRound}
+                                formato="letras"
                                 autoComplete="given-name"
+                                maxLength={100}
+                                requerido
                                 autoFocus
                                 value={datos.nombres}
                                 error={errores.nombres}
@@ -270,7 +284,10 @@ export default function AccesoEstudiante() {
                             <Campo
                                 etiqueta="Apellidos"
                                 iconoEtiqueta={UserRound}
+                                formato="letras"
                                 autoComplete="family-name"
+                                maxLength={100}
+                                requerido
                                 value={datos.apellidos}
                                 error={errores.apellidos}
                                 onChange={cambiarDato('apellidos')}
@@ -278,6 +295,10 @@ export default function AccesoEstudiante() {
                             <Campo
                                 etiqueta="Carnet"
                                 iconoEtiqueta={IdCard}
+                                formato="documento"
+                                maxLength={30}
+                                requerido
+                                ayuda="Complemento con guion: 5003748-1A"
                                 placeholder="5003748"
                                 value={datos.documento}
                                 error={errores.documento}
@@ -314,7 +335,9 @@ export default function AccesoEstudiante() {
                                 disabled={datos.facultad_id === ''}
                                 onChange={cambiarDato('carrera_id')}
                             >
-                                <option value="">Elegir</option>
+                                <option value="">
+                                    {datos.facultad_id === '' ? 'Primero la facultad' : 'Elegir'}
+                                </option>
                                 {carreras
                                     .filter(
                                         (carrera) =>
@@ -375,7 +398,7 @@ export default function AccesoEstudiante() {
                             </div>
                         </form>
                     ) : envio ? (
-                        <form className="space-y-4" noValidate onSubmit={entrar}>
+                        <form key="codigo" className="space-y-4" noValidate onSubmit={entrar}>
                             <div className="flex gap-3 rounded-lg border border-primary-100 bg-primary-50 px-3.5 py-3 text-sm text-slate-700">
                                 <Info
                                     className="mt-0.5 h-4 w-4 shrink-0 text-primary-600"
@@ -420,9 +443,10 @@ export default function AccesoEstudiante() {
                                 etiqueta="Código"
                                 iconoEtiqueta={Hash}
                                 ayuda={`Vence en ${envio.minutos ?? 10} min`}
-                                inputMode="numeric"
+                                formato="digitos"
                                 autoComplete="one-time-code"
                                 placeholder="000000"
+                                requerido
                                 autoFocus
                                 value={codigo}
                                 error={errores.codigo}
@@ -456,13 +480,14 @@ export default function AccesoEstudiante() {
                             </div>
                         </form>
                     ) : (
-                        <form className="space-y-4" noValidate onSubmit={pedirCodigo}>
+                        <form key="sis" className="space-y-4" noValidate onSubmit={pedirCodigo}>
                             <Campo
                                 etiqueta="Código SIS"
                                 iconoEtiqueta={IdCard}
-                                inputMode="numeric"
+                                formato="digitos"
                                 autoComplete="username"
                                 placeholder="202100417"
+                                requerido
                                 autoFocus
                                 value={sis}
                                 // El correo es el código SIS con el dominio institucional

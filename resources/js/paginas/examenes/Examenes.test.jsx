@@ -188,10 +188,11 @@ describe('Examenes · lista', () => {
         montar();
 
         expect(await screen.findByText('Sin exámenes')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /Registrar examen/ })).toHaveAttribute(
-            'href',
-            '/examenes/nuevo'
-        );
+        // El estado vacío ofrece el paso siguiente, además del botón del encabezado.
+        expect(screen.getAllByRole('link', { name: /Registrar examen/ })).toHaveLength(2);
+        screen
+            .getAllByRole('link', { name: /Registrar examen/ })
+            .forEach((enlace) => expect(enlace).toHaveAttribute('href', '/examenes/nuevo'));
     });
 
     it('si la lista no carga ofrece reintentar', async () => {

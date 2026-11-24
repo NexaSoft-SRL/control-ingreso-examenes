@@ -48,8 +48,9 @@ describe('Mi foto', () => {
         expect(await screen.findByText('Debe aparecer solo usted')).toBeInTheDocument();
         expect(revisarFoto).toHaveBeenCalledWith(foto);
 
-        fireEvent.click(screen.getByRole('button', { name: 'Guardar foto' }));
-        expect(await screen.findByText('Obligatoria')).toBeInTheDocument();
+        // Sin una foto válida no se puede guardar, y se dice por qué.
+        expect(screen.getByRole('button', { name: 'Guardar foto' })).toBeDisabled();
+        expect(screen.getByText('Primero elija o tome la foto')).toBeInTheDocument();
         expect(api.post).not.toHaveBeenCalled();
     });
 
@@ -60,6 +61,8 @@ describe('Mi foto', () => {
 
         fireEvent.change(screen.getByLabelText('Foto'), { target: { files: [foto] } });
         expect(await screen.findByText('Use un fondo claro')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Guardar foto' })).toBeEnabled();
+        expect(screen.getByText('Una sola vez')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Guardar foto' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }));
 

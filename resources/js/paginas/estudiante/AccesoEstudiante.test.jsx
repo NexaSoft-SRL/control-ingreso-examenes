@@ -210,4 +210,72 @@ describe('AccesoEstudiante', () => {
         montar({ 'GET /estudiante/sesion': { estudiante: { id: 7 } } });
         expect(await screen.findByText('Estoy en /estudiante')).toBeInTheDocument();
     });
+
+    it('el código SIS solo admite números y lo avisa', () => {
+        montar();
+        escribir(/Código SIS/, 'SIS-2021a');
+
+        expect(screen.getByLabelText(/Código SIS/)).toHaveValue('2021');
+        expect(screen.getByText('Solo números')).toBeInTheDocument();
+    });
+
+    describe('registro de un SIS nuevo', () => {
+        const entrarAlRegistro = async (carreras) => {
+            montar({
+                'POST /auth/estudiante': { registro: { codigo_universitario: '199900001' } },
+                'GET /auth/estudiante/carreras': { data: carreras },
+            });
+            escribir(/Código SIS/, '199900001');
+            fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
+            await screen.findByText('2021•••17@est.umss.edu');
+            escribir(/^Código/, '482913');
+            fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+            await screen.findByRole('button', { name: 'Registrarme' });
+        };
+
+        it('nombres solo letras, carnet con su complemento y todo lo obligatorio marcado', async () => {
+            await entrarAlRegistro([
+                { id: 3, nombre: 'Sistemas', facultad_id: 1, facultad: 'FCyT' },
+                { id: 8, nombre: 'Arquitectura', facultad_id: 2, facultad: 'Hábitat' },
+            ]);
+
+            // Recién abierto, ningún campo acusa «Obligatorio» ni arrastra lo del paso anterior.
+            expect(screen.queryByText('Obligatorio')).toBeNull();
+            // La pista del complemento está a la vista antes de escribir.
+            expect(screen.getByText('Complemento con guion: 5003748-1A')).toBeInTheDocument();
+
+            escribir(/Nombres/, 'Ana2 María#');
+            escribir(/Apellidos/, "D'Alessandro 7");
+            escribir(/Carnet/, '5003748-1A!?');
+
+            expect(screen.getByLabelText(/Nombres/)).toHaveValue('Ana María');
+            expect(screen.getByLabelText(/Apellidos/)).toHaveValue("D'Alessandro ");
+            expect(screen.getByLabelText(/Carnet/)).toHaveValue('5003748-1A');
+            expect(screen.getByLabelText(/Nombres/)).toHaveAttribute('maxlength', '100');
+            expect(screen.getByLabelText(/Carnet/)).toHaveAttribute('maxlength', '30');
+            expect(screen.getByLabelText(/Nombres/)).toHaveAttribute('aria-required', 'true');
+            expect(screen.getByText('Solo número y complemento')).toBeInTheDocument();
+        });
+
+        it('la carrera dice que espera la facultad', async () => {
+            await entrarAlRegistro([
+                { id: 3, nombre: 'Sistemas', facultad_id: 1, facultad: 'FCyT' },
+                { id: 8, nombre: 'Arquitectura', facultad_id: 2, facultad: 'Hábitat' },
+            ]);
+
+            const carrera = screen.getByLabelText(/Carrera/);
+            expect(carrera).toBeDisabled();
+            expect(carrera).toHaveTextContent('Primero la facultad');
+        });
+
+        it('con una sola facultad ya viene elegida', async () => {
+            await entrarAlRegistro([
+                { id: 3, nombre: 'Sistemas', facultad_id: 1, facultad: 'FCyT' },
+                { id: 4, nombre: 'Electrónica', facultad_id: 1, facultad: 'FCyT' },
+            ]);
+
+            expect(screen.getByLabelText(/Facultad/)).toHaveValue('1');
+            expect(screen.getByLabelText(/Carrera/)).toBeEnabled();
+        });
+    });
 });

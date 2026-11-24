@@ -281,7 +281,15 @@ export default function Examenes() {
                 })}
 
                 {!destacado && lista.length === 0 && (
-                    <p className="py-10 text-center text-sm text-slate-600">Sin exámenes</p>
+                    <div className="flex flex-col items-center gap-3 py-10 text-center">
+                        <p className="text-sm text-slate-600">Sin exámenes</p>
+                        <Link
+                            to="/examenes/nuevo"
+                            className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-primary-200 bg-white px-4 text-sm font-semibold text-primary-800 hover:bg-primary-50 ${FOCO}`}
+                        >
+                            <Plus className="h-4 w-4" strokeWidth={2.5} /> Registrar examen
+                        </Link>
+                    </div>
                 )}
             </EstadoCarga>
 

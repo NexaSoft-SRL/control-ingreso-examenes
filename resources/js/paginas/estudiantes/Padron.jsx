@@ -88,8 +88,8 @@ export default function Padron() {
                 <Boton variante="secundario" onClick={() => setFijandoPlazo(true)}>
                     <Camera className="h-4 w-4" aria-hidden="true" />
                     {plazo.datos
-                        ? `Fotos: ${diaMes(plazo.datos.desde)} – ${fechaCorta(plazo.datos.hasta)}`
-                        : 'Plazo de fotos'}
+                        ? `Plazo de fotos: ${diaMes(plazo.datos.desde)} – ${fechaCorta(plazo.datos.hasta)}`
+                        : 'Fijar plazo de fotos'}
                     {plazo.datos && !plazo.datos.abierto && (
                         <Insignia tono={plazo.datos.estado === 'proximo' ? 'info' : 'neutro'}>
                             {plazo.datos.estado === 'proximo' ? 'Próximo' : 'Cerrado'}
@@ -97,7 +97,7 @@ export default function Padron() {
                     )}
                 </Boton>
                 <Boton variante="secundario" onClick={plantilla}>
-                    <Download className="h-4 w-4" aria-hidden="true" /> Plantilla
+                    <Download className="h-4 w-4" aria-hidden="true" /> Descargar plantilla
                 </Boton>
                 <Boton onClick={() => setCargando(true)}>
                     <Upload className="h-4 w-4" aria-hidden="true" /> Cargar inscripciones

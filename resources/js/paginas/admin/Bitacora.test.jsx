@@ -96,7 +96,7 @@ describe('Bitacora', () => {
         expect(filas[0]).toHaveTextContent('Docente · 11 oct 2026, 16:40');
         expect(consultas()[0]).toEqual({ pagina: 1, por_pagina: 25 });
         expect(screen.getByRole('heading', { level: 1, name: 'Bitácora' })).toBeInTheDocument();
-        expect(screen.getByText('Solo lectura')).toBeInTheDocument();
+        expect(screen.getByText('No se edita')).toBeInTheDocument();
         expect(screen.getByRole('navigation', { name: 'Paginación' })).toHaveTextContent(
             '4 operaciones'
         );

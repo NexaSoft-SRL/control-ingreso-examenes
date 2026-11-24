@@ -558,6 +558,25 @@ describe('RegistrarExamen · paso 1, examen', () => {
         expect(screen.getByLabelText(/^Hora de inicio/)).toHaveValue('08:15');
     });
 
+    it('la duración solo admite números', async () => {
+        montar();
+        cambiar(await campo(/^Duración/), '9a0 min');
+
+        expect(screen.getByLabelText(/^Duración/)).toHaveValue('90');
+    });
+
+    it('sin grupos elegidos dice qué falta en vez de solo bloquear «Continuar»', async () => {
+        montar();
+        await campo(/^Fecha/);
+        pulsar(/Continuar/);
+        await screen.findByRole('heading', { name: '2. Grupos' });
+        const grupos = screen.getAllByRole('checkbox');
+        grupos.filter((c) => c.checked).forEach((c) => fireEvent.click(c));
+
+        expect(screen.getByText('Elija al menos un grupo')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Continuar: Aulas/ })).toBeDisabled();
+    });
+
     it('sin fecha u hora no avanza y señala «Obligatorio»', async () => {
         montar();
         cambiar(await campo(/^Fecha/), '');
@@ -1118,6 +1137,39 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         expect(screen.getByRole('button', { name: 'Registrar examen' })).toBeEnabled();
     });
 
+    it('el auxiliar nuevo no deja escribir números en el nombre ni letras en el código', async () => {
+        montar();
+        await irAAulas();
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
+        pulsar(/Continuar/);
+        await screen.findByRole('heading', { name: '4. Quién atiende' });
+
+        cambiar(screen.getByLabelText(/^Nombre completo/), 'Rosa 2 Quispe');
+        cambiar(screen.getByLabelText(/^Correo institucional/), 'SIS 2020-0123');
+
+        expect(screen.getByLabelText(/^Nombre completo/)).toHaveValue('Rosa Quispe');
+        expect(screen.getByLabelText(/^Correo institucional/)).toHaveValue('20200123');
+    });
+
+    it('Enter agrega al auxiliar nuevo, como el botón', async () => {
+        montar();
+        await irAAulas();
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
+        pulsar(/Continuar/);
+        await screen.findByRole('heading', { name: '4. Quién atiende' });
+
+        cambiar(screen.getByLabelText(/^Nombre completo/), 'Quispe Mamani Rosa');
+        cambiar(screen.getByLabelText(/^Correo institucional/), '202000123');
+        fireEvent.keyDown(screen.getByLabelText(/^Correo institucional/), { key: 'Enter' });
+
+        await waitFor(() =>
+            expect(api.post).toHaveBeenCalledWith('/auxiliares', {
+                nombre: 'Quispe Mamani Rosa',
+                codigo_universitario: '202000123',
+            })
+        );
+    });
+
     it('da de alta un auxiliar nuevo y queda disponible para las aulas', async () => {
         montar();
         await irAAulas();
@@ -1129,7 +1181,7 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         pulsar(/Agregar/);
         expect(screen.getAllByText('Obligatorio')).toHaveLength(2);
         cambiar(screen.getByLabelText(/^Nombre completo/), 'Quispe Mamani Rosa');
-        cambiar(screen.getByLabelText(/^Correo institucional/), '2020-1');
+        cambiar(screen.getByLabelText(/^Correo institucional/), '2020');
         pulsar(/Agregar/);
         expect(screen.getByText('Entre 5 y 10 dígitos')).toBeInTheDocument();
         expect(api.post).not.toHaveBeenCalled();

@@ -139,6 +139,12 @@ describe('Campo', () => {
             expect(campo).toHaveValue('leticiablanco coca');
         });
 
+        it('usuario: conserva el punto, el guion y el guion bajo que admite el servidor', () => {
+            const { campo } = escribir('usuario', 'ana.perez_gomez-2');
+
+            expect(campo).toHaveValue('ana.perez_gomez-2');
+        });
+
         it('el aviso del formato se va solo y deja paso a un error', () => {
             vi.useFakeTimers();
             try {
@@ -159,5 +165,17 @@ describe('Campo', () => {
 
             expect(campo).toHaveValue('a1-#');
         });
+    });
+
+    it('al reutilizarse para otro campo no hereda el «tocado» del anterior', () => {
+        const { rerender } = render(<Campo etiqueta="Código" requerido />);
+        const campo = screen.getByLabelText(/Código/);
+        fireEvent.change(campo, { target: { value: 'a' } });
+        fireEvent.change(campo, { target: { value: '' } });
+        expect(screen.getByText('Obligatorio')).toBeInTheDocument();
+
+        rerender(<Campo etiqueta="Carnet" requerido />);
+
+        expect(screen.queryByText('Obligatorio')).toBeNull();
     });
 });

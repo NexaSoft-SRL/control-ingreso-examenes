@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import EsquemaApp from './EsquemaApp';
@@ -19,7 +19,10 @@ function montar(respuesta = { message: 'Contraseña actualizada.' }) {
 
 const escribir = (etiqueta, valor) =>
     fireEvent.change(screen.getByLabelText(etiqueta), { target: { value: valor } });
-const guardar = () => screen.getByRole('button', { name: 'Guardar' });
+const guardar = () =>
+    within(screen.getByRole('dialog', { name: 'Cambiar contraseña' })).getByRole('button', {
+        name: 'Cambiar contraseña',
+    });
 
 function abrir(respuesta) {
     montar(respuesta);

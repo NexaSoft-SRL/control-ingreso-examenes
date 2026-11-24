@@ -380,7 +380,9 @@ describe('Mis grupos · grupo sin lista', () => {
         await abrirSinLista();
 
         expect(
-            screen.getByText('.xlsx o .csv · código universitario, documento, nombres y apellidos')
+            screen.getByText(
+                '.xlsx o .csv · código SIS, apellidos y nombres (el C.I. puede faltar)'
+            )
         ).toBeInTheDocument();
         expect(screen.getByLabelText('Archivo de la lista')).toHaveAttribute(
             'accept',
@@ -786,9 +788,11 @@ describe('Mis grupos · agregar y quitar estudiantes', () => {
         fireEvent.click(screen.getByRole('button', { name: /Agregar estudiante/ }));
 
         expect(dialogo()).toHaveAccessibleName('Agregar estudiante');
-        ['Código SIS', 'C.I.', 'Apellidos', 'Nombres'].forEach((etiqueta) =>
+        ['Código SIS', 'Apellidos', 'Nombres'].forEach((etiqueta) =>
             expect(within(dialogo()).getByLabelText(etiqueta, { exact: false })).toBeRequired()
         );
+        // El C.I. lo escribe después el estudiante: al agregar es opcional.
+        expect(within(dialogo()).getByLabelText('C.I.', { exact: false })).not.toBeRequired();
         expect(
             within(dialogo()).getByText('Introducción a la Programación · Grupo 2')
         ).toBeVisible();
@@ -808,8 +812,38 @@ describe('Mis grupos · agregar y quitar estudiantes', () => {
 
         fireEvent.click(within(dialogo()).getByRole('button', { name: /Agregar/ }));
 
-        expect(within(dialogo()).getAllByText('Obligatorio')).toHaveLength(3);
+        expect(within(dialogo()).getAllByText('Obligatorio')).toHaveLength(2);
         expect(pedidos('post', /inscritos$/)).toHaveLength(0);
+    });
+
+    it('cada campo deja escribir solo lo que le corresponde', async () => {
+        await abrir();
+        fireEvent.click(screen.getByRole('button', { name: /Agregar estudiante/ }));
+
+        llenar({
+            'Código SIS': 'SIS 2021-04821',
+            'C.I.': '7928194-1A!',
+            Apellidos: 'Alvarado2 Claros#',
+            Nombres: 'Kevin3 René',
+        });
+
+        const campo = (e) => within(dialogo()).getByLabelText(e, { exact: false });
+        expect(campo('Código SIS')).toHaveValue('202104821');
+        expect(campo('C.I.')).toHaveValue('7928194-1A');
+        expect(campo('Apellidos')).toHaveValue('Alvarado Claros');
+        expect(campo('Nombres')).toHaveValue('Kevin René');
+    });
+
+    it('se puede agregar sin C.I.', async () => {
+        await abrir();
+        fireEvent.click(screen.getByRole('button', { name: /Agregar estudiante/ }));
+
+        llenar({ 'C.I.': '' });
+        fireEvent.click(within(dialogo()).getByRole('button', { name: /Agregar/ }));
+
+        await screen.findByText('Estudiante agregado al padrón e inscrito');
+        const [, cuerpo] = pedidos('post', /inscritos$/)[0];
+        expect(cuerpo.documento).toBe('');
     });
 
     it('agrega al estudiante, avisa y recarga la lista y la cifra del grupo', async () => {

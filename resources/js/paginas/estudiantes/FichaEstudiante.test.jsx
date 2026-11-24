@@ -212,7 +212,7 @@ describe('PlazoFotos', () => {
 
         fireEvent.change(screen.getByLabelText(/Desde/), { target: { value: '2026-10-20' } });
         fireEvent.change(screen.getByLabelText(/Hasta/), { target: { value: '2026-10-10' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Guardar plazo' }));
 
         expect(await screen.findByText('No puede ser antes del inicio')).toBeInTheDocument();
         expect(api.put).toHaveBeenCalledWith('/estudiantes/plazo-fotos', {
@@ -221,10 +221,21 @@ describe('PlazoFotos', () => {
         });
     });
 
+    it('Enter en una fecha guarda el plazo', async () => {
+        simularApi(api, { 'PUT /estudiantes/plazo-fotos': { message: 'ok' } });
+        renderConSesion(<PlazoFotos onCerrar={vi.fn()} onGuardado={vi.fn()} avisar={vi.fn()} />);
+
+        fireEvent.change(screen.getByLabelText(/Desde/), { target: { value: '2026-10-10' } });
+        fireEvent.change(screen.getByLabelText(/Hasta/), { target: { value: '2026-10-20' } });
+        fireEvent.submit(screen.getByRole('dialog').querySelector('form'));
+
+        await waitFor(() => expect(api.put).toHaveBeenCalled());
+    });
+
     it('sin fechas no envía', () => {
         simularApi(api, {});
         renderConSesion(<PlazoFotos onCerrar={vi.fn()} onGuardado={vi.fn()} avisar={vi.fn()} />);
-        fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Guardar plazo' }));
 
         expect(screen.getAllByText('Obligatorio')).toHaveLength(2);
         expect(api.put).not.toHaveBeenCalled();

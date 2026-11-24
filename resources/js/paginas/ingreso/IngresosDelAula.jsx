@@ -182,7 +182,7 @@ export default function IngresosDelAula({
                             disabled={enviando || motivo.trim().length < MOTIVO_MINIMO}
                             cargando={enviando}
                         >
-                            Registrar
+                            Expulsar
                         </Boton>
                     </>
                 }

@@ -70,6 +70,19 @@ describe('AccesoAula', () => {
 
         escribir(await codigo(), '48a29-13777');
         expect(await codigo()).toHaveValue('482913');
+        expect(await codigo()).toHaveFocus();
+        expect(screen.getByText('Solo números')).toBeInTheDocument();
+    });
+
+    it('el nombre no deja poner números ni signos', async () => {
+        montar();
+        const campoNombre = await screen.findByLabelText(/^Nombre/);
+
+        escribir(campoNombre, 'Vargas2 Arce#');
+
+        expect(campoNombre).toHaveValue('Vargas Arce');
+        expect(campoNombre).toHaveAttribute('maxlength', '120');
+        expect(screen.getByText('Solo letras')).toBeInTheDocument();
     });
 
     it('valida antes de llamar al servidor', async () => {

@@ -31,7 +31,7 @@ const escribir = (campo, valor) => fireEvent.change(campo, { target: { value: va
 function completar(valor = 'Abcdefghi1') {
     escribir(screen.getByLabelText(/^Contraseña/), valor);
     escribir(screen.getByLabelText(/Repetir contraseña/), valor);
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar contraseña' }));
 }
 
 describe('RestablecerContrasena', () => {
@@ -42,7 +42,7 @@ describe('RestablecerContrasena', () => {
         montar();
 
         expect(screen.getByText('Restablecimiento · leticia.blanco')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Guardar contraseña' })).toBeDisabled();
         completar();
 
         expect(
@@ -66,11 +66,14 @@ describe('RestablecerContrasena', () => {
         completar();
 
         expect(await screen.findByRole('alert')).toHaveTextContent('Enlace no válido o vencido');
-        expect(screen.queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Iniciar sesión' })).toHaveAttribute(
+        expect(
+            screen.queryByRole('button', { name: 'Guardar contraseña' })
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Pedir otro enlace' })).toHaveAttribute(
             'href',
             '/login'
         );
+        expect(screen.queryByRole('link', { name: 'Iniciar sesión' })).not.toBeInTheDocument();
     });
 
     it('un rechazo de la contraseña queda bajo su campo', async () => {

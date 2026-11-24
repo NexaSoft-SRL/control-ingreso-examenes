@@ -321,8 +321,14 @@ export function CodigosDelExamen({ examen, selector, incrustado = false }) {
             )}
 
             {habilitados === 0 ? (
-                <p className="py-10 text-center text-sm text-slate-600">
+                <p className="flex flex-col items-center gap-2 py-10 text-center text-sm text-slate-600">
                     Sin estudiantes habilitados
+                    <Link
+                        to={rutaDelExamen(examen.id, 'habilitacion')}
+                        className="font-semibold text-primary-700 underline-offset-2 hover:underline"
+                    >
+                        Habilitar estudiantes
+                    </Link>
                 </p>
             ) : (
                 <>

@@ -81,6 +81,13 @@ function AuxiliarNuevo({ onAgregado, onAviso }) {
         }
     };
 
+    // Enter agrega, como el botón.
+    const alEnter = (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        agregar();
+    };
+
     const quitarError = (campo) =>
         setErrores((previos) =>
             Object.fromEntries(Object.entries(previos).filter(([c]) => c !== campo))
@@ -93,7 +100,10 @@ function AuxiliarNuevo({ onAgregado, onAviso }) {
                 <Campo
                     etiqueta="Nombre completo"
                     requerido
+                    formato="letras"
+                    maxLength={100}
                     placeholder="Apellidos y nombres"
+                    onKeyDown={alEnter}
                     className="min-w-0"
                     value={nombre}
                     onChange={(e) => {
@@ -107,7 +117,9 @@ function AuxiliarNuevo({ onAgregado, onAviso }) {
                     requerido
                     sufijo="@est.umss.edu"
                     placeholder="Código SIS"
-                    inputMode="numeric"
+                    formato="digitos"
+                    maxLength={10}
+                    onKeyDown={alEnter}
                     className="min-w-0"
                     value={codigo}
                     onChange={(e) => {

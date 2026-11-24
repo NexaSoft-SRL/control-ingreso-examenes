@@ -410,7 +410,15 @@ export function ListaDelExamen({ examenId, onCifras }) {
                         })}
                     </ul>
                 ) : (
-                    <p className="py-4 text-center text-sm text-slate-600">Sin aulas</p>
+                    <div className="space-y-2 py-4 text-center">
+                        <p className="text-sm text-slate-600">Sin aulas</p>
+                        <Link
+                            to={`/examenes/nuevo?examen=${examenId}&paso=2`}
+                            className={`inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-primary-700 hover:bg-primary-50 ${FOCO}`}
+                        >
+                            Elegir aulas
+                        </Link>
+                    </div>
                 )}
             </Tarjeta>
 
@@ -487,7 +495,7 @@ export function ListaDelExamen({ examenId, onCifras }) {
                             {resumenSeleccion}
                         </div>
                         <AreaTexto
-                            etiqueta="Motivo para inhabilitar"
+                            etiqueta="Motivo para inhabilitar · no hace falta al habilitar"
                             rows={2}
                             maxLength={MOTIVO_MAXIMO}
                             value={motivo}
@@ -523,9 +531,19 @@ export function ListaDelExamen({ examenId, onCifras }) {
                 )}
 
                 {filas.length === 0 ? (
-                    <p className="border-t border-slate-200 py-10 text-center text-sm text-slate-600">
-                        {(cifras.inscritos ?? 0) === 0 ? 'Sin estudiantes' : 'Sin resultados'}
-                    </p>
+                    <div className="space-y-2 border-t border-slate-200 py-10 text-center">
+                        <p className="text-sm text-slate-600">
+                            {(cifras.inscritos ?? 0) === 0 ? 'Sin estudiantes' : 'Sin resultados'}
+                        </p>
+                        {(cifras.inscritos ?? 0) === 0 && (
+                            <Link
+                                to="/mis-grupos"
+                                className={`inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-primary-700 hover:bg-primary-50 ${FOCO}`}
+                            >
+                                Cargar las listas
+                            </Link>
+                        )}
+                    </div>
                 ) : (
                     <>
                         <div className="border-t border-slate-200 md:hidden">
@@ -695,7 +713,7 @@ export function ListaDelExamen({ examenId, onCifras }) {
             )}
             {porConfirmar !== null && (
                 <Dialogo
-                    titulo={porConfirmar ? 'Habilitar' : 'Inhabilitar'}
+                    titulo={porConfirmar ? 'Habilitar estudiantes' : 'Inhabilitar estudiantes'}
                     onCerrar={() => setPorConfirmar(null)}
                     acciones={
                         <>

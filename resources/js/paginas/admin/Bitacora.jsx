@@ -55,7 +55,7 @@ export default function Bitacora() {
     return (
         <div className="space-y-6">
             <Encabezado titulo="Bitácora">
-                <Insignia tono="neutro">Solo lectura</Insignia>
+                <Insignia tono="neutro">No se edita</Insignia>
             </Encabezado>
 
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-[minmax(0,1.4fr)_9.5rem_minmax(0,1fr)_10rem_10rem]">

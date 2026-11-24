@@ -10,6 +10,16 @@ import { AreaTexto } from '../../componentes/Seleccion';
 
 const MOTIVO_MINIMO = 5;
 const MOTIVO_MAXIMO = 1000;
+const CODIGO = /^\d{5,10}$/;
+// De la planilla solo valen los dígitos y lo que separa un código de otro.
+const SOLO_CODIGOS = /[^\d\s,;]/g;
+
+// Los códigos escritos o pegados, separados por salto de línea, espacio, coma
+// o punto y coma: cuántos sirven y cuáles no tienen la forma de un código SIS.
+function leerCodigos(texto) {
+    const todos = texto.split(/[\s,;]+/).filter(Boolean);
+    return { total: todos.length, invalidos: todos.filter((c) => !CODIGO.test(c)) };
+}
 
 // Habilita o inhabilita a quienes estan en una lista de códigos SIS pegada
 // desde una planilla armada afuera. Los códigos que no son del examen se
@@ -24,6 +34,8 @@ export default function PorListaDeCodigos({ examenId, alCambiar }) {
     const [resultado, setResultado] = useState(null);
     const [enviando, setEnviando] = useState(false);
     const [aviso, avisar] = useAviso();
+    const leidos = leerCodigos(codigos);
+    const verbo = habilitado ? 'Habilitar' : 'Inhabilitar';
 
     const cerrar = () => {
         setAbierto(false);
@@ -85,8 +97,9 @@ export default function PorListaDeCodigos({ examenId, alCambiar }) {
                                     variante={habilitado ? 'primario' : 'peligro'}
                                     onClick={aplicar}
                                     cargando={enviando}
+                                    disabled={leidos.total === 0}
                                 >
-                                    Aplicar
+                                    {leidos.total > 0 ? `${verbo} ${leidos.total}` : 'Aplicar'}
                                 </Boton>
                             </>
                         )
@@ -166,21 +179,38 @@ export default function PorListaDeCodigos({ examenId, alCambiar }) {
                                     Habilitar
                                 </Boton>
                             </div>
-                            <AreaTexto
-                                etiqueta="Códigos SIS"
-                                rows={6}
-                                placeholder={'202100417\n202101256'}
-                                value={codigos}
-                                error={errores.codigos}
-                                onChange={(e) => {
-                                    setCodigos(e.target.value);
-                                    setErrores({});
-                                }}
-                            />
+                            <div>
+                                <AreaTexto
+                                    etiqueta="Códigos SIS"
+                                    rows={6}
+                                    inputMode="numeric"
+                                    autoFocus
+                                    placeholder={'202100417\n202101256'}
+                                    value={codigos}
+                                    error={errores.codigos}
+                                    onChange={(e) => {
+                                        setCodigos(e.target.value.replace(SOLO_CODIGOS, ''));
+                                        setErrores({});
+                                    }}
+                                />
+                                <p
+                                    aria-live="polite"
+                                    className={`mt-1 text-xs ${leidos.invalidos.length > 0 ? 'text-warning-700' : 'text-slate-600'}`}
+                                >
+                                    {leidos.total === 0
+                                        ? 'Pegue los códigos de la planilla'
+                                        : `${leidos.total} ${leidos.total === 1 ? 'código' : 'códigos'}${
+                                              leidos.invalidos.length > 0
+                                                  ? ` · ${leidos.invalidos.length} no ${leidos.invalidos.length === 1 ? 'tiene' : 'tienen'} de 5 a 10 dígitos`
+                                                  : ''
+                                          }`}
+                                </p>
+                            </div>
                             {!habilitado && (
                                 <AreaTexto
                                     etiqueta="Motivo"
                                     rows={2}
+                                    placeholder="Por qué no rinde"
                                     maxLength={MOTIVO_MAXIMO}
                                     value={motivo}
                                     error={errores.motivo}

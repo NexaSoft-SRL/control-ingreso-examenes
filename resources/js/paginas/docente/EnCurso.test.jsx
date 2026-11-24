@@ -710,12 +710,11 @@ describe('EnCurso', () => {
 
         const dialogo = await screen.findByRole('dialog', { name: 'Suspender examen' });
 
-        fireEvent.change(within(dialogo).getByPlaceholderText(/Ej. Fuga de examen/i), {
+        fireEvent.change(within(dialogo).getByLabelText(/Motivo/), {
             target: { value: '  Fuga de examen  ' },
         });
 
-        // CORRECCIÓN: Usamos getAllByRole('textbox')[1] para el textarea
-        const descripcionInput = within(dialogo).getAllByRole('textbox')[1];
+        const descripcionInput = within(dialogo).getByLabelText('Detalle');
         fireEvent.change(descripcionInput, {
             target: { value: 'Encontrados con apuntes.' },
         });
@@ -730,6 +729,20 @@ describe('EnCurso', () => {
         });
     });
 
+    it('el diálogo de suspensión respeta los límites del servidor y dice qué pasa', async () => {
+        montar();
+        await cargado();
+
+        fireEvent.click(screen.getByRole('button', { name: /Suspender examen/i }));
+        const dialogo = await screen.findByRole('dialog', { name: 'Suspender examen' });
+
+        expect(within(dialogo).getByLabelText(/Motivo/)).toHaveAttribute('maxlength', '100');
+        expect(within(dialogo).getByLabelText('Detalle')).toHaveAttribute('maxlength', '1000');
+        expect(
+            within(dialogo).getByText('La puerta deja de admitir ingresos hasta reanudar')
+        ).toBeInTheDocument();
+    });
+
     it('deshabilita el botón de suspender si el motivo está vacío o solo tiene espacios', async () => {
         montar();
         await cargado();
@@ -741,7 +754,7 @@ describe('EnCurso', () => {
 
         expect(botonSuspender).toBeDisabled();
 
-        fireEvent.change(within(dialogo).getByPlaceholderText(/Ej. Fuga de examen/i), {
+        fireEvent.change(within(dialogo).getByLabelText(/Motivo/), {
             target: { value: '   ' },
         });
 
@@ -749,7 +762,7 @@ describe('EnCurso', () => {
             expect(botonSuspender).toBeDisabled();
         });
 
-        fireEvent.change(within(dialogo).getByPlaceholderText(/Ej. Fuga de examen/i), {
+        fireEvent.change(within(dialogo).getByLabelText(/Motivo/), {
             target: { value: 'Problema técnico' },
         });
 

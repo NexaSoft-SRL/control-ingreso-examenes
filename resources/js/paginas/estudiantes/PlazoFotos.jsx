@@ -47,13 +47,18 @@ export default function PlazoFotos({ plazo, onCerrar, onGuardado, avisar }) {
                     <Boton variante="secundario" onClick={onCerrar}>
                         Cancelar
                     </Boton>
-                    <Boton onClick={guardar} cargando={enviando}>
-                        Guardar
+                    <Boton type="submit" form="formulario-plazo" cargando={enviando}>
+                        Guardar plazo
                     </Boton>
                 </>
             }
         >
-            <form className="grid grid-cols-2 gap-3" onSubmit={guardar} noValidate>
+            <form
+                id="formulario-plazo"
+                className="grid grid-cols-2 gap-3"
+                onSubmit={guardar}
+                noValidate
+            >
                 <Campo
                     etiqueta="Desde"
                     requerido

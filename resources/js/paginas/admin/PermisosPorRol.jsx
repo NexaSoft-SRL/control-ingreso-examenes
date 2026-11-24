@@ -99,7 +99,7 @@ function FormularioRol({ rol = null, permisos, onGuardado, onCerrar }) {
                         Cancelar
                     </Boton>
                     <Boton type="submit" form="formulario-rol" cargando={enviando}>
-                        {nuevo ? 'Crear' : 'Guardar'}
+                        {nuevo ? 'Crear rol' : 'Guardar cambios'}
                     </Boton>
                 </>
             }
@@ -109,6 +109,7 @@ function FormularioRol({ rol = null, permisos, onGuardado, onCerrar }) {
                     etiqueta="Nombre"
                     requerido
                     maxLength={40}
+                    placeholder="Nombre del rol"
                     value={nombre}
                     error={errores.nombre ?? (enviado ? (errorNombre ?? undefined) : undefined)}
                     validar={() => errorNombre}

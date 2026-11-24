@@ -10,6 +10,19 @@ import Tarjeta from '../../componentes/Tarjeta';
 
 const PREDETERMINADAS = { asistencia_minima: 70, incidencias_minimas: 5 };
 
+// Los rangos que acepta el servidor.
+const LIMITES = {
+    asistencia_minima: [0, 100],
+    incidencias_minimas: [1, 999],
+};
+const errorDe = (clave, valor) => {
+    const [minimo, maximo] = LIMITES[clave];
+    const numero = Number(valor);
+    return /^\d+$/.test(String(valor)) && numero >= minimo && numero <= maximo
+        ? null
+        : `Entre ${minimo} y ${maximo}`;
+};
+
 export default function AlertasReportes() {
     const consulta = usarConsulta('/reportes/alertas');
     const [avisos, avisar] = useAviso();
@@ -28,8 +41,15 @@ export default function AlertasReportes() {
         ponerPreferencias((actuales) => ({ ...actuales, [clave]: valor }));
     }
 
+    const errores = {
+        asistencia_minima: errorDe('asistencia_minima', preferencias.asistencia_minima),
+        incidencias_minimas: errorDe('incidencias_minimas', preferencias.incidencias_minimas),
+    };
+    const invalido = Boolean(errores.asistencia_minima || errores.incidencias_minimas);
+
     async function guardar(evento) {
         evento.preventDefault();
+        if (invalido || guardando) return;
         ponerGuardando(true);
 
         try {
@@ -60,27 +80,27 @@ export default function AlertasReportes() {
                 <form onSubmit={guardar} className="grid gap-4 sm:grid-cols-3 sm:items-end">
                     <Campo
                         etiqueta="Asistencia mínima (%)"
-                        type="number"
-                        min="0"
-                        max="100"
-                        required
-                        value={preferencias.asistencia_minima}
+                        formato="digitos"
+                        maxLength={3}
+                        requerido
+                        value={String(preferencias.asistencia_minima)}
+                        error={errores.asistencia_minima ?? undefined}
                         onChange={(evento) =>
                             cambiarPreferencia('asistencia_minima', evento.target.value)
                         }
                     />
                     <Campo
                         etiqueta="Incidencias para alertar"
-                        type="number"
-                        min="1"
-                        max="999"
-                        required
-                        value={preferencias.incidencias_minimas}
+                        formato="digitos"
+                        maxLength={3}
+                        requerido
+                        value={String(preferencias.incidencias_minimas)}
+                        error={errores.incidencias_minimas ?? undefined}
                         onChange={(evento) =>
                             cambiarPreferencia('incidencias_minimas', evento.target.value)
                         }
                     />
-                    <Boton type="submit" cargando={guardando}>
+                    <Boton type="submit" cargando={guardando} disabled={invalido}>
                         Guardar umbrales
                     </Boton>
                 </form>

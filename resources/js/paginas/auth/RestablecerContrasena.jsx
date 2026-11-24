@@ -100,18 +100,29 @@ export default function RestablecerContrasena() {
                                 className="w-full"
                                 disabled={!(cumple && coincide) || enviando}
                             >
-                                Guardar
+                                Guardar contraseña
                             </Boton>
                         </form>
                     )}
                 </div>
 
-                <Link
-                    to="/login"
-                    className={`mt-4 flex min-h-11 w-full items-center justify-center rounded-lg text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
-                >
-                    Iniciar sesión
-                </Link>
+                {invalido ? (
+                    // El enlace ya no sirve: se lleva a pedir otro, con el cuadro abierto.
+                    <Link
+                        to="/login"
+                        state={{ recuperar: true }}
+                        className="mt-4 flex min-h-11 w-full items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+                    >
+                        Pedir otro enlace
+                    </Link>
+                ) : (
+                    <Link
+                        to="/login"
+                        className={`mt-4 flex min-h-11 w-full items-center justify-center rounded-lg text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
+                    >
+                        Iniciar sesión
+                    </Link>
+                )}
             </div>
         </FondoAcceso>
     );

@@ -169,7 +169,7 @@ export default function Conflictos({ onCambio, avisar }) {
                                         cargando={enviando === c.id}
                                         onClick={() => resolver(c, 'USAR_CARGA')}
                                     >
-                                        Reemplazar
+                                        Sí, reemplazar
                                     </Boton>
                                 </>
                             ) : (

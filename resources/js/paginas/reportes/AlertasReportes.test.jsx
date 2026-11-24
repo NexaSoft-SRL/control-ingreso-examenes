@@ -43,10 +43,10 @@ describe('Alertas de reportes', () => {
         expect(await screen.findByText(/Cálculo I: asistencia de 25%/)).toBeInTheDocument();
         expect(screen.getByText('Correo: no enviado')).toBeInTheDocument();
 
-        fireEvent.change(screen.getByLabelText('Asistencia mínima (%)'), {
+        fireEvent.change(screen.getByLabelText(/^Asistencia mínima/), {
             target: { value: '75' },
         });
-        fireEvent.change(screen.getByLabelText('Incidencias para alertar'), {
+        fireEvent.change(screen.getByLabelText(/^Incidencias para alertar/), {
             target: { value: '4' },
         });
         fireEvent.click(screen.getByRole('button', { name: 'Guardar umbrales' }));
@@ -62,5 +62,30 @@ describe('Alertas de reportes', () => {
             expect(api.post).toHaveBeenCalledWith('/reportes/alertas/8/leida');
             expect(screen.queryByRole('button', { name: 'Marcar leída' })).not.toBeInTheDocument();
         });
+    });
+
+    it('los umbrales solo admiten números dentro del rango y no se guardan si no lo están', async () => {
+        render(<AlertasReportes />);
+        await screen.findByText(/Cálculo I: asistencia de 25%/);
+
+        const asistencia = screen.getByLabelText(/^Asistencia mínima/);
+        const incidencias = screen.getByLabelText(/^Incidencias para alertar/);
+        const guardar = screen.getByRole('button', { name: 'Guardar umbrales' });
+
+        fireEvent.change(asistencia, { target: { value: '8a5' } });
+        expect(asistencia).toHaveValue('85');
+
+        fireEvent.change(asistencia, { target: { value: '120' } });
+        expect(screen.getByText('Entre 0 y 100')).toBeInTheDocument();
+        expect(guardar).toBeDisabled();
+
+        fireEvent.change(asistencia, { target: { value: '80' } });
+        fireEvent.change(incidencias, { target: { value: '0' } });
+        expect(screen.getByText('Entre 1 y 999')).toBeInTheDocument();
+        expect(guardar).toBeDisabled();
+        expect(api.put).not.toHaveBeenCalled();
+
+        fireEvent.change(incidencias, { target: { value: '3' } });
+        expect(guardar).toBeEnabled();
     });
 });

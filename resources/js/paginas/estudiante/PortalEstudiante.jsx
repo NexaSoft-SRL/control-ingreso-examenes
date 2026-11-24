@@ -133,7 +133,7 @@ function MisExamenes({ codigo }) {
             cargando={consulta.cargando}
             error={consulta.error}
             vacio={examenes.length === 0}
-            textoVacio="Sin exámenes"
+            textoVacio="Sin exámenes · aparecen cuando su docente los registra"
             onReintentar={consulta.recargar}
             className="rounded-xl border border-slate-200 bg-white"
         >
@@ -334,11 +334,18 @@ function MiFoto({ sesion, alGuardar }) {
                                 ref={guardarRef}
                                 type="button"
                                 className="w-full"
+                                disabled={!archivo}
                                 onClick={guardar}
                             >
                                 Guardar foto
                             </Boton>
-                            <p className="text-xs text-slate-500">Una sola vez</p>
+                            <p className="text-xs text-slate-500">
+                                {archivo
+                                    ? estudiante.con_foto
+                                        ? 'Reemplaza la actual'
+                                        : 'Una sola vez'
+                                    : 'Primero elija o tome la foto'}
+                            </p>
                         </>
                     )}
                 </div>

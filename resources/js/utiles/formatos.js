@@ -7,7 +7,7 @@
 const LETRAS = /[^\p{L}\s.'-]/gu;
 const DIGITOS = /\D/g;
 const DOCUMENTO = /[^0-9A-Za-z\s-]/g;
-const USUARIO = /[^\p{L}\p{N}\s]/gu;
+const USUARIO = /[^\p{L}\p{N}\s._-]/gu;
 const ESPACIOS = /\s{2,}/g;
 
 export const FORMATOS = {
@@ -29,7 +29,8 @@ export const FORMATOS = {
         aviso: 'Solo número y complemento',
         propiedades: { autoComplete: 'off', autoCapitalize: 'characters', spellCheck: false },
     },
-    // Usuario del sistema: letras y números separados por un espacio.
+    // Usuario del sistema: letras y números separados por un espacio, punto,
+    // guion o guion bajo (la misma regla del servidor, NombreDeUsuario).
     usuario: {
         limpiar: (v) => v.replace(USUARIO, '').replace(ESPACIOS, ' '),
         aviso: 'Solo letras y números',

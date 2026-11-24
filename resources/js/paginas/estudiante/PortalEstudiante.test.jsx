@@ -61,6 +61,26 @@ function montar(ruta = '/estudiante', rutas = {}) {
 }
 
 describe('PortalEstudiante', () => {
+    it('sin exámenes dice cuándo aparecen', async () => {
+        montar('/estudiante', { 'GET /estudiante/examenes': { data: [], hoy: '2026-10-22' } });
+
+        expect(
+            await screen.findByText('Sin exámenes · aparecen cuando su docente los registra')
+        ).toBeInTheDocument();
+    });
+
+    it('el carnet solo admite número y complemento', async () => {
+        const sin = { estudiante: { ...ESTUDIANTE, con_carnet: false }, plazo_foto: PLAZO };
+        montar('/estudiante/foto', { 'GET /estudiante/sesion': sin });
+        await screen.findByRole('button', { name: 'Guardar carnet' });
+
+        fireEvent.change(screen.getByLabelText(/^Carnet/), { target: { value: '5003 748-1A#!' } });
+
+        expect(screen.getByLabelText(/^Carnet/)).toHaveValue('5003 748-1A');
+        expect(screen.getByLabelText(/^Carnet/)).toHaveAttribute('maxlength', '30');
+        expect(screen.getByLabelText(/^Carnet/)).toHaveAttribute('aria-required', 'true');
+    });
+
     it('sin sesión vuelve al acceso', async () => {
         montar('/estudiante', { 'GET /estudiante/sesion': errorHttp(401) });
         expect(await screen.findByText('Estoy en /estudiante/ingreso')).toBeInTheDocument();

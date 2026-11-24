@@ -25,9 +25,10 @@ const validarCodigo = (valor) =>
 // Los mismos formatos que exige el servidor (DatosDeInscrito).
 const DOCUMENTO = /^\d{4,10}([\s-][0-9A-Za-z]{1,3}){0,2}$/;
 
-function errorDe(campo, valor) {
+// `opcional`: el C.I. puede faltar al agregar; lo escribe después el estudiante.
+function errorDe(campo, valor, opcional = false) {
     const texto = String(valor).trim();
-    if (!texto) return 'Obligatorio';
+    if (!texto) return opcional && campo === 'documento' ? null : 'Obligatorio';
     if (campo === 'codigo') return validarCodigo(texto);
     if (campo === 'documento' && !DOCUMENTO.test(texto))
         return 'Número de 4 a 10 dígitos; con complemento: 5003748-1A';
@@ -57,7 +58,7 @@ export function AgregarEstudiante({ grupo, onAgregado, onCerrar }) {
 
     async function guardar(evento) {
         evento.preventDefault();
-        const nuevos = Object.fromEntries(CAMPOS.map((c) => [c, errorDe(c, datos[c])]));
+        const nuevos = Object.fromEntries(CAMPOS.map((c) => [c, errorDe(c, datos[c], true)]));
         setErrores(nuevos);
         if (Object.values(nuevos).some(Boolean)) return;
 
@@ -109,8 +110,7 @@ export function AgregarEstudiante({ grupo, onAgregado, onCerrar }) {
                 <Campo
                     etiqueta="Código SIS"
                     requerido
-                    inputMode="numeric"
-                    autoComplete="off"
+                    formato="digitos"
                     maxLength={MAXIMOS.codigo}
                     value={datos.codigo}
                     onChange={cambiar('codigo')}
@@ -120,18 +120,17 @@ export function AgregarEstudiante({ grupo, onAgregado, onCerrar }) {
                 />
                 <Campo
                     etiqueta="C.I."
-                    requerido
-                    autoComplete="off"
+                    formato="documento"
                     maxLength={MAXIMOS.documento}
                     value={datos.documento}
                     onChange={cambiar('documento')}
-                    ayuda="Complemento con guion: 5003748-1A"
+                    ayuda="Opcional · complemento con guion: 5003748-1A"
                     error={errores.documento ?? undefined}
                 />
                 <Campo
                     etiqueta="Apellidos"
                     requerido
-                    autoComplete="off"
+                    formato="letras"
                     maxLength={MAXIMOS.apellidos}
                     value={datos.apellidos}
                     onChange={cambiar('apellidos')}
@@ -140,7 +139,7 @@ export function AgregarEstudiante({ grupo, onAgregado, onCerrar }) {
                 <Campo
                     etiqueta="Nombres"
                     requerido
-                    autoComplete="off"
+                    formato="letras"
                     maxLength={MAXIMOS.nombres}
                     value={datos.nombres}
                     onChange={cambiar('nombres')}
@@ -242,7 +241,7 @@ export function EditarEstudiante({ estudiante, ruta, onEditado, onCerrar }) {
                 <Campo
                     etiqueta="C.I."
                     requerido
-                    autoComplete="off"
+                    formato="documento"
                     maxLength={MAXIMOS.documento}
                     value={datos.documento}
                     onChange={cambiar('documento')}
@@ -253,7 +252,7 @@ export function EditarEstudiante({ estudiante, ruta, onEditado, onCerrar }) {
                 <Campo
                     etiqueta="Apellidos"
                     requerido
-                    autoComplete="off"
+                    formato="letras"
                     maxLength={MAXIMOS.apellidos}
                     value={datos.apellidos}
                     onChange={cambiar('apellidos')}
@@ -262,7 +261,7 @@ export function EditarEstudiante({ estudiante, ruta, onEditado, onCerrar }) {
                 <Campo
                     etiqueta="Nombres"
                     requerido
-                    autoComplete="off"
+                    formato="letras"
                     maxLength={MAXIMOS.nombres}
                     value={datos.nombres}
                     onChange={cambiar('nombres')}
@@ -363,7 +362,8 @@ export function QuitarInscrito({ grupoId, estudiante, onQuitado, onCerrar }) {
         >
             <p className="break-words text-sm font-medium text-slate-800">{estudiante.nombre}</p>
             <p className="mb-4 text-xs text-slate-600">
-                <span className="font-mono">{estudiante.codigo}</span> · C.I. {estudiante.documento}
+                <span className="font-mono">{estudiante.codigo}</span> ·{' '}
+                {estudiante.documento ? `C.I. ${estudiante.documento}` : 'Sin C.I.'}
             </p>
             <span className="mb-1.5 block text-sm font-medium text-slate-700">Motivo</span>
             <Chips etiqueta="Motivo" opciones={MOTIVOS} valor={motivo} onCambiar={elegir} />

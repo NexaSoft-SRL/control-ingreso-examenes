@@ -1006,7 +1006,8 @@ function Asistente({
                             requerido
                             disabled={bloqueado}
                             sufijo="min"
-                            inputMode="numeric"
+                            formato="digitos"
+                            maxLength={3}
                             className="min-w-0"
                             value={duracion}
                             onChange={(e) => {
@@ -1047,7 +1048,7 @@ function Asistente({
                     </div>
                     <div className="mt-5 flex justify-end">
                         <Boton type="button" onClick={continuarExamen}>
-                            Continuar <ArrowRight className="h-4 w-4" />
+                            Continuar: Grupos <ArrowRight className="h-4 w-4" />
                         </Boton>
                     </div>
                 </Tarjeta>
@@ -1182,16 +1183,19 @@ function Asistente({
                             {errorDe('grupos')}
                         </p>
                     )}
-                    <div className="mt-5 flex justify-between gap-2">
+                    <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
                         <Boton type="button" variante="secundario" onClick={() => setPaso(0)}>
                             Atrás
                         </Boton>
+                        {!cargandoGrupos && elegidosIds.length === 0 && (
+                            <p className="text-sm text-slate-600">Elija al menos un grupo</p>
+                        )}
                         <Boton
                             type="button"
                             disabled={cargandoGrupos || elegidosIds.length === 0}
                             onClick={() => setPaso(2)}
                         >
-                            Continuar <ArrowRight className="h-4 w-4" />
+                            Continuar: Aulas <ArrowRight className="h-4 w-4" />
                         </Boton>
                     </div>
                 </Tarjeta>
@@ -1352,7 +1356,7 @@ function Asistente({
                                 {errorDe('aulas')}
                             </p>
                         )}
-                        <div className="mt-5 flex justify-between gap-2">
+                        <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
                             <Boton type="button" variante="secundario" onClick={() => setPaso(1)}>
                                 Atrás
                             </Boton>
@@ -1361,7 +1365,7 @@ function Asistente({
                                 disabled={elegidosIds.length === 0}
                                 onClick={() => setPaso(3)}
                             >
-                                Continuar <ArrowRight className="h-4 w-4" />
+                                Continuar: Quién atiende <ArrowRight className="h-4 w-4" />
                             </Boton>
                         </div>
                     </Tarjeta>

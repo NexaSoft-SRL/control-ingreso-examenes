@@ -287,10 +287,10 @@ function Puesto({ resumen, aulas, hoy, elegirAula }) {
         <form className="flex w-full items-start gap-2" noValidate onSubmit={verificarManual}>
             <Campo
                 etiqueta="Código SIS o C.I."
-                placeholder="Código SIS o C.I."
+                placeholder="Ej.: 202104821"
                 className="min-w-0 flex-1"
-                autoCapitalize="characters"
-                autoComplete="off"
+                formato="documento"
+                maxLength={14}
                 enterKeyHint="search"
                 autoFocus={cerrable}
                 value={manual}

@@ -447,6 +447,18 @@ describe('Usuarios y roles · cuentas', () => {
         );
     });
 
+    it('el nombre solo deja escribir letras y el botón dice qué crea', async () => {
+        await montar();
+        const dialogo = abrirNuevoUsuario();
+
+        const nombre = within(dialogo).getByLabelText(/^Nombre/);
+        fireEvent.change(nombre, { target: { value: 'Ana2 Quispe#' } });
+
+        expect(nombre).toHaveValue('Ana Quispe');
+        expect(within(dialogo).getByText('Solo letras')).toBeInTheDocument();
+        expect(within(dialogo).getByRole('button', { name: 'Crear usuario' })).toBeInTheDocument();
+    });
+
     it('«Nuevo usuario» crea la cuenta, la deja primera y entrega la temporal una sola vez (criterio 5)', async () => {
         const writeText = vi.fn(() => Promise.resolve());
         Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
@@ -462,7 +474,7 @@ describe('Usuarios y roles · cuentas', () => {
         escribir(dialogo, 'Nombre', '  Quispe Ana  ');
         escribir(dialogo, 'Usuario', 'Ana.Quispe');
         escribir(dialogo, 'Rol', 'Auxiliar');
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Crear' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: /^Crear (usuario|rol)$/ }));
 
         const resultado = await screen.findByRole('dialog', { name: 'Usuario creado' });
         expect(api.post).toHaveBeenCalledWith('/usuarios', {
@@ -497,7 +509,7 @@ describe('Usuarios y roles · cuentas', () => {
         escribir(dialogo, 'Nombre', 'Quispe Ana');
         escribir(dialogo, 'Usuario', 'ana.quispe');
         escribir(dialogo, 'Correo', 'Ana.Quispe@umss.edu.bo');
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Crear' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: /^Crear (usuario|rol)$/ }));
 
         const resultado = await screen.findByRole('dialog', { name: 'Usuario creado' });
         expect(api.post.mock.calls[0][1].correo).toBe('ana.quispe@umss.edu.bo');
@@ -509,13 +521,15 @@ describe('Usuarios y roles · cuentas', () => {
     it('no guarda y señala cada campo: vacío, corto, caracteres, correo y «Ya existe» (criterio 6)', async () => {
         await montar();
         const dialogo = abrirNuevoUsuario();
-        const crear = within(dialogo).getByRole('button', { name: 'Crear' });
+        const crear = within(dialogo).getByRole('button', { name: /^Crear (usuario|rol)$/ });
 
         fireEvent.click(crear);
         expect(within(dialogo).getAllByText('Obligatorio')).toHaveLength(2);
 
         escribir(dialogo, 'Nombre', 'An');
         escribir(dialogo, 'Usuario', 'ana/quispe');
+        expect(within(dialogo).getByLabelText(/^Usuario/)).toHaveValue('anaquispe');
+        escribir(dialogo, 'Usuario', 'ana.');
         escribir(dialogo, 'Correo', 'ana@umss');
         fireEvent.click(crear);
         expect(within(dialogo).getByText('Mínimo 3 letras')).toBeInTheDocument();
@@ -554,14 +568,14 @@ describe('Usuarios y roles · cuentas', () => {
         expect(within(dialogo).getByLabelText(/^Correo/)).toHaveValue('');
 
         escribir(dialogo, 'Usuario', 'victor.montano');
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar cambios' }));
         expect(await within(dialogo).findByText('Ya existe')).toBeInTheDocument();
 
         escribir(dialogo, 'Nombre', 'Mamani Torrez Diego Luis');
         escribir(dialogo, 'Usuario', 'diego.mamani2');
         escribir(dialogo, 'Correo', 'diego.mamani@umss.edu.bo');
         escribir(dialogo, 'Rol', 'Coordinador');
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar cambios' }));
 
         expect(await screen.findByText('Cambios guardados')).toBeInTheDocument();
         expect(api.put).toHaveBeenLastCalledWith('/usuarios/40', {
@@ -583,7 +597,7 @@ describe('Usuarios y roles · cuentas', () => {
         fireEvent.click(within(dialogo).getByRole('button', { name: 'Bloquear' }));
         expect(within(dialogo).getByText('Bloqueado')).toBeInTheDocument();
         expect(api.put).not.toHaveBeenCalled();
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar cambios' }));
 
         expect(await screen.findByText('Cuenta bloqueada')).toBeInTheDocument();
         expect(api.put).toHaveBeenLastCalledWith(
@@ -597,7 +611,7 @@ describe('Usuarios y roles · cuentas', () => {
 
         dialogo = await abrirEdicion('Blanco Coca Leticia');
         fireEvent.click(within(dialogo).getByRole('button', { name: 'Desbloquear' }));
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar cambios' }));
         expect(await screen.findByText('Cuenta desbloqueada')).toBeInTheDocument();
         expect(api.put).toHaveBeenLastCalledWith(
             '/usuarios/30',
@@ -765,7 +779,7 @@ describe('Usuarios y roles · permisos por rol', () => {
     it('«Nuevo rol» señala el nombre vacío, el repetido y la falta de permisos (criterio 11)', async () => {
         await montar();
         const dialogo = abrirNuevoRol();
-        const crear = within(dialogo).getByRole('button', { name: 'Crear' });
+        const crear = within(dialogo).getByRole('button', { name: /^Crear (usuario|rol)$/ });
         expect(within(dialogo).getAllByRole('checkbox')).toHaveLength(14);
 
         fireEvent.click(crear);
@@ -791,7 +805,7 @@ describe('Usuarios y roles · permisos por rol', () => {
         escribir(dialogo, 'Nombre', ' Supervisor ');
         fireEvent.click(within(dialogo).getByLabelText('Seguimiento en vivo'));
         fireEvent.click(within(dialogo).getByLabelText('Período y oferta académica'));
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Crear' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: /^Crear (usuario|rol)$/ }));
 
         expect(await screen.findByText('Rol creado')).toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith('/roles', {
@@ -900,13 +914,13 @@ describe('Usuarios y roles · permisos por rol', () => {
         expect(within(dialogo).getByLabelText('Aulas y docentes')).toBeChecked();
 
         escribir(dialogo, 'Nombre', 'Auxiliar');
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar cambios' }));
         expect(await within(dialogo).findByText('Ya existe')).toBeInTheDocument();
 
         escribir(dialogo, 'Nombre', 'Coordinación');
         fireEvent.click(within(dialogo).getByLabelText('Aulas y docentes'));
         fireEvent.click(within(dialogo).getByLabelText('Bitácora'));
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar cambios' }));
 
         expect(await screen.findByText('Cambios guardados')).toBeInTheDocument();
         expect(api.put).toHaveBeenLastCalledWith('/roles/4', {

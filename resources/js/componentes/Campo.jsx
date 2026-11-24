@@ -37,6 +37,17 @@ export default function Campo({
     const [descartado, setDescartado] = useState(false);
     const reloj = useRef(null);
     useEffect(() => () => clearTimeout(reloj.current), []);
+    // Si React reutiliza este campo para otro (otro formulario que alterna en
+    // la misma posición), no hereda el «tocado» del anterior: nacería
+    // diciendo «Obligatorio». Solo con etiquetas de texto, que son estables.
+    const etiquetaDeTexto = typeof etiqueta === 'string' ? etiqueta : null;
+    const anterior = useRef(etiquetaDeTexto);
+    useEffect(() => {
+        if (anterior.current !== etiquetaDeTexto) {
+            anterior.current = etiquetaDeTexto;
+            setTocado(false);
+        }
+    }, [etiquetaDeTexto]);
 
     const actual = props.value ?? valor;
     const vacio = requerido && String(actual).trim() === '';
