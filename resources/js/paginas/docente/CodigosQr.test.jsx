@@ -455,6 +455,20 @@ describe('Códigos QR', () => {
         await waitFor(() => expect(envios()).toEqual([{ envio: 'fallido' }]));
     });
 
+    it('con correos que no llegaron invita a verlos y filtra los fallidos', async () => {
+        montar();
+        await cargada();
+        expect(screen.getByText(/1 correo no llegó/)).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Ver' }));
+
+        await waitFor(() =>
+            expect(consultas().at(-1)).toEqual({ envio: 'fallido', pagina: 1, por_pagina: 25 })
+        );
+        // Ya filtrado, el aviso sobra.
+        await waitFor(() => expect(screen.queryByText(/1 correo no llegó/)).toBeNull());
+    });
+
     it('envía el aviso con las recomendaciones y muestra el resultado', async () => {
         montar();
         await cargada();

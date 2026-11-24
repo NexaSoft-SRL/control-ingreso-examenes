@@ -6,6 +6,7 @@ namespace Tests\Feature\Modules\Administracion;
 
 use App\Modules\Administracion\Domain\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\Support\UsuarioConPermisos;
 use Tests\TestCase;
 
@@ -73,6 +74,7 @@ final class UsuariosListadoTest extends TestCase
                         'correo' => null,
                         'rol' => 'Auxiliar',
                         'estado' => 'bloqueado',
+                        'correo_no_llego' => false,
                     ],
                     [
                         'id' => User::where('usuario', 'leticia.blanco')->value('id'),
@@ -81,6 +83,7 @@ final class UsuariosListadoTest extends TestCase
                         'correo' => null,
                         'rol' => 'Docente',
                         'estado' => 'activo',
+                        'correo_no_llego' => false,
                     ],
                     [
                         'id' => $this->administrador->getKey(),
@@ -89,6 +92,7 @@ final class UsuariosListadoTest extends TestCase
                         'correo' => 'ana.rojas@umss.edu.bo',
                         'rol' => 'Administrador',
                         'estado' => 'activo',
+                        'correo_no_llego' => false,
                     ],
                 ],
                 'meta' => [
@@ -104,6 +108,34 @@ final class UsuariosListadoTest extends TestCase
                     ],
                 ],
             ]);
+    }
+
+    public function test_an_account_whose_last_access_mail_bounced_says_so(): void
+    {
+        $docente = $this->cuenta('Docente', [
+            'name' => 'Perez Juan',
+            'usuario' => 'perez juan',
+            'email' => '20012030@est.umss.edu',
+        ]);
+
+        foreach (['ENVIADO', 'FALLIDO'] as $estado) {
+            DB::table('envios_correo')->insert([
+                'tipo' => 'CREDENCIALES',
+                'destinatario' => '20012030@est.umss.edu',
+                'user_id' => $docente->getKey(),
+                'estado' => $estado,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($this->administrador)
+            ->getJson('/api/usuarios?buscar=perez')
+            ->assertOk()
+            ->assertJsonPath('data.0.correo_no_llego', true);
+        $this->actingAs($this->administrador)
+            ->getJson('/api/usuarios?buscar=rojas')
+            ->assertJsonPath('data.0.correo_no_llego', false);
     }
 
     public function test_the_search_ignores_case_and_accents_in_the_name(): void

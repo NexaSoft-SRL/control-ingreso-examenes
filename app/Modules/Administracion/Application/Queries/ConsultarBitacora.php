@@ -39,6 +39,7 @@ final readonly class ConsultarBitacora
         'respaldo.generar' => 'Generó el respaldo',
         'respaldo.fallar' => 'Falló el respaldo',
         'respaldo.restaurar' => 'Restauró el respaldo',
+        'correo.rebote' => 'Un correo no llegó',
         // Oferta, aulas y docentes.
         'periodo.ajustar' => 'Ajustó el período',
         'periodo.detectar' => 'Detectó los períodos',

@@ -367,6 +367,22 @@ export function CodigosDelExamen({ examen, selector, incrustado = false, onCambi
                         />
                     </div>
 
+                    {fallidos > 0 && envio !== 'fallido' && (
+                        <p role="status" className="text-sm text-danger-700">
+                            {fallidos === 1
+                                ? '1 correo no llegó'
+                                : `${fallidos} correos no llegaron`}{' '}
+                            ·{' '}
+                            <button
+                                type="button"
+                                className="min-h-11 font-semibold underline-offset-2 hover:underline sm:min-h-0"
+                                onClick={() => lista.ponerFiltro('envio', 'fallido')}
+                            >
+                                Ver
+                            </button>
+                        </p>
+                    )}
+
                     {resultadoAviso && (
                         <p role="status" className="text-sm text-slate-600">
                             Aviso · {fechaCorta(resultadoAviso.cuando)} ·{' '}
