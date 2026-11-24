@@ -494,6 +494,7 @@ function Asistente({
     pasoInicial,
     onExamen,
     anteriores = [],
+    sugerido = {},
 }) {
     const { usuario } = usarSesion();
     const yo = { id: usuario.id, nombre: usuario.nombre };
@@ -519,9 +520,12 @@ function Asistente({
     // Un examen nuevo empieza con fecha y hora cargadas: el campo vacío de
     // fecha u hora se ve en Safari como si tuviera la de hoy, y no la tiene.
     const [fecha, setFecha] = useState(
-        () => inicial?.fecha ?? fechaSugerida(periodoDe(asignaturas[0]?.id), tipo, hoy)
+        () =>
+            inicial?.fecha ??
+            sugerido.fecha ??
+            fechaSugerida(periodoDe(asignaturas[0]?.id), tipo, hoy)
     );
-    const [hora, setHora] = useState(inicial?.hora ?? HORA_SUGERIDA);
+    const [hora, setHora] = useState(inicial?.hora ?? sugerido.hora ?? HORA_SUGERIDA);
     const [duracion, setDuracion] = useState(String(inicial?.duracion ?? '90'));
     const [normas, setNormas] = useState(inicial?.normas ?? '');
     const [marcadas, setMarcadas] = useState(() =>
@@ -561,7 +565,10 @@ function Asistente({
     const copiadas = anteriores.find((e) => e.id === copiadasDe && copiadasDe !== null) ?? null;
     // `null`: todavía no se tocó; valen los grupos propios de la asignatura.
     const [grupos, setGrupos] = useState(() => inicial?.grupos_detalle?.map((g) => g.id) ?? null);
-    const [aulas, setAulas] = useState(() => inicial?.aulas_detalle?.map((a) => a.aula_id) ?? []);
+    const [aulas, setAulas] = useState(
+        () =>
+            inicial?.aulas_detalle?.map((a) => a.aula_id) ?? (sugerido.aula ? [sugerido.aula] : [])
+    );
     const [personal, setPersonal] = useState(() => personalDe(inicial, usuario.id));
     // Auxiliares sumados en esta visita: los buscados y los recién creados.
     const [sumados, setSumados] = useState([]);
@@ -1474,6 +1481,12 @@ function Asistente({
 }
 
 Asistente.propTypes = {
+    // Lo que trae la dirección desde el calendario de aulas: `?aula=&fecha=&hora=`.
+    sugerido: PropTypes.shape({
+        aula: PropTypes.number,
+        fecha: PropTypes.string,
+        hora: PropTypes.string,
+    }),
     asignaturas: PropTypes.arrayOf(
         PropTypes.shape({
             id: PropTypes.number.isRequired,
@@ -1512,6 +1525,19 @@ export default function RegistrarExamen() {
     const [parametros] = useSearchParams();
     const examenId = Number(parametros.get('examen')) || null;
     const pasoPedido = Math.min(Math.max(Number(parametros.get('paso')) || 0, 0), 3);
+    // Un examen nuevo puede abrirse con aula, fecha y hora (desde el calendario).
+    // La fecha solo vale si es de hoy en adelante y bien escrita.
+    const hoyDeHoy = new Date().toLocaleDateString('en-CA');
+    const fechaPedida = parametros.get('fecha');
+    const horaPedida = parametros.get('hora');
+    const sugerido = {
+        aula: Number(parametros.get('aula')) || undefined,
+        fecha:
+            /^\d{4}-\d{2}-\d{2}$/.test(fechaPedida ?? '') && fechaPedida >= hoyDeHoy
+                ? fechaPedida
+                : undefined,
+        hora: /^([01]\d|2[0-3]):[0-5]\d$/.test(horaPedida ?? '') ? horaPedida : undefined,
+    };
 
     const misGrupos = usarConsulta('/docente/grupos');
     const tipos = usarConsulta('/examenes/tipos');
@@ -1593,6 +1619,7 @@ export default function RegistrarExamen() {
                             inicial={previo}
                             anteriores={anteriores.datos ?? []}
                             pasoInicial={previo ? pasoPedido : 0}
+                            sugerido={previo ? undefined : sugerido}
                             onExamen={(guardadoAhora) => {
                                 setGuardado(guardadoAhora);
                                 // La dirección queda en el examen: recargar no lo pierde.

@@ -516,6 +516,20 @@ describe('RegistrarExamen · normas del examen anterior', () => {
         expect(api.get).not.toHaveBeenCalledWith('/examenes/33');
     });
 
+    it('abierto desde el calendario, trae la fecha y la hora pedidas', async () => {
+        montar('/examenes/nuevo?aula=5&fecha=2026-10-20&hora=09:30');
+
+        expect(await campo(/^Fecha/)).toHaveValue('2026-10-20');
+        expect(screen.getByLabelText(/^Hora de inicio/)).toHaveValue('09:30');
+    });
+
+    it('una fecha pasada o una hora mal escrita de la dirección se ignoran', async () => {
+        montar('/examenes/nuevo?fecha=2026-10-01&hora=25:99');
+
+        expect(await campo(/^Fecha/)).not.toHaveValue('2026-10-01');
+        expect(screen.getByLabelText(/^Hora de inicio/)).not.toHaveValue('25:99');
+    });
+
     it('sin exámenes anteriores empieza sin normas marcadas', async () => {
         montar();
 

@@ -125,6 +125,15 @@ describe('Calendario de aulas', () => {
         expect(pedidos()).toHaveLength(0);
     });
 
+    it('con un aula elegida, «Registrar examen» lleva el aula y el día a la pantalla de registro', async () => {
+        montar();
+
+        const enlace = await screen.findByRole('link', { name: /Registrar examen/ });
+        expect(enlace.getAttribute('href')).toMatch(
+            /^\/examenes\/nuevo\?aula=5&fecha=\d{4}-\d{2}-\d{2}$/
+        );
+    });
+
     it('pide la semana del aula y dibuja sus clases y exámenes, cada uno con su tipo', async () => {
         montar();
 

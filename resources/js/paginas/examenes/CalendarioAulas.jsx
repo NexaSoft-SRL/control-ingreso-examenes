@@ -326,7 +326,11 @@ export default function CalendarioAulas() {
         <div className="space-y-5">
             <Encabezado titulo="Calendario" subtitulo="Aulas ocupadas por semana">
                 <Link
-                    to="/examenes/nuevo"
+                    to={
+                        aulaId
+                            ? `/examenes/nuevo?aula=${aulaId}&fecha=${sumarDias(lunes, indice)}`
+                            : '/examenes/nuevo'
+                    }
                     className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 ${FOCO}`}
                 >
                     <Plus className="h-4 w-4" strokeWidth={2.5} /> Registrar examen
