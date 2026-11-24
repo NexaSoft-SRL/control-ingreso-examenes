@@ -183,7 +183,13 @@ export default function FotoDelInscrito({ grupoId, estudiante, onHabilitada, onC
                         )}
                         {bloqueada && (
                             <p className="rounded-lg bg-slate-100 px-3 py-2 text-slate-700">
-                                Cambio habilitable desde el {fechaCorta(desde)}
+                                <span className="block font-medium">
+                                    No se puede cambiar todavía
+                                </span>
+                                <span className="block">
+                                    Se permite desde el {fechaCorta(desde)}, un año después de
+                                    subirla
+                                </span>
                             </p>
                         )}
                     </div>
