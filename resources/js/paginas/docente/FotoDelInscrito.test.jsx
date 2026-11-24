@@ -61,7 +61,10 @@ describe('FotoDelInscrito', () => {
         montar({ subida_en: '2026-10-12', habilitada_hasta: null });
 
         expect(screen.getByText('Con foto · del 12 oct 2026')).toBeInTheDocument();
-        expect(screen.getByText('Cambio habilitable desde el 12 oct 2027')).toBeInTheDocument();
+        expect(screen.getByText('No se puede cambiar todavía')).toBeInTheDocument();
+        expect(
+            screen.getByText('Se permite desde el 12 oct 2027, un año después de subirla')
+        ).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Habilitar/ })).not.toBeInTheDocument();
     });
 

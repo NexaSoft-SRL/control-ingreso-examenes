@@ -37,6 +37,8 @@ function examen(cambios) {
 }
 
 let examenes;
+// GET /examenes/opciones/choques: los estudiantes con otro examen a esa hora.
+let choques;
 
 const montar = (ruta = '/examenes/detalle?examen=24', usuario = usuarioDePrueba('Docente')) =>
     renderConSesion(<DetalleExamen />, { usuario, ruta });
@@ -44,8 +46,11 @@ const pestana = (nombre) => screen.findByRole('tab', { name: nombre });
 
 beforeEach(() => {
     examenes = [examen()];
+    choques = { total: 0, estudiantes: [] };
     simularApi(api, {
         'GET /examenes': () => ({ data: examenes, meta: { periodo: '2/2026' } }),
+        'GET /examenes/24': () => ({ data: examen({ grupos_detalle: [{ id: 5 }, { id: 6 }] }) }),
+        'GET /examenes/opciones/choques': () => choques,
         'GET /examenes/*/habilitaciones': () => ({
             data: [],
             meta: { total: 0, cifras: { inscritos: 6, habilitados: 6 } },
@@ -59,6 +64,35 @@ beforeEach(() => {
 });
 
 describe('DetalleExamen', () => {
+    it('avisa de los estudiantes con otro examen a esa hora y lleva a Habilitación', async () => {
+        choques = {
+            total: 3,
+            estudiantes: [
+                {
+                    nombre: 'Aguilar Rojas Cristian',
+                    codigo: '202100123',
+                    examenes: [
+                        { examen: 'Física I · Primer parcial', inicio: '08:15', fin: '09:45' },
+                    ],
+                },
+            ],
+        };
+        montar();
+
+        expect(
+            await screen.findByText('3 estudiantes tienen otro examen a esa hora')
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Inhabilitarlos con motivo en Habilitación' })
+        ).toHaveAttribute('href', '/examenes/detalle?examen=24&pestana=habilitacion');
+        expect(api.get).toHaveBeenCalledWith(
+            '/examenes/opciones/choques',
+            expect.objectContaining({
+                params: expect.objectContaining({ grupos: [5, 6], examen_id: 24 }),
+            })
+        );
+    });
+
     it('reúne el examen: título, estado, pestañas con sus cifras y el paso siguiente', async () => {
         montar();
 

@@ -29,6 +29,7 @@ import { colorDeAsignatura, fechaLarga, plural } from '../../utiles/texto';
 import { CodigosDelExamen } from '../docente/CodigosQr';
 import { ListaDelExamen } from '../habilitacion/Habilitacion';
 import BitacoraDelExamen from './BitacoraDelExamen';
+import ChoquesDeEstudiantes from './ChoquesDeEstudiantes';
 import RevisionSinConexion from './RevisionSinConexion';
 import EliminarExamen from './EliminarExamen';
 import { FORMA_EXAMEN, PASOS, accionDe, estadoDe, pendiente, tipoDe } from './avanceDelExamen';
@@ -56,7 +57,41 @@ function destinoDe(clave, e) {
     return rutaDelExamen(e.id, clave);
 }
 
-function Resumen({ e, accion }) {
+// Los estudiantes con otro examen a la misma hora. La lista de exámenes no
+// trae los ids de los grupos: se piden con el detalle del examen.
+function ChoquesDelExamen({ e, puedeHabilitar }) {
+    const detalle = usarConsulta(`/examenes/${e.id}`);
+    const grupos = (detalle.datos?.grupos_detalle ?? []).map((g) => g.id);
+
+    return (
+        <div className="mt-4">
+            <ChoquesDeEstudiantes
+                grupos={grupos}
+                fecha={e.fecha}
+                hora={e.hora}
+                duracion={e.duracion}
+                examenId={e.id}
+                guia={
+                    puedeHabilitar && e.aulas.length > 0 ? (
+                        <Link
+                            to={rutaDelExamen(e.id, 'habilitacion')}
+                            className={`font-medium underline underline-offset-2 ${FOCO}`}
+                        >
+                            Inhabilitarlos con motivo en Habilitación
+                        </Link>
+                    ) : null
+                }
+            />
+        </div>
+    );
+}
+
+ChoquesDelExamen.propTypes = {
+    e: FORMA_EXAMEN.isRequired,
+    puedeHabilitar: PropTypes.bool,
+};
+
+function Resumen({ e, accion, puedeHabilitar }) {
     return (
         <div className="space-y-6">
             <Tarjeta titulo="Avance" icono={ClipboardList}>
@@ -152,6 +187,7 @@ function Resumen({ e, accion }) {
                     {plural(e.inscritos, 'inscrito')}
                     {e.junto_con > 0 && ` · junto con ${plural(e.junto_con, 'examen', 'exámenes')}`}
                 </p>
+                {!e.rendido && <ChoquesDelExamen e={e} puedeHabilitar={puedeHabilitar} />}
             </Tarjeta>
         </div>
     );
@@ -160,6 +196,7 @@ function Resumen({ e, accion }) {
 Resumen.propTypes = {
     e: FORMA_EXAMEN.isRequired,
     accion: PropTypes.shape({ texto: PropTypes.string, a: PropTypes.string }),
+    puedeHabilitar: PropTypes.bool,
 };
 
 // La página de un examen (`?examen=`): su resumen, su habilitación y sus
@@ -328,7 +365,9 @@ export default function DetalleExamen() {
             </div>
 
             <div role="tabpanel" aria-label={PESTANAS.find((p) => p.clave === pestana).texto}>
-                {pestana === 'resumen' && <Resumen e={e} accion={accion} />}
+                {pestana === 'resumen' && (
+                    <Resumen e={e} accion={accion} puedeHabilitar={puede('habilitacion')} />
+                )}
                 {pestana === 'habilitacion' && (
                     <ListaDelExamen key={e.id} examenId={e.id} onCifras={alCambiarCifras} />
                 )}

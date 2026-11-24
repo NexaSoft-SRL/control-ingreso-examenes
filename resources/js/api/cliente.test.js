@@ -1,5 +1,13 @@
+import axios from 'axios';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { api, suscribirSesion, CAMBIAR_CONTRASENA, SIN_SESION } from './cliente';
+import {
+    api,
+    fallosDeRedSeguidos,
+    suscribirRed,
+    suscribirSesion,
+    CAMBIAR_CONTRASENA,
+    SIN_SESION,
+} from './cliente';
 
 // Un adaptador en lugar de la red: responde lo que la prueba le indique.
 function responderCon(estado, datos = {}) {
@@ -88,5 +96,65 @@ describe('cliente de la API', () => {
         responderCon(401);
         await expect(api.get('/facultades')).rejects.toBeTruthy();
         expect(oyente).not.toHaveBeenCalled();
+    });
+
+    describe('estado de la red', () => {
+        const sinRespuesta = () => {
+            api.defaults.adapter = (config) =>
+                Promise.reject(Object.assign(new Error('Network Error'), { config }));
+        };
+
+        it('cuenta las peticiones seguidas que no reciben respuesta y se apaga al primer acierto', async () => {
+            const oyente = vi.fn();
+            const baja = suscribirRed(oyente);
+            responderCon(200);
+            await api.get('/ok');
+            expect(fallosDeRedSeguidos()).toBe(0);
+
+            sinRespuesta();
+            await expect(api.get('/a')).rejects.toThrow();
+            await expect(api.get('/b')).rejects.toThrow();
+            expect(fallosDeRedSeguidos()).toBe(2);
+            expect(oyente).toHaveBeenLastCalledWith(2);
+
+            responderCon(200);
+            await api.get('/ok');
+            expect(fallosDeRedSeguidos()).toBe(0);
+            expect(oyente).toHaveBeenLastCalledWith(0);
+            baja();
+        });
+
+        it('un error del servidor (404, 422, 500) es una respuesta: hay red', async () => {
+            sinRespuesta();
+            await expect(api.get('/a')).rejects.toThrow();
+            expect(fallosDeRedSeguidos()).toBe(1);
+
+            for (const estado of [401, 404, 422, 500]) {
+                responderCon(estado);
+                await expect(api.get('/x')).rejects.toMatchObject({ response: { status: estado } });
+                expect(fallosDeRedSeguidos()).toBe(0);
+                sinRespuesta();
+                await expect(api.get('/a')).rejects.toThrow();
+            }
+        });
+
+        it('el 502, 503 y 504 de un intermediario cuentan como sin conexión', async () => {
+            responderCon(200);
+            await api.get('/ok');
+            responderCon(503);
+            await expect(api.get('/x')).rejects.toMatchObject({ response: { status: 503 } });
+            expect(fallosDeRedSeguidos()).toBe(1);
+            responderCon(200);
+            await api.get('/ok');
+        });
+
+        it('una petición cancelada a propósito no cuenta', async () => {
+            responderCon(200);
+            await api.get('/ok');
+            api.defaults.adapter = (config) =>
+                Promise.reject(new axios.CanceledError('cancelada', config));
+            await expect(api.get('/x')).rejects.toThrow();
+            expect(fallosDeRedSeguidos()).toBe(0);
+        });
     });
 });

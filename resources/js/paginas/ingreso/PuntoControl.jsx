@@ -21,7 +21,8 @@ import { usarSesion } from '../../sesion/SesionContexto';
 import { colorDeAsignatura, diaMes, normalizar, ubicacionSin } from '../../utiles/texto';
 import { senal } from '../../utiles/senal';
 import IngresosDelAula from './IngresosDelAula';
-import { decidirSinConexion, esFalloDeRed } from '../../sinConexion/flujo';
+import { aulasPreparadas } from '../../sinConexion/almacen';
+import { decidirSinConexion, esFalloDeRed, puertaSinConexion } from '../../sinConexion/flujo';
 import ModoSinConexion from './ModoSinConexion';
 import ProximoTurno from './ProximoTurno';
 import VeredictoPuerta, { VEREDICTOS } from './VeredictoPuerta';
@@ -183,7 +184,9 @@ function Puesto({ resumen, aulas, hoy, elegirAula }) {
         parametros: todos ? { ingresos: 'todos', buscar: buscado } : {},
         intervalo: SONDEO_MS,
     });
-    const puerta = vivo.cuerpo;
+    // Sin internet la puerta sigue con la lista que este equipo guardó hoy.
+    const sinRed = Boolean(vivo.error) && esFalloDeRed(vivo.error);
+    const puerta = vivo.cuerpo ?? (sinRed ? puertaSinConexion(resumen.aula_id) : null);
     const aula = puerta?.aula ?? { id: resumen.aula_id, nombre: resumen.nombre };
     const examenes = puerta?.examenes ?? [];
     const hora = horaDe(puerta?.hora_servidor);
@@ -405,9 +408,11 @@ function Puesto({ resumen, aulas, hoy, elegirAula }) {
                             <span>
                                 {cuando}
                                 {examenes.length > 2 &&
-                                    ` · ${examenes.length} exámenes · ${totalIngresados} ingresaron · faltan ${totalFaltan}`}
+                                    (puerta.sin_cifras
+                                        ? ` · ${examenes.length} exámenes`
+                                        : ` · ${examenes.length} exámenes · ${totalIngresados} ingresaron · faltan ${totalFaltan}`)}
                             </span>
-                            {vivo.sinConexion && (
+                            {(vivo.sinConexion || puerta.sin_cifras) && (
                                 <Insignia tono="peligro" punto>
                                     Sin conexión
                                 </Insignia>
@@ -436,11 +441,15 @@ function Puesto({ resumen, aulas, hoy, elegirAula }) {
                                     </span>
                                     <span className="shrink-0 text-right tabular-nums">
                                         <span className="block text-sm font-medium text-slate-800">
-                                            {x.ingresados} ingresaron
+                                            {x.ingresados === null
+                                                ? 'Sin cifras'
+                                                : `${x.ingresados} ingresaron`}
                                         </span>
-                                        <span className="block text-xs text-slate-600">
-                                            Faltan {x.faltan ?? 0}
-                                        </span>
+                                        {x.ingresados !== null && (
+                                            <span className="block text-xs text-slate-600">
+                                                Faltan {x.faltan ?? 0}
+                                            </span>
+                                        )}
                                     </span>
                                 </li>
                             ))}
@@ -490,7 +499,7 @@ function Puesto({ resumen, aulas, hoy, elegirAula }) {
             {puerta && examenes.length > 0 && (
                 <ModoSinConexion
                     aulaId={aula.id}
-                    enLinea={!vivo.sinConexion}
+                    enLinea={!vivo.sinConexion && !puerta.sin_cifras}
                     cambio={sinConexionCambio}
                     examenId={examenes[0].id}
                     conRevision={Boolean(usuario && puede('seguimiento_vivo'))}
@@ -682,7 +691,10 @@ export default function PuntoControl() {
     const { puede } = usarSesion();
     const conTurno = puede('seguimiento_vivo') && !puede('examenes');
     // Solo las aulas con un examen abierto: fuera de hora la puerta no se usa.
-    const aulas = (datos ?? []).filter((a) => a.abierta);
+    // Sin internet (la consulta falla sin respuesta) la puerta sigue con las
+    // aulas que este equipo dejó preparadas para hoy.
+    const sinRed = Boolean(error) && !error.response;
+    const aulas = (datos ?? (sinRed ? aulasPreparadas() : [])).filter((a) => a.abierta);
     const pedida = Number(parametros.get('aula')) || null;
     const aula = aulas.find((a) => a.aula_id === pedida) ?? aulas[0] ?? null;
 

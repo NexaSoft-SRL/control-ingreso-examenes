@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
 import { ProveedorSesion, PantallaDeCarga, usarSesion } from '../sesion/SesionContexto';
 import RutaProtegida from '../sesion/RutaProtegida';
+import BandaSinConexion from '../componentes/BandaSinConexion';
 import EsquemaApp from '../componentes/EsquemaApp';
 import EstadoCarga from '../componentes/EstadoCarga';
 import Boton from '../componentes/Boton';
@@ -30,6 +31,7 @@ export const PAGINAS = {
     '/bitacora': lazy(() => import('../paginas/admin/Bitacora')),
     '/respaldo': lazy(() => import('../paginas/admin/Respaldo')),
     '/examenes': lazy(() => import('../paginas/examenes/Examenes')),
+    '/calendario': lazy(() => import('../paginas/examenes/CalendarioAulas')),
     '/examenes/nuevo': lazy(() => import('../paginas/examenes/RegistrarExamen')),
     '/examenes/detalle': lazy(() => import('../paginas/examenes/DetalleExamen')),
     '/habilitacion': lazy(() => import('../paginas/habilitacion/Habilitacion')),
@@ -142,6 +144,7 @@ export default function Aplicacion() {
     return (
         <BrowserRouter>
             <ProveedorSesion>
+                <BandaSinConexion />
                 <Rutas />
             </ProveedorSesion>
         </BrowserRouter>

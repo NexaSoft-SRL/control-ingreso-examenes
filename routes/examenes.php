@@ -24,6 +24,9 @@ Route::prefix('api')
         Route::get('/examenes/opciones/aulas', [OpcionesExamenController::class, 'aulas'])
             ->name('examenes.opciones.aulas');
 
+        Route::get('/examenes/opciones/choques', [OpcionesExamenController::class, 'choques'])
+            ->name('examenes.opciones.choques');
+
         Route::post('/examenes', [ExamenController::class, 'store'])->name('examenes.store');
 
         Route::get('/examenes/{examen}', [ExamenController::class, 'show'])

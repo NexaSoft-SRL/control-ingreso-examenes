@@ -6,7 +6,7 @@ const rutas = (usuario) => vistasDe(usuario).map((v) => v.ruta);
 const conTodo = () => usuarioDePrueba('Administrador', { permisos: CATALOGO_PERMISOS });
 
 describe('vistas por permiso', () => {
-    it('declara las veintiuna rutas, cada una con su permiso y su grupo', () => {
+    it('declara las veintidós rutas, cada una con su permiso y su grupo', () => {
         expect(VISTAS.map((v) => [v.ruta, v.permiso, v.grupo])).toEqual([
             ['/periodo', 'periodo_oferta', 'Preparación'],
             ['/oferta', 'periodo_oferta', 'Preparación'],
@@ -14,6 +14,7 @@ describe('vistas por permiso', () => {
             ['/docentes', 'aulas_docentes', 'Preparación'],
             ['/estudiantes', 'padron_estudiantes', 'Preparación'],
             ['/examenes', 'examenes', 'Docencia'],
+            ['/calendario', 'examenes', 'Docencia'],
             ['/examenes/nuevo', 'examenes', 'Docencia'],
             ['/examenes/detalle', 'examenes', 'Docencia'],
             ['/habilitacion', 'habilitacion', 'Docencia'],
@@ -71,6 +72,7 @@ describe('vistas por permiso', () => {
         ]);
         expect(rutas(usuarioDePrueba('Docente'))).toEqual([
             '/examenes',
+            '/calendario',
             '/examenes/nuevo',
             '/examenes/detalle',
             '/habilitacion',
@@ -105,6 +107,7 @@ describe('vistas por permiso', () => {
             '/periodo',
             '/oferta',
             '/examenes',
+            '/calendario',
             '/examenes/nuevo',
             '/examenes/detalle',
         ]);
@@ -121,6 +124,7 @@ describe('vistas por permiso', () => {
         expect(rutas(atiende)).toEqual(['/ingreso', '/mi-aula']);
         expect(rutas(toma)).toEqual([
             '/examenes',
+            '/calendario',
             '/examenes/nuevo',
             '/examenes/detalle',
             '/en-curso',

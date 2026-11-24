@@ -74,16 +74,26 @@ export function horaCorregida(guardada, ahoraMs = Date.now()) {
     return ahoraMs + (guardada?.desfase_ms ?? 0);
 }
 
+// Minutos que la zona del servidor se adelanta (o atrasa) de UTC.
+function minutosDeZona(zona) {
+    if (!zona || zona === 'Z') return 0;
+    const signo = zona.startsWith('-') ? -1 : 1;
+    const [h, m] = zona.slice(1).split(':').map(Number);
+    return signo * (h * 60 + m);
+}
+
 // La fecha (AAAA-MM-DD) del servidor en ese instante.
 export function fechaDelServidor(guardada, ms) {
-    const zona = guardada?.zona ?? 'Z';
-    let minutos = 0;
-    if (zona !== 'Z') {
-        const signo = zona.startsWith('-') ? -1 : 1;
-        const [h, m] = zona.slice(1).split(':').map(Number);
-        minutos = signo * (h * 60 + m);
-    }
+    const minutos = minutosDeZona(guardada?.zona);
     return new Date(ms + minutos * 60000).toISOString().slice(0, 10);
+}
+
+// El instante como lo escribe el servidor (hora de pared + zona):
+// «2026-11-24T12:30:00-04:00».
+export function horaDelServidor(guardada, ms) {
+    const zona = guardada?.zona ?? 'Z';
+    const pared = new Date(ms + minutosDeZona(zona) * 60000).toISOString().slice(0, 19);
+    return `${pared}${zona}`;
 }
 
 // La instantánea sirve el día en que se descargó: otro día hay que preparar
@@ -97,6 +107,77 @@ export function esDeHoy(guardada, ahoraMs = Date.now()) {
 export function cola(aulaId) {
     const eventos = leer(`cola:${aulaId}`);
     return Array.isArray(eventos) ? eventos : [];
+}
+
+// Quién tenía la sesión abierta, para volver a abrir la puerta sin internet
+// (recargar la página o abrir la aplicación instalada). Solo se guarda de
+// las cuentas que controlan el ingreso y vale un día: el servidor sigue
+// siendo quien manda; sin red no hay con quién verificar y todas las demás
+// peticiones fallan igual. Se borra al cerrar sesión o cuando el servidor
+// dice que ya no hay sesión.
+const VIGENCIA_SESION_MS = 24 * 60 * 60 * 1000;
+
+export function guardarSesion(cuenta, ahoraMs = Date.now()) {
+    if (cuenta?.permisos?.includes('punto_control')) {
+        escribir('sesion', { cuenta, guardada_ms: ahoraMs });
+    } else {
+        borrar('sesion');
+    }
+}
+
+export function sesionGuardada(ahoraMs = Date.now()) {
+    const guardado = leer('sesion');
+    if (!guardado?.cuenta || ahoraMs - guardado.guardada_ms > VIGENCIA_SESION_MS) return null;
+    return guardado.cuenta;
+}
+
+export function olvidarSesion() {
+    borrar('sesion');
+}
+
+// Los ids de las aulas con algo guardado en este navegador, según el prefijo
+// de la clave (`instantanea` o `cola`).
+function aulasCon(tipo) {
+    const buscado = `${PREFIJO}${tipo}:`;
+    const ids = [];
+    try {
+        for (let i = 0; i < window.localStorage.length; i += 1) {
+            const clave = window.localStorage.key(i);
+            if (clave?.startsWith(buscado)) {
+                const id = Number(clave.slice(buscado.length));
+                if (Number.isInteger(id) && id > 0) ids.push(id);
+            }
+        }
+    } catch {
+        return [];
+    }
+    return ids;
+}
+
+// Las aulas con lecturas decididas sin conexión que aún no llegaron al
+// servidor: `[{ aulaId, cantidad }]`.
+export function pendientesPorAula() {
+    return aulasCon('cola')
+        .map((aulaId) => ({ aulaId, cantidad: cola(aulaId).length }))
+        .filter((p) => p.cantidad > 0);
+}
+
+// Cuántas lecturas esperan en este navegador, de todas las aulas.
+export function pendientesTotales() {
+    return pendientesPorAula().reduce((suma, p) => suma + p.cantidad, 0);
+}
+
+// Las aulas que este navegador dejó listas para hoy: con ellas el puesto
+// puede abrir la puerta aunque el servidor no responda.
+export function aulasPreparadas(ahoraMs = Date.now()) {
+    return aulasCon('instantanea')
+        .map((aulaId) => ({ aulaId, guardada: instantaneaDe(aulaId) }))
+        .filter(({ guardada }) => guardada && esDeHoy(guardada, ahoraMs))
+        .map(({ aulaId, guardada }) => ({
+            aula_id: aulaId,
+            nombre: guardada.instantanea.aula?.nombre ?? `Aula ${aulaId}`,
+            abierta: true,
+        }));
 }
 
 export function agregarEvento(aulaId, evento) {

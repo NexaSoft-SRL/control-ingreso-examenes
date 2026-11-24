@@ -31,6 +31,7 @@ vi.mock('../paginas/admin/Bitacora', pagina('Bitácora'));
 vi.mock('../paginas/admin/Respaldo', pagina('Respaldo'));
 vi.mock('../paginas/examenes/Examenes', pagina('Exámenes'));
 vi.mock('../paginas/examenes/RegistrarExamen', pagina('Registrar examen'));
+vi.mock('../paginas/examenes/CalendarioAulas', pagina('Calendario'));
 vi.mock('../paginas/habilitacion/Habilitacion', pagina('Habilitación'));
 vi.mock('../paginas/docente/CodigosQr', pagina('Códigos QR'));
 vi.mock('../paginas/docente/EnCurso', pagina('En curso'));
@@ -66,6 +67,7 @@ const TITULOS = {
     '/docentes': 'Docentes',
     '/estudiantes': 'Padrón',
     '/examenes': 'Exámenes',
+    '/calendario': 'Calendario',
     '/examenes/nuevo': 'Registrar examen',
     '/examenes/detalle': 'Examen',
     '/habilitacion': 'Habilitación',

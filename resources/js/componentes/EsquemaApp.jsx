@@ -45,6 +45,9 @@ function itemClases(activo) {
 // `movil` y el resto queda en «Más». Una vista `oculta` no figura en el
 // menú: se llega a ella desde otra, que queda marcada como activa (`padre`).
 //
+// Con la banda de «sin conexión» a la vista, los encabezados fijos bajan debajo de ella
+// (`--banda` es su alto; la deja BandaSinConexion).
+//
 // El usuario, el rol y las vistas salen de la sesión. «Cerrar sesión» llama
 // a `salir()` y lleva al acceso.
 export default function EsquemaApp({ children }) {
@@ -138,7 +141,7 @@ export default function EsquemaApp({ children }) {
 
     return (
         <div className="flex min-h-dvh flex-col bg-fondo md:flex-row">
-            <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white md:sticky md:top-0 md:flex md:h-dvh">
+            <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white md:sticky md:top-[var(--banda,0px)] md:flex md:h-[calc(100dvh-var(--banda,0px))]">
                 <Link
                     to={vistas[0]?.ruta ?? '/'}
                     className={`flex h-16 shrink-0 items-center border-b border-slate-200 px-5 ${FOCO}`}
@@ -180,7 +183,7 @@ export default function EsquemaApp({ children }) {
                 </nav>
             </aside>
 
-            <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2.5 md:hidden">
+            <header className="sticky top-[var(--banda,0px)] z-10 flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2.5 md:hidden">
                 <div className="flex min-w-0 items-center gap-3">
                     <Escudo className="h-9" />
                     {usuario}
@@ -194,7 +197,7 @@ export default function EsquemaApp({ children }) {
             <main
                 className={`min-w-0 flex-1 md:pb-16 ${conBarra ? 'pb-[calc(5rem+env(safe-area-inset-bottom))]' : 'pb-6'}`}
             >
-                <div className="sticky top-0 z-10 hidden h-16 items-center justify-end gap-3 border-b border-slate-200 bg-white px-8 md:flex">
+                <div className="sticky top-[var(--banda,0px)] z-10 hidden h-16 items-center justify-end gap-3 border-b border-slate-200 bg-white px-8 md:flex">
                     <p className="mr-auto hidden text-sm font-medium text-umss-marino lg:block">
                         Sistema Institucional de Verificación
                     </p>

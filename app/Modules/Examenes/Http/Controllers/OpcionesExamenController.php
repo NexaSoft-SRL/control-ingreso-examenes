@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Modules\Examenes\Http\Controllers;
 
 use App\Modules\Examenes\Application\DTOs\GrupoDeExamenData;
+use App\Modules\Examenes\Application\Queries\ConsultarChoquesDeEstudiantes;
 use App\Modules\Examenes\Application\Queries\ConsultarOpcionesDeAulas;
 use App\Modules\Examenes\Application\Queries\ConsultarOpcionesDeGrupos;
 use App\Modules\Examenes\Http\Requests\OpcionesDeAulasRequest;
+use App\Modules\Examenes\Http\Requests\OpcionesDeChoquesRequest;
 use App\Modules\Examenes\Http\Requests\OpcionesDeGruposRequest;
 use Illuminate\Http\JsonResponse;
 
@@ -31,6 +33,26 @@ final class OpcionesExamenController
         return response()->json([
             'propios' => array_map($serializar, $opciones->propios),
             'otros' => array_map($serializar, $opciones->otros),
+        ]);
+    }
+
+    /**
+     * Aviso: los estudiantes de esos grupos que ya tienen otro examen a esa
+     * hora. No bloquea el registro.
+     */
+    public function choques(OpcionesDeChoquesRequest $request, ConsultarChoquesDeEstudiantes $consultar): JsonResponse
+    {
+        $choques = $consultar->execute(
+            $request->grupos(),
+            $request->texto('fecha'),
+            $request->texto('hora_inicio'),
+            (int) $request->entero('duracion_minutos'),
+            $request->entero('examen_id'),
+        );
+
+        return response()->json([
+            'total' => $choques->total,
+            'estudiantes' => $choques->estudiantes,
         ]);
     }
 
