@@ -11,6 +11,8 @@ use App\Modules\Academico\Domain\Enums\EstadoImportacion;
 use App\Modules\Academico\Domain\Enums\RegimenCarrera;
 use App\Modules\Academico\Domain\Enums\TipoPeriodo;
 use App\Modules\Academico\Domain\Models\Periodo;
+use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
@@ -509,6 +511,10 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
             }
         }
 
+        $ajustes = $this->ultimosAjustes(array_map(
+            static fn (Periodo $periodo): int => $periodo->id,
+            array_values(array_filter($periodos, static fn (Periodo $periodo): bool => $periodo->ajustado_por !== null)),
+        ));
         $filas = [];
 
         foreach ($periodos as $periodo) {
@@ -522,10 +528,58 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
                 'nota' => $this->nota($carreras[$periodo->id] ?? 0, $grupos[$periodo->id] ?? 0),
                 'calendario' => $this->calendarioDe($periodo),
                 'calendario_ajustado' => $periodo->ajustado_por !== null,
+                'calendario_ajustado_por' => $ajustes[$periodo->id]['por'] ?? null,
+                'calendario_ajustado_en' => $ajustes[$periodo->id]['en'] ?? null,
             ];
         }
 
         return $filas;
+    }
+
+    /**
+     * Quien hizo el ultimo ajuste de cada periodo y cuando, segun la
+     * bitacora (periodo => por, en). Solo de los periodos ajustados.
+     *
+     * @param  list<int>  $ids
+     * @return array<int, array{por: string|null, en: string|null}>
+     */
+    private function ultimosAjustes(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $filas = DB::table('bitacora_operaciones as b')
+            ->leftJoin('users as u', 'u.id', '=', 'b.usuario_id')
+            ->where('b.tabla_afectada', 'periodos')
+            ->whereIn('b.registro_id', $ids)
+            ->whereIn('b.operacion', ['periodo.calendario', 'periodo.ajustar'])
+            ->orderByDesc('b.fecha_operacion')
+            ->orderByDesc('b.id')
+            ->get(['b.registro_id', 'b.fecha_operacion', 'b.actor', 'u.name as nombre']);
+
+        $ajustes = [];
+
+        foreach ($filas as $fila) {
+            $columnas = (array) $fila;
+            $id = $this->entero($columnas['registro_id'] ?? null);
+
+            if (isset($ajustes[$id])) {
+                continue;
+            }
+
+            $por = $columnas['actor'] ?? $columnas['nombre'] ?? null;
+            $en = $columnas['fecha_operacion'] ?? null;
+
+            $ajustes[$id] = [
+                'por' => is_string($por) ? $por : null,
+                'en' => is_string($en)
+                    ? (new DateTimeImmutable($en, new DateTimeZone(date_default_timezone_get())))->format(DATE_ATOM)
+                    : null,
+            ];
+        }
+
+        return $ajustes;
     }
 
     /**

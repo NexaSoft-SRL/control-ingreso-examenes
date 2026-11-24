@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Academico\Application\Contracts;
 
+use App\Modules\Academico\Application\DTOs\CalendarioData;
+
 /**
  * Ajuste a mano de las fechas de un periodo. Lo que se ajusta a mano no
  * lo vuelve a pisar la deteccion.
@@ -27,4 +29,12 @@ interface AjustePeriodoGateway
      * @param  array<string, array{0: string, 1: string}>  $ventanas
      */
     public function ajustarCalendario(int $periodoId, array $ventanas, ?int $autorId): bool;
+
+    /**
+     * Devuelve el periodo a lo que publica la universidad: pone las fechas y
+     * las ventanas del calendario dado, quita la marca de ajuste (la deteccion
+     * vuelve a actualizarlo) y asienta `periodo.calendario_restaurar`.
+     * Devuelve false si el periodo no existe.
+     */
+    public function restaurarCalendario(int $periodoId, CalendarioData $calendario, ?int $autorId): bool;
 }

@@ -42,6 +42,8 @@ final readonly class ConsultarBitacora
         'correo.rebote' => 'Un correo no llegó',
         // Oferta, aulas y docentes.
         'periodo.ajustar' => 'Ajustó el período',
+        'periodo.calendario' => 'Ajustó el calendario académico',
+        'periodo.calendario_restaurar' => 'Volvió al calendario de la universidad',
         'periodo.detectar' => 'Detectó los períodos',
         'oferta.importar' => 'Importó la oferta',
         'ubicaciones.importar' => 'Importó las aulas',
