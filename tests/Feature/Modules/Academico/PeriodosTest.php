@@ -224,6 +224,68 @@ final class PeriodosTest extends TestCase
         $this->assertDatabaseMissing('bitacora_operaciones', ['operacion' => 'periodo.ajustar']);
     }
 
+    public function test_the_administrator_opens_the_exam_calendar_and_the_detection_does_not_undo_it(): void
+    {
+        $periodo = $this->periodo('2/2030', -10, 60);
+        $periodo->forceFill(['ventanas' => [
+            'primeros_parciales' => ['2030-10-12', '2030-10-31'],
+            'invierno_4_2030' => ['2030-07-09', '2030-07-31'],
+        ]])->save();
+        $administrador = $this->usuarioConPermisos(['periodo_oferta']);
+        $hoy = now()->toDateString();
+        $en5 = now()->addDays(5)->toDateString();
+
+        $this->actingAs($administrador)
+            ->putJson("/api/periodos/{$periodo->id}/calendario", [
+                'ventanas' => ['segundos_parciales' => [$hoy, $en5]],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.calendario.segundos_parciales', [$hoy, $en5])
+            ->assertJsonPath('data.calendario.primeros_parciales', ['2030-10-12', '2030-10-31'])
+            ->assertJsonPath('data.calendario_ajustado', true);
+
+        $periodo->refresh();
+
+        // Solo cambia lo indicado: lo demas, incluidas las ventanas que no se ajustan, queda.
+        $this->assertSame([$hoy, $en5], $periodo->ventanas['segundos_parciales'] ?? null);
+        $this->assertSame(['2030-07-09', '2030-07-31'], $periodo->ventanas['invierno_4_2030'] ?? null);
+        $this->assertSame($administrador->id, $periodo->ajustado_por);
+        $this->assertDatabaseHas('bitacora_operaciones', [
+            'usuario_id' => $administrador->id,
+            'operacion' => 'periodo.calendario',
+            'registro_id' => $periodo->id,
+        ]);
+
+        // La deteccion no pisa lo que el administrador ajusto.
+        $this->actingAs($administrador)->postJson('/api/periodos/detectar')->assertOk();
+        $this->assertSame([$hoy, $en5], $periodo->refresh()->ventanas['segundos_parciales'] ?? null);
+    }
+
+    public function test_the_exam_calendar_validates_its_dates_and_who_changes_it(): void
+    {
+        $periodo = $this->periodo('2/2030', -10, 60);
+        $ruta = "/api/periodos/{$periodo->id}/calendario";
+
+        $this->putJson($ruta, ['ventanas' => []])->assertUnauthorized();
+        $this->actingAs($this->usuarioConPermisos(['examenes']))
+            ->putJson($ruta, ['ventanas' => ['segundos_parciales' => ['2030-10-01', '2030-10-05']]])
+            ->assertForbidden();
+
+        $sesion = $this->actingAs($this->usuarioConPermisos(['periodo_oferta']));
+        $sesion->putJson($ruta, [])->assertUnprocessable()->assertJsonValidationErrors(['ventanas']);
+        $sesion->putJson($ruta, ['ventanas' => ['segundos_parciales' => ['2030-10-05', '2030-10-01']]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['ventanas.segundos_parciales.1' => 'No puede ser anterior al inicio']);
+        $sesion->putJson($ruta, ['ventanas' => ['segundos_parciales' => ['05/10/2030', '2030-10-10']]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['ventanas.segundos_parciales.0']);
+        $sesion->putJson('/api/periodos/999/calendario', ['ventanas' => ['segundos_parciales' => ['2030-10-01', '2030-10-05']]])
+            ->assertNotFound();
+
+        $this->assertNull($periodo->refresh()->ajustado_por);
+        $this->assertDatabaseMissing('bitacora_operaciones', ['operacion' => 'periodo.calendario']);
+    }
+
     public function test_adjusting_an_unknown_period_is_not_found(): void
     {
         $this->actingAs($this->usuarioConPermisos(['periodo_oferta']))

@@ -21,6 +21,12 @@ const PERIODOS = [
         fecha_fin: '2026-12-26',
         estado: 'Vigente',
         nota: '36 carreras · 2.844 grupos',
+        calendario: {
+            primeros_parciales: ['2026-10-12', '2026-11-20'],
+            segundos_parciales: ['2026-12-07', '2026-12-17'],
+            finales_y_segunda_instancia: ['2026-12-19', '2026-12-24'],
+            examenes_de_mesa: null,
+        },
     },
     {
         id: 2,
@@ -187,6 +193,65 @@ describe('Periodo', () => {
         expect(within(sinFechas).getByRole('button', { name: 'Ajustar 4/2026' })).toBeVisible();
     });
 
+    it('los períodos vigentes y próximos ofrecen el calendario de exámenes; los cerrados y sin fechas, no', async () => {
+        montar();
+        await cargada();
+
+        expect(
+            screen
+                .getAllByRole('button', { name: /^Calendario de exámenes/ })
+                .map((b) => b.textContent)
+        ).toHaveLength(3);
+        expect(
+            within(fila('4/2026')).queryByRole('button', { name: /^Calendario de exámenes/ })
+        ).toBeNull();
+    });
+
+    it('el administrador abre una ventana del calendario y la guarda', async () => {
+        simular({ 'PUT /periodos/*/calendario': { data: PERIODOS[0] } });
+        montar();
+        await cargada();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Calendario de exámenes 2/2026' }));
+        const dialogo = screen.getByRole('dialog', { name: 'Calendario de exámenes 2/2026' });
+        const segundos = within(
+            within(dialogo).getByText('Segundos parciales').closest('fieldset')
+        );
+        expect(segundos.getByLabelText('Desde')).toHaveValue('2026-12-07');
+
+        fireEvent.change(segundos.getByLabelText('Desde'), { target: { value: '2026-11-23' } });
+        api.get.mockClear();
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
+
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        expect(api.put).toHaveBeenCalledWith('/periodos/1/calendario', {
+            ventanas: {
+                primeros_parciales: ['2026-10-12', '2026-11-20'],
+                segundos_parciales: ['2026-11-23', '2026-12-17'],
+                finales_y_segunda_instancia: ['2026-12-19', '2026-12-24'],
+            },
+        });
+        expect(screen.getByText('Calendario guardado')).toBeInTheDocument();
+        await waitFor(() =>
+            expect(api.get).toHaveBeenCalledWith('/periodos/resumen', { params: {} })
+        );
+    });
+
+    it('el calendario señala en su campo una ventana que termina antes de empezar, sin enviar', async () => {
+        montar();
+        await cargada();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Calendario de exámenes 2/2026' }));
+        const dialogo = screen.getByRole('dialog');
+        const mesa = within(within(dialogo).getByText('Exámenes de mesa').closest('fieldset'));
+        fireEvent.change(mesa.getByLabelText('Desde'), { target: { value: '2026-12-20' } });
+        fireEvent.change(mesa.getByLabelText('Hasta'), { target: { value: '2026-12-10' } });
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
+
+        expect(within(dialogo).getByText('No puede ser anterior al inicio')).toBeInTheDocument();
+        expect(api.put).not.toHaveBeenCalled();
+    });
+
     it('guarda el ajuste de fechas y vuelve a leer la lista (criterio 4)', async () => {
         simular({
             'PUT /periodos/*': { data: { ...PERIODOS[2], estado: 'Cerrado' } },
@@ -273,21 +338,23 @@ describe('Periodo', () => {
         expect(within(dialogo).getByRole('button', { name: 'Guardar' })).toBeEnabled();
     });
 
-    it('«Detectar» pide la detección y vuelve a leer períodos y resumen (criterio 6)', async () => {
+    it('«Buscar períodos» pide la detección y vuelve a leer períodos y resumen (criterio 6)', async () => {
         const detectar = respuestaDiferida();
         simular({ 'POST /periodos/detectar': () => detectar.promesa });
         montar();
         await cargada();
 
         api.get.mockClear();
-        fireEvent.click(screen.getByRole('button', { name: 'Detectar' }));
-        expect(screen.getByRole('button', { name: 'Detectando' })).toBeDisabled();
+        fireEvent.click(screen.getByRole('button', { name: 'Buscar períodos' }));
+        expect(screen.getByRole('button', { name: 'Buscando' })).toBeDisabled();
 
         detectar.resolver({ creados: 1, actualizados: 3 });
 
         expect(await screen.findByText('1 nuevos · 3 actualizados')).toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith('/periodos/detectar');
-        await waitFor(() => expect(screen.getByRole('button', { name: 'Detectar' })).toBeEnabled());
+        await waitFor(() =>
+            expect(screen.getByRole('button', { name: 'Buscar períodos' })).toBeEnabled()
+        );
         expect(api.get).toHaveBeenCalledWith('/periodos', {
             params: { pagina: 1, por_pagina: 4 },
         });

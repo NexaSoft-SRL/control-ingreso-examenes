@@ -179,6 +179,128 @@ function AjustarFechas({ periodo, onCerrar, onGuardado }) {
     );
 }
 
+// Las ventanas del calendario de exámenes: dentro de cada una los docentes
+// pueden registrar exámenes de ese tipo. El administrador las abre o las mueve.
+const VENTANAS = [
+    ['primeros_parciales', 'Primeros parciales'],
+    ['segundos_parciales', 'Segundos parciales'],
+    ['finales_y_segunda_instancia', 'Finales y segunda instancia'],
+    ['examenes_de_mesa', 'Exámenes de mesa'],
+];
+
+function AjustarCalendario({ periodo, onCerrar, onGuardado }) {
+    const [fechas, setFechas] = useState(() =>
+        Object.fromEntries(
+            VENTANAS.map(([clave]) => [
+                clave,
+                [periodo.calendario?.[clave]?.[0] ?? '', periodo.calendario?.[clave]?.[1] ?? ''],
+            ])
+        )
+    );
+    const [errores, setErrores] = useState({});
+    const [general, setGeneral] = useState(null);
+    const [guardando, setGuardando] = useState(false);
+
+    function poner(clave, posicion, valor) {
+        setFechas((previas) => {
+            const rango = [...previas[clave]];
+            rango[posicion] = valor;
+            return { ...previas, [clave]: rango };
+        });
+        setErrores((previos) => ({ ...previos, [`ventanas.${clave}.${posicion}`]: undefined }));
+    }
+
+    function guardar(evento) {
+        evento.preventDefault();
+        const locales = {};
+        const ventanas = {};
+        VENTANAS.forEach(([clave]) => {
+            const [desde, hasta] = fechas[clave];
+            if (!desde && !hasta) return;
+            if (!desde) locales[`ventanas.${clave}.0`] = 'Obligatorio';
+            if (!hasta) locales[`ventanas.${clave}.1`] = 'Obligatorio';
+            if (desde && hasta && hasta < desde)
+                locales[`ventanas.${clave}.1`] = 'No puede ser anterior al inicio';
+            ventanas[clave] = [desde, hasta];
+        });
+        if (Object.keys(ventanas).length === 0) {
+            setGeneral('Indique al menos una ventana');
+            return;
+        }
+        setErrores(locales);
+        setGeneral(null);
+        if (Object.keys(locales).length > 0) return;
+
+        setGuardando(true);
+        api.put(`/periodos/${periodo.id}/calendario`, { ventanas })
+            .then(() => onGuardado())
+            .catch((error) => {
+                const deCampo = erroresDe(error);
+                setErrores(deCampo);
+                if (Object.keys(deCampo).length === 0)
+                    setGeneral(mensajeDe(error, 'No se pudo guardar'));
+                setGuardando(false);
+            });
+    }
+
+    return (
+        <Dialogo
+            titulo={`Calendario de exámenes ${periodo.codigo}`}
+            onCerrar={onCerrar}
+            ancho="max-w-xl"
+            acciones={
+                <>
+                    <Boton type="button" variante="secundario" onClick={onCerrar}>
+                        Cancelar
+                    </Boton>
+                    <Boton type="submit" form="ajustar-calendario" cargando={guardando}>
+                        {guardando ? 'Guardando' : 'Guardar'}
+                    </Boton>
+                </>
+            }
+        >
+            <form id="ajustar-calendario" onSubmit={guardar} noValidate className="space-y-4">
+                {VENTANAS.map(([clave, nombre]) => (
+                    <fieldset key={clave} className="grid gap-3 sm:grid-cols-2">
+                        <legend className="mb-1 text-sm font-semibold text-slate-800">
+                            {nombre}
+                        </legend>
+                        <Campo
+                            etiqueta="Desde"
+                            type="date"
+                            value={fechas[clave][0]}
+                            onChange={(e) => poner(clave, 0, e.target.value)}
+                            error={errores[`ventanas.${clave}.0`]}
+                        />
+                        <Campo
+                            etiqueta="Hasta"
+                            type="date"
+                            value={fechas[clave][1]}
+                            onChange={(e) => poner(clave, 1, e.target.value)}
+                            error={errores[`ventanas.${clave}.1`]}
+                        />
+                    </fieldset>
+                ))}
+                {general && (
+                    <p role="alert" className="text-sm text-danger-600">
+                        {general}
+                    </p>
+                )}
+            </form>
+        </Dialogo>
+    );
+}
+
+AjustarCalendario.propTypes = {
+    periodo: PropTypes.shape({
+        id: PropTypes.number.isRequired,
+        codigo: PropTypes.string.isRequired,
+        calendario: PropTypes.object,
+    }).isRequired,
+    onCerrar: PropTypes.func.isRequired,
+    onGuardado: PropTypes.func.isRequired,
+};
+
 AjustarFechas.propTypes = {
     periodo: PropTypes.shape({
         id: PropTypes.number.isRequired,
@@ -255,6 +377,7 @@ export default function Periodo() {
 
     const [detectando, setDetectando] = useState(false);
     const [ajustando, setAjustando] = useState(null);
+    const [calendario, setCalendario] = useState(null);
     // Por sigla: `{ estado: 'importando' }` mientras dura la petición y
     // `{ estado: 'fallo', error }` cuando el servidor la rechaza.
     const [locales, setLocales] = useState({});
@@ -269,7 +392,7 @@ export default function Periodo() {
                 avisar(`${creados} nuevos · ${actualizados} actualizados`);
                 return recargarTodo();
             })
-            .catch((error) => avisar(mensajeDe(error, 'No se pudo detectar'), 'error'))
+            .catch((error) => avisar(mensajeDe(error, 'No se pudo buscar'), 'error'))
             .finally(() => setDetectando(false));
     }
 
@@ -308,6 +431,12 @@ export default function Periodo() {
         void recargarTodo();
     }
 
+    function calendarioGuardado() {
+        setCalendario(null);
+        avisar('Calendario guardado');
+        void recargarTodo();
+    }
+
     const datos = resumen.datos;
     const principal = datos?.periodo ?? null;
     const facultades = datos?.facultades ?? [];
@@ -333,7 +462,7 @@ export default function Periodo() {
 
             <Tarjeta
                 sinRelleno
-                titulo="Períodos detectados"
+                titulo="Períodos"
                 icono={CalendarRange}
                 acciones={
                     <Boton
@@ -347,7 +476,7 @@ export default function Periodo() {
                             className={`h-4 w-4 ${detectando ? 'animate-spin' : ''}`}
                             aria-hidden="true"
                         />
-                        {detectando ? 'Detectando' : 'Detectar'}
+                        {detectando ? 'Buscando' : 'Buscar períodos'}
                     </Boton>
                 }
             >
@@ -399,6 +528,17 @@ export default function Periodo() {
                                         aria-label={`Ajustar ${p.codigo}`}
                                     >
                                         Ajustar
+                                    </Boton>
+                                )}
+                                {p.estado !== 'Cerrado' && p.estado !== 'Sin fechas' && (
+                                    <Boton
+                                        type="button"
+                                        variante="secundario"
+                                        tamano="chico"
+                                        onClick={() => setCalendario(p)}
+                                        aria-label={`Calendario de exámenes ${p.codigo}`}
+                                    >
+                                        Calendario
                                     </Boton>
                                 )}
                             </li>
@@ -545,6 +685,13 @@ export default function Periodo() {
                     periodo={ajustando}
                     onCerrar={() => setAjustando(null)}
                     onGuardado={guardado}
+                />
+            )}
+            {calendario && (
+                <AjustarCalendario
+                    periodo={calendario}
+                    onCerrar={() => setCalendario(null)}
+                    onGuardado={calendarioGuardado}
                 />
             )}
             {aviso}
