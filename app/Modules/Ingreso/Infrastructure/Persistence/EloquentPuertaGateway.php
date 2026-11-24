@@ -79,6 +79,22 @@ final class EloquentPuertaGateway implements PuertaGateway
             ->exists();
     }
 
+    public function suspendido(int $examenId, ?string $instante = null): bool
+    {
+        $consulta = DB::table('suspensiones_examen')->where('examen_id', $examenId);
+
+        if ($instante === null) {
+            return $consulta->whereNull('reanudado_en')->exists();
+        }
+
+        return $consulta
+            ->where('suspendido_en', '<=', $instante)
+            ->where(function (Builder $vigente) use ($instante): void {
+                $vigente->whereNull('reanudado_en')->orWhere('reanudado_en', '>', $instante);
+            })
+            ->exists();
+    }
+
     /**
      * @return list<ExamenData>
      */

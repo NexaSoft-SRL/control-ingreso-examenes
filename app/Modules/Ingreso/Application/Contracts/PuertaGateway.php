@@ -31,6 +31,12 @@ interface PuertaGateway
     public function examenTieneAula(int $examenId, int $aulaId): bool;
 
     /**
+     * Si el docente tenia el examen suspendido en ese instante
+     * (`AAAA-MM-DD HH:MM:SS`, hora de la aplicacion), o ahora si es null.
+     */
+    public function suspendido(int $examenId, ?string $instante = null): bool;
+
+    /**
      * Los examenes de hoy (o abiertos ahora) que tienen esa aula, con sus
      * cifras en ella, por hora de inicio.
      *

@@ -184,6 +184,13 @@ const VEREDICTOS = {
         pie: 'Intento registrado',
         examen_correspondiente: { texto: 'Primer parcial · Álgebra I', aula: '624' },
     },
+    examen_suspendido: {
+        veredicto: 'examen_suspendido',
+        estudiante: ESTUDIANTE,
+        examen: EXAMEN,
+        dato: 'El docente suspendió el examen.',
+        pie: 'Espere a que lo reanude.',
+    },
 };
 
 const montar = ({ ruta = '/control', rol = 'Docente' } = {}) =>
@@ -561,6 +568,7 @@ describe('Punto de control', () => {
     it.each([
         ['ya_ingreso', 'Ya ingresó', 'Ingresó a las 08:02:41 en esta aula'],
         ['expulsado', 'Expulsado', 'Expulsado a las 08:40'],
+        ['examen_suspendido', 'Examen suspendido', 'El docente suspendió el examen.'],
     ])('%s: muestra la hora y solo ofrece «Siguiente»', async (clave, titulo, dato) => {
         veredicto = VEREDICTOS[clave];
         montar();

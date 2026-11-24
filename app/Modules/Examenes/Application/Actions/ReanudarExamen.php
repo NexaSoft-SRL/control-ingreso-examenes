@@ -7,7 +7,7 @@ namespace App\Modules\Examenes\Application\Actions;
 use App\Modules\Examenes\Application\Contracts\AlcanceExamenGateway;
 use App\Modules\Examenes\Application\Contracts\ExamenGateway;
 use App\Modules\Examenes\Domain\Exceptions\ExamenAjenoException;
-use App\Modules\Examenes\Domain\Exceptions\ExamenNoAbiertoException;
+use App\Modules\Examenes\Domain\Exceptions\ExamenNoSuspendidoException;
 
 /**
  * Reanuda un examen previamente suspendido.
@@ -24,7 +24,7 @@ final readonly class ReanudarExamen
      * (`AAAA-MM-DD HH:MM:SS`).
      *
      * @throws ExamenAjenoException
-     * @throws ExamenNoAbiertoException
+     * @throws ExamenNoSuspendidoException
      */
     public function execute(
         int $examenId,
@@ -41,6 +41,6 @@ final readonly class ReanudarExamen
         return $this->examenes->reanudar(
             $examenId,
             $usuarioId,
-        ) ?? throw new ExamenNoAbiertoException;
+        ) ?? throw new ExamenNoSuspendidoException;
     }
 }

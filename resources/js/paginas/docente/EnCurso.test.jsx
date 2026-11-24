@@ -786,8 +786,7 @@ describe('EnCurso', () => {
         expect(screen.queryByRole('button', { name: /Suspender examen/i })).toBeNull();
         expect(screen.getByRole('button', { name: /Reanudar examen/i })).toBeVisible();
 
-        expect(screen.getByText(/Examen suspendido/i)).toBeVisible();
-        expect(screen.getByText(/Motivo: Fuga de examen/i)).toBeVisible();
+        expect(screen.getByText('Suspendido · Fuga de examen')).toBeVisible();
         expect(screen.getByText(/Se encontraron hojas en el baño/i)).toBeVisible();
     });
 

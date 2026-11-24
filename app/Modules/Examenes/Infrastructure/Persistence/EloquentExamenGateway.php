@@ -239,17 +239,17 @@ final class EloquentExamenGateway implements ExamenGateway
         string $motivo,
         ?string $descripcion,
     ): ?string {
-        return DB::transaction(function () use (
-            $examenId,
-            $usuarioId,
-            $motivo,
-            $descripcion
-        ): ?string {
-
+        return DB::transaction(function () use ($examenId, $usuarioId, $motivo, $descripcion): ?string {
             $ahora = now()->format('Y-m-d H:i:s');
+            $antes = config('umss.minutos_apertura', 60);
+            $antes = is_numeric($antes) ? (int) $antes : 60;
 
+            // Abierto, como para finalizarlo: ya abrio su puerta, sigue en su
+            // dia y nadie lo finalizo.
             $examen = Examen::whereKey($examenId)
                 ->whereNull('finalizado_en')
+                ->whereRaw("(fecha + hora_inicio) - (? * interval '1 minute') <= ?::timestamp", [$antes, $ahora])
+                ->whereRaw("?::timestamp < fecha + interval '1 day'", [$ahora])
                 ->lockForUpdate()
                 ->first();
 
@@ -285,11 +285,7 @@ final class EloquentExamenGateway implements ExamenGateway
         int $examenId,
         int $usuarioId,
     ): ?string {
-        return DB::transaction(function () use (
-            $examenId,
-            $usuarioId
-        ): ?string {
-
+        return DB::transaction(function () use ($examenId, $usuarioId): ?string {
             $ahora = now()->format('Y-m-d H:i:s');
 
             $suspension = SuspensionExamen::query()

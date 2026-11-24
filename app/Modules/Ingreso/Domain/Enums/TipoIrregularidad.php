@@ -17,6 +17,8 @@ enum TipoIrregularidad: string
     case HoraDudosa = 'HORA_DUDOSA';
     case EventoInvalido = 'EVENTO_INVALIDO';
     case DispositivoSinSincronizar = 'DISPOSITIVO_SIN_SINCRONIZAR';
+    // El puesto sin internet no se entera de la suspension del docente.
+    case AdmitidoEnSuspension = 'ADMITIDO_EN_SUSPENSION';
 
     public function etiqueta(): string
     {
@@ -28,6 +30,7 @@ enum TipoIrregularidad: string
             self::HoraDudosa => 'Hora dudosa',
             self::EventoInvalido => 'Evento no válido',
             self::DispositivoSinSincronizar => 'Dispositivo sin sincronizar',
+            self::AdmitidoEnSuspension => 'Admitido con el examen suspendido',
         };
     }
 
@@ -37,7 +40,7 @@ enum TipoIrregularidad: string
     public function gravedad(): string
     {
         return match ($this) {
-            self::IngresoDoble, self::AdmitidoNoHabilitado, self::NoInscritoAdmitido, self::DispositivoSinSincronizar => 'ALTA',
+            self::IngresoDoble, self::AdmitidoNoHabilitado, self::NoInscritoAdmitido, self::DispositivoSinSincronizar, self::AdmitidoEnSuspension => 'ALTA',
             self::RechazadoHabilitado, self::EventoInvalido => 'MEDIA',
             self::HoraDudosa => 'BAJA',
         };
