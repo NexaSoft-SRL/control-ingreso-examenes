@@ -121,12 +121,15 @@ final class CargaDeFacultadTest extends TestCase
             self::ENCABEZADO,
             '202104821,ABC-!!@#,Kevin,Alvarado,2008019,1,',
             '202104822,7928195,12345,<b>6789</b>,2008019,1,',
-            '202104823,5003748-1A,Ana,Rojas Vela,2008019,1,',
+            '202104823,5003748,Ana,Rojas Vela,2008019,1,',
+            '202104824,5003749-1A,Luis,Soria Vela,2008019,1,',
         ])->assertOk()
             ->assertJsonPath('resumen.nuevos', 1)
-            ->assertJsonPath('resumen.rechazados', 2)
-            ->assertJsonPath('rechazos.0.motivo', 'Documento de identidad no válido')
-            ->assertJsonPath('rechazos.1.motivo', 'Nombres o apellidos no válidos');
+            ->assertJsonPath('resumen.rechazados', 3)
+            ->assertJsonPath('rechazos.0.motivo', 'C.I. no válido: solo números, de 4 a 10 dígitos')
+            ->assertJsonPath('rechazos.1.motivo', 'Nombres o apellidos no válidos')
+            // Un C.I. con complemento ya no se admite.
+            ->assertJsonPath('rechazos.2.motivo', 'C.I. no válido: solo números, de 4 a 10 dígitos');
     }
 
     public function test_a_group_that_is_not_in_the_offer_is_rejected(): void

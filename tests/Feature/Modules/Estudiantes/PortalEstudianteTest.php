@@ -278,6 +278,29 @@ final class PortalEstudianteTest extends TestCase
 
     public function test_the_data_has_the_same_rules_as_a_load(): void
     {
+    public function test_the_carnet_of_the_student_is_only_digits_without_complement(): void
+    {
+        // Al registrarse y al escribir su carnet: sin complemento ni letras.
+        $this->verificarCorreo('199900001');
+
+        foreach (['5003748-1A', '5003748 1A', '5003748LP'] as $documento) {
+            $this->postJson('/api/auth/estudiante/registro', ['documento' => $documento] + $this->datosPropios())
+                ->assertStatus(422)
+                ->assertJsonValidationErrors(['documento' => 'Solo números, de 4 a 10 dígitos']);
+        }
+        $this->assertDatabaseMissing('estudiantes', ['codigo_universitario' => '199900001']);
+
+        $this->estudiante->update(['documento_identidad' => null]);
+        $this->entrar();
+
+        foreach (['5003748-1A', '5003748A', '123'] as $documento) {
+            $this->postJson('/api/estudiante/carnet', ['documento' => $documento, 'confirmo' => true])
+                ->assertStatus(422)
+                ->assertJsonValidationErrors(['documento' => 'Solo números, de 4 a 10 dígitos']);
+        }
+        $this->assertNull($this->estudiante->refresh()->documento_identidad);
+    }
+
         $this->verificarCorreo('199900001');
 
         $this->postJson('/api/auth/estudiante/registro', [

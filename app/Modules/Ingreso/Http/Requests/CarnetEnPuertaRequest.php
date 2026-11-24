@@ -25,7 +25,7 @@ final class CarnetEnPuertaRequest extends FormRequest
         return [
             'estudiante_id' => ['required', 'integer', 'min:1'],
             'examen_id' => ['required', 'integer', 'min:1'],
-            'documento' => ['required', 'string', 'min:4', 'max:30'],
+            'documento' => ['required', 'string', 'regex:/^\d{4,10}$/'],
         ];
     }
 
@@ -38,8 +38,7 @@ final class CarnetEnPuertaRequest extends FormRequest
             'estudiante_id.*' => 'Falta el estudiante.',
             'examen_id.*' => 'Falta el examen.',
             'documento.required' => 'Escriba el carnet',
-            'documento.min' => 'Mínimo 4 caracteres',
-            'documento.max' => 'Máximo 30 caracteres',
+            'documento.regex' => 'Solo números, de 4 a 10 dígitos',
         ];
     }
 }

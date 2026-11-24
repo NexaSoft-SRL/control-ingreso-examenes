@@ -97,7 +97,8 @@ export default function ControlDelIdentificado({ aulaId, veredicto }) {
 
     async function comparar(e) {
         e.preventDefault();
-        if (documento.trim().length < 4) return setError('Escriba el carnet');
+        if (documento.trim() === '') return setError('Escriba el carnet');
+        if (documento.trim().length < 4) return setError('Solo números, de 4 a 10 dígitos');
         if (enviando) return undefined;
         setEnviando(true);
         setError(null);
@@ -167,9 +168,9 @@ export default function ControlDelIdentificado({ aulaId, veredicto }) {
                     <Campo
                         etiqueta="Carnet que presenta"
                         iconoEtiqueta={IdCard}
-                        placeholder="Ej.: 5003748-1A"
+                        placeholder="Ej.: 5003748"
                         formato="documento"
-                        maxLength={30}
+                        maxLength={10}
                         enterKeyHint="done"
                         autoFocus
                         value={documento}

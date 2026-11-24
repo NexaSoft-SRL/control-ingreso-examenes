@@ -58,7 +58,12 @@ final readonly class VerificarCarnetEnPuerta
             return ['coincide' => null, 'sin_carnet' => true, 'incidencia' => null];
         }
 
-        if ($this->normalizar($guardado) === $this->normalizar($presentado)) {
+        // Un carnet guardado antes de la regla «solo numeros» puede llevar su
+        // complemento («5003748-1A»): el numero presentado lo identifica igual.
+        $numero = explode(' ', (string) preg_replace('/[\s\-]+/u', ' ', trim($guardado)), 2)[0];
+
+        if ($this->normalizar($guardado) === $this->normalizar($presentado)
+            || $numero === $this->normalizar($presentado)) {
             return ['coincide' => true, 'sin_carnet' => false, 'incidencia' => null];
         }
 

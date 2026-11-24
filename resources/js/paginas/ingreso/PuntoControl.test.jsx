@@ -369,13 +369,13 @@ describe('Punto de control', () => {
         expect(campo).toHaveFocus();
     });
 
-    it('acepta el C.I. con complemento', async () => {
+    it('acepta el C.I. solo numérico, sin complemento', async () => {
         montar();
         await cargada();
-        await verificarManual('5003748-1a');
+        await verificarManual('5003748');
 
         expect(await screen.findByText('Ingreso admitido')).toBeInTheDocument();
-        expect(enviados('/verificaciones')).toEqual([{ identificador: '5003748-1A' }]);
+        expect(enviados('/verificaciones')).toEqual([{ identificador: '5003748' }]);
     });
 
     it('muestra el veredicto «No registrado» si no está en el padrón', async () => {
@@ -435,15 +435,15 @@ describe('Punto de control', () => {
         expect(screen.queryByRole('img', { name: 'Mapa de edificios del campus' })).toBeNull();
     });
 
-    it('el código manual solo admite número y complemento, no letras sueltas ni signos', async () => {
+    it('el código manual solo admite números, no letras ni guiones', async () => {
         montar();
         await cargada();
         fireEvent.click(screen.getByRole('button', { name: 'Código SIS o C.I. manual' }));
 
         const campo = screen.getByLabelText(/^Código SIS o C\.I\./);
-        fireEvent.change(campo, { target: { value: '2021 04*821#' } });
-        expect(campo).toHaveValue('202104821');
-        expect(campo).toHaveAttribute('maxlength', '14');
+        fireEvent.change(campo, { target: { value: '2021 04*821#-1A' } });
+        expect(campo).toHaveValue('2021048211');
+        expect(campo).toHaveAttribute('maxlength', '10');
     });
 
     it('no habilitado: el docente lo admite por decisión suya, con motivo', async () => {

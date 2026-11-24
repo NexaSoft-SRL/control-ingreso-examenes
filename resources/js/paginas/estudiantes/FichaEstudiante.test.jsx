@@ -114,12 +114,12 @@ describe('FichaEstudiante', () => {
         const edicion = screen.getByRole('dialog', { name: 'Editar estudiante' });
         expect(within(edicion).getByLabelText('Nombres', { exact: false })).toHaveValue('Mariana');
         fireEvent.change(within(edicion).getByLabelText('C.I.', { exact: false }), {
-            target: { value: '7928194-1A' },
+            target: { value: '7928194' },
         });
         fireEvent.click(within(edicion).getByRole('button', { name: /Guardar/ }));
 
         expect(await screen.findByText('Estudiante actualizado')).toBeInTheDocument();
-        expect(await screen.findByText('7928194-1A')).toBeInTheDocument();
+        expect(await screen.findByText('7928194')).toBeInTheDocument();
         expect(onFotoCambiada).toHaveBeenCalled();
     });
 

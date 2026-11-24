@@ -127,22 +127,21 @@ describe('Campo', () => {
             expect(screen.getByText('Solo números')).toBeInTheDocument();
         });
 
-        it('documento: número con complemento, sin otros signos', () => {
-            const { campo } = escribir('documento', '5003748-1A!?');
-
-            expect(campo).toHaveValue('5003748-1A');
+        it('documento: solo dígitos, sin letras, guion ni espacios', () => {
+            expect(escribir('documento', '5003 748-1A!?').campo).toHaveValue('50037481');
         });
 
-        it('documento: complemento en mayúsculas y sin letras en el número', () => {
-            expect(escribir('documento', '5003748-1a').campo).toHaveValue('5003748-1A');
+        it('documento: no pasa de 10 dígitos y avisa «Solo números»', () => {
+            const { campo } = escribir('documento', '50037481234567');
+
+            expect(campo).toHaveValue('5003748123');
         });
 
-        it('documento: no deja letras sueltas en el número ni más de dos complementos', () => {
-            expect(escribir('documento', 'ab5003748-1a2b-x-y').campo).toHaveValue('5003748-1A2-X');
-        });
+        it('documento: una letra se descarta y el campo lo avisa', () => {
+            const { campo } = escribir('documento', '5003748A');
 
-        it('documento: junta los dígitos separados por espacios', () => {
-            expect(escribir('documento', '5003 748-1a').campo).toHaveValue('5003748-1A');
+            expect(campo).toHaveValue('5003748');
+            expect(screen.getByText('Solo números')).toBeInTheDocument();
         });
 
         it('usuario: pasa a minúsculas y quita tildes', () => {

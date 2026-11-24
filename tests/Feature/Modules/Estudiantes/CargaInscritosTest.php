@@ -91,7 +91,7 @@ final class CargaInscritosTest extends TestCase
         $this->cargarLista($docente, $grupo, $this->xlsx([
             ['codigo_universitario', 'documento_identidad', 'nombres', 'apellidos'],
             [202104821, 7928194, 'Kevin René', 'Alvarado Claros'],
-            ['201901349', '6492819-1B', 'Diego Andrés', 'Camacho Zeballos'],
+            ['201901349', '6492819', 'Diego Andrés', 'Camacho Zeballos'],
         ]))
             ->assertOk()
             ->assertJsonPath('archivo', 'lista.xlsx')
@@ -103,7 +103,7 @@ final class CargaInscritosTest extends TestCase
         ]);
         $this->assertDatabaseHas('estudiantes', [
             'codigo_universitario' => '201901349',
-            'documento_identidad' => '6492819-1B',
+            'documento_identidad' => '6492819',
         ]);
     }
 

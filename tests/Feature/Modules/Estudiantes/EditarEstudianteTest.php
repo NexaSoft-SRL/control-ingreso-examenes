@@ -30,7 +30,7 @@ final class EditarEstudianteTest extends TestCase
     use UsuarioConPermisos;
 
     private const DATOS = [
-        'documento' => '5003748-1A',
+        'documento' => '5003748',
         'nombres' => 'Rodrigo',
         'apellidos' => 'Velasquez Ricaldez',
     ];
@@ -57,7 +57,7 @@ final class EditarEstudianteTest extends TestCase
             ->assertExactJson(['message' => 'Estudiante actualizado.']);
 
         $estudiante->refresh();
-        $this->assertSame('5003748-1A', $estudiante->documento_identidad);
+        $this->assertSame('5003748', $estudiante->documento_identidad);
         $this->assertSame('Rodrigo', $estudiante->nombres);
         $this->assertSame('Velasquez Ricaldez', $estudiante->apellidos);
 
@@ -67,7 +67,7 @@ final class EditarEstudianteTest extends TestCase
             ->where('usuario_id', $docente->user_id)
             ->value('descripcion');
         $this->assertIsString($descripcion);
-        $this->assertStringContainsString('C.I.: «—» → «5003748-1A»', $descripcion);
+        $this->assertStringContainsString('C.I.: «—» → «5003748»', $descripcion);
     }
 
     public function test_the_change_is_seen_in_every_group_of_the_student(): void
@@ -86,7 +86,7 @@ final class EditarEstudianteTest extends TestCase
 
         $this->editar($docente, $grupo, $estudiante)->assertOk();
 
-        $this->assertSame(1, Estudiante::query()->where('documento_identidad', '5003748-1A')->count());
+        $this->assertSame(1, Estudiante::query()->where('documento_identidad', '5003748')->count());
         $this->assertDatabaseHas('inscripciones', ['estudiante_id' => $estudiante->id, 'grupo_id' => $otroGrupo->id]);
     }
 
@@ -111,6 +111,22 @@ final class EditarEstudianteTest extends TestCase
         $this->editar($docente, $grupo, $estudiante, ['documento' => strtolower((string) $otro->documento_identidad)] + self::DATOS)
             ->assertUnprocessable()
             ->assertJsonPath('codigo', 'DOCUMENTO_EN_USO');
+    }
+
+    public function test_a_document_with_a_complement_or_letters_is_rejected(): void
+    {
+        $docente = $this->docente();
+        $grupo = $this->grupo($docente);
+        [$estudiante] = $this->estudiantesInscritos($grupo, 1);
+        $antes = $estudiante->documento_identidad;
+
+        foreach (['5003748-1A', '5003748 1A', '5003748LP', '123'] as $documento) {
+            $this->editar($docente, $grupo, $estudiante, ['documento' => $documento] + self::DATOS)
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['documento' => 'Solo números, de 4 a 10 dígitos.']);
+        }
+
+        $this->assertSame($antes, $estudiante->refresh()->documento_identidad);
     }
 
     public function test_the_data_is_validated_like_a_row_of_the_list(): void
@@ -144,7 +160,7 @@ final class EditarEstudianteTest extends TestCase
             ->putJson("/api/estudiantes/{$estudiante->id}", self::DATOS)
             ->assertOk();
 
-        $this->assertSame('5003748-1A', $estudiante->refresh()->documento_identidad);
+        $this->assertSame('5003748', $estudiante->refresh()->documento_identidad);
         $this->actingAs($this->administrador())
             ->putJson('/api/estudiantes/999999', self::DATOS)
             ->assertNotFound();

@@ -328,13 +328,13 @@ final class AgregarInscritoTest extends TestCase
 
         $this->agregar($docente, $grupo, [
             ...self::KEVIN,
-            'documento' => str_repeat('9', 31),
+            'documento' => str_repeat('9', 11),
             'nombres' => str_repeat('a', 101),
             'apellidos' => str_repeat('b', 101),
         ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors([
-                'documento' => 'El documento no puede superar los 30 caracteres.',
+                'documento' => 'Solo números, de 4 a 10 dígitos.',
                 'nombres' => 'Los nombres no pueden superar los 100 caracteres.',
                 'apellidos' => 'Los apellidos no pueden superar los 100 caracteres.',
             ]);
@@ -350,16 +350,17 @@ final class AgregarInscritoTest extends TestCase
             $this->agregar($docente, $grupo, [...self::KEVIN, 'nombres' => $nombre])
                 ->assertJsonValidationErrors(['nombres' => 'Escriba un nombre real: solo letras, mínimo 3.']);
         }
-        foreach (['123', '12345678901', '5003748LP', '5003748--1A'] as $documento) {
+        // El C.I. es solo numerico: sin letras, guiones, espacios ni complemento.
+        foreach (['123', '12345678901', '5003748LP', '5003748--1A', '5003748-1A', '5003748 1A', '5003 748'] as $documento) {
             $this->agregar($docente, $grupo, [...self::KEVIN, 'documento' => $documento])
-                ->assertJsonValidationErrorFor('documento');
+                ->assertJsonValidationErrors(['documento' => 'Solo números, de 4 a 10 dígitos.']);
         }
 
         $this->agregar($docente, $grupo, [
             ...self::KEVIN,
             'nombres' => 'Ma. José',
             'apellidos' => "D'Alessandro Pérez-Gómez",
-            'documento' => '5003748-1A',
+            'documento' => '5003748',
         ])->assertCreated();
     }
 

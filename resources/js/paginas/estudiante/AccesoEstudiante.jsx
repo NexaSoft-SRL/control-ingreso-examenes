@@ -55,6 +55,8 @@ function errorDeDatos({
     if (nombres.trim() === '') errores.nombres = 'Obligatorio';
     if (apellidos.trim() === '') errores.apellidos = 'Obligatorio';
     if (documento.trim() === '') errores.documento = 'Obligatorio';
+    else if (!/^\d{4,10}$/.test(documento.trim()))
+        errores.documento = 'Solo números, de 4 a 10 dígitos';
     if (facultad === '') errores.facultad_id = 'Elija su facultad';
     else if (carrera === '') errores.carrera_id = 'Elija su carrera';
     if (!confirmo) errores.confirmo = 'Confirme que revisó sus datos';
@@ -333,9 +335,9 @@ export default function AccesoEstudiante() {
                                 etiqueta="Carnet"
                                 iconoEtiqueta={IdCard}
                                 formato="documento"
-                                maxLength={30}
+                                maxLength={10}
                                 requerido
-                                ayuda="Complemento con guion: 5003748-1A"
+                                ayuda="Ej. 5003748"
                                 placeholder="5003748"
                                 data-campo="documento"
                                 value={datos.documento}
