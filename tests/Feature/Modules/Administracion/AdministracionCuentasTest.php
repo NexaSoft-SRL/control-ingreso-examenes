@@ -88,6 +88,7 @@ final class AdministracionCuentasTest extends TestCase
                     'correo' => 'nombre.nuevo@umss.edu.bo',
                     'rol' => 'Docente',
                     'estado' => 'activo',
+                    'correo_no_llego' => false,
                 ],
                 'message' => 'Cambios guardados.',
             ]);

@@ -55,6 +55,13 @@ const FORMA_CUENTA = PropTypes.shape({
 });
 
 // Los mismos estados que en Docentes.
+// El último correo de acceso de la cuenta rebotó: la dirección no existe.
+function CorreoNoLlego() {
+    return (
+        <span className="block truncate text-xs font-medium text-danger-700">Correo no llegó</span>
+    );
+}
+
 const ESTADOS = {
     activo: { tono: 'exito', texto: 'Activo' },
     temporal: { tono: 'primario', texto: 'Contraseña temporal' },
@@ -621,6 +628,7 @@ export default function Usuarios() {
                                     <p className="truncate text-xs text-slate-600">
                                         {u.usuario} · {u.correo || 'Sin correo'}
                                     </p>
+                                    {u.correo_no_llego && <CorreoNoLlego />}
                                     <p className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-slate-700">
                                         {u.rol ?? 'Sin rol'} <Estado estado={u.estado} />
                                     </p>
@@ -677,6 +685,7 @@ export default function Usuarios() {
                                         <span className="block truncate text-xs text-slate-500">
                                             {u.correo || 'Sin correo'}
                                         </span>
+                                        {u.correo_no_llego && <CorreoNoLlego />}
                                     </td>
                                     <td
                                         className="truncate px-4 py-3 text-slate-700"

@@ -34,4 +34,17 @@ return [
     // examenes cerrados se procesan al terminar una peticion web, una vez por
     // minuto como mucho. Con `false` quedan solo para el programador.
     'alertas_al_responder' => (bool) env('UMSS_ALERTAS_AL_RESPONDER', true),
+
+    // Un correo a una direccion que no existe sale bien y despues rebota al
+    // buzon del remitente. Con `habilitado` el sistema lee esos avisos por
+    // IMAP (cada 10 minutos con el programador, o al terminar una peticion
+    // web como mucho cada 5) y marca esos envios como fallidos. Usa la misma
+    // cuenta del correo saliente salvo que se indique otra.
+    'rebotes' => [
+        'habilitado' => (bool) env('UMSS_REVISAR_REBOTES', false),
+        'host' => env('UMSS_REBOTES_HOST', 'imap.gmail.com'),
+        'puerto' => (int) env('UMSS_REBOTES_PUERTO', 993),
+        'usuario' => env('UMSS_REBOTES_USUARIO', env('MAIL_USERNAME')),
+        'clave' => env('UMSS_REBOTES_CLAVE', env('MAIL_PASSWORD')),
+    ],
 ];
