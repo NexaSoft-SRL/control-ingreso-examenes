@@ -116,9 +116,19 @@ final class ImapBuzonDeRebotes implements BuzonDeRebotes
     private function buscar(int $dias): array
     {
         $desde = (new DateTimeImmutable("-{$dias} days"))->format('d-M-Y');
-        $respuesta = $this->ordenar("UID SEARCH SINCE {$desde} FROM \"mailer-daemon\"");
 
-        if (preg_match('/^\* SEARCH([ \d]*)$/m', $respuesta, $encontrado) !== 1) {
+        return self::uids($this->ordenar("UID SEARCH SINCE {$desde} FROM \"mailer-daemon\""));
+    }
+
+    /**
+     * Los UID de la respuesta a una busqueda. Las lineas de IMAP terminan en
+     * CRLF: el `\r` final no es parte de la lista.
+     *
+     * @return list<string>
+     */
+    public static function uids(string $respuesta): array
+    {
+        if (preg_match('/^\* SEARCH([ \d]*)\r?$/m', $respuesta, $encontrado) !== 1) {
             return [];
         }
 
