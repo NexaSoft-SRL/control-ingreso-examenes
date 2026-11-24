@@ -97,6 +97,7 @@ const CUENTAS = [
         correo: 'leticia.blanco@umss.edu.bo',
         rol: 'Docente',
         estado: 'activo',
+        correo_no_llego: true,
     },
     {
         id: 8,
@@ -371,6 +372,15 @@ describe('Usuarios y roles · cuentas', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }));
         await waitFor(() => expect(filas()).toHaveLength(3));
         expect(ultimaConsulta().params).toEqual({ pagina: 2, por_pagina: 20 });
+    });
+
+    it('la cuenta cuyo correo de acceso rebotó lo dice', async () => {
+        await montar();
+
+        const fila = within(tabla()).getByText('Blanco Coca Leticia').closest('tr');
+        expect(within(fila).getByText('Correo no llegó')).toBeInTheDocument();
+        const otra = within(tabla()).getByText('Rojas Daniela').closest('tr');
+        expect(within(otra).queryByText('Correo no llegó')).toBeNull();
     });
 
     it('la búsqueda viaja al servidor y sin coincidencias dice «Sin resultados» (criterio 2)', async () => {

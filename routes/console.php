@@ -5,6 +5,7 @@ use App\Modules\Academico\Application\Actions\ImportarOferta;
 use App\Modules\Academico\Application\Contracts\FuenteOfertaGateway;
 use App\Modules\Academico\Domain\Exceptions\FuenteNoDisponibleException;
 use App\Modules\Administracion\Application\Actions\GenerarRespaldo;
+use App\Modules\Administracion\Application\Actions\ProcesarRebotesDeCorreo;
 use App\Modules\Reportes\Application\Actions\ProcesarAlertasDeExamen;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -132,4 +133,18 @@ Artisan::command('reportes:alertas-cierre', function (ProcesarAlertasDeExamen $p
 
 Schedule::command('reportes:alertas-cierre')
     ->everyMinute()
+    ->withoutOverlapping();
+
+/*
+ * Los correos que rebotaron (direccion inexistente) pasan a fallidos. Sin
+ * `UMSS_REVISAR_REBOTES` no se lee el buzon.
+ */
+Artisan::command('correo:rebotes', function (ProcesarRebotesDeCorreo $procesar) {
+    $cantidad = $procesar->execute();
+
+    $this->info(sprintf('%d envios marcados como no entregados.', $cantidad));
+})->purpose('Lee los correos rebotados y marca esos envios como fallidos');
+
+Schedule::command('correo:rebotes')
+    ->everyTenMinutes()
     ->withoutOverlapping();

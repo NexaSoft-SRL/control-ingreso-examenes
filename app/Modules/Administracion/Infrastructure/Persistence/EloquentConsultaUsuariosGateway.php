@@ -161,7 +161,12 @@ final class EloquentConsultaUsuariosGateway implements ConsultaUsuariosGateway
                 'usuario.is_active',
                 'usuario.password_changed_at',
                 'rol.name as rol',
-            ]);
+            ])
+            ->selectRaw(
+                '(select envio.estado from envios_correo as envio where envio.user_id = usuario.id'
+                ." and envio.tipo in ('CREDENCIALES', 'RESTABLECIMIENTO')"
+                ." order by envio.id desc limit 1) = 'FALLIDO' as correo_no_llego"
+            );
     }
 
     /**
@@ -210,6 +215,7 @@ final class EloquentConsultaUsuariosGateway implements ConsultaUsuariosGateway
             activo: (bool) ($fila['is_active'] ?? false),
             rol: $this->texto($fila['rol'] ?? null),
             temporal: ($fila['password_changed_at'] ?? null) === null,
+            correoNoLlego: ($fila['correo_no_llego'] ?? false) === true,
         );
     }
 

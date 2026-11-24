@@ -9,6 +9,9 @@ use App\Modules\Administracion\Application\DTOs\RegistroCorreoData;
 use App\Modules\Administracion\Domain\Enums\EstadoEnvio;
 use App\Modules\Administracion\Domain\Enums\TipoCorreo;
 use App\Modules\Administracion\Domain\Models\EnvioCorreo;
+use DateTimeImmutable;
+use DateTimeZone;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -58,5 +61,57 @@ final class EloquentRegistroCorreoGateway implements RegistroCorreoGateway
             'error' => $error,
             'updated_at' => now(),
         ]);
+    }
+
+    /**
+     * Las fechas de la tabla estan en la zona de la aplicacion; el aviso del
+     * rebote puede venir en otra. Si el envio era de un codigo QR, el codigo
+     * deja de contar como enviado, para que el docente lo vea pendiente.
+     */
+    public function marcarRebotados(
+        string $destinatario,
+        DateTimeImmutable $desde,
+        DateTimeImmutable $hasta,
+        string $error,
+    ): int {
+        $zona = new DateTimeZone(date_default_timezone_get());
+        $formato = 'Y-m-d H:i:s';
+
+        $consulta = EnvioCorreo::query()
+            ->whereRaw('lower(destinatario) = ?', [mb_strtolower(trim($destinatario))])
+            ->where('estado', EstadoEnvio::Enviado->value)
+            ->whereBetween('enviado_en', [
+                $desde->setTimezone($zona)->format($formato),
+                $hasta->setTimezone($zona)->format($formato),
+            ]);
+
+        $envios = $consulta->get(['id', 'tipo', 'examen_id', 'estudiante_id']);
+
+        if ($envios->isEmpty()) {
+            return 0;
+        }
+
+        return DB::transaction(function () use ($envios, $error): int {
+            $marcados = EnvioCorreo::query()
+                ->whereKey($envios->modelKeys())
+                ->update([
+                    'estado' => EstadoEnvio::Fallido->value,
+                    'error' => $error,
+                    'updated_at' => now(),
+                ]);
+
+            foreach ($envios as $envio) {
+                if ($envio->tipo !== TipoCorreo::CodigoQr || $envio->examen_id === null || $envio->estudiante_id === null) {
+                    continue;
+                }
+
+                DB::table('codigos_qr')
+                    ->where('examen_id', $envio->examen_id)
+                    ->where('estudiante_id', $envio->estudiante_id)
+                    ->update(['enviado_en' => null, 'updated_at' => now()]);
+            }
+
+            return $marcados;
+        });
     }
 }

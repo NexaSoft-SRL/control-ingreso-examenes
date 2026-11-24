@@ -19,5 +19,7 @@ final readonly class UsuarioConRolData
         public ?string $rol,
         // Todavia con la contrasena temporal: no entro a cambiarla.
         public bool $temporal = false,
+        // El ultimo correo de acceso (credenciales o restablecimiento) rebotó o fallo.
+        public bool $correoNoLlego = false,
     ) {}
 }

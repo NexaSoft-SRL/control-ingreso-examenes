@@ -123,6 +123,7 @@ final class UsuarioController
                 $cuenta->temporal => 'temporal',
                 default => 'activo',
             },
+            'correo_no_llego' => $cuenta->correoNoLlego,
         ];
     }
 
