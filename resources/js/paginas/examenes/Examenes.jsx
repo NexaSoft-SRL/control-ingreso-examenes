@@ -246,6 +246,12 @@ export default function Examenes() {
         <div className="space-y-6">
             <Encabezado titulo="Exámenes" subtitulo={subtitulo}>
                 <Link
+                    to="/calendario"
+                    className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-primary-200 bg-white px-4 text-sm font-semibold text-primary-800 hover:bg-primary-50 ${FOCO}`}
+                >
+                    <CalendarDays className="h-4 w-4" aria-hidden="true" /> Calendario
+                </Link>
+                <Link
                     to="/examenes/nuevo"
                     className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 ${FOCO}`}
                 >
