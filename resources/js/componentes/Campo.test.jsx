@@ -133,6 +133,22 @@ describe('Campo', () => {
             expect(campo).toHaveValue('5003748-1A');
         });
 
+        it('documento: complemento en mayúsculas y sin letras en el número', () => {
+            expect(escribir('documento', '5003748-1a').campo).toHaveValue('5003748-1A');
+        });
+
+        it('documento: no deja letras sueltas en el número ni más de dos complementos', () => {
+            expect(escribir('documento', 'ab5003748-1a2b-x-y').campo).toHaveValue('5003748-1A2-X');
+        });
+
+        it('documento: junta los dígitos separados por espacios', () => {
+            expect(escribir('documento', '5003 748-1a').campo).toHaveValue('5003748-1A');
+        });
+
+        it('usuario: pasa a minúsculas y quita tildes', () => {
+            expect(escribir('usuario', 'Leticia Ñuñez').campo).toHaveValue('leticia nunez');
+        });
+
         it('usuario: letras y números separados por un espacio', () => {
             const { campo } = escribir('usuario', 'leticia@blanco  coca');
 

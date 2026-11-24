@@ -66,7 +66,7 @@ describe('Login', () => {
         // Lo que el usuario no admite ni entra al campo, y se avisa.
         escribir(campoUsuario(), 'leticia/blanco');
         expect(campoUsuario()).toHaveValue('leticiablanco');
-        expect(screen.getByText('Solo letras y números')).toBeInTheDocument();
+        expect(screen.getByText('En minúsculas, sin tildes ni signos')).toBeInTheDocument();
 
         // Lo que entra pero no tiene forma de usuario se rechaza antes de enviar.
         escribir(campoUsuario(), '.leticia');
@@ -199,7 +199,7 @@ describe('Login', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Recuperar contraseña' }));
         const dialogo = within(screen.getByRole('dialog', { name: 'Recuperar contraseña' }));
-        expect(dialogo.getByLabelText(/Usuario/)).toHaveValue('Leticia.Blanco');
+        expect(dialogo.getByLabelText(/Usuario/)).toHaveValue('leticia.blanco');
         // Quien no tiene correo sabe a quién acudir.
         expect(
             dialogo.getByText('Si no llega, pida una contraseña temporal a la administración.')

@@ -76,7 +76,7 @@ describe('PortalEstudiante', () => {
 
         fireEvent.change(screen.getByLabelText(/^Carnet/), { target: { value: '5003 748-1A#!' } });
 
-        expect(screen.getByLabelText(/^Carnet/)).toHaveValue('5003 748-1A');
+        expect(screen.getByLabelText(/^Carnet/)).toHaveValue('5003748-1A');
         expect(screen.getByLabelText(/^Carnet/)).toHaveAttribute('maxlength', '30');
         expect(screen.getByLabelText(/^Carnet/)).toHaveAttribute('aria-required', 'true');
     });

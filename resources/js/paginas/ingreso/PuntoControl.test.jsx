@@ -435,7 +435,7 @@ describe('Punto de control', () => {
 
         const campo = screen.getByLabelText(/^Código SIS o C\.I\./);
         fireEvent.change(campo, { target: { value: '2021 04*821#' } });
-        expect(campo).toHaveValue('2021 04821');
+        expect(campo).toHaveValue('202104821');
         expect(campo).toHaveAttribute('maxlength', '14');
     });
 

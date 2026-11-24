@@ -6,8 +6,6 @@
 // La validación del servidor sigue siendo la que manda: esto solo encarrila.
 const LETRAS = /[^\p{L}\s.'-]/gu;
 const DIGITOS = /\D/g;
-const DOCUMENTO = /[^0-9A-Za-z\s-]/g;
-const USUARIO = /[^\p{L}\p{N}\s._-]/gu;
 const ESPACIOS = /\s{2,}/g;
 
 export const FORMATOS = {
@@ -23,17 +21,35 @@ export const FORMATOS = {
         aviso: 'Solo números',
         propiedades: { inputMode: 'numeric', autoComplete: 'off' },
     },
-    // C.I.: número y, si tiene, su complemento («5003748-1A»).
+    // C.I.: el número (4 a 10 dígitos) y, si tiene, su complemento con guion
+    // («5003748-1A»): hasta dos partes de 1 a 3 letras o números, en mayúsculas.
+    // Sin espacios: el complemento va con guion. Regla del servidor: PATRON_DOCUMENTO.
     documento: {
-        limpiar: (v) => v.replace(DOCUMENTO, '').replace(ESPACIOS, ' '),
-        aviso: 'Solo número y complemento',
+        limpiar: (v) => {
+            const [numero = '', ...resto] = v
+                .toUpperCase()
+                .replace(/\s+/g, '')
+                .replace(/[^0-9A-Z-]/g, '')
+                .replace(/-+/g, '-')
+                .replace(/^-/, '')
+                .split('-');
+            const partes = resto.slice(0, 2).map((p) => p.slice(0, 3));
+            return [numero.replace(DIGITOS, '').slice(0, 10), ...partes].join('-');
+        },
+        aviso: 'Número y complemento: 5003748-1A',
         propiedades: { autoComplete: 'off', autoCapitalize: 'characters', spellCheck: false },
     },
-    // Usuario del sistema: letras y números separados por un espacio, punto,
-    // guion o guion bajo (la misma regla del servidor, NombreDeUsuario).
+    // Usuario del sistema: en minúsculas y sin tildes, letras y números con un
+    // espacio, punto, guion o guion bajo entre partes (regla de NombreDeUsuario).
     usuario: {
-        limpiar: (v) => v.replace(USUARIO, '').replace(ESPACIOS, ' '),
-        aviso: 'Solo letras y números',
+        limpiar: (v) =>
+            v
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/[^a-z0-9\s._-]/g, '')
+                .replace(ESPACIOS, ' '),
+        aviso: 'En minúsculas, sin tildes ni signos',
         propiedades: { autoCapitalize: 'none', autoComplete: 'username', spellCheck: false },
     },
 };

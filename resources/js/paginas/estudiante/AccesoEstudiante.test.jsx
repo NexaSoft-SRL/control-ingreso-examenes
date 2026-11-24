@@ -254,7 +254,7 @@ describe('AccesoEstudiante', () => {
             expect(screen.getByLabelText(/Nombres/)).toHaveAttribute('maxlength', '100');
             expect(screen.getByLabelText(/Carnet/)).toHaveAttribute('maxlength', '30');
             expect(screen.getByLabelText(/Nombres/)).toHaveAttribute('aria-required', 'true');
-            expect(screen.getByText('Solo número y complemento')).toBeInTheDocument();
+            expect(screen.getByText('Número y complemento: 5003748-1A')).toBeInTheDocument();
         });
 
         it('la carrera dice que espera la facultad', async () => {

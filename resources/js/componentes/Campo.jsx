@@ -102,9 +102,12 @@ export default function Campo({
                                 const cursor = Math.max(0, (campo.selectionStart ?? 0) - quitado);
                                 campo.value = limpio;
                                 campo.setSelectionRange?.(cursor, cursor);
-                                setDescartado(true);
-                                clearTimeout(reloj.current);
-                                reloj.current = setTimeout(() => setDescartado(false), 2000);
+                                // Solo se avisa si algo se quitó (no por pasar a mayúsculas).
+                                if (quitado > 0) {
+                                    setDescartado(true);
+                                    clearTimeout(reloj.current);
+                                    reloj.current = setTimeout(() => setDescartado(false), 2000);
+                                }
                             }
                         }
                         setValor(e.target.value);
