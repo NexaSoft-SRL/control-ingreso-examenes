@@ -17,20 +17,20 @@ import { errorDeNombre } from '../../utiles/texto';
 const CAMPOS = ['codigo', 'documento', 'apellidos', 'nombres'];
 const VACIO = { codigo: '', documento: '', apellidos: '', nombres: '' };
 
-const MAXIMOS = { codigo: 10, documento: 30, apellidos: 100, nombres: 100 };
+const MAXIMOS = { codigo: 10, documento: 10, apellidos: 100, nombres: 100 };
 
 const validarCodigo = (valor) =>
     /^\d{5,10}$/.test(String(valor).trim()) ? null : 'Entre 5 y 10 dígitos';
 
 // Los mismos formatos que exige el servidor (DatosDeInscrito).
-const DOCUMENTO = /^\d{4,10}([\s-][0-9A-Za-z]{1,3}){0,2}$/;
+const DOCUMENTO = /^\d{4,10}$/;
 
 // `opcional`: el C.I. puede faltar al agregar; lo escribe después el estudiante.
 function errorDe(campo, valor, opcional = false) {
     const texto = String(valor).trim();
     if (!texto) return opcional && campo === 'documento' ? null : 'Obligatorio';
     if (campo === 'codigo') return validarCodigo(texto);
-    if (campo === 'documento' && !DOCUMENTO.test(texto)) return 'Revise el formato: 5003748-1A';
+    if (campo === 'documento' && !DOCUMENTO.test(texto)) return 'Solo números, de 4 a 10 dígitos';
     if (campo === 'nombres' || campo === 'apellidos') return errorDeNombre(texto, 3);
     return null;
 }
@@ -127,7 +127,7 @@ export function AgregarEstudiante({ grupo, onAgregado, onCerrar }) {
                     maxLength={MAXIMOS.documento}
                     value={datos.documento}
                     onChange={cambiar('documento')}
-                    ayuda="Opcional · ej. 5003748 o 5003748-1A"
+                    ayuda="Opcional · ej. 5003748"
                     error={errores.documento ?? undefined}
                 />
                 <Campo
@@ -248,7 +248,7 @@ export function EditarEstudiante({ estudiante, ruta, onEditado, onCerrar }) {
                     maxLength={MAXIMOS.documento}
                     value={datos.documento}
                     onChange={cambiar('documento')}
-                    ayuda="Ej. 5003748 o 5003748-1A"
+                    ayuda="Ej. 5003748"
                     error={errores.documento ?? undefined}
                     autoFocus
                 />

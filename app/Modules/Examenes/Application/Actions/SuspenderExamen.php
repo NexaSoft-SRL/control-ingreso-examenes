@@ -8,11 +8,12 @@ use App\Modules\Examenes\Application\Contracts\AlcanceExamenGateway;
 use App\Modules\Examenes\Application\Contracts\ExamenGateway;
 use App\Modules\Examenes\Domain\Exceptions\ExamenAjenoException;
 use App\Modules\Examenes\Domain\Exceptions\ExamenNoAbiertoException;
+use App\Modules\Examenes\Domain\Exceptions\ExamenYaSuspendidoException;
 
 /**
- * Un docente suspende temporalmente el examen. Mientras exista una
- * suspensión abierta, la puerta deja de admitir ingresos y el examen
- * permanece detenido hasta su reanudación.
+ * Un docente suspende temporalmente el examen abierto (ya abrio su puerta,
+ * sigue en su dia y nadie lo finalizo). Mientras la suspension siga
+ * abierta, la puerta no admite ingresos.
  */
 final readonly class SuspenderExamen
 {
@@ -27,6 +28,7 @@ final readonly class SuspenderExamen
      *
      * @throws ExamenAjenoException
      * @throws ExamenNoAbiertoException
+     * @throws ExamenYaSuspendidoException
      */
     public function execute(
         int $examenId,
@@ -40,6 +42,10 @@ final readonly class SuspenderExamen
 
         if (! $this->alcance->esDocenteDelExamen($usuarioId, $examenId)) {
             throw new ExamenAjenoException;
+        }
+
+        if ($this->examenes->estaSuspendido($examenId)) {
+            throw new ExamenYaSuspendidoException;
         }
 
         return $this->examenes->suspender(

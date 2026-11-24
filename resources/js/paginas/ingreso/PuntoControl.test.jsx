@@ -184,6 +184,13 @@ const VEREDICTOS = {
         pie: 'Intento registrado',
         examen_correspondiente: { texto: 'Primer parcial · Álgebra I', aula: '624' },
     },
+    examen_suspendido: {
+        veredicto: 'examen_suspendido',
+        estudiante: ESTUDIANTE,
+        examen: EXAMEN,
+        dato: 'El docente suspendió el examen.',
+        pie: 'Espere a que lo reanude.',
+    },
 };
 
 const montar = ({ ruta = '/control', rol = 'Docente' } = {}) =>
@@ -362,13 +369,13 @@ describe('Punto de control', () => {
         expect(campo).toHaveFocus();
     });
 
-    it('acepta el C.I. con complemento', async () => {
+    it('acepta el C.I. solo numérico, sin complemento', async () => {
         montar();
         await cargada();
-        await verificarManual('5003748-1a');
+        await verificarManual('5003748');
 
         expect(await screen.findByText('Ingreso admitido')).toBeInTheDocument();
-        expect(enviados('/verificaciones')).toEqual([{ identificador: '5003748-1A' }]);
+        expect(enviados('/verificaciones')).toEqual([{ identificador: '5003748' }]);
     });
 
     it('muestra el veredicto «No registrado» si no está en el padrón', async () => {
@@ -428,15 +435,15 @@ describe('Punto de control', () => {
         expect(screen.queryByRole('img', { name: 'Mapa de edificios del campus' })).toBeNull();
     });
 
-    it('el código manual solo admite número y complemento, no letras sueltas ni signos', async () => {
+    it('el código manual solo admite números, no letras ni guiones', async () => {
         montar();
         await cargada();
         fireEvent.click(screen.getByRole('button', { name: 'Código SIS o C.I. manual' }));
 
         const campo = screen.getByLabelText(/^Código SIS o C\.I\./);
-        fireEvent.change(campo, { target: { value: '2021 04*821#' } });
-        expect(campo).toHaveValue('202104821');
-        expect(campo).toHaveAttribute('maxlength', '14');
+        fireEvent.change(campo, { target: { value: '2021 04*821#-1A' } });
+        expect(campo).toHaveValue('2021048211');
+        expect(campo).toHaveAttribute('maxlength', '10');
     });
 
     it('no habilitado: el docente lo admite por decisión suya, con motivo', async () => {
@@ -561,6 +568,7 @@ describe('Punto de control', () => {
     it.each([
         ['ya_ingreso', 'Ya ingresó', 'Ingresó a las 08:02:41 en esta aula'],
         ['expulsado', 'Expulsado', 'Expulsado a las 08:40'],
+        ['examen_suspendido', 'Examen suspendido', 'El docente suspendió el examen.'],
     ])('%s: muestra la hora y solo ofrece «Siguiente»', async (clave, titulo, dato) => {
         veredicto = VEREDICTOS[clave];
         montar();

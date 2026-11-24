@@ -39,8 +39,8 @@ final class EmpadronarseRequest extends FormRequest
     {
         return [
             'documento.required' => 'Obligatorio',
-            'documento.regex' => 'Número de 4 a 10 dígitos; si tiene complemento, con guion: 5003748-1A',
-            'documento.max' => 'Demasiado largo',
+            'documento.regex' => DatosDeInscrito::MENSAJE_DOCUMENTO,
+            'documento.max' => DatosDeInscrito::MENSAJE_DOCUMENTO,
             'nombres.required' => 'Obligatorio',
             'nombres.regex' => 'Escriba un nombre real: solo letras, mínimo 3',
             'apellidos.required' => 'Obligatorio',

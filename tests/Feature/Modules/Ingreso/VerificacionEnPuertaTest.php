@@ -197,13 +197,12 @@ final class VerificacionEnPuertaTest extends TestCase
     public function test_the_carnet_shown_at_the_door_is_compared_with_the_one_the_student_wrote(): void
     {
         [$estudiante] = $this->estudiantesInscritos($this->grupo, 1);
-        $estudiante->update(['documento_identidad' => '5003748-1A']);
+        $estudiante->update(['documento_identidad' => '5003748']);
         $url = "/api/puerta/aulas/{$this->aula->id}/carnet";
         $cuerpo = ['estudiante_id' => $estudiante->id, 'examen_id' => $this->examen->id];
 
-        // Mayusculas, espacios y guiones no cuentan.
         $this->actingAs($this->cuentaDocente)
-            ->postJson($url, $cuerpo + ['documento' => '5003748 1a'])
+            ->postJson($url, $cuerpo + ['documento' => '5003748'])
             ->assertOk()
             ->assertExactJson(['coincide' => true, 'sin_carnet' => false, 'incidencia' => null]);
         $this->assertDatabaseMissing('incidencias', ['tipo' => 'SUPLANTACION']);
@@ -448,9 +447,9 @@ final class VerificacionEnPuertaTest extends TestCase
         $this->assertDatabaseCount('incidencias', 0);
     }
 
-    public function test_the_identifier_must_have_five_to_ten_digits(): void
+    public function test_the_identifier_has_only_four_to_ten_digits(): void
     {
-        foreach (['1234', '12345678901', 'ABC12345', '5003748-1ABC'] as $malo) {
+        foreach (['123', '12345678901', 'ABC12345', '5003748-1A', '5003748 1A', '5003748-1ABC'] as $malo) {
             $this->verificar($this->cuentaDocente, $malo)
                 ->assertStatus(422)
                 ->assertJsonPath('errors.identificador.0', 'Código o C.I. no válido');
@@ -579,15 +578,46 @@ final class VerificacionEnPuertaTest extends TestCase
             ->assertJsonPath('message', 'Aula no encontrada.');
     }
 
-    public function test_an_identity_document_with_its_complement_is_found_however_it_is_typed(): void
+    public function test_an_identity_document_is_found_by_its_number(): void
+    {
+        [$estudiante] = $this->habilitados(1);
+        DB::table('estudiantes')->where('id', $estudiante->id)->update(['documento_identidad' => '5003748']);
+
+        $this->verificar($this->cuentaDocente, '5003748')
+            ->assertOk()
+            ->assertJsonPath('veredicto', 'admitido')
+            ->assertJsonPath('estudiante.id', $estudiante->id);
+    }
+
+    public function test_a_document_saved_with_a_complement_before_the_rule_is_still_found_by_its_number(): void
     {
         [$estudiante] = $this->habilitados(1);
         DB::table('estudiantes')->where('id', $estudiante->id)->update(['documento_identidad' => '5003748-1A']);
 
-        $this->verificar($this->cuentaDocente, '5003748 1a')
+        $this->verificar($this->cuentaDocente, '5003748')
             ->assertOk()
             ->assertJsonPath('veredicto', 'admitido')
             ->assertJsonPath('estudiante.id', $estudiante->id);
+    }
+
+    public function test_the_carnet_shown_at_the_door_is_only_digits_and_matches_a_legacy_complement(): void
+    {
+        [$estudiante] = $this->estudiantesInscritos($this->grupo, 1);
+        $estudiante->update(['documento_identidad' => '5003748-1A']);
+        $url = "/api/puerta/aulas/{$this->aula->id}/carnet";
+        $cuerpo = ['estudiante_id' => $estudiante->id, 'examen_id' => $this->examen->id];
+
+        foreach (['5003748-1A', '5003748 1A', 'ABC1234', '123'] as $malo) {
+            $this->actingAs($this->cuentaDocente)
+                ->postJson($url, $cuerpo + ['documento' => $malo])
+                ->assertStatus(422)
+                ->assertJsonPath('errors.documento.0', 'Solo números, de 4 a 10 dígitos');
+        }
+
+        $this->actingAs($this->cuentaDocente)
+            ->postJson($url, $cuerpo + ['documento' => '5003748'])
+            ->assertOk()
+            ->assertJsonPath('coincide', true);
     }
 
     public function test_an_entry_well_after_the_start_is_marked_late(): void

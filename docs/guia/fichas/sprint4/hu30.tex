@@ -78,8 +78,8 @@ inscripciones (sus grupos)»; la del administrador, «Padrón e inscripciones» 
       y «se corrige en todas sus materias», y los campos «C.I.», «Apellidos» y «Nombres»
       con los datos actuales, «Cancelar» y «Guardar»; el código SIS no se puede editar.
 \item Dado que el docente corrige los datos, Cuando pulsa «Guardar», Entonces el sistema
-      valida antes de enviar ---vacío «Obligatorio», C.I. «De 4 a 10 dígitos y
-      complemento («5003748-1A»)», nombres y apellidos «Mínimo 2 letras» o «Solo letras,
+      valida antes de enviar ---vacío «Obligatorio», C.I. «Solo números, de 4 a 10
+      dígitos», nombres y apellidos «Mínimo 2 letras» o «Solo letras,
       sin signos seguidos»--- y el servidor vuelve a validar como una fila de la lista;
       con datos válidos los guarda, avisa «Estudiante actualizado» y la lista muestra el
       cambio.
@@ -90,7 +90,7 @@ inscripciones (sus grupos)»; la del administrador, «Padrón e inscripciones» 
       sus datos, Entonces el cambio se ve en todos sus grupos y exámenes, porque el
       estudiante es uno solo en el padrón, y queda en la bitácora a nombre de quien lo
       hizo, con cada dato antes y después (por ejemplo, «C.I.: «---» $\rightarrow$
-      «5003748-1A»»); guardar sin cambios no deja asiento.
+      «5003748»»); guardar sin cambios no deja asiento.
 \item Dado que el estudiante no es de un grupo del docente, Cuando este intenta
       corregirlo, Entonces el servidor responde «Este grupo no está a su cargo.» para el
       grupo ajeno o «El estudiante no está inscrito en este grupo.» si no está en el

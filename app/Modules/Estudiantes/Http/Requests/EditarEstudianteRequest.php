@@ -38,8 +38,8 @@ final class EditarEstudianteRequest extends FormRequest
         return [
             'documento.required' => 'El documento es obligatorio.',
             'documento.string' => 'El documento no es válido.',
-            'documento.max' => 'El documento no puede superar los '.DatosDeInscrito::MAXIMO_DOCUMENTO.' caracteres.',
-            'documento.regex' => 'Número de 4 a 10 dígitos; si tiene complemento, con guion: 5003748-1A.',
+            'documento.max' => DatosDeInscrito::MENSAJE_DOCUMENTO.'.',
+            'documento.regex' => DatosDeInscrito::MENSAJE_DOCUMENTO.'.',
             'nombres.regex' => 'Escriba un nombre real: solo letras, mínimo 3.',
             'apellidos.regex' => 'Escriba un nombre real: solo letras, mínimo 3.',
             'nombres.required' => 'Los nombres son obligatorios.',

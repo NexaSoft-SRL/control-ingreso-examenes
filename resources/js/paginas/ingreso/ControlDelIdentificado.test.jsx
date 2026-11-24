@@ -107,6 +107,19 @@ describe('ControlDelIdentificado', () => {
         expect(await screen.findByText(/Sin carnet registrado/)).toBeInTheDocument();
     });
 
+    it('un carnet de menos de 4 dígitos no se compara y dice cómo corregirlo', () => {
+        montar({ veredicto: 'admitido' });
+
+        fireEvent.click(screen.getByRole('button', { name: /Verificar carnet/ }));
+        fireEvent.change(screen.getByLabelText(/Carnet que presenta/), {
+            target: { value: '123' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Comparar carnet' }));
+
+        expect(screen.getByText('Solo números, de 4 a 10 dígitos')).toBeInTheDocument();
+        expect(api.post).not.toHaveBeenCalled();
+    });
+
     it('un rechazo sin la incidencia asentada ofrece la foto desde el veredicto', () => {
         montar({ veredicto: 'no_habilitado', incidencia: { id: 12 } });
 
@@ -138,13 +151,14 @@ describe('ControlDelIdentificado', () => {
         expect(container).toBeEmptyDOMElement();
     });
 
-    it('el carnet solo admite número y complemento: lo demás no entra', async () => {
+    it('el carnet solo admite números: letras, guion y signos no entran', async () => {
         montar({ veredicto: 'admitido' });
         fireEvent.click(screen.getByRole('button', { name: /Verificar carnet/ }));
 
         const campo = screen.getByLabelText(/Carnet que presenta/);
         fireEvent.change(campo, { target: { value: '5003748-1A#?' } });
 
-        expect(campo).toHaveValue('5003748-1A');
+        expect(campo).toHaveValue('50037481');
+        expect(campo).toHaveAttribute('maxlength', '10');
     });
 });

@@ -69,15 +69,15 @@ describe('PortalEstudiante', () => {
         ).toBeInTheDocument();
     });
 
-    it('el carnet solo admite número y complemento', async () => {
+    it('el carnet solo admite números, sin complemento', async () => {
         const sin = { estudiante: { ...ESTUDIANTE, con_carnet: false }, plazo_foto: PLAZO };
         montar('/estudiante/foto', { 'GET /estudiante/sesion': sin });
         await screen.findByRole('button', { name: 'Guardar carnet' });
 
         fireEvent.change(screen.getByLabelText(/^Carnet/), { target: { value: '5003 748-1A#!' } });
 
-        expect(screen.getByLabelText(/^Carnet/)).toHaveValue('5003748-1A');
-        expect(screen.getByLabelText(/^Carnet/)).toHaveAttribute('maxlength', '30');
+        expect(screen.getByLabelText(/^Carnet/)).toHaveValue('50037481');
+        expect(screen.getByLabelText(/^Carnet/)).toHaveAttribute('maxlength', '10');
         expect(screen.getByLabelText(/^Carnet/)).toHaveAttribute('aria-required', 'true');
     });
 

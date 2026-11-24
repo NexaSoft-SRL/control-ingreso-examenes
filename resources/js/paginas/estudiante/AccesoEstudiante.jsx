@@ -55,6 +55,8 @@ function errorDeDatos({
     if (nombres.trim() === '') errores.nombres = 'Obligatorio';
     if (apellidos.trim() === '') errores.apellidos = 'Obligatorio';
     if (documento.trim() === '') errores.documento = 'Obligatorio';
+    else if (!/^\d{4,10}$/.test(documento.trim()))
+        errores.documento = 'Solo números, de 4 a 10 dígitos';
     if (facultad === '') errores.facultad_id = 'Elija su facultad';
     else if (carrera === '') errores.carrera_id = 'Elija su carrera';
     if (!confirmo) errores.confirmo = 'Confirme que revisó sus datos';
@@ -333,9 +335,9 @@ export default function AccesoEstudiante() {
                                 etiqueta="Carnet"
                                 iconoEtiqueta={IdCard}
                                 formato="documento"
-                                maxLength={30}
+                                maxLength={10}
                                 requerido
-                                ayuda="Complemento con guion: 5003748-1A"
+                                ayuda="Ej. 5003748"
                                 placeholder="5003748"
                                 data-campo="documento"
                                 value={datos.documento}
@@ -542,12 +544,9 @@ export default function AccesoEstudiante() {
                                 autoFocus
                                 value={sis}
                                 // El correo es el código SIS con el dominio institucional
-                                // (`umss.dominio_correo_estudiantes` en el servidor).
-                                ayuda={
-                                    /^\d{5,10}$/.test(sis)
-                                        ? `Se enviará a ${sis}@est.umss.edu`
-                                        : undefined
-                                }
+                                // (`umss.dominio_correo_estudiantes` en el servidor): se
+                                // muestra fijo, solo se escribe el código.
+                                sufijo="@est.umss.edu"
                                 error={errores.sis}
                                 onChange={(e) => {
                                     setSis(soloDigitos(e.target.value, 10));

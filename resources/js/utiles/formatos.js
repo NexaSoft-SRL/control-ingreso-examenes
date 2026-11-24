@@ -21,23 +21,12 @@ export const FORMATOS = {
         aviso: 'Solo números',
         propiedades: { inputMode: 'numeric', autoComplete: 'off' },
     },
-    // C.I.: el número (4 a 10 dígitos) y, si tiene, su complemento con guion
-    // («5003748-1A»): hasta dos partes de 1 a 3 letras o números, en mayúsculas.
-    // Sin espacios: el complemento va con guion. Regla del servidor: PATRON_DOCUMENTO.
+    // C.I.: solo dígitos, de 4 a 10, sin complemento (regla del servidor:
+    // PATRON_DOCUMENTO).
     documento: {
-        limpiar: (v) => {
-            const [numero = '', ...resto] = v
-                .toUpperCase()
-                .replace(/\s+/g, '')
-                .replace(/[^0-9A-Z-]/g, '')
-                .replace(/-+/g, '-')
-                .replace(/^-/, '')
-                .split('-');
-            const partes = resto.slice(0, 2).map((p) => p.slice(0, 3));
-            return [numero.replace(DIGITOS, '').slice(0, 10), ...partes].join('-');
-        },
-        aviso: 'Número y complemento: 5003748-1A',
-        propiedades: { autoComplete: 'off', autoCapitalize: 'characters', spellCheck: false },
+        limpiar: (v) => v.replace(DIGITOS, '').slice(0, 10),
+        aviso: 'Solo números',
+        propiedades: { inputMode: 'numeric', autoComplete: 'off' },
     },
     // Usuario del sistema: en minúsculas y sin tildes, letras y números con un
     // espacio, punto, guion o guion bajo entre partes (regla de NombreDeUsuario).

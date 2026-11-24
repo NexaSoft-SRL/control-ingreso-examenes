@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Monitoreo\Infrastructure\Persistence;
 
-use App\Modules\Examenes\Application\Contracts\ExamenGateway;
 use App\Modules\Monitoreo\Application\Contracts\SeguimientoGateway;
 use App\Modules\Monitoreo\Application\DTOs\AulaEnCursoData;
 use App\Modules\Monitoreo\Application\DTOs\AulaSeguidaData;
@@ -62,6 +61,17 @@ final class EloquentSeguimientoGateway implements SeguimientoGateway
                 'examen.finalizado_en',
                 'asignatura.nombre as asignatura',
             ])
+            // La suspension abierta, si la hay, en la misma consulta.
+            ->selectRaw(
+                '(select suspension.motivo from suspensiones_examen as suspension
+                    where suspension.examen_id = examen.id and suspension.reanudado_en is null
+                    order by suspension.suspendido_en desc limit 1) as motivo_suspension'
+            )
+            ->selectRaw(
+                '(select suspension.descripcion from suspensiones_examen as suspension
+                    where suspension.examen_id = examen.id and suspension.reanudado_en is null
+                    order by suspension.suspendido_en desc limit 1) as descripcion_suspension'
+            )
             ->first();
 
         if ($fila === null) {
@@ -77,8 +87,7 @@ final class EloquentSeguimientoGateway implements SeguimientoGateway
         $finPrevisto = (new DateTimeImmutable("{$fecha} {$hora}", $ahora->getTimezone()))
             ->modify("+{$duracion} minutes");
 
-        $examenId = $this->entero($columnas['id'] ?? null);
-        $suspendido = app(ExamenGateway::class)->estaSuspendido($examenId);
+        $motivo = $this->texto($columnas['motivo_suspension'] ?? null);
 
         return new ExamenSeguidoData(
             id: $this->entero($columnas['id'] ?? null),
@@ -98,10 +107,9 @@ final class EloquentSeguimientoGateway implements SeguimientoGateway
             excedido: ($columnas['finalizado_en'] ?? null) === null
                 && $ahora > $finPrevisto
                 && $fecha === $ahora->format('Y-m-d'),
-
-            suspendido: $suspendido,
-            motivoSuspension: null, // El Gateway actual no expone el motivo directamente, pero no es necesario para el tablero
-            descripcionSuspension: null,
+            suspendido: $motivo !== null,
+            motivoSuspension: $motivo,
+            descripcionSuspension: $this->texto($columnas['descripcion_suspension'] ?? null),
         );
     }
 

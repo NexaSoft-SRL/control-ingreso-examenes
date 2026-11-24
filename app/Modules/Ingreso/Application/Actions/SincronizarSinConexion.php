@@ -210,6 +210,11 @@ final readonly class SincronizarSinConexion
 
         $resumen['ingresos']++;
 
+        // Sin internet, el puesto no supo que el docente suspendio el examen.
+        if ($this->puerta->suspendido($examen->id, $registradoEn->format('Y-m-d H:i:s'))) {
+            $this->irregular($resumen, $examen->id, $sesionId, TipoIrregularidad::AdmitidoEnSuspension, sprintf('%s entró a las %s, con el examen suspendido.', $codigoEstudiante, $registradoEn->format('H:i')), $estudianteId, $aula->id, $datos);
+        }
+
         if ($dudosa) {
             $this->irregular($resumen, $examen->id, $sesionId, TipoIrregularidad::HoraDudosa, sprintf('La hora del puesto (%s) no cuadra con el examen o con el servidor; el ingreso se asentó a las %s.', $hora->format('H:i'), $registradoEn->format('H:i')), $estudianteId, $aula->id, $datos);
         }

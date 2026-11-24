@@ -5,6 +5,7 @@ import {
     ArrowRight,
     CheckCircle2,
     History,
+    PauseCircle,
     ScanSearch,
     SearchX,
     UserRound,
@@ -39,6 +40,7 @@ export const VEREDICTOS = {
     ya_ingreso: { tono: 'peligro', Icono: History, titulo: 'Ya ingresó' },
     expulsado: { tono: 'peligro', Icono: UserX, titulo: 'Expulsado' },
     no_corresponde: { tono: 'peligro', Icono: ScanSearch, titulo: 'No es de esta aula' },
+    examen_suspendido: { tono: 'advertencia', Icono: PauseCircle, titulo: 'Examen suspendido' },
 };
 
 const CABECERA = {

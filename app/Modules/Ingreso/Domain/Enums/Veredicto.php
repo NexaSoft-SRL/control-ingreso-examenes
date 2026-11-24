@@ -16,7 +16,7 @@ enum Veredicto: string
     case YaIngreso = 'ya_ingreso';
     case Expulsado = 'expulsado';
     case NoCorresponde = 'no_corresponde';
-    case ExamenSuspendido = 'examen_suspendido'; // <-- AGREGADO
+    case ExamenSuspendido = 'examen_suspendido';
 
     /**
      * @return list<string>

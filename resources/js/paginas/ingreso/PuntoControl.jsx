@@ -30,8 +30,8 @@ import IconoAsignatura from '../../componentes/IconoAsignatura';
 const FOCO = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600';
 const SONDEO_MS = 10000;
 const ESPERA_BUSQUEDA_MS = 300;
-// Código universitario, o C.I. con su complemento («5003748-1A»).
-const IDENTIFICADOR = /^\d{5,10}([\s-][0-9A-Za-z]{1,3}|[A-Za-z][0-9A-Za-z]{0,2})?$/;
+// Código universitario (5 a 10 dígitos) o C.I. (4 a 10): solo números.
+const IDENTIFICADOR = /^\d{4,10}$/;
 
 const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
 // '2026-10-12T08:21:07-04:00' → '08:21'.
@@ -291,7 +291,7 @@ function Puesto({ resumen, aulas, hoy, elegirAula }) {
                 placeholder="Ej.: 202104821"
                 className="min-w-0 flex-1"
                 formato="documento"
-                maxLength={14}
+                maxLength={10}
                 enterKeyHint="search"
                 autoFocus={cerrable}
                 value={manual}
