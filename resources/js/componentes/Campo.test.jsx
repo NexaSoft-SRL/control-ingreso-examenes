@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import Campo from './Campo';
 
@@ -93,5 +93,71 @@ describe('Campo', () => {
     it('solo las contraseñas llevan el ojito', () => {
         render(<Campo etiqueta="Usuario" />);
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    });
+
+    describe('formato', () => {
+        const escribir = (formato, texto, extra = {}) => {
+            const onChange = vi.fn();
+            render(<Campo etiqueta="Dato" formato={formato} onChange={onChange} {...extra} />);
+            const campo = screen.getByLabelText('Dato');
+            fireEvent.change(campo, { target: { value: texto } });
+            return { campo, onChange };
+        };
+
+        it('letras: no deja poner números ni signos y avisa', () => {
+            const { campo, onChange } = escribir('letras', 'Ana2 María#');
+
+            expect(campo).toHaveValue('Ana María');
+            expect(onChange.mock.calls[0][0].target.value).toBe('Ana María');
+            expect(screen.getByText('Solo letras')).toBeInTheDocument();
+        });
+
+        it('letras: admite tildes, ñ, punto, apóstrofo y guion', () => {
+            const { campo } = escribir('letras', "Ma. José D'Alessandro Pérez-Ñúñez");
+
+            expect(campo).toHaveValue("Ma. José D'Alessandro Pérez-Ñúñez");
+            expect(screen.queryByText('Solo letras')).toBeNull();
+        });
+
+        it('dígitos: solo números, también si se pega texto', () => {
+            const { campo } = escribir('digitos', 'SIS 2021-04821');
+
+            expect(campo).toHaveValue('202104821');
+            expect(campo).toHaveAttribute('inputmode', 'numeric');
+            expect(screen.getByText('Solo números')).toBeInTheDocument();
+        });
+
+        it('documento: número con complemento, sin otros signos', () => {
+            const { campo } = escribir('documento', '5003748-1A!?');
+
+            expect(campo).toHaveValue('5003748-1A');
+        });
+
+        it('usuario: letras y números separados por un espacio', () => {
+            const { campo } = escribir('usuario', 'leticia@blanco  coca');
+
+            expect(campo).toHaveValue('leticiablanco coca');
+        });
+
+        it('el aviso del formato se va solo y deja paso a un error', () => {
+            vi.useFakeTimers();
+            try {
+                const { campo } = escribir('digitos', '12a');
+                expect(screen.getByText('Solo números')).toBeInTheDocument();
+                act(() => vi.advanceTimersByTime(2100));
+                expect(screen.queryByText('Solo números')).toBeNull();
+                expect(campo).toHaveValue('12');
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('sin formato no toca lo escrito', () => {
+            render(<Campo etiqueta="Libre" />);
+            const campo = screen.getByLabelText('Libre');
+            fireEvent.change(campo, { target: { value: 'a1-#' } });
+
+            expect(campo).toHaveValue('a1-#');
+        });
     });
 });
