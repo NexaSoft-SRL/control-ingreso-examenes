@@ -31,7 +31,7 @@ import { ListaDelExamen } from '../habilitacion/Habilitacion';
 import BitacoraDelExamen from './BitacoraDelExamen';
 import RevisionSinConexion from './RevisionSinConexion';
 import EliminarExamen from './EliminarExamen';
-import { FORMA_EXAMEN, PASOS, accionDe, pendiente, tipoDe } from './avanceDelExamen';
+import { FORMA_EXAMEN, PASOS, accionDe, estadoDe, pendiente, tipoDe } from './avanceDelExamen';
 import rutaDelExamen from './rutaDelExamen';
 
 const FOCO =
@@ -165,7 +165,8 @@ Resumen.propTypes = {
 // La página de un examen (`?examen=`): su resumen, su habilitación y sus
 // códigos QR en pestañas (`?pestana=`), para no saltar entre pantallas.
 export default function DetalleExamen() {
-    const { datos, cargando, error, recargar } = usarConsulta('/examenes');
+    const { datos, meta, cargando, error, recargar } = usarConsulta('/examenes');
+    const hoy = meta?.hoy ?? null;
     const [parametros, setParametros] = useSearchParams();
     const { puede } = usarSesion();
     const navegar = useNavigate();
@@ -190,8 +191,8 @@ export default function DetalleExamen() {
         // Lo hecho en una pestaña cambia las cifras de las otras.
         recargar();
     };
-    // Las cifras de la habilitación se ven al volver al resumen.
-    const alCambiarCifras = useCallback(() => {}, []);
+    // Lo hecho en una pestaña se ve al instante en los contadores de las otras.
+    const alCambiarCifras = useCallback(() => recargar(), [recargar]);
 
     if (!e) {
         return (
@@ -211,7 +212,10 @@ export default function DetalleExamen() {
     }
 
     const nombre = e.asignatura.nombre;
-    const accion = accionDe(e, puede('habilitacion'), puede('codigos_qr'));
+    const accion = accionDe(e, puede('habilitacion'), puede('codigos_qr'), {
+        hoy,
+        puedeReportes: puede('reportes_examenes'),
+    });
     const enCurso = e.es_hoy && !e.rendido && e.aulas.length > 0 && puede('seguimiento_vivo');
     const contador = {
         habilitacion: e.inscritos ? `${e.habilitados ?? 0}/${e.inscritos}` : null,
@@ -238,8 +242,8 @@ export default function DetalleExamen() {
                         <span>
                             {fechaLarga(e.fecha)} · {e.hora} · {e.duracion} min
                         </span>
-                        <Insignia tono={pendiente(e) ? 'advertencia' : 'exito'} punto>
-                            {e.estado}
+                        <Insignia tono={pendiente(e, hoy) ? 'advertencia' : 'exito'} punto>
+                            {estadoDe(e, hoy)}
                         </Insignia>
                     </span>
                 }
@@ -285,7 +289,7 @@ export default function DetalleExamen() {
             <div
                 role="tablist"
                 aria-label="Secciones del examen"
-                className="flex gap-1 border-b border-slate-200"
+                className="flex gap-1 overflow-x-auto border-b border-slate-200"
             >
                 {PESTANAS.map((p) => {
                     const activa = p.clave === pestana;
@@ -299,7 +303,7 @@ export default function DetalleExamen() {
                             disabled={!permitida}
                             title={!permitida ? 'Primero elija las aulas del examen' : undefined}
                             onClick={() => ir(p.clave)}
-                            className={`-mb-px flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 border-b-2 px-2 text-sm whitespace-nowrap sm:flex-none sm:gap-2 sm:px-4 font-medium ${FOCO} ${
+                            className={`-mb-px flex min-h-11 shrink-0 items-center justify-center gap-1.5 border-b-2 px-2 text-sm whitespace-nowrap sm:flex-none sm:gap-2 sm:px-4 font-medium ${FOCO} ${
                                 activa
                                     ? 'border-primary-600 text-primary-700'
                                     : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:border-transparent'
@@ -328,7 +332,9 @@ export default function DetalleExamen() {
                 {pestana === 'habilitacion' && (
                     <ListaDelExamen key={e.id} examenId={e.id} onCifras={alCambiarCifras} />
                 )}
-                {pestana === 'qr' && <CodigosDelExamen key={e.id} examen={e} incrustado />}
+                {pestana === 'qr' && (
+                    <CodigosDelExamen key={e.id} examen={e} incrustado onCambio={alCambiarCifras} />
+                )}
                 {pestana === 'sin-conexion' && <RevisionSinConexion key={e.id} examenId={e.id} />}
                 {pestana === 'bitacora' && (
                     <BitacoraDelExamen key={e.id} examenId={e.id} fecha={e.fecha} />

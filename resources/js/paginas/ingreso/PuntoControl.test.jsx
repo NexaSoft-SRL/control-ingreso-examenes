@@ -199,7 +199,7 @@ const cargada = () => screen.findByText('Apellido01, Nombre');
 
 async function verificarManual(valor) {
     fireEvent.click(await screen.findByRole('button', { name: 'Código SIS o C.I. manual' }));
-    fireEvent.change(screen.getByPlaceholderText('Código SIS o C.I.'), {
+    fireEvent.change(screen.getByLabelText(/^Código SIS o C\.I\./), {
         target: { value: valor },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Verificar' }));
@@ -322,7 +322,7 @@ describe('Punto de control', () => {
         fireEvent.click(screen.getByRole('button', { name: 'simular fallo' }));
 
         expect(screen.getByText('Cámara no disponible')).toBeInTheDocument();
-        expect(screen.getByPlaceholderText('Código SIS o C.I.')).toBeInTheDocument();
+        expect(screen.getByLabelText(/^Código SIS o C\.I\./)).toBeInTheDocument();
         expect(screen.queryByTestId('lector')).toBeNull();
     });
 
@@ -334,14 +334,14 @@ describe('Punto de control', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Código SIS o C.I. manual' }));
         fireEvent.click(screen.getByRole('button', { name: 'Verificar' }));
         expect(screen.getByText('Obligatorio')).toBeInTheDocument();
-        fireEvent.change(screen.getByPlaceholderText('Código SIS o C.I.'), {
+        fireEvent.change(screen.getByLabelText(/^Código SIS o C\.I\./), {
             target: { value: '12a' },
         });
         fireEvent.click(screen.getByRole('button', { name: 'Verificar' }));
         expect(screen.getByText('Código SIS o C.I. no válido')).toBeInTheDocument();
         expect(enviados('/verificaciones')).toEqual([]);
 
-        fireEvent.change(screen.getByPlaceholderText('Código SIS o C.I.'), {
+        fireEvent.change(screen.getByLabelText(/^Código SIS o C\.I\./), {
             target: { value: '202105877' },
         });
         fireEvent.click(screen.getByRole('button', { name: 'Verificar' }));
@@ -357,7 +357,7 @@ describe('Punto de control', () => {
         // el campo abierto, vacío y con el foco para el próximo.
         fireEvent.click(screen.getByRole('button', { name: /Siguiente/ }));
         expect(screen.queryByTestId('lector')).toBeNull();
-        const campo = screen.getByPlaceholderText('Código SIS o C.I.');
+        const campo = screen.getByLabelText(/^Código SIS o C\.I\./);
         expect(campo).toHaveValue('');
         expect(campo).toHaveFocus();
     });
@@ -426,6 +426,17 @@ describe('Punto de control', () => {
         expect(screen.getByText('Rinde en Aula 691A')).toBeInTheDocument();
         expect(screen.queryByText('Aula 617')).toBeNull();
         expect(screen.queryByRole('img', { name: 'Mapa de edificios del campus' })).toBeNull();
+    });
+
+    it('el código manual solo admite número y complemento, no letras sueltas ni signos', async () => {
+        montar();
+        await cargada();
+        fireEvent.click(screen.getByRole('button', { name: 'Código SIS o C.I. manual' }));
+
+        const campo = screen.getByLabelText(/^Código SIS o C\.I\./);
+        fireEvent.change(campo, { target: { value: '2021 04*821#' } });
+        expect(campo).toHaveValue('202104821');
+        expect(campo).toHaveAttribute('maxlength', '14');
     });
 
     it('no habilitado: el docente lo admite por decisión suya, con motivo', async () => {
@@ -573,7 +584,7 @@ describe('Punto de control', () => {
         const dialogo = screen.getByRole('dialog', { name: 'Expulsión' });
         expect(dialogo).toHaveTextContent('Aula 691A · Ingresó 08:10:00');
         expect(dialogo).toHaveTextContent('Blanco Coca Leticia · 08:21');
-        const registrar = within(dialogo).getByRole('button', { name: 'Registrar' });
+        const registrar = within(dialogo).getByRole('button', { name: 'Expulsar' });
         expect(registrar).toBeDisabled();
 
         fireEvent.change(within(dialogo).getByLabelText(/Motivo/), { target: { value: 'abc' } });
@@ -606,7 +617,7 @@ describe('Punto de control', () => {
             screen.getByRole('button', { name: 'Registrar expulsión de Apellido01, Nombre' })
         );
         fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: 'Usó el celular' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Registrar' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Expulsar' }));
 
         expect(await screen.findByText('Ya estaba expulsado')).toBeInTheDocument();
     });
@@ -728,11 +739,38 @@ describe('Punto de control', () => {
         expect(await screen.findByText('Sin examen a esta hora')).toBeInTheDocument();
     });
 
+    it('el auxiliar sin examen abierto ve su próximo turno y a qué hora abre', async () => {
+        const manana = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        const fecha = `${manana.getFullYear()}-${String(manana.getMonth() + 1).padStart(2, '0')}-${String(manana.getDate()).padStart(2, '0')}`;
+        rutas['GET /puerta/aulas'] = { data: [], hoy: '2026-10-12', acceso: null };
+        rutas['GET /en-curso'] = {
+            data: [
+                {
+                    examen_id: 3,
+                    asignatura: 'Cálculo I',
+                    tipo: 'PRIMER_PARCIAL',
+                    tipo_texto: 'Primer parcial',
+                    fecha,
+                    hora: '08:15',
+                    abierto: false,
+                    aulas: [{ aula_id: 35, nombre: '691E' }],
+                },
+            ],
+        };
+        simularApi(api, rutas);
+        montar({ ruta: '/ingreso', rol: 'Auxiliar' });
+
+        expect(
+            await screen.findByText(/Próximo: Primer parcial · Cálculo I · aula 691E/)
+        ).toHaveTextContent(/abre 07:15/);
+        expect(screen.getByText('Ningún examen abierto')).toBeInTheDocument();
+    });
+
     it('sin aulas hoy, con el aula ajena y con error de carga', async () => {
         rutas['GET /puerta/aulas'] = { data: [], hoy: '2026-10-12', acceso: null };
         simularApi(api, rutas);
         const vacio = montar();
-        expect(await screen.findByText('Ningún examen abierto en tus aulas')).toBeInTheDocument();
+        expect(await screen.findByText('Ningún examen abierto')).toBeInTheDocument();
         vacio.unmount();
 
         rutas['GET /puerta/aulas'] = { data: AULAS, hoy: '2026-10-12', acceso: null };
@@ -823,7 +861,7 @@ describe('Punto de control', () => {
 
         await verificarManual('202105877');
         expect(await screen.findByText('Ingreso admitido')).toBeInTheDocument();
-        const campo = screen.getByPlaceholderText('Código SIS o C.I.');
+        const campo = screen.getByLabelText(/^Código SIS o C\.I\./);
         expect(campo).toHaveValue('');
         expect(screen.queryByRole('button', { name: 'Cerrar ingreso manual' })).toBeNull();
 

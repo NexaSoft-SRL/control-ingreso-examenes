@@ -55,7 +55,12 @@ function Vista({ onReintentar }) {
 
     const edificios = mapa.edificios;
     const todas = useMemo(
-        () => [...(consulta.datos ?? [])].sort((a, b) => ordenNatural(a.nombre, b.nombre)),
+        // Las que no tienen edificio, al final: son la excepción.
+        () =>
+            [...(consulta.datos ?? [])].sort(
+                (a, b) =>
+                    Number(!a.edificio) - Number(!b.edificio) || ordenNatural(a.nombre, b.nombre)
+            ),
         [consulta.datos]
     );
 
@@ -83,9 +88,10 @@ function Vista({ onReintentar }) {
     function elegir(e, desplazar, nombreAula = null) {
         setEdificioId(e?.id ?? null);
         setAula(nombreAula);
-        if (e && desplazar && window.matchMedia?.('(max-width: 1023px)').matches) {
+        // El detalle puede quedar bajo el mapa: se lleva la vista hasta él.
+        if (e && desplazar) {
             requestAnimationFrame(() =>
-                detalle.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+                detalle.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' })
             );
         }
     }

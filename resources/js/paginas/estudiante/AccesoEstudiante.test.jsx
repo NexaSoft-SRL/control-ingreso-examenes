@@ -39,6 +39,15 @@ describe('AccesoEstudiante', () => {
         expect(api.post).not.toHaveBeenCalled();
     });
 
+    it('dice a qué correo se envía el código apenas el código SIS tiene formato', () => {
+        montar();
+        escribir(/Código SIS/, '2021');
+        expect(screen.queryByText(/Se enviará a/)).not.toBeInTheDocument();
+
+        escribir(/Código SIS/, '202100417');
+        expect(screen.getByText('Se enviará a 202100417@est.umss.edu')).toBeInTheDocument();
+    });
+
     it('envía el código al correo y entra con él', async () => {
         montar();
         escribir(/Código SIS/, '202100417');
@@ -50,7 +59,7 @@ describe('AccesoEstudiante', () => {
         });
 
         escribir(/^Código/, '48a2913');
-        fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmar código' }));
 
         expect(await screen.findByText('Estoy en /estudiante')).toBeInTheDocument();
         expect(api.post).toHaveBeenLastCalledWith('/auth/estudiante', {
@@ -84,7 +93,7 @@ describe('AccesoEstudiante', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
         await screen.findByText('2021•••17@est.umss.edu');
         escribir(/^Código/, '482913');
-        fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmar código' }));
 
         expect(await screen.findByRole('button', { name: 'Registrarme' })).toBeInTheDocument();
 
@@ -132,7 +141,7 @@ describe('AccesoEstudiante', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
         await screen.findByText('2021•••17@est.umss.edu');
         escribir(/^Código/, '482913');
-        fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmar código' }));
         await screen.findByRole('button', { name: 'Registrarme' });
 
         escribir(/Nombres/, 'Rodrigo');
@@ -169,10 +178,10 @@ describe('AccesoEstudiante', () => {
         });
         escribir(/Código SIS/, '202100417');
         fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
-        await screen.findByRole('button', { name: 'Iniciar sesión' });
+        await screen.findByRole('button', { name: 'Confirmar código' });
 
         escribir(/^Código/, '111111');
-        fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmar código' }));
 
         expect(await screen.findByText('Código no válido o vencido')).toBeInTheDocument();
     });
@@ -200,5 +209,108 @@ describe('AccesoEstudiante', () => {
     it('con la sesión ya abierta lleva al portal', async () => {
         montar({ 'GET /estudiante/sesion': { estudiante: { id: 7 } } });
         expect(await screen.findByText('Estoy en /estudiante')).toBeInTheDocument();
+    });
+
+    it('topes del código SIS y del código del correo, y vuelta al inicio a la vista', async () => {
+        montar();
+        expect(screen.getByLabelText(/Código SIS/)).toHaveAttribute('maxlength', '10');
+        expect(screen.getByRole('link', { name: 'Volver al inicio' })).toHaveAttribute(
+            'href',
+            '/login'
+        );
+
+        escribir(/Código SIS/, '202100417');
+        fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
+        await screen.findByText('2021•••17@est.umss.edu');
+
+        expect(screen.getByLabelText(/^Código/)).toHaveAttribute('maxlength', '6');
+        expect(screen.getByRole('button', { name: 'Confirmar código' })).toBeInTheDocument();
+    });
+
+    it('el código SIS solo admite números y lo avisa', () => {
+        montar();
+        escribir(/Código SIS/, 'SIS-2021a');
+
+        expect(screen.getByLabelText(/Código SIS/)).toHaveValue('2021');
+        expect(screen.getByText('Solo números')).toBeInTheDocument();
+    });
+
+    describe('registro de un SIS nuevo', () => {
+        const entrarAlRegistro = async (carreras) => {
+            montar({
+                'POST /auth/estudiante': { registro: { codigo_universitario: '199900001' } },
+                'GET /auth/estudiante/carreras': { data: carreras },
+            });
+            escribir(/Código SIS/, '199900001');
+            fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
+            await screen.findByText('2021•••17@est.umss.edu');
+            escribir(/^Código/, '482913');
+            fireEvent.click(screen.getByRole('button', { name: 'Confirmar código' }));
+            await screen.findByRole('button', { name: 'Registrarme' });
+        };
+
+        it('nombres solo letras, carnet con su complemento y todo lo obligatorio marcado', async () => {
+            await entrarAlRegistro([
+                { id: 3, nombre: 'Sistemas', facultad_id: 1, facultad: 'FCyT' },
+                { id: 8, nombre: 'Arquitectura', facultad_id: 2, facultad: 'Hábitat' },
+            ]);
+
+            // Recién abierto, ningún campo acusa «Obligatorio» ni arrastra lo del paso anterior.
+            expect(screen.queryByText('Obligatorio')).toBeNull();
+            // La pista del complemento está a la vista antes de escribir.
+            expect(screen.getByText('Complemento con guion: 5003748-1A')).toBeInTheDocument();
+
+            escribir(/Nombres/, 'Ana2 María#');
+            escribir(/Apellidos/, "D'Alessandro 7");
+            escribir(/Carnet/, '5003748-1A!?');
+
+            expect(screen.getByLabelText(/Nombres/)).toHaveValue('Ana María');
+            expect(screen.getByLabelText(/Apellidos/)).toHaveValue("D'Alessandro ");
+            expect(screen.getByLabelText(/Carnet/)).toHaveValue('5003748-1A');
+            expect(screen.getByLabelText(/Nombres/)).toHaveAttribute('maxlength', '100');
+            expect(screen.getByLabelText(/Carnet/)).toHaveAttribute('maxlength', '30');
+            expect(screen.getByLabelText(/Nombres/)).toHaveAttribute('aria-required', 'true');
+            expect(screen.getByText('Número y complemento: 5003748-1A')).toBeInTheDocument();
+        });
+
+        it('la carrera dice que espera la facultad', async () => {
+            await entrarAlRegistro([
+                { id: 3, nombre: 'Sistemas', facultad_id: 1, facultad: 'FCyT' },
+                { id: 8, nombre: 'Arquitectura', facultad_id: 2, facultad: 'Hábitat' },
+            ]);
+
+            const carrera = screen.getByLabelText(/Carrera/);
+            expect(carrera).toBeDisabled();
+            expect(carrera).toHaveTextContent('Primero la facultad');
+        });
+
+        it('con una sola facultad ya viene elegida', async () => {
+            await entrarAlRegistro([
+                { id: 3, nombre: 'Sistemas', facultad_id: 1, facultad: 'FCyT' },
+                { id: 4, nombre: 'Electrónica', facultad_id: 1, facultad: 'FCyT' },
+            ]);
+
+            expect(screen.getByLabelText(/Facultad/)).toHaveValue('1');
+            expect(screen.getByLabelText(/Carrera/)).toBeEnabled();
+        });
+
+        it('dice que es la primera vez, marca facultad y carrera y lleva al primer error', async () => {
+            await entrarAlRegistro([
+                { id: 3, nombre: 'Sistemas', facultad_id: 1, facultad: 'FCyT' },
+                { id: 8, nombre: 'Arquitectura', facultad_id: 2, facultad: 'Hábitat' },
+            ]);
+
+            expect(
+                screen.getByRole('heading', { name: 'Primera vez · complete sus datos' })
+            ).toBeInTheDocument();
+            expect(screen.getByLabelText(/Facultad/)).toHaveAttribute('aria-required', 'true');
+            expect(screen.getByLabelText(/Carrera/)).toHaveAttribute('aria-required', 'true');
+
+            escribir(/Nombres/, 'Ana');
+            fireEvent.click(screen.getByRole('button', { name: 'Registrarme' }));
+
+            await vi.waitFor(() => expect(screen.getByLabelText(/Apellidos/)).toHaveFocus());
+            expect(screen.getByRole('button', { name: 'Cambiar código SIS' })).toBeInTheDocument();
+        });
     });
 });

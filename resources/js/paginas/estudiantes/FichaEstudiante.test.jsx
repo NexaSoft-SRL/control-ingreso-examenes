@@ -69,7 +69,7 @@ describe('FichaEstudiante', () => {
             screen.getByText(/Propuesto: Aguilar Cossío Mariana · C\.I\. 7928149/)
         ).toBeInTheDocument();
         expect(screen.getByText(/Reportado por Blanco Coca Leticia/)).toBeInTheDocument();
-        expect(screen.getByText(/Mantener padrón · Rojas Vargas Ana/)).toBeInTheDocument();
+        expect(screen.getByText(/Se dejó el actual · Rojas Vargas Ana/)).toBeInTheDocument();
     });
 
     it('sin foto la sube apenas se elige, sin pasos de más', async () => {
@@ -88,7 +88,7 @@ describe('FichaEstudiante', () => {
         await waitFor(() =>
             expect(api.post).toHaveBeenCalledWith('/estudiantes/5/foto', expect.any(FormData))
         );
-        expect(await screen.findByText('Foto guardada')).toBeInTheDocument();
+        expect((await screen.findAllByText('Foto guardada')).length).toBeGreaterThan(0);
         expect(screen.queryByRole('dialog', { name: 'Poner foto' })).not.toBeInTheDocument();
     });
 
@@ -137,6 +137,8 @@ describe('FichaEstudiante', () => {
             'blob:foto'
         );
         expect(screen.getByLabelText('Cambiar foto')).toHaveAttribute('type', 'file');
+        // El botón se lee: no es solo un ícono sobre la foto.
+        expect(screen.getByText('Cambiar foto')).toBeVisible();
     });
 
     it('rechaza un archivo que no es imagen y no lo envía', async () => {
@@ -149,7 +151,7 @@ describe('FichaEstudiante', () => {
         const pdf = new File(['%PDF'], 'doc.pdf', { type: 'application/pdf' });
         fireEvent.change(screen.getByLabelText('Poner foto'), { target: { files: [pdf] } });
 
-        expect(await screen.findByText('Solo JPG, PNG o WebP')).toBeInTheDocument();
+        expect(await screen.findByRole('alert')).toHaveTextContent('Solo JPG, PNG o WebP');
         expect(api.post).not.toHaveBeenCalled();
     });
 
@@ -166,13 +168,37 @@ describe('FichaEstudiante', () => {
 
         revisarFoto.mockResolvedValueOnce({ errores: ['No se detecta un rostro'], avisos: [] });
         fireEvent.change(screen.getByLabelText('Poner foto'), { target: { files: [foto] } });
-        expect(await screen.findByText('No se detecta un rostro')).toBeInTheDocument();
+        expect(await screen.findByRole('alert')).toHaveTextContent('No se detecta un rostro');
         expect(api.post).not.toHaveBeenCalled();
 
         revisarFoto.mockResolvedValueOnce({ errores: [], avisos: ['Use un fondo claro'] });
         fireEvent.change(screen.getByLabelText('Poner foto'), { target: { files: [foto] } });
-        expect(await screen.findByText('Foto guardada · Use un fondo claro')).toBeInTheDocument();
+        expect(await screen.findByRole('status')).toHaveTextContent(
+            'Foto guardada · Use un fondo claro'
+        );
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith('/estudiantes/5/foto', expect.any(FormData));
+    });
+
+    it('deja a la vista el motivo del rechazo hasta el siguiente intento', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        try {
+            simularApi(api, { 'GET /estudiantes/5': { data: FICHA } });
+            renderConSesion(
+                <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={vi.fn()} />
+            );
+            await screen.findByText('Sin foto');
+            revisarFoto.mockResolvedValueOnce({ errores: ['No se detecta un rostro'], avisos: [] });
+            const foto = new File(['jpeg'], 'm.jpg', { type: 'image/jpeg' });
+            fireEvent.change(screen.getByLabelText('Poner foto'), { target: { files: [foto] } });
+            expect(await screen.findByRole('alert')).toHaveTextContent('No se detecta un rostro');
+
+            // El aviso de 3 s se va; el mensaje bajo la foto no.
+            await vi.advanceTimersByTimeAsync(5000);
+            expect(screen.getByRole('alert')).toHaveTextContent('No se detecta un rostro');
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });
 
@@ -180,27 +206,54 @@ describe('PlazoFotos', () => {
     it('guarda las dos fechas y muestra el error del servidor bajo su campo', async () => {
         simularApi(api, {
             'PUT /estudiantes/plazo-fotos': errorHttp(422, {
-                errors: { hasta: ['No puede ser antes del inicio'] },
+                errors: { hasta: ['Máximo 180 días'] },
             }),
         });
         const avisar = vi.fn();
         renderConSesion(<PlazoFotos onCerrar={vi.fn()} onGuardado={vi.fn()} avisar={avisar} />);
 
-        fireEvent.change(screen.getByLabelText(/Desde/), { target: { value: '2026-10-20' } });
-        fireEvent.change(screen.getByLabelText(/Hasta/), { target: { value: '2026-10-10' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+        fireEvent.change(screen.getByLabelText(/Desde/), { target: { value: '2099-01-10' } });
+        fireEvent.change(screen.getByLabelText(/Hasta/), { target: { value: '2099-12-10' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Guardar plazo' }));
 
-        expect(await screen.findByText('No puede ser antes del inicio')).toBeInTheDocument();
+        expect(await screen.findByText('Máximo 180 días')).toBeInTheDocument();
         expect(api.put).toHaveBeenCalledWith('/estudiantes/plazo-fotos', {
-            desde: '2026-10-20',
-            hasta: '2026-10-10',
+            desde: '2099-01-10',
+            hasta: '2099-12-10',
         });
+    });
+
+    it('dice cuál regla falla en «Hasta» sin llamar al servidor', () => {
+        simularApi(api, {});
+        renderConSesion(<PlazoFotos onCerrar={vi.fn()} onGuardado={vi.fn()} avisar={vi.fn()} />);
+
+        fireEvent.change(screen.getByLabelText(/^Desde/), { target: { value: '2099-10-20' } });
+        fireEvent.change(screen.getByLabelText(/^Hasta/), { target: { value: '2099-10-10' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Guardar plazo' }));
+        expect(screen.getByText('Debe ser después de Desde')).toBeInTheDocument();
+
+        fireEvent.change(screen.getByLabelText(/^Desde/), { target: { value: '2000-01-01' } });
+        fireEvent.change(screen.getByLabelText(/^Hasta/), { target: { value: '2000-01-10' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Guardar plazo' }));
+        expect(screen.getByText('No puede ser antes de hoy')).toBeInTheDocument();
+        expect(api.put).not.toHaveBeenCalled();
+    });
+
+    it('Enter en una fecha guarda el plazo', async () => {
+        simularApi(api, { 'PUT /estudiantes/plazo-fotos': { message: 'ok' } });
+        renderConSesion(<PlazoFotos onCerrar={vi.fn()} onGuardado={vi.fn()} avisar={vi.fn()} />);
+
+        fireEvent.change(screen.getByLabelText(/Desde/), { target: { value: '2099-10-10' } });
+        fireEvent.change(screen.getByLabelText(/Hasta/), { target: { value: '2099-10-20' } });
+        fireEvent.submit(screen.getByRole('dialog').querySelector('form'));
+
+        await waitFor(() => expect(api.put).toHaveBeenCalled());
     });
 
     it('sin fechas no envía', () => {
         simularApi(api, {});
         renderConSesion(<PlazoFotos onCerrar={vi.fn()} onGuardado={vi.fn()} avisar={vi.fn()} />);
-        fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Guardar plazo' }));
 
         expect(screen.getAllByText('Obligatorio')).toHaveLength(2);
         expect(api.put).not.toHaveBeenCalled();

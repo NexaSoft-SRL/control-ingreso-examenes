@@ -90,6 +90,9 @@ export default function RevisionSinConexion({ examenId }) {
             <Tarjeta titulo="Sin conexión" icono={WifiOff}>
                 <p className="py-6 text-center text-sm text-slate-600">
                     No se usó el modo sin conexión en este examen
+                    <span className="mt-1 block text-xs text-slate-500">
+                        Aquí aparecen los ingresos registrados sin internet
+                    </span>
                 </p>
             </Tarjeta>
         );

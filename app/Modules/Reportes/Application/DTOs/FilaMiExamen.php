@@ -26,6 +26,8 @@ final readonly class FilaMiExamen
         public bool $rendido,
         /** Admitidos por cambio de aula o por decision del docente. */
         public int $excepciones = 0,
+        /** Estudiantes de los grupos del examen (sin las bajas). */
+        public int $inscritos = 0,
     ) {}
 
     /**

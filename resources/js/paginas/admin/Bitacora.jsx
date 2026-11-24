@@ -3,6 +3,7 @@ import { Activity, History, Search, ShieldCheck } from 'lucide-react';
 import { erroresDe, estadoDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
 import usarPaginaServidor from '../../api/usarPaginaServidor';
+import Boton from '../../componentes/Boton';
 import Campo from '../../componentes/Campo';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
@@ -14,6 +15,8 @@ import { usarSesion } from '../../sesion/SesionContexto';
 import { fechaCorta } from '../../utiles/texto';
 
 const POR_PAGINA = 25;
+// Los inicios y cierres de sesión se ocultan de entrada: tapan los cambios.
+const FILTROS_INICIALES = { rol: '', operacion: '', desde: '', hasta: '', sin_sesiones: '1' };
 const ROLES_DE_INICIO = ['Administrador', 'Docente', 'Auxiliar'];
 
 function hoy() {
@@ -29,7 +32,7 @@ export default function Bitacora() {
     const { puede } = usarSesion();
     const lista = usarPaginaServidor({
         porPagina: POR_PAGINA,
-        filtros: { rol: '', operacion: '', desde: '', hasta: '' },
+        filtros: FILTROS_INICIALES,
     });
     const { datos, meta, cargando, error, recargar } = usarConsulta('/bitacora', {
         parametros: lista.parametros,
@@ -41,7 +44,7 @@ export default function Bitacora() {
     const [catalogo, setCatalogo] = useState(null);
     if (meta && meta !== catalogo) setCatalogo(meta);
 
-    const { rol, operacion, desde, hasta } = lista.filtros;
+    const { rol, operacion, desde, hasta, sin_sesiones: sinSesiones } = lista.filtros;
     const nombresDeRol = roles.datos?.map((r) => r.nombre) ?? ROLES_DE_INICIO;
     const opcionesDeRol =
         rol && !nombresDeRol.includes(rol) ? [...nombresDeRol, rol] : nombresDeRol;
@@ -51,11 +54,30 @@ export default function Bitacora() {
 
     const rechazo = estadoDe(error) === 422;
     const deCampo = rechazo ? erroresDe(error) : {};
+    // Un rango al revés se dice en «Hasta», sin esperar al servidor.
+    const errorHasta =
+        desde && hasta && hasta < desde ? 'Debe ser después de Desde' : deCampo.hasta;
+    const conFiltros = Boolean(lista.buscar || rol || operacion || desde || hasta || !sinSesiones);
+
+    function limpiarFiltros() {
+        lista.ponerBuscar('');
+        lista.ponerFiltros(FILTROS_INICIALES);
+    }
 
     return (
         <div className="space-y-6">
             <Encabezado titulo="Bitácora">
-                <Insignia tono="neutro">Solo lectura</Insignia>
+                {conFiltros && (
+                    <Boton
+                        variante="secundario"
+                        tamano="chico"
+                        className="min-h-11"
+                        onClick={limpiarFiltros}
+                    >
+                        Limpiar filtros
+                    </Boton>
+                )}
+                <Insignia tono="neutro">No se edita</Insignia>
             </Encabezado>
 
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-[minmax(0,1.4fr)_9.5rem_minmax(0,1fr)_10rem_10rem]">
@@ -64,7 +86,7 @@ export default function Bitacora() {
                     icono={Search}
                     type="search"
                     className="col-span-2 min-w-0 lg:col-span-1"
-                    placeholder="Usuario o registro"
+                    placeholder="Persona o descripción"
                     maxLength={100}
                     value={lista.buscar}
                     error={deCampo.buscar}
@@ -115,15 +137,25 @@ export default function Bitacora() {
                     min={desde || primera}
                     max={ultima}
                     value={hasta}
-                    error={deCampo.hasta}
+                    error={errorHasta}
                     onChange={(e) => lista.ponerFiltro('hasta', e.target.value)}
                 />
             </div>
 
+            <label className="-mt-2 inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm text-slate-700">
+                <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-300 text-primary-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600"
+                    checked={!sinSesiones}
+                    onChange={(e) => lista.ponerFiltro('sin_sesiones', e.target.checked ? '' : '1')}
+                />
+                Incluir inicios de sesión
+            </label>
+
             <Tarjeta sinRelleno titulo="Operaciones">
-                {rechazo ? (
-                    <p role="alert" className="px-4 py-8 text-center text-sm text-danger-600">
-                        Filtros no válidos
+                {rechazo || (desde && hasta && hasta < desde) ? (
+                    <p className="px-4 py-8 text-center text-sm text-slate-600">
+                        Sin resultados para estos filtros
                     </p>
                 ) : (
                     <EstadoCarga

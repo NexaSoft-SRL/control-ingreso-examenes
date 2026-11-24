@@ -345,9 +345,10 @@ final class AgregarInscritoTest extends TestCase
         $docente = $this->docente();
         $grupo = $this->grupo($docente);
 
-        foreach (['A', 'Ana--María', "O'", 'Juan..'] as $nombre) {
+        // «AA» y «PP» tienen letras pero no son nombres: se piden tres letras y que no sean la misma.
+        foreach (['A', 'AA', 'PP', 'aaa', 'Ana--María', "O'", 'Juan..'] as $nombre) {
             $this->agregar($docente, $grupo, [...self::KEVIN, 'nombres' => $nombre])
-                ->assertJsonValidationErrors(['nombres' => 'Solo letras, sin signos seguidos.']);
+                ->assertJsonValidationErrors(['nombres' => 'Escriba un nombre real: solo letras, mínimo 3.']);
         }
         foreach (['123', '12345678901', '5003748LP', '5003748--1A'] as $documento) {
             $this->agregar($docente, $grupo, [...self::KEVIN, 'documento' => $documento])

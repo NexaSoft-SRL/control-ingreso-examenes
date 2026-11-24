@@ -128,7 +128,10 @@ export default function CargaInscripciones({
     avisar,
 }) {
     const facultades = usarFacultades();
-    const [facultad, setFacultad] = useState(facultadInicial ?? facultades[0]?.clave ?? '');
+    // Con varias facultades se elige a propósito: cada una se carga aparte.
+    const [facultad, setFacultad] = useState(
+        facultadInicial ?? (facultades.length === 1 ? facultades[0].clave : '')
+    );
     const [archivo, setArchivo] = useState(null);
     const [enviado, setEnviado] = useState(false);
     const [enviando, setEnviando] = useState(false);
@@ -148,6 +151,8 @@ export default function CargaInscripciones({
           : null;
     const errorArchivo = errorLocal ?? (rechazo ? null : (errores.archivo ?? null));
     const errorFacultad = facultad === '' && enviado ? 'Obligatorio' : (errores.facultad ?? null);
+    // Lo que falta para poder cargar, dicho junto al botón.
+    const falta = facultad === '' ? 'Falta la facultad' : !archivo ? 'Falta el archivo' : null;
 
     function limpiar() {
         setErrores({});
@@ -233,12 +238,13 @@ export default function CargaInscripciones({
             onCerrar={onCerrar}
             acciones={
                 <>
+                    {falta && <span className="mr-auto text-sm text-slate-600">{falta}</span>}
                     <Boton variante="secundario" onClick={onCerrar}>
                         Cancelar
                     </Boton>
-                    <Boton onClick={cargar} cargando={enviando}>
+                    <Boton onClick={cargar} cargando={enviando} disabled={Boolean(falta)}>
                         <Upload className="h-4 w-4" aria-hidden="true" />{' '}
-                        {enviando ? 'Cargando' : 'Cargar'}
+                        {enviando ? 'Cargando' : 'Cargar inscripciones'}
                     </Boton>
                 </>
             }
@@ -255,6 +261,7 @@ export default function CargaInscripciones({
                             limpiar();
                         }}
                     >
+                        {facultad === '' && <option value="">Elegir facultad</option>}
                         {facultades.map((f) => (
                             <option key={f.clave} value={f.clave}>
                                 {f.sigla} · {f.nombre}

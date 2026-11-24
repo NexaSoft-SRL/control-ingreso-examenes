@@ -65,6 +65,7 @@ final class ReporteDocenteController
                     'hora' => $fila->hora,
                     'rendido' => $fila->rendido,
                     'presentes' => $fila->rendido ? $fila->presentes : null,
+                    'inscritos' => $fila->inscritos,
                     'habilitados' => $fila->habilitados,
                     'no_habilitados' => $fila->noHabilitados,
                     'ausentes' => $fila->rendido ? $fila->ausentes : null,

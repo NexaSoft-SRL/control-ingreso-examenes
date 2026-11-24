@@ -37,7 +37,7 @@ const miles = (n) => (typeof n === 'number' ? n.toLocaleString('es-BO') : undefi
 // Los mismos estados que en Usuarios, más «Sin cuenta».
 const CUENTA = {
     activo: { tono: 'exito', texto: 'Activo' },
-    temporal: { tono: 'primario', texto: 'Temporal' },
+    temporal: { tono: 'primario', texto: 'Contraseña temporal' },
     bloqueado: { tono: 'peligro', texto: 'Bloqueado' },
     sin_cuenta: { tono: 'neutro', texto: 'Sin cuenta' },
 };
@@ -76,6 +76,8 @@ function FormularioActivar({ docente, onActivada, onRechazo }) {
             <Campo
                 etiqueta="Usuario"
                 requerido
+                maxLength={60}
+                formato="usuario"
                 placeholder="nombre apellido"
                 value={usuario}
                 error={errores.usuario}
@@ -105,6 +107,11 @@ function FormularioActivar({ docente, onActivada, onRechazo }) {
             <Boton type="submit" className="w-full sm:w-auto" disabled={!valido || enviando}>
                 <KeyRound className="h-4 w-4" aria-hidden="true" /> Activar cuenta
             </Boton>
+            {!valido && (
+                <p className="text-xs text-slate-600">
+                    {usuarioValido(usuario) ? 'Revise el correo' : 'Falta el usuario'}
+                </p>
+            )}
         </form>
     );
 }

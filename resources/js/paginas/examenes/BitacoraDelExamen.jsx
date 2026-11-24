@@ -31,6 +31,27 @@ const CATEGORIAS = {
     ausente: { texto: 'No se presentaron', Icono: UserX, tono: 'bg-slate-200 text-slate-700' },
 };
 
+// El cierre del día lo fecha el servidor a las 23:59:59: esa hora no es real.
+const HORA_DE_CIERRE = '23:59:59';
+// Textos fijos del servidor que se dicen más llano.
+const DETALLES = { 'Sin finalización manual': 'Cerrado automáticamente al final del día' };
+
+// Los «No se presentó» seguidos van juntos en una fila que se despliega,
+// salvo que se esté viendo solo esa categoría.
+function agrupar(lista, separarAusentes) {
+    const filas = [];
+    for (const suceso of lista) {
+        const ultima = filas[filas.length - 1];
+        if (separarAusentes && suceso.categoria === 'ausente') {
+            if (ultima?.ausentes) ultima.ausentes.push(suceso);
+            else filas.push({ ausentes: [suceso] });
+        } else {
+            filas.push({ suceso });
+        }
+    }
+    return filas;
+}
+
 function leerRespuesta(respuesta) {
     const cuerpo = respuesta?.data;
     const meta = cuerpo?.meta;
@@ -258,11 +279,22 @@ export default function BitacoraDelExamen({ examenId, fecha, deLaUniversidad = f
                                     {fechaLarga(dia)}
                                 </h3>
                                 <ol className="relative ml-4 border-l border-slate-200">
-                                    {sucesos
-                                        .filter((s) => s.instante.startsWith(dia))
-                                        .map((s, i) => (
-                                            <Suceso key={`${s.instante}-${i}`} suceso={s} />
-                                        ))}
+                                    {agrupar(
+                                        sucesos.filter((s) => s.instante.startsWith(dia)),
+                                        categoria !== 'ausente'
+                                    ).map((fila, i) =>
+                                        fila.ausentes && fila.ausentes.length > 1 ? (
+                                            <GrupoDeAusentes
+                                                key={`ausentes-${i}`}
+                                                ausentes={fila.ausentes}
+                                            />
+                                        ) : (
+                                            <Suceso
+                                                key={`${(fila.suceso ?? fila.ausentes[0]).instante}-${i}`}
+                                                suceso={fila.suceso ?? fila.ausentes[0]}
+                                            />
+                                        )
+                                    )}
                                 </ol>
                             </section>
                         ))}
@@ -326,7 +358,9 @@ function Suceso({ suceso: s }) {
                 <Icono className="h-3.5 w-3.5" />
             </span>
             <div className="flex flex-wrap items-baseline gap-x-2">
-                <span className="font-mono text-xs text-slate-500">{s.instante.slice(11)}</span>
+                {s.instante.slice(11) !== HORA_DE_CIERRE && (
+                    <span className="font-mono text-xs text-slate-500">{s.instante.slice(11)}</span>
+                )}
                 <span className="text-sm font-semibold text-slate-900">{s.titulo}</span>
                 {GRAVEDADES[s.gravedad] && (
                     <span className={`text-xs font-semibold ${TEXTO_GRAVEDAD[s.gravedad]}`}>
@@ -345,7 +379,9 @@ function Suceso({ suceso: s }) {
                     {s.codigo && <span className="text-slate-500"> · {s.codigo}</span>}
                 </p>
             )}
-            {s.detalle && <p className="text-sm text-slate-600">{s.detalle}</p>}
+            {s.detalle && (
+                <p className="text-sm text-slate-600">{DETALLES[s.detalle] ?? s.detalle}</p>
+            )}
             {s.por && <p className="text-xs text-slate-500">{s.por}</p>}
         </li>
     );
@@ -363,4 +399,57 @@ Suceso.propTypes = {
         por: PropTypes.string,
         gravedad: PropTypes.string,
     }).isRequired,
+};
+
+// Los que no se presentaron, en una fila: «N no se presentaron · Ver».
+function GrupoDeAusentes({ ausentes }) {
+    const [abierto, setAbierto] = useState(false);
+    const { Icono, tono } = CATEGORIAS.ausente;
+    return (
+        <li className="relative pb-4 pl-6 last:pb-1">
+            <span
+                className={`absolute -left-3.5 top-0 flex h-7 w-7 items-center justify-center rounded-full ring-4 ring-white ${tono}`}
+                aria-hidden="true"
+            >
+                <Icono className="h-3.5 w-3.5" />
+            </span>
+            <div className="flex flex-wrap items-center gap-x-2">
+                <span className="text-sm font-semibold text-slate-900">
+                    {ausentes.length} no se presentaron
+                </span>
+                <button
+                    type="button"
+                    className="min-h-11 px-1 text-sm font-medium text-primary-700 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600"
+                    aria-expanded={abierto}
+                    onClick={() => setAbierto((a) => !a)}
+                >
+                    {abierto ? 'Ocultar' : 'Ver'}
+                </button>
+            </div>
+            {abierto && (
+                <ul className="mt-1 space-y-0.5" aria-label="No se presentaron">
+                    {ausentes.map((a, i) => (
+                        <li
+                            key={`${a.codigo ?? a.estudiante}-${i}`}
+                            className="text-sm text-slate-800"
+                        >
+                            {a.estudiante}
+                            {a.codigo && <span className="text-slate-500"> · {a.codigo}</span>}
+                            {a.aula && <span className="text-slate-500"> · Aula {a.aula}</span>}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </li>
+    );
+}
+
+GrupoDeAusentes.propTypes = {
+    ausentes: PropTypes.arrayOf(
+        PropTypes.shape({
+            estudiante: PropTypes.string,
+            codigo: PropTypes.string,
+            aula: PropTypes.string,
+        })
+    ).isRequired,
 };

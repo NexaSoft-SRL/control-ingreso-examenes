@@ -20,6 +20,7 @@ import Paginacion from '../../componentes/Paginacion';
 import Tarjeta from '../../componentes/Tarjeta';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { diaMes, plural } from '../../utiles/texto';
+import ProximoTurno from '../ingreso/ProximoTurno';
 
 const INTERVALO = 15000;
 const POR_PAGINA = 25;
@@ -319,17 +320,29 @@ export default function Asistencia() {
         return (
             <div className="space-y-5">
                 <Encabezado
-                    titulo="Lista del aula"
+                    titulo={esDocente ? 'Asistencia del aula' : 'Mi aula'}
                     volver={esDocente ? { a: '/en-curso', texto: 'En curso' } : undefined}
                 />
                 <Tarjeta sinRelleno>
                     <EstadoCarga cargando={cargando} error={error} onReintentar={recargar}>
-                        <SinActividad
-                            Icono={ListChecks}
-                            titulo="Ningún examen abierto en tus aulas"
-                            detalle="La lista del aula se abre una hora antes del examen y se cierra al terminar."
-                            conReportes
-                        />
+                        {esDocente ? (
+                            <SinActividad
+                                Icono={ListChecks}
+                                titulo="Ningún examen abierto"
+                                detalle="Abre una hora antes del examen."
+                                conReportes
+                            />
+                        ) : (
+                            <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+                                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+                                    <ListChecks className="h-6 w-6" aria-hidden="true" />
+                                </span>
+                                <p className="text-base font-semibold text-slate-900">
+                                    Ningún examen abierto
+                                </p>
+                                <ProximoTurno examenes={datos ?? []} />
+                            </div>
+                        )}
                     </EstadoCarga>
                 </Tarjeta>
             </div>

@@ -37,7 +37,7 @@ export const PASOS = [
         Icono: ListChecks,
         texto: 'Habilitación',
         detalle: (e) =>
-            e.estado === 'Falta repartir'
+            e.estado === 'Falta repartir estudiantes'
                 ? 'Sin aula asignada'
                 : e.habilitados
                   ? `${e.habilitados} de ${e.inscritos}`
@@ -56,12 +56,24 @@ export const PASOS = [
     },
 ];
 
-export const pendiente = (e) => e.estado !== 'Listo';
+// Un examen ya rendido (o de un día pasado) no tiene pasos pendientes: lo que
+// queda es ver su reporte.
+export const yaPaso = (e, hoy = null) => Boolean(e.rendido) || Boolean(hoy && e.fecha < hoy);
+export const estadoDe = (e, hoy = null) => (yaPaso(e, hoy) ? 'Rendido' : e.estado);
+export const pendiente = (e, hoy = null) => !yaPaso(e, hoy) && e.estado !== 'Listo';
 export const tipoDe = (e) => e.tipo_texto ?? e.tipo;
 
 // A dónde lleva la acción siguiente. Las aulas solo las elige quien registró
 // el examen; las otras dos dependen del permiso de su pantalla.
-export function accionDe(e, puedeHabilitar, puedeEmitir) {
+export function accionDe(
+    e,
+    puedeHabilitar,
+    puedeEmitir,
+    { hoy = null, puedeReportes = false } = {}
+) {
+    if (yaPaso(e, hoy)) {
+        return puedeReportes ? { texto: 'Ver reporte', a: `/mis-reportes?examen=${e.id}` } : null;
+    }
     const clave = e.accion?.clave;
     if (clave === 'elegir_aulas' && e.propio) {
         return {
@@ -76,14 +88,11 @@ export function accionDe(e, puedeHabilitar, puedeEmitir) {
         };
     }
     if (clave === 'repartir' && puedeHabilitar) {
-        return { texto: 'Repartir aulas', a: rutaDelExamen(e.id, 'habilitacion') };
+        return { texto: 'Repartir estudiantes', a: rutaDelExamen(e.id, 'habilitacion') };
     }
     if (clave === 'habilitar' && puedeHabilitar) {
-        const empezada = (e.habilitados ?? 0) + (e.no_habilitados ?? 0) > 0;
-        return {
-            texto: empezada ? 'Terminar habilitación' : 'Habilitar',
-            a: rutaDelExamen(e.id, 'habilitacion'),
-        };
+        // El mismo verbo del estado («Falta habilitar estudiantes»).
+        return { texto: 'Habilitar estudiantes', a: rutaDelExamen(e.id, 'habilitacion') };
     }
     if ((clave === 'emitir_qr' || clave === 'ver_qr') && puedeEmitir) {
         return {

@@ -15,6 +15,7 @@ use App\Modules\Examenes\Domain\Enums\TipoExamen;
 use App\Modules\Examenes\Domain\Exceptions\DatoInvalidoException;
 use App\Modules\Examenes\Domain\Exceptions\GrupoYaTieneExamenException;
 use App\Modules\Examenes\Domain\Rules\AvanceDeExamen;
+use DateTimeImmutable;
 
 /**
  * Las reglas del examen que dependen de lo ya registrado: la asignatura y
@@ -24,10 +25,11 @@ use App\Modules\Examenes\Domain\Rules\AvanceDeExamen;
  */
 final readonly class ComprobarDatosDeExamen
 {
-    // Horario en que puede empezar un examen, en minutos del dia.
-    private const DESDE = 6 * 60;
+    // El horario de clases de la universidad, en minutos del dia: un examen
+    // empieza y termina dentro de el, de lunes a sabado.
+    private const DESDE = 6 * 60 + 45;
 
-    private const HASTA = 22 * 60;
+    private const HASTA = 21 * 60 + 45;
 
     // La ventana del calendario academico que corresponde a cada tipo.
     private const VENTANA_DE_TIPO = [
@@ -220,18 +222,22 @@ final readonly class ComprobarDatosDeExamen
             throw new DatoInvalidoException('fecha', 'La fecha ya pasó.');
         }
 
+        if ((new DateTimeImmutable($datos->fecha))->format('N') === '7') {
+            throw new DatoInvalidoException('fecha', 'No hay exámenes los domingos.');
+        }
+
         $inicio = $this->minutos($datos->horaInicio);
 
         if ($inicio < self::DESDE || $inicio > self::HASTA) {
-            throw new DatoInvalidoException('hora_inicio', 'Entre 06:00 y 22:00.');
+            throw new DatoInvalidoException('hora_inicio', 'Entre 06:45 y 21:45.');
         }
 
         if ($datos->fecha === $hoy && $inicio < $this->minutos(now()->format('H:i'))) {
             throw new DatoInvalidoException('hora_inicio', 'La hora ya pasó.');
         }
 
-        if ($inicio + $datos->duracionMinutos > 24 * 60) {
-            throw new DatoInvalidoException('duracion_minutos', 'El examen terminaría después de medianoche.');
+        if ($inicio + $datos->duracionMinutos > self::HASTA) {
+            throw new DatoInvalidoException('duracion_minutos', 'Debe terminar a las 21:45 como máximo.');
         }
 
         $ventana = $ventanas[self::VENTANA_DE_TIPO[$datos->tipo] ?? ''] ?? null;

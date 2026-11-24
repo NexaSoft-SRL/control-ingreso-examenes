@@ -23,6 +23,7 @@ import { senal } from '../../utiles/senal';
 import IngresosDelAula from './IngresosDelAula';
 import { decidirSinConexion, esFalloDeRed } from '../../sinConexion/flujo';
 import ModoSinConexion from './ModoSinConexion';
+import ProximoTurno from './ProximoTurno';
 import VeredictoPuerta, { VEREDICTOS } from './VeredictoPuerta';
 import IconoAsignatura from '../../componentes/IconoAsignatura';
 
@@ -287,10 +288,10 @@ function Puesto({ resumen, aulas, hoy, elegirAula }) {
         <form className="flex w-full items-start gap-2" noValidate onSubmit={verificarManual}>
             <Campo
                 etiqueta="Código SIS o C.I."
-                placeholder="Código SIS o C.I."
+                placeholder="Ej.: 202104821"
                 className="min-w-0 flex-1"
-                autoCapitalize="characters"
-                autoComplete="off"
+                formato="documento"
+                maxLength={14}
                 enterKeyHint="search"
                 autoFocus={cerrable}
                 value={manual}
@@ -645,6 +646,29 @@ Puesto.propTypes = {
     elegirAula: PropTypes.func.isRequired,
 };
 
+// Sin examen abierto, para el auxiliar: su próximo turno.
+function SinTurno() {
+    const { datos, cargando, error, recargar } = usarConsulta('/en-curso');
+    return (
+        <div className="mx-auto max-w-md space-y-4">
+            <h1 className="sr-only">Punto de control</h1>
+            <div className="rounded-xl border border-slate-200 bg-white">
+                <EstadoCarga cargando={cargando} error={error} onReintentar={recargar} filas={2}>
+                    <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+                            <ScanLine className="h-6 w-6" aria-hidden="true" />
+                        </span>
+                        <p className="text-base font-semibold text-slate-900">
+                            Ningún examen abierto
+                        </p>
+                        <ProximoTurno examenes={datos ?? []} />
+                    </div>
+                </EstadoCarga>
+            </div>
+        </div>
+    );
+}
+
 // Punto de control (HU-19): `/control` (docente), `/ingreso` (auxiliar) y la
 // puerta abierta con código de aula, sin cuenta ni menú. El aula viaja en
 // `?aula=<id>`; sin parámetro es la primera abierta de las que la persona
@@ -653,6 +677,10 @@ export default function PuntoControl() {
     const { pathname } = useLocation();
     const [parametros, setParametros] = useSearchParams();
     const { datos, cuerpo, cargando, error, recargar } = usarConsulta('/puerta/aulas');
+    // Quien atiende aulas sin registrar exámenes (el auxiliar) ve su próximo
+    // turno; el docente ya lo ve con sus exámenes.
+    const { puede } = usarSesion();
+    const conTurno = puede('seguimiento_vivo') && !puede('examenes');
     // Solo las aulas con un examen abierto: fuera de hora la puerta no se usa.
     const aulas = (datos ?? []).filter((a) => a.abierta);
     const pedida = Number(parametros.get('aula')) || null;
@@ -666,6 +694,7 @@ export default function PuntoControl() {
         });
 
     if (!aula) {
+        if (conTurno && !cargando && !error) return <SinTurno />;
         return (
             <div className="mx-auto max-w-md space-y-4">
                 <h1 className="sr-only">Punto de control</h1>
@@ -678,8 +707,8 @@ export default function PuntoControl() {
                     >
                         <SinActividad
                             Icono={ScanLine}
-                            titulo="Ningún examen abierto en tus aulas"
-                            detalle="El punto de control se abre una hora antes del examen y se cierra al terminar."
+                            titulo="Ningún examen abierto"
+                            detalle="Abre una hora antes del examen."
                         />
                     </EstadoCarga>
                 </div>

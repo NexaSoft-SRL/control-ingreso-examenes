@@ -91,6 +91,9 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
     const [url, setUrl] = useState(null);
     const [version, setVersion] = useState(0);
     const [enviando, setEnviando] = useState(false);
+    // El resultado queda a la vista hasta el siguiente intento: el aviso
+    // fugaz no alcanza a leerse.
+    const [resultado, setResultado] = useState(null);
     const [aviso, avisar] = useAviso();
     const accion = conFoto ? 'Cambiar foto' : 'Poner foto';
 
@@ -117,6 +120,7 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
     async function subir(elegida) {
         if (!elegida || enviando) return;
         setEnviando(true);
+        setResultado(null);
         try {
             const medidas = await dimensionesDe(elegida);
             if (medidas && Math.min(medidas.ancho, medidas.alto) < MINIMO_PX) {
@@ -128,16 +132,18 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
             const formulario = new FormData();
             formulario.append('foto', reducida);
             await api.post(`/estudiantes/${id}/foto`, formulario);
-            avisar(['Foto guardada', ...avisos].join(' · '));
+            const texto = ['Foto guardada', ...avisos].join(' · ');
+            avisar(texto);
+            setResultado({ texto, error: false });
             setVersion((v) => v + 1);
             alCambiar();
         } catch (fallo) {
-            avisar(
+            const texto =
                 fallo instanceof ImagenNoValida
                     ? fallo.message
-                    : (erroresDe(fallo).foto ?? mensajeDe(fallo, 'No se pudo guardar')),
-                'error'
-            );
+                    : (erroresDe(fallo).foto ?? mensajeDe(fallo, 'No se pudo guardar'));
+            avisar(texto, 'error');
+            setResultado({ texto, error: true });
         } finally {
             setEnviando(false);
         }
@@ -165,16 +171,15 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
             )}
             <label
                 htmlFor={entrada}
-                title={accion}
-                className="absolute -bottom-2 -right-2 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-primary-50 hover:text-primary-700 focus-within:outline focus-within:outline-2 focus-within:outline-primary-600"
+                className="mt-2 flex min-h-10 w-28 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-primary-50 hover:text-primary-700 focus-within:outline focus-within:outline-2 focus-within:outline-primary-600"
             >
                 <Camera className="h-4 w-4" aria-hidden="true" />
+                {accion}
                 <input
                     id={entrada}
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                     className="sr-only"
-                    aria-label={accion}
                     disabled={enviando}
                     onChange={(e) => {
                         subir(e.target.files?.[0] ?? null);
@@ -182,6 +187,14 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
                     }}
                 />
             </label>
+            {resultado && (
+                <p
+                    role={resultado.error ? 'alert' : 'status'}
+                    className={`mt-4 max-w-28 text-xs font-medium ${resultado.error ? 'text-danger-700' : 'text-success-700'}`}
+                >
+                    {resultado.texto}
+                </p>
+            )}
             {aviso}
         </div>
     );
@@ -264,7 +277,7 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
 
                         <section aria-label="Procedencia e historial">
                             <h3 className="text-sm font-semibold text-slate-900">
-                                Procedencia de los datos
+                                Origen del dato
                             </h3>
                             <p className="mt-1 text-sm text-slate-700">
                                 Origen: {ficha.origen} ·{' '}
@@ -330,8 +343,8 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
                                                 <p className="text-xs text-slate-500">
                                                     Resolución:{' '}
                                                     {conflicto.resolucion === 'USAR_CARGA'
-                                                        ? 'Usar carga nueva'
-                                                        : 'Mantener padrón'}
+                                                        ? 'Se usó el nuevo'
+                                                        : 'Se dejó el actual'}
                                                     {conflicto.resuelto_por &&
                                                         ` · ${conflicto.resuelto_por}`}
                                                     {conflicto.resuelto_en &&

@@ -178,6 +178,16 @@ describe('Reportes de la universidad', () => {
         expect(await screen.findByText('1 examen')).toBeInTheDocument();
     });
 
+    it('el calendario de cada fecha ya no deja elegir un rango invertido', async () => {
+        await abrir();
+
+        fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-10-12' } });
+        fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-10-31' } });
+
+        expect(screen.getByLabelText('Hasta')).toHaveAttribute('min', '2026-10-12');
+        expect(screen.getByLabelText('Desde')).toHaveAttribute('max', '2026-10-31');
+    });
+
     it('no consulta con un rango de fechas invertido', async () => {
         await abrir();
         const antes = pedidos().length;

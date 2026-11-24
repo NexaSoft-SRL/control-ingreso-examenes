@@ -123,7 +123,7 @@ describe('Oferta', () => {
     it('desde el período llega filtrada a las asignaturas con grupos sin lista', async () => {
         montar({ ruta: '/oferta?sin_lista=1' });
         await waitFor(() => expect(ultimo()).toMatchObject({ sin_lista: 1 }));
-        const boton = screen.getByRole('button', { name: 'Con grupos sin lista' });
+        const boton = screen.getByRole('button', { name: 'Sin lista de inscritos' });
         expect(boton).toHaveAttribute('aria-pressed', 'true');
 
         fireEvent.click(boton);
@@ -161,7 +161,7 @@ describe('Oferta', () => {
         await fila('Algebra I');
 
         expect(screen.getByRole('heading', { level: 1, name: 'Oferta' })).toBeInTheDocument();
-        expect(screen.getByText('Importado · solo lectura')).toBeInTheDocument();
+        expect(screen.getByText('De la universidad · no se edita')).toBeInTheDocument();
         expect(await screen.findByText('Períodos 2/2026 y 0/2026 · FCyT')).toBeInTheDocument();
 
         fireEvent.change(screen.getByLabelText('Carrera'), { target: { value: '15' } });

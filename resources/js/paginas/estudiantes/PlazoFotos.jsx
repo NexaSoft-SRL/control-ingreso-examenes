@@ -6,6 +6,20 @@ import Boton from '../../componentes/Boton';
 import Campo from '../../componentes/Campo';
 import Dialogo from '../../componentes/Dialogo';
 
+// Hoy en la hora local, como «AAAA-MM-DD» (lo que da un campo de fecha).
+const hoyLocal = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+// El error de «Hasta», uno por regla (el servidor las junta en un mensaje).
+function errorDeHasta(desde, hasta) {
+    if (!hasta || !desde) return undefined;
+    if (hasta < desde) return 'Debe ser después de Desde';
+    if (hasta < hoyLocal()) return 'No puede ser antes de hoy';
+    return undefined;
+}
+
 // Las fechas en que los estudiantes suben su foto (PUT /api/estudiantes/plazo-fotos).
 export default function PlazoFotos({ plazo, onCerrar, onGuardado, avisar }) {
     const [desde, setDesde] = useState(plazo?.desde ?? '');
@@ -17,7 +31,7 @@ export default function PlazoFotos({ plazo, onCerrar, onGuardado, avisar }) {
         e?.preventDefault();
         const faltas = {
             desde: desde ? undefined : 'Obligatorio',
-            hasta: hasta ? undefined : 'Obligatorio',
+            hasta: hasta ? errorDeHasta(desde, hasta) : 'Obligatorio',
         };
         if (faltas.desde || faltas.hasta) return setErrores(faltas);
         if (enviando) return undefined;
@@ -47,13 +61,18 @@ export default function PlazoFotos({ plazo, onCerrar, onGuardado, avisar }) {
                     <Boton variante="secundario" onClick={onCerrar}>
                         Cancelar
                     </Boton>
-                    <Boton onClick={guardar} cargando={enviando}>
-                        Guardar
+                    <Boton type="submit" form="formulario-plazo" cargando={enviando}>
+                        Guardar plazo
                     </Boton>
                 </>
             }
         >
-            <form className="grid grid-cols-2 gap-3" onSubmit={guardar} noValidate>
+            <form
+                id="formulario-plazo"
+                className="grid grid-cols-2 gap-3"
+                onSubmit={guardar}
+                noValidate
+            >
                 <Campo
                     etiqueta="Desde"
                     requerido
@@ -66,7 +85,7 @@ export default function PlazoFotos({ plazo, onCerrar, onGuardado, avisar }) {
                     etiqueta="Hasta"
                     requerido
                     type="date"
-                    min={desde || undefined}
+                    min={[desde, hoyLocal()].filter(Boolean).sort().pop()}
                     value={hasta}
                     error={errores.hasta}
                     onChange={(e) => setHasta(e.target.value)}

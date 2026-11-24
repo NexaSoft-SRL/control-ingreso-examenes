@@ -12,7 +12,7 @@ import Tarjeta from '../../componentes/Tarjeta';
 
 const POR_PAGINA = 5;
 
-// Lo que reescribe «Usar carga nueva»: cada dato que cambia, de antes a después.
+// Lo que reescribe «Usar el nuevo»: cada dato que cambia, de antes a después.
 const cambiosDe = (c) =>
     [
         ['C.I.', c.guardado?.documento, c.nuevo?.documento],
@@ -70,10 +70,12 @@ export default function Conflictos({ onCambio, avisar }) {
         setEnviando(conflicto.id);
         setRechazos((previos) => ({ ...previos, [conflicto.id]: undefined }));
         api.post(`/estudiantes/conflictos/${conflicto.id}/resolucion`, { resolucion })
-            .then((respuesta) => {
+            .then(() => {
+                // El aviso dice qué dato quedó.
                 avisar(
-                    sinPunto(respuesta.data?.message) ||
-                        `${conflicto.codigo} ${resolucion === 'USAR_CARGA' ? 'actualizado' : 'sin cambios'}`
+                    resolucion === 'USAR_CARGA'
+                        ? `${conflicto.codigo}: queda el dato nuevo`
+                        : `${conflicto.codigo}: queda el dato actual`
                 );
                 recargar();
                 onCambio();
@@ -115,8 +117,8 @@ export default function Conflictos({ onCambio, avisar }) {
                     >
                         <div className="grid gap-3 sm:grid-cols-2">
                             {[
-                                ['Padrón', c.guardado, c.nuevo],
-                                ['Carga nueva', c.nuevo, c.guardado],
+                                ['Dato actual', c.guardado, c.nuevo],
+                                ['Dato nuevo', c.nuevo, c.guardado],
                             ].map(([titulo, d, otro]) => (
                                 <div
                                     key={titulo}
@@ -150,7 +152,7 @@ export default function Conflictos({ onCambio, avisar }) {
                             {c.inscripcion_en_espera && (
                                 <span className="mr-auto">
                                     <Insignia tono="neutro" punto>
-                                        Inscripción en espera
+                                        Se inscribe al resolver
                                     </Insignia>
                                 </span>
                             )}
@@ -169,7 +171,7 @@ export default function Conflictos({ onCambio, avisar }) {
                                         cargando={enviando === c.id}
                                         onClick={() => resolver(c, 'USAR_CARGA')}
                                     >
-                                        Reemplazar
+                                        Sí, reemplazar
                                     </Boton>
                                 </>
                             ) : (
@@ -180,13 +182,13 @@ export default function Conflictos({ onCambio, avisar }) {
                                         cargando={enviando === c.id}
                                         onClick={() => resolver(c, 'MANTENER_PADRON')}
                                     >
-                                        Mantener padrón
+                                        Dejar el actual
                                     </Boton>
                                     <Boton
                                         disabled={enviando !== null}
                                         onClick={() => setConfirmando(c.id)}
                                     >
-                                        Usar carga nueva
+                                        Usar el nuevo
                                     </Boton>
                                 </>
                             )}

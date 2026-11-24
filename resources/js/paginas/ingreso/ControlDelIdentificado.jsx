@@ -167,7 +167,10 @@ export default function ControlDelIdentificado({ aulaId, veredicto }) {
                     <Campo
                         etiqueta="Carnet que presenta"
                         iconoEtiqueta={IdCard}
-                        placeholder="5003748"
+                        placeholder="Ej.: 5003748-1A"
+                        formato="documento"
+                        maxLength={30}
+                        enterKeyHint="done"
                         autoFocus
                         value={documento}
                         error={error}
@@ -189,7 +192,7 @@ export default function ControlDelIdentificado({ aulaId, veredicto }) {
                             Cancelar
                         </Boton>
                         <Boton type="submit" className="min-h-12 flex-1" cargando={enviando}>
-                            Comparar
+                            Comparar carnet
                         </Boton>
                     </div>
                 </form>

@@ -12,9 +12,10 @@ use App\Modules\Estudiantes\Application\DTOs\FiltroListaData;
 use App\Modules\Estudiantes\Application\DTOs\PaginaData;
 use App\Modules\Estudiantes\Domain\Enums\EstadoConflicto;
 use App\Modules\Estudiantes\Domain\Enums\OrigenEstudiante;
+use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentPadronGateway implements PadronGateway
@@ -255,7 +256,7 @@ final class EloquentPadronGateway implements PadronGateway
             throw new \UnexpectedValueException('La zona horaria de la aplicación no es válida.');
         }
 
-        return Carbon::parse($fecha)->timezone($zona)->format('Y-m-d H:i');
+        return (new DateTimeImmutable($fecha))->setTimezone(new DateTimeZone($zona))->format('Y-m-d H:i');
     }
 
     public function resumen(): array

@@ -9,6 +9,20 @@ import AlertasReportes from './AlertasReportes';
 import { fechaCorta } from '../../utiles/texto';
 
 const SIN_EXAMENES = [];
+const MAXIMO = 20;
+
+// Cuántos van elegidos y qué falta, en una línea.
+function textoElegidos(n) {
+    if (n === 0) return 'Marque 2 o más exámenes';
+    if (n === 1) return '1 elegido · marque otro';
+    return n >= MAXIMO ? `${n} elegidos · máximo` : `${n} elegidos`;
+}
+
+// Sin ingresos no hay asistencia que comparar: lo dice en vez de un 0 %.
+const asistenciaDe = (examen) =>
+    Number(examen.presentes ?? examen.asistencia) === 0
+        ? 'Sin ingresos'
+        : `${examen.asistencia}% (${examen.presentes}/${examen.habilitados})`;
 
 export default function ComparacionReportes() {
     const [avisos, avisar] = useAviso();
@@ -58,7 +72,7 @@ export default function ComparacionReportes() {
         elegirExamenes((actuales) =>
             actuales.includes(id)
                 ? actuales.filter((examen) => examen !== id)
-                : actuales.length < 20
+                : actuales.length < MAXIMO
                   ? [...actuales, id]
                   : actuales
         );
@@ -123,7 +137,7 @@ export default function ComparacionReportes() {
                                         checked={examenesElegidos.includes(examen.id)}
                                         disabled={
                                             !examenesElegidos.includes(examen.id) &&
-                                            examenesElegidos.length >= 20
+                                            examenesElegidos.length >= MAXIMO
                                         }
                                         onChange={() => alternarExamen(examen.id)}
                                         className="h-4 w-4 accent-primary-700"
@@ -133,15 +147,18 @@ export default function ComparacionReportes() {
                                         {fechaCorta(examen.fecha)}
                                     </span>
                                     <span className="shrink-0 text-xs text-slate-500">
-                                        {examen.periodo} · {examen.asistencia}% asistencia
+                                        {examen.periodo} ·{' '}
+                                        {Number(examen.asistencia) === 0
+                                            ? 'sin ingresos'
+                                            : `${examen.asistencia}% asistencia`}
                                     </span>
                                 </label>
                             ))
                         )}
                     </div>
-                    {examenesElegidos.length > 0 && (
+                    {disponibles.length > 0 && (
                         <p className="mt-2 text-xs text-slate-600" aria-live="polite">
-                            {examenesElegidos.length} de 20 elegidos
+                            {textoElegidos(examenesElegidos.length)}
                         </p>
                     )}
                     {examenesElegidos.length >= 2 && (
@@ -231,9 +248,7 @@ function TablaExamenes({ examenes }) {
                                 {examen.asignatura} · {examen.tipo} · {fechaCorta(examen.fecha)}
                             </th>
                             <td className="px-3 py-3">{examen.periodo}</td>
-                            <td className="px-3 py-3">
-                                {examen.asistencia}% ({examen.presentes}/{examen.habilitados})
-                            </td>
+                            <td className="px-3 py-3">{asistenciaDe(examen)}</td>
                             <td className="px-3 py-3">{examen.ausentes}</td>
                             <td className="pl-3 py-3">{examen.incidencias}</td>
                         </tr>

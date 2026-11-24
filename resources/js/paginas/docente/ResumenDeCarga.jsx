@@ -21,14 +21,14 @@ function cifrasDe(resultado) {
             tono: 'text-primary-700 bg-primary-50',
             cantidad: resumen.nuevos ?? 0,
             texto: ['nuevo', 'nuevos'],
-            detalle: 'Creados en el padrón',
+            detalle: 'Creados en la lista general',
         },
         {
             id: 'reutilizados',
             Icono: Recycle,
             tono: 'text-success-700 bg-success-50',
             cantidad: resumen.reutilizados ?? 0,
-            texto: ['ya en el padrón', 'ya en el padrón'],
+            texto: ['ya en la lista general', 'ya en la lista general'],
             detalle: 'Inscritos al grupo',
         },
         {

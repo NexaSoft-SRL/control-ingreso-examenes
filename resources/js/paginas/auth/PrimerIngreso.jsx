@@ -29,6 +29,12 @@ export default function PrimerIngreso() {
     const [aviso, avisar] = useAviso();
     const cumple = cumpleReglas(clave);
     const coincide = clave !== '' && clave === repetida;
+    // Lo que falta para poder guardar, a la vista junto al botón.
+    const falta = !cumple
+        ? 'Falta cumplir los requisitos'
+        : !coincide
+          ? 'Falta repetir la misma contraseña'
+          : null;
 
     if (!usuario) return <Navigate to="/login" replace />;
     if (!usuario.debe_cambiar_contrasena && !enviando) {
@@ -69,7 +75,7 @@ export default function PrimerIngreso() {
 
                     <form className="space-y-4" noValidate onSubmit={guardar}>
                         <Campo
-                            etiqueta="Contraseña"
+                            etiqueta="Contraseña nueva"
                             iconoEtiqueta={Lock}
                             requerido
                             type="password"
@@ -83,7 +89,7 @@ export default function PrimerIngreso() {
                         />
                         <ListaReglas clave={clave} />
                         <Campo
-                            etiqueta="Repetir contraseña"
+                            etiqueta="Repetir contraseña nueva"
                             iconoEtiqueta={Lock}
                             requerido
                             type="password"
@@ -100,6 +106,9 @@ export default function PrimerIngreso() {
                         >
                             Guardar y entrar
                         </Boton>
+                        {falta && !enviando && (
+                            <p className="-mt-2 text-center text-xs text-slate-600">{falta}</p>
+                        )}
                     </form>
                 </div>
 
@@ -113,7 +122,7 @@ export default function PrimerIngreso() {
                             // Sin conexión la sesión sigue: se queda aquí.
                         }
                     }}
-                    className={`mt-4 min-h-11 w-full rounded-lg text-center text-sm font-medium text-slate-700 hover:underline ${FOCO}`}
+                    className={`mt-4 min-h-11 w-full rounded-lg border border-slate-200 bg-white/90 text-center text-sm font-medium text-umss-marino shadow-sm hover:bg-white ${FOCO}`}
                 >
                     Cerrar sesión
                 </button>

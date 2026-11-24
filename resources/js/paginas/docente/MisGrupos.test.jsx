@@ -275,9 +275,9 @@ describe('Mis grupos · lista de inscritos', () => {
         const primera = within(tabla).getAllByRole('row')[1];
         expect(primera).toHaveTextContent('202400001');
         expect(primera).toHaveTextContent('Apellido001, Nombre');
-        expect(primera).toHaveTextContent('C.I. 5000001 · Registrado por el docente');
+        expect(primera).toHaveTextContent('C.I. 5000001 · Sin verificar');
         expect(primera).toHaveTextContent('Sin foto');
-        expect(within(tabla).getAllByRole('row')[2]).toHaveTextContent('Padrón verificado');
+        expect(within(tabla).getAllByRole('row')[2]).toHaveTextContent('Verificado');
 
         expect(pedidos('get', /\/37\/inscritos$/)[0][1].params).toEqual({
             pagina: 1,
@@ -380,7 +380,9 @@ describe('Mis grupos · grupo sin lista', () => {
         await abrirSinLista();
 
         expect(
-            screen.getByText('.xlsx o .csv · código universitario, documento, nombres y apellidos')
+            screen.getByText(
+                '.xlsx o .csv · código SIS, apellidos y nombres (el C.I. puede faltar)'
+            )
         ).toBeInTheDocument();
         expect(screen.getByLabelText('Archivo de la lista')).toHaveAttribute(
             'accept',
@@ -426,12 +428,11 @@ describe('Mis grupos · grupo sin lista', () => {
         expect(config.params).toEqual({ alcance: 'grupo' });
     });
 
-    it('el archivo es obligatorio', async () => {
+    it('sin archivo no se previsualiza y dice qué falta', async () => {
         await abrirSinLista();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Previsualizar carga' }));
-
-        expect(await screen.findByRole('alert')).toHaveTextContent('El archivo es obligatorio.');
+        expect(screen.getByRole('button', { name: 'Previsualizar carga' })).toBeDisabled();
+        expect(screen.getByText('Falta el archivo')).toBeInTheDocument();
         expect(api.post).not.toHaveBeenCalled();
     });
 
@@ -474,7 +475,7 @@ describe('Mis grupos · grupo sin lista', () => {
         expect(screen.getByText('inscritos_g2.csv')).toBeInTheDocument();
         [
             '9 nuevos',
-            '20 ya en el padrón',
+            '20 ya en la lista general',
             '2 ya inscritos',
             '2 rechazados',
             '1 en conflicto',
@@ -740,7 +741,7 @@ describe('Mis grupos · agregar y quitar estudiantes', () => {
 
         fireEvent.click(within(fila).getByRole('button', { name: /^Editar a/ }));
         expect(dialogo()).toHaveAccessibleName('Editar estudiante');
-        expect(within(dialogo()).getByText(/se corrige en todas sus materias/)).toBeVisible();
+        expect(within(dialogo()).getByText(/se corrige en todas sus asignaturas/)).toBeVisible();
         expect(within(dialogo()).queryByLabelText('Código SIS', { exact: false })).toBeNull();
 
         escribir('C.I.', '7928194-1A');
@@ -757,6 +758,20 @@ describe('Mis grupos · agregar y quitar estudiantes', () => {
         expect((await screen.findAllByText(/Alvarado Claros Kevin René/)).length).toBeGreaterThan(
             0
         );
+    });
+
+    it('el C.I. muestra un ejemplo fijo y su error dice el formato', async () => {
+        await abrir();
+        fireEvent.click(
+            within(screen.getAllByRole('row')[1]).getByRole('button', { name: /^Editar a/ })
+        );
+        expect(within(dialogo()).getByText('Ej. 5003748 o 5003748-1A')).toBeVisible();
+
+        escribir('C.I.', '12');
+        fireEvent.click(within(dialogo()).getByRole('button', { name: /Guardar/ }));
+
+        expect(within(dialogo()).getByText('Revise el formato: 5003748-1A')).toBeVisible();
+        expect(api.put).not.toHaveBeenCalled();
     });
 
     it('al editar, el C.I. de otro estudiante queda bajo su campo', async () => {
@@ -786,9 +801,11 @@ describe('Mis grupos · agregar y quitar estudiantes', () => {
         fireEvent.click(screen.getByRole('button', { name: /Agregar estudiante/ }));
 
         expect(dialogo()).toHaveAccessibleName('Agregar estudiante');
-        ['Código SIS', 'C.I.', 'Apellidos', 'Nombres'].forEach((etiqueta) =>
+        ['Código SIS', 'Apellidos', 'Nombres'].forEach((etiqueta) =>
             expect(within(dialogo()).getByLabelText(etiqueta, { exact: false })).toBeRequired()
         );
+        // El C.I. lo escribe después el estudiante: al agregar es opcional.
+        expect(within(dialogo()).getByLabelText('C.I.', { exact: false })).not.toBeRequired();
         expect(
             within(dialogo()).getByText('Introducción a la Programación · Grupo 2')
         ).toBeVisible();
@@ -808,8 +825,38 @@ describe('Mis grupos · agregar y quitar estudiantes', () => {
 
         fireEvent.click(within(dialogo()).getByRole('button', { name: /Agregar/ }));
 
-        expect(within(dialogo()).getAllByText('Obligatorio')).toHaveLength(3);
+        expect(within(dialogo()).getAllByText('Obligatorio')).toHaveLength(2);
         expect(pedidos('post', /inscritos$/)).toHaveLength(0);
+    });
+
+    it('cada campo deja escribir solo lo que le corresponde', async () => {
+        await abrir();
+        fireEvent.click(screen.getByRole('button', { name: /Agregar estudiante/ }));
+
+        llenar({
+            'Código SIS': 'SIS 2021-04821',
+            'C.I.': '7928194-1A!',
+            Apellidos: 'Alvarado2 Claros#',
+            Nombres: 'Kevin3 René',
+        });
+
+        const campo = (e) => within(dialogo()).getByLabelText(e, { exact: false });
+        expect(campo('Código SIS')).toHaveValue('202104821');
+        expect(campo('C.I.')).toHaveValue('7928194-1A');
+        expect(campo('Apellidos')).toHaveValue('Alvarado Claros');
+        expect(campo('Nombres')).toHaveValue('Kevin René');
+    });
+
+    it('se puede agregar sin C.I.', async () => {
+        await abrir();
+        fireEvent.click(screen.getByRole('button', { name: /Agregar estudiante/ }));
+
+        llenar({ 'C.I.': '' });
+        fireEvent.click(within(dialogo()).getByRole('button', { name: /Agregar/ }));
+
+        await screen.findByText('Estudiante agregado a la lista general e inscrito');
+        const [, cuerpo] = pedidos('post', /inscritos$/)[0];
+        expect(cuerpo.documento).toBe('');
     });
 
     it('agrega al estudiante, avisa y recarga la lista y la cifra del grupo', async () => {
@@ -820,7 +867,9 @@ describe('Mis grupos · agregar y quitar estudiantes', () => {
         llenar();
         fireEvent.click(within(dialogo()).getByRole('button', { name: /Agregar/ }));
 
-        expect(await screen.findByText('Estudiante agregado al padrón e inscrito')).toBeVisible();
+        expect(
+            await screen.findByText('Estudiante agregado a la lista general e inscrito')
+        ).toBeVisible();
         const [url, cuerpo] = pedidos('post', /inscritos$/)[0];
         expect(url).toBe('/docente/grupos/37/inscritos');
         expect(cuerpo).toEqual({
@@ -832,6 +881,8 @@ describe('Mis grupos · agregar y quitar estudiantes', () => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(await screen.findByText('4 inscritos')).toBeInTheDocument();
         expect(screen.getAllByText('Alvarado Claros Kevin René').length).toBeGreaterThan(0);
+        // La lista queda filtrada por el recién agregado, para verlo enseguida.
+        expect(screen.getByLabelText('Buscar estudiante')).toHaveValue('202104821');
         await waitFor(() =>
             expect(
                 screen.getByRole('button', { name: /Introducción a la Programación/ })
@@ -841,7 +892,7 @@ describe('Mis grupos · agregar y quitar estudiantes', () => {
 
     it.each([
         ['INSCRITO', 'Estudiante inscrito'],
-        ['CONFLICTO', 'Datos distintos al padrón · inscripción pendiente'],
+        ['CONFLICTO', 'Datos distintos a la lista general · inscripción pendiente'],
     ])('avisa el resultado %s', async (resultado, aviso) => {
         await abrir({ agregar: () => ({ resultado }) });
 

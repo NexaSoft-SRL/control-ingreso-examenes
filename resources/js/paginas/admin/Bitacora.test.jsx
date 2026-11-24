@@ -94,9 +94,9 @@ describe('Bitacora', () => {
         expect(filas[0]).toHaveTextContent('Blanco Coca Leticia · Inhabilitó al estudiante');
         expect(filas[0]).toHaveTextContent('Habilitación #19 · Introducción a la Programación');
         expect(filas[0]).toHaveTextContent('Docente · 11 oct 2026, 16:40');
-        expect(consultas()[0]).toEqual({ pagina: 1, por_pagina: 25 });
+        expect(consultas()[0]).toEqual({ sin_sesiones: '1', pagina: 1, por_pagina: 25 });
         expect(screen.getByRole('heading', { level: 1, name: 'Bitácora' })).toBeInTheDocument();
-        expect(screen.getByText('Solo lectura')).toBeInTheDocument();
+        expect(screen.getByText('No se edita')).toBeInTheDocument();
         expect(screen.getByRole('navigation', { name: 'Paginación' })).toHaveTextContent(
             '4 operaciones'
         );
@@ -144,7 +144,12 @@ describe('Bitacora', () => {
             target: { value: 'sesion.iniciar' },
         });
         await waitFor(() =>
-            expect(ultima()).toEqual({ operacion: 'sesion.iniciar', pagina: 1, por_pagina: 25 })
+            expect(ultima()).toEqual({
+                operacion: 'sesion.iniciar',
+                sin_sesiones: '1',
+                pagina: 1,
+                por_pagina: 25,
+            })
         );
     });
 
@@ -194,6 +199,7 @@ describe('Bitacora', () => {
             expect(ultima()).toEqual({
                 desde: '2026-10-01',
                 hasta: '2026-10-12',
+                sin_sesiones: '1',
                 pagina: 1,
                 por_pagina: 25,
             })
@@ -253,7 +259,7 @@ describe('Bitacora', () => {
         expect(await screen.findByRole('list')).toBeInTheDocument();
     });
 
-    it('marca el filtro que el servidor rechaza y conserva las opciones', async () => {
+    it('con un rango al revés lo dice bajo «Hasta» y conserva las opciones', async () => {
         const mensaje = 'La fecha final no puede ser anterior a la inicial.';
         simularApi(api, {
             'GET /bitacora': ({ params }) =>
@@ -268,8 +274,10 @@ describe('Bitacora', () => {
         fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-10-09' } });
         fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-10-01' } });
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('Filtros no válidos');
-        expect(screen.getByText(mensaje)).toBeInTheDocument();
+        // El error va solo bajo «Hasta»; la lista dice que no hay resultados.
+        expect(await screen.findByText('Sin resultados para estos filtros')).toBeInTheDocument();
+        expect(screen.getByText('Debe ser después de Desde')).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).toBeNull();
         expect(screen.getByLabelText(/^Hasta/)).toHaveAttribute('aria-invalid', 'true');
         expect(
             within(listaDe(screen.getByLabelText('Operación'))).getAllByRole('option')
@@ -277,6 +285,38 @@ describe('Bitacora', () => {
 
         fireEvent.change(screen.getByLabelText(/^Hasta/), { target: { value: '' } });
         expect(await screen.findByRole('list')).toBeInTheDocument();
+    });
+
+    it('«Limpiar filtros» aparece con algún filtro y los quita todos', async () => {
+        simularApi(api, { 'GET /bitacora': pagina(), 'GET /roles': ROLES });
+        montar();
+        await screen.findByRole('list');
+        expect(screen.queryByRole('button', { name: 'Limpiar filtros' })).toBeNull();
+
+        fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-10-01' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
+
+        expect(screen.getByLabelText('Desde')).toHaveValue('');
+        expect(screen.queryByRole('button', { name: 'Limpiar filtros' })).toBeNull();
+    });
+
+    it('oculta los inicios de sesión salvo que se pidan, y «Limpiar filtros» los vuelve a ocultar', async () => {
+        simularApi(api, { 'GET /bitacora': pagina(), 'GET /roles': ROLES });
+        montar();
+        await screen.findByRole('list');
+
+        const casilla = screen.getByRole('checkbox', { name: 'Incluir inicios de sesión' });
+        expect(casilla).not.toBeChecked();
+        expect(ultima()).toMatchObject({ sin_sesiones: '1' });
+
+        fireEvent.click(casilla);
+        await waitFor(() => expect(ultima()).not.toHaveProperty('sin_sesiones'));
+
+        fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
+        await waitFor(() => expect(ultima()).toMatchObject({ sin_sesiones: '1' }));
+        expect(
+            screen.getByRole('checkbox', { name: 'Incluir inicios de sesión' })
+        ).not.toBeChecked();
     });
 
     it('sin el permiso «bitacora» la vista no se abre', async () => {

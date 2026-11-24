@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
-import { useState } from 'react';
-import { Camera } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Camera, UserRound } from 'lucide-react';
 import { api } from '../../api/cliente';
 import { erroresDe, mensajeDe } from '../../api/errores';
 import Boton from '../../componentes/Boton';
@@ -42,7 +42,7 @@ export function BotonFoto({ estudiante, onAbrir }) {
         <button
             type="button"
             aria-label={`Foto de ${estudiante.nombre}`}
-            title="Ver o habilitar la foto"
+            title="Ver la foto o dar plazo para subirla"
             onClick={() => onAbrir(estudiante)}
             className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600 ${tono}`}
         >
@@ -60,6 +60,53 @@ BotonFoto.propTypes = {
         }),
     }).isRequired,
     onAbrir: PropTypes.func.isRequired,
+};
+
+// La foto del estudiante, tal como la subió (GET .../foto). Sin foto o si no
+// carga, queda la silueta.
+function Retrato({ grupoId, estudiante, conFoto }) {
+    const [url, setUrl] = useState(null);
+
+    useEffect(() => {
+        if (!conFoto) return undefined;
+        let vigente = true;
+        let creada = null;
+        api.get(`/docente/grupos/${grupoId}/inscritos/${estudiante.id}/foto`, {
+            responseType: 'blob',
+        })
+            .then((r) => {
+                if (!vigente) return;
+                creada = URL.createObjectURL(r.data);
+                setUrl(creada);
+            })
+            .catch(() => {});
+        return () => {
+            vigente = false;
+            if (creada) URL.revokeObjectURL(creada);
+        };
+    }, [grupoId, estudiante.id, conFoto]);
+
+    return url ? (
+        <img
+            src={url}
+            alt={`Foto de ${estudiante.nombre}`}
+            className="h-40 w-32 shrink-0 rounded-lg border border-slate-200 object-cover"
+        />
+    ) : (
+        <span className="flex h-40 w-32 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500">
+            <UserRound className="h-8 w-8 text-slate-400" strokeWidth={1.5} />
+            Sin foto
+        </span>
+    );
+}
+
+Retrato.propTypes = {
+    grupoId: PropTypes.number.isRequired,
+    estudiante: PropTypes.shape({
+        id: PropTypes.number.isRequired,
+        nombre: PropTypes.string.isRequired,
+    }).isRequired,
+    conFoto: PropTypes.bool,
 };
 
 export default function FotoDelInscrito({ grupoId, estudiante, onHabilitada, onCerrar }) {
@@ -97,7 +144,7 @@ export default function FotoDelInscrito({ grupoId, estudiante, onHabilitada, onC
 
     return (
         <Dialogo
-            titulo="Foto del estudiante"
+            titulo={`Foto de ${estudiante.nombre}`}
             onCerrar={onCerrar}
             acciones={
                 <>
@@ -111,35 +158,40 @@ export default function FotoDelInscrito({ grupoId, estudiante, onHabilitada, onC
                             disabled={vigente && hasta === actual}
                             onClick={habilitar}
                         >
-                            {vigente ? 'Cambiar plazo' : 'Habilitar'}
+                            {vigente ? 'Cambiar plazo' : 'Dar plazo para subir foto'}
                         </Boton>
                     )}
                 </>
             }
         >
             <div className="space-y-3 text-sm">
-                <p className="font-semibold text-slate-900">{estudiante.nombre}</p>
-                {subida ? (
-                    <p className="rounded-lg bg-success-50 px-3 py-2 text-success-800">
-                        Con foto · del {fechaCorta(subida)}
-                    </p>
-                ) : (
-                    <p className="text-slate-700">Sin foto</p>
-                )}
-                {vigente && (
-                    <p className="rounded-lg bg-primary-50 px-3 py-2 text-primary-800">
-                        Habilitado hasta el {fechaCorta(actual)}
-                    </p>
-                )}
-                {bloqueada && (
-                    <p className="rounded-lg bg-slate-100 px-3 py-2 text-slate-700">
-                        Cambio habilitable desde el {fechaCorta(desde)}
-                    </p>
-                )}
+                <div className="flex items-start gap-4">
+                    <Retrato grupoId={grupoId} estudiante={estudiante} conFoto={Boolean(subida)} />
+                    <div className="min-w-0 flex-1 space-y-2">
+                        <p className="font-semibold text-slate-900">{estudiante.nombre}</p>
+                        {subida ? (
+                            <p className="rounded-lg bg-success-50 px-3 py-2 text-success-800">
+                                Con foto · del {fechaCorta(subida)}
+                            </p>
+                        ) : (
+                            <p className="text-slate-700">Aún no subió foto</p>
+                        )}
+                        {vigente && (
+                            <p className="rounded-lg bg-primary-50 px-3 py-2 text-primary-800">
+                                Habilitado hasta el {fechaCorta(actual)}
+                            </p>
+                        )}
+                        {bloqueada && (
+                            <p className="rounded-lg bg-slate-100 px-3 py-2 text-slate-700">
+                                Cambio habilitable desde el {fechaCorta(desde)}
+                            </p>
+                        )}
+                    </div>
+                </div>
                 {!bloqueada && (
                     <form onSubmit={habilitar} noValidate>
                         <Campo
-                            etiqueta={subida ? 'Puede cambiarla hasta' : 'Puede subirla hasta'}
+                            etiqueta={subida ? 'Plazo para cambiarla' : 'Plazo para subirla'}
                             requerido
                             type="date"
                             min={hoy}

@@ -273,9 +273,14 @@ async function listaCargada() {
     await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
 }
 
-async function abrirCarga() {
+// Abre la carga; con varias facultades no viene ninguna elegida, así que
+// se elige la FCyT salvo que se pida dejar la que propone.
+async function abrirCarga({ conFacultad = true } = {}) {
     fireEvent.click(screen.getByRole('button', { name: /Cargar inscripciones/ }));
-    return screen.findByRole('dialog', { name: 'Carga de inscripciones' });
+    const dialogo = await screen.findByRole('dialog', { name: 'Carga de inscripciones' });
+    const facultad = within(dialogo).getByLabelText(/Facultad/);
+    if (conFacultad) fireEvent.change(facultad, { target: { value: 'fcyt' } });
+    return dialogo;
 }
 
 function elegirArchivo(dialogo, archivo) {
@@ -426,6 +431,11 @@ describe('Padrón · búsqueda y filtros (criterios 2 a 4)', () => {
         });
         expect(await screen.findByText('Sin resultados')).toBeInTheDocument();
         expect(screen.queryByRole('table')).not.toBeInTheDocument();
+
+        // La salida: quitar la búsqueda vuelve a la lista entera.
+        fireEvent.click(screen.getByRole('button', { name: 'Quitar búsqueda' }));
+        expect(screen.getByLabelText('Buscar estudiante')).toHaveValue('');
+        await waitFor(() => expect(filasDeTabla().length).toBeGreaterThan(1));
     });
 
     it('filtra por facultad con la clave y cada opción muestra su conteo', async () => {
@@ -542,15 +552,26 @@ describe('Padrón · ficha del estudiante (criterio 5)', () => {
 });
 
 describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
-    it('sin archivo señala «Obligatorio» y no envía nada', async () => {
+    it('sin facultad ni archivo, el botón dice qué falta y no envía nada', async () => {
         const { pedidos } = servidor();
         montar({ usuario: usuarioDePrueba('Administrador') });
         await listaCargada();
-        const dialogo = await abrirCarga();
+        const dialogo = await abrirCarga({ conFacultad: false });
+        const cargar = within(dialogo).getByRole('button', { name: 'Cargar inscripciones' });
 
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar' }));
+        expect(within(dialogo).getByLabelText(/Facultad/)).toHaveValue('');
+        expect(within(dialogo).getByText('Falta la facultad')).toBeInTheDocument();
+        expect(cargar).toBeDisabled();
 
-        expect(within(dialogo).getByText('Obligatorio')).toBeInTheDocument();
+        fireEvent.change(within(dialogo).getByLabelText(/Facultad/), {
+            target: { value: 'fcyt' },
+        });
+        expect(within(dialogo).getByText('Falta el archivo')).toBeInTheDocument();
+        expect(cargar).toBeDisabled();
+
+        elegirArchivo(dialogo, archivoDe('fcyt.csv'));
+        expect(within(dialogo).queryByText('Falta el archivo')).toBeNull();
+        expect(cargar).toBeEnabled();
         expect(pedidos.cargas).toHaveLength(0);
     });
 
@@ -563,7 +584,7 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
         elegirArchivo(dialogo, archivoDe('foto.png', 'image/png'));
         expect(within(dialogo).getByText('Solo .csv o .xlsx')).toBeInTheDocument();
 
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar inscripciones' }));
         expect(pedidos.cargas).toHaveLength(0);
     });
 
@@ -578,7 +599,7 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
             target: { value: 'fce' },
         });
         elegirArchivo(dialogo, archivo);
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar inscripciones' }));
 
         const resultado = await screen.findByRole('dialog', { name: 'Resultado de la carga' });
         expect(pedidos.cargas).toHaveLength(1);
@@ -636,7 +657,7 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
                 { name: /FHCE/ }
             )
         );
-        const dialogo = await abrirCarga();
+        const dialogo = await abrirCarga({ conFacultad: false });
         expect(within(dialogo).getByLabelText(/Facultad/)).toHaveValue('fhce');
     });
 
@@ -658,7 +679,7 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
         const dialogo = await abrirCarga();
 
         elegirArchivo(dialogo, archivoDe('lista.csv'));
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar inscripciones' }));
 
         const alerta = await within(dialogo).findByRole('alert');
         expect(alerta).toHaveTextContent('Faltan columnas en el archivo');
@@ -697,7 +718,7 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
         const dialogo = await abrirCarga();
 
         elegirArchivo(dialogo, archivoDe('lista.xlsx'));
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar inscripciones' }));
 
         const alerta = await within(dialogo).findByRole('alert');
         expect(alerta).toHaveTextContent(mensaje.replace(/\.$/, ''));
@@ -724,7 +745,7 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
         const dialogo = await abrirCarga();
 
         elegirArchivo(dialogo, archivoDe('lista.csv'));
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar inscripciones' }));
 
         expect(
             await within(dialogo).findByText('El archivo no puede superar los 8 MB')
@@ -746,7 +767,7 @@ describe('Padrón · cargar inscripciones (criterios 6 a 9)', () => {
         const dialogo = await abrirCarga();
 
         elegirArchivo(dialogo, archivoDe('lista.csv'));
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Cargar inscripciones' }));
 
         expect(await within(dialogo).findByRole('alert')).toHaveTextContent(
             'No tiene permiso para esta acción'
@@ -782,7 +803,7 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
 
         const documento = screen.getByText('Código SIS 202311988').closest('section');
         expect(documento).toHaveTextContent('Documento distinto');
-        expect(documento).toHaveTextContent('Inscripción en espera');
+        expect(documento).toHaveTextContent('Se inscribe al resolver');
         expect([...documento.querySelectorAll('mark')].map((marca) => marca.textContent)).toEqual([
             '6592900',
             '6592910',
@@ -819,15 +840,15 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
         expect(screen.queryByRole('table')).not.toBeInTheDocument();
     });
 
-    it('«Mantener padrón» envía MANTENER_PADRON y el conflicto sale de la lista', async () => {
+    it('«Dejar el actual» envía MANTENER_PADRON y el conflicto sale de la lista', async () => {
         const { pedidos } = servidor();
         montar({ usuario: usuarioDePrueba('Administrador') });
         await abrirConflictos();
 
         const tarjeta = screen.getByText('Código SIS 202311988').closest('section');
-        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Mantener padrón' }));
+        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Dejar el actual' }));
 
-        expect(await screen.findByText('202311988 sin cambios')).toBeInTheDocument();
+        expect(await screen.findByText('202311988: queda el dato actual')).toBeInTheDocument();
         await waitFor(() =>
             expect(screen.queryByText('Código SIS 202311988')).not.toBeInTheDocument()
         );
@@ -835,21 +856,23 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
         expect(await screen.findByRole('tab', { name: 'Conflictos 1' })).toBeInTheDocument();
     });
 
-    it('«Usar carga nueva» envía USAR_CARGA y avisa', async () => {
+    it('«Usar el nuevo» envía USAR_CARGA y avisa', async () => {
         const { pedidos } = servidor();
         montar({ usuario: usuarioDePrueba('Administrador') });
         await abrirConflictos();
 
         const tarjeta = screen.getByText('Código SIS 202312058').closest('section');
-        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Usar carga nueva' }));
+        expect(within(tarjeta).getByText('Dato actual')).toBeInTheDocument();
+        expect(within(tarjeta).getByText('Dato nuevo')).toBeInTheDocument();
+        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Usar el nuevo' }));
         expect(api.post).not.toHaveBeenCalled();
         // La confirmación dice qué cambia: aquí el nombre, no el C.I.
         expect(
             within(tarjeta).getByText('Nombre Torrico Condori Adriana → Torrico Condori Adriana A.')
         ).toBeInTheDocument();
-        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Reemplazar' }));
+        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Sí, reemplazar' }));
 
-        expect(await screen.findByText('202312058 actualizado')).toBeInTheDocument();
+        expect(await screen.findByText('202312058: queda el dato nuevo')).toBeInTheDocument();
         await waitFor(() =>
             expect(screen.queryByText('Código SIS 202312058')).not.toBeInTheDocument()
         );
@@ -869,9 +892,9 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
         await abrirConflictos();
 
         const tarjeta = screen.getByText('Código SIS 202311988').closest('section');
-        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Usar carga nueva' }));
+        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Usar el nuevo' }));
         expect(api.post).not.toHaveBeenCalled();
-        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Reemplazar' }));
+        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Sí, reemplazar' }));
 
         expect(await within(tarjeta).findByRole('alert')).toHaveTextContent(
             'Ese documento pertenece a otro estudiante'
@@ -888,7 +911,7 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
         // Otra sesión lo resolvió antes.
         pendientes.splice(0, 1);
         const tarjeta = screen.getByText('Código SIS 202311988').closest('section');
-        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Mantener padrón' }));
+        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Dejar el actual' }));
 
         expect(await screen.findByText('El conflicto ya fue resuelto')).toBeInTheDocument();
         await waitFor(() =>
@@ -907,29 +930,22 @@ describe('Padrón · conflictos (criterios 11 a 13)', () => {
 
         fireEvent.click(await screen.findByRole('tab', { name: 'Conflictos 6' }));
         await screen.findByText('Código SIS 202312000');
-        expect(screen.getAllByRole('button', { name: 'Mantener padrón' })).toHaveLength(5);
+        expect(screen.getAllByRole('button', { name: 'Dejar el actual' })).toHaveLength(5);
         expect(screen.getByText('1–5 de 6 conflictos')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Página siguiente' }));
         await screen.findByText('Código SIS 202312005');
-        fireEvent.click(screen.getByRole('button', { name: 'Mantener padrón' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Dejar el actual' }));
 
         await screen.findByText('Código SIS 202312000');
         expect(screen.getByText('5 conflictos')).toBeInTheDocument();
     });
 
-    it('descarga la plantilla desde el encabezado', async () => {
-        descargar.mockResolvedValue('plantilla_inscritos.xlsx');
+    it('la plantilla se descarga solo desde el diálogo de carga', async () => {
         servidor();
         montar({ usuario: usuarioDePrueba('Administrador') });
         await listaCargada();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Plantilla' }));
-
-        expect(descargar).toHaveBeenCalledWith('/inscritos/plantilla', {
-            parametros: { alcance: 'facultad' },
-            nombre: 'plantilla_inscritos.xlsx',
-        });
-        expect(await screen.findByText('plantilla_inscritos.xlsx descargado')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Descargar plantilla' })).toBeNull();
     });
 });

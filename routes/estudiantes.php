@@ -124,6 +124,11 @@ Route::prefix('api')->group(function (): void {
             ->whereNumber(['grupo', 'estudiante'])
             ->name('docente.grupos.inscritos.baja');
 
+        // La foto de un inscrito de su grupo, para que el docente la vea.
+        Route::get('/docente/grupos/{grupo}/inscritos/{estudiante}/foto', [InscritosController::class, 'foto'])
+            ->whereNumber(['grupo', 'estudiante'])
+            ->name('docente.grupos.inscritos.foto.ver');
+
         // El estudiante sube o cambia su foto: el docente se lo habilita.
         Route::post('/docente/grupos/{grupo}/inscritos/{estudiante}/foto', [InscritosController::class, 'habilitarFoto'])
             ->whereNumber(['grupo', 'estudiante'])
