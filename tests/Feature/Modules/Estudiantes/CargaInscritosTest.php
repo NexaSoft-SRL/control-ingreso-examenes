@@ -179,7 +179,9 @@ final class CargaInscritosTest extends TestCase
             ->assertJsonPath('resumen.nuevos', 1)
             ->assertJsonStructure(['confirmacion']);
 
-        $this->assertSame(64, strlen((string) $previa->json('confirmacion')));
+        $confirmacion = $previa->json('confirmacion');
+        self::assertIsString($confirmacion);
+        $this->assertSame(64, strlen($confirmacion));
         $this->assertDatabaseCount('estudiantes', 0);
         $this->assertDatabaseCount('cargas_inscritos', 0);
         $this->assertDatabaseCount('inscripciones', 0);
@@ -187,7 +189,7 @@ final class CargaInscritosTest extends TestCase
         $this->actingAs($cuenta)
             ->post("/api/docente/grupos/{$grupo->id}/inscritos/carga", [
                 'archivo' => $archivo,
-                'confirmacion' => $previa->json('confirmacion'),
+                'confirmacion' => $confirmacion,
             ], ['Accept' => 'application/json'])
             ->assertOk()
             ->assertJsonPath('resumen.nuevos', 1);
@@ -668,7 +670,10 @@ final class CargaInscritosTest extends TestCase
         $docente = $this->docente();
 
         $this->actingAs($this->cuentaDe($docente))
-            ->postJson('/api/docente/grupos/999999/inscritos/carga', ['archivo' => $this->csv(['x'])])
+            ->postJson('/api/docente/grupos/999999/inscritos/carga', [
+                'archivo' => $this->csv(['x']),
+                'confirmacion' => str_repeat('a', 64),
+            ])
             ->assertNotFound()
             ->assertJsonPath('message', 'Grupo no encontrado.');
     }

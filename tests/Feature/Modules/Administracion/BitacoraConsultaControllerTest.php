@@ -125,7 +125,8 @@ final class BitacoraConsultaControllerTest extends TestCase
             1,
             'Ingreso registrado.',
         );
-        $id = (int) DB::table('bitacora_operaciones')->value('id');
+        $id = DB::table('bitacora_operaciones')->value('id');
+        self::assertIsInt($id);
 
         $borrada->delete();
 
