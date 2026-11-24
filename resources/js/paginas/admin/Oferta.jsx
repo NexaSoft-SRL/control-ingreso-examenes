@@ -16,7 +16,6 @@ import usarPaginaServidor from '../../api/usarPaginaServidor';
 import Campo from '../../componentes/Campo';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
-import Insignia from '../../componentes/Insignia';
 import Paginacion from '../../componentes/Paginacion';
 import Seleccion from '../../componentes/Seleccion';
 import Tarjeta from '../../componentes/Tarjeta';
@@ -235,9 +234,7 @@ export default function Oferta() {
 
     return (
         <div className="space-y-6">
-            <Encabezado titulo="Oferta" subtitulo={subtitulo || undefined}>
-                <Insignia tono="neutro">De la universidad · no se edita</Insignia>
-            </Encabezado>
+            <Encabezado titulo="Oferta" subtitulo={subtitulo || undefined} />
 
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-[9.5rem_7rem_minmax(0,1.4fr)_9.5rem_minmax(0,1fr)]">
                 <Seleccion
