@@ -13,12 +13,13 @@ use Throwable;
 /**
  * El buzon del remitente por IMAP sobre TLS. El servidor de despliegue no
  * tiene la extension `imap` de PHP, asi que se habla el protocolo a mano:
- * solo las ordenes que hacen falta (LOGIN, SELECT, UID SEARCH, UID FETCH,
- * UID STORE, LOGOUT).
+ * solo las ordenes que hacen falta (LOGIN, EXAMINE, UID SEARCH, UID FETCH,
+ * LOGOUT).
  *
- * Se leen los avisos sin leer de mailer-daemon; al procesarlos se marcan
- * como leidos, y asi no se vuelven a leer. Cualquier fallo de red o de
- * acceso queda en el registro y devuelve una lista vacia.
+ * Se leen los avisos de mailer-daemon de los ultimos dias, aunque alguien ya
+ * los haya abierto, y el buzon se abre en solo lectura: no se marca ni se
+ * mueve nada. Cualquier fallo de red o de acceso queda en el registro y
+ * devuelve una lista vacia.
  */
 final class ImapBuzonDeRebotes implements BuzonDeRebotes
 {
@@ -40,7 +41,7 @@ final class ImapBuzonDeRebotes implements BuzonDeRebotes
         private readonly LectorDeRebote $lector,
     ) {}
 
-    public function rebotes(): array
+    public function rebotes(int $dias): array
     {
         if ($this->usuario === '' || $this->clave === '') {
             return [];
@@ -48,18 +49,17 @@ final class ImapBuzonDeRebotes implements BuzonDeRebotes
 
         try {
             $this->abrir();
-            $uids = $this->buscar();
+            $uids = $this->buscar($dias);
             $rebotes = [];
 
-            // Los mas nuevos primero: un aviso viejo que no es rebote (una
-            // demora) queda sin leer y no debe tapar a los que llegan.
+            // Los mas nuevos primero, por si hay mas que el maximo.
             foreach (array_slice(array_reverse($uids), 0, self::MAXIMO) as $uid) {
                 [$fecha, $mensaje] = $this->traer($uid);
 
                 $destinatarios = $this->lector->destinatarios($mensaje);
 
                 if ($destinatarios === []) {
-                    // No es un rebote permanente: se deja sin leer.
+                    // No es un rebote permanente (una demora, por ejemplo).
                     continue;
                 }
 
@@ -73,22 +73,6 @@ final class ImapBuzonDeRebotes implements BuzonDeRebotes
             report($error);
 
             return [];
-        } finally {
-            $this->cerrar();
-        }
-    }
-
-    public function archivar(array $mensajeIds): void
-    {
-        if ($mensajeIds === []) {
-            return;
-        }
-
-        try {
-            $this->abrir();
-            $this->ordenar('UID STORE '.implode(',', $mensajeIds).' +FLAGS.SILENT (\\Seen)');
-        } catch (Throwable $error) {
-            report($error);
         } finally {
             $this->cerrar();
         }
@@ -123,15 +107,16 @@ final class ImapBuzonDeRebotes implements BuzonDeRebotes
         $this->linea();
 
         $this->ordenar(sprintf('LOGIN %s %s', $this->cadena($this->usuario), $this->cadena($this->clave)));
-        $this->ordenar('SELECT INBOX');
+        $this->ordenar('EXAMINE INBOX');
     }
 
     /**
      * @return list<string>
      */
-    private function buscar(): array
+    private function buscar(int $dias): array
     {
-        $respuesta = $this->ordenar('UID SEARCH UNSEEN FROM "mailer-daemon"');
+        $desde = (new DateTimeImmutable("-{$dias} days"))->format('d-M-Y');
+        $respuesta = $this->ordenar("UID SEARCH SINCE {$desde} FROM \"mailer-daemon\"");
 
         if (preg_match('/^\* SEARCH([ \d]*)$/m', $respuesta, $encontrado) !== 1) {
             return [];

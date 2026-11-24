@@ -8,27 +8,19 @@ use App\Modules\Administracion\Application\Contracts\BuzonDeRebotes;
 use App\Modules\Administracion\Application\DTOs\ReboteData;
 
 /**
- * Buzon en memoria: devuelve los avisos dados y anota lo que se archiva.
+ * Buzon en memoria: devuelve los avisos dados y cuenta las lecturas.
  */
 final class BuzonFalso implements BuzonDeRebotes
 {
     /** @var list<ReboteData> */
     public array $avisos = [];
 
-    /** @var list<list<string>> */
-    public array $archivados = [];
-
     public int $lecturas = 0;
 
-    public function rebotes(): array
+    public function rebotes(int $dias): array
     {
         $this->lecturas++;
 
         return $this->avisos;
-    }
-
-    public function archivar(array $mensajeIds): void
-    {
-        $this->archivados[] = $mensajeIds;
     }
 }

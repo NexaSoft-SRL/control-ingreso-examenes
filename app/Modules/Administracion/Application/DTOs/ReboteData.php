@@ -17,7 +17,7 @@ final readonly class ReboteData
         public string $destinatario,
         // Cuando llego el aviso del rebote.
         public DateTimeImmutable $fecha,
-        // El mensaje del aviso en el buzon, para archivarlo una vez leido.
+        // El mensaje del aviso en el buzon.
         public string $mensajeId,
     ) {}
 }
