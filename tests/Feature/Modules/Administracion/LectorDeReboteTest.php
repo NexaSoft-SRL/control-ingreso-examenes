@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Modules\Administracion;
 
+use App\Modules\Administracion\Infrastructure\Mail\ImapBuzonDeRebotes;
 use App\Modules\Administracion\Infrastructure\Mail\LectorDeRebote;
 use PHPUnit\Framework\TestCase;
 
@@ -56,5 +57,11 @@ final class LectorDeReboteTest extends TestCase
     public function test_an_ordinary_message_gives_nothing(): void
     {
         self::assertSame([], (new LectorDeRebote)->destinatarios("Subject: Hola\n\nNos vemos el lunes."));
+    }
+
+    public function test_the_search_answer_of_gmail_ends_in_crlf(): void
+    {
+        self::assertSame(['38', '39'], ImapBuzonDeRebotes::uids("* SEARCH 38 39\r\n"));
+        self::assertSame([], ImapBuzonDeRebotes::uids("* SEARCH\r\n"));
     }
 }
