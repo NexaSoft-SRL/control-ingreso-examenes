@@ -76,6 +76,10 @@ const fechaSugerida = (periodo, tipo, hoy) => {
 };
 // La hora de la primera franja de la mañana en la UMSS.
 const HORA_SUGERIDA = '08:15';
+// El horario de clases: un examen empieza y termina dentro de él, de lunes a sábado.
+const DESDE = '06:45';
+const HASTA = '21:45';
+const esDomingo = (fecha) => new Date(`${fecha}T12:00:00`).getDay() === 0;
 // '08:30' → 510.
 const minutosDe = (hora) => {
     const [h, m] = String(hora).split(':').map(Number);
@@ -795,8 +799,8 @@ function Asistente({
     };
 
     // Lo que el servidor también rechaza: un examen nuevo o movido no
-    // queda en el pasado, empieza en horario de clases, termina antes de
-    // medianoche y cae en la ventana de su tipo.
+    // queda en el pasado, ni en domingo, empieza y termina en horario de
+    // clases y cae en la ventana de su tipo.
     const ahora = new Date().toTimeString().slice(0, 5);
     const mueve = !inicial || inicial.fecha !== fecha || inicial.hora !== hora;
 
@@ -808,18 +812,19 @@ function Asistente({
         const faltas = {};
         if (!fecha) faltas.fecha = 'Obligatorio';
         else if (mueve && fecha < hoy) faltas.fecha = 'La fecha ya pasó';
+        else if (mueve && esDomingo(fecha)) faltas.fecha = 'No hay exámenes los domingos';
         else if (periodo && (fecha < periodo.fecha_inicio || fecha > periodo.fecha_fin)) {
             faltas.fecha = `Fuera del período ${periodo.codigo}`;
         } else if (ventana && (fecha < ventana[0] || fecha > ventana[1])) {
             faltas.fecha = `Fuera del calendario: ${tipoTexto.toLowerCase()} del ${diaMes(ventana[0])} al ${diaMes(ventana[1])}`;
         }
         if (!hora) faltas.hora_inicio = 'Obligatorio';
-        else if (mueve && (hora < '06:00' || hora > '22:00')) {
-            faltas.hora_inicio = 'Entre 06:00 y 22:00';
+        else if (mueve && (hora < DESDE || hora > HASTA)) {
+            faltas.hora_inicio = `Entre ${DESDE} y ${HASTA}`;
         } else if (mueve && fecha === hoy && hora < ahora) faltas.hora_inicio = 'La hora ya pasó';
         if (!duracionValida(duracion)) faltas.duracion_minutos = 'Entre 15 y 480';
-        else if (hora && minutosDe(hora) + Number(duracion) > 24 * 60) {
-            faltas.duracion_minutos = 'Terminaría después de medianoche';
+        else if (hora && minutosDe(hora) + Number(duracion) > minutosDe(HASTA)) {
+            faltas.duracion_minutos = `Debe terminar a las ${HASTA} como máximo`;
         }
         setErrores(faltas);
         if (Object.keys(faltas).length === 0) setPaso(1);
@@ -985,8 +990,8 @@ function Asistente({
                             requerido
                             disabled={bloqueado}
                             type="time"
-                            min="06:00"
-                            max="22:00"
+                            min={DESDE}
+                            max={HASTA}
                             className="min-w-0"
                             value={hora}
                             onChange={(e) => {

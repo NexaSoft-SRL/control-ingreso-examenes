@@ -120,7 +120,7 @@ final class ListadoExamenesTest extends TestCase
             ->assertJsonPath('data.0.avance', [
                 'grupos' => 'ok', 'aulas' => 'ok', 'auxiliares' => 'ok', 'habilitacion' => 'ahora', 'qr' => 'falta',
             ])
-            ->assertJsonPath('data.0.estado', 'Falta habilitar')
+            ->assertJsonPath('data.0.estado', 'Falta habilitar estudiantes')
             ->assertJsonPath('data.0.accion', ['clave' => 'habilitar', 'paso' => null]);
 
         // 3. Habilitados a medias: sigue faltando habilitar.
@@ -132,7 +132,7 @@ final class ListadoExamenesTest extends TestCase
             ->assertJsonPath('data.0.no_habilitados', 1)
             ->assertJsonPath('data.0.sin_revisar', 1)
             ->assertJsonPath('data.0.avance.habilitacion', 'ahora')
-            ->assertJsonPath('data.0.estado', 'Falta habilitar');
+            ->assertJsonPath('data.0.estado', 'Falta habilitar estudiantes');
 
         // 4. Todos revisados: faltan los codigos.
         $this->habilitar($examen, [$estudiantes[3]], $aula);
@@ -187,7 +187,7 @@ final class ListadoExamenesTest extends TestCase
         $this->actingAs($this->cuenta($docente))->getJson('/api/examenes')
             ->assertJsonPath('data.0.avance.habilitacion', 'ahora')
             ->assertJsonPath('data.0.avance.qr', 'falta')
-            ->assertJsonPath('data.0.estado', 'Falta repartir')
+            ->assertJsonPath('data.0.estado', 'Falta repartir estudiantes')
             ->assertJsonPath('data.0.accion.clave', 'repartir');
     }
 
@@ -222,7 +222,7 @@ final class ListadoExamenesTest extends TestCase
             ->assertJsonPath('data.0.habilitados', 0)
             ->assertJsonPath('data.0.avance.habilitacion', 'ahora')
             ->assertJsonPath('data.0.avance.qr', 'falta')
-            ->assertJsonPath('data.0.estado', 'Falta habilitar');
+            ->assertJsonPath('data.0.estado', 'Falta habilitar estudiantes');
     }
 
     public function test_a_student_in_two_groups_of_the_exam_counts_once(): void

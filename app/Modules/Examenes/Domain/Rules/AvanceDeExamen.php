@@ -50,8 +50,8 @@ final class AvanceDeExamen
         [$estado, $accion, $paso] = match (true) {
             ! $hayAulas => ['Faltan aulas', 'elegir_aulas', 2],
             ! $atendido => ['Falta quién atiende', 'quien_atiende', 3],
-            ! $habilitado => ['Falta habilitar', 'habilitar', null],
-            ! $repartido => ['Falta repartir', 'repartir', null],
+            ! $habilitado => ['Falta habilitar estudiantes', 'habilitar', null],
+            ! $repartido => ['Falta repartir estudiantes', 'repartir', null],
             ! $conCodigos => ['Faltan códigos QR', 'emitir_qr', null],
             default => ['Listo', 'ver_qr', null],
         };

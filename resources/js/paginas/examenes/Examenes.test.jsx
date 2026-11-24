@@ -68,7 +68,7 @@ const AJENO = examen({
     habilitados: 44,
     no_habilitados: 1,
     avance: { grupos: 'ok', aulas: 'ok', auxiliares: 'ok', habilitacion: 'ahora', qr: 'falta' },
-    estado: 'Falta habilitar',
+    estado: 'Falta habilitar estudiantes',
     accion: { clave: 'habilitar', paso: null },
     propio: false,
     registrado_por: 'Rodriguez Bilbao Erika Patricia',
@@ -90,7 +90,7 @@ const POR_HABILITAR = examen({
     inscritos: 46,
     aulas: ['INFLAB'],
     avance: { grupos: 'ok', aulas: 'ok', auxiliares: 'ok', habilitacion: 'ahora', qr: 'falta' },
-    estado: 'Falta habilitar',
+    estado: 'Falta habilitar estudiantes',
     accion: { clave: 'habilitar', paso: null },
 });
 

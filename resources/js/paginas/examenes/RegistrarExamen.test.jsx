@@ -277,7 +277,7 @@ const DETALLE = {
     grupos: ['2', '3'],
     inscritos: 75,
     aulas: ['691B'],
-    estado: 'Falta habilitar',
+    estado: 'Falta habilitar estudiantes',
     accion: { clave: 'habilitar', paso: null },
     propio: true,
     registrado_por: 'Blanco Coca Leticia',
@@ -326,7 +326,7 @@ function guardado(cuerpo, id = 9) {
         grupos: grupos.map((g) => g.codigo),
         inscritos: grupos.reduce((s, g) => s + g.inscritos, 0),
         aulas: aulas.map((a) => a.nombre),
-        estado: aulas.length ? 'Falta habilitar' : 'Faltan aulas',
+        estado: aulas.length ? 'Falta habilitar estudiantes' : 'Faltan aulas',
         propio: true,
         registrado_por: 'Blanco Coca Leticia',
         normas: cuerpo.normas || null,
@@ -579,7 +579,7 @@ describe('RegistrarExamen · paso 1, examen', () => {
         pulsar(/Continuar/);
 
         expect(screen.getByText('La fecha ya pasó')).toBeInTheDocument();
-        expect(screen.getByText('Entre 06:00 y 22:00')).toBeInTheDocument();
+        expect(screen.getByText('Entre 06:45 y 21:45')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: '1. Examen' })).toBeInTheDocument();
     });
 
@@ -610,16 +610,31 @@ describe('RegistrarExamen · paso 1, examen', () => {
         expect(await screen.findByRole('heading', { name: '2. Grupos' })).toBeInTheDocument();
     });
 
-    it('un examen que terminaría después de medianoche se señala en la duración', async () => {
+    it('un examen que terminaría después del horario de clases se señala en la duración', async () => {
         montar();
         cambiar(await campo(/^Fecha/), '2026-10-20');
-        cambiar(await campo(/^Hora de inicio/), '22:00');
+        cambiar(await campo(/^Hora de inicio/), '21:00');
         cambiar(await campo(/^Duración/), '180');
 
         pulsar(/Continuar/);
 
-        expect(screen.getByText('Terminaría después de medianoche')).toBeInTheDocument();
+        expect(screen.getByText('Debe terminar a las 21:45 como máximo')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: '1. Examen' })).toBeInTheDocument();
+    });
+
+    it('no deja registrar un examen en domingo', async () => {
+        montar();
+        cambiar(await campo(/^Fecha/), '2026-10-18');
+        cambiar(await campo(/^Hora de inicio/), '08:15');
+
+        pulsar(/Continuar/);
+
+        expect(screen.getByText('No hay exámenes los domingos')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: '1. Examen' })).toBeInTheDocument();
+
+        cambiar(screen.getByLabelText(/^Fecha/), '2026-10-19');
+        pulsar(/Continuar/);
+        expect(await screen.findByRole('heading', { name: '2. Grupos' })).toBeInTheDocument();
     });
 
     it('muestra la ventana del calendario del tipo y no ofrece la que ya cerró', async () => {
@@ -985,7 +1000,7 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
             within(screen.getByRole('list', { name: 'Auxiliares' }))
                 .getAllByRole('listitem')
                 .map((x) => x.textContent)
-        ).toEqual(['Rojas Ledezma Andrea', 'Vargas Arce Sergio']);
+        ).toEqual(['Rojas Ledezma Andrea · andrea.rojas', 'Vargas Arce Sergio · sergio.vargas']);
         expect(screen.getByText('Auxiliares · 2')).toBeInTheDocument();
 
         cambiar(aCargo, '12');
@@ -1122,14 +1137,19 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         cambiar(screen.getByLabelText(/^Correo institucional/), '202000123');
         pulsar(/Agregar/);
 
-        expect(await screen.findByText('Auxiliar agregado')).toBeInTheDocument();
+        expect(
+            await screen.findByText(
+                'Cuenta creada · usuario nuevo.auxiliar · la contraseña temporal se envió a 202000123@est.umss.edu'
+            )
+        ).toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith('/auxiliares', {
             nombre: 'Quispe Mamani Rosa',
             codigo_universitario: '202000123',
         });
         expect(screen.getByLabelText(/^Nombre completo/)).toHaveValue('');
+        // En la lista se ve con qué usuario entra.
         expect(screen.getByRole('list', { name: 'Auxiliares' })).toHaveTextContent(
-            'Quispe Mamani Rosa'
+            'Quispe Mamani Rosa · nuevo.auxiliar'
         );
         cambiar(within(filaDeAula('691B')).getByLabelText('A cargo'), '40');
         pulsar('Registrar examen');

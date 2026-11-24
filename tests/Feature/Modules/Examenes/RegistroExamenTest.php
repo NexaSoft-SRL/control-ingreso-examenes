@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Modules\Examenes;
 
 use App\Modules\Examenes\Domain\Models\Examen;
+use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -113,12 +114,41 @@ final class RegistroExamenTest extends TestCase
         $this->actingAs($cuenta)
             ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [], ['hora_inicio' => '03:00']))
             ->assertUnprocessable()
-            ->assertJsonPath('errors.hora_inicio.0', 'Entre 06:00 y 22:00.');
+            ->assertJsonPath('errors.hora_inicio.0', 'Entre 06:45 y 21:45.');
 
         $this->actingAs($cuenta)
             ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [], ['hora_inicio' => '21:30', 'duracion_minutos' => 180]))
             ->assertUnprocessable()
-            ->assertJsonPath('errors.duracion_minutos.0', 'El examen terminaría después de medianoche.');
+            ->assertJsonPath('errors.duracion_minutos.0', 'Debe terminar a las 21:45 como máximo.');
+    }
+
+    public function test_an_exam_stays_inside_the_class_hours_of_the_university_and_never_on_sunday(): void
+    {
+        $docente = $this->docente();
+        $asignatura = $this->asignatura();
+        $cuenta = $this->cuenta($docente);
+
+        // Las clases empiezan a las 06:45 y terminan a las 21:45.
+        $this->actingAs($cuenta)
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$this->grupo($docente, $asignatura)], [], ['hora_inicio' => '06:30']))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.hora_inicio.0', 'Entre 06:45 y 21:45.');
+
+        // Termina justo a las 21:45: se acepta; un minuto mas, no.
+        $this->actingAs($cuenta)
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$this->grupo($docente, $asignatura)], [], ['hora_inicio' => '20:15', 'duracion_minutos' => 91]))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.duracion_minutos.0', 'Debe terminar a las 21:45 como máximo.');
+        $this->actingAs($cuenta)
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$this->grupo($docente, $asignatura)], [], ['hora_inicio' => '20:15', 'duracion_minutos' => 90]))
+            ->assertCreated();
+
+        // Sin clases los domingos, tampoco examenes.
+        $domingo = now()->next(CarbonInterface::SUNDAY)->toDateString();
+        $this->actingAs($cuenta)
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$this->grupo($docente, $asignatura)], [], ['fecha' => $domingo]))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.fecha.0', 'No hay exámenes los domingos.');
     }
 
     public function test_the_exam_falls_inside_the_calendar_window_of_its_type(): void
@@ -131,7 +161,7 @@ final class RegistroExamenTest extends TestCase
         ]])->save();
 
         $this->actingAs($this->cuenta($docente))
-            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [], ['fecha' => now()->addDays(20)->toDateString()]))
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$grupo], [], ['fecha' => $this->diaHabil(20)]))
             ->assertUnprocessable()
             ->assertJsonPath('errors.fecha.0', fn (string $mensaje): bool => str_starts_with($mensaje, 'Fuera del calendario: primer parcial del '));
 
@@ -431,7 +461,7 @@ final class RegistroExamenTest extends TestCase
         $dos = $this->grupo($docente, $asignatura, '2');
         $aula = $this->aula('617');
         $examen = $this->examen($docente, [$uno], [$aula]);
-        $fecha = now()->addDays(5)->toDateString();
+        $fecha = $this->diaHabil(5);
 
         $this->actingAs($this->cuenta($docente))
             ->putJson("/api/examenes/{$examen->id}", $this->cuerpo($asignatura, [$uno, $dos], [$aula], [

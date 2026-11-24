@@ -37,7 +37,7 @@ export const PASOS = [
         Icono: ListChecks,
         texto: 'Habilitación',
         detalle: (e) =>
-            e.estado === 'Falta repartir'
+            e.estado === 'Falta repartir estudiantes'
                 ? 'Sin aula asignada'
                 : e.habilitados
                   ? `${e.habilitados} de ${e.inscritos}`

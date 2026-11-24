@@ -39,6 +39,18 @@ trait ArmaExamenes
     }
 
     /**
+     * La fecha de dentro de `$dias` dias, pasada al lunes si cae domingo:
+     * no se registran examenes los domingos, y la prueba no debe depender de
+     * que dia de la semana se corre.
+     */
+    protected function diaHabil(int $dias): string
+    {
+        $fecha = now()->addDays($dias);
+
+        return ($fecha->isSunday() ? $fecha->addDay() : $fecha)->toDateString();
+    }
+
+    /**
      * @param  list<Grupo>  $grupos
      * @param  list<Aula>  $aulas
      * @param  array<string, mixed>  $cambios
@@ -49,7 +61,7 @@ trait ArmaExamenes
         return array_merge([
             'asignatura_id' => $asignatura->id,
             'tipo' => 'PRIMER_PARCIAL',
-            'fecha' => now()->addDays(3)->toDateString(),
+            'fecha' => $this->diaHabil(3),
             'hora_inicio' => '08:15',
             'duracion_minutos' => 90,
             'normas' => 'Sin celular.',
