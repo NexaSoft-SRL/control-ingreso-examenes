@@ -319,6 +319,8 @@ final class ReportesTest extends TestCase
                     'hora' => '08:15',
                     'rendido' => true,
                     'presentes' => 3,
+                    // 6 inscritos: 4 habilitados, 1 no habilitado y 1 sin revisar.
+                    'inscritos' => 6,
                     'habilitados' => 4,
                     'no_habilitados' => 1,
                     'ausentes' => 1,

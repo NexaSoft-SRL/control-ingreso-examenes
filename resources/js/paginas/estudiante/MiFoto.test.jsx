@@ -8,6 +8,7 @@ import { precargarDetector, revisarFoto } from '../../utiles/revisarFoto';
 
 vi.mock('../../api/cliente');
 vi.mock('../../utiles/revisarFoto', () => ({
+    MENSAJES: { sinRostro: 'No se detecta un rostro' },
     precargarDetector: vi.fn(),
     revisarFoto: vi.fn(),
 }));
@@ -44,14 +45,28 @@ describe('Mi foto', () => {
         await screen.findByRole('button', { name: 'Guardar foto' });
         await waitFor(() => expect(precargarDetector).toHaveBeenCalled());
 
-        fireEvent.change(screen.getByLabelText('Foto'), { target: { files: [foto] } });
+        fireEvent.change(screen.getByLabelText('Nueva foto'), { target: { files: [foto] } });
         expect(await screen.findByText('Debe aparecer solo usted')).toBeInTheDocument();
         expect(revisarFoto).toHaveBeenCalledWith(foto);
 
         // Sin una foto válida no se puede guardar, y se dice por qué.
         expect(screen.getByRole('button', { name: 'Guardar foto' })).toBeDisabled();
-        expect(screen.getByText('Primero elija o tome la foto')).toBeInTheDocument();
+        expect(screen.getByText('Elija otra foto')).toBeInTheDocument();
         expect(api.post).not.toHaveBeenCalled();
+    });
+
+    it('sin rostro dice qué hacer', async () => {
+        revisarFoto.mockResolvedValue({ errores: ['No se detecta un rostro'], avisos: [] });
+        montar();
+        await screen.findByRole('button', { name: 'Guardar foto' });
+        expect(screen.getByText('Primero elija o tome la foto')).toBeInTheDocument();
+
+        fireEvent.change(screen.getByLabelText('Nueva foto'), { target: { files: [foto] } });
+
+        expect(
+            await screen.findByText('No se ve su rostro · tome otra de frente y con buena luz')
+        ).toBeInTheDocument();
+        expect(screen.getByText('Elija otra foto')).toBeInTheDocument();
     });
 
     it('con un aviso deja guardarla', async () => {
@@ -59,7 +74,7 @@ describe('Mi foto', () => {
         montar();
         await screen.findByRole('button', { name: 'Guardar foto' });
 
-        fireEvent.change(screen.getByLabelText('Foto'), { target: { files: [foto] } });
+        fireEvent.change(screen.getByLabelText('Nueva foto'), { target: { files: [foto] } });
         expect(await screen.findByText('Use un fondo claro')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Guardar foto' })).toBeEnabled();
         expect(screen.getByText('Una sola vez')).toBeInTheDocument();

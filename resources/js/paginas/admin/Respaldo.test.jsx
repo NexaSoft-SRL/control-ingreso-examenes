@@ -143,7 +143,7 @@ describe('Respaldo', () => {
         expect(within(tabla()).getAllByRole('row')).toHaveLength(16);
 
         const primera = fila('12 oct 2026, 03:00');
-        expect(within(primera).getByText('Programado')).toBeInTheDocument();
+        expect(within(primera).getByText('Automático')).toBeInTheDocument();
         expect(within(primera).getByText('48 MB')).toBeInTheDocument();
         expect(within(primera).getByText('Correcto')).toBeInTheDocument();
         expect(screen.getByText('1–15 de 18 respaldos')).toBeInTheDocument();
@@ -157,7 +157,7 @@ describe('Respaldo', () => {
             within(filtros)
                 .getAllByRole('button')
                 .map((b) => b.textContent)
-        ).toEqual(['Todos18', 'Programados16', 'Puntuales2', 'Fallidos1']);
+        ).toEqual(['Todos18', 'Automáticos16', 'Manuales2', 'Fallidos1']);
 
         fireEvent.click(within(filtros).getByRole('button', { name: /Fallidos/ }));
         await waitFor(() =>
@@ -192,7 +192,7 @@ describe('Respaldo', () => {
             return crear(...args);
         });
 
-        fireEvent.click(screen.getByRole('button', { name: /Programados/ }));
+        fireEvent.click(screen.getByRole('button', { name: /Automáticos/ }));
         await waitFor(() => expect(within(tabla()).getAllByRole('row')).toHaveLength(16));
         fireEvent.click(screen.getByRole('button', { name: 'Respaldar ahora' }));
         expect(screen.getByRole('button', { name: 'Respaldando' })).toBeDisabled();
@@ -200,9 +200,9 @@ describe('Respaldo', () => {
 
         expect(await screen.findByText('Respaldo generado')).toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith('/respaldos');
-        // El puntual nuevo no cabe en «Programados»: se quita el filtro.
+        // El manual nuevo no cabe en «Automáticos»: se quita el filtro.
         const nueva = (await within(tabla()).findByText('12 oct 2026, 10:15')).closest('tr');
-        expect(within(nueva).getByText('Puntual')).toBeInTheDocument();
+        expect(within(nueva).getByText('Manual')).toBeInTheDocument();
         expect(within(nueva).getByText('49 MB')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Todos/ })).toHaveAttribute(
             'aria-pressed',
@@ -404,7 +404,7 @@ describe('Respaldo', () => {
 
         const movil = container.querySelector('ul.sm\\:hidden');
         expect(within(movil).getAllByRole('listitem')).toHaveLength(15);
-        expect(within(movil).getAllByText('Programado · 48 MB').length).toBeGreaterThan(0);
+        expect(within(movil).getAllByText('Automático · 48 MB').length).toBeGreaterThan(0);
         expect(
             within(movil).getByRole('button', {
                 name: 'Restaurar el respaldo del 12 oct 2026, 03:00',

@@ -442,7 +442,7 @@ describe('ListaIncidencias', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Atender' }));
         // Primero pide confirmar: no se deshace.
         expect(atender).not.toHaveBeenCalled();
-        const confirmar = screen.getByRole('button', { name: 'Confirmar' });
+        const confirmar = screen.getByRole('button', { name: 'Marcar atendida' });
         fireEvent.click(confirmar);
         expect(atender).toHaveBeenCalledWith(40);
         expect(confirmar).toBeDisabled();

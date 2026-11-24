@@ -30,6 +30,7 @@ final class ConsultarBitacoraRequest extends FormRequest
             'hasta' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde'],
             'pagina' => ['nullable', 'integer', 'min:1'],
             'por_pagina' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'sin_sesiones' => ['nullable', 'boolean'],
         ];
     }
 
@@ -63,6 +64,7 @@ final class ConsultarBitacoraRequest extends FormRequest
             hasta: $this->texto('hasta'),
             pagina: max(1, $this->integer('pagina', 1)),
             porPagina: max(1, $this->integer('por_pagina', self::POR_PAGINA)),
+            sinSesiones: $this->boolean('sin_sesiones'),
         );
     }
 

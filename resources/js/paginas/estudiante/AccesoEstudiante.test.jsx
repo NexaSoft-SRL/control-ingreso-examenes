@@ -59,7 +59,7 @@ describe('AccesoEstudiante', () => {
         });
 
         escribir(/^Código/, '48a2913');
-        fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmar código' }));
 
         expect(await screen.findByText('Estoy en /estudiante')).toBeInTheDocument();
         expect(api.post).toHaveBeenLastCalledWith('/auth/estudiante', {
@@ -93,7 +93,7 @@ describe('AccesoEstudiante', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
         await screen.findByText('2021•••17@est.umss.edu');
         escribir(/^Código/, '482913');
-        fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmar código' }));
 
         expect(await screen.findByRole('button', { name: 'Registrarme' })).toBeInTheDocument();
 
@@ -141,7 +141,7 @@ describe('AccesoEstudiante', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
         await screen.findByText('2021•••17@est.umss.edu');
         escribir(/^Código/, '482913');
-        fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmar código' }));
         await screen.findByRole('button', { name: 'Registrarme' });
 
         escribir(/Nombres/, 'Rodrigo');
@@ -178,10 +178,10 @@ describe('AccesoEstudiante', () => {
         });
         escribir(/Código SIS/, '202100417');
         fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
-        await screen.findByRole('button', { name: 'Iniciar sesión' });
+        await screen.findByRole('button', { name: 'Confirmar código' });
 
         escribir(/^Código/, '111111');
-        fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmar código' }));
 
         expect(await screen.findByText('Código no válido o vencido')).toBeInTheDocument();
     });
@@ -211,6 +211,22 @@ describe('AccesoEstudiante', () => {
         expect(await screen.findByText('Estoy en /estudiante')).toBeInTheDocument();
     });
 
+    it('topes del código SIS y del código del correo, y vuelta al inicio a la vista', async () => {
+        montar();
+        expect(screen.getByLabelText(/Código SIS/)).toHaveAttribute('maxlength', '10');
+        expect(screen.getByRole('link', { name: 'Volver al inicio' })).toHaveAttribute(
+            'href',
+            '/login'
+        );
+
+        escribir(/Código SIS/, '202100417');
+        fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
+        await screen.findByText('2021•••17@est.umss.edu');
+
+        expect(screen.getByLabelText(/^Código/)).toHaveAttribute('maxlength', '6');
+        expect(screen.getByRole('button', { name: 'Confirmar código' })).toBeInTheDocument();
+    });
+
     it('el código SIS solo admite números y lo avisa', () => {
         montar();
         escribir(/Código SIS/, 'SIS-2021a');
@@ -229,7 +245,7 @@ describe('AccesoEstudiante', () => {
             fireEvent.click(screen.getByRole('button', { name: 'Enviar código al correo' }));
             await screen.findByText('2021•••17@est.umss.edu');
             escribir(/^Código/, '482913');
-            fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+            fireEvent.click(screen.getByRole('button', { name: 'Confirmar código' }));
             await screen.findByRole('button', { name: 'Registrarme' });
         };
 
@@ -276,6 +292,25 @@ describe('AccesoEstudiante', () => {
 
             expect(screen.getByLabelText(/Facultad/)).toHaveValue('1');
             expect(screen.getByLabelText(/Carrera/)).toBeEnabled();
+        });
+
+        it('dice que es la primera vez, marca facultad y carrera y lleva al primer error', async () => {
+            await entrarAlRegistro([
+                { id: 3, nombre: 'Sistemas', facultad_id: 1, facultad: 'FCyT' },
+                { id: 8, nombre: 'Arquitectura', facultad_id: 2, facultad: 'Hábitat' },
+            ]);
+
+            expect(
+                screen.getByRole('heading', { name: 'Primera vez · complete sus datos' })
+            ).toBeInTheDocument();
+            expect(screen.getByLabelText(/Facultad/)).toHaveAttribute('aria-required', 'true');
+            expect(screen.getByLabelText(/Carrera/)).toHaveAttribute('aria-required', 'true');
+
+            escribir(/Nombres/, 'Ana');
+            fireEvent.click(screen.getByRole('button', { name: 'Registrarme' }));
+
+            await vi.waitFor(() => expect(screen.getByLabelText(/Apellidos/)).toHaveFocus());
+            expect(screen.getByRole('button', { name: 'Cambiar código SIS' })).toBeInTheDocument();
         });
     });
 });

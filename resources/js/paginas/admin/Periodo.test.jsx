@@ -221,7 +221,7 @@ describe('Periodo', () => {
 
         fireEvent.change(segundos.getByLabelText('Desde'), { target: { value: '2026-11-23' } });
         api.get.mockClear();
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar calendario' }));
 
         await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
         expect(api.put).toHaveBeenCalledWith('/periodos/1/calendario', {
@@ -246,9 +246,34 @@ describe('Periodo', () => {
         const mesa = within(within(dialogo).getByText('Exámenes de mesa').closest('fieldset'));
         fireEvent.change(mesa.getByLabelText('Desde'), { target: { value: '2026-12-20' } });
         fireEvent.change(mesa.getByLabelText('Hasta'), { target: { value: '2026-12-10' } });
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar calendario' }));
 
-        expect(within(dialogo).getByText('No puede ser anterior al inicio')).toBeInTheDocument();
+        expect(within(dialogo).getByText('Debe ser después de Desde')).toBeInTheDocument();
+        expect(api.put).not.toHaveBeenCalled();
+    });
+
+    it('el calendario va en orden de fechas y no admite fechas fuera del período', async () => {
+        montar();
+        await cargada();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Calendario de exámenes 2/2026' }));
+        const dialogo = screen.getByRole('dialog');
+        expect([...dialogo.querySelectorAll('legend')].map((l) => l.textContent)).toEqual([
+            'Primeros parciales',
+            'Segundos parciales',
+            'Finales y segunda instancia',
+            'Exámenes de mesa',
+        ]);
+        const primeros = within(
+            within(dialogo).getByText('Primeros parciales').closest('fieldset')
+        );
+        expect(primeros.getByLabelText('Desde')).toHaveAttribute('min', '2026-08-10');
+        expect(primeros.getByLabelText('Hasta')).toHaveAttribute('max', '2026-12-26');
+
+        fireEvent.change(primeros.getByLabelText('Hasta'), { target: { value: '2027-01-15' } });
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar calendario' }));
+
+        expect(within(dialogo).getByText('Fuera del período')).toBeInTheDocument();
         expect(api.put).not.toHaveBeenCalled();
     });
 
@@ -268,7 +293,7 @@ describe('Periodo', () => {
             target: { value: '2026-07-31' },
         });
         api.get.mockClear();
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar fechas' }));
 
         await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
         expect(api.put).toHaveBeenCalledWith('/periodos/4', {
@@ -290,7 +315,7 @@ describe('Periodo', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Ajustar 4/2026' }));
         const dialogo = screen.getByRole('dialog');
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar fechas' }));
         expect(within(dialogo).getAllByText('Obligatorio')).toHaveLength(2);
 
         fireEvent.change(within(dialogo).getByLabelText(/Inicio/), {
@@ -299,7 +324,7 @@ describe('Periodo', () => {
         fireEvent.change(within(dialogo).getByLabelText(/Fin/), {
             target: { value: '2026-07-09' },
         });
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar fechas' }));
 
         expect(within(dialogo).getByText('Debe ser posterior al inicio')).toBeInTheDocument();
         expect(within(dialogo).getByLabelText(/Fin/)).toHaveAttribute('aria-invalid', 'true');
@@ -327,7 +352,7 @@ describe('Periodo', () => {
         fireEvent.change(within(dialogo).getByLabelText(/Fin/), {
             target: { value: '2026-07-31' },
         });
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar fechas' }));
 
         expect(
             await within(dialogo).findByText(
@@ -335,25 +360,27 @@ describe('Periodo', () => {
             )
         ).toBeInTheDocument();
         expect(within(dialogo).getByLabelText(/Fin/)).toHaveAttribute('aria-invalid', 'true');
-        expect(within(dialogo).getByRole('button', { name: 'Guardar' })).toBeEnabled();
+        expect(within(dialogo).getByRole('button', { name: 'Guardar fechas' })).toBeEnabled();
     });
 
-    it('«Buscar períodos» pide la detección y vuelve a leer períodos y resumen (criterio 6)', async () => {
+    it('«Actualizar períodos» pide la detección y vuelve a leer períodos y resumen (criterio 6)', async () => {
         const detectar = respuestaDiferida();
         simular({ 'POST /periodos/detectar': () => detectar.promesa });
         montar();
         await cargada();
 
         api.get.mockClear();
-        fireEvent.click(screen.getByRole('button', { name: 'Buscar períodos' }));
-        expect(screen.getByRole('button', { name: 'Buscando' })).toBeDisabled();
+        fireEvent.click(screen.getByRole('button', { name: 'Actualizar períodos' }));
+        expect(screen.getByRole('button', { name: 'Actualizando' })).toBeDisabled();
 
         detectar.resolver({ creados: 1, actualizados: 3 });
 
-        expect(await screen.findByText('1 nuevos · 3 actualizados')).toBeInTheDocument();
+        expect(
+            await screen.findByText('Períodos al día · 1 nuevos · 3 actualizados')
+        ).toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith('/periodos/detectar');
         await waitFor(() =>
-            expect(screen.getByRole('button', { name: 'Buscar períodos' })).toBeEnabled()
+            expect(screen.getByRole('button', { name: 'Actualizar períodos' })).toBeEnabled()
         );
         expect(api.get).toHaveBeenCalledWith('/periodos', {
             params: { pagina: 1, por_pagina: 4 },
@@ -378,7 +405,9 @@ describe('Periodo', () => {
         expect(within(fach).getByText('Falló')).toBeInTheDocument();
         expect(within(fach).getByText('No se pudo leer la fuente.')).toBeInTheDocument();
         expect(screen.getByText('1 de 4 importadas')).toBeInTheDocument();
-        expect(screen.getAllByRole('button', { name: /^(Importar|Reintentar) / })).toHaveLength(4);
+        expect(
+            screen.getAllByRole('button', { name: /^(Importar|Reintentar|Volver a importar) / })
+        ).toHaveLength(4);
     });
 
     it('al importar figura «Importando» con el botón deshabilitado y luego «Importada» con las cifras nuevas (criterios 9 y 10)', async () => {
@@ -393,7 +422,7 @@ describe('Periodo', () => {
         expect(api.post).toHaveBeenCalledWith('/oferta/importaciones', { facultad: 'fhce' });
         expect(within(fhce).getByRole('button', { name: 'Importar FHCE' })).toBeDisabled();
         expect(within(fhce).getAllByText('Importando')).toHaveLength(2);
-        expect(screen.getByRole('button', { name: 'Importar FCyT' })).toBeEnabled();
+        expect(screen.getByRole('button', { name: 'Volver a importar FCyT' })).toBeEnabled();
 
         const nuevo = resumenDe();
         nuevo.facultades[2] = facultad(
@@ -407,7 +436,7 @@ describe('Periodo', () => {
 
         expect(await within(fhce).findByText('Importada · 9 oct 2026')).toBeInTheDocument();
         expect(within(fhce).getByText('10 carreras · 679 grupos · 48 aulas')).toBeInTheDocument();
-        expect(within(fhce).getByRole('button', { name: 'Importar FHCE' })).toBeEnabled();
+        expect(within(fhce).getByRole('button', { name: 'Volver a importar FHCE' })).toBeEnabled();
         expect(screen.getByText('2 de 4 importadas')).toBeInTheDocument();
     });
 
@@ -421,7 +450,7 @@ describe('Periodo', () => {
         montar();
         await cargada();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Importar FCyT' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Volver a importar FCyT' }));
         // Importa directo, sin confirmar.
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
@@ -440,7 +469,7 @@ describe('Periodo', () => {
 
         expect(await within(fcyt).findByText('Importada · 3 ago 2026')).toBeInTheDocument();
         expect(within(fcyt).queryByText('La fuente no tiene grupos.')).not.toBeInTheDocument();
-        expect(within(fcyt).getByRole('button', { name: 'Importar FCyT' })).toBeEnabled();
+        expect(within(fcyt).getByRole('button', { name: 'Volver a importar FCyT' })).toBeEnabled();
     });
 
     it('avisa cuando el servidor rechaza un segundo pedido de la misma facultad (criterio 10)', async () => {
@@ -532,7 +561,7 @@ describe('Periodo', () => {
         expect(fcyt.className).toContain('grid');
         expect(fcyt.className).toMatch(/md:grid-cols-/);
         expect(fcyt.className).not.toMatch(/(^| )grid-cols-/);
-        const boton = within(fcyt).getByRole('button', { name: 'Importar FCyT' });
+        const boton = within(fcyt).getByRole('button', { name: 'Volver a importar FCyT' });
         expect(boton.className).toContain('min-h-11');
         expect(boton.parentElement.className).toContain('flex-wrap');
     });
@@ -547,7 +576,7 @@ describe('Periodo', () => {
         montar();
         await cargada();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Importar FCyT' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Volver a importar FCyT' }));
         expect(await screen.findByText('La oferta de FCyT ya está al día')).toBeInTheDocument();
     });
 });

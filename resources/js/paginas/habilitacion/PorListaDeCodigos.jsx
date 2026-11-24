@@ -18,7 +18,8 @@ const SOLO_CODIGOS = /[^\d\s,;]/g;
 // o punto y coma: cuántos sirven y cuáles no tienen la forma de un código SIS.
 function leerCodigos(texto) {
     const todos = texto.split(/[\s,;]+/).filter(Boolean);
-    return { total: todos.length, invalidos: todos.filter((c) => !CODIGO.test(c)) };
+    const validos = todos.filter((c) => CODIGO.test(c));
+    return { validos, invalidos: todos.filter((c) => !CODIGO.test(c)) };
 }
 
 // Habilita o inhabilita a quienes estan en una lista de códigos SIS pegada
@@ -27,7 +28,8 @@ function leerCodigos(texto) {
 export default function PorListaDeCodigos({ examenId, alCambiar }) {
     const [abierto, setAbierto] = useState(false);
     const [codigos, setCodigos] = useState('');
-    const [habilitado, setHabilitado] = useState(false);
+    // Casi siempre se viene a habilitar: es lo que se ofrece primero.
+    const [habilitado, setHabilitado] = useState(true);
     const [motivo, setMotivo] = useState('');
     const [errores, setErrores] = useState({});
     const [general, setGeneral] = useState(null);
@@ -39,6 +41,7 @@ export default function PorListaDeCodigos({ examenId, alCambiar }) {
 
     const cerrar = () => {
         setAbierto(false);
+        setHabilitado(true);
         setCodigos('');
         setMotivo('');
         setErrores({});
@@ -48,7 +51,7 @@ export default function PorListaDeCodigos({ examenId, alCambiar }) {
 
     async function aplicar() {
         const faltas = {};
-        if (codigos.trim() === '') faltas.codigos = 'Pegue al menos un código';
+        if (leidos.validos.length === 0) faltas.codigos = 'Pegue al menos un código válido';
         if (!habilitado && motivo.trim().length < MOTIVO_MINIMO) {
             faltas.motivo = `Mínimo ${MOTIVO_MINIMO} caracteres`;
         }
@@ -60,7 +63,8 @@ export default function PorListaDeCodigos({ examenId, alCambiar }) {
         try {
             const { data } = await api.post(`/examenes/${examenId}/habilitaciones/por-codigos`, {
                 habilitado,
-                codigos,
+                // Solo los que tienen forma de código SIS.
+                codigos: leidos.validos.join('\n'),
                 ...(habilitado ? {} : { motivo: motivo.trim() }),
             });
             setResultado(data);
@@ -97,9 +101,11 @@ export default function PorListaDeCodigos({ examenId, alCambiar }) {
                                     variante={habilitado ? 'primario' : 'peligro'}
                                     onClick={aplicar}
                                     cargando={enviando}
-                                    disabled={leidos.total === 0}
+                                    disabled={leidos.validos.length === 0}
                                 >
-                                    {leidos.total > 0 ? `${verbo} ${leidos.total}` : 'Aplicar'}
+                                    {leidos.validos.length > 0
+                                        ? `${verbo} ${leidos.validos.length}`
+                                        : verbo}
                                 </Boton>
                             </>
                         )
@@ -165,23 +171,23 @@ export default function PorListaDeCodigos({ examenId, alCambiar }) {
                                 className="grid grid-cols-2 gap-2"
                             >
                                 <Boton
-                                    variante={habilitado ? 'secundario' : 'peligro'}
-                                    aria-pressed={!habilitado}
-                                    onClick={() => setHabilitado(false)}
-                                >
-                                    Inhabilitar
-                                </Boton>
-                                <Boton
                                     variante={habilitado ? 'primario' : 'secundario'}
                                     aria-pressed={habilitado}
                                     onClick={() => setHabilitado(true)}
                                 >
                                     Habilitar
                                 </Boton>
+                                <Boton
+                                    variante={habilitado ? 'secundario' : 'peligro'}
+                                    aria-pressed={!habilitado}
+                                    onClick={() => setHabilitado(false)}
+                                >
+                                    Inhabilitar
+                                </Boton>
                             </div>
                             <div>
                                 <AreaTexto
-                                    etiqueta="Códigos SIS"
+                                    etiqueta="Códigos SIS (uno por línea o separados por coma)"
                                     rows={6}
                                     inputMode="numeric"
                                     autoFocus
@@ -197,11 +203,11 @@ export default function PorListaDeCodigos({ examenId, alCambiar }) {
                                     aria-live="polite"
                                     className={`mt-1 text-xs ${leidos.invalidos.length > 0 ? 'text-warning-700' : 'text-slate-600'}`}
                                 >
-                                    {leidos.total === 0
+                                    {leidos.validos.length + leidos.invalidos.length === 0
                                         ? 'Pegue los códigos de la planilla'
-                                        : `${leidos.total} ${leidos.total === 1 ? 'código' : 'códigos'}${
+                                        : `${leidos.validos.length} ${leidos.validos.length === 1 ? 'válido' : 'válidos'}${
                                               leidos.invalidos.length > 0
-                                                  ? ` · ${leidos.invalidos.length} no ${leidos.invalidos.length === 1 ? 'tiene' : 'tienen'} de 5 a 10 dígitos`
+                                                  ? ` · ${leidos.invalidos.length} ${leidos.invalidos.length === 1 ? 'inválido' : 'inválidos'} (de 5 a 10 dígitos), no se envían`
                                                   : ''
                                           }`}
                                 </p>

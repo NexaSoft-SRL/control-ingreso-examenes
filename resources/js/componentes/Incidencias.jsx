@@ -101,7 +101,7 @@ export function SelectorGravedad({
                             role="radio"
                             aria-checked={activo}
                             onClick={() => onCambiar(nivel)}
-                            className={`rounded-lg border px-2 text-sm font-semibold transition-colors ${compacto ? 'min-h-9' : 'min-h-11'} ${activo ? NIVEL_ACTIVO[nivel] : 'border-slate-200 text-slate-600 hover:bg-slate-50'} ${FOCO}`}
+                            className={`rounded-lg border px-2 text-sm font-semibold transition-colors min-h-11 ${activo ? NIVEL_ACTIVO[nivel] : 'border-slate-200 text-slate-600 hover:bg-slate-50'} ${FOCO}`}
                         >
                             {GRAVEDADES[nivel].texto}
                         </button>
@@ -619,7 +619,7 @@ export function ListaIncidencias({ items, atender, corregir, conAula = false, li
                                     cargando={enCurso === i.id}
                                     onClick={() => alAtender(i.id)}
                                 >
-                                    Confirmar
+                                    Marcar atendida
                                 </Boton>
                             </span>
                         ) : atender ? (
@@ -1133,12 +1133,12 @@ function IncidenciasComunes({ onCerrar }) {
                                             type="button"
                                             aria-label={`Quitar ${item.nombre}`}
                                             onClick={() => quitar(item)}
-                                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-danger-50 hover:text-danger-700 ${FOCO}`}
+                                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-danger-50 hover:text-danger-700 ${FOCO}`}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </button>
                                     ) : (
-                                        <span className="h-9 w-9 shrink-0" aria-hidden="true" />
+                                        <span className="h-11 w-11 shrink-0" aria-hidden="true" />
                                     )}
                                 </span>
                             </li>

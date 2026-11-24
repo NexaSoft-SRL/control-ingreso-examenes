@@ -30,17 +30,16 @@ function errorDe(campo, valor, opcional = false) {
     const texto = String(valor).trim();
     if (!texto) return opcional && campo === 'documento' ? null : 'Obligatorio';
     if (campo === 'codigo') return validarCodigo(texto);
-    if (campo === 'documento' && !DOCUMENTO.test(texto))
-        return 'Número de 4 a 10 dígitos; con complemento: 5003748-1A';
+    if (campo === 'documento' && !DOCUMENTO.test(texto)) return 'Revise el formato: 5003748-1A';
     if (campo === 'nombres' || campo === 'apellidos') return errorDeNombre(texto, 3);
     return null;
 }
 
 const AVISOS = {
-    NUEVO: 'Estudiante agregado al padrón e inscrito',
+    NUEVO: 'Estudiante agregado a la lista general e inscrito',
     INSCRITO: 'Estudiante inscrito',
     REINSCRITO: 'Estudiante inscrito de nuevo',
-    CONFLICTO: 'Datos distintos al padrón · inscripción pendiente',
+    CONFLICTO: 'Datos distintos a la lista general · inscripción pendiente',
 };
 
 export function AgregarEstudiante({ grupo, onAgregado, onCerrar }) {
@@ -70,7 +69,10 @@ export function AgregarEstudiante({ grupo, onAgregado, onCerrar }) {
                 Object.fromEntries(CAMPOS.map((c) => [c, datos[c].trim()]))
             );
             const resultado = respuesta.data?.resultado;
-            onAgregado(AVISOS[resultado] ?? mensajeDe({ response: respuesta }, 'Listo'));
+            onAgregado(
+                AVISOS[resultado] ?? mensajeDe({ response: respuesta }, 'Listo'),
+                datos.codigo.trim()
+            );
         } catch (error) {
             const delServidor = erroresDe(error);
             if (Object.keys(delServidor).length > 0) {
@@ -112,6 +114,7 @@ export function AgregarEstudiante({ grupo, onAgregado, onCerrar }) {
                     requerido
                     formato="digitos"
                     maxLength={MAXIMOS.codigo}
+                    placeholder="202412345"
                     value={datos.codigo}
                     onChange={cambiar('codigo')}
                     validar={validarCodigo}
@@ -124,7 +127,7 @@ export function AgregarEstudiante({ grupo, onAgregado, onCerrar }) {
                     maxLength={MAXIMOS.documento}
                     value={datos.documento}
                     onChange={cambiar('documento')}
-                    ayuda="Opcional · complemento con guion: 5003748-1A"
+                    ayuda="Opcional · ej. 5003748 o 5003748-1A"
                     error={errores.documento ?? undefined}
                 />
                 <Campo
@@ -230,7 +233,7 @@ export function EditarEstudiante({ estudiante, ruta, onEditado, onCerrar }) {
         >
             <p className="mb-4 text-sm text-slate-600">
                 Código SIS <span className="font-mono">{estudiante.codigo}</span> · se corrige en
-                todas sus materias
+                todas sus asignaturas
             </p>
             <form
                 id="editar-estudiante"
@@ -245,7 +248,7 @@ export function EditarEstudiante({ estudiante, ruta, onEditado, onCerrar }) {
                     maxLength={MAXIMOS.documento}
                     value={datos.documento}
                     onChange={cambiar('documento')}
-                    ayuda="Complemento con guion: 5003748-1A"
+                    ayuda="Ej. 5003748 o 5003748-1A"
                     error={errores.documento ?? undefined}
                     autoFocus
                 />
@@ -293,7 +296,7 @@ EditarEstudiante.propTypes = {
 };
 
 const MOTIVOS = [
-    { valor: 'RETIRO_MATERIA', etiqueta: 'Retiro de la materia' },
+    { valor: 'RETIRO_MATERIA', etiqueta: 'Retiro de la asignatura' },
     { valor: 'CARGADO_POR_ERROR', etiqueta: 'Cargado por error' },
     { valor: 'OTRO', etiqueta: 'Otro' },
 ];

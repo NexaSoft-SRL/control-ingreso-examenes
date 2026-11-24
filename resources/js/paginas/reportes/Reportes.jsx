@@ -200,7 +200,7 @@ export default function Reportes() {
                         type="button"
                         variante="secundario"
                         tamano="chico"
-                        className="min-h-10 shrink-0"
+                        className="min-h-11 shrink-0"
                         onClick={() => setConBitacora(true)}
                     >
                         <History className="h-4 w-4" aria-hidden="true" /> Bitácora
@@ -209,7 +209,7 @@ export default function Reportes() {
                         type="button"
                         variante="enlace"
                         tamano="chico"
-                        className="min-h-10 shrink-0"
+                        className="min-h-11 shrink-0"
                         onClick={() => setElegido(null)}
                         aria-label="Quitar el examen elegido"
                     >

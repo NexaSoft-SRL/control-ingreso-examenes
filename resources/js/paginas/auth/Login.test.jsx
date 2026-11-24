@@ -46,7 +46,7 @@ describe('Login', () => {
 
     it('enlaza al acceso con código de aula y al de estudiantes', () => {
         montar();
-        expect(screen.getByRole('link', { name: 'Personal de control' })).toHaveAttribute(
+        expect(screen.getByRole('link', { name: 'Soy personal de control' })).toHaveAttribute(
             'href',
             '/acceso-aula'
         );
@@ -97,7 +97,10 @@ describe('Login', () => {
     it('acepta el usuario escrito como nombre y apellido', async () => {
         const entrar = vi.fn(() => Promise.resolve(usuarioDePrueba('Docente')));
         montar({ entrar });
-        expect(campoUsuario()).toHaveAttribute('placeholder', 'nombre apellido');
+        expect(campoUsuario()).toHaveAttribute('placeholder', 'ej. leticia blanco');
+        // La contraseña vacía no aparenta tener algo escrito.
+        expect(screen.getByLabelText(/^Contraseña/)).not.toHaveAttribute('placeholder');
+        expect(screen.getByText('Docente o administración')).toBeInTheDocument();
         intentar('Letícia Blanco');
 
         expect(await screen.findByText('Estoy en /examenes')).toBeInTheDocument();

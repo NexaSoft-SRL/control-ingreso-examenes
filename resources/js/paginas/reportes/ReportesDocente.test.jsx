@@ -20,6 +20,7 @@ const rendido = (id, asignatura, fecha, cambios = {}) => ({
     hora: '08:15',
     rendido: true,
     presentes: 198,
+    inscritos: 270,
     habilitados: 255,
     no_habilitados: 9,
     ausentes: 57,
@@ -170,6 +171,75 @@ describe('Reportes del docente', () => {
         expect(screen.queryByLabelText('Período')).not.toBeInTheDocument();
     });
 
+    it('desglosa a los inscritos en habilitados, no habilitados y pendientes, que suman el total', async () => {
+        await abrir();
+
+        expect(screen.getByLabelText('Desglose de inscritos')).toHaveTextContent(
+            'Inscritos 270 · Habilitados 255 · No habilitados 9 · Pendientes 6'
+        );
+    });
+
+    it('sin pendientes no los menciona', async () => {
+        servidor([rendido(1, PROGRAMACION, '2026-10-12', { inscritos: 264 })]);
+        await abrir();
+
+        expect(screen.getByLabelText('Desglose de inscritos')).toHaveTextContent(
+            'Inscritos 264 · Habilitados 255 · No habilitados 9'
+        );
+        expect(screen.getByLabelText('Desglose de inscritos')).not.toHaveTextContent('Pendientes');
+    });
+
+    it('un examen rendido sin ingresos dice «Sin ingresos», no 0 %', async () => {
+        servidor([
+            rendido(1, PROGRAMACION, '2026-10-12', {
+                presentes: 0,
+                asistencia: 0,
+                ausentes: 18,
+                habilitados: 18,
+            }),
+        ]);
+        await abrir();
+
+        const lista = tarjeta('Exámenes del período');
+        expect(within(lista).getByText('Sin ingresos')).toBeInTheDocument();
+        expect(within(lista).queryByText('0 %')).toBeNull();
+        expect(tarjeta('Asistencia por examen')).toHaveTextContent('Sin ingresos · 18 habilitados');
+    });
+
+    it('cada fila dice primero el tipo y la hora; en el teléfono, al elegir baja al detalle', async () => {
+        const bajar = vi.fn();
+        const original = Element.prototype.scrollIntoView;
+        Element.prototype.scrollIntoView = bajar;
+        window.matchMedia = vi.fn().mockReturnValue({ matches: true });
+        try {
+            await abrir();
+            const lista = tarjeta('Exámenes del período');
+            const fila = within(lista).getByRole('button', { name: /23 nov/ });
+            expect(fila.textContent).toMatch(
+                /Segundo parcial · 08:15.*Introducción a la Programación/
+            );
+
+            fireEvent.click(fila);
+            await waitFor(() => expect(bajar).toHaveBeenCalled());
+        } finally {
+            Element.prototype.scrollIntoView = original;
+            delete window.matchMedia;
+        }
+    });
+
+    it('una incidencia sin atender se atiende desde el reporte', async () => {
+        api.post.mockResolvedValue({ data: {} });
+        await abrir();
+        const reportadas = await waitFor(() => tarjeta('Incidencias reportadas'));
+        await within(reportadas).findByText('Faltan pupitres.');
+
+        fireEvent.click(within(reportadas).getByRole('button', { name: 'Atender' }));
+        fireEvent.click(within(reportadas).getByRole('button', { name: 'Marcar atendida' }));
+
+        await waitFor(() => expect(api.post).toHaveBeenCalledWith('/incidencias/5/atencion'));
+        expect(await screen.findByText('Incidencia atendida')).toBeInTheDocument();
+    });
+
     it('un examen sin rendir no tiene cifras ni descargas', async () => {
         await abrir({ ruta: '/mis-reportes?examen=3' });
 
@@ -186,9 +256,9 @@ describe('Reportes del docente', () => {
         expect(
             screen.getByRole('button', { name: 'Estudiantes ausentes en hoja de cálculo' })
         ).toBeDisabled();
-        expect(tarjeta('Incidencias del examen')).toHaveTextContent('—');
+        expect(tarjeta('Incidencias e intentos rechazados')).toHaveTextContent('—');
         expect(
-            screen.getByRole('button', { name: 'Incidencias del examen en PDF' })
+            screen.getByRole('button', { name: 'Incidencias e intentos rechazados en PDF' })
         ).toBeDisabled();
         expect(screen.queryByRole('heading', { name: 'Incidencias' })).not.toBeInTheDocument();
         expect(api.get.mock.calls.some(([url]) => url.endsWith('/incidencias'))).toBe(false);
@@ -238,8 +308,10 @@ describe('Reportes del docente', () => {
     it('descarga las incidencias del examen en los dos formatos', async () => {
         await abrir();
 
-        expect(tarjeta('Incidencias del examen')).toHaveTextContent('9 registros');
-        fireEvent.click(screen.getByRole('button', { name: 'Incidencias del examen en PDF' }));
+        expect(tarjeta('Incidencias e intentos rechazados')).toHaveTextContent('9 registros');
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Incidencias e intentos rechazados en PDF' })
+        );
         expect(await screen.findByText('incidencias_2026-10-12.pdf descargado')).toBeVisible();
         expect(descargar).toHaveBeenCalledWith('/reportes/incidencias/exportar', {
             parametros: { examen: 1, formato: 'pdf' },
@@ -247,7 +319,9 @@ describe('Reportes del docente', () => {
         });
 
         fireEvent.click(
-            screen.getByRole('button', { name: 'Incidencias del examen en hoja de cálculo' })
+            screen.getByRole('button', {
+                name: 'Incidencias e intentos rechazados en hoja de cálculo',
+            })
         );
         await waitFor(() =>
             expect(descargar).toHaveBeenLastCalledWith('/reportes/incidencias/exportar', {
@@ -279,7 +353,9 @@ describe('Reportes del docente', () => {
             usuario: usuarioDePrueba('Docente', { permisos: ['reportes_examenes'] }),
         });
 
-        expect(screen.getByRole('button', { name: 'Incidencias del examen en PDF' })).toBeEnabled();
+        expect(
+            screen.getByRole('button', { name: 'Incidencias e intentos rechazados en PDF' })
+        ).toBeEnabled();
     });
 
     it('avisa el mensaje del servidor si la descarga falla', async () => {
@@ -293,14 +369,15 @@ describe('Reportes del docente', () => {
         expect(await screen.findByText('Este examen no está a su cargo.')).toBeVisible();
     });
 
-    it('lista las incidencias del examen rendido, sin acciones', async () => {
+    it('lista las incidencias del examen rendido: se atienden, no se corrigen', async () => {
         await abrir();
 
         const incidencias = tarjeta('Incidencias reportadas');
         expect(await within(incidencias).findByText('Expulsión')).toBeInTheDocument();
         expect(incidencias).toHaveTextContent('Aula 691B · 16:02');
         expect(incidencias).toHaveTextContent('Faltan pupitres.');
-        expect(within(incidencias).queryByRole('button', { name: /Atender|Corregir/ })).toBeNull();
+        expect(within(incidencias).getAllByRole('button', { name: 'Atender' })).toHaveLength(1);
+        expect(within(incidencias).queryByRole('button', { name: /Corregir/ })).toBeNull();
         expect(pedidos('/examenes/1/incidencias')[0][1].params).toEqual({ estado: 'todas' });
     });
 
@@ -359,7 +436,7 @@ describe('Reportes del docente', () => {
 
         expect(await screen.findByRole('heading', { name: 'Alertas de exámenes' })).toBeVisible();
         expect(screen.getByLabelText(/^Asistencia mínima/)).toHaveValue('70');
-        expect(screen.getByLabelText(/^Incidencias para alertar/)).toHaveValue('5');
+        expect(screen.getByLabelText(/^Alertar desde/)).toHaveValue('5');
     });
 
     it('filtra las incidencias del examen por gravedad', async () => {

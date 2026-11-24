@@ -53,7 +53,7 @@ export default function SinActividad({ Icono, titulo, detalle, conReportes = fal
                     {conExamenes && (
                         <Link
                             to="/examenes"
-                            className={`inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
+                            className={`inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
                         >
                             Ver exámenes
                         </Link>
@@ -61,7 +61,7 @@ export default function SinActividad({ Icono, titulo, detalle, conReportes = fal
                     {verReportes && (
                         <Link
                             to="/mis-reportes"
-                            className={`inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
+                            className={`inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
                         >
                             Reportes de exámenes tomados
                         </Link>

@@ -42,7 +42,7 @@ export function BotonFoto({ estudiante, onAbrir }) {
         <button
             type="button"
             aria-label={`Foto de ${estudiante.nombre}`}
-            title="Ver o habilitar la foto"
+            title="Ver la foto o dar plazo para subirla"
             onClick={() => onAbrir(estudiante)}
             className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600 ${tono}`}
         >
@@ -144,7 +144,7 @@ export default function FotoDelInscrito({ grupoId, estudiante, onHabilitada, onC
 
     return (
         <Dialogo
-            titulo="Foto del estudiante"
+            titulo={`Foto de ${estudiante.nombre}`}
             onCerrar={onCerrar}
             acciones={
                 <>
@@ -158,7 +158,7 @@ export default function FotoDelInscrito({ grupoId, estudiante, onHabilitada, onC
                             disabled={vigente && hasta === actual}
                             onClick={habilitar}
                         >
-                            {vigente ? 'Cambiar plazo' : 'Habilitar'}
+                            {vigente ? 'Cambiar plazo' : 'Dar plazo para subir foto'}
                         </Boton>
                     )}
                 </>
@@ -174,7 +174,7 @@ export default function FotoDelInscrito({ grupoId, estudiante, onHabilitada, onC
                                 Con foto · del {fechaCorta(subida)}
                             </p>
                         ) : (
-                            <p className="text-slate-700">Sin foto</p>
+                            <p className="text-slate-700">Aún no subió foto</p>
                         )}
                         {vigente && (
                             <p className="rounded-lg bg-primary-50 px-3 py-2 text-primary-800">
@@ -191,7 +191,7 @@ export default function FotoDelInscrito({ grupoId, estudiante, onHabilitada, onC
                 {!bloqueada && (
                     <form onSubmit={habilitar} noValidate>
                         <Campo
-                            etiqueta={subida ? 'Puede cambiarla hasta' : 'Puede subirla hasta'}
+                            etiqueta={subida ? 'Plazo para cambiarla' : 'Plazo para subirla'}
                             requerido
                             type="date"
                             min={hoy}

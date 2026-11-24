@@ -231,6 +231,24 @@ final class BitacoraConsultaControllerTest extends TestCase
             ->assertJsonCount(2, 'meta.operaciones');
     }
 
+    public function test_the_session_entries_can_be_hidden(): void
+    {
+        $cambio = $this->asiento($this->docente, 'examen.registrar', '2026-10-12 13:00:00');
+        $this->asiento($this->docente, 'sesion.iniciar', '2026-10-12 12:00:00');
+        $this->asiento($this->docente, 'sesion.cerrar', '2026-10-12 14:00:00');
+
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora?sin_sesiones=1')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $cambio);
+
+        // Pedida la operación a propósito, se muestra igual.
+        $this->actingAs($this->administrador)
+            ->getJson('/api/bitacora?sin_sesiones=1&operacion=sesion.iniciar')
+            ->assertJsonCount(1, 'data');
+    }
+
     public function test_the_date_range_is_inclusive_and_uses_local_days(): void
     {
         // El dia 21 va de las 00:00 del 21 a las 00:00 del 22, hora local.

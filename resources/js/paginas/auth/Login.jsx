@@ -143,7 +143,7 @@ export default function Login() {
                     <CabeceraAcceso
                         icono={ShieldCheck}
                         titulo="Control de exámenes"
-                        subtitulo="Cuenta institucional"
+                        subtitulo="Docente o administración"
                     />
 
                     <form className="space-y-4" onSubmit={iniciar} noValidate>
@@ -151,7 +151,7 @@ export default function Login() {
                             etiqueta="Usuario"
                             iconoEtiqueta={User}
                             requerido
-                            placeholder="nombre apellido"
+                            placeholder="ej. leticia blanco"
                             value={usuario}
                             maxLength={60}
                             formato="usuario"
@@ -171,7 +171,6 @@ export default function Login() {
                             iconoEtiqueta={Lock}
                             requerido
                             type="password"
-                            placeholder="••••••••"
                             value={clave}
                             autoComplete="current-password"
                             error={fallo ?? undefined}
@@ -222,7 +221,7 @@ export default function Login() {
                         ],
                         [
                             '/acceso-aula',
-                            'Personal de control',
+                            'Soy personal de control',
                             KeyRound,
                             'bg-primary-100 text-primary-700',
                         ],
@@ -230,14 +229,14 @@ export default function Login() {
                         <Link
                             key={a}
                             to={a}
-                            className={`group flex min-h-14 items-center justify-center gap-2.5 rounded-xl border border-slate-200/70 bg-white px-3 text-left text-sm font-medium text-umss-marino shadow-sm transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md ${FOCO}`}
+                            className={`group flex min-h-14 items-center justify-start gap-2.5 rounded-xl border border-slate-200/70 bg-white px-3 text-left text-sm font-medium text-umss-marino shadow-sm transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md ${FOCO}`}
                         >
                             <span
                                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tono}`}
                             >
                                 <Icono className="h-5 w-5" aria-hidden="true" />
                             </span>
-                            <span className="whitespace-nowrap">{texto}</span>
+                            <span className="min-w-0 leading-tight">{texto}</span>
                         </Link>
                     ))}
                 </div>

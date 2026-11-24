@@ -212,6 +212,8 @@ const textoSolapamiento = (hora, duracion, inicio, fin) => {
     return tramo ? ` · Coincidencia ${tramo.inicio}–${tramo.fin} (${tramo.minutos} min)` : '';
 };
 
+const CLASES_A_LA_VISTA = 2;
+
 function FilaAula({
     aula,
     ubicacion,
@@ -224,6 +226,7 @@ function FilaAula({
     onCambiar,
     bloqueado = false,
 }) {
+    const ajenas = clases.filter((clase) => !clase.propio);
     return (
         <li>
             <label
@@ -262,26 +265,29 @@ function FilaAula({
                         )}
                     </span>
                 ))}
-                {clases
-                    .filter((clase) => !clase.propio)
-                    .map((clase, indice) => (
-                        <span
-                            key={`clase-${indice}`}
-                            className="w-full min-w-0 pl-7 text-xs text-warning-800"
-                        >
-                            Clase · {clase.asignatura} · Grupo {clase.grupo}
-                            {' · '}
-                            {clase.docente ?? 'Docente no disponible'}
-                            {' · '}
-                            {clase.inicio}–{clase.fin}
-                            {textoSolapamiento(
-                                horaPropuesta,
-                                duracionPropuesta,
-                                clase.inicio,
-                                clase.fin
-                            )}
-                        </span>
-                    ))}
+                {/* Una línea corta por clase (el detalle, al pasar el puntero);
+                    con muchas, las dos primeras y cuántas más. */}
+                {ajenas.slice(0, CLASES_A_LA_VISTA).map((clase, indice) => (
+                    <span
+                        key={`clase-${indice}`}
+                        title={`Clase · ${clase.asignatura} · Grupo ${clase.grupo} · ${clase.docente ?? 'Docente no disponible'}`}
+                        className="w-full min-w-0 truncate pl-7 text-xs text-warning-800"
+                    >
+                        Ocupada {clase.inicio}–{clase.fin} · {clase.asignatura}
+                        {textoSolapamiento(
+                            horaPropuesta,
+                            duracionPropuesta,
+                            clase.inicio,
+                            clase.fin
+                        )}
+                    </span>
+                ))}
+                {ajenas.length > CLASES_A_LA_VISTA && (
+                    <span className="w-full min-w-0 pl-7 text-xs text-warning-800">
+                        y {ajenas.length - CLASES_A_LA_VISTA} clase
+                        {ajenas.length - CLASES_A_LA_VISTA === 1 ? '' : 's'} más
+                    </span>
+                )}
             </label>
         </li>
     );
@@ -1245,6 +1251,11 @@ function Asistente({
                                             className="inline-flex items-center rounded-full bg-primary-50 pl-3 text-sm font-medium text-primary-900"
                                         >
                                             {nombreAula(id)}
+                                            {disponibilidadComprobada && !libre(id) && (
+                                                <span className="ml-1 text-xs font-semibold text-warning-700">
+                                                    · ocupada
+                                                </span>
+                                            )}
                                             {!aulaFija(id) && (
                                                 <button
                                                     type="button"
@@ -1360,13 +1371,20 @@ function Asistente({
                             <Boton type="button" variante="secundario" onClick={() => setPaso(1)}>
                                 Atrás
                             </Boton>
-                            <Boton
-                                type="button"
-                                disabled={elegidosIds.length === 0}
-                                onClick={() => setPaso(3)}
-                            >
-                                Continuar: Quién atiende <ArrowRight className="h-4 w-4" />
-                            </Boton>
+                            <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                                {aulas.length === 0 && (
+                                    <span className="text-sm text-slate-600">
+                                        Elija al menos un aula
+                                    </span>
+                                )}
+                                <Boton
+                                    type="button"
+                                    disabled={elegidosIds.length === 0 || aulas.length === 0}
+                                    onClick={() => setPaso(3)}
+                                >
+                                    Continuar: Quién atiende <ArrowRight className="h-4 w-4" />
+                                </Boton>
+                            </span>
                         </div>
                     </Tarjeta>
                     <Tarjeta titulo="Ubicación" icono={MapPin}>

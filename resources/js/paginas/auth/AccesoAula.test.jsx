@@ -51,7 +51,7 @@ const codigo = () => screen.findByLabelText(/Código/);
 async function entrar(valor = '482913', nombre = 'Vargas Arce Sergio') {
     escribir(await codigo(), valor);
     escribir(screen.getByLabelText(/Nombre/), nombre);
-    fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar al aula' }));
 }
 
 describe('AccesoAula', () => {
@@ -63,7 +63,7 @@ describe('AccesoAula', () => {
         // Para quien no tiene cuenta, y de dónde sale el código.
         expect(screen.getByText('Sin cuenta · código de aula')).toBeInTheDocument();
         expect(screen.getByText('Lo entrega el docente del examen')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Cuenta institucional' })).toHaveAttribute(
+        expect(screen.getByRole('link', { name: 'Volver al inicio' })).toHaveAttribute(
             'href',
             '/login'
         );
@@ -153,7 +153,7 @@ describe('AccesoAula', () => {
         await entrar();
 
         expect(await screen.findByText('Código no válido')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toBeEnabled();
+        expect(screen.getByRole('button', { name: 'Entrar al aula' })).toBeEnabled();
     });
 
     it('tras demasiados intentos lo indica', async () => {
@@ -220,7 +220,7 @@ describe('AccesoAula', () => {
         const oyente = suscribirSesion.mock.calls.at(-1)[0];
         act(() => oyente(SIN_SESION));
         await waitFor(() => expect(screen.queryByText(/Puerta del aula/)).not.toBeInTheDocument());
-        expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Entrar al aula' })).toBeInTheDocument();
     });
 
     it('con cuenta va a la pantalla del rol', () => {

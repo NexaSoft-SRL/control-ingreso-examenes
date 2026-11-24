@@ -296,17 +296,17 @@ export default function AccesoAula() {
                         />
                         <Boton type="submit" className="w-full" cargando={enviando}>
                             {!enviando && <LogIn className="h-4 w-4" aria-hidden="true" />}
-                            Iniciar sesión
+                            Entrar al aula
                         </Boton>
                     </form>
-                </div>
 
-                <Link
-                    to="/login"
-                    className={`mt-4 flex min-h-11 w-full items-center justify-center rounded-lg text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
-                >
-                    <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" /> Cuenta institucional
-                </Link>
+                    <Link
+                        to="/login"
+                        className={`mt-5 flex min-h-11 w-full items-center justify-center rounded-lg border-t border-slate-100 pt-1 text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
+                    >
+                        <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" /> Volver al inicio
+                    </Link>
+                </div>
             </div>
         </FondoAcceso>
     );

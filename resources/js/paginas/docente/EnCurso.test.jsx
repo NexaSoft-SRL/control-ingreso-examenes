@@ -409,7 +409,7 @@ describe('EnCurso', () => {
         );
 
         fireEvent.click(within(tarjeta).getAllByRole('button', { name: 'Atender' })[0]);
-        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Confirmar' }));
+        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Marcar atendida' }));
 
         expect(await screen.findByText('Incidencia atendida')).toBeVisible();
         expect(api.post).toHaveBeenCalledWith('/incidencias/5/atencion');
@@ -443,7 +443,7 @@ describe('EnCurso', () => {
         await screen.findByRole('heading', { name: 'Incidencias · 3' });
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Atender' })[0]);
-        fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Marcar atendida' }));
 
         expect(await screen.findByText('La incidencia ya fue atendida.')).toBeVisible();
     });

@@ -127,7 +127,7 @@ describe('CampoImagen', () => {
             });
             // La frontal, para la propia foto; la de atrás es la de las pruebas.
             const { unmount } = render(<Campo tomarFoto camara="user" />);
-            expect(screen.getByText('Elegir archivo')).toBeInTheDocument();
+            expect(screen.getByText('Elegir foto')).toBeInTheDocument();
 
             fireEvent.click(screen.getByRole('button', { name: 'Tomar foto' }));
             expect(screen.getByRole('dialog')).toHaveTextContent('Tomar foto');
@@ -154,9 +154,7 @@ describe('CampoImagen', () => {
             });
             render(<Campo tomarFoto />);
             fireEvent.click(screen.getByRole('button', { name: 'Tomar foto' }));
-            expect(await screen.findByRole('alert')).toHaveTextContent(
-                'Permiso de cámara denegado'
-            );
+            expect(await screen.findByRole('alert')).toHaveTextContent('Sin acceso a la cámara');
         });
     });
 });

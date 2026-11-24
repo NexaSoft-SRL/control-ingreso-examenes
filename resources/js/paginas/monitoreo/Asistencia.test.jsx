@@ -259,7 +259,7 @@ describe('Asistencia (docente, /en-curso/aula)', () => {
         ).toEqual({ aula: 31 });
 
         fireEvent.click(within(tarjeta).getByRole('button', { name: 'Atender' }));
-        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Confirmar' }));
+        fireEvent.click(within(tarjeta).getByRole('button', { name: 'Marcar atendida' }));
 
         expect(await screen.findByText('Incidencia atendida')).toBeVisible();
         expect(api.post).toHaveBeenCalledWith('/incidencias/5/atencion');
@@ -375,8 +375,8 @@ describe('Asistencia (auxiliar, /mi-aula)', () => {
         simularApi(api, rutas);
         auxiliar();
 
-        expect(await screen.findByText('Ningún examen abierto en tus aulas')).toBeVisible();
-        expect(screen.getByRole('heading', { name: 'Lista del aula' })).toBeVisible();
+        expect(await screen.findByText('Ningún examen abierto')).toBeVisible();
+        expect(screen.getByRole('heading', { name: 'Mi aula' })).toBeVisible();
     });
 
     it('con varias aulas abiertas deja elegir cuál seguir; las de otro día no aparecen', async () => {

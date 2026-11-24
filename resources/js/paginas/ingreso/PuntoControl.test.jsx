@@ -739,11 +739,38 @@ describe('Punto de control', () => {
         expect(await screen.findByText('Sin examen a esta hora')).toBeInTheDocument();
     });
 
+    it('el auxiliar sin examen abierto ve su próximo turno y a qué hora abre', async () => {
+        const manana = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        const fecha = `${manana.getFullYear()}-${String(manana.getMonth() + 1).padStart(2, '0')}-${String(manana.getDate()).padStart(2, '0')}`;
+        rutas['GET /puerta/aulas'] = { data: [], hoy: '2026-10-12', acceso: null };
+        rutas['GET /en-curso'] = {
+            data: [
+                {
+                    examen_id: 3,
+                    asignatura: 'Cálculo I',
+                    tipo: 'PRIMER_PARCIAL',
+                    tipo_texto: 'Primer parcial',
+                    fecha,
+                    hora: '08:15',
+                    abierto: false,
+                    aulas: [{ aula_id: 35, nombre: '691E' }],
+                },
+            ],
+        };
+        simularApi(api, rutas);
+        montar({ ruta: '/ingreso', rol: 'Auxiliar' });
+
+        expect(
+            await screen.findByText(/Próximo: Primer parcial · Cálculo I · aula 691E/)
+        ).toHaveTextContent(/abre 07:15/);
+        expect(screen.getByText('Ningún examen abierto')).toBeInTheDocument();
+    });
+
     it('sin aulas hoy, con el aula ajena y con error de carga', async () => {
         rutas['GET /puerta/aulas'] = { data: [], hoy: '2026-10-12', acceso: null };
         simularApi(api, rutas);
         const vacio = montar();
-        expect(await screen.findByText('Ningún examen abierto en tus aulas')).toBeInTheDocument();
+        expect(await screen.findByText('Ningún examen abierto')).toBeInTheDocument();
         vacio.unmount();
 
         rutas['GET /puerta/aulas'] = { data: AULAS, hoy: '2026-10-12', acceso: null };

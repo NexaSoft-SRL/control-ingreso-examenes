@@ -129,6 +129,17 @@ ContrasenaTemporal.propTypes = {
     avisar: PropTypes.func.isRequired,
 };
 
+// Usuario sugerido a partir del nombre («Apellidos y nombres»): primer
+// nombre y primer apellido («Acha Perez Samuel» → «samuel acha»).
+export function sugerirUsuario(nombre) {
+    const partes = normalizarUsuario(nombre)
+        .replace(/[^a-z\s]/g, '')
+        .split(' ')
+        .filter(Boolean);
+    if (partes.length < 2) return '';
+    return partes.length === 2 ? partes.join(' ') : `${partes[partes.length - 1]} ${partes[0]}`;
+}
+
 // Alta o edición de una cuenta. `cuenta` sin id es una nueva. Con id suma
 // el bloqueo y el restablecimiento de la contraseña.
 function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisar }) {
@@ -138,6 +149,8 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
     const nueva = !cuenta.id;
     const [nombre, setNombre] = useState(cuenta.nombre ?? '');
     const [usuario, setUsuario] = useState(cuenta.usuario ?? '');
+    // En una cuenta nueva el usuario se sugiere del nombre hasta que se edite.
+    const [usuarioEditado, setUsuarioEditado] = useState(!nueva);
     const [correo, setCorreo] = useState(cuenta.correo ?? '');
     const [rol, setRol] = useState(cuenta.rol ?? '');
     const [estado, setEstado] = useState(cuenta.estado ?? 'activo');
@@ -250,7 +263,10 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
                     value={nombre}
                     error={errores.nombre ?? (enviado ? (errorNombre ?? undefined) : undefined)}
                     validar={() => errorNombre}
-                    onChange={cambiar('nombre', setNombre)}
+                    onChange={(e) => {
+                        cambiar('nombre', setNombre)(e);
+                        if (!usuarioEditado) setUsuario(sugerirUsuario(e.target.value));
+                    }}
                 />
                 <Campo
                     etiqueta="Usuario"
@@ -258,14 +274,18 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
                     requerido
                     maxLength={60}
                     formato="usuario"
-                    placeholder="nombre apellido"
+                    placeholder="ej. juan perez"
                     autoCapitalize="none"
                     autoComplete="off"
                     spellCheck={false}
                     value={usuario}
+                    ayuda={nueva && !usuarioEditado && usuario ? 'Sugerido' : undefined}
                     error={errores.usuario ?? (enviado ? (errorUsuario ?? undefined) : undefined)}
                     validar={() => errorUsuario}
-                    onChange={cambiar('usuario', setUsuario)}
+                    onChange={(e) => {
+                        setUsuarioEditado(true);
+                        cambiar('usuario', setUsuario)(e);
+                    }}
                 />
                 <Campo
                     etiqueta="Correo"
@@ -289,11 +309,19 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
                         aria-invalid={errores.rol ? 'true' : undefined}
                         onChange={cambiar('rol', setRol)}
                     >
-                        {!rol && <option value="">Sin rol</option>}
+                        {!rol && <option value="">{nueva ? 'Elegir rol' : 'Sin rol'}</option>}
                         {opciones.map((r) => (
                             <option key={r}>{r}</option>
                         ))}
                     </Seleccion>
+                    {nueva && rol === 'Docente' && !errores.rol && (
+                        <span className="mt-1.5 block text-sm text-slate-600">
+                            Los docentes se activan en{' '}
+                            <Link to="/docentes" className="font-medium text-primary-700 underline">
+                                Docentes
+                            </Link>
+                        </span>
+                    )}
                     {(errores.rol || (enviado && errorRol)) && (
                         <span className="mt-1.5 block text-sm text-danger-600">
                             {errores.rol ?? errorRol}
@@ -303,7 +331,14 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
                 {!nueva && (
                     <div className="space-y-3 border-t border-slate-200 pt-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                            <Estado estado={estado} />
+                            <span className="flex flex-wrap items-center gap-2">
+                                <Estado estado={estado} />
+                                {estado !== cuenta.estado && (
+                                    <span className="text-xs text-slate-600">
+                                        Se aplica al guardar
+                                    </span>
+                                )}
+                            </span>
                             <div className="flex flex-wrap gap-2">
                                 {temporal === 'confirmar' ? (
                                     <>
@@ -314,7 +349,7 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
                                             className="min-h-10"
                                             onClick={() => setTemporal(null)}
                                         >
-                                            No restablecer
+                                            No
                                         </Boton>
                                         <Boton
                                             type="button"
@@ -322,7 +357,7 @@ function FormularioCuenta({ cuenta, roles, onCreada, onGuardada, onCerrar, avisa
                                             className="min-h-10"
                                             onClick={restablecer}
                                         >
-                                            Confirmar
+                                            Sí, restablecer contraseña
                                         </Boton>
                                     </>
                                 ) : (
@@ -425,9 +460,8 @@ export default function Usuarios() {
     const cuentas = datos ?? [];
 
     function nuevaCuenta() {
-        const inicial =
-            rol ?? (rolesParaCuenta.includes('Docente') ? 'Docente' : (rolesParaCuenta[0] ?? null));
-        setEditando({ nombre: '', usuario: '', correo: null, rol: inicial, estado: 'activo' });
+        // El rol se elige a propósito; solo viene puesto si se filtró por uno.
+        setEditando({ nombre: '', usuario: '', correo: null, rol: rol ?? '', estado: 'activo' });
     }
 
     function alCrear(respuesta) {

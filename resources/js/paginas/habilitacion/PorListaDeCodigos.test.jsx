@@ -20,18 +20,37 @@ function abrir(rutas = {}, alCambiar = vi.fn()) {
     return alCambiar;
 }
 
+// Los dos botones de arriba eligen qué hacer con la lista.
+const elegir = (accion) =>
+    fireEvent.click(
+        within(screen.getByRole('group', { name: 'Acción' })).getByRole('button', {
+            name: accion,
+        })
+    );
+
 describe('PorListaDeCodigos', () => {
-    it('pide los códigos y, al inhabilitar, el motivo', () => {
+    it('abre en «Habilitar» y, sin códigos, no deja aplicar', () => {
         abrir();
 
-        // Sin códigos no se puede aplicar y se dice qué falta.
-        expect(screen.getByRole('button', { name: 'Aplicar' })).toBeDisabled();
+        expect(
+            within(screen.getByRole('group', { name: 'Acción' })).getByRole('button', {
+                name: 'Habilitar',
+            })
+        ).toHaveAttribute('aria-pressed', 'true');
+        expect(
+            within(screen.getByRole('dialog')).getAllByRole('button', { name: 'Habilitar' }).at(-1)
+        ).toBeDisabled();
         expect(screen.getByText('Pegue los códigos de la planilla')).toBeInTheDocument();
+    });
+
+    it('pide los códigos y, al inhabilitar, el motivo', () => {
+        abrir();
+        elegir('Inhabilitar');
 
         fireEvent.change(screen.getByLabelText(/Códigos SIS/), {
             target: { value: '202100417\n202101256' },
         });
-        expect(screen.getByText('2 códigos')).toBeInTheDocument();
+        expect(screen.getByText('2 válidos')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Inhabilitar 2' }));
         expect(screen.getByText('Mínimo 5 caracteres')).toBeInTheDocument();
         expect(api.post).not.toHaveBeenCalled();
@@ -39,6 +58,7 @@ describe('PorListaDeCodigos', () => {
 
     it('envía la lista con su motivo y muestra los códigos que no son del examen', async () => {
         const alCambiar = abrir();
+        elegir('Inhabilitar');
 
         fireEvent.change(screen.getByLabelText(/Códigos SIS/), {
             target: { value: '202100417\n202101256\n199999999' },
@@ -73,7 +93,6 @@ describe('PorListaDeCodigos', () => {
             },
         });
 
-        fireEvent.click(screen.getByRole('button', { name: 'Habilitar' }));
         fireEvent.change(screen.getByLabelText(/Códigos SIS/), {
             target: { value: '202100417\n202101256\n199999999' },
         });
@@ -102,7 +121,6 @@ describe('PorListaDeCodigos', () => {
             },
         });
 
-        fireEvent.click(screen.getByRole('button', { name: 'Habilitar' }));
         fireEvent.change(screen.getByLabelText(/Códigos SIS/), { target: { value: '202100417' } });
         fireEvent.click(screen.getByRole('button', { name: 'Habilitar 1' }));
 
@@ -121,7 +139,6 @@ describe('PorListaDeCodigos', () => {
             },
         });
 
-        fireEvent.click(screen.getByRole('button', { name: 'Habilitar' }));
         expect(screen.queryByLabelText(/^Motivo/)).not.toBeInTheDocument();
         fireEvent.change(screen.getByLabelText(/Códigos SIS/), { target: { value: '202100417' } });
         fireEvent.click(screen.getByRole('button', { name: 'Habilitar 1' }));
@@ -141,6 +158,7 @@ describe('PorListaDeCodigos', () => {
             }),
         });
 
+        elegir('Inhabilitar');
         fireEvent.change(screen.getByLabelText(/Códigos SIS/), { target: { value: '12345' } });
         fireEvent.change(screen.getByLabelText(/^Motivo/), { target: { value: 'No cumplió' } });
         fireEvent.click(screen.getByRole('button', { name: 'Inhabilitar 1' }));
@@ -155,6 +173,24 @@ describe('PorListaDeCodigos', () => {
         fireEvent.change(area, { target: { value: 'SIS 202100417,\n202101256; 123 abc' } });
 
         expect(area).toHaveValue(' 202100417,\n202101256; 123 ');
-        expect(screen.getByText('3 códigos · 1 no tiene de 5 a 10 dígitos')).toBeInTheDocument();
+        expect(
+            screen.getByText('2 válidos · 1 inválido (de 5 a 10 dígitos), no se envían')
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Habilitar 2' })).toBeEnabled();
+    });
+
+    it('envía solo los códigos válidos', async () => {
+        abrir();
+        fireEvent.change(screen.getByLabelText(/Códigos SIS/), {
+            target: { value: '202100417, 123, 202101256' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Habilitar 2' }));
+
+        await waitFor(() =>
+            expect(api.post).toHaveBeenCalledWith('/examenes/8/habilitaciones/por-codigos', {
+                habilitado: true,
+                codigos: '202100417\n202101256',
+            })
+        );
     });
 });

@@ -171,16 +171,15 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
             )}
             <label
                 htmlFor={entrada}
-                title={accion}
-                className="absolute -bottom-2 -right-2 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-primary-50 hover:text-primary-700 focus-within:outline focus-within:outline-2 focus-within:outline-primary-600"
+                className="mt-2 flex min-h-10 w-28 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-primary-50 hover:text-primary-700 focus-within:outline focus-within:outline-2 focus-within:outline-primary-600"
             >
                 <Camera className="h-4 w-4" aria-hidden="true" />
+                {accion}
                 <input
                     id={entrada}
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                     className="sr-only"
-                    aria-label={accion}
                     disabled={enviando}
                     onChange={(e) => {
                         subir(e.target.files?.[0] ?? null);
@@ -278,7 +277,7 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
 
                         <section aria-label="Procedencia e historial">
                             <h3 className="text-sm font-semibold text-slate-900">
-                                Procedencia de los datos
+                                Origen del dato
                             </h3>
                             <p className="mt-1 text-sm text-slate-700">
                                 Origen: {ficha.origen} ·{' '}
@@ -344,8 +343,8 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
                                                 <p className="text-xs text-slate-500">
                                                     Resolución:{' '}
                                                     {conflicto.resolucion === 'USAR_CARGA'
-                                                        ? 'Usar carga nueva'
-                                                        : 'Mantener padrón'}
+                                                        ? 'Se usó el nuevo'
+                                                        : 'Se dejó el actual'}
                                                     {conflicto.resuelto_por &&
                                                         ` · ${conflicto.resuelto_por}`}
                                                     {conflicto.resuelto_en &&

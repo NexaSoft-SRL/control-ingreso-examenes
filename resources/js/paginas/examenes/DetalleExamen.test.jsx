@@ -216,4 +216,24 @@ describe('DetalleExamen · editar y eliminar', () => {
         expect(screen.queryByRole('link', { name: /Editar/ })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Eliminar/ })).not.toBeInTheDocument();
     });
+
+    it('un examen ya rendido dice «Rendido» y lleva a su reporte', async () => {
+        examenes = [examen({ rendido: true })];
+        montar();
+
+        expect(await screen.findByText('Rendido')).toBeInTheDocument();
+        expect(screen.queryByText('Faltan códigos QR')).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /Ver reporte/ })).toHaveAttribute(
+            'href',
+            '/mis-reportes?examen=24'
+        );
+    });
+
+    it('las pestañas se desplazan en el teléfono en vez de pisarse', async () => {
+        montar();
+
+        const lista = await screen.findByRole('tablist', { name: 'Secciones del examen' });
+        expect(lista).toHaveClass('overflow-x-auto');
+        expect(await pestana(/^Resumen/)).toHaveClass('shrink-0');
+    });
 });

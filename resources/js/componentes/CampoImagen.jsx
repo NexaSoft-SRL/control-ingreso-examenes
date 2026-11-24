@@ -141,7 +141,7 @@ export default function CampoImagen({
                         {camaraDisponible ? (
                             <>
                                 <ImageUp className="h-5 w-5 text-slate-500" aria-hidden="true" />{' '}
-                                Elegir archivo
+                                Elegir foto
                             </>
                         ) : (
                             <>

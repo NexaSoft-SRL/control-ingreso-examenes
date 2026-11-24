@@ -505,7 +505,8 @@ describe('Usuarios y roles · cuentas', () => {
         await montar();
 
         const dialogo = abrirNuevoUsuario();
-        expect(within(dialogo).getByLabelText(/^Rol/)).toHaveValue('Docente');
+        expect(within(dialogo).getByLabelText(/^Rol/)).toHaveValue('');
+        escribir(dialogo, 'Rol', 'Auxiliar');
         escribir(dialogo, 'Nombre', 'Quispe Ana');
         escribir(dialogo, 'Usuario', 'ana.quispe');
         escribir(dialogo, 'Correo', 'Ana.Quispe@umss.edu.bo');
@@ -523,8 +524,10 @@ describe('Usuarios y roles · cuentas', () => {
         const dialogo = abrirNuevoUsuario();
         const crear = within(dialogo).getByRole('button', { name: /^Crear (usuario|rol)$/ });
 
+        // Nombre, usuario y rol: el rol no viene elegido.
         fireEvent.click(crear);
-        expect(within(dialogo).getAllByText('Obligatorio')).toHaveLength(2);
+        expect(within(dialogo).getAllByText('Obligatorio')).toHaveLength(3);
+        escribir(dialogo, 'Rol', 'Auxiliar');
 
         escribir(dialogo, 'Nombre', 'An');
         escribir(dialogo, 'Usuario', 'ana/quispe');
@@ -638,11 +641,13 @@ describe('Usuarios y roles · cuentas', () => {
 
         fireEvent.click(within(dialogo).getByRole('button', { name: 'Restablecer contraseña' }));
         expect(api.post).not.toHaveBeenCalled();
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'No restablecer' }));
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'No' }));
         expect(api.post).not.toHaveBeenCalled();
 
         fireEvent.click(within(dialogo).getByRole('button', { name: 'Restablecer contraseña' }));
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Confirmar' }));
+        fireEvent.click(
+            within(dialogo).getByRole('button', { name: 'Sí, restablecer contraseña' })
+        );
         expect(await within(dialogo).findByText(OTRA_TEMPORAL)).toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith('/usuarios/30/contrasena-temporal');
         expect(
@@ -784,7 +789,12 @@ describe('Usuarios y roles · permisos por rol', () => {
 
         fireEvent.click(crear);
         expect(within(dialogo).getByText('Obligatorio')).toBeInTheDocument();
-        expect(within(dialogo).getByText('Al menos un permiso')).toBeInTheDocument();
+        // Bajo la lista y, por si la lista no cabe, junto al botón.
+        expect(within(dialogo).getAllByText('Marque al menos un permiso')).toHaveLength(2);
+
+        // El nombre del rol es de letras.
+        escribir(dialogo, 'Nombre', 'Rol 123 !!Prueba');
+        expect(within(dialogo).getByLabelText(/^Nombre/)).toHaveValue('Rol Prueba');
 
         escribir(dialogo, 'Nombre', 'Su');
         fireEvent.click(crear);
@@ -793,7 +803,7 @@ describe('Usuarios y roles · permisos por rol', () => {
 
         escribir(dialogo, 'Nombre', 'docente');
         fireEvent.click(within(dialogo).getByLabelText('Bitácora'));
-        expect(within(dialogo).queryByText('Al menos un permiso')).toBeNull();
+        expect(within(dialogo).queryAllByText('Marque al menos un permiso')).toHaveLength(0);
         fireEvent.click(crear);
         expect(await within(dialogo).findByText('Ya existe')).toBeInTheDocument();
         expect(within(matriz()).getAllByRole('columnheader')).toHaveLength(5);
@@ -827,7 +837,14 @@ describe('Usuarios y roles · permisos por rol', () => {
             within(listaDe(within(cuenta).getByLabelText(/^Rol/)))
                 .getAllByRole('option')
                 .map((o) => o.textContent)
-        ).toEqual(['Administrador', 'Docente', 'Auxiliar', 'Coordinador', 'Supervisor']);
+        ).toEqual([
+            'Elegir rol',
+            'Administrador',
+            'Docente',
+            'Auxiliar',
+            'Coordinador',
+            'Supervisor',
+        ]);
     });
 
     it('marcar y desmarcar en la matriz se guarda por rol con «Guardar» (criterio 12)', async () => {
@@ -989,5 +1006,32 @@ describe('Usuarios y roles · permisos por rol', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
         expect(await screen.findByRole('table', { name: 'Permisos por rol' })).toBeInTheDocument();
         expect(casilla('Bitácora', 'Administrador')).toBeChecked();
+    });
+
+    it('nuevo usuario: sugiere el usuario del nombre hasta que se edite y avisa del rol Docente', async () => {
+        await montar();
+        const dialogo = abrirNuevoUsuario();
+        const usuario = within(dialogo).getByLabelText(/^Usuario/);
+
+        escribir(dialogo, 'Nombre', 'Acha Perez Samuel');
+        expect(usuario).toHaveValue('samuel acha');
+        expect(within(dialogo).getByText('Sugerido')).toBeInTheDocument();
+
+        escribir(dialogo, 'Usuario', 'sacha');
+        escribir(dialogo, 'Nombre', 'Acha Perez Samuel Jose');
+        expect(usuario).toHaveValue('sacha');
+
+        escribir(dialogo, 'Rol', 'Docente');
+        expect(within(dialogo).getByText(/Los docentes se activan en/)).toBeInTheDocument();
+    });
+
+    it('editar: bloquear dice que se aplica al guardar', async () => {
+        await montar();
+        const dialogo = await abrirEdicion('Blanco Coca Leticia');
+
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Bloquear' }));
+
+        expect(within(dialogo).getByText('Se aplica al guardar')).toBeInTheDocument();
+        expect(api.put).not.toHaveBeenCalled();
     });
 });

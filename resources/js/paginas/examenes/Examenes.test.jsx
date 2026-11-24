@@ -295,10 +295,25 @@ describe('Examenes · pasos y acción siguiente', () => {
         await tarjeta('Primer parcial · Introducción a la Programación');
 
         expect(screen.queryByRole('link', { name: /En curso/ })).not.toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /Emitir códigos/ })).toHaveAttribute(
+        // Ya rendido: no quedan pasos, queda su reporte.
+        const rendido = await tarjeta('Primer parcial · Introducción a la Programación');
+        expect(within(rendido).getByText('Rendido')).toBeInTheDocument();
+        expect(within(rendido).getByRole('link', { name: /Ver reporte/ })).toHaveAttribute(
             'href',
-            '/examenes/detalle?examen=1&pestana=qr'
+            '/mis-reportes?examen=1'
         );
+    });
+
+    it('un examen de un día pasado no pide terminar sus pasos', async () => {
+        examenes = [{ ...SIN_AULAS, fecha: '2026-10-01' }];
+        montar();
+        const pasado = await tarjeta(
+            `${SIN_AULAS.tipo_texto ?? SIN_AULAS.tipo} · ${SIN_AULAS.asignatura.nombre}`
+        );
+
+        expect(within(pasado).getByText('Rendido')).toBeInTheDocument();
+        expect(within(pasado).queryByText(SIN_AULAS.estado)).not.toBeInTheDocument();
+        expect(within(pasado).queryByRole('link', { name: /Elegir aulas/ })).toBeNull();
     });
 
     it('sin los permisos de seguimiento y códigos QR no dibuja sus enlaces', async () => {
@@ -348,13 +363,12 @@ describe('Examenes · pasos y acción siguiente', () => {
         montar();
 
         const sinEmpezar = await tarjeta('Segundo parcial · Taller de Ingeniería de Software');
-        expect(within(sinEmpezar).getByRole('link', { name: /Habilitar/ })).toHaveAttribute(
-            'href',
-            '/examenes/detalle?examen=5&pestana=habilitacion'
-        );
+        expect(
+            within(sinEmpezar).getByRole('link', { name: /Habilitar estudiantes/ })
+        ).toHaveAttribute('href', '/examenes/detalle?examen=5&pestana=habilitacion');
         const empezada = await tarjeta('Primer parcial · Taller de Ingeniería de Software');
         expect(
-            within(empezada).getByRole('link', { name: /Terminar habilitación/ })
+            within(empezada).getByRole('link', { name: /Habilitar estudiantes/ })
         ).toHaveAttribute('href', '/examenes/detalle?examen=3&pestana=habilitacion');
     });
 

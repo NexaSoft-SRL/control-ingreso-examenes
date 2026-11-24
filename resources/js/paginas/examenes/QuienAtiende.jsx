@@ -113,10 +113,10 @@ function AuxiliarNuevo({ onAgregado, onAviso }) {
                     error={errores.nombre}
                 />
                 <Campo
-                    etiqueta="Correo institucional"
+                    etiqueta="Código SIS del auxiliar"
                     requerido
                     sufijo="@est.umss.edu"
-                    placeholder="Código SIS"
+                    placeholder="201512345"
                     formato="digitos"
                     maxLength={10}
                     onKeyDown={alEnter}
@@ -225,6 +225,22 @@ export default function QuienAtiende({
     // Se quitan los de la cuenta (en el servidor) y los sumados en la visita.
     const [porQuitar, setPorQuitar] = useState(null);
     const [quitando, setQuitando] = useState(false);
+    // Tras sumar un auxiliar nuevo, qué falta para que atienda.
+    const [pista, setPista] = useState(null);
+    const sumarNuevo = (persona) => {
+        onSumar(persona);
+        propios.recargar();
+        if (aulas.length === 1) {
+            // Con una sola aula queda de apoyo en ella.
+            const { encargado, apoyo } = de(aulas[0].id);
+            if (persona.id !== encargado && !apoyo.includes(persona.id)) {
+                fijar(aulas[0].id, { apoyo: [...apoyo, persona.id] });
+            }
+            setPista(null);
+        } else if (aulas.length > 1) {
+            setPista(`Elija a ${persona.nombre} en «Apoyo» de su aula`);
+        }
+    };
     const esDeLaCuenta = (id) => (propios.datos ?? []).some((p) => p.id === id);
     const quitable = (id) => esDeLaCuenta(id) || sumados.some((p) => p.id === id);
     const quitar = async () => {
@@ -343,12 +359,13 @@ export default function QuienAtiende({
                                         className="min-w-0"
                                         value=""
                                         disabled={libres.length === 0}
-                                        onChange={(e) =>
-                                            e.target.value &&
+                                        onChange={(e) => {
+                                            if (!e.target.value) return;
                                             fijar(a.id, {
                                                 apoyo: [...apoyo, Number(e.target.value)],
-                                            })
-                                        }
+                                            });
+                                            setPista(null);
+                                        }}
                                     >
                                         <option value="">
                                             {apoyo.length ? 'Agregar' : 'Nadie'}
@@ -360,6 +377,11 @@ export default function QuienAtiende({
                                         ))}
                                     </Seleccion>
                                 </div>
+                                {auxiliares.length === 0 && (
+                                    <p className="mt-1 text-right text-xs text-slate-600">
+                                        Para apoyo, agregue un auxiliar
+                                    </p>
+                                )}
                                 {apoyo.length > 0 && (
                                     <ul
                                         className="mt-2 flex flex-wrap justify-end gap-2"
@@ -436,7 +458,7 @@ export default function QuienAtiende({
                                 <span className="truncate">{x.nombre}</span>{' '}
                                 {x.usuario && (
                                     <span className="ml-1.5 shrink-0 text-xs text-slate-500">
-                                        · {x.usuario}
+                                        · usuario: {x.usuario}
                                     </span>
                                 )}
                                 {quitable(x.id) && (
@@ -470,13 +492,12 @@ export default function QuienAtiende({
                         )}
                     </ul>
                 )}
-                <AuxiliarNuevo
-                    onAgregado={(persona) => {
-                        onSumar(persona);
-                        propios.recargar();
-                    }}
-                    onAviso={onAviso}
-                />
+                {pista && (
+                    <p role="status" className="mb-3 text-sm font-medium text-primary-800">
+                        {pista}
+                    </p>
+                )}
+                <AuxiliarNuevo onAgregado={sumarNuevo} onAviso={onAviso} />
             </div>
             {children}
             <Dialogo

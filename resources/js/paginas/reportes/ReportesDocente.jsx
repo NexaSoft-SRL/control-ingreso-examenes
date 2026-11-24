@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
     CalendarRange,
@@ -10,6 +10,8 @@ import {
     UserX,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import { api } from '../../api/cliente';
+import { mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
 import usarPaginaServidor from '../../api/usarPaginaServidor';
 import { useAviso } from '../../componentes/Aviso';
@@ -75,12 +77,32 @@ export default function ReportesDocente() {
         );
     const rendido = Boolean(examen?.rendido);
     const cifra = (valor) => (rendido ? valor : '—');
+    // En el teléfono el detalle queda debajo de la lista: al elegir, se baja a él.
+    const detalle = useRef(null);
+    const verExamen = (id) => {
+        elegir(id);
+        if (window.matchMedia?.('(max-width: 639px)').matches) {
+            setTimeout(() => detalle.current?.scrollIntoView?.({ behavior: 'smooth' }), 0);
+        }
+    };
 
     const conIncidencias = puede('seguimiento_vivo');
     const incidencias = usarConsulta(examen ? `/examenes/${examen.id}/incidencias` : null, {
         parametros: { estado: 'todas' },
         activa: conIncidencias && rendido,
     });
+
+    // La incidencia sin atender se atiende también después del examen.
+    const atender = async (id) => {
+        try {
+            await api.post(`/incidencias/${id}/atencion`);
+            avisar('Incidencia atendida');
+        } catch (error) {
+            avisar(mensajeDe(error, 'No se pudo atender'), 'error');
+        } finally {
+            incidencias.recargar();
+        }
+    };
 
     const variosPeriodos = (periodos ?? []).length > 1;
     const codigoPeriodo = periodo
@@ -101,7 +123,10 @@ export default function ReportesDocente() {
               {
                   clave: 'asistencia',
                   nombre: 'Asistencia por examen',
-                  dato: `${cifra(examen.presentes)} de ${examen.habilitados} · ${cifra(examen.asistencia)} %`,
+                  dato:
+                      rendido && examen.presentes === 0
+                          ? `Sin ingresos · ${examen.habilitados} habilitados`
+                          : `${cifra(examen.presentes)} de ${examen.habilitados} · ${cifra(examen.asistencia)} %`,
               },
               {
                   clave: 'ausentes',
@@ -110,10 +135,10 @@ export default function ReportesDocente() {
               },
               {
                   clave: 'incidencias',
-                  nombre: 'Incidencias del examen',
+                  nombre: 'Incidencias e intentos rechazados',
                   dato:
                       rendido && examen.incidencias != null
-                          ? `${plural(examen.incidencias, 'registro')} · con intentos rechazados`
+                          ? plural(examen.incidencias, 'registro')
                           : '—',
               },
               {
@@ -199,7 +224,7 @@ export default function ReportesDocente() {
                                                 <button
                                                     type="button"
                                                     aria-pressed={activo}
-                                                    onClick={() => elegir(e.id)}
+                                                    onClick={() => verExamen(e.id)}
                                                     className={`flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left sm:px-5 ${FOCO} ${activo ? 'bg-primary-50' : 'hover:bg-slate-50'}`}
                                                 >
                                                     <IconoAsignatura
@@ -213,13 +238,19 @@ export default function ReportesDocente() {
                                                     </span>
                                                     <span className="min-w-0 flex-1">
                                                         <span className="block truncate text-sm font-medium text-slate-900">
-                                                            {e.asignatura.nombre}
-                                                        </span>
-                                                        <span className="block truncate text-xs text-slate-600">
                                                             {e.tipo} · {e.hora}
                                                         </span>
+                                                        <span className="block truncate text-xs text-slate-600">
+                                                            {e.asignatura.nombre}
+                                                        </span>
                                                     </span>
-                                                    {e.rendido ? (
+                                                    {e.rendido && e.presentes === 0 ? (
+                                                        <span className="flex shrink-0">
+                                                            <Insignia tono="neutro">
+                                                                Sin ingresos
+                                                            </Insignia>
+                                                        </span>
+                                                    ) : e.rendido ? (
                                                         <span className="shrink-0 text-right">
                                                             <span className="block text-sm font-medium tabular-nums text-slate-800">
                                                                 {e.asistencia} %
@@ -248,6 +279,7 @@ export default function ReportesDocente() {
                             </EstadoCarga>
                         </Tarjeta>
 
+                        <span ref={detalle} className="block scroll-mt-4" aria-hidden="true" />
                         {vista !== 'comparacion' && (
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-2">
                                 <IconoAsignatura
@@ -303,17 +335,18 @@ export default function ReportesDocente() {
                             <ComparacionReportes />
                         ) : (
                             <>
+                                <DesgloseDeInscritos examen={examen} />
                                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                    <Dato
+                                        etiqueta="Habilitados"
+                                        icono={CircleCheck}
+                                        valor={examen.habilitados}
+                                    />
                                     <Dato
                                         etiqueta="Ingresaron"
                                         icono={LogIn}
                                         valor={cifra(examen.presentes)}
                                         tono={rendido ? 'exito' : 'neutro'}
-                                    />
-                                    <Dato
-                                        etiqueta="Habilitados"
-                                        icono={CircleCheck}
-                                        valor={examen.habilitados}
                                     />
                                     <Dato
                                         etiqueta="Ausentes"
@@ -369,6 +402,7 @@ export default function ReportesDocente() {
                                             <IncidenciasPorGravedad
                                                 key={examen.id}
                                                 items={incidencias.datos ?? []}
+                                                atender={atender}
                                             />
                                         </EstadoCarga>
                                     </Tarjeta>
@@ -384,7 +418,7 @@ export default function ReportesDocente() {
 }
 
 // Las incidencias del examen con su filtro por gravedad.
-function IncidenciasPorGravedad({ items }) {
+function IncidenciasPorGravedad({ items, atender }) {
     const [gravedad, setGravedad] = useState(null);
     return (
         <>
@@ -397,11 +431,39 @@ function IncidenciasPorGravedad({ items }) {
                 items={items.filter((i) => !gravedad || gravedadDe(i) === gravedad)}
                 conAula
                 limite={5}
+                atender={atender}
             />
         </>
     );
 }
 
 IncidenciasPorGravedad.propTypes = {
+    atender: PropTypes.func,
     items: PropTypes.arrayOf(PropTypes.object).isRequired,
+};
+
+// De dónde salen los habilitados: los inscritos de los grupos se reparten en
+// habilitados, no habilitados y, si quedan, pendientes de revisar. Suma el total.
+function DesgloseDeInscritos({ examen }) {
+    if (typeof examen.inscritos !== 'number') return null;
+    const pendientes = examen.inscritos - examen.habilitados - examen.no_habilitados;
+    const partes = [
+        `Inscritos ${examen.inscritos}`,
+        `Habilitados ${examen.habilitados}`,
+        `No habilitados ${examen.no_habilitados}`,
+        ...(pendientes > 0 ? [`Pendientes ${pendientes}`] : []),
+    ];
+    return (
+        <p className="text-sm text-slate-600" aria-label="Desglose de inscritos">
+            {partes.join(' · ')}
+        </p>
+    );
+}
+
+DesgloseDeInscritos.propTypes = {
+    examen: PropTypes.shape({
+        inscritos: PropTypes.number,
+        habilitados: PropTypes.number.isRequired,
+        no_habilitados: PropTypes.number.isRequired,
+    }).isRequired,
 };

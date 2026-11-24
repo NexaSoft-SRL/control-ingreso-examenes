@@ -39,13 +39,15 @@ describe('FotoDelInscrito', () => {
         montar({ subida_en: null, habilitada_hasta: null }, onHabilitada);
 
         expect(screen.getAllByText('Sin foto').length).toBeGreaterThan(0);
+        expect(screen.getByText('Aún no subió foto')).toBeInTheDocument();
+        expect(screen.getByRole('dialog', { name: /^Foto de / })).toBeInTheDocument();
         expect(api.get).not.toHaveBeenCalled();
-        const dia = screen.getByLabelText(/Puede subirla hasta/);
+        const dia = screen.getByLabelText(/Plazo para subirla/);
         expect(dia).toHaveValue('2026-10-30');
         expect(dia).toHaveAttribute('min', '2026-10-23');
         expect(dia).toHaveAttribute('max', '2026-11-22');
         fireEvent.change(dia, { target: { value: '2026-11-06' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Habilitar' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Dar plazo para subir foto' }));
 
         await waitFor(() =>
             expect(onHabilitada).toHaveBeenCalledWith('Foto habilitada hasta el 6 nov 2026')
@@ -67,8 +69,10 @@ describe('FotoDelInscrito', () => {
         montar({ subida_en: '2025-10-01', habilitada_hasta: null });
 
         expect(screen.getByText('Con foto · del 1 oct 2025')).toBeInTheDocument();
-        expect(screen.getByLabelText(/Puede cambiarla hasta/)).toHaveValue('2026-10-30');
-        expect(screen.getByRole('button', { name: 'Habilitar' })).toBeInTheDocument();
+        expect(screen.getByLabelText(/Plazo para cambiarla/)).toHaveValue('2026-10-30');
+        expect(
+            screen.getByRole('button', { name: 'Dar plazo para subir foto' })
+        ).toBeInTheDocument();
     });
 
     it('ya habilitado cambia el día límite', async () => {
@@ -81,7 +85,7 @@ describe('FotoDelInscrito', () => {
         expect(screen.getByText('Habilitado hasta el 28 oct 2026')).toBeInTheDocument();
         const cambiar = screen.getByRole('button', { name: 'Cambiar plazo' });
         expect(cambiar).toBeDisabled();
-        fireEvent.change(screen.getByLabelText(/Puede subirla hasta/), {
+        fireEvent.change(screen.getByLabelText(/Plazo para subirla/), {
             target: { value: '2026-11-02' },
         });
         fireEvent.click(cambiar);
@@ -98,7 +102,7 @@ describe('FotoDelInscrito', () => {
             }),
         });
         montar({ subida_en: null, habilitada_hasta: null });
-        fireEvent.click(screen.getByRole('button', { name: 'Habilitar' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Dar plazo para subir foto' }));
 
         expect(await screen.findByText('Máximo 30 días')).toBeInTheDocument();
     });
@@ -110,7 +114,7 @@ describe('FotoDelInscrito', () => {
             }),
         });
         montar({ subida_en: null, habilitada_hasta: null });
-        fireEvent.click(screen.getByRole('button', { name: 'Habilitar' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Dar plazo para subir foto' }));
 
         expect(
             await screen.findByText(

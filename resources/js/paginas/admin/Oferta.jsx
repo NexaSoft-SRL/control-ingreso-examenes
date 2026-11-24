@@ -335,7 +335,7 @@ export default function Oferta() {
                             }}
                             className={`inline-flex min-h-9 items-center rounded-full border px-3 text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 ${sinLista ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
                         >
-                            Con grupos sin lista
+                            Sin lista de inscritos
                         </button>
                     </span>
                 }

@@ -7,6 +7,7 @@ import Boton from '../../componentes/Boton';
 import Campo from '../../componentes/Campo';
 import EstadoCarga from '../../componentes/EstadoCarga';
 import Tarjeta from '../../componentes/Tarjeta';
+import { fechaCorta } from '../../utiles/texto';
 
 const PREDETERMINADAS = { asistencia_minima: 70, incidencias_minimas: 5 };
 
@@ -90,7 +91,7 @@ export default function AlertasReportes() {
                         }
                     />
                     <Campo
-                        etiqueta="Incidencias para alertar"
+                        etiqueta="Alertar desde (incidencias)"
                         formato="digitos"
                         maxLength={3}
                         requerido
@@ -100,9 +101,12 @@ export default function AlertasReportes() {
                             cambiarPreferencia('incidencias_minimas', evento.target.value)
                         }
                     />
-                    <Boton type="submit" cargando={guardando} disabled={invalido}>
-                        Guardar umbrales
-                    </Boton>
+                    <div className="space-y-1">
+                        <Boton type="submit" cargando={guardando} disabled={invalido}>
+                            Guardar umbrales
+                        </Boton>
+                        {invalido && <p className="text-xs text-slate-600">Corrija el campo</p>}
+                    </div>
                 </form>
             </Tarjeta>
 
@@ -127,6 +131,8 @@ export default function AlertasReportes() {
                                     <h3 className="font-medium">{alerta.titulo}</h3>
                                     <p className="mt-1 text-sm">{alerta.mensaje}</p>
                                     <p className="mt-1 text-xs text-slate-500">
+                                        {alerta.creada_en &&
+                                            `Generada el ${fechaCorta(String(alerta.creada_en).slice(0, 10))} · `}
                                         Correo:{' '}
                                         {alerta.correo_estado === 'ENVIADO'
                                             ? 'enviado'

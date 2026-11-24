@@ -11,7 +11,7 @@ import Insignia from '../../componentes/Insignia';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { colorDeAsignatura, diaMes, fechaLarga, mesDe, plural } from '../../utiles/texto';
 import IconoAsignatura from '../../componentes/IconoAsignatura';
-import { FORMA_EXAMEN, PASOS, accionDe, pendiente, tipoDe } from './avanceDelExamen';
+import { FORMA_EXAMEN, PASOS, accionDe, estadoDe, pendiente, tipoDe } from './avanceDelExamen';
 import rutaDelExamen from './rutaDelExamen';
 
 const FOCO =
@@ -22,11 +22,14 @@ const ENLACE = `inline-flex min-h-10 shrink-0 items-center rounded-lg text-sm fo
 // y una sola acción, el paso siguiente (o «En curso» el día del examen). Toda
 // la tarjeta abre la página del examen, donde están su habilitación, sus
 // códigos QR, la edición y la eliminación.
-function TarjetaExamen({ e, destacado = false }) {
+function TarjetaExamen({ e, destacado = false, hoy = null }) {
     const { puede } = usarSesion();
     const puedeHabilitar = puede('habilitacion');
     const puedeEmitir = puede('codigos_qr');
-    const accion = accionDe(e, puedeHabilitar, puedeEmitir);
+    const accion = accionDe(e, puedeHabilitar, puedeEmitir, {
+        hoy,
+        puedeReportes: puede('reportes_examenes'),
+    });
     // El examen de hoy que no terminó se sigue en vivo; su paso siguiente
     // baja a los enlaces del pie.
     const enCurso = e.es_hoy && !e.rendido && e.aulas.length > 0 && puede('seguimiento_vivo');
@@ -77,8 +80,8 @@ function TarjetaExamen({ e, destacado = false }) {
                                 </h3>
                             </span>
                             <span className="flex shrink-0">
-                                <Insignia tono={pendiente(e) ? 'advertencia' : 'exito'} punto>
-                                    {e.estado}
+                                <Insignia tono={pendiente(e, hoy) ? 'advertencia' : 'exito'} punto>
+                                    {estadoDe(e, hoy)}
                                 </Insignia>
                             </span>
                         </div>
@@ -175,6 +178,7 @@ function TarjetaExamen({ e, destacado = false }) {
 TarjetaExamen.propTypes = {
     e: FORMA_EXAMEN.isRequired,
     destacado: PropTypes.bool,
+    hoy: PropTypes.string,
 };
 
 // Los exámenes del docente en el período, de todas sus asignaturas. El de
@@ -262,7 +266,7 @@ export default function Examenes() {
                         <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                             {destacado.fecha === hoy ? 'Hoy' : 'Próximo'}
                         </h2>
-                        <TarjetaExamen e={destacado} destacado />
+                        <TarjetaExamen e={destacado} destacado hoy={hoy} />
                     </section>
                 )}
 
@@ -274,7 +278,7 @@ export default function Examenes() {
                                 {mesDe(`${mes}-01`)} · {delMes.length}
                             </h2>
                             {delMes.map((e) => (
-                                <TarjetaExamen key={e.id} e={e} />
+                                <TarjetaExamen key={e.id} e={e} hoy={hoy} />
                             ))}
                         </section>
                     );

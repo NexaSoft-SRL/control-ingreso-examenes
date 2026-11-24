@@ -49,6 +49,10 @@ final class EloquentConsultaBitacoraGateway implements ConsultaBitacoraGateway
             $consulta->whereRaw('coalesce(bitacora.rol, rol.name) = ?', [$filtros->rol]);
         }
 
+        if ($filtros->operacion === null && $filtros->sinSesiones) {
+            $consulta->whereNotIn('bitacora.operacion', ['sesion.iniciar', 'sesion.cerrar']);
+        }
+
         if ($filtros->operacion !== null) {
             $consulta->where('bitacora.operacion', $filtros->operacion);
         }

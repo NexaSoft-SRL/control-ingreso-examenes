@@ -41,12 +41,14 @@ describe('Alertas de reportes', () => {
         render(<AlertasReportes />);
 
         expect(await screen.findByText(/Cálculo I: asistencia de 25%/)).toBeInTheDocument();
-        expect(screen.getByText('Correo: no enviado')).toBeInTheDocument();
+        expect(
+            screen.getByText('Generada el 12 oct 2026 · Correo: no enviado')
+        ).toBeInTheDocument();
 
         fireEvent.change(screen.getByLabelText(/^Asistencia mínima/), {
             target: { value: '75' },
         });
-        fireEvent.change(screen.getByLabelText(/^Incidencias para alertar/), {
+        fireEvent.change(screen.getByLabelText(/^Alertar desde/), {
             target: { value: '4' },
         });
         fireEvent.click(screen.getByRole('button', { name: 'Guardar umbrales' }));
@@ -69,7 +71,7 @@ describe('Alertas de reportes', () => {
         await screen.findByText(/Cálculo I: asistencia de 25%/);
 
         const asistencia = screen.getByLabelText(/^Asistencia mínima/);
-        const incidencias = screen.getByLabelText(/^Incidencias para alertar/);
+        const incidencias = screen.getByLabelText(/^Alertar desde/);
         const guardar = screen.getByRole('button', { name: 'Guardar umbrales' });
 
         fireEvent.change(asistencia, { target: { value: '8a5' } });
@@ -78,6 +80,7 @@ describe('Alertas de reportes', () => {
         fireEvent.change(asistencia, { target: { value: '120' } });
         expect(screen.getByText('Entre 0 y 100')).toBeInTheDocument();
         expect(guardar).toBeDisabled();
+        expect(screen.getByText('Corrija el campo')).toBeInTheDocument();
 
         fireEvent.change(asistencia, { target: { value: '80' } });
         fireEvent.change(incidencias, { target: { value: '0' } });
@@ -87,5 +90,6 @@ describe('Alertas de reportes', () => {
 
         fireEvent.change(incidencias, { target: { value: '3' } });
         expect(guardar).toBeEnabled();
+        expect(screen.queryByText('Corrija el campo')).toBeNull();
     });
 });

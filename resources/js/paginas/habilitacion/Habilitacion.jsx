@@ -53,7 +53,7 @@ const completa = (cifras) =>
 const CONDICION = {
     habilitado: ['exito', 'Habilitado'],
     no: ['peligro', 'No habilitado'],
-    pendiente: ['neutro', 'Sin revisar'],
+    pendiente: ['neutro', 'Pendiente'],
 };
 const SIN_FILTROS = { grupo: null, aula: null, condicion: null };
 const COLUMNAS = ['Código SIS', 'Estudiante', 'Grupo', 'Condición', 'Aula', 'Motivo'];
@@ -140,6 +140,8 @@ export function ListaDelExamen({ examenId, onCifras }) {
     const [enviando, setEnviando] = useState(false);
     // Un lote grande se confirma antes: no se deshace con un clic.
     const [porConfirmar, setPorConfirmar] = useState(null);
+    // El resultado del último reparto queda a la vista, no solo en el aviso.
+    const [repartido, setRepartido] = useState(null);
     const [ampliada, setAmpliada] = useState(null);
     const urlFoto = (e) => `/api${ruta}/${e.estudiante_id}/foto`;
     const foto = (e) => (
@@ -275,9 +277,11 @@ export function ListaDelExamen({ examenId, onCifras }) {
         setEnviando(true);
         try {
             const { data } = await api.post(ruta, cuerpo);
+            // Los que no tienen carnet no se habilitan: se dice cuántos.
+            const sinCarnet = habilitado ? (data?.sin_carnet ?? 0) : 0;
             avisar(
                 data?.afectados !== undefined
-                    ? plural(data.afectados, habilitado ? 'habilitado' : 'inhabilitado')
+                    ? `${plural(data.afectados, habilitado ? 'habilitado' : 'inhabilitado')}${sinCarnet > 0 ? ` · ${sinCarnet} sin carnet, quedan pendientes` : ''}`
                     : sinPunto(data?.message)
             );
             cerrarSeleccion();
@@ -300,7 +304,9 @@ export function ListaDelExamen({ examenId, onCifras }) {
         setEnviando(true);
         try {
             const { data } = await api.post(`/examenes/${examenId}/reparto`);
-            avisar(sinPunto(data?.message) || 'Sin estudiantes por repartir');
+            const texto = sinPunto(data?.message) || 'Sin estudiantes por repartir';
+            avisar(texto);
+            setRepartido(texto);
             await recargar();
         } catch (fallo) {
             rechazo(fallo, 'No se pudo repartir');
@@ -357,7 +363,7 @@ export function ListaDelExamen({ examenId, onCifras }) {
                     valor={cifras.no_habilitados ?? 0}
                     tono={cifras.no_habilitados ? 'advertencia' : 'neutro'}
                 />
-                <Dato etiqueta="Sin revisar" icono={Hourglass} valor={cifras.sin_revisar ?? 0} />
+                <Dato etiqueta="Pendientes" icono={Hourglass} valor={cifras.sin_revisar ?? 0} />
             </div>
 
             <div className="flex justify-end">
@@ -375,16 +381,24 @@ export function ListaDelExamen({ examenId, onCifras }) {
                         {cifras.sin_aula > 0 && (
                             <Insignia tono="advertencia">{cifras.sin_aula} sin aula</Insignia>
                         )}
+                        {aulas.length > 0 && !cifras.habilitados && (
+                            <span className="text-xs text-slate-600">
+                                Primero habilite estudiantes
+                            </span>
+                        )}
                         <Boton
                             variante="secundario"
-                            disabled={aulas.length === 0 || enviando}
+                            disabled={aulas.length === 0 || !cifras.habilitados || enviando}
                             onClick={repartir}
                         >
-                            <Shuffle className="h-4 w-4" /> Repartir
+                            <Shuffle className="h-4 w-4" /> Repartir por aula
                         </Boton>
                     </>
                 }
             >
+                {repartido && aulas.length > 0 && (
+                    <p className="mb-3 text-sm text-slate-700">{repartido}</p>
+                )}
                 {aulas.length > 0 ? (
                     <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
                         {aulas.map((a) => {
@@ -479,7 +493,7 @@ export function ListaDelExamen({ examenId, onCifras }) {
                             },
                             {
                                 valor: 'pendiente',
-                                etiqueta: 'Sin revisar',
+                                etiqueta: 'Pendientes',
                                 conteo: condiciones.pendiente ?? 0,
                             },
                         ]}
@@ -736,6 +750,11 @@ export function ListaDelExamen({ examenId, onCifras }) {
                             : `${plural(cantidad, 'estudiante')} seleccionado${cantidad === 1 ? '' : 's'}.`}
                         {!porConfirmar && motivo.trim() && ` Motivo: ${motivo.trim()}`}
                     </p>
+                    {porConfirmar && (
+                        <p className="mt-2 text-sm text-slate-600">
+                            Quien no tiene carnet queda pendiente.
+                        </p>
+                    )}
                 </Dialogo>
             )}
             {aviso}

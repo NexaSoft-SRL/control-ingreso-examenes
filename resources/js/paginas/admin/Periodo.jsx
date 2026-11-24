@@ -142,7 +142,7 @@ function AjustarFechas({ periodo, onCerrar, onGuardado }) {
                         Cancelar
                     </Boton>
                     <Boton type="submit" form="ajustar-periodo" cargando={guardando}>
-                        {guardando ? 'Guardando' : 'Guardar'}
+                        {guardando ? 'Guardando' : 'Guardar fechas'}
                     </Boton>
                 </>
             }
@@ -200,6 +200,18 @@ function AjustarCalendario({ periodo, onCerrar, onGuardado }) {
     const [errores, setErrores] = useState({});
     const [general, setGeneral] = useState(null);
     const [guardando, setGuardando] = useState(false);
+    // Las fechas caben dentro del período.
+    const minimo = periodo.fecha_inicio ?? undefined;
+    const maximo = periodo.fecha_fin ?? undefined;
+    const fuera = (fecha) => fecha && ((minimo && fecha < minimo) || (maximo && fecha > maximo));
+    // En el orden del calendario: primero lo que empieza antes (se fija al abrir).
+    const [orden] = useState(() =>
+        [...VENTANAS].sort(([a], [b]) => {
+            const da = periodo.calendario?.[a]?.[0] ?? '9999';
+            const db = periodo.calendario?.[b]?.[0] ?? '9999';
+            return da.localeCompare(db);
+        })
+    );
 
     function poner(clave, posicion, valor) {
         setFechas((previas) => {
@@ -219,8 +231,10 @@ function AjustarCalendario({ periodo, onCerrar, onGuardado }) {
             if (!desde && !hasta) return;
             if (!desde) locales[`ventanas.${clave}.0`] = 'Obligatorio';
             if (!hasta) locales[`ventanas.${clave}.1`] = 'Obligatorio';
-            if (desde && hasta && hasta < desde)
-                locales[`ventanas.${clave}.1`] = 'No puede ser anterior al inicio';
+            if (fuera(desde)) locales[`ventanas.${clave}.0`] = 'Fuera del período';
+            if (fuera(hasta)) locales[`ventanas.${clave}.1`] = 'Fuera del período';
+            else if (desde && hasta && hasta < desde)
+                locales[`ventanas.${clave}.1`] = 'Debe ser después de Desde';
             ventanas[clave] = [desde, hasta];
         });
         if (Object.keys(ventanas).length === 0) {
@@ -254,13 +268,13 @@ function AjustarCalendario({ periodo, onCerrar, onGuardado }) {
                         Cancelar
                     </Boton>
                     <Boton type="submit" form="ajustar-calendario" cargando={guardando}>
-                        {guardando ? 'Guardando' : 'Guardar'}
+                        {guardando ? 'Guardando' : 'Guardar calendario'}
                     </Boton>
                 </>
             }
         >
             <form id="ajustar-calendario" onSubmit={guardar} noValidate className="space-y-4">
-                {VENTANAS.map(([clave, nombre]) => (
+                {orden.map(([clave, nombre]) => (
                     <fieldset key={clave} className="grid gap-3 sm:grid-cols-2">
                         <legend className="mb-1 text-sm font-semibold text-slate-800">
                             {nombre}
@@ -268,6 +282,8 @@ function AjustarCalendario({ periodo, onCerrar, onGuardado }) {
                         <Campo
                             etiqueta="Desde"
                             type="date"
+                            min={minimo}
+                            max={maximo}
                             value={fechas[clave][0]}
                             onChange={(e) => poner(clave, 0, e.target.value)}
                             error={errores[`ventanas.${clave}.0`]}
@@ -275,6 +291,8 @@ function AjustarCalendario({ periodo, onCerrar, onGuardado }) {
                         <Campo
                             etiqueta="Hasta"
                             type="date"
+                            min={fechas[clave][0] || minimo}
+                            max={maximo}
                             value={fechas[clave][1]}
                             onChange={(e) => poner(clave, 1, e.target.value)}
                             error={errores[`ventanas.${clave}.1`]}
@@ -295,6 +313,8 @@ AjustarCalendario.propTypes = {
     periodo: PropTypes.shape({
         id: PropTypes.number.isRequired,
         codigo: PropTypes.string.isRequired,
+        fecha_inicio: PropTypes.string,
+        fecha_fin: PropTypes.string,
         calendario: PropTypes.object,
     }).isRequired,
     onCerrar: PropTypes.func.isRequired,
@@ -389,10 +409,10 @@ export default function Periodo() {
         api.post('/periodos/detectar')
             .then((respuesta) => {
                 const { creados = 0, actualizados = 0 } = respuesta.data ?? {};
-                avisar(`${creados} nuevos · ${actualizados} actualizados`);
+                avisar(`Períodos al día · ${creados} nuevos · ${actualizados} actualizados`);
                 return recargarTodo();
             })
-            .catch((error) => avisar(mensajeDe(error, 'No se pudo buscar'), 'error'))
+            .catch((error) => avisar(mensajeDe(error, 'No se pudo actualizar'), 'error'))
             .finally(() => setDetectando(false));
     }
 
@@ -469,6 +489,7 @@ export default function Periodo() {
                         type="button"
                         variante="secundario"
                         tamano="chico"
+                        className="min-h-11"
                         disabled={detectando}
                         onClick={detectar}
                     >
@@ -476,7 +497,7 @@ export default function Periodo() {
                             className={`h-4 w-4 ${detectando ? 'animate-spin' : ''}`}
                             aria-hidden="true"
                         />
-                        {detectando ? 'Buscando' : 'Buscar períodos'}
+                        {detectando ? 'Actualizando' : 'Actualizar períodos'}
                     </Boton>
                 }
             >
@@ -524,6 +545,7 @@ export default function Periodo() {
                                         type="button"
                                         variante="secundario"
                                         tamano="chico"
+                                        className="min-h-11"
                                         onClick={() => setAjustando(p)}
                                         aria-label={`Ajustar ${p.codigo}`}
                                     >
@@ -535,6 +557,7 @@ export default function Periodo() {
                                         type="button"
                                         variante="secundario"
                                         tamano="chico"
+                                        className="min-h-11"
                                         onClick={() => setCalendario(p)}
                                         aria-label={`Calendario de exámenes ${p.codigo}`}
                                     >
@@ -617,7 +640,11 @@ export default function Periodo() {
                             const estado = ESTADOS[imp.estado] ?? ESTADOS.sin;
                             const ocupado = locales[f.sigla]?.estado === 'importando';
                             const fallo = imp.estado === 'fallo';
-                            const accion = fallo ? 'Reintentar' : 'Importar';
+                            const accion = fallo
+                                ? 'Reintentar'
+                                : imp.estado === 'importada'
+                                  ? 'Volver a importar'
+                                  : 'Importar';
                             return (
                                 <li
                                     key={f.sigla}

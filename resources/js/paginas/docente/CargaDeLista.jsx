@@ -191,6 +191,11 @@ export default function CargaDeLista({ grupoId, onCargada, onCancelar, onAvisar 
                     )}
 
                     <div className="mt-4 flex flex-col justify-center gap-2 sm:flex-row sm:flex-wrap">
+                        {!archivo && !enviando && (
+                            <p className="w-full text-center text-xs text-slate-600 sm:order-last">
+                                Falta el archivo
+                            </p>
+                        )}
                         {/* Un solo paso principal a la vez: primero elegir, luego revisar. */}
                         <Boton
                             type="button"
@@ -204,6 +209,7 @@ export default function CargaDeLista({ grupoId, onCargada, onCancelar, onAvisar 
                         <Boton
                             type="submit"
                             variante={archivo ? 'primario' : 'secundario'}
+                            disabled={!archivo}
                             cargando={enviando}
                         >
                             {enviando ? 'Analizando' : 'Previsualizar carga'}

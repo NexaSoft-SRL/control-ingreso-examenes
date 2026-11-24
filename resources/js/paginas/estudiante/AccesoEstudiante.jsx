@@ -61,6 +61,28 @@ function errorDeDatos({
     return errores;
 }
 
+// Orden de los campos del registro: el foco va al primero con error.
+const ORDEN_REGISTRO = [
+    'nombres',
+    'apellidos',
+    'documento',
+    'facultad_id',
+    'carrera_id',
+    'confirmo',
+];
+
+function enfocarPrimero(formulario, errores) {
+    const clave = ORDEN_REGISTRO.find((k) => errores[k]);
+    if (!clave || !formulario) return;
+    setTimeout(() => {
+        const lugar = formulario.querySelector(`[data-campo="${clave}"]`);
+        const destino = lugar?.matches('input, button')
+            ? lugar
+            : lugar?.querySelector('input, button:not([disabled])');
+        destino?.focus();
+    }, 0);
+}
+
 function errorDeCodigo(valor) {
     if (valor === '') return 'Obligatorio';
     return /^\d{6}$/.test(valor) ? null : 'Seis dígitos';
@@ -78,7 +100,7 @@ export default function AccesoEstudiante() {
     const [errores, setErrores] = useState({});
     const [general, setGeneral] = useState(null);
     const [reenviado, setReenviado] = useState(false);
-    // Hasta cuándo espera cada SIS para reenviar: «Otro código SIS» no
+    // Hasta cuándo espera cada SIS para reenviar: «Cambiar código SIS» no
     // salta la espera del que ya pidió.
     const [esperas, setEsperas] = useState({});
     const [ahora, setAhora] = useState(() => Date.now());
@@ -146,7 +168,7 @@ export default function AccesoEstudiante() {
         } catch (error) {
             const mensaje =
                 estadoDe(error) === 429
-                    ? mensajeDe(error, 'Demasiados pedidos')
+                    ? mensajeDe(error, 'Demasiados intentos')
                     : (erroresDe(error).codigo_universitario ??
                       mensajeDe(error, 'No se pudo enviar'));
             if (envio) setGeneral(mensaje);
@@ -196,8 +218,13 @@ export default function AccesoEstudiante() {
     async function empadronarse(e) {
         e.preventDefault();
         const faltas = errorDeDatos(datos);
-        if (Object.keys(faltas).length > 0) return setErrores(faltas);
+        if (Object.keys(faltas).length > 0) {
+            setErrores(faltas);
+            enfocarPrimero(e.currentTarget, faltas);
+            return undefined;
+        }
         if (enviando) return undefined;
+        const formulario = e.currentTarget;
         setEnviando(true);
         setErrores({});
         setGeneral(null);
@@ -211,8 +238,11 @@ export default function AccesoEstudiante() {
             });
             navegar('/estudiante', { replace: true });
         } catch (error) {
-            if (estadoDe(error) === 422) setErrores(erroresDe(error));
-            else setGeneral(mensajeDe(error, 'No se pudo registrar'));
+            if (estadoDe(error) === 422) {
+                const campos = erroresDe(error);
+                setErrores(campos);
+                enfocarPrimero(formulario, campos);
+            } else setGeneral(mensajeDe(error, 'No se pudo registrar'));
         } finally {
             setEnviando(false);
         }
@@ -256,10 +286,15 @@ export default function AccesoEstudiante() {
                                     className="mt-0.5 h-4 w-4 shrink-0 text-primary-600"
                                     aria-hidden="true"
                                 />
-                                <p>
-                                    Código SIS{' '}
-                                    <span className="font-medium text-slate-900">{sis}</span>
-                                </p>
+                                <div>
+                                    <h2 className="font-semibold text-slate-900">
+                                        Primera vez · complete sus datos
+                                    </h2>
+                                    <p>
+                                        Código SIS{' '}
+                                        <span className="font-medium text-slate-900">{sis}</span>
+                                    </p>
+                                </div>
                             </div>
                             {general && (
                                 <p
@@ -277,6 +312,7 @@ export default function AccesoEstudiante() {
                                 maxLength={100}
                                 requerido
                                 autoFocus
+                                data-campo="nombres"
                                 value={datos.nombres}
                                 error={errores.nombres}
                                 onChange={cambiarDato('nombres')}
@@ -288,6 +324,7 @@ export default function AccesoEstudiante() {
                                 autoComplete="family-name"
                                 maxLength={100}
                                 requerido
+                                data-campo="apellidos"
                                 value={datos.apellidos}
                                 error={errores.apellidos}
                                 onChange={cambiarDato('apellidos')}
@@ -300,55 +337,66 @@ export default function AccesoEstudiante() {
                                 requerido
                                 ayuda="Complemento con guion: 5003748-1A"
                                 placeholder="5003748"
+                                data-campo="documento"
                                 value={datos.documento}
                                 error={errores.documento}
                                 onChange={cambiarDato('documento')}
                             />
-                            <Seleccion
-                                etiqueta="Facultad"
-                                value={datos.facultad_id}
-                                onChange={(e) => {
-                                    const facultad = e.target.value;
-                                    setDatos((previos) => ({
-                                        ...previos,
-                                        facultad_id: facultad,
-                                        carrera_id: '',
-                                    }));
-                                    setErrores({});
-                                }}
-                            >
-                                <option value="">Elegir</option>
-                                {facultades.map((facultad) => (
-                                    <option key={facultad.id} value={facultad.id}>
-                                        {facultad.nombre}
+                            <div data-campo="facultad_id">
+                                <Seleccion
+                                    etiqueta="Facultad"
+                                    requerido
+                                    value={datos.facultad_id}
+                                    onChange={(e) => {
+                                        const facultad = e.target.value;
+                                        setDatos((previos) => ({
+                                            ...previos,
+                                            facultad_id: facultad,
+                                            carrera_id: '',
+                                        }));
+                                        setErrores({});
+                                    }}
+                                >
+                                    <option value="" disabled>
+                                        Elegir
                                     </option>
-                                ))}
-                            </Seleccion>
+                                    {facultades.map((facultad) => (
+                                        <option key={facultad.id} value={facultad.id}>
+                                            {facultad.nombre}
+                                        </option>
+                                    ))}
+                                </Seleccion>
+                            </div>
                             {errores.facultad_id && (
                                 <p role="alert" className="-mt-2 text-sm text-danger-700">
                                     {errores.facultad_id}
                                 </p>
                             )}
-                            <Seleccion
-                                etiqueta="Carrera"
-                                value={datos.carrera_id}
-                                disabled={datos.facultad_id === ''}
-                                onChange={cambiarDato('carrera_id')}
-                            >
-                                <option value="">
-                                    {datos.facultad_id === '' ? 'Primero la facultad' : 'Elegir'}
-                                </option>
-                                {carreras
-                                    .filter(
-                                        (carrera) =>
-                                            String(carrera.facultad_id) === datos.facultad_id
-                                    )
-                                    .map((carrera) => (
-                                        <option key={carrera.id} value={carrera.id}>
-                                            {carrera.nombre}
-                                        </option>
-                                    ))}
-                            </Seleccion>
+                            <div data-campo="carrera_id">
+                                <Seleccion
+                                    etiqueta="Carrera"
+                                    requerido
+                                    value={datos.carrera_id}
+                                    disabled={datos.facultad_id === ''}
+                                    onChange={cambiarDato('carrera_id')}
+                                >
+                                    <option value="" disabled>
+                                        {datos.facultad_id === ''
+                                            ? 'Primero la facultad'
+                                            : 'Elegir'}
+                                    </option>
+                                    {carreras
+                                        .filter(
+                                            (carrera) =>
+                                                String(carrera.facultad_id) === datos.facultad_id
+                                        )
+                                        .map((carrera) => (
+                                            <option key={carrera.id} value={carrera.id}>
+                                                {carrera.nombre}
+                                            </option>
+                                        ))}
+                                </Seleccion>
+                            </div>
                             {errores.carrera_id && (
                                 <p role="alert" className="-mt-2 text-sm text-danger-700">
                                     {errores.carrera_id}
@@ -367,6 +415,7 @@ export default function AccesoEstudiante() {
                             <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-sm text-slate-800">
                                 <input
                                     type="checkbox"
+                                    data-campo="confirmo"
                                     className="h-4 w-4 rounded border-slate-300"
                                     checked={datos.confirmo}
                                     onChange={(e) => {
@@ -393,7 +442,7 @@ export default function AccesoEstudiante() {
                                     tamano="chico"
                                     onClick={otroSis}
                                 >
-                                    Otro código SIS
+                                    Cambiar código SIS
                                 </Boton>
                             </div>
                         </form>
@@ -446,6 +495,7 @@ export default function AccesoEstudiante() {
                                 formato="digitos"
                                 autoComplete="one-time-code"
                                 placeholder="000000"
+                                maxLength={6}
                                 requerido
                                 autoFocus
                                 value={codigo}
@@ -457,7 +507,7 @@ export default function AccesoEstudiante() {
                             />
                             <Boton type="submit" className="w-full" cargando={enviando}>
                                 {!enviando && <LogIn className="h-4 w-4" aria-hidden="true" />}
-                                Iniciar sesión
+                                Confirmar código
                             </Boton>
                             <div className="flex justify-between gap-2">
                                 <Boton
@@ -466,7 +516,7 @@ export default function AccesoEstudiante() {
                                     tamano="chico"
                                     onClick={otroSis}
                                 >
-                                    Otro código SIS
+                                    Cambiar código SIS
                                 </Boton>
                                 <Boton
                                     type="button"
@@ -487,6 +537,7 @@ export default function AccesoEstudiante() {
                                 formato="digitos"
                                 autoComplete="username"
                                 placeholder="202100417"
+                                maxLength={10}
                                 requerido
                                 autoFocus
                                 value={sis}
@@ -509,14 +560,14 @@ export default function AccesoEstudiante() {
                             </Boton>
                         </form>
                     )}
-                </div>
 
-                <Link
-                    to="/login"
-                    className={`mt-4 flex min-h-11 w-full items-center justify-center rounded-lg text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
-                >
-                    <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" /> Cuenta institucional
-                </Link>
+                    <Link
+                        to="/login"
+                        className={`mt-5 flex min-h-11 w-full items-center justify-center rounded-lg border-t border-slate-100 pt-1 text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
+                    >
+                        <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" /> Volver al inicio
+                    </Link>
+                </div>
             </div>
         </FondoAcceso>
     );

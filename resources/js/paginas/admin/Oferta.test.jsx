@@ -123,7 +123,7 @@ describe('Oferta', () => {
     it('desde el período llega filtrada a las asignaturas con grupos sin lista', async () => {
         montar({ ruta: '/oferta?sin_lista=1' });
         await waitFor(() => expect(ultimo()).toMatchObject({ sin_lista: 1 }));
-        const boton = screen.getByRole('button', { name: 'Con grupos sin lista' });
+        const boton = screen.getByRole('button', { name: 'Sin lista de inscritos' });
         expect(boton).toHaveAttribute('aria-pressed', 'true');
 
         fireEvent.click(boton);
