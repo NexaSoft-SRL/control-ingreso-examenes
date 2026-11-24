@@ -14,5 +14,7 @@ export const SIN_SESION = 'sin_sesion';
 export const CAMBIAR_CONTRASENA = 'cambiar_contrasena';
 export const suscribirSesion = vi.fn(() => () => {});
 export const interpretarError = (error) => Promise.reject(error);
+export const fallosDeRedSeguidos = vi.fn(() => 0);
+export const suscribirRed = vi.fn(() => () => {});
 
 export default api;

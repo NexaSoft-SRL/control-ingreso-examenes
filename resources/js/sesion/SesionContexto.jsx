@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { api, suscribirSesion, CAMBIAR_CONTRASENA, SIN_SESION } from '../api/cliente';
 import { olvidarEdificios } from '../api/usarEdificios';
 import Escudo from '../componentes/Escudo';
+import { guardarSesion, olvidarSesion, sesionGuardada } from '../sinConexion/almacen';
 
 const SIN_PROVEEDOR = {
     usuario: null,
@@ -44,7 +45,10 @@ export function PantallaDeCarga() {
 }
 
 // La sesión del cliente. La verdad es la cookie: al montar se pregunta a
-// GET /api/auth/sesion y no se guarda nada en el navegador.
+// GET /api/auth/sesion. Solo quien controla el ingreso deja en el navegador
+// una copia de su cuenta, para volver a abrir la puerta si la página se
+// recarga sin internet (ver sinConexion/almacen). Si el servidor responde,
+// manda lo que diga; la copia solo se usa cuando no responde.
 export function ProveedorSesion({ children }) {
     const [usuario, setUsuario] = useState(null);
     const [cargando, setCargando] = useState(true);
@@ -57,11 +61,17 @@ export function ProveedorSesion({ children }) {
                 .then((respuesta) => {
                     const cuenta = respuesta.data?.user ?? null;
                     setUsuario(cuenta);
+                    guardarSesion(cuenta);
                     return cuenta;
                 })
-                .catch(() => {
-                    setUsuario(null);
-                    return null;
+                .catch((error) => {
+                    // Sin respuesta del servidor (sin internet): sigue la cuenta
+                    // de la puerta que estaba abierta. Con cualquier respuesta
+                    // (401…), no hay sesión.
+                    const guardada = error?.response ? null : sesionGuardada();
+                    if (!guardada) olvidarSesion();
+                    setUsuario(guardada);
+                    return guardada;
                 }),
         []
     );
@@ -77,7 +87,10 @@ export function ProveedorSesion({ children }) {
     useEffect(
         () =>
             suscribirSesion((evento) => {
-                if (evento === SIN_SESION) setUsuario(null);
+                if (evento === SIN_SESION) {
+                    olvidarSesion();
+                    setUsuario(null);
+                }
                 if (evento === CAMBIAR_CONTRASENA) {
                     setUsuario((previo) =>
                         previo ? { ...previo, debe_cambiar_contrasena: true } : previo
@@ -113,6 +126,7 @@ export function ProveedorSesion({ children }) {
         });
         const cuenta = respuesta.data?.user ?? null;
         setUsuario(cuenta);
+        guardarSesion(cuenta);
         return cuenta;
     }, []);
 
@@ -125,6 +139,7 @@ export function ProveedorSesion({ children }) {
         } catch (error) {
             if (!error?.response) throw error;
         }
+        olvidarSesion();
         setUsuario(null);
     }, []);
 

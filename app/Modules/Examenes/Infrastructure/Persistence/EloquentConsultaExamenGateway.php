@@ -295,6 +295,101 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         return $examenes;
     }
 
+    public function estudiantesConOtroExamen(
+        array $grupoIds,
+        string $fecha,
+        string $horaInicio,
+        int $duracionMinutos,
+        ?int $exceptoExamenId,
+    ): array {
+        if ($grupoIds === []) {
+            return [];
+        }
+
+        $inicio = $this->minutos($horaInicio);
+        $fin = $inicio + $duracionMinutos;
+
+        $consulta = $this->base()
+            ->whereDate('examen.fecha', $fecha)
+            ->orderBy('examen.hora_inicio')
+            ->orderBy('examen.id');
+
+        if ($exceptoExamenId !== null) {
+            $consulta->where('examen.id', '<>', $exceptoExamenId);
+        }
+
+        // Los otros examenes del dia que se solapan, por id.
+        $solapados = [];
+
+        foreach ($consulta->get() as $fila) {
+            $columnas = $this->columnas($fila);
+            $desde = $this->hora($columnas['hora_inicio'] ?? null);
+            $inicioOtro = $this->minutos($desde);
+            $finOtro = $inicioOtro + $this->entero($columnas['duracion_minutos'] ?? null);
+
+            if (! ($inicio < $finOtro && $inicioOtro < $fin)) {
+                continue;
+            }
+
+            $solapados[$this->entero($columnas['id'] ?? null)] = [
+                'examen' => $this->cadena($columnas['asignatura_nombre'] ?? null)
+                    .' · '.$this->tipoTexto($this->cadena($columnas['tipo'] ?? null)),
+                'inicio' => $desde,
+                'fin' => sprintf('%02d:%02d', intdiv($finOtro, 60) % 24, $finOtro % 60),
+            ];
+        }
+
+        if ($solapados === []) {
+            return [];
+        }
+
+        // Quien cursa un grupo de este examen y otro de alguno de los solapados.
+        $filas = DB::table('inscripciones as propia')
+            ->join('estudiantes as estudiante', 'estudiante.id', '=', 'propia.estudiante_id')
+            ->join('inscripciones as otra', function (JoinClause $union): void {
+                $union->on('otra.estudiante_id', '=', 'propia.estudiante_id')
+                    ->whereNull('otra.baja_en');
+            })
+            ->join('examen_grupo as incluido', 'incluido.grupo_id', '=', 'otra.grupo_id')
+            ->whereIn('propia.grupo_id', $grupoIds)
+            ->whereNull('propia.baja_en')
+            ->whereIn('incluido.examen_id', array_keys($solapados))
+            ->distinct()
+            ->orderBy('estudiante.apellidos')
+            ->orderBy('estudiante.nombres')
+            ->orderBy('estudiante.id')
+            ->orderBy('incluido.examen_id')
+            ->get([
+                'estudiante.id as estudiante_id',
+                'estudiante.nombres',
+                'estudiante.apellidos',
+                'estudiante.codigo_universitario',
+                'incluido.examen_id',
+            ]);
+
+        $estudiantes = [];
+
+        foreach ($filas as $fila) {
+            $columnas = $this->columnas($fila);
+            $id = $this->entero($columnas['estudiante_id'] ?? null);
+            $otro = $solapados[$this->entero($columnas['examen_id'] ?? null)] ?? null;
+
+            if ($otro === null) {
+                continue;
+            }
+
+            $estudiantes[$id] ??= [
+                'estudiante_id' => $id,
+                'nombre' => trim($this->cadena($columnas['apellidos'] ?? null).' '.$this->cadena($columnas['nombres'] ?? null)),
+                'codigo' => $this->cadena($columnas['codigo_universitario'] ?? null),
+                'examenes' => [],
+            ];
+            $estudiantes[$id]['examenes'][] = $otro;
+        }
+
+        return array_values($estudiantes);
+    }
+
     public function periodo(string $idOCodigo): ?array
     {
         $consulta = DB::table('periodos');

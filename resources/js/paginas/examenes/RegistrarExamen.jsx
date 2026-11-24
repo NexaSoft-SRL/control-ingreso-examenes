@@ -39,6 +39,7 @@ import SelectorAsignatura from '../../componentes/SelectorAsignatura';
 import Tarjeta from '../../componentes/Tarjeta';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { diaMes, fechaLarga, normalizar, plural } from '../../utiles/texto';
+import ChoquesDeEstudiantes from './ChoquesDeEstudiantes';
 import CodigoDeAula from './CodigoDeAula';
 import NormasDelExamen from './NormasDelExamen';
 import rutaDelExamen from './rutaDelExamen';
@@ -493,6 +494,7 @@ function Asistente({
     pasoInicial,
     onExamen,
     anteriores = [],
+    sugerido = {},
 }) {
     const { usuario } = usarSesion();
     const yo = { id: usuario.id, nombre: usuario.nombre };
@@ -518,9 +520,12 @@ function Asistente({
     // Un examen nuevo empieza con fecha y hora cargadas: el campo vacío de
     // fecha u hora se ve en Safari como si tuviera la de hoy, y no la tiene.
     const [fecha, setFecha] = useState(
-        () => inicial?.fecha ?? fechaSugerida(periodoDe(asignaturas[0]?.id), tipo, hoy)
+        () =>
+            inicial?.fecha ??
+            sugerido.fecha ??
+            fechaSugerida(periodoDe(asignaturas[0]?.id), tipo, hoy)
     );
-    const [hora, setHora] = useState(inicial?.hora ?? HORA_SUGERIDA);
+    const [hora, setHora] = useState(inicial?.hora ?? sugerido.hora ?? HORA_SUGERIDA);
     const [duracion, setDuracion] = useState(String(inicial?.duracion ?? '90'));
     const [normas, setNormas] = useState(inicial?.normas ?? '');
     const [marcadas, setMarcadas] = useState(() =>
@@ -560,7 +565,10 @@ function Asistente({
     const copiadas = anteriores.find((e) => e.id === copiadasDe && copiadasDe !== null) ?? null;
     // `null`: todavía no se tocó; valen los grupos propios de la asignatura.
     const [grupos, setGrupos] = useState(() => inicial?.grupos_detalle?.map((g) => g.id) ?? null);
-    const [aulas, setAulas] = useState(() => inicial?.aulas_detalle?.map((a) => a.aula_id) ?? []);
+    const [aulas, setAulas] = useState(
+        () =>
+            inicial?.aulas_detalle?.map((a) => a.aula_id) ?? (sugerido.aula ? [sugerido.aula] : [])
+    );
     const [personal, setPersonal] = useState(() => personalDe(inicial, usuario.id));
     // Auxiliares sumados en esta visita: los buscados y los recién creados.
     const [sumados, setSumados] = useState([]);
@@ -610,6 +618,7 @@ function Asistente({
 
     const todasLasAulas = usarConsulta('/aulas');
     const { edificios, caja } = usarEdificios();
+    const enGrupos = paso === 1;
     const enAulas = paso === 2;
     const opcionesAulas = usarConsulta('/examenes/opciones/aulas', {
         parametros: {
@@ -1189,6 +1198,17 @@ function Asistente({
                             {errorDe('grupos')}
                         </p>
                     )}
+                    <div className="mt-4">
+                        <ChoquesDeEstudiantes
+                            grupos={elegidosIds}
+                            fecha={fecha}
+                            hora={hora}
+                            duracion={Number(duracion)}
+                            examenId={examen?.id}
+                            activa={enGrupos && !cargandoGrupos}
+                            guia="Podrá inhabilitarlos con motivo en Habilitación"
+                        />
+                    </div>
                     <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
                         <Boton type="button" variante="secundario" onClick={() => setPaso(0)}>
                             Atrás
@@ -1461,6 +1481,12 @@ function Asistente({
 }
 
 Asistente.propTypes = {
+    // Lo que trae la dirección desde el calendario de aulas: `?aula=&fecha=&hora=`.
+    sugerido: PropTypes.shape({
+        aula: PropTypes.number,
+        fecha: PropTypes.string,
+        hora: PropTypes.string,
+    }),
     asignaturas: PropTypes.arrayOf(
         PropTypes.shape({
             id: PropTypes.number.isRequired,
@@ -1499,6 +1525,19 @@ export default function RegistrarExamen() {
     const [parametros] = useSearchParams();
     const examenId = Number(parametros.get('examen')) || null;
     const pasoPedido = Math.min(Math.max(Number(parametros.get('paso')) || 0, 0), 3);
+    // Un examen nuevo puede abrirse con aula, fecha y hora (desde el calendario).
+    // La fecha solo vale si es de hoy en adelante y bien escrita.
+    const hoyDeHoy = new Date().toLocaleDateString('en-CA');
+    const fechaPedida = parametros.get('fecha');
+    const horaPedida = parametros.get('hora');
+    const sugerido = {
+        aula: Number(parametros.get('aula')) || undefined,
+        fecha:
+            /^\d{4}-\d{2}-\d{2}$/.test(fechaPedida ?? '') && fechaPedida >= hoyDeHoy
+                ? fechaPedida
+                : undefined,
+        hora: /^([01]\d|2[0-3]):[0-5]\d$/.test(horaPedida ?? '') ? horaPedida : undefined,
+    };
 
     const misGrupos = usarConsulta('/docente/grupos');
     const tipos = usarConsulta('/examenes/tipos');
@@ -1580,6 +1619,7 @@ export default function RegistrarExamen() {
                             inicial={previo}
                             anteriores={anteriores.datos ?? []}
                             pasoInicial={previo ? pasoPedido : 0}
+                            sugerido={previo ? undefined : sugerido}
                             onExamen={(guardadoAhora) => {
                                 setGuardado(guardadoAhora);
                                 // La dirección queda en el examen: recargar no lo pierde.

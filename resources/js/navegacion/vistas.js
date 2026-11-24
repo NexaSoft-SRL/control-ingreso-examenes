@@ -1,4 +1,5 @@
 import {
+    CalendarDays,
     CalendarRange,
     BookMarked,
     MapPinned,
@@ -81,6 +82,15 @@ export const VISTAS = [
         Icono: FileText,
         grupo: 'Docencia',
         movil: true,
+        permiso: 'examenes',
+    },
+    {
+        ruta: '/calendario',
+        titulo: 'Calendario',
+        Icono: CalendarDays,
+        grupo: 'Docencia',
+        oculta: true,
+        padre: '/examenes',
         permiso: 'examenes',
     },
     {
