@@ -39,13 +39,13 @@ describe('AccesoEstudiante', () => {
         expect(api.post).not.toHaveBeenCalled();
     });
 
-    it('dice a qué correo se envía el código apenas el código SIS tiene formato', () => {
+    it('muestra fijo el dominio del correo: solo se escribe el código SIS', () => {
         montar();
-        escribir(/Código SIS/, '2021');
-        expect(screen.queryByText(/Se enviará a/)).not.toBeInTheDocument();
 
+        expect(screen.getByText('@est.umss.edu')).toBeInTheDocument();
         escribir(/Código SIS/, '202100417');
-        expect(screen.getByText('Se enviará a 202100417@est.umss.edu')).toBeInTheDocument();
+        expect(screen.getByLabelText(/Código SIS/)).toHaveValue('202100417');
+        expect(screen.queryByText(/Se enviará a/)).not.toBeInTheDocument();
     });
 
     it('envía el código al correo y entra con él', async () => {

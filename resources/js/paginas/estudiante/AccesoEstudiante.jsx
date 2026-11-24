@@ -544,12 +544,9 @@ export default function AccesoEstudiante() {
                                 autoFocus
                                 value={sis}
                                 // El correo es el código SIS con el dominio institucional
-                                // (`umss.dominio_correo_estudiantes` en el servidor).
-                                ayuda={
-                                    /^\d{5,10}$/.test(sis)
-                                        ? `Se enviará a ${sis}@est.umss.edu`
-                                        : undefined
-                                }
+                                // (`umss.dominio_correo_estudiantes` en el servidor): se
+                                // muestra fijo, solo se escribe el código.
+                                sufijo="@est.umss.edu"
                                 error={errores.sis}
                                 onChange={(e) => {
                                     setSis(soloDigitos(e.target.value, 10));
