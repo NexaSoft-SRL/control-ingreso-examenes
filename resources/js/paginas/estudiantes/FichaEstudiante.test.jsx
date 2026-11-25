@@ -62,7 +62,7 @@ describe('FichaEstudiante', () => {
             <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={vi.fn()} />
         );
 
-        expect(await screen.findByText(/Administración · verificado/)).toBeInTheDocument();
+        expect(await screen.findByText('Historial de conflictos')).toBeInTheDocument();
         expect(screen.getByText('Historial de conflictos')).toBeInTheDocument();
         expect(screen.getByText('Documento distinto')).toBeInTheDocument();
         expect(
@@ -79,23 +79,24 @@ describe('FichaEstudiante', () => {
         );
 
         const datos = (await screen.findByText('Carrera')).closest('dl');
-        for (const etiqueta of ['Carrera', 'Facultad', 'C.I.', 'Correo']) {
+        for (const etiqueta of ['Carrera', 'C.I.', 'Correo', 'Registrado por']) {
             expect(within(datos).getByText(etiqueta)).toBeVisible();
         }
         expect(within(datos).getByText('Ing. Informática')).toBeInTheDocument();
-        expect(within(datos).getByText('FCyT')).toBeInTheDocument();
+        // La facultad va junto al código, no en la lista de datos.
+        expect(within(datos).queryByText('FCyT')).not.toBeInTheDocument();
+        expect(screen.getAllByText('FCyT').length).toBeGreaterThan(0);
         expect(within(datos).getByText('7928194')).toBeInTheDocument();
         expect(within(datos).getByText('202104821@est.umss.edu')).toBeInTheDocument();
         // Un solo origen, sin bloque aparte ni repetición.
         expect(screen.getAllByText(/Administración/)).toHaveLength(1);
-        expect(screen.getByText('Administración · verificado')).toBeInTheDocument();
         expect(screen.queryByText('Origen del dato')).not.toBeInTheDocument();
         expect(
             screen.getByText(/Registrado 1 oct 2026 · actualizado 2 oct 2026/)
         ).toBeInTheDocument();
     });
 
-    it('un dato que vino del estudiante sin revisar dice «sin verificar»', async () => {
+    it('un dato que vino del estudiante lo dice en «Registrado por»', async () => {
         simularApi(api, {
             'GET /estudiantes/5': { data: { ...FICHA, origen: 'Estudiante', verificado: false } },
         });
@@ -103,7 +104,8 @@ describe('FichaEstudiante', () => {
             <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={vi.fn()} />
         );
 
-        expect(await screen.findByText('Estudiante · sin verificar')).toBeInTheDocument();
+        expect(await screen.findByText('Registrado por')).toBeInTheDocument();
+        expect(screen.getByText('Estudiante')).toBeInTheDocument();
     });
 
     it('sin carnet lo dice en advertencia en lugar de un guion', async () => {
@@ -209,6 +211,28 @@ describe('FichaEstudiante', () => {
         expect(screen.getByText('del 3 nov 2026')).toBeInTheDocument();
     });
 
+    it('al tocar la foto se ve más grande y Escape cierra solo la foto', async () => {
+        simularApi(api, {
+            'GET /estudiantes/5': {
+                data: { ...FICHA, con_foto: true, foto_subida_en: '2026-11-03 10:15:00' },
+            },
+            'GET /estudiantes/5/foto': new Blob(['jpeg']),
+        });
+        const onCerrar = vi.fn();
+        renderConSesion(
+            <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={onCerrar} />
+        );
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Ver foto más grande' }));
+        expect(await screen.findByAltText(`Foto de ${FICHA.nombre}`)).toBeInTheDocument();
+
+        fireEvent.keyDown(window, { key: 'Escape' });
+        await waitFor(() =>
+            expect(screen.queryByAltText(`Foto de ${FICHA.nombre}`)).not.toBeInTheDocument()
+        );
+        expect(onCerrar).not.toHaveBeenCalled();
+    });
+
     it('sin foto la sube apenas se elige, sin pasos de más', async () => {
         simularApi(api, {
             'GET /estudiantes/5': { data: FICHA },
@@ -258,6 +282,38 @@ describe('FichaEstudiante', () => {
         expect(await screen.findByText('Estudiante actualizado')).toBeInTheDocument();
         expect(await screen.findByText('7928194')).toBeInTheDocument();
         expect(onFotoCambiada).toHaveBeenCalled();
+    });
+
+    it('la administración corrige el código SIS y lo envía con los demás datos', async () => {
+        const guardados = [];
+        simularApi(api, {
+            'GET /estudiantes/5': {
+                data: { ...FICHA, nombres: 'Mariana', apellidos: 'Aguilar Cossío' },
+            },
+            'PUT /estudiantes/5': ({ data }) => {
+                guardados.push(data);
+                return { message: 'Estudiante actualizado.' };
+            },
+        });
+        renderConSesion(
+            <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={vi.fn()} />
+        );
+
+        fireEvent.click(await screen.findByRole('button', { name: /Editar datos/ }));
+        const edicion = screen.getByRole('dialog', { name: 'Editar estudiante' });
+        expect(within(edicion).getByLabelText('Código SIS', { exact: false })).toHaveValue(
+            FICHA.codigo
+        );
+        fireEvent.change(within(edicion).getByLabelText('Código SIS', { exact: false }), {
+            target: { value: '202199999' },
+        });
+        expect(
+            within(edicion).getByText('Su correo pasará a ser 202199999@est.umss.edu')
+        ).toBeVisible();
+        fireEvent.click(within(edicion).getByRole('button', { name: /Guardar/ }));
+
+        expect(await screen.findByText('Estudiante actualizado')).toBeInTheDocument();
+        expect(guardados[0]).toMatchObject({ codigo: '202199999' });
     });
 
     it('con foto la muestra y la cámara la cambia', async () => {

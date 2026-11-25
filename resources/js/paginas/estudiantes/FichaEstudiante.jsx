@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { BookOpen, Camera, Loader2, Pencil, ShieldCheck, UserRound } from 'lucide-react';
 import { api } from '../../api/cliente';
@@ -41,7 +41,7 @@ function Dato({ etiqueta, children }) {
     return (
         <div className="min-w-0">
             <dt className="text-xs font-medium text-slate-500">{etiqueta}</dt>
-            <dd className="mt-0.5 min-w-0 break-words text-sm text-slate-900">{children}</dd>
+            <dd className="min-w-0 break-words text-sm font-medium text-slate-900">{children}</dd>
         </div>
     );
 }
@@ -51,20 +51,6 @@ Dato.propTypes = {
     children: PropTypes.node,
 };
 
-// Quien la sube y el origen en una sola insignia: «Administración · verificado»
-// o «Estudiante · sin verificar».
-function OrigenVerificado({ origen, verificado }) {
-    const Icono = verificado ? ShieldCheck : UserRound;
-    return (
-        <Insignia tono={verificado ? 'exito' : 'advertencia'}>
-            <Icono className="h-3.5 w-3.5" aria-hidden="true" />{' '}
-            {`${origen ?? 'Docente'} · ${verificado ? 'verificado' : 'sin verificar'}`}
-        </Insignia>
-    );
-}
-
-OrigenVerificado.propTypes = { origen: PropTypes.string, verificado: PropTypes.bool };
-
 // La foto del estudiante (GET /api/estudiantes/{id}/foto). La
 // administración la pone o la cambia en cualquier momento: la cámara abre
 // el selector y la foto elegida se valida, se reduce, se recorta en cuadrado
@@ -72,10 +58,17 @@ OrigenVerificado.propTypes = { origen: PropTypes.string, verificado: PropTypes.b
 // una vez.
 const MINIMO_PX = 240;
 
-function FotoDelEstudiante({ id, conFoto, subidaEn, alCambiar }) {
+function FotoDelEstudiante({ id, conFoto, subidaEn, alCambiar, nombre, alAmpliar }) {
     const entrada = useId();
     const [url, setUrl] = useState(null);
     const [version, setVersion] = useState(0);
+    const [grande, setGrande] = useState(false);
+    const ampliar = (valor) => {
+        setGrande(valor);
+        // Al cerrar, se avisa después del evento: el mismo Escape no debe cerrar la ficha.
+        if (valor) alAmpliar?.(true);
+        else setTimeout(() => alAmpliar?.(false), 0);
+    };
     const [enviando, setEnviando] = useState(false);
     // El resultado queda a la vista hasta el siguiente intento: el aviso
     // fugaz no alcanza a leerse.
@@ -138,16 +131,36 @@ function FotoDelEstudiante({ id, conFoto, subidaEn, alCambiar }) {
     return (
         <div className="relative w-28 shrink-0">
             {url ? (
-                <img
-                    src={url}
-                    alt="Foto del estudiante"
-                    className="h-28 w-28 rounded-xl border border-slate-200 object-cover shadow-sm"
-                />
+                <button
+                    type="button"
+                    onClick={() => ampliar(true)}
+                    aria-label="Ver foto más grande"
+                    className="block w-28 cursor-zoom-in rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600"
+                >
+                    <img
+                        src={url}
+                        alt="Foto del estudiante"
+                        className="aspect-[3/4] w-28 rounded-xl border border-slate-200 object-cover object-top shadow-sm"
+                    />
+                </button>
             ) : (
                 <span className="flex h-28 w-28 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500">
                     <UserRound className="h-7 w-7 text-slate-400" strokeWidth={1.5} />
                     Sin foto
                 </span>
+            )}
+            {grande && url && (
+                <Dialogo
+                    titulo={nombre ?? 'Foto del estudiante'}
+                    onCerrar={() => ampliar(false)}
+                    ancho="max-w-md"
+                >
+                    <img
+                        src={url}
+                        alt={`Foto de ${nombre ?? 'el estudiante'}`}
+                        className="mx-auto max-h-[70dvh] w-auto max-w-full rounded-xl"
+                    />
+                </Dialogo>
             )}
             {enviando && (
                 <span className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70">
@@ -197,6 +210,8 @@ FotoDelEstudiante.propTypes = {
     conFoto: PropTypes.bool,
     subidaEn: PropTypes.string,
     alCambiar: PropTypes.func.isRequired,
+    nombre: PropTypes.string,
+    alAmpliar: PropTypes.func,
 };
 
 // Ficha de un estudiante: sus datos, su origen y las materias que lleva en
@@ -209,12 +224,16 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
     const materias = ficha?.materias ?? [];
     const conflictos = ficha?.conflictos ?? [];
     const [editando, setEditando] = useState(false);
+    // Con la foto ampliada, Escape solo la cierra a ella, no a la ficha.
+    const fotoAmpliada = useRef(false);
     const [aviso, avisar] = useAviso();
 
     return (
         <Dialogo
             titulo={ficha?.nombre ?? estudiante.nombre}
-            onCerrar={onCerrar}
+            onCerrar={() => {
+                if (!fotoAmpliada.current) onCerrar();
+            }}
             ancho="max-w-4xl"
             acciones={
                 ficha && (
@@ -232,11 +251,15 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
                 className="!p-0"
             >
                 {ficha && (
-                    <div className="grid gap-5 md:grid-cols-[minmax(0,19rem)_minmax(0,1fr)]">
+                    <div className="grid gap-5 md:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
                         <div className="min-w-0 space-y-4 self-start rounded-xl bg-gradient-to-br from-primary-50 to-slate-50 p-4">
                             <div className="flex gap-4">
                                 <FotoDelEstudiante
                                     id={ficha.id}
+                                    nombre={ficha.nombre}
+                                    alAmpliar={(abierta) => {
+                                        fotoAmpliada.current = abierta;
+                                    }}
                                     conFoto={Boolean(ficha.con_foto)}
                                     subidaEn={ficha.foto_subida_en ?? undefined}
                                     alCambiar={() => {
@@ -244,37 +267,32 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
                                         onFotoCambiada?.();
                                     }}
                                 />
-                                <div className="min-w-0 flex-1 space-y-1">
-                                    <p className="text-xs font-medium text-slate-500">Código SIS</p>
-                                    <p className="font-mono text-xl font-semibold tracking-wide text-slate-900">
-                                        {ficha.codigo}
-                                    </p>
+                                <div className="min-w-0 flex-1 space-y-2.5">
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-medium text-slate-500">
+                                            Código SIS
+                                        </p>
+                                        <p className="font-mono text-xl font-semibold tracking-wide text-slate-900">
+                                            {ficha.codigo}
+                                        </p>
+                                    </div>
+                                    {ficha.facultad && <PuntoFacultad sigla={ficha.facultad} />}
+                                    <dl className="space-y-2.5 border-t border-slate-200/80 pt-3">
+                                        <Dato etiqueta="Carrera">{ficha.carrera ?? '—'}</Dato>
+                                        <Dato etiqueta="C.I.">
+                                            {ficha.documento ?? (
+                                                <Insignia tono="advertencia">Sin carnet</Insignia>
+                                            )}
+                                        </Dato>
+                                        <Dato etiqueta="Correo">
+                                            <span className="break-all">{ficha.correo ?? '—'}</span>
+                                        </Dato>
+                                        <Dato etiqueta="Registrado por">
+                                            {ficha.origen ?? 'Docente'}
+                                        </Dato>
+                                    </dl>
                                 </div>
                             </div>
-                            <span role="group" aria-label="Origen" className="inline-flex">
-                                <OrigenVerificado
-                                    origen={ficha.origen}
-                                    verificado={Boolean(ficha.verificado)}
-                                />
-                            </span>
-                            <dl className="grid gap-x-4 gap-y-3 border-t border-slate-200/80 pt-3">
-                                <Dato etiqueta="Carrera">{ficha.carrera ?? '—'}</Dato>
-                                <Dato etiqueta="Facultad">
-                                    {ficha.facultad ? (
-                                        <PuntoFacultad sigla={ficha.facultad} />
-                                    ) : (
-                                        '—'
-                                    )}
-                                </Dato>
-                                <Dato etiqueta="C.I.">
-                                    {ficha.documento ?? (
-                                        <Insignia tono="advertencia">Sin carnet</Insignia>
-                                    )}
-                                </Dato>
-                                <Dato etiqueta="Correo">
-                                    <span className="break-all">{ficha.correo ?? '—'}</span>
-                                </Dato>
-                            </dl>
                             <p className="text-xs text-slate-500">
                                 Registrado {soloDia(ficha.registrado_en) || 'sin fecha'} ·
                                 actualizado {soloDia(ficha.actualizado_en) || 'sin fecha'}
@@ -413,6 +431,7 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
                 <EditarEstudiante
                     estudiante={ficha}
                     ruta={`/estudiantes/${ficha.id}`}
+                    conCodigo
                     onEditado={(texto) => {
                         setEditando(false);
                         avisar(texto);

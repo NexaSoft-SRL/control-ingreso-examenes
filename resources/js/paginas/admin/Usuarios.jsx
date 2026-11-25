@@ -663,7 +663,7 @@ export default function Usuarios() {
                                 <th scope="col" className={`${TH} w-36`}>
                                     Rol
                                 </th>
-                                <th scope="col" className={`${TH} w-32`}>
+                                <th scope="col" className={`${TH} w-52`}>
                                     Estado
                                 </th>
                                 <th scope="col" className={`${TH} w-24`}>
