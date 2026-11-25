@@ -39,6 +39,9 @@ Route::prefix('api')->middleware(['auth', 'permiso:periodo_oferta'])->group(func
     Route::put('/periodos/{periodo}/calendario', [PeriodoController::class, 'calendario'])
         ->whereNumber('periodo')
         ->name('periodos.calendario');
+    Route::delete('/periodos/{periodo}/calendario', [PeriodoController::class, 'restaurarCalendario'])
+        ->whereNumber('periodo')
+        ->name('periodos.calendario.restaurar');
 
     Route::post('/oferta/importaciones', [ImportacionOfertaController::class, 'store'])
         ->name('oferta.importaciones.store');

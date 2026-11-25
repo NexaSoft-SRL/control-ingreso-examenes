@@ -28,6 +28,8 @@ final readonly class FilaMiExamen
         public int $excepciones = 0,
         /** Estudiantes de los grupos del examen (sin las bajas). */
         public int $inscritos = 0,
+        /** Ingresos anulados por el docente: no cuentan como presentes. */
+        public int $anulados = 0,
     ) {}
 
     /**

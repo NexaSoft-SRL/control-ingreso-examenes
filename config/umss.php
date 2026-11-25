@@ -35,6 +35,19 @@ return [
     // minuto como mucho. Con `false` quedan solo para el programador.
     'alertas_al_responder' => (bool) env('UMSS_ALERTAS_AL_RESPONDER', true),
 
+    // Respaldo de cada noche. El servidor de TIS no tiene tareas programadas
+    // (el planificador de Laravel nunca corre ahi), asi que con `habilitado`
+    // el respaldo se genera al terminar la primera peticion web despues de la
+    // hora de corte (zona de la aplicacion), una vez al dia, con un candado en
+    // la cache (revisa a lo mas cada 5 minutos; tras un intento, no repite
+    // antes de `reintento_minutos`). Con planificador no se duplica. Para
+    // activarlo en el servidor: UMSS_RESPALDO_AUTOMATICO=true en el .env.
+    'respaldo_automatico' => [
+        'habilitado' => (bool) env('UMSS_RESPALDO_AUTOMATICO', false),
+        'hora' => env('UMSS_RESPALDO_HORA', '03:00'),
+        'reintento_minutos' => (int) env('UMSS_RESPALDO_REINTENTO', 30),
+    ],
+
     // Un correo a una direccion que no existe sale bien y despues rebota al
     // buzon del remitente. Con `habilitado` el sistema lee esos avisos por
     // IMAP (cada 10 minutos con el programador, o al terminar una peticion

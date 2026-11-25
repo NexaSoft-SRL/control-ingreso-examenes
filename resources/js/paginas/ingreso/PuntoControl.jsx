@@ -358,6 +358,14 @@ function Puesto({ resumen, aulas, hoy, elegirAula }) {
         }
     };
 
+    const anular = async (ingreso, motivo) => {
+        try {
+            await api.post(`/puerta/ingresos/${ingreso.id}/anulacion`, { motivo });
+        } finally {
+            vivo.recargar();
+        }
+    };
+
     // La incidencia va al examen del aula en el que la persona actúa: con
     // código de aula, el suyo; con cuenta, el primero que no la rechace.
     const reportar = async (datos) => {
@@ -629,6 +637,7 @@ function Puesto({ resumen, aulas, hoy, elegirAula }) {
                     operador={operador}
                     hora={hora}
                     expulsar={acceso ? null : expulsar}
+                    anular={acceso || !esDocente ? null : anular}
                 />
             )}
 

@@ -84,6 +84,7 @@ final class EloquentBitacoraExamenGateway implements BitacoraExamenGateway
         $sucesos = [
             ...$this->momentos($examenId),
             ...$this->ingresos($examenId),
+            ...$this->anulaciones($examenId),
             ...$this->incidencias($examenId),
             ...$this->accesos($examenId),
             ...$this->operaciones($examenId),
@@ -162,7 +163,7 @@ final class EloquentBitacoraExamenGateway implements BitacoraExamenGateway
 
         /** @var array<int, array{cuantos: int, primero: string|null, ultimo: string|null}> $ingresos */
         $ingresos = [];
-        foreach (DB::table('ingresos')
+        foreach (DB::table('ingresos_vigentes')
             ->where('examen_id', $examenId)
             ->groupBy('aula_id')
             ->select('aula_id')
@@ -320,6 +321,50 @@ final class EloquentBitacoraExamenGateway implements BitacoraExamenGateway
                 por: $this->texto($c['acceso']) !== null
                     ? $this->texto($c['acceso']).' (código de aula)'
                     : $this->texto($c['autor']),
+            );
+        }
+
+        return $sucesos;
+    }
+
+    /**
+     * Las anulaciones de ingreso: el ingreso original sigue en la lista como
+     * «Ingresó» y la anulación se suma como un suceso aparte, con su motivo.
+     *
+     * @return list<SucesoExamen>
+     */
+    private function anulaciones(int $examenId): array
+    {
+        $sucesos = [];
+
+        foreach (DB::table('anulaciones_ingreso as anulacion')
+            ->join('ingresos as ingreso', 'ingreso.id', '=', 'anulacion.ingreso_id')
+            ->join('estudiantes as estudiante', 'estudiante.id', '=', 'ingreso.estudiante_id')
+            ->join('aulas as aula', 'aula.id', '=', 'ingreso.aula_id')
+            ->leftJoin('users as autor', 'autor.id', '=', 'anulacion.anulado_por')
+            ->leftJoin('docentes as autor_docente', 'autor_docente.user_id', '=', 'autor.id')
+            ->where('ingreso.examen_id', $examenId)
+            ->select([
+                'anulacion.motivo',
+                'aula.nombre as aula',
+                'estudiante.codigo_universitario as codigo',
+            ])
+            ->selectRaw("to_char(anulacion.anulado_en, 'YYYY-MM-DD HH24:MI:SS') as instante")
+            ->selectRaw("trim(estudiante.apellidos || ' ' || estudiante.nombres) as estudiante")
+            ->selectRaw(sprintf(self::PERSONA, 'autor').' as autor')
+            ->get() as $fila) {
+            /** @var array<string, mixed> $c */
+            $c = get_object_vars($fila);
+
+            $sucesos[] = new SucesoExamen(
+                instante: $this->texto($c['instante']) ?? '',
+                categoria: 'ingreso',
+                titulo: 'Ingreso anulado',
+                detalle: $this->texto($c['motivo']) ?? '',
+                aula: $this->texto($c['aula']),
+                estudiante: $this->texto($c['estudiante']),
+                codigo: $this->texto($c['codigo']),
+                por: $this->texto($c['autor']),
             );
         }
 
@@ -636,7 +681,7 @@ final class EloquentBitacoraExamenGateway implements BitacoraExamenGateway
             ->where('habilitacion.habilitado', true)
             ->whereNotExists(function (Builder $ingreso): void {
                 $ingreso->selectRaw('1')
-                    ->from('ingresos')
+                    ->from('ingresos_vigentes as ingresos')
                     ->whereColumn('ingresos.examen_id', 'habilitacion.examen_id')
                     ->whereColumn('ingresos.estudiante_id', 'habilitacion.estudiante_id');
             })
@@ -647,7 +692,7 @@ final class EloquentBitacoraExamenGateway implements BitacoraExamenGateway
             ->get();
 
         $habilitados = DB::table('habilitaciones')->where('examen_id', $examenId)->where('habilitado', true)->count();
-        $ingresaron = DB::table('ingresos')->where('examen_id', $examenId)->distinct()->count('estudiante_id');
+        $ingresaron = DB::table('ingresos_vigentes')->where('examen_id', $examenId)->distinct()->count('estudiante_id');
         $incidencias = DB::table('incidencias')->where('examen_id', $examenId)->where('tipo', '<>', 'INTENTO_NO_AUTORIZADO')->count();
         $rechazos = DB::table('incidencias')->where('examen_id', $examenId)->where('tipo', 'INTENTO_NO_AUTORIZADO')->count();
         $plural = static fn (int $n, string $uno, string $varios): string => $n.' '.($n === 1 ? $uno : $varios);

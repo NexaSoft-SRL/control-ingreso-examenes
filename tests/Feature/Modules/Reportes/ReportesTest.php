@@ -327,6 +327,7 @@ final class ReportesTest extends TestCase
                     'asistencia' => 75,
                     'incidencias' => 2,
                     'excepciones' => 0,
+                    'anulados' => 0,
                 ]],
                 'meta' => [
                     'total' => 1,

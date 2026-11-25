@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Administracion\Infrastructure\Providers;
 
+use App\Modules\Administracion\Application\Actions\GenerarRespaldoAutomatico;
 use App\Modules\Administracion\Application\Actions\ProcesarRebotesDeCorreo;
 use App\Modules\Administracion\Application\Actions\ProponerUsuario;
 use App\Modules\Administracion\Application\Contracts\AlmacenImagenes;
@@ -38,6 +39,7 @@ use App\Modules\Administracion\Infrastructure\Persistence\EloquentRolesGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentRolGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\GeneradorContrasenaTemporalAleatorio;
 use App\Modules\Administracion\Infrastructure\Persistence\TransaccionBaseDeDatos;
+use DateTimeImmutable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\ServiceProvider;
 use Throwable;
@@ -134,6 +136,14 @@ final class AdministracionServiceProvider extends ServiceProvider
             lector: new LectorDeRebote,
         ));
 
+        $this->app->when(GenerarRespaldoAutomatico::class)
+            ->needs('$hora')
+            ->give(fn (): string => $this->texto('umss.respaldo_automatico.hora', GenerarRespaldoAutomatico::HORA_POR_DEFECTO));
+
+        $this->app->when(GenerarRespaldoAutomatico::class)
+            ->needs('$zona')
+            ->give(fn (): string => $this->texto('umss.zona_horaria', 'America/La_Paz'));
+
         $this->app->when(ProcesarRebotesDeCorreo::class)
             ->needs('$habilitado')
             ->give(fn (): bool => config('umss.rebotes.habilitado') === true);
@@ -162,6 +172,50 @@ final class AdministracionServiceProvider extends ServiceProvider
 
             try {
                 $this->app->make(ProcesarRebotesDeCorreo::class)->execute();
+            } catch (Throwable $error) {
+                report($error);
+            }
+        });
+
+        $this->respaldarAlResponder();
+    }
+
+    /**
+     * Sin tareas programadas en el servidor, el respaldo de cada noche se
+     * genera al terminar una peticion web pasada la hora de corte. Se mira a
+     * lo mas cada 5 minutos, y tras un intento, con exito o sin el, no se
+     * repite antes de `reintento_minutos`: un fallo no se reintenta en bucle.
+     * Va despues de la respuesta y un fallo solo queda en el registro.
+     */
+    private function respaldarAlResponder(): void
+    {
+        $this->app->terminating(function (): void {
+            if (config('umss.respaldo_automatico.habilitado') !== true) {
+                return;
+            }
+
+            if ($this->app->runningInConsole() && ! $this->app->runningUnitTests()) {
+                return;
+            }
+
+            try {
+                if (! Cache::add('respaldo:automatico:revisado', true, 300)) {
+                    return;
+                }
+
+                $respaldo = $this->app->make(GenerarRespaldoAutomatico::class);
+
+                if (! $respaldo->corresponde(DateTimeImmutable::createFromInterface(now()))) {
+                    return;
+                }
+
+                $reintento = max(1, $this->entero('umss.respaldo_automatico.reintento_minutos', 30));
+
+                if (! Cache::add('respaldo:automatico:intento', true, $reintento * 60)) {
+                    return;
+                }
+
+                $respaldo->execute();
             } catch (Throwable $error) {
                 report($error);
             }

@@ -134,7 +134,7 @@ final class EloquentReporteGateway implements ReporteGateway
                 '(select count(*) from examen_aula as ea where ea.examen_id = examen.id) as aulas'
             )
             ->selectRaw(
-                '(select count(*) from ingresos as ingreso where ingreso.examen_id = examen.id) as ingresados'
+                '(select count(*) from ingresos_vigentes as ingreso where ingreso.examen_id = examen.id) as ingresados'
             )
             ->selectRaw(
                 '(select count(*) from habilitaciones as habilitacion'
@@ -204,7 +204,7 @@ final class EloquentReporteGateway implements ReporteGateway
 
     public function contarIngresos(AlcanceReporte $alcance): int
     {
-        return DB::table('ingresos')
+        return DB::table('ingresos_vigentes as ingresos')
             ->whereIn('examen_id', $this->idsDe($alcance))
             ->count();
     }
@@ -216,7 +216,7 @@ final class EloquentReporteGateway implements ReporteGateway
 
     public function horarios(AlcanceReporte $alcance): ReporteHorarios
     {
-        $horas = DB::table('ingresos')
+        $horas = DB::table('ingresos_vigentes as ingresos')
             ->whereIn('examen_id', $this->idsDe($alcance))
             ->orderBy('registrado_en')
             ->orderBy('id')
@@ -286,7 +286,7 @@ final class EloquentReporteGateway implements ReporteGateway
             DB::table('habilitaciones')->where('habilitado', true),
             $alcance,
         );
-        $registrados = $this->porExamenYAula(DB::table('ingresos'), $alcance);
+        $registrados = $this->porExamenYAula(DB::table('ingresos_vigentes as ingresos'), $alcance);
         $asignadas = $this->porExamenYAula(DB::table('examen_aula'), $alcance);
 
         $aulaIds = [];
@@ -453,7 +453,7 @@ final class EloquentReporteGateway implements ReporteGateway
 
         $ingresos = [];
 
-        $porIngreso = DB::table('ingresos')
+        $porIngreso = DB::table('ingresos_vigentes as ingresos')
             ->whereIn('examen_id', $this->idsDe($alcance))
             ->groupBy('estudiante_id')
             ->selectRaw('estudiante_id, count(*) as cantidad')
@@ -601,7 +601,7 @@ final class EloquentReporteGateway implements ReporteGateway
      */
     public function asistencia(int $examenId): array
     {
-        $filas = DB::table('ingresos as ingreso')
+        $filas = DB::table('ingresos_vigentes as ingreso')
             ->join('estudiantes as estudiante', 'estudiante.id', '=', 'ingreso.estudiante_id')
             ->leftJoin('aulas as aula', 'aula.id', '=', 'ingreso.aula_id')
             ->where('ingreso.examen_id', $examenId)
@@ -659,7 +659,7 @@ final class EloquentReporteGateway implements ReporteGateway
             ->where('habilitacion.habilitado', true)
             ->whereNotExists(function (Builder $existe): void {
                 $existe->selectRaw('1')
-                    ->from('ingresos as ingreso')
+                    ->from('ingresos_vigentes as ingreso')
                     ->whereColumn('ingreso.estudiante_id', 'habilitacion.estudiante_id')
                     ->whereColumn('ingreso.examen_id', 'habilitacion.examen_id');
             })
@@ -834,7 +834,7 @@ final class EloquentReporteGateway implements ReporteGateway
                 'asignatura.nombre as asignatura',
             ])
             ->selectRaw(
-                '(select count(*) from ingresos as ingreso where ingreso.examen_id = examen.id) as presentes'
+                '(select count(*) from ingresos_vigentes as ingreso where ingreso.examen_id = examen.id) as presentes'
             )
             ->selectRaw(
                 '(select count(*) from habilitaciones as h where h.examen_id = examen.id and h.habilitado) as habilitados'
@@ -845,7 +845,7 @@ final class EloquentReporteGateway implements ReporteGateway
             )
             ->selectRaw(
                 '(select count(*) from habilitaciones as h where h.examen_id = examen.id and h.habilitado'
-                .' and not exists (select 1 from ingresos as i where i.examen_id = h.examen_id'
+                .' and not exists (select 1 from ingresos_vigentes as i where i.examen_id = h.examen_id'
                 .' and i.estudiante_id = h.estudiante_id)) as ausentes'
             )
             ->selectRaw(
@@ -853,13 +853,18 @@ final class EloquentReporteGateway implements ReporteGateway
                 [$this->apertura()],
             )
             ->selectRaw(
-                '(select count(*) from ingresos as ingreso where ingreso.examen_id = examen.id'
+                '(select count(*) from ingresos_vigentes as ingreso where ingreso.examen_id = examen.id'
                 .' and ingreso.es_excepcion) as excepciones'
             )
             ->selectRaw(
                 '(select count(distinct inscripcion.estudiante_id) from examen_grupo as incluido'
                 .' join inscripciones as inscripcion on inscripcion.grupo_id = incluido.grupo_id'
                 .' where incluido.examen_id = examen.id and inscripcion.baja_en is null) as inscritos'
+            )
+            ->selectRaw(
+                '(select count(*) from anulaciones_ingreso as anulacion'
+                .' join ingresos as ingreso on ingreso.id = anulacion.ingreso_id'
+                .' where ingreso.examen_id = examen.id) as anulados'
             )
             ->get();
 
@@ -885,6 +890,7 @@ final class EloquentReporteGateway implements ReporteGateway
                 rendido: $fecha < $hoy || ($fecha === $hoy && $this->hora($columnas['hora_inicio'] ?? null) <= now()->format('H:i')),
                 excepciones: $this->entero($columnas['excepciones'] ?? 0),
                 inscritos: $this->entero($columnas['inscritos'] ?? 0),
+                anulados: $this->entero($columnas['anulados'] ?? 0),
             );
         }
 
@@ -925,14 +931,14 @@ final class EloquentReporteGateway implements ReporteGateway
                 'asignatura.nombre as asignatura',
             ])
             ->selectRaw(
-                '(select count(*) from ingresos as ingreso where ingreso.examen_id = examen.id) as presentes'
+                '(select count(*) from ingresos_vigentes as ingreso where ingreso.examen_id = examen.id) as presentes'
             )
             ->selectRaw(
                 '(select count(*) from habilitaciones as h where h.examen_id = examen.id and h.habilitado) as habilitados'
             )
             ->selectRaw(
                 '(select count(*) from habilitaciones as h where h.examen_id = examen.id and h.habilitado'
-                .' and not exists (select 1 from ingresos as i where i.examen_id = h.examen_id'
+                .' and not exists (select 1 from ingresos_vigentes as i where i.examen_id = h.examen_id'
                 .' and i.estudiante_id = h.estudiante_id)) as ausentes'
             )
             ->selectRaw(
@@ -1151,7 +1157,7 @@ final class EloquentReporteGateway implements ReporteGateway
                     ->select(['estudiante_id', 'examen_id'])
             )
             ->union(
-                DB::table('ingresos')
+                DB::table('ingresos_vigentes as ingresos')
                     ->whereIn('examen_id', $this->idsDe($alcance))
                     ->select(['estudiante_id', 'examen_id'])
             );

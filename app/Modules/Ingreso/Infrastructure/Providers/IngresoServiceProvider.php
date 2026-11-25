@@ -7,6 +7,7 @@ namespace App\Modules\Ingreso\Infrastructure\Providers;
 use App\Modules\Estudiantes\Application\Contracts\CodigosQrDelEstudiante;
 use App\Modules\Ingreso\Application\Contracts\AccesoAulaGateway;
 use App\Modules\Ingreso\Application\Contracts\AlmacenVideos;
+use App\Modules\Ingreso\Application\Contracts\AnulacionIngresoGateway;
 use App\Modules\Ingreso\Application\Contracts\CodigoQrGateway;
 use App\Modules\Ingreso\Application\Contracts\CondicionHabilitacionGateway;
 use App\Modules\Ingreso\Application\Contracts\ControlPuertaGateway;
@@ -20,6 +21,7 @@ use App\Modules\Ingreso\Application\Contracts\SinConexionGateway;
 use App\Modules\Ingreso\Application\Contracts\Transaccion;
 use App\Modules\Ingreso\Infrastructure\Files\AlmacenVideosEnDisco;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentAccesoAulaGateway;
+use App\Modules\Ingreso\Infrastructure\Persistence\EloquentAnulacionIngresoGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentCodigoQrGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentCondicionHabilitacionGateway;
 use App\Modules\Ingreso\Infrastructure\Persistence\EloquentControlPuertaGateway;
@@ -53,6 +55,7 @@ final class IngresoServiceProvider extends ServiceProvider
         $this->app->bind(IncidenciasComunesGateway::class, EloquentIncidenciasComunesGateway::class);
         $this->app->bind(AlmacenVideos::class, AlmacenVideosEnDisco::class);
         $this->app->bind(IngresoGateway::class, EloquentIngresoGateway::class);
+        $this->app->bind(AnulacionIngresoGateway::class, EloquentAnulacionIngresoGateway::class);
         $this->app->bind(PuertaGateway::class, EloquentPuertaGateway::class);
         $this->app->bind(Transaccion::class, TransaccionDeBaseDeDatos::class);
     }

@@ -23,6 +23,13 @@ interface RespaldoGateway
      *
      * @param  string|null  $filtro  `programados`, `puntuales`, `fallidos` o null (todos).
      */
+    /**
+     * Cuando se genero el ultimo respaldo programado que salio bien, en ISO
+     * 8601 con zona, o nulo si no hay ninguno. Los fallidos no cuentan: el
+     * respaldo automatico se reintenta.
+     */
+    public function ultimoProgramadoCorrectoEn(): ?string;
+
     public function listar(?string $filtro, int $pagina, int $porPagina): PaginaRespaldosData;
 
     public function buscar(int $respaldoId): ?RespaldoData;

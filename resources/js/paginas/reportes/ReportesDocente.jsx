@@ -452,6 +452,7 @@ function DesgloseDeInscritos({ examen }) {
         `Habilitados ${examen.habilitados}`,
         `No habilitados ${examen.no_habilitados}`,
         ...(pendientes > 0 ? [`Pendientes ${pendientes}`] : []),
+        ...(examen.anulados > 0 ? [`Ingresos anulados ${examen.anulados}`] : []),
     ];
     return (
         <p className="text-sm text-slate-600" aria-label="Desglose de inscritos">
@@ -463,6 +464,7 @@ function DesgloseDeInscritos({ examen }) {
 DesgloseDeInscritos.propTypes = {
     examen: PropTypes.shape({
         inscritos: PropTypes.number,
+        anulados: PropTypes.number,
         habilitados: PropTypes.number.isRequired,
         no_habilitados: PropTypes.number.isRequired,
     }).isRequired,

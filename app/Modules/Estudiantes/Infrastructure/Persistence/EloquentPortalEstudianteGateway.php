@@ -210,7 +210,7 @@ final class EloquentPortalEstudianteGateway implements PortalEstudianteGateway
                     ->where('habilitacion.estudiante_id', '=', $estudianteId);
             })
             ->leftJoin('aulas as aula', 'aula.id', '=', 'habilitacion.aula_id')
-            ->leftJoin('ingresos as ingreso', function (JoinClause $union) use ($estudianteId): void {
+            ->leftJoin('ingresos_vigentes as ingreso', function (JoinClause $union) use ($estudianteId): void {
                 $union->on('ingreso.examen_id', '=', 'examen.id')
                     ->where('ingreso.estudiante_id', '=', $estudianteId);
             })

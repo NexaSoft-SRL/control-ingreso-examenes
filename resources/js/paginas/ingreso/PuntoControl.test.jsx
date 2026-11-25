@@ -238,6 +238,13 @@ beforeEach(() => {
             ingresos = ingresos.map((i) => (i.id === id ? { ...i, expulsado: true } : i));
             return { message: 'Expulsión registrada.', incidencia_id: 41 };
         },
+        'POST /puerta/ingresos/*/anulacion': ({ url, data }) => {
+            const id = Number(url.split('/')[3]);
+            ingresos = ingresos.map((i) =>
+                i.id === id ? { ...i, anulado: true, motivo_anulacion: data.motivo } : i
+            );
+            return { message: 'Ingreso anulado.' };
+        },
         'POST /examenes/*/incidencias': { data: { id: 50 }, message: 'Incidencia registrada.' },
     };
     simularApi(api, rutas);
@@ -612,6 +619,72 @@ describe('Punto de control', () => {
         expect(screen.queryByRole('dialog')).toBeNull();
     });
 
+    it('anula un ingreso hecho por error: motivo obligatorio y la fila queda tachada', async () => {
+        montar();
+        await cargada();
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Anular el ingreso de Apellido01, Nombre' })
+        );
+        const dialogo = screen.getByRole('dialog', { name: 'Anular ingreso' });
+        expect(dialogo).toHaveTextContent('Podrá volver a pasar por la puerta');
+        const anular = within(dialogo).getByRole('button', { name: 'Anular ingreso' });
+        expect(anular).toBeDisabled();
+
+        fireEvent.change(within(dialogo).getByLabelText(/Motivo/), { target: { value: 'ab' } });
+        fireEvent.click(anular);
+        expect(within(dialogo).getByText('Mínimo 3 caracteres')).toBeInTheDocument();
+
+        fireEvent.change(within(dialogo).getByLabelText(/Motivo/), {
+            target: { value: 'Era otro estudiante' },
+        });
+        fireEvent.click(anular);
+
+        expect(await screen.findByText('Ingreso anulado')).toBeInTheDocument();
+        expect(api.post).toHaveBeenCalledWith('/puerta/ingresos/7001/anulacion', {
+            motivo: 'Era otro estudiante',
+        });
+        // La fila se queda, tachada y con su motivo, sin acciones.
+        await waitFor(() =>
+            expect(within(lista()).getByText('Anulado · Era otro estudiante')).toBeInTheDocument()
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Anular el ingreso de Apellido01, Nombre' })
+        ).toBeNull();
+        expect(
+            screen.queryByRole('button', { name: 'Registrar expulsión de Apellido01, Nombre' })
+        ).toBeNull();
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('avisa si el ingreso ya estaba anulado', async () => {
+        rutas['POST /puerta/ingresos/*/anulacion'] = errorHttp(409, {
+            message: 'Este ingreso ya está anulado.',
+            codigo: 'YA_ANULADO',
+        });
+        simularApi(api, rutas);
+        montar();
+        await cargada();
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Anular el ingreso de Apellido01, Nombre' })
+        );
+        fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: 'Por error' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Anular ingreso' }));
+
+        expect(await screen.findByText('Ya estaba anulado')).toBeInTheDocument();
+    });
+
+    it('el auxiliar no ve la acción de anular un ingreso', async () => {
+        montar({ ruta: '/ingreso', rol: 'Auxiliar' });
+        await cargada();
+
+        expect(screen.queryByRole('button', { name: /Anular el ingreso/ })).toBeNull();
+        expect(
+            screen.getByRole('button', { name: 'Registrar expulsión de Apellido01, Nombre' })
+        ).toBeInTheDocument();
+    });
+
     it('avisa si el ingreso ya estaba expulsado', async () => {
         rutas['POST /puerta/ingresos/*/expulsion'] = errorHttp(409, {
             message: 'El estudiante ya fue expulsado.',
@@ -832,6 +905,7 @@ describe('Punto de control', () => {
         // Con código de aula no se registran excepciones ni expulsiones.
         expect(screen.queryByRole('button', { name: 'Admitir como excepción' })).toBeNull();
         expect(screen.queryByRole('button', { name: /Registrar expulsión/ })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Anular el ingreso/ })).toBeNull();
         // Los edificios del sistema exigen cuenta: el mapa usa los de la puerta.
         expect(
             await screen.findByRole('img', { name: 'Mapa de edificios del campus' })

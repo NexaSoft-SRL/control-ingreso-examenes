@@ -108,7 +108,7 @@ final class EloquentPuertaGateway implements PuertaGateway
                     ->where('asignada.aula_id', $aulaId);
             })
             ->selectRaw(
-                '(select count(*) from ingresos where ingresos.examen_id = examen.id and ingresos.aula_id = ?) as ingresados',
+                '(select count(*) from ingresos_vigentes as ingresos where ingresos.examen_id = examen.id and ingresos.aula_id = ?) as ingresados',
                 [$aulaId],
             )
             ->selectRaw(
@@ -121,7 +121,7 @@ final class EloquentPuertaGateway implements PuertaGateway
             ->selectRaw(
                 '(select count(*) from habilitaciones as h where h.examen_id = examen.id
                     and h.aula_id = ? and h.habilitado
-                    and not exists (select 1 from ingresos as i where i.examen_id = h.examen_id
+                    and not exists (select 1 from ingresos_vigentes as i where i.examen_id = h.examen_id
                         and i.estudiante_id = h.estudiante_id)) as faltan',
                 [$aulaId],
             )
@@ -204,15 +204,20 @@ final class EloquentPuertaGateway implements PuertaGateway
      */
     public function ingresosDelAula(int $aulaId, array $examenIds, ?int $limite, ?string $buscar): array
     {
-        $base = DB::table('ingresos as ingreso')
+        // El total cuenta quienes están ingresados; la lista muestra también
+        // los ingresos anulados, tachados, para que se vea qué se corrigió.
+        $total = DB::table('ingresos_vigentes as ingreso')
             ->where('ingreso.aula_id', $aulaId)
-            ->whereIn('ingreso.examen_id', $examenIds);
+            ->whereIn('ingreso.examen_id', $examenIds)
+            ->count();
 
-        $total = (clone $base)->count();
-
-        $consulta = $base
+        $consulta = DB::table('ingresos as ingreso')
+            ->leftJoin('anulaciones_ingreso as anulacion', 'anulacion.ingreso_id', '=', 'ingreso.id')
+            ->where('ingreso.aula_id', $aulaId)
+            ->whereIn('ingreso.examen_id', $examenIds)
             ->join('estudiantes as estudiante', 'estudiante.id', '=', 'ingreso.estudiante_id')
             ->select([
+                'anulacion.motivo as anulacion_motivo',
                 'ingreso.id',
                 'ingreso.estudiante_id',
                 'ingreso.examen_id',
@@ -260,6 +265,8 @@ final class EloquentPuertaGateway implements PuertaGateway
                 'examen_id' => $this->entero($columnas['examen_id'] ?? null),
                 'excepcion' => $this->booleano($columnas['es_excepcion'] ?? null),
                 'expulsado' => $this->booleano($columnas['expulsado'] ?? null),
+                'anulado' => $this->texto($columnas['anulacion_motivo'] ?? null) !== null,
+                'motivo_anulacion' => $this->texto($columnas['anulacion_motivo'] ?? null),
             ];
         }
 

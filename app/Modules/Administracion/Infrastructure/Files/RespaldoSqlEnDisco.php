@@ -115,6 +115,16 @@ final class RespaldoSqlEnDisco implements RespaldoGateway
             ?? throw new LogicException('El respaldo recien generado no esta en el historial.');
     }
 
+    public function ultimoProgramadoCorrectoEn(): ?string
+    {
+        $ultimo = DB::table('respaldos')
+            ->where('tipo', RespaldoData::TIPO_PROGRAMADO)
+            ->where('estado', RespaldoData::ESTADO_CORRECTO)
+            ->max('created_at');
+
+        return is_string($ultimo) ? InstanteLocal::de($ultimo)->iso() : null;
+    }
+
     public function listar(?string $filtro, int $pagina, int $porPagina): PaginaRespaldosData
     {
         $consulta = DB::table('respaldos');
