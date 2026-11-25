@@ -529,7 +529,7 @@ describe('RegistrarExamen · normas del examen anterior', () => {
         expect(await campo(/^Fecha/)).toHaveValue('2026-11-23');
         expect(screen.getByLabelText(/^Hora de inicio/)).toHaveValue('14:15');
         expect(screen.getByLabelText(/^Duración/)).toHaveValue('120');
-        expect(screen.getByRole('button', { name: /^Asignatura/ })).toHaveTextContent(
+        expect(screen.getByRole('button', { name: /^Asignatura 1/ })).toHaveTextContent(
             'Taller de Ingeniería de Software'
         );
         expect(screen.getByLabelText(/^Tipo/)).toHaveValue('SEGUNDO_PARCIAL');
@@ -562,9 +562,9 @@ describe('RegistrarExamen · paso 1, examen', () => {
     it('ofrece solo las asignaturas que dicta y los cinco tipos', async () => {
         montar();
 
-        fireEvent.click(await screen.findByRole('button', { name: /^Asignatura/ }));
+        fireEvent.click(await screen.findByRole('button', { name: /^Asignatura 1/ }));
         const opciones = within(
-            listaDe(screen.getByRole('listbox', { name: /Asignatura/ }))
+            listaDe(screen.getByRole('listbox', { name: /Asignatura 1/ }))
         ).getAllByRole('option');
         expect(opciones.map((o) => o.textContent)).toEqual([
             expect.stringMatching(
@@ -573,7 +573,7 @@ describe('RegistrarExamen · paso 1, examen', () => {
             expect.stringMatching(/^Taller de Ingeniería de Software.*2010024/),
         ]);
         expect(opciones[0]).toHaveAttribute('aria-selected', 'true');
-        fireEvent.keyDown(screen.getByRole('button', { name: /^Asignatura/ }), { key: 'Escape' });
+        fireEvent.keyDown(screen.getByRole('button', { name: /^Asignatura 1/ }), { key: 'Escape' });
         expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
         // El desplegable de abajo solo ofrece la que aún no se eligió.
         fireEvent.click(screen.getByRole('button', { name: /Agregar otra asignatura/ }));
@@ -851,7 +851,7 @@ describe('RegistrarExamen · paso 2, grupos', () => {
 
     it('al cambiar de asignatura vuelven a valer sus grupos propios', async () => {
         montar();
-        fireEvent.click(await screen.findByRole('button', { name: /^Asignatura/ }));
+        fireEvent.click(await screen.findByRole('button', { name: /^Asignatura 1/ }));
         fireEvent.click(screen.getByRole('option', { name: /Taller de Ingeniería de Software/ }));
         await llenarExamen();
 
@@ -1817,7 +1817,7 @@ describe('RegistrarExamen · guardar', () => {
         );
 
         // La elegida pasa a su propio desplegable y, como ya no queda ninguna, no hay otro.
-        expect(screen.getByRole('button', { name: /^Otra asignatura/ })).toHaveTextContent(
+        expect(screen.getByRole('button', { name: /^Asignatura 2/ })).toHaveTextContent(
             'Taller de Ingeniería de Software'
         );
         expect(screen.queryByRole('button', { name: /Agregar otra asignatura/ })).toBeNull();
@@ -1828,6 +1828,28 @@ describe('RegistrarExamen · guardar', () => {
         expect(
             await screen.findByRole('button', { name: /Agregar otra asignatura/ })
         ).toBeVisible();
+    });
+
+    it('todas las asignaturas se tratan igual: también se puede quitar la primera', async () => {
+        montar();
+
+        fireEvent.click(await screen.findByRole('button', { name: /Agregar otra asignatura/ }));
+        fireEvent.click(
+            within(screen.getByRole('listbox')).getByRole('option', {
+                name: /Taller de Ingeniería de Software/,
+            })
+        );
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Quitar Introducción a la Programación' })
+        );
+
+        expect(await screen.findByRole('button', { name: /^Asignatura 1/ })).toHaveTextContent(
+            'Taller de Ingeniería de Software'
+        );
+        // Con una sola ya no hay con qué quitar.
+        expect(screen.queryByRole('button', { name: /^Quitar/ })).toBeNull();
+        await llenarExamen();
+        expect(await casilla(/^Grupo 5 · Blanco/)).toBeChecked();
     });
 
     it('sin normas también se registra', async () => {

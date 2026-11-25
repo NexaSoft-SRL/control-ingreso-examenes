@@ -664,6 +664,32 @@ function Asistente({
     );
     // Se puede sumar otra asignatura del mismo día solo al registrar un examen nuevo.
     const puedeSumar = !inicial && !examen && asignaturas.length > 1;
+    // Todas las asignaturas del examen se tratan igual: una fila por cada una.
+    // (Por dentro la primera es la que lleva los datos del examen.)
+    const filasDeAsignatura = [
+        asignaturas.find((a) => a.id === asignaturaId),
+        ...extras.map((e) => e.asignatura),
+    ].filter(Boolean);
+    const cambiarFila = (actualId, nuevaId) => {
+        if (actualId === asignaturaId) {
+            cambiarAsignatura(nuevaId);
+            return;
+        }
+        const nueva = asignaturas.find((a) => a.id === nuevaId);
+        if (nueva)
+            setExtras((previos) =>
+                previos.map((x) =>
+                    x.id === actualId ? { id: nueva.id, asignatura: nueva, elegidos: null } : x
+                )
+            );
+    };
+    const quitarFila = (id) => {
+        if (id === asignaturaId) {
+            if (extras.length > 0) cambiarAsignatura(extras[0].id);
+        } else {
+            setExtras((previos) => previos.filter((e) => e.id !== id));
+        }
+    };
     const periodoDe = (id) =>
         periodos.find((p) => p.codigo === asignaturas.find((a) => a.id === id)?.periodo) ?? null;
     // Un tipo cuya ventana ya terminó no se ofrece para un examen nuevo.
@@ -1139,63 +1165,52 @@ function Asistente({
                         </p>
                     )}
                     <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="min-w-0 space-y-3 sm:col-span-2">
-                            <SelectorAsignatura
-                                etiqueta="Asignatura"
-                                requerido
-                                disabled={bloqueado}
-                                asignaturas={asignaturas.filter(
-                                    (a) =>
-                                        a.id === asignaturaId || !extras.some((e) => e.id === a.id)
-                                )}
-                                valor={asignaturaId}
-                                onCambiar={cambiarAsignatura}
-                            />
-                            {puedeSumar && (
-                                <>
-                                    {extras.map((e) => (
-                                        <div key={e.id} className="flex items-end gap-2">
-                                            <div className="min-w-0 flex-1">
-                                                <SelectorAsignatura
-                                                    etiqueta="Otra asignatura"
-                                                    asignaturas={[e.asignatura, ...restantes]}
-                                                    valor={e.id}
-                                                    onCambiar={(id) => {
-                                                        const nueva = restantes.find(
-                                                            (x) => x.id === id
-                                                        );
-                                                        if (nueva)
-                                                            setExtras((previos) =>
-                                                                previos.map((x) =>
-                                                                    x.id === e.id
-                                                                        ? {
-                                                                              id: nueva.id,
-                                                                              asignatura: nueva,
-                                                                              elegidos: null,
-                                                                          }
-                                                                        : x
-                                                                )
-                                                            );
-                                                    }}
-                                                />
-                                            </div>
+                        <div className="min-w-0 sm:col-span-2">
+                            <span
+                                id="asignaturas-etiqueta"
+                                className="mb-1.5 block text-sm font-medium text-slate-700"
+                            >
+                                {puedeSumar ? 'Asignaturas' : 'Asignatura'}
+                                <span className="ml-0.5 text-danger-600" aria-hidden="true">
+                                    *
+                                </span>
+                            </span>
+                            <ul aria-labelledby="asignaturas-etiqueta" className="space-y-3">
+                                {filasDeAsignatura.map((fila, indice) => (
+                                    <li key={fila.id} className="flex items-center gap-2">
+                                        <div className="min-w-0 flex-1">
+                                            <SelectorAsignatura
+                                                etiqueta={`Asignatura ${indice + 1}`}
+                                                ocultarEtiqueta
+                                                disabled={bloqueado}
+                                                asignaturas={asignaturas.filter(
+                                                    (a) =>
+                                                        a.id === fila.id ||
+                                                        !filasDeAsignatura.some(
+                                                            (f) => f.id === a.id
+                                                        )
+                                                )}
+                                                valor={fila.id}
+                                                onCambiar={(id) => cambiarFila(fila.id, id)}
+                                            />
+                                        </div>
+                                        {puedeSumar && filasDeAsignatura.length > 1 && (
                                             <button
                                                 type="button"
-                                                aria-label={`Quitar ${e.asignatura.nombre}`}
-                                                onClick={() =>
-                                                    setExtras((previos) =>
-                                                        previos.filter((x) => x.id !== e.id)
-                                                    )
-                                                }
+                                                aria-label={`Quitar ${fila.nombre}`}
+                                                onClick={() => quitarFila(fila.id)}
                                                 className={`flex h-14 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-500 hover:bg-slate-100 ${FOCO}`}
                                             >
                                                 <X className="h-4 w-4" aria-hidden="true" />
                                             </button>
-                                        </div>
-                                    ))}
-                                    {restantes.length > 0 && (
+                                        )}
+                                    </li>
+                                ))}
+                                {puedeSumar && restantes.length > 0 && (
+                                    <li>
                                         <SelectorAsignatura
-                                            etiqueta="Otra asignatura"
+                                            etiqueta="Nueva asignatura"
+                                            ocultarEtiqueta
                                             vacio="Agregar otra asignatura"
                                             asignaturas={restantes}
                                             valor={null}
@@ -1212,9 +1227,9 @@ function Asistente({
                                                     ]);
                                             }}
                                         />
-                                    )}
-                                </>
-                            )}
+                                    </li>
+                                )}
+                            </ul>
                             {errores.asignatura_id && (
                                 <p role="alert" className={ERROR}>
                                     {errores.asignatura_id}

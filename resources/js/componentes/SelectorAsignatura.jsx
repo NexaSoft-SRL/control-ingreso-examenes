@@ -43,6 +43,7 @@ export default function SelectorAsignatura({
     onCambiar,
     disabled = false,
     vacio = 'Elegir asignatura',
+    ocultarEtiqueta = false,
 }) {
     const [filtro, setFiltro] = useState('');
 
@@ -69,10 +70,10 @@ export default function SelectorAsignatura({
             {etiqueta && (
                 <span
                     id={`${id}-etiqueta`}
-                    className="mb-1.5 block text-sm font-medium text-slate-700"
+                    className={`block text-sm font-medium text-slate-700 ${ocultarEtiqueta ? 'sr-only' : 'mb-1.5'}`}
                 >
                     {etiqueta}
-                    {requerido && (
+                    {requerido && !ocultarEtiqueta && (
                         <span className="ml-0.5 text-danger-600" aria-hidden="true">
                             *
                         </span>
@@ -215,6 +216,7 @@ SelectorAsignatura.propTypes = {
     ).isRequired,
     valor: PropTypes.number,
     onCambiar: PropTypes.func.isRequired,
+    ocultarEtiqueta: PropTypes.bool,
     disabled: PropTypes.bool,
     vacio: PropTypes.string,
 };
