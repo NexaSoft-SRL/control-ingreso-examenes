@@ -529,9 +529,9 @@ describe('RegistrarExamen · normas del examen anterior', () => {
         expect(await campo(/^Fecha/)).toHaveValue('2026-11-23');
         expect(screen.getByLabelText(/^Hora de inicio/)).toHaveValue('14:15');
         expect(screen.getByLabelText(/^Duración/)).toHaveValue('120');
-        expect(screen.getByRole('button', { name: /^Asignatura/ })).toHaveTextContent(
-            'Taller de Ingeniería de Software'
-        );
+        const elegidas = screen.getByRole('list', { name: 'Asignaturas del examen' });
+        expect(elegidas).toHaveTextContent('Taller de Ingeniería de Software');
+        expect(elegidas).not.toHaveTextContent('Introducción a la Programación');
         expect(screen.getByLabelText(/^Tipo/)).toHaveValue('SEGUNDO_PARCIAL');
     });
 
@@ -562,18 +562,19 @@ describe('RegistrarExamen · paso 1, examen', () => {
     it('ofrece solo las asignaturas que dicta y los cinco tipos', async () => {
         montar();
 
-        fireEvent.click(await screen.findByRole('button', { name: /^Asignatura/ }));
-        const opciones = within(
-            listaDe(screen.getByRole('listbox', { name: /Asignatura/ }))
-        ).getAllByRole('option');
+        // La elegida queda en la lista y ya no se ofrece en el desplegable.
+        const elegidas = await screen.findByRole('list', { name: 'Asignaturas del examen' });
+        expect(elegidas).toHaveTextContent(
+            /Introducción a la Programación.*2010010 · Grupo 2 · 65 inscritos/
+        );
+        fireEvent.click(screen.getByRole('button', { name: /Agregar otra asignatura/ }));
+        const opciones = within(screen.getByRole('listbox')).getAllByRole('option');
         expect(opciones.map((o) => o.textContent)).toEqual([
-            expect.stringMatching(
-                /^Introducción a la Programación.*2010010 · Grupo 2 · 65 inscritos/
-            ),
             expect.stringMatching(/^Taller de Ingeniería de Software.*2010024/),
         ]);
-        expect(opciones[0]).toHaveAttribute('aria-selected', 'true');
-        fireEvent.keyDown(screen.getByRole('button', { name: /^Asignatura/ }), { key: 'Escape' });
+        fireEvent.keyDown(screen.getByRole('button', { name: /Agregar otra asignatura/ }), {
+            key: 'Escape',
+        });
         expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
         expect(
             within(listaDe(screen.getByLabelText(/^Tipo/)))
@@ -840,8 +841,11 @@ describe('RegistrarExamen · paso 2, grupos', () => {
 
     it('al cambiar de asignatura vuelven a valer sus grupos propios', async () => {
         montar();
-        fireEvent.click(await screen.findByRole('button', { name: /^Asignatura/ }));
+        fireEvent.click(await screen.findByRole('button', { name: /Agregar otra asignatura/ }));
         fireEvent.click(screen.getByRole('option', { name: /Taller de Ingeniería de Software/ }));
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Quitar Introducción a la Programación' })
+        );
         await llenarExamen();
 
         expect(await casilla(/^Grupo 2 · Blanco/)).toBeChecked();
@@ -1752,12 +1756,11 @@ describe('RegistrarExamen · guardar', () => {
 
     it('con otra asignatura del día registra un examen por cada una, con los grupos propios marcados', async () => {
         montar();
-        fireEvent.click(await screen.findByRole('button', { name: /^Otra asignatura de ese día/ }));
+        fireEvent.click(await screen.findByRole('button', { name: /Agregar otra asignatura/ }));
         fireEvent.click(
-            within(screen.getByRole('listbox', { name: /Otra asignatura de ese día/ })).getByRole(
-                'option',
-                { name: /Taller de Ingeniería de Software/ }
-            )
+            within(screen.getByRole('listbox')).getByRole('option', {
+                name: /Taller de Ingeniería de Software/,
+            })
         );
         expect(screen.getByRole('button', { name: 'Quitar Taller de Ingeniería de Software' }));
 

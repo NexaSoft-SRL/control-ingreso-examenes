@@ -663,6 +663,19 @@ function Asistente({
     const restantes = asignaturas.filter(
         (a) => a.id !== asignaturaId && !extras.some((e) => e.id === a.id)
     );
+    // La principal y las sumadas, en el orden en que se eligieron.
+    const elegidasEnOrden = [
+        asignaturas.find((a) => a.id === asignaturaId),
+        ...extras.map((e) => e.asignatura),
+    ].filter(Boolean);
+    // Quitar la principal deja como principal a la siguiente de la lista.
+    const quitarAsignatura = (id) => {
+        if (id === asignaturaId) {
+            if (extras.length > 0) cambiarAsignatura(extras[0].id);
+        } else {
+            setExtras((previos) => previos.filter((e) => e.id !== id));
+        }
+    };
     const periodoDe = (id) =>
         periodos.find((p) => p.codigo === asignaturas.find((a) => a.id === id)?.periodo) ?? null;
     // Un tipo cuya ventana ya terminó no se ofrece para un examen nuevo.
@@ -1138,69 +1151,50 @@ function Asistente({
                         </p>
                     )}
                     <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="min-w-0 sm:col-span-2">
-                            <SelectorAsignatura
-                                etiqueta="Asignatura"
-                                requerido
-                                disabled={bloqueado}
-                                asignaturas={asignaturas}
-                                valor={asignaturaId}
-                                onCambiar={cambiarAsignatura}
-                            />
-                            {errores.asignatura_id && (
-                                <p role="alert" className={ERROR}>
-                                    {errores.asignatura_id}
-                                </p>
-                            )}
-                        </div>
-                        {!inicial && !examen && asignaturas.length > 1 && (
+                        {!inicial && !examen && asignaturas.length > 1 ? (
                             <div className="min-w-0 sm:col-span-2">
-                                {extras.length > 0 && (
-                                    <ul
-                                        aria-label="Otras asignaturas del mismo día"
-                                        className="mb-2 flex flex-wrap gap-2"
-                                    >
-                                        {extras.map((e) => (
-                                            <li key={e.id}>
-                                                <div className="flex min-h-14 items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2">
-                                                    <IconoAsignatura
-                                                        nombre={e.asignatura.nombre}
-                                                        color={colorDeAsignatura(
-                                                            e.asignatura.nombre
-                                                        )}
-                                                        tamano="md"
-                                                    />
-                                                    <span className="min-w-0 flex-1">
-                                                        <span className="block truncate text-sm font-semibold text-slate-900">
-                                                            {e.asignatura.nombre}
-                                                        </span>
-                                                        <Detalle asignatura={e.asignatura} />
+                                <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                                    Asignaturas
+                                    <span className="ml-0.5 text-danger-600" aria-hidden="true">
+                                        *
+                                    </span>
+                                </span>
+                                <ul aria-label="Asignaturas del examen" className="mb-2 space-y-2">
+                                    {elegidasEnOrden.map((a) => (
+                                        <li key={a.id}>
+                                            <div className="flex min-h-14 items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2">
+                                                <IconoAsignatura
+                                                    nombre={a.nombre}
+                                                    color={colorDeAsignatura(a.nombre)}
+                                                    tamano="md"
+                                                />
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="block truncate text-sm font-semibold text-slate-900">
+                                                        {a.nombre}
                                                     </span>
+                                                    <Detalle asignatura={a} />
+                                                </span>
+                                                {elegidasEnOrden.length > 1 && (
                                                     <button
                                                         type="button"
-                                                        aria-label={`Quitar ${e.asignatura.nombre}`}
-                                                        onClick={() =>
-                                                            setExtras((previos) =>
-                                                                previos.filter((x) => x.id !== e.id)
-                                                            )
-                                                        }
+                                                        aria-label={`Quitar ${a.nombre}`}
+                                                        onClick={() => quitarAsignatura(a.id)}
                                                         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 ${FOCO}`}
                                                     >
                                                         <X className="h-4 w-4" aria-hidden="true" />
                                                     </button>
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
+                                                )}
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
                                 {restantes.length > 0 && (
                                     <SelectorAsignatura
-                                        etiqueta="Otra asignatura de ese día"
                                         vacio="Agregar otra asignatura"
                                         asignaturas={restantes}
                                         valor={null}
                                         onCambiar={(id) => {
-                                            const elegida = restantes.find((a) => a.id === id);
+                                            const elegida = restantes.find((x) => x.id === id);
                                             if (elegida)
                                                 setExtras((previos) => [
                                                     ...previos,
@@ -1212,6 +1206,27 @@ function Asistente({
                                                 ]);
                                         }}
                                     />
+                                )}
+                                {errores.asignatura_id && (
+                                    <p role="alert" className={ERROR}>
+                                        {errores.asignatura_id}
+                                    </p>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="min-w-0 sm:col-span-2">
+                                <SelectorAsignatura
+                                    etiqueta="Asignatura"
+                                    requerido
+                                    disabled={bloqueado}
+                                    asignaturas={asignaturas}
+                                    valor={asignaturaId}
+                                    onCambiar={cambiarAsignatura}
+                                />
+                                {errores.asignatura_id && (
+                                    <p role="alert" className={ERROR}>
+                                        {errores.asignatura_id}
+                                    </p>
                                 )}
                             </div>
                         )}
