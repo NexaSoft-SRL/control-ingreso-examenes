@@ -160,7 +160,9 @@ describe('Oferta', () => {
         montar();
         await fila('Algebra I');
 
-        expect(screen.getByRole('heading', { level: 1, name: 'Oferta' })).toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', { level: 1, name: 'Oferta académica' })
+        ).toBeInTheDocument();
         expect(screen.queryByText(/no se edita/)).toBeNull();
         expect(await screen.findByText('Períodos 2/2026 y 0/2026 · FCyT')).toBeInTheDocument();
 
