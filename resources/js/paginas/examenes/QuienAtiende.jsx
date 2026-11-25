@@ -30,7 +30,8 @@ const FORMA_PERSONA = PropTypes.shape({
 // Alta de un auxiliar sin salir del asistente (ruta 51): se crea su cuenta y
 // la contraseña temporal va a su correo institucional.
 export function AuxiliarNuevo({ onAgregado, onAviso }) {
-    const [nombre, setNombre] = useState('');
+    const [nombres, setNombres] = useState('');
+    const [apellidos, setApellidos] = useState('');
     const [codigo, setCodigo] = useState('');
     const [errores, setErrores] = useState({});
     const [enviando, setEnviando] = useState(false);
@@ -39,8 +40,10 @@ export function AuxiliarNuevo({ onAgregado, onAviso }) {
 
     const agregar = async () => {
         const faltas = {};
-        const errorNombre = errorDeNombre(nombre, 3);
-        if (errorNombre) faltas.nombre = errorNombre;
+        const errorNombres = errorDeNombre(nombres, 3);
+        if (errorNombres) faltas.nombres = errorNombres;
+        const errorApellidos = errorDeNombre(apellidos, 3);
+        if (errorApellidos) faltas.apellidos = errorApellidos;
         if (!codigo.trim()) faltas.codigo_universitario = 'Obligatorio';
         else if (!CODIGO.test(codigo.trim())) faltas.codigo_universitario = 'Entre 5 y 10 dígitos';
         setErrores(faltas);
@@ -49,12 +52,14 @@ export function AuxiliarNuevo({ onAgregado, onAviso }) {
         setEnviando(true);
         try {
             const correo = `${codigo.trim()}@est.umss.edu`;
+            // El servidor guarda un solo nombre: «Apellidos Nombres», como en el padrón.
             const { data } = await api.post('/auxiliares', {
-                nombre: nombre.trim(),
+                nombre: `${apellidos.trim()} ${nombres.trim()}`.replace(/\s+/g, ' '),
                 codigo_universitario: codigo.trim(),
             });
             onAgregado(data.data);
-            setNombre('');
+            setNombres('');
+            setApellidos('');
             setCodigo('');
             setVuelta((n) => n + 1);
             // Quien lo agrega sabe con qué usuario entra y a dónde llegó su
@@ -71,7 +76,13 @@ export function AuxiliarNuevo({ onAgregado, onAviso }) {
                 onAgregado(existente);
                 onAviso(sinPunto(mensajeDe(fallo, 'Auxiliar ya registrado')), 'error');
             } else if (Object.keys(erroresDe(fallo)).length > 0) {
-                setErrores(erroresDe(fallo));
+                // Un error del nombre cae en el campo de los apellidos.
+                const delServidor = erroresDe(fallo);
+                setErrores(
+                    delServidor.nombre
+                        ? { ...delServidor, apellidos: delServidor.nombre }
+                        : delServidor
+                );
             } else {
                 onAviso(sinPunto(mensajeDe(fallo, 'No se pudo agregar')), 'error');
             }
@@ -95,21 +106,34 @@ export function AuxiliarNuevo({ onAgregado, onAviso }) {
     return (
         <>
             <h3 className="mb-2 text-sm font-semibold text-slate-800">Auxiliar nuevo</h3>
-            <div key={vuelta} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-start">
+            <div key={vuelta} className="grid gap-3 sm:grid-cols-2 sm:items-start">
                 <Campo
-                    etiqueta="Nombre completo"
+                    etiqueta="Nombres"
                     requerido
                     formato="letras"
-                    maxLength={100}
-                    placeholder="Apellidos y nombres"
+                    maxLength={60}
                     onKeyDown={alEnter}
                     className="min-w-0"
-                    value={nombre}
+                    value={nombres}
                     onChange={(e) => {
-                        setNombre(e.target.value);
-                        quitarError('nombre');
+                        setNombres(e.target.value);
+                        quitarError('nombres');
                     }}
-                    error={errores.nombre}
+                    error={errores.nombres}
+                />
+                <Campo
+                    etiqueta="Apellidos"
+                    requerido
+                    formato="letras"
+                    maxLength={60}
+                    onKeyDown={alEnter}
+                    className="min-w-0"
+                    value={apellidos}
+                    onChange={(e) => {
+                        setApellidos(e.target.value);
+                        quitarError('apellidos');
+                    }}
+                    error={errores.apellidos}
                 />
                 <Campo
                     etiqueta="Código SIS del auxiliar"

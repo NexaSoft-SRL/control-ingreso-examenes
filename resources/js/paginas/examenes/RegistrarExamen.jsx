@@ -192,7 +192,7 @@ const FORMA_DETALLE = PropTypes.shape({
     ),
 });
 
-function FilaGrupo({ g, marcado, onCambiar, bloqueado = false }) {
+function FilaGrupo({ g, marcado, onCambiar, bloqueado = false, aviso = null }) {
     return (
         <li>
             <label
@@ -212,6 +212,9 @@ function FilaGrupo({ g, marcado, onCambiar, bloqueado = false }) {
                 <span className="min-w-0 flex-1 truncate text-sm text-slate-600">
                     {g.docente ?? 'Sin docente'}
                 </span>
+                {aviso && (
+                    <span className="shrink-0 text-xs font-semibold text-danger-700">{aviso}</span>
+                )}
                 <span className="shrink-0 text-xs text-slate-600">{g.inscritos}</span>
             </label>
         </li>
@@ -223,6 +226,7 @@ FilaGrupo.propTypes = {
     marcado: PropTypes.bool.isRequired,
     onCambiar: PropTypes.func.isRequired,
     bloqueado: PropTypes.bool,
+    aviso: PropTypes.string,
 };
 
 // Los grupos de UNA asignatura del examen, igual para todas (una o varias):
@@ -239,6 +243,7 @@ function SeccionGrupos({
     cargando,
     error,
     onReintentar,
+    ocupados = {},
 }) {
     const [buscado, setBuscado] = useState('');
     const [desplegado, setDesplegado] = useState(false);
@@ -270,6 +275,7 @@ function SeccionGrupos({
                                     g={g}
                                     marcado={elegidosIds.includes(g.id)}
                                     bloqueado={bloqueado}
+                                    aviso={ocupados[g.id]}
                                     onCambiar={() => onCambiar(alternar(elegidosIds, g.id))}
                                 />
                             ))}
@@ -363,6 +369,7 @@ function SeccionGrupos({
                                                     g={g}
                                                     marcado={elegidosIds.includes(g.id)}
                                                     bloqueado={bloqueado}
+                                                    aviso={ocupados[g.id]}
                                                     onCambiar={() =>
                                                         onCambiar(alternar(elegidosIds, g.id))
                                                     }
@@ -423,11 +430,12 @@ SeccionGrupos.propTypes = {
     cargando: PropTypes.bool,
     error: PropTypes.any,
     onReintentar: PropTypes.func,
+    ocupados: PropTypes.objectOf(PropTypes.string),
 };
 
 // Los grupos de una asignatura que se suma al examen: busca sus grupos y
 // muestra la misma sección que la primera.
-function GruposDeExtra({ asignatura, elegidos, onElegidos, onDatos }) {
+function GruposDeExtra({ asignatura, elegidos, onElegidos, onDatos, ocupados }) {
     const opciones = usarConsulta('/examenes/opciones/grupos', {
         parametros: { asignatura_id: asignatura.id },
     });
@@ -452,6 +460,7 @@ function GruposDeExtra({ asignatura, elegidos, onElegidos, onDatos }) {
             cargando={opciones.cargando}
             error={opciones.error}
             onReintentar={opciones.recargar}
+            ocupados={ocupados}
         />
     );
 }
@@ -462,6 +471,7 @@ GruposDeExtra.propTypes = {
     elegidos: PropTypes.arrayOf(PropTypes.number),
     onElegidos: PropTypes.func.isRequired,
     onDatos: PropTypes.func.isRequired,
+    ocupados: PropTypes.objectOf(PropTypes.string),
 };
 
 // `compartida`: otro examen usa el aula a esa hora. Es aviso, no impide.
@@ -1024,6 +1034,25 @@ function Asistente({
     );
     const inscritos = elegidos.reduce((s, g) => s + (g.inscritos ?? 0), 0) + inscritosDeExtras;
     const cargandoGrupos = opciones.cargando || opciones.actualizando;
+
+    // Los grupos elegidos que ya tienen un examen de ese tipo: se dice aquí, en
+    // el paso de grupos, y no al registrar.
+    const consultaOcupados = usarConsulta('/examenes/opciones/ocupados', {
+        parametros: { grupos: todosLosGrupos, tipo, examen_id: examen?.id },
+        activa: paso === 1 && !bloqueado && todosLosGrupos.length > 0 && Boolean(tipo),
+    });
+    const ocupados = Object.fromEntries(
+        (consultaOcupados.datos?.ocupados ?? [])
+            .filter((o) => todosLosGrupos.includes(o.grupo_id))
+            .map((o) => [
+                o.grupo_id,
+                o.mensaje.replace(/^El grupo \S+ ya tiene /, 'Ya tiene ').replace(/\.$/, ''),
+            ])
+    );
+    const hayOcupados = Object.keys(ocupados).length > 0;
+    const mensajesOcupados = (consultaOcupados.datos?.ocupados ?? [])
+        .filter((o) => todosLosGrupos.includes(o.grupo_id))
+        .map((o) => o.mensaje);
 
     const todasLasAulas = usarConsulta('/aulas');
     const { edificios, caja } = usarEdificios();
@@ -1638,6 +1667,7 @@ function Asistente({
                             cargando={cargandoGrupos}
                             error={opciones.error}
                             onReintentar={opciones.recargar}
+                            ocupados={ocupados}
                         />
                         {extras.map((e) => (
                             <GruposDeExtra
@@ -1654,10 +1684,16 @@ function Asistente({
                                 onDatos={(id, datos) =>
                                     setGruposDeExtra((previos) => ({ ...previos, [id]: datos }))
                                 }
+                                ocupados={ocupados}
                             />
                         ))}
                     </div>
-                    {errorDe('grupos') && (
+                    {mensajesOcupados.map((mensaje) => (
+                        <p key={mensaje} role="alert" className={ERROR}>
+                            {mensaje}
+                        </p>
+                    ))}
+                    {errorDe('grupos') && !mensajesOcupados.includes(errorDe('grupos')) && (
                         <p role="alert" className={ERROR}>
                             {errorDe('grupos')}
                         </p>
@@ -1686,7 +1722,12 @@ function Asistente({
                         )}
                         <Boton
                             type="button"
-                            disabled={cargandoGrupos || elegidosIds.length === 0 || extraVacio}
+                            disabled={
+                                cargandoGrupos ||
+                                elegidosIds.length === 0 ||
+                                extraVacio ||
+                                hayOcupados
+                            }
                             onClick={() => setPaso(2)}
                         >
                             Continuar: Aulas <ArrowRight className="h-4 w-4" />

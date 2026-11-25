@@ -87,9 +87,11 @@ export default function EquipoDelExamen({ examenId, onCambio }) {
                                 </span>
                                 <span className="block truncate text-xs text-slate-600">
                                     {m.a_cargo ? 'A cargo de un aula · ' : ''}
-                                    {m.agregado_por_nombre
-                                        ? `lo sumó ${m.agregado_por_nombre}`
-                                        : 'auxiliar'}
+                                    {m.es_docente
+                                        ? 'docente'
+                                        : m.agregado_por_nombre
+                                          ? `lo sumó ${m.agregado_por_nombre}`
+                                          : 'auxiliar'}
                                 </span>
                             </span>
                             {m.puede_quitar && (

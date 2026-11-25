@@ -22,6 +22,16 @@ const montar = () =>
 beforeEach(() => {
     equipo = [
         {
+            id: 7,
+            nombre: 'Blanco Coca Leticia',
+            es_docente: true,
+            es_auxiliar: false,
+            a_cargo: true,
+            agregado_por: null,
+            agregado_por_nombre: null,
+            puede_quitar: false,
+        },
+        {
             id: 40,
             nombre: 'Quispe Mamani Rosa',
             es_auxiliar: true,
@@ -81,10 +91,12 @@ describe('EquipoDelExamen', () => {
 
         const lista = await screen.findByRole('list', { name: 'Equipo del examen' });
         const filas = within(lista).getAllByRole('listitem');
-        expect(filas).toHaveLength(3);
-        expect(filas[0]).toHaveTextContent('Quispe Mamani Rosa');
-        expect(filas[0]).toHaveTextContent('lo sumó Blanco Coca Leticia');
-        expect(filas[1]).toHaveTextContent('A cargo de un aula');
+        expect(filas).toHaveLength(4);
+        expect(filas[0]).toHaveTextContent('Blanco Coca Leticia');
+        expect(filas[0]).toHaveTextContent('docente');
+        expect(filas[1]).toHaveTextContent('Quispe Mamani Rosa');
+        expect(filas[1]).toHaveTextContent('lo sumó Blanco Coca Leticia');
+        expect(filas[2]).toHaveTextContent('A cargo de un aula');
         // Solo quien sumó a Flores puede sacarla.
         expect(
             within(lista).queryByRole('button', { name: 'Sacar a Quispe Mamani Rosa del equipo' })

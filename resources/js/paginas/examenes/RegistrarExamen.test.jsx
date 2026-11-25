@@ -360,6 +360,8 @@ function guardado(cuerpo, id = 9) {
 let detalle;
 // GET /examenes/opciones/choques: los estudiantes con otro examen a esa hora.
 let choques;
+// GET /examenes/opciones/ocupados: los grupos que ya tienen un examen de ese tipo.
+let ocupados;
 
 // Un examen nuevo empieza sin asignatura: salvo que la prueba diga lo contrario,
 // `montar` elige Introducción a la Programación (la que antes venía elegida).
@@ -452,6 +454,7 @@ beforeEach(() => {
     auxiliares = AUXILIARES;
     detalle = DETALLE;
     choques = { total: 0, estudiantes: [] };
+    ocupados = [];
     anteriores = [];
     simularApi(api, {
         'GET /examenes': () => ({ data: anteriores }),
@@ -462,6 +465,7 @@ beforeEach(() => {
         'GET /examenes/opciones/grupos': ({ params }) => OPCIONES_GRUPOS[params.asignatura_id],
         'GET /examenes/opciones/aulas': OPCIONES_AULAS,
         'GET /examenes/opciones/choques': () => choques,
+        'GET /examenes/opciones/ocupados': () => ({ ocupados }),
         'GET /examenes/*/habilitaciones': () => ({
             data: [],
             meta: { total: 0, cifras: { inscritos: 65, habilitados: 0 } },
@@ -1342,10 +1346,12 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         pulsar(/Continuar/);
         await screen.findByRole('heading', { name: '4. Equipo' });
 
-        cambiar(screen.getByLabelText(/^Nombre completo/), 'Rosa 2 Quispe');
+        cambiar(screen.getByLabelText(/^Nombres/), 'Ro2sa');
+        cambiar(screen.getByLabelText(/^Apellidos/), 'Quis9pe');
         cambiar(screen.getByLabelText(/^Código SIS del auxiliar/), 'SIS 2020-0123');
 
-        expect(screen.getByLabelText(/^Nombre completo/)).toHaveValue('Rosa Quispe');
+        expect(screen.getByLabelText(/^Nombres/)).toHaveValue('Rosa');
+        expect(screen.getByLabelText(/^Apellidos/)).toHaveValue('Quispe');
         expect(screen.getByLabelText(/^Código SIS del auxiliar/)).toHaveValue('20200123');
     });
 
@@ -1356,7 +1362,8 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         pulsar(/Continuar/);
         await screen.findByRole('heading', { name: '4. Equipo' });
 
-        cambiar(screen.getByLabelText(/^Nombre completo/), 'Quispe Mamani Rosa');
+        cambiar(screen.getByLabelText(/^Nombres/), 'Rosa');
+        cambiar(screen.getByLabelText(/^Apellidos/), 'Quispe Mamani');
         cambiar(screen.getByLabelText(/^Código SIS del auxiliar/), '202000123');
         fireEvent.keyDown(screen.getByLabelText(/^Código SIS del auxiliar/), { key: 'Enter' });
 
@@ -1389,8 +1396,9 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
 
         // Sin datos no se envía.
         pulsar(/Agregar/);
-        expect(screen.getAllByText('Obligatorio')).toHaveLength(2);
-        cambiar(screen.getByLabelText(/^Nombre completo/), 'Quispe Mamani Rosa');
+        expect(screen.getAllByText('Obligatorio')).toHaveLength(3);
+        cambiar(screen.getByLabelText(/^Nombres/), 'Rosa');
+        cambiar(screen.getByLabelText(/^Apellidos/), 'Quispe Mamani');
         cambiar(screen.getByLabelText(/^Código SIS del auxiliar/), '2020');
         pulsar(/Agregar/);
         expect(screen.getByText('Entre 5 y 10 dígitos')).toBeInTheDocument();
@@ -1408,7 +1416,8 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
             nombre: 'Quispe Mamani Rosa',
             codigo_universitario: '202000123',
         });
-        expect(screen.getByLabelText(/^Nombre completo/)).toHaveValue('');
+        expect(screen.getByLabelText(/^Nombres/)).toHaveValue('');
+        expect(screen.getByLabelText(/^Apellidos/)).toHaveValue('');
         // Queda en el equipo sin más pasos.
         expect(screen.getByRole('list', { name: 'Equipo' })).toHaveTextContent(
             'Quispe Mamani Rosa · auxiliar'
@@ -1423,7 +1432,8 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
     it('el auxiliar que ya tiene cuenta se suma a la lista; el 422 queda en su campo', async () => {
         montar();
         await irAQuienAtiende();
-        cambiar(screen.getByLabelText(/^Nombre completo/), 'Mamani Torrez Diego');
+        cambiar(screen.getByLabelText(/^Nombres/), 'Diego');
+        cambiar(screen.getByLabelText(/^Apellidos/), 'Mamani Torrez');
         cambiar(screen.getByLabelText(/^Código SIS del auxiliar/), '201900456');
 
         api.post.mockRejectedValueOnce(
@@ -2020,6 +2030,34 @@ describe('RegistrarExamen · guardar', () => {
         const pasos = screen.getAllByRole('list')[0];
         expect(within(pasos).queryByText('Habilitar')).toBeNull();
         expect(within(pasos).queryByText('Códigos QR')).toBeNull();
+    });
+
+    it('en Grupos avisa de los grupos que ya tienen un examen de ese tipo y no deja continuar', async () => {
+        ocupados = [
+            { grupo_id: 37, codigo: '2', mensaje: 'El grupo 2 ya tiene un segundo parcial.' },
+        ];
+        montar();
+        await campo(/^Fecha/);
+        cambiar(screen.getByLabelText(/^Tipo/), 'SEGUNDO_PARCIAL');
+        pulsar(/Continuar/);
+        await screen.findByRole('heading', { name: '2. Grupos' });
+
+        expect(await screen.findByText('Ya tiene un segundo parcial')).toBeVisible();
+        expect(await screen.findByText('El grupo 2 ya tiene un segundo parcial.')).toBeVisible();
+        expect(screen.getByRole('button', { name: /Continuar: Aulas/ })).toBeDisabled();
+        // La consulta lleva el tipo y los grupos elegidos.
+        expect(api.get).toHaveBeenCalledWith(
+            '/examenes/opciones/ocupados',
+            expect.objectContaining({
+                params: expect.objectContaining({ tipo: 'SEGUNDO_PARCIAL', grupos: [37] }),
+            })
+        );
+
+        // Sin el grupo ocupado, el aviso se va.
+        fireEvent.click(screen.getByRole('checkbox', { name: /^Grupo 2 · Blanco/ }));
+        await waitFor(() =>
+            expect(screen.queryByText('El grupo 2 ya tiene un segundo parcial.')).toBeNull()
+        );
     });
 
     it('sin normas también se registra', async () => {
