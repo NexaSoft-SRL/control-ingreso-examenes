@@ -46,6 +46,7 @@ final readonly class ConsultarBitacora
         'periodo.calendario_restaurar' => 'Volvió al calendario de la universidad',
         'periodo.detectar' => 'Detectó los períodos',
         'oferta.importar' => 'Importó la oferta',
+        'oferta.importar_historial' => 'Importó la oferta de un período cerrado',
         'ubicaciones.importar' => 'Importó las aulas',
         'docente.activar_cuenta' => 'Activó la cuenta',
         // Padron e inscripciones.

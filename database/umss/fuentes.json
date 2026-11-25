@@ -146,7 +146,18 @@
         "motivo": "Los datos disponibles son del período 1/2025.",
         "url": "https://www.odo.umss.edu.bo/academico"
       }
-    ]
+    ],
+    "historial": {
+      "que_da": "Oferta del período 1/2026 (cerrado), guardada por GENDA en su carpeta jsons-history. Se importa solo con el comando oferta:importar-historial 1/2026; no pasa por «Importar todas», que trae lo vigente.",
+      "archivos": "database/umss/genda/historial/1-2026/{fcyt,fce,fhce,fach}.json",
+      "fechas_de_extraccion": {
+        "fcyt": "2026-03-02",
+        "fce": "2026-05-29",
+        "fhce": "sin fecha en el archivo",
+        "fach": "sin fecha en el archivo"
+      },
+      "nota": "Las carreras anuales no se importan desde el historial: su oferta es la del período anual vigente."
+    }
   },
   "pensum": {
     "que_da": "Carreras de la universidad y el plan de estudios de cada una.",

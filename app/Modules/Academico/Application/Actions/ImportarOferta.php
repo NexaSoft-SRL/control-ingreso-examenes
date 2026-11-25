@@ -89,20 +89,68 @@ final readonly class ImportarOferta
     }
 
     /**
-     * @param  array{id: int, clave: string, sigla: string, codigo_umss: string}  $facultad
+     * Importa la oferta GUARDADA de un período cerrado (`historial/1-2026/`),
+     * con la misma lógica que la vigente pero sin tocar nada de ella: no abre
+     * ni cierra filas de `importaciones_oferta` (el estado «Importada · fecha»
+     * y la huella de cada facultad son de la oferta vigente), no importa las
+     * carreras anuales (su oferta es la del período anual) y solo limpia los
+     * grupos de ese período. Reimportar no duplica.
+     *
+     * @throws FuenteNoDisponibleException si la facultad no está en el catálogo
      */
-    private function importar(array $facultad, int $importacionId, ?int $usuarioId): ResumenImportacionData
+    public function historial(string $facultad, string $periodo, ?int $usuarioId = null): ResumenImportacionData
     {
-        $oferta = $this->fuente->leer($facultad['clave']);
+        $facultad = mb_strtolower(trim($facultad));
+        $datos = $this->importaciones->facultad($facultad);
+
+        if ($datos === null) {
+            throw new FuenteNoDisponibleException("La facultad «{$facultad}» no está en el catálogo.");
+        }
+
+        try {
+            $resumen = $this->importaciones->enTransaccion(
+                fn (): ResumenImportacionData => $this->importar($datos, null, $usuarioId, $periodo),
+            );
+        } catch (Throwable $error) {
+            return new ResumenImportacionData(
+                facultad: $facultad,
+                sigla: $datos['sigla'],
+                importada: false,
+                error: $error instanceof FuenteNoDisponibleException
+                    ? $error->getMessage()
+                    : 'La importación se interrumpió: '.$error->getMessage(),
+            );
+        }
+
+        $this->importaciones->asentarHistorial($usuarioId, $resumen, $periodo);
+
+        return $resumen;
+    }
+
+    /**
+     * @param  array{id: int, clave: string, sigla: string, codigo_umss: string}  $facultad
+     * @param  string|null  $historial  el período cuya oferta guardada se importa (`1/2026`); null = la vigente
+     */
+    private function importar(array $facultad, ?int $importacionId, ?int $usuarioId, ?string $historial = null): ResumenImportacionData
+    {
+        $oferta = $this->fuente->leer($facultad['clave'], $historial);
         $partes = $oferta->periodoCodigo === null ? null : CodigoPeriodo::partes($oferta->periodoCodigo);
 
         if ($partes === null) {
             throw new FuenteNoDisponibleException(
-                "El archivo {$facultad['clave']}.json no dice de qué período es la oferta."
+                "El archivo de {$facultad['clave']} no dice de qué período es la oferta."
             );
         }
 
-        $this->ubicaciones->execute($facultad['clave']);
+        if ($historial !== null && $historial !== $partes['numero'].'/'.$partes['anio']) {
+            throw new FuenteNoDisponibleException(
+                "El archivo guardado de {$facultad['clave']} dice {$oferta->periodoCodigo}, no {$historial}."
+            );
+        }
+
+        if ($historial === null) {
+            $this->ubicaciones->execute($facultad['clave']);
+        }
 
         [$carreraIds, $sinCodigo] = $this->guardarCarreras($facultad, $oferta);
 
@@ -118,6 +166,11 @@ final readonly class ImportarOferta
         $descartadas = 0;
 
         foreach ($oferta->carreras as $posicion => $carrera) {
+            // Del historial no entra lo anual: su oferta es la del período anual vigente.
+            if ($historial !== null && $carrera->anual) {
+                continue;
+            }
+
             if ($carrera->anual) {
                 $periodoAnual ??= $this->periodos->asegurar(
                     CodigoPeriodo::anualDe($partes['anio']),
@@ -257,7 +310,9 @@ final readonly class ImportarOferta
             importacionId: $importacionId,
         );
 
-        $this->importaciones->completar($importacionId, $resumen, $usuarioId);
+        if ($importacionId !== null) {
+            $this->importaciones->completar($importacionId, $resumen, $usuarioId);
+        }
 
         return $resumen;
     }

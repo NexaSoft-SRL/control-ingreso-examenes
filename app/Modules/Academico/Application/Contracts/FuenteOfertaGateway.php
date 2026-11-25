@@ -17,11 +17,13 @@ interface FuenteOfertaGateway
     public function facultades(): array;
 
     /**
-     * La oferta de una facultad (`fcyt`, `fce`, `fhce`, `fach`).
+     * La oferta de una facultad (`fcyt`, `fce`, `fhce`, `fach`). Con
+     * `$periodo` («1/2026») se lee la guardada de ese período en el
+     * historial, no la vigente.
      *
      * @throws FuenteNoDisponibleException si el archivo falta o no se entiende
      */
-    public function leer(string $facultad): OfertaFacultadData;
+    public function leer(string $facultad, ?string $periodo = null): OfertaFacultadData;
 
     /**
      * Una huella de todo lo que se lee al importar esa facultad (su
