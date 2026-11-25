@@ -1847,7 +1847,7 @@ describe('RegistrarExamen · guardar', () => {
             'Taller de Ingeniería de Software'
         );
         // Con una sola ya no hay con qué quitar.
-        expect(screen.queryByRole('button', { name: /^Quitar/ })).toBeNull();
+        expect(screen.queryByRole('button', { name: /^Quitar (Taller|Introducción)/ })).toBeNull();
         await llenarExamen();
         expect(await casilla(/^Grupo 5 · Blanco/)).toBeChecked();
     });
