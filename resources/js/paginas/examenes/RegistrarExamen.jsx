@@ -283,11 +283,13 @@ function SeccionGrupos({
                                     className={`h-4 w-4 transition-transform ${abierto ? '' : '-rotate-90'}`}
                                     aria-hidden="true"
                                 />
-                                Invitar a otros docentes · {deOtros} de {otros.length}
+                                Para colaborar, añade grupos de otros docentes · {deOtros} de{' '}
+                                {otros.length}
                             </button>
                         ) : (
                             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                                Invitar a otros docentes · {deOtros} de {otros.length}
+                                Para colaborar, añade grupos de otros docentes · {deOtros} de{' '}
+                                {otros.length}
                             </h3>
                         )}
                         {abierto && otros.length > 1 && !bloqueado && (

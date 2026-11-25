@@ -833,15 +833,21 @@ describe('RegistrarExamen · paso 2, grupos', () => {
 
         expect(await casilla(/^Grupo 2 · Blanco Coca Leticia/)).toBeChecked();
         expect(screen.getByText('65 inscritos')).toBeInTheDocument();
-        expect(screen.getByText(/Invitar a otros docentes · 0 de 10/)).toBeInTheDocument();
+        expect(
+            screen.getByText(/Para colaborar, añade grupos de otros docentes · 0 de 10/)
+        ).toBeInTheDocument();
         expect(await casilla('Grupo 12 · Sin docente')).not.toBeChecked();
 
         fireEvent.click(await casilla(/^Grupo 3 · Salazar/));
         expect(screen.getByText('75 inscritos')).toBeInTheDocument();
-        expect(screen.getByText(/Invitar a otros docentes · 1 de 10/)).toBeInTheDocument();
+        expect(
+            screen.getByText(/Para colaborar, añade grupos de otros docentes · 1 de 10/)
+        ).toBeInTheDocument();
 
         pulsar('Todos');
-        expect(screen.getByText(/Invitar a otros docentes · 10 de 10/)).toBeInTheDocument();
+        expect(
+            screen.getByText(/Para colaborar, añade grupos de otros docentes · 10 de 10/)
+        ).toBeInTheDocument();
         expect(screen.getByText('615 inscritos')).toBeInTheDocument();
 
         pulsar('Ninguno');
@@ -858,7 +864,9 @@ describe('RegistrarExamen · paso 2, grupos', () => {
         expect(screen.queryByRole('checkbox', { name: /Salazar/ })).not.toBeInTheDocument();
 
         pulsar('Todos');
-        expect(screen.getByText(/Invitar a otros docentes · 3 de 10/)).toBeInTheDocument();
+        expect(
+            screen.getByText(/Para colaborar, añade grupos de otros docentes · 3 de 10/)
+        ).toBeInTheDocument();
 
         cambiar(screen.getByLabelText('Buscar grupo'), 'grupo 12');
         expect(screen.getByRole('checkbox', { name: 'Grupo 12 · Sin docente' })).toBeVisible();
@@ -1923,14 +1931,18 @@ describe('RegistrarExamen · guardar', () => {
         for (const seccion of [intro, taller]) {
             expect(within(seccion).getByText('Mis grupos')).toBeVisible();
             const invitar = within(seccion).getByRole('button', {
-                name: /Invitar a otros docentes/,
+                name: /Para colaborar, añade grupos de otros docentes/,
             });
             expect(invitar).toHaveAttribute('aria-expanded', 'false');
         }
 
         // Plegadas: no se ven los grupos de otros docentes hasta abrirlas.
         expect(within(intro).queryByRole('checkbox', { name: /^Grupo 3 · Salazar/ })).toBeNull();
-        fireEvent.click(within(intro).getByRole('button', { name: /Invitar a otros docentes/ }));
+        fireEvent.click(
+            within(intro).getByRole('button', {
+                name: /Para colaborar, añade grupos de otros docentes/,
+            })
+        );
         fireEvent.click(within(intro).getByRole('checkbox', { name: /^Grupo 3 · Salazar/ }));
         expect(within(intro).getByText('2 grupos · 75 inscritos')).toBeVisible();
 
