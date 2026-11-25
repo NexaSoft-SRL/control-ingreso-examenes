@@ -14,7 +14,9 @@ import {
     LayoutGrid,
     ListChecks,
     MapPin,
+    QrCode,
     ScrollText,
+    ShieldCheck,
     Tag,
     UserCheck,
     Users,
@@ -40,6 +42,8 @@ import IconoAsignatura from '../../componentes/IconoAsignatura';
 import SelectorAsignatura, { Detalle } from '../../componentes/SelectorAsignatura';
 import Tarjeta from '../../componentes/Tarjeta';
 import { usarSesion } from '../../sesion/SesionContexto';
+import { CodigosDelExamen } from '../docente/CodigosQr';
+import { ListaDelExamen } from '../habilitacion/Habilitacion';
 import { colorDeAsignatura, diaMes, fechaLarga, normalizar, plural } from '../../utiles/texto';
 import ChoquesDeEstudiantes from './ChoquesDeEstudiantes';
 import CodigoDeAula from './CodigoDeAula';
@@ -53,6 +57,10 @@ const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
 const PASOS = ['Examen', 'Grupos', 'Aulas', 'Quién atiende', 'Listo'];
 const ICONOS_DE_PASO = [ClipboardList, Users, DoorOpen, UserCheck, CheckCircle2];
+// Después de registrar el examen el asistente sigue con la habilitación de
+// estudiantes y los códigos QR, para quien tiene esos permisos.
+const PASO_HABILITAR = 'Habilitar';
+const PASO_QR = 'Códigos QR';
 // Con más grupos que estos, la lista lleva buscador y desplazamiento propio.
 const MUCHOS_GRUPOS = 8;
 const VACIO = 'rounded-lg border border-slate-200 py-4 text-center text-sm text-slate-600';
@@ -577,7 +585,7 @@ FilaAula.propTypes = {
 
 // El examen tal como quedó guardado: lo que se ve tras registrar y lo que ve
 // el docente de un grupo incluido, que no lo modifica.
-function Resumen({ examen, recien = false, onAviso, onElegirAulas }) {
+function Resumen({ examen, recien = false, onAviso, onElegirAulas, onHabilitar }) {
     const { puede } = usarSesion();
     const [acceso, setAcceso] = useState(null);
     const [generados, setGenerados] = useState([]);
@@ -770,7 +778,12 @@ function Resumen({ examen, recien = false, onAviso, onElegirAulas }) {
                         Elegir aulas <ArrowRight className="h-4 w-4" />
                     </Boton>
                 )}
-                {aulas.length > 0 && puede('habilitacion') && (
+                {aulas.length > 0 && puede('habilitacion') && onHabilitar && (
+                    <Boton type="button" onClick={onHabilitar}>
+                        Continuar: Habilitar <ArrowRight className="h-4 w-4" />
+                    </Boton>
+                )}
+                {aulas.length > 0 && puede('habilitacion') && !onHabilitar && (
                     <Link
                         to={rutaDelExamen(examen.id, 'habilitacion')}
                         className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 ${FOCO}`}
@@ -798,6 +811,7 @@ Resumen.propTypes = {
     recien: PropTypes.bool,
     onAviso: PropTypes.func.isRequired,
     onElegirAulas: PropTypes.func,
+    onHabilitar: PropTypes.func,
 };
 
 // Las normas del examen que quedaron sin plantilla (la plantilla se quitó).
@@ -962,6 +976,8 @@ function Asistente({
     const [sumados, setSumados] = useState([]);
     const [acceso, setAcceso] = useState(null);
     const [conCodigo, setConCodigo] = useState(() => conCodigoDe(inicial));
+    // Las cifras de la lista de habilitación no se usan en el asistente.
+    const anotarCifras = useCallback(() => {}, []);
     const anotarCodigo = useCallback(
         (id) => setConCodigo((previos) => (previos.includes(id) ? previos : [...previos, id])),
         []
@@ -1345,11 +1361,25 @@ function Asistente({
             .map((n) => [n.plantilla_id, n.texto])
     );
 
+    // Los pasos de después de registrar dependen de los permisos de la cuenta.
+    const { puede } = usarSesion();
+    const pasosExtra = [
+        !inicial && puede('habilitacion') ? PASO_HABILITAR : null,
+        !inicial && puede('codigos_qr') ? PASO_QR : null,
+    ].filter(Boolean);
+    const pasosDelAsistente = [...PASOS, ...pasosExtra];
+    const iconosDelAsistente = [
+        ...ICONOS_DE_PASO,
+        ...pasosExtra.map((nombre) => (nombre === PASO_HABILITAR ? ShieldCheck : QrCode)),
+    ];
+    const indiceHabilitar = pasosDelAsistente.indexOf(PASO_HABILITAR);
+    const indiceQr = pasosDelAsistente.indexOf(PASO_QR);
+
     return (
         <>
             <Pasos
-                pasos={PASOS}
-                iconos={ICONOS_DE_PASO}
+                pasos={pasosDelAsistente}
+                iconos={iconosDelAsistente}
                 actual={paso}
                 onIr={setPaso}
                 completos={[
@@ -1928,7 +1958,13 @@ function Asistente({
             )}
 
             {paso === 4 && examen && (
-                <Resumen examen={examen} recien onAviso={avisar} onElegirAulas={() => setPaso(2)} />
+                <Resumen
+                    examen={examen}
+                    recien
+                    onAviso={avisar}
+                    onElegirAulas={() => setPaso(2)}
+                    onHabilitar={indiceHabilitar > 0 ? () => setPaso(indiceHabilitar) : undefined}
+                />
             )}
             {paso === 4 && tambien.hechos.length > 0 && (
                 <Tarjeta titulo="También registrados" icono={CheckCircle2}>
@@ -1961,6 +1997,51 @@ function Asistente({
                         </li>
                     ))}
                 </ul>
+            )}
+            {paso === indiceHabilitar && examen && (
+                <Tarjeta
+                    titulo={`${indiceHabilitar + 1}. Habilitar estudiantes`}
+                    icono={ShieldCheck}
+                >
+                    <ListaDelExamen key={examen.id} examenId={examen.id} onCifras={anotarCifras} />
+                    <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
+                        <Boton type="button" variante="secundario" onClick={() => setPaso(4)}>
+                            Atrás
+                        </Boton>
+                        {indiceQr > 0 ? (
+                            <Boton type="button" onClick={() => setPaso(indiceQr)}>
+                                Continuar: Códigos QR <ArrowRight className="h-4 w-4" />
+                            </Boton>
+                        ) : (
+                            <Link
+                                to={rutaDelExamen(examen.id)}
+                                className={`inline-flex min-h-11 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 ${FOCO}`}
+                            >
+                                Terminar
+                            </Link>
+                        )}
+                    </div>
+                </Tarjeta>
+            )}
+            {paso === indiceQr && examen && (
+                <Tarjeta titulo={`${indiceQr + 1}. Códigos QR`} icono={QrCode}>
+                    <CodigosDelExamen key={examen.id} examen={examen} incrustado />
+                    <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
+                        <Boton
+                            type="button"
+                            variante="secundario"
+                            onClick={() => setPaso(indiceHabilitar > 0 ? indiceHabilitar : 4)}
+                        >
+                            Atrás
+                        </Boton>
+                        <Link
+                            to={rutaDelExamen(examen.id)}
+                            className={`inline-flex min-h-11 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 ${FOCO}`}
+                        >
+                            Terminar
+                        </Link>
+                    </div>
+                </Tarjeta>
             )}
             {acceso && examen && (
                 <CodigoDeAula

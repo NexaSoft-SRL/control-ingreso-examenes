@@ -467,6 +467,14 @@ beforeEach(() => {
         'GET /examenes/opciones/grupos': ({ params }) => OPCIONES_GRUPOS[params.asignatura_id],
         'GET /examenes/opciones/aulas': OPCIONES_AULAS,
         'GET /examenes/opciones/choques': () => choques,
+        'GET /examenes/*/habilitaciones': () => ({
+            data: [],
+            meta: { total: 0, cifras: { inscritos: 65, habilitados: 0 } },
+        }),
+        'GET /examenes/*/codigos-qr': () => ({
+            data: [],
+            meta: { total: 0, cifras: { habilitados: 0, emitidos: 0 } },
+        }),
         'GET /aulas': { data: AULAS },
         'GET /edificios': EDIFICIOS,
         'GET /examenes/*': () => ({ data: detalle }),
@@ -639,7 +647,15 @@ describe('RegistrarExamen · paso 1, examen', () => {
             within(pasos)
                 .getAllByRole('listitem')
                 .map((p) => p.textContent)
-        ).toEqual(['Examen', 'Grupos', 'Aulas', 'Quién atiende', 'Listo']);
+        ).toEqual([
+            'Examen',
+            'Grupos',
+            'Aulas',
+            'Quién atiende',
+            'Listo',
+            'Habilitar',
+            'Códigos QR',
+        ]);
     });
 
     it('un examen nuevo empieza con la fecha de hoy y la primera hora de la mañana', async () => {
@@ -1819,10 +1835,8 @@ describe('RegistrarExamen · guardar', () => {
             'href',
             '/examenes'
         );
-        expect(screen.getByRole('link', { name: /Habilitar estudiantes/ })).toHaveAttribute(
-            'href',
-            '/examenes/detalle?examen=9&pestana=habilitacion'
-        );
+        // Habilitar estudiantes sigue en el mismo asistente.
+        expect(screen.getByRole('button', { name: /Continuar: Habilitar/ })).toBeEnabled();
         expect(screen.getByRole('link', { name: 'Otro examen a la misma hora' })).toHaveAttribute(
             'href',
             '/examenes/nuevo?copiar=9'
@@ -1997,6 +2011,44 @@ describe('RegistrarExamen · guardar', () => {
             within(seccion).getByRole('button', { name: /Para colaborar, añade grupos/ })
         ).toHaveAttribute('aria-expanded', 'false');
         expect(within(seccion).queryByRole('checkbox', { name: /^Grupo 3 · Salazar/ })).toBeNull();
+    });
+
+    it('tras registrar, el mismo asistente sigue con habilitar estudiantes y los códigos QR', async () => {
+        montar();
+        await irAAulas();
+        await guardar('Registrar examen');
+
+        fireEvent.click(await screen.findByRole('button', { name: /Continuar: Habilitar/ }));
+        expect(
+            await screen.findByRole('heading', { name: '6. Habilitar estudiantes' })
+        ).toBeVisible();
+
+        pulsar(/Continuar: Códigos QR/);
+        expect(await screen.findByRole('heading', { name: '7. Códigos QR' })).toBeVisible();
+        expect(screen.getByRole('link', { name: 'Terminar' })).toHaveAttribute(
+            'href',
+            '/examenes/detalle?examen=9'
+        );
+
+        // Atrás vuelve paso por paso.
+        pulsar('Atrás');
+        expect(
+            await screen.findByRole('heading', { name: '6. Habilitar estudiantes' })
+        ).toBeVisible();
+        pulsar('Atrás');
+        expect(await screen.findByText('Examen registrado')).toBeInTheDocument();
+    });
+
+    it('sin permiso de habilitación o de códigos QR el asistente no ofrece esos pasos', async () => {
+        montar('/examenes/nuevo', usuarioDePrueba('Docente', { permisos: ['examenes'] }));
+        await irAAulas();
+        await guardar('Registrar examen');
+
+        await screen.findByText('Examen registrado');
+        expect(screen.queryByRole('button', { name: /Continuar: Habilitar/ })).toBeNull();
+        const pasos = screen.getAllByRole('list')[0];
+        expect(within(pasos).queryByText('Habilitar')).toBeNull();
+        expect(within(pasos).queryByText('Códigos QR')).toBeNull();
     });
 
     it('sin normas también se registra', async () => {
