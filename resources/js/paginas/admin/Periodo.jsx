@@ -10,7 +10,6 @@ import {
     ListX,
     LoaderCircle,
     RefreshCw,
-    RotateCw,
     UserX,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -33,7 +32,7 @@ import { diaMes, fechaCorta } from '../../utiles/texto';
 import CalendarioAcademico from './CalendarioAcademico';
 
 const FOCO = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600';
-const COLUMNAS = 'md:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_minmax(0,1fr)_9rem]';
+const COLUMNAS = 'md:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_minmax(0,1fr)]';
 const POR_PAGINA = 4;
 
 const miles = (n) => Number(n ?? 0).toLocaleString('es-BO');
@@ -260,6 +259,8 @@ export default function Periodo() {
     // Por sigla: `{ estado: 'importando' }` mientras dura la petición y
     // `{ estado: 'fallo', error }` cuando el servidor la rechaza.
     const [locales, setLocales] = useState({});
+    // Mientras corre «Importar todas»: la facultad en turno y el total.
+    const [lote, setLote] = useState(null);
 
     const recargarTodo = () => Promise.all([periodos.recargar(), resumen.recargar()]);
 
@@ -275,32 +276,60 @@ export default function Periodo() {
             .finally(() => setDetectando(false));
     }
 
-    async function importar(facultad) {
+    // Importa una facultad y deja su estado en la fila. Devuelve 'ok', 'en_curso'
+    // (otra importación de la misma facultad sigue en marcha) o 'fallo'.
+    async function importarUna(facultad) {
         const { sigla } = facultad;
         const clave = catalogo.find((f) => f.sigla === sigla)?.clave ?? sigla.toLowerCase();
         const poner = (valor) => setLocales((previos) => ({ ...previos, [sigla]: valor }));
 
         poner({ estado: 'importando' });
         try {
-            // Si la fuente no cambió, el servidor no hace nada y lo dice.
-            const { data } = await api.post('/oferta/importaciones', { facultad: clave });
-            await recargarTodo();
-            poner(undefined);
-            avisar(String(data?.message ?? `Oferta de ${sigla} importada`).replace(/\.$/, ''));
+            // Si la fuente no cambió, el servidor no hace nada y lo dice: queda al día.
+            await api.post('/oferta/importaciones', { facultad: clave });
+            poner({ estado: 'importada', fecha: new Date().toLocaleDateString('en-CA') });
+            return 'ok';
         } catch (error) {
             if (estadoDe(error) === 409) {
-                // Otra importación de la misma facultad sigue en curso.
-                avisar(mensajeDe(error, 'Importación en curso'), 'error');
-                await resumen.recargar();
                 poner(undefined);
-                return;
+                return 'en_curso';
             }
             poner({
                 estado: 'fallo',
                 error:
                     error?.response?.data?.data?.error ?? mensajeDe(error, 'No se pudo importar'),
             });
-            await resumen.recargar();
+            return 'fallo';
+        }
+    }
+
+    // Una tras otra, en orden: no pasa del tiempo de PHP y la fila en turno
+    // muestra «Importando». Un fallo no detiene a las demás.
+    async function importarTodas() {
+        if (lote) return;
+        const lista = [...(resumen.datos?.facultades ?? [])];
+        const resultados = [];
+        for (let i = 0; i < lista.length; i += 1) {
+            setLote({ actual: i + 1, total: lista.length });
+            resultados.push(await importarUna(lista[i]));
+        }
+        await recargarTodo();
+        // Lo importado ya viene del servidor; solo quedan las filas que fallaron.
+        setLocales((previos) =>
+            Object.fromEntries(Object.entries(previos).filter(([, v]) => v?.estado === 'fallo'))
+        );
+        setLote(null);
+
+        const total = lista.length;
+        const buenas = resultados.filter((r) => r === 'ok').length;
+        const enCurso = resultados.filter((r) => r === 'en_curso').length;
+        const fallos = resultados.filter((r) => r === 'fallo').length;
+        if (fallos > 0) {
+            avisar(`${buenas} de ${total} importadas · ${fallos} con error`, 'error');
+        } else if (enCurso > 0) {
+            avisar(`${buenas} de ${total} importadas · ${enCurso} en curso`);
+        } else {
+            avisar(`Oferta de las ${total} facultades importada`);
         }
     }
 
@@ -471,9 +500,35 @@ export default function Periodo() {
                 icono={Building2}
                 acciones={
                     facultades.length > 0 && (
-                        <Insignia tono={importadas === facultades.length ? 'exito' : 'advertencia'}>
-                            {importadas} de {facultades.length} importadas
-                        </Insignia>
+                        // El grupo no pasa del ancho de la pantalla: en móvil el botón
+                        // baja de línea en lugar de salirse de la tarjeta.
+                        <div className="flex max-w-[calc(100vw-5.5rem)] flex-wrap items-center gap-2">
+                            <Insignia
+                                tono={importadas === facultades.length ? 'exito' : 'advertencia'}
+                            >
+                                {importadas} de {facultades.length} importadas
+                            </Insignia>
+                            <Boton
+                                type="button"
+                                variante="secundario"
+                                disabled={Boolean(lote)}
+                                onClick={importarTodas}
+                            >
+                                {lote ? (
+                                    <LoaderCircle
+                                        className="h-4 w-4 animate-spin"
+                                        aria-hidden="true"
+                                    />
+                                ) : (
+                                    <DownloadCloud className="h-4 w-4" aria-hidden="true" />
+                                )}
+                                {lote
+                                    ? `Importando ${lote.actual} de ${lote.total}`
+                                    : importadas === facultades.length
+                                      ? 'Volver a importar todas'
+                                      : 'Importar todas'}
+                            </Boton>
+                        </div>
                     )
                 }
             >
@@ -491,19 +546,12 @@ export default function Periodo() {
                         <span>Facultad</span>
                         <span>Oferta</span>
                         <span>Estado</span>
-                        <span className="sr-only">Acción</span>
                     </div>
                     <ul className="divide-y divide-slate-200">
                         {facultades.map((f) => {
                             const imp = locales[f.sigla] ?? f.importacion ?? { estado: 'sin' };
                             const estado = ESTADOS[imp.estado] ?? ESTADOS.sin;
-                            const ocupado = locales[f.sigla]?.estado === 'importando';
                             const fallo = imp.estado === 'fallo';
-                            const accion = fallo
-                                ? 'Reintentar'
-                                : imp.estado === 'importada'
-                                  ? 'Volver a importar'
-                                  : 'Importar';
                             return (
                                 <li
                                     key={f.sigla}
@@ -524,41 +572,16 @@ export default function Periodo() {
                                         {miles(f.carreras)} carreras · {miles(f.grupos)} grupos ·{' '}
                                         {miles(f.aulas)} aulas
                                     </p>
-                                    <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 md:contents">
-                                        <span aria-live="polite" className="min-w-0">
-                                            <Insignia tono={estado.tono} punto>
-                                                {estado.texto(imp.fecha)}
-                                            </Insignia>
-                                            {fallo && imp.error && (
-                                                <span className="mt-1 block break-words text-xs text-danger-700">
-                                                    {imp.error}
-                                                </span>
-                                            )}
-                                        </span>
-                                        <Boton
-                                            type="button"
-                                            variante={fallo ? 'primario' : 'secundario'}
-                                            className="md:w-full"
-                                            disabled={ocupado}
-                                            onClick={() => importar(f)}
-                                            aria-label={`${accion} ${f.sigla}`}
-                                        >
-                                            {ocupado ? (
-                                                <LoaderCircle
-                                                    className="h-4 w-4 animate-spin"
-                                                    aria-hidden="true"
-                                                />
-                                            ) : fallo ? (
-                                                <RotateCw className="h-4 w-4" aria-hidden="true" />
-                                            ) : (
-                                                <DownloadCloud
-                                                    className="h-4 w-4"
-                                                    aria-hidden="true"
-                                                />
-                                            )}
-                                            {ocupado ? 'Importando' : accion}
-                                        </Boton>
-                                    </div>
+                                    <span aria-live="polite" className="min-w-0">
+                                        <Insignia tono={estado.tono} punto>
+                                            {estado.texto(imp.fecha)}
+                                        </Insignia>
+                                        {fallo && imp.error && (
+                                            <span className="mt-1 block break-words text-xs text-danger-700">
+                                                {imp.error}
+                                            </span>
+                                        )}
+                                    </span>
                                 </li>
                             );
                         })}
