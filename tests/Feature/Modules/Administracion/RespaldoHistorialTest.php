@@ -104,7 +104,7 @@ final class RespaldoHistorialTest extends TestCase
                 'pagina' => 1,
                 'por_pagina' => 15,
                 'conteos' => ['todos' => 3, 'programados' => 2, 'puntuales' => 1, 'fallidos' => 0],
-                'programacion' => 'Diario, 03:00',
+                'programacion' => 'Automático apagado',
                 'ultimo' => '2026-10-12T10:30:00-04:00',
             ]);
 

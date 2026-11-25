@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Modules\Administracion\Http\Controllers;
 
 use App\Modules\Administracion\Application\Actions\GenerarRespaldo;
+use App\Modules\Administracion\Application\Actions\GuardarAjustesDeRespaldo;
 use App\Modules\Administracion\Application\Actions\RestaurarRespaldo;
+use App\Modules\Administracion\Application\DTOs\AjustesDeRespaldoData;
 use App\Modules\Administracion\Application\DTOs\RespaldoData;
+use App\Modules\Administracion\Application\Queries\ConsultarAjustesDeRespaldo;
 use App\Modules\Administracion\Application\Queries\DescargarRespaldo;
 use App\Modules\Administracion\Application\Queries\ListarRespaldos;
 use App\Modules\Administracion\Domain\Exceptions\RespaldoBloqueadoException;
@@ -14,6 +17,7 @@ use App\Modules\Administracion\Domain\Exceptions\RespaldoFallidoException;
 use App\Modules\Administracion\Domain\Exceptions\RespaldoIncompatibleException;
 use App\Modules\Administracion\Domain\Exceptions\RespaldoNoEncontradoException;
 use App\Modules\Administracion\Domain\ValueObjects\InstanteLocal;
+use App\Modules\Administracion\Http\Requests\GuardarAjustesDeRespaldoRequest;
 use App\Modules\Administracion\Http\Requests\ListarRespaldosRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
@@ -25,8 +29,11 @@ use Illuminate\Support\Facades\Auth;
  */
 final class RespaldoController
 {
-    public function index(ListarRespaldosRequest $request, ListarRespaldos $listar): JsonResponse
-    {
+    public function index(
+        ListarRespaldosRequest $request,
+        ListarRespaldos $listar,
+        ConsultarAjustesDeRespaldo $ajustes,
+    ): JsonResponse {
         $pagina = $listar->execute(
             $request->filtro(),
             $request->pagina(),
@@ -43,10 +50,41 @@ final class RespaldoController
                 'pagina' => $pagina->pagina,
                 'por_pagina' => $pagina->porPagina,
                 'conteos' => $pagina->conteos,
-                'programacion' => ListarRespaldos::PROGRAMACION,
+                'programacion' => $ajustes->execute()->programacion(),
                 'ultimo' => $pagina->ultimo,
             ],
         ]);
+    }
+
+    public function ajustes(ConsultarAjustesDeRespaldo $consultar): JsonResponse
+    {
+        return response()->json(['data' => $this->serializarAjustes($consultar->execute())]);
+    }
+
+    public function guardarAjustes(
+        GuardarAjustesDeRespaldoRequest $request,
+        GuardarAjustesDeRespaldo $guardar,
+        ConsultarAjustesDeRespaldo $consultar,
+    ): JsonResponse {
+        $guardar->execute((int) Auth::id(), $request->ajustes());
+
+        return response()->json([
+            'message' => 'Ajustes guardados.',
+            'data' => $this->serializarAjustes($consultar->execute()),
+        ]);
+    }
+
+    /**
+     * @return array{habilitado: bool, hora: string, reintento_minutos: int, programacion: string}
+     */
+    private function serializarAjustes(AjustesDeRespaldoData $ajustes): array
+    {
+        return [
+            'habilitado' => $ajustes->habilitado,
+            'hora' => $ajustes->hora,
+            'reintento_minutos' => $ajustes->reintentoMinutos,
+            'programacion' => $ajustes->programacion(),
+        ];
     }
 
     public function store(GenerarRespaldo $generar): JsonResponse

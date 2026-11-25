@@ -108,6 +108,15 @@ function servidor({ generar = null } = {}) {
     simularApi(api, {
         'GET /respaldos': lista,
         'POST /respaldos': crear,
+        'GET /respaldos/ajustes': () => ({
+            data: {
+                habilitado: true,
+                hora: '03:00',
+                reintento_minutos: 30,
+                programacion: 'Diario, 03:00',
+            },
+        }),
+        'PUT /respaldos/ajustes': () => ({ message: 'Ajustes guardados.' }),
         'POST /respaldos/*/restaurar': restaurar,
     });
 }
@@ -410,6 +419,34 @@ describe('Respaldo', () => {
                 name: 'Restaurar el respaldo del 12 oct 2026, 03:00',
             })
         ).toBeInTheDocument();
+    });
+
+    it('configura el respaldo automático: hora y reintento, o apagado', async () => {
+        await montar();
+
+        fireEvent.click(screen.getByRole('button', { name: /Configurar automático/ }));
+        const dialogo = await screen.findByRole('dialog', { name: 'Respaldo automático' });
+        const activado = await within(dialogo).findByRole('checkbox', {
+            name: 'Respaldar cada día',
+        });
+        expect(activado).toBeChecked();
+        expect(within(dialogo).getByLabelText('Hora', { exact: false })).toHaveValue('03:00');
+
+        fireEvent.change(within(dialogo).getByLabelText('Hora', { exact: false }), {
+            target: { value: '22:30' },
+        });
+        fireEvent.click(activado);
+        expect(within(dialogo).getByLabelText('Hora', { exact: false })).toBeDisabled();
+        fireEvent.click(activado);
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }));
+
+        expect(await screen.findByText('Ajustes guardados')).toBeInTheDocument();
+        expect(api.put).toHaveBeenCalledWith('/respaldos/ajustes', {
+            habilitado: true,
+            hora: '22:30',
+            reintento_minutos: 30,
+        });
+        expect(screen.queryByRole('dialog', { name: 'Respaldo automático' })).toBeNull();
     });
 
     it('el tamaño se lee en la unidad que corresponde', () => {
