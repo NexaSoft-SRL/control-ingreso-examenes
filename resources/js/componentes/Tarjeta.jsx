@@ -1,11 +1,13 @@
 import PropTypes from 'prop-types';
 
 // `sinRelleno` deja el contenido a ras del borde, para tablas y listas.
-// `icono` (un componente de lucide) acompaña al título.
+// `icono` (un componente de lucide) acompaña al título; `insignia` va junto al
+// título (un estado o un conteo), y `acciones` al otro extremo.
 export default function Tarjeta({
     id,
     titulo,
     icono: Icono = null,
+    insignia = null,
     acciones,
     sinRelleno = false,
     className = '',
@@ -19,14 +21,17 @@ export default function Tarjeta({
             {(titulo || acciones) && (
                 <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-slate-200 px-5 py-4">
                     {titulo && (
-                        <h2 className="flex items-center gap-2.5 text-base font-semibold text-umss-marino">
-                            {Icono && (
-                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
-                                    <Icono className="h-4 w-4" aria-hidden="true" />
-                                </span>
-                            )}
-                            {titulo}
-                        </h2>
+                        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+                            <h2 className="flex items-center gap-2.5 text-base font-semibold text-umss-marino">
+                                {Icono && (
+                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
+                                        <Icono className="h-4 w-4" aria-hidden="true" />
+                                    </span>
+                                )}
+                                {titulo}
+                            </h2>
+                            {insignia}
+                        </div>
                     )}
                     {acciones && <div className="flex shrink-0 items-center gap-2">{acciones}</div>}
                 </header>
@@ -40,6 +45,7 @@ Tarjeta.propTypes = {
     id: PropTypes.string,
     titulo: PropTypes.node,
     icono: PropTypes.elementType,
+    insignia: PropTypes.node,
     acciones: PropTypes.node,
     sinRelleno: PropTypes.bool,
     className: PropTypes.string,

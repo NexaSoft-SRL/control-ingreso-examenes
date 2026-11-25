@@ -498,16 +498,18 @@ export default function Periodo() {
                 sinRelleno
                 titulo="Oferta académica por facultad"
                 icono={Building2}
+                insignia={
+                    facultades.length > 0 && (
+                        <Insignia tono={importadas === facultades.length ? 'exito' : 'advertencia'}>
+                            {importadas} de {facultades.length} importadas
+                        </Insignia>
+                    )
+                }
                 acciones={
                     facultades.length > 0 && (
-                        // El grupo no pasa del ancho de la pantalla: en móvil el botón
-                        // baja de línea en lugar de salirse de la tarjeta.
+                        // El botón no pasa del ancho de la pantalla: en móvil baja de
+                        // línea en lugar de salirse de la tarjeta.
                         <div className="flex max-w-[calc(100vw-5.5rem)] flex-wrap items-center gap-2">
-                            <Insignia
-                                tono={importadas === facultades.length ? 'exito' : 'advertencia'}
-                            >
-                                {importadas} de {facultades.length} importadas
-                            </Insignia>
                             <Boton
                                 type="button"
                                 variante="secundario"
