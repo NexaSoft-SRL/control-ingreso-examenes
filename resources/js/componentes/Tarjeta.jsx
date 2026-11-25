@@ -30,7 +30,8 @@ export default function Tarjeta({
                                 )}
                                 {titulo}
                             </h2>
-                            {insignia}
+                            {/* La insignia trae su propia alineación: se centra con el título. */}
+                            {insignia && <span className="flex items-center">{insignia}</span>}
                         </div>
                     )}
                     {acciones && <div className="flex shrink-0 items-center gap-2">{acciones}</div>}
