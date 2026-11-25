@@ -529,9 +529,9 @@ describe('RegistrarExamen · normas del examen anterior', () => {
         expect(await campo(/^Fecha/)).toHaveValue('2026-11-23');
         expect(screen.getByLabelText(/^Hora de inicio/)).toHaveValue('14:15');
         expect(screen.getByLabelText(/^Duración/)).toHaveValue('120');
-        expect(screen.getByRole('button', { name: /^Asignatura 1/ })).toHaveTextContent(
-            'Taller de Ingeniería de Software'
-        );
+        const elegidas = screen.getByRole('list', { name: /^Asignaturas/ });
+        expect(elegidas).toHaveTextContent('Taller de Ingeniería de Software');
+        expect(elegidas).not.toHaveTextContent('Introducción a la Programación');
         expect(screen.getByLabelText(/^Tipo/)).toHaveValue('SEGUNDO_PARCIAL');
     });
 
@@ -562,20 +562,14 @@ describe('RegistrarExamen · paso 1, examen', () => {
     it('ofrece solo las asignaturas que dicta y los cinco tipos', async () => {
         montar();
 
-        fireEvent.click(await screen.findByRole('button', { name: /^Asignatura 1/ }));
-        const opciones = within(
-            listaDe(screen.getByRole('listbox', { name: /Asignatura 1/ }))
-        ).getAllByRole('option');
-        expect(opciones.map((o) => o.textContent)).toEqual([
-            expect.stringMatching(
-                /^Introducción a la Programación.*2010010 · Grupo 2 · 65 inscritos/
-            ),
-            expect.stringMatching(/^Taller de Ingeniería de Software.*2010024/),
-        ]);
-        expect(opciones[0]).toHaveAttribute('aria-selected', 'true');
-        fireEvent.keyDown(screen.getByRole('button', { name: /^Asignatura 1/ }), { key: 'Escape' });
-        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
-        // El desplegable de abajo solo ofrece la que aún no se eligió.
+        // La elegida queda como tarjeta fija y ya no se ofrece en el desplegable.
+        const elegidas = await screen.findByRole('list', { name: /^Asignaturas/ });
+        expect(elegidas).toHaveTextContent(
+            /Introducción a la Programación.*2010010 · Grupo 2 · 65 inscritos/
+        );
+        expect(
+            within(elegidas).queryByRole('button', { name: /^Asignatura 1/ })
+        ).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: /Agregar otra asignatura/ }));
         expect(
             within(screen.getByRole('listbox'))
@@ -851,7 +845,10 @@ describe('RegistrarExamen · paso 2, grupos', () => {
 
     it('al cambiar de asignatura vuelven a valer sus grupos propios', async () => {
         montar();
-        fireEvent.click(await screen.findByRole('button', { name: /^Asignatura 1/ }));
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Quitar Introducción a la Programación' })
+        );
+        fireEvent.click(screen.getByRole('button', { name: /Elegir asignatura/ }));
         fireEvent.click(screen.getByRole('option', { name: /Taller de Ingeniería de Software/ }));
         await llenarExamen();
 
@@ -1806,7 +1803,7 @@ describe('RegistrarExamen · guardar', () => {
         ).toBeInTheDocument();
     });
 
-    it('las asignaturas se eligen en desplegables encadenados y cada una se puede quitar', async () => {
+    it('las asignaturas elegidas quedan fijas, solo se quitan, y el desplegable no repite', async () => {
         montar();
 
         fireEvent.click(await screen.findByRole('button', { name: /Agregar otra asignatura/ }));
@@ -1816,11 +1813,13 @@ describe('RegistrarExamen · guardar', () => {
             })
         );
 
-        // La elegida pasa a su propio desplegable y, como ya no queda ninguna, no hay otro.
-        expect(screen.getByRole('button', { name: /^Asignatura 2/ })).toHaveTextContent(
-            'Taller de Ingeniería de Software'
-        );
+        const lista = screen.getByRole('list', { name: /^Asignaturas/ });
+        expect(lista).toHaveTextContent('Introducción a la Programación');
+        expect(lista).toHaveTextContent('Taller de Ingeniería de Software');
+        // Ya no queda ninguna por agregar y ninguna fila es un desplegable.
         expect(screen.queryByRole('button', { name: /Agregar otra asignatura/ })).toBeNull();
+        expect(within(lista).queryByRole('listbox')).toBeNull();
+        expect(within(lista).queryByRole('button', { name: /^Asignatura \d/ })).toBeNull();
 
         fireEvent.click(
             screen.getByRole('button', { name: 'Quitar Taller de Ingeniería de Software' })
@@ -1830,7 +1829,7 @@ describe('RegistrarExamen · guardar', () => {
         ).toBeVisible();
     });
 
-    it('todas las asignaturas se tratan igual: también se puede quitar la primera', async () => {
+    it('también se puede quitar la primera y la siguiente toma su lugar', async () => {
         montar();
 
         fireEvent.click(await screen.findByRole('button', { name: /Agregar otra asignatura/ }));
@@ -1843,13 +1842,26 @@ describe('RegistrarExamen · guardar', () => {
             screen.getByRole('button', { name: 'Quitar Introducción a la Programación' })
         );
 
-        expect(await screen.findByRole('button', { name: /^Asignatura 1/ })).toHaveTextContent(
-            'Taller de Ingeniería de Software'
-        );
-        // Con una sola ya no hay con qué quitar.
-        expect(screen.queryByRole('button', { name: /^Quitar (Taller|Introducción)/ })).toBeNull();
+        expect(
+            await screen.findByRole('button', { name: 'Quitar Taller de Ingeniería de Software' })
+        ).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: 'Quitar Introducción a la Programación' })
+        ).toBeNull();
         await llenarExamen();
         expect(await casilla(/^Grupo 5 · Blanco/)).toBeChecked();
+    });
+
+    it('sin ninguna asignatura no se continúa', async () => {
+        montar();
+
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Quitar Introducción a la Programación' })
+        );
+        pulsar(/Continuar/);
+
+        expect(await screen.findByText('Elija al menos una asignatura')).toBeVisible();
+        expect(screen.queryByRole('heading', { name: '2. Grupos' })).toBeNull();
     });
 
     it('sin normas también se registra', async () => {
