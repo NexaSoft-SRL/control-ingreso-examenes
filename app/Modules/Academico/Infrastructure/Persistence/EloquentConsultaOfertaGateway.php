@@ -62,16 +62,12 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
 
     public function periodos(PaginaData $pagina): array
     {
-        $hoy = $this->hoy();
-
         $periodos = array_values(
+            // Del año más reciente al más antiguo y, dentro de cada año, en el
+            // orden de la universidad: 0 (anual), 1, 2.
             Periodo::query()
-                ->orderByRaw(
-                    'case when fecha_inicio <= ? and fecha_fin >= ? then 0 else 1 end',
-                    [$hoy, $hoy],
-                )
                 ->orderByDesc('anio')
-                ->orderByDesc('numero')
+                ->orderBy('numero')
                 ->forPage($pagina->pagina, $pagina->porPagina)
                 ->get()
                 ->all()

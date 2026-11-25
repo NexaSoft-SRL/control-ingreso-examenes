@@ -53,7 +53,7 @@ final class PeriodosTest extends TestCase
         $this->getJson('/api/facultades')->assertUnauthorized();
     }
 
-    public function test_periods_list_current_ones_first_then_most_recent(): void
+    public function test_periods_list_by_year_newest_first_and_then_in_university_order(): void
     {
         $this->periodo('1/2031', 30, 120, TipoPeriodo::Semestre1);
         $vigente = $this->periodo('2/2030', -10, 10);
@@ -69,18 +69,20 @@ final class PeriodosTest extends TestCase
         $this->grupo(null, $asignatura, '1', $vigente);
         $this->grupo(null, $asignatura, '2', $vigente);
 
+        // Cada año en el orden de la universidad (0 anual, 1, 2); el año más
+        // reciente primero. El período vigente no se adelanta.
         $this->actingAs($this->usuarioConPermisos(['periodo_oferta']))
             ->getJson('/api/periodos')
             ->assertOk()
-            ->assertJsonPath('data.*.codigo', ['2/2030', '1/2031', '1/2030', '0/2030'])
-            ->assertJsonPath('data.*.estado', ['Vigente', 'Próximo', 'Cerrado', 'Sin fechas'])
-            ->assertJsonPath('data.0.id', $vigente->id)
-            ->assertJsonPath('data.0.tipo', 'Semestre 2')
-            ->assertJsonPath('data.0.fecha_inicio', now()->subDays(10)->toDateString())
-            ->assertJsonPath('data.0.fecha_fin', now()->addDays(10)->toDateString())
-            ->assertJsonPath('data.0.nota', '1 carrera · 2 grupos')
-            ->assertJsonPath('data.3.fecha_inicio', null)
-            ->assertJsonPath('data.3.nota', 'Sin oferta importada')
+            ->assertJsonPath('data.*.codigo', ['1/2031', '0/2030', '1/2030', '2/2030'])
+            ->assertJsonPath('data.*.estado', ['Próximo', 'Sin fechas', 'Cerrado', 'Vigente'])
+            ->assertJsonPath('data.3.id', $vigente->id)
+            ->assertJsonPath('data.3.tipo', 'Semestre 2')
+            ->assertJsonPath('data.3.fecha_inicio', now()->subDays(10)->toDateString())
+            ->assertJsonPath('data.3.fecha_fin', now()->addDays(10)->toDateString())
+            ->assertJsonPath('data.3.nota', '1 carrera · 2 grupos')
+            ->assertJsonPath('data.1.fecha_inicio', null)
+            ->assertJsonPath('data.1.nota', 'Sin oferta importada')
             ->assertJsonPath('meta', ['total' => 4, 'pagina' => 1, 'por_pagina' => 4]);
     }
 
