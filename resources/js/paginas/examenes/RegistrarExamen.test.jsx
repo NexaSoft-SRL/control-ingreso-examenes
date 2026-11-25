@@ -794,15 +794,15 @@ describe('RegistrarExamen · paso 2, grupos', () => {
 
         expect(await casilla(/^Grupo 2 · Blanco Coca Leticia/)).toBeChecked();
         expect(screen.getByText('65 inscritos')).toBeInTheDocument();
-        expect(screen.getByText(/Otros grupos de la asignatura · 0 de 10/)).toBeInTheDocument();
+        expect(screen.getByText(/Invitar a otros docentes · 0 de 10/)).toBeInTheDocument();
         expect(await casilla('Grupo 12 · Sin docente')).not.toBeChecked();
 
         fireEvent.click(await casilla(/^Grupo 3 · Salazar/));
         expect(screen.getByText('75 inscritos')).toBeInTheDocument();
-        expect(screen.getByText(/Otros grupos de la asignatura · 1 de 10/)).toBeInTheDocument();
+        expect(screen.getByText(/Invitar a otros docentes · 1 de 10/)).toBeInTheDocument();
 
         pulsar('Todos');
-        expect(screen.getByText(/Otros grupos de la asignatura · 10 de 10/)).toBeInTheDocument();
+        expect(screen.getByText(/Invitar a otros docentes · 10 de 10/)).toBeInTheDocument();
         expect(screen.getByText('615 inscritos')).toBeInTheDocument();
 
         pulsar('Ninguno');
@@ -819,7 +819,7 @@ describe('RegistrarExamen · paso 2, grupos', () => {
         expect(screen.queryByRole('checkbox', { name: /Salazar/ })).not.toBeInTheDocument();
 
         pulsar('Todos');
-        expect(screen.getByText(/Otros grupos de la asignatura · 3 de 10/)).toBeInTheDocument();
+        expect(screen.getByText(/Invitar a otros docentes · 3 de 10/)).toBeInTheDocument();
 
         cambiar(screen.getByLabelText('Buscar grupo'), 'grupo 12');
         expect(screen.getByRole('checkbox', { name: 'Grupo 12 · Sin docente' })).toBeVisible();
@@ -1989,6 +1989,59 @@ describe('RegistrarExamen · edición', () => {
         expect(screen.getByText('Mochilas al frente.')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Guardar|Continuar/ })).not.toBeInTheDocument();
         expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
+
+    it('quien registró el examen ve el estado de cada invitación a otro docente', async () => {
+        detalle = {
+            ...DETALLE,
+            propio: false,
+            invitaciones: [
+                {
+                    id: 7,
+                    grupo_id: 12,
+                    grupo_codigo: '3',
+                    docente: 'Ustariz Vargas Hernan',
+                    estado: 'pendiente',
+                },
+                {
+                    id: 8,
+                    grupo_id: 13,
+                    grupo_codigo: '4',
+                    docente: 'Montano Quiroga Victor Hugo',
+                    estado: 'rechazada',
+                },
+            ],
+        };
+        montar('/examenes/nuevo?examen=4');
+
+        const lista = await screen.findByRole('list', { name: 'Invitaciones a otros docentes' });
+        expect(
+            within(lista).getByText(/Grupo 3 · Ustariz Vargas Hernan · Pendiente/)
+        ).toBeVisible();
+        expect(
+            within(lista).getByText(/Grupo 4 · Montano Quiroga Victor Hugo · Rechazó/)
+        ).toBeVisible();
+    });
+
+    it('un colaborador puede salirse del examen, con confirmación', async () => {
+        detalle = { ...DETALLE, propio: false, registrado_por: 'Rodriguez Bilbao Erika' };
+        api.post.mockResolvedValue({ data: { message: 'Salió del examen.' } });
+        montar('/examenes/nuevo?examen=4');
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Salir del examen' }));
+        expect(api.post).not.toHaveBeenCalled();
+        const confirmar = screen.getByRole('group', { name: 'Salir del examen' });
+        fireEvent.click(within(confirmar).getByRole('button', { name: 'Salir' }));
+
+        await waitFor(() => expect(api.post).toHaveBeenCalledWith('/examenes/4/salir'));
+    });
+
+    it('con ingresos registrados el colaborador ya no puede salirse', async () => {
+        detalle = { ...DETALLE, propio: false, con_ingresos: true };
+        montar('/examenes/nuevo?examen=4');
+
+        expect(await screen.findByText(/Registrado por/)).toBeVisible();
+        expect(screen.queryByRole('button', { name: 'Salir del examen' })).not.toBeInTheDocument();
     });
 
     it.each([

@@ -12,6 +12,7 @@ import {
     QrCode,
     Radio,
     Timer,
+    LogOut,
     Trash2,
     UserCheck,
     UserRound,
@@ -32,6 +33,7 @@ import BitacoraDelExamen from './BitacoraDelExamen';
 import ChoquesDeEstudiantes from './ChoquesDeEstudiantes';
 import RevisionSinConexion from './RevisionSinConexion';
 import EliminarExamen from './EliminarExamen';
+import SalirDelExamen from './SalirDelExamen';
 import { FORMA_EXAMEN, PASOS, accionDe, estadoDe, pendiente, tipoDe } from './avanceDelExamen';
 import rutaDelExamen from './rutaDelExamen';
 
@@ -187,6 +189,16 @@ function Resumen({ e, accion, puedeHabilitar }) {
                     {plural(e.inscritos, 'inscrito')}
                     {e.junto_con > 0 && ` · junto con ${plural(e.junto_con, 'examen', 'exámenes')}`}
                 </p>
+                {e.invitados_pendientes > 0 && (
+                    <p className="mt-1 text-sm font-medium text-warning-800">
+                        {plural(
+                            e.invitados_pendientes,
+                            'invitación pendiente',
+                            'invitaciones pendientes'
+                        )}{' '}
+                        a otros docentes
+                    </p>
+                )}
                 {!e.rendido && <ChoquesDelExamen e={e} puedeHabilitar={puedeHabilitar} />}
             </Tarjeta>
         </div>
@@ -208,6 +220,7 @@ export default function DetalleExamen() {
     const { puede } = usarSesion();
     const navegar = useNavigate();
     const [porEliminar, setPorEliminar] = useState(null);
+    const [porSalir, setPorSalir] = useState(null);
     const id = Number(parametros.get('examen')) || null;
     const e = (datos ?? []).find((x) => x.id === id) ?? null;
 
@@ -311,6 +324,16 @@ export default function DetalleExamen() {
                         <Pencil className="h-4 w-4" /> Editar
                     </Link>
                 )}
+                {/* Quien colabora con un grupo suyo puede salirse mientras no haya ingresos. */}
+                {e.propio === false && !e.con_ingresos && (
+                    <button
+                        type="button"
+                        onClick={() => setPorSalir(e)}
+                        className={`${BOTON} border border-danger-200 bg-white text-danger-700 hover:bg-danger-50`}
+                    >
+                        <LogOut className="h-4 w-4" /> Salir del examen
+                    </button>
+                )}
                 {/* Con ingresos o incidencias el examen ya es historia. */}
                 {e.propio && !e.con_ingresos && !e.con_incidencias && (
                     <button
@@ -380,6 +403,13 @@ export default function DetalleExamen() {
                 )}
             </div>
 
+            <SalirDelExamen
+                examen={porSalir}
+                onCerrar={() => setPorSalir(null)}
+                onSalio={() =>
+                    navegar('/examenes', { replace: true, state: { aviso: 'Salió del examen' } })
+                }
+            />
             <EliminarExamen
                 examen={porEliminar}
                 onCerrar={() => setPorEliminar(null)}

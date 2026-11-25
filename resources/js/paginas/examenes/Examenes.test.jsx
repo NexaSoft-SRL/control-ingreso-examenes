@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Examenes from './Examenes';
 import { api } from '../../api/cliente';
@@ -96,6 +96,7 @@ const POR_HABILITAR = examen({
 
 let examenes;
 let hoy;
+let invitaciones;
 
 const montar = (usuario = usuarioDePrueba('Docente')) =>
     renderConSesion(<Examenes />, { usuario, ruta: '/examenes' });
@@ -106,7 +107,14 @@ const seccion = (rotulo) => screen.getByRole('heading', { name: rotulo }).closes
 beforeEach(() => {
     examenes = [SIN_AULAS, CON_QR, POR_HABILITAR, AJENO];
     hoy = '2026-10-09';
+    invitaciones = [];
     simularApi(api, {
+        'GET /examenes/invitaciones': () => ({
+            data: invitaciones,
+            meta: { total: invitaciones.length },
+        }),
+        'POST /examenes/invitaciones/*/aceptar': () => ({ message: 'Invitación aceptada.' }),
+        'POST /examenes/invitaciones/*/rechazar': () => ({ message: 'Invitación rechazada.' }),
         'GET /examenes': () => ({
             data: examenes,
             meta: { periodo: '2/2026', hoy, hora_servidor: `${hoy}T08:00:00-04:00` },
@@ -119,6 +127,84 @@ beforeEach(() => {
 });
 
 describe('Examenes · lista', () => {
+    const INVITACION = {
+        id: 7,
+        examen: {
+            id: 31,
+            tipo: 'PRIMER_PARCIAL',
+            tipo_texto: 'Primer parcial',
+            asignatura: TALLER,
+            fecha: '2026-11-30',
+            hora: '08:15',
+            duracion: 90,
+            aulas: ['691B'],
+        },
+        grupo: { id: 12, codigo: '3' },
+        invitado_por: 'Blanco Coca Leticia',
+    };
+
+    it('muestra las invitaciones de otros docentes y se pueden aceptar', async () => {
+        invitaciones = [INVITACION];
+        montar();
+
+        const seccion = await screen.findByRole('region', { name: 'Invitaciones' });
+        expect(seccion).toHaveTextContent(
+            'Primer parcial · Taller de Ingeniería de Software · Grupo 3'
+        );
+        expect(seccion).toHaveTextContent('Invita Blanco Coca Leticia');
+        expect(seccion).toHaveTextContent('691B');
+        fireEvent.click(
+            within(seccion).getByRole('button', {
+                name: 'Aceptar la invitación a Taller de Ingeniería de Software',
+            })
+        );
+
+        await waitFor(() =>
+            expect(api.post).toHaveBeenCalledWith('/examenes/invitaciones/7/aceptar')
+        );
+        expect(await screen.findByText('Invitación aceptada')).toBeInTheDocument();
+    });
+
+    it('rechaza una invitación', async () => {
+        invitaciones = [INVITACION];
+        montar();
+
+        const seccion = await screen.findByRole('region', { name: 'Invitaciones' });
+        fireEvent.click(
+            within(seccion).getByRole('button', {
+                name: 'Rechazar la invitación a Taller de Ingeniería de Software',
+            })
+        );
+
+        await waitFor(() =>
+            expect(api.post).toHaveBeenCalledWith('/examenes/invitaciones/7/rechazar')
+        );
+    });
+
+    it('dice por qué no se pudo aceptar', async () => {
+        invitaciones = [INVITACION];
+        api.post.mockRejectedValueOnce(
+            errorHttp(422, {
+                message: 'Datos no válidos.',
+                errors: { grupos: ['El grupo 3 ya tiene un primer parcial.'] },
+            })
+        );
+        montar();
+
+        const seccion = await screen.findByRole('region', { name: 'Invitaciones' });
+        fireEvent.click(within(seccion).getByRole('button', { name: /^Aceptar la invitación/ }));
+
+        expect(
+            await screen.findByText('El grupo 3 ya tiene un primer parcial.')
+        ).toBeInTheDocument();
+    });
+
+    it('sin invitaciones no hay sección', async () => {
+        montar();
+        await screen.findAllByRole('heading', { name: /Introducción a la Programación/ });
+        expect(screen.queryByRole('region', { name: 'Invitaciones' })).not.toBeInTheDocument();
+    });
+
     it('los exámenes a la misma fecha y hora van juntos en un marco, con su rótulo', async () => {
         examenes = [SIN_AULAS, { ...POR_HABILITAR, fecha: '2026-11-23', hora: '14:15' }, CON_QR];
         montar();

@@ -20,7 +20,7 @@ import {
     Users,
     X,
 } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
@@ -143,6 +143,15 @@ const FORMA_DETALLE = PropTypes.shape({
     inscritos: PropTypes.number,
     estado: PropTypes.string,
     propio: PropTypes.bool,
+    con_ingresos: PropTypes.bool,
+    invitaciones: PropTypes.arrayOf(
+        PropTypes.shape({
+            id: PropTypes.number.isRequired,
+            grupo_codigo: PropTypes.string,
+            docente: PropTypes.string,
+            estado: PropTypes.string.isRequired,
+        })
+    ),
     registrado_por: PropTypes.string,
     normas: PropTypes.string,
     normas_marcadas: PropTypes.arrayOf(
@@ -392,7 +401,23 @@ function Resumen({ examen, recien = false, onAviso, onElegirAulas }) {
         (id) => setGenerados((previos) => (previos.includes(id) ? previos : [...previos, id])),
         []
     );
+    const navegar = useNavigate();
+    const [saliendo, setSaliendo] = useState(null);
     const grupos = examen.grupos_detalle ?? [];
+    const invitaciones = examen.invitaciones ?? [];
+    // Quien colabora (no registró el examen) puede salirse mientras no haya ingresos.
+    const puedeSalir = examen.propio === false && !examen.con_ingresos;
+
+    async function salir() {
+        setSaliendo('enviando');
+        try {
+            await api.post(`/examenes/${examen.id}/salir`);
+            navegar('/examenes', { state: { aviso: 'Salió del examen' } });
+        } catch (fallo) {
+            onAviso(sinPunto(mensajeDe(fallo, 'No se pudo salir del examen')), 'error');
+            setSaliendo(null);
+        }
+    }
     const aulas = examen.aulas_detalle ?? [];
     const marcadas = examen.normas_marcadas ?? [];
     const libres = (examen.normas ?? '').trim();
@@ -420,6 +445,23 @@ function Resumen({ examen, recien = false, onAviso, onElegirAulas }) {
                         {plural(grupos.length, 'grupo')} ({grupos.map((g) => g.codigo).join(', ')})
                         · {plural(examen.inscritos ?? 0, 'inscrito')}
                     </p>
+                    {invitaciones.length > 0 && (
+                        <ul
+                            aria-label="Invitaciones a otros docentes"
+                            className="mt-2 flex flex-wrap gap-2"
+                        >
+                            {invitaciones.map((i) => (
+                                <li key={i.id}>
+                                    <Insignia
+                                        tono={i.estado === 'rechazada' ? 'peligro' : 'advertencia'}
+                                    >
+                                        Grupo {i.grupo_codigo} · {i.docente ?? 'Sin docente'} ·{' '}
+                                        {i.estado === 'rechazada' ? 'Rechazó' : 'Pendiente'}
+                                    </Insignia>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                     <p className="mt-2 flex items-start gap-2 text-sm text-slate-700">
                         <DoorOpen className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
                         <span className="min-w-0 break-words">
@@ -495,6 +537,42 @@ function Resumen({ examen, recien = false, onAviso, onElegirAulas }) {
                 >
                     Ver exámenes
                 </Link>
+                {puedeSalir &&
+                    (saliendo === null ? (
+                        <Boton
+                            type="button"
+                            variante="peligroContorno"
+                            onClick={() => setSaliendo('confirmar')}
+                        >
+                            Salir del examen
+                        </Boton>
+                    ) : (
+                        <span
+                            role="group"
+                            aria-label="Salir del examen"
+                            className="flex flex-wrap items-center gap-2"
+                        >
+                            <span className="text-sm font-medium text-danger-700">
+                                Sus grupos dejan este examen
+                            </span>
+                            <Boton
+                                type="button"
+                                variante="secundario"
+                                disabled={saliendo === 'enviando'}
+                                onClick={() => setSaliendo(null)}
+                            >
+                                Cancelar
+                            </Boton>
+                            <Boton
+                                type="button"
+                                variante="peligro"
+                                cargando={saliendo === 'enviando'}
+                                onClick={salir}
+                            >
+                                Salir
+                            </Boton>
+                        </span>
+                    ))}
                 {examen.propio !== false && puede('examenes') && (
                     <Link
                         to={`/examenes/nuevo?copiar=${examen.id}`}
@@ -1304,7 +1382,7 @@ function Asistente({
                             <div>
                                 <div className="mb-1.5 flex min-h-9 flex-wrap items-center justify-between gap-x-3">
                                     <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                                        Otros grupos de la asignatura ·{' '}
+                                        Invitar a otros docentes ·{' '}
                                         {
                                             otrosTodos.filter((g) => elegidosIds.includes(g.id))
                                                 .length

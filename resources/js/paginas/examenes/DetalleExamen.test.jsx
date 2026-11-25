@@ -60,6 +60,7 @@ beforeEach(() => {
             meta: { total: 0, cifras: { habilitados: 6, emitidos: 0 } },
         }),
         'DELETE /examenes/*': () => ({ message: 'Examen eliminado.' }),
+        'POST /examenes/*/salir': () => ({ message: 'Salió del examen.' }),
     });
 });
 
@@ -269,5 +270,35 @@ describe('DetalleExamen · editar y eliminar', () => {
         const lista = await screen.findByRole('tablist', { name: 'Secciones del examen' });
         expect(lista).toHaveClass('overflow-x-auto');
         expect(await pestana(/^Resumen/)).toHaveClass('shrink-0');
+    });
+});
+
+describe('DetalleExamen · colaboración', () => {
+    it('quien colabora con un grupo suyo puede salirse, con confirmación', async () => {
+        examenes = [examen({ propio: false })];
+        montar();
+
+        expect(screen.queryByRole('button', { name: /Eliminar/ })).not.toBeInTheDocument();
+        fireEvent.click(await screen.findByRole('button', { name: /Salir del examen/ }));
+        const dialogo = screen.getByRole('dialog', { name: 'Salir del examen' });
+        expect(api.post).not.toHaveBeenCalledWith('/examenes/24/salir');
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Salir' }));
+
+        await waitFor(() => expect(api.post).toHaveBeenCalledWith('/examenes/24/salir'));
+    });
+
+    it('con ingresos registrados ya no se puede salir, y quien lo registró no ve el botón', async () => {
+        examenes = [examen({ propio: false, con_ingresos: true })];
+        montar();
+        await screen.findByRole('heading', { name: /Primer parcial · Taller/ });
+        expect(screen.queryByRole('button', { name: /Salir del examen/ })).not.toBeInTheDocument();
+    });
+
+    it('quien registró el examen ve cuántas invitaciones siguen pendientes', async () => {
+        examenes = [examen({ invitados_pendientes: 2 })];
+        montar();
+
+        expect(await screen.findByText(/2 invitaciones pendientes a otros docentes/)).toBeVisible();
+        expect(screen.queryByRole('button', { name: /Salir del examen/ })).not.toBeInTheDocument();
     });
 });
