@@ -8,7 +8,7 @@ import usarDesplegable from './usarDesplegable';
 // Con más asignaturas que estas, la lista lleva buscador.
 const CON_BUSCADOR = 7;
 
-export function Detalle({ asignatura }) {
+function Detalle({ asignatura }) {
     const partes = [
         asignatura.codigo,
         asignatura.grupos?.length
