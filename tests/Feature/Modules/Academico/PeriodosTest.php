@@ -351,13 +351,15 @@ final class PeriodosTest extends TestCase
         $this->aula('691B', $this->edificio($fcyt));
 
         $conCuenta = $this->docenteConCuenta();
-        $this->docenteSinCuenta();
-        $this->docenteSinCuenta();
+        $sinCuentaUno = $this->docenteSinCuenta();
+        $sinCuentaDos = $this->docenteSinCuenta();
+        // Solo dio clases en el período cerrado: no es un pendiente del vigente.
+        $soloCerrado = $this->docenteSinCuenta();
 
         $conLista = $this->grupo($conCuenta, null, '1', $periodo, $fcyt);
-        $this->grupo(null, null, '2', $periodo, $fcyt);
-        $this->grupo(null, null, '3', $periodo, $fce);
-        $this->grupo(null, null, '4', $cerrado, $fcyt);
+        $this->grupo($sinCuentaUno, null, '2', $periodo, $fcyt);
+        $this->grupo($sinCuentaDos, null, '3', $periodo, $fce);
+        $this->grupo($soloCerrado, null, '4', $cerrado, $fcyt);
         $this->estudiantesInscritos($conLista, 2);
 
         ImportacionOferta::create([

@@ -102,9 +102,23 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
                 ->whereNull('i.baja_en');
         });
 
+        // Los docentes que dan clases en el período vigente, no todos los que
+        // alguna vez estuvieron en la oferta (también hay oferta de períodos
+        // cerrados). Sin período vigente, todos, como los grupos.
+        $docentes = DB::table('docentes as d');
+
+        if ($periodoIds !== []) {
+            $docentes->whereExists(function (Builder $dicta) use ($periodoIds): void {
+                $dicta->selectRaw('1')
+                    ->from('grupos as dg')
+                    ->whereColumn('dg.docente_id', 'd.id')
+                    ->whereIn('dg.periodo_id', $periodoIds);
+            });
+        }
+
         return [
-            'docentes' => DB::table('docentes')->count(),
-            'docentes_sin_cuenta' => DB::table('docentes')->whereNull('user_id')->count(),
+            'docentes' => (clone $docentes)->count(),
+            'docentes_sin_cuenta' => (clone $docentes)->whereNull('d.user_id')->count(),
             'grupos' => $grupos->count(),
             'grupos_sin_lista' => $sinLista->count(),
         ];
