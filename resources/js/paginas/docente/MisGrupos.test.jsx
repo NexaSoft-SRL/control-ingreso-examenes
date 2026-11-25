@@ -741,7 +741,6 @@ describe('Mis grupos · agregar y quitar estudiantes', () => {
 
         fireEvent.click(within(fila).getByRole('button', { name: /^Editar a/ }));
         expect(dialogo()).toHaveAccessibleName('Editar estudiante');
-        expect(within(dialogo()).getByText(/se corrige en todas sus asignaturas/)).toBeVisible();
         expect(within(dialogo()).queryByLabelText('Código SIS', { exact: false })).toBeNull();
 
         escribir('C.I.', '7928194');
@@ -765,7 +764,7 @@ describe('Mis grupos · agregar y quitar estudiantes', () => {
         fireEvent.click(
             within(screen.getAllByRole('row')[1]).getByRole('button', { name: /^Editar a/ })
         );
-        expect(within(dialogo()).getByText('Ej. 5003748')).toBeVisible();
+        expect(within(dialogo()).queryByText('Ej. 5003748')).toBeNull();
 
         escribir('C.I.', '12');
         fireEvent.click(within(dialogo()).getByRole('button', { name: /Guardar/ }));

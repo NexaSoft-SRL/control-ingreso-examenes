@@ -9,7 +9,7 @@ use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Los datos corregidos de un estudiante: valida como una fila del archivo
- * de carga, sin el codigo SIS, que no se cambia.
+ * de carga. El codigo SIS es opcional: solo la administracion lo corrige.
  */
 final class EditarEstudianteRequest extends FormRequest
 {
@@ -24,6 +24,7 @@ final class EditarEstudianteRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'codigo' => ['sometimes', 'string', 'regex:'.DatosDeInscrito::PATRON_CODIGO],
             'documento' => ['required', 'string', 'max:'.DatosDeInscrito::MAXIMO_DOCUMENTO, 'regex:'.DatosDeInscrito::PATRON_DOCUMENTO],
             'nombres' => ['required', 'string', 'max:'.DatosDeInscrito::MAXIMO_NOMBRE, 'regex:'.DatosDeInscrito::PATRON_NOMBRE],
             'apellidos' => ['required', 'string', 'max:'.DatosDeInscrito::MAXIMO_NOMBRE, 'regex:'.DatosDeInscrito::PATRON_NOMBRE],
@@ -36,6 +37,8 @@ final class EditarEstudianteRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'codigo.regex' => 'El código SIS debe tener entre 5 y 10 dígitos.',
+            'codigo.string' => 'El código SIS no es válido.',
             'documento.required' => 'El documento es obligatorio.',
             'documento.string' => 'El documento no es válido.',
             'documento.max' => DatosDeInscrito::MENSAJE_DOCUMENTO.'.',
@@ -54,6 +57,11 @@ final class EditarEstudianteRequest extends FormRequest
     public function documento(): string
     {
         return $this->string('documento')->trim()->toString();
+    }
+
+    public function codigo(): ?string
+    {
+        return $this->has('codigo') ? $this->string('codigo')->trim()->toString() : null;
     }
 
     public function nombres(): string
