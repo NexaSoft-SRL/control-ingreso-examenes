@@ -346,7 +346,7 @@ export default function Oferta() {
                     icono={Search}
                     type="search"
                     className="order-last col-span-2 min-w-0 lg:order-none lg:col-span-1"
-                    placeholder="Asignatura, código o docente"
+                    placeholder="Asignatura o docente"
                     maxLength={100}
                     value={lista.buscar}
                     onChange={(e) => lista.ponerBuscar(e.target.value)}
