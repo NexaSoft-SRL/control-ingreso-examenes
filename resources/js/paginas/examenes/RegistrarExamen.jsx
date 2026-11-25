@@ -437,6 +437,14 @@ function Resumen({ examen, recien = false, onAviso, onElegirAulas }) {
                 >
                     Ver exámenes
                 </Link>
+                {examen.propio !== false && puede('examenes') && (
+                    <Link
+                        to={`/examenes/nuevo?copiar=${examen.id}`}
+                        className={`inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 ${FOCO}`}
+                    >
+                        Otro examen a la misma hora
+                    </Link>
+                )}
                 {aulas.length === 0 && onElegirAulas && (
                     <Boton type="button" onClick={onElegirAulas}>
                         Elegir aulas <ArrowRight className="h-4 w-4" />
@@ -495,15 +503,21 @@ function Asistente({
     onExamen,
     anteriores = [],
     sugerido = {},
+    base = null,
 }) {
     const { usuario } = usarSesion();
     const yo = { id: usuario.id, nombre: usuario.nombre };
     const [examen, setExamen] = useState(inicial);
     const [paso, setPaso] = useState(pasoInicial);
-    const [asignaturaId, setAsignaturaId] = useState(
-        inicial?.asignatura.id ?? asignaturas[0]?.id ?? null
-    );
     const hoy = new Date().toLocaleDateString('en-CA');
+    // Con `base` (otro examen a la misma hora) el examen nuevo parte de su
+    // tipo, fecha, hora, duración, aulas y personal, y de otra asignatura.
+    const [asignaturaId, setAsignaturaId] = useState(
+        inicial?.asignatura.id ??
+            (asignaturas.find((a) => a.id !== base?.asignatura?.id) ?? asignaturas[0])?.id ??
+            null
+    );
+    const fechaBase = base && base.fecha >= hoy ? base.fecha : undefined;
     const periodoDe = (id) =>
         periodos.find((p) => p.codigo === asignaturas.find((a) => a.id === id)?.periodo) ?? null;
     // Un tipo cuya ventana ya terminó no se ofrece para un examen nuevo.
@@ -514,6 +528,7 @@ function Asistente({
     const [tipo, setTipo] = useState(
         () =>
             inicial?.tipo ??
+            base?.tipo ??
             (tipos.find((t) => !cerrado(t.valor, asignaturas[0]?.id)) ?? tipos[0])?.valor ??
             ''
     );
@@ -522,11 +537,16 @@ function Asistente({
     const [fecha, setFecha] = useState(
         () =>
             inicial?.fecha ??
+            fechaBase ??
             sugerido.fecha ??
             fechaSugerida(periodoDe(asignaturas[0]?.id), tipo, hoy)
     );
-    const [hora, setHora] = useState(inicial?.hora ?? sugerido.hora ?? HORA_SUGERIDA);
-    const [duracion, setDuracion] = useState(String(inicial?.duracion ?? '90'));
+    const [hora, setHora] = useState(
+        inicial?.hora ?? (fechaBase ? base.hora : undefined) ?? sugerido.hora ?? HORA_SUGERIDA
+    );
+    const [duracion, setDuracion] = useState(
+        String(inicial?.duracion ?? (fechaBase ? base.duracion : undefined) ?? '90')
+    );
     const [normas, setNormas] = useState(inicial?.normas ?? '');
     const [marcadas, setMarcadas] = useState(() =>
         (inicial?.normas_marcadas ?? []).map((n) => n.plantilla_id).filter(Boolean)
@@ -567,9 +587,13 @@ function Asistente({
     const [grupos, setGrupos] = useState(() => inicial?.grupos_detalle?.map((g) => g.id) ?? null);
     const [aulas, setAulas] = useState(
         () =>
-            inicial?.aulas_detalle?.map((a) => a.aula_id) ?? (sugerido.aula ? [sugerido.aula] : [])
+            inicial?.aulas_detalle?.map((a) => a.aula_id) ??
+            (fechaBase ? base.aulas_detalle?.map((a) => a.aula_id) : undefined) ??
+            (sugerido.aula ? [sugerido.aula] : [])
     );
-    const [personal, setPersonal] = useState(() => personalDe(inicial, usuario.id));
+    const [personal, setPersonal] = useState(() =>
+        personalDe(inicial ?? (fechaBase ? base : null), usuario.id)
+    );
     // Auxiliares sumados en esta visita: los buscados y los recién creados.
     const [sumados, setSumados] = useState([]);
     const [acceso, setAcceso] = useState(null);
@@ -790,7 +814,7 @@ function Asistente({
         ...elegidos
             .filter((g) => g.docente_usuario_id && g.docente_usuario_id !== yo.id)
             .map((g) => ({ id: g.docente_usuario_id, nombre: g.docente, es_docente: true })),
-        ...(examen?.aulas_detalle ?? []).flatMap((a) => [
+        ...(examen?.aulas_detalle ?? base?.aulas_detalle ?? []).flatMap((a) => [
             ...(a.encargado ? [a.encargado] : []),
             ...(a.apoyo ?? []).map((p) => ({ ...p, es_docente: false })),
         ]),
@@ -1516,12 +1540,13 @@ Asistente.propTypes = {
     pasoInicial: PropTypes.number.isRequired,
     onExamen: PropTypes.func.isRequired,
     anteriores: PropTypes.array,
+    base: FORMA_DETALLE,
 };
 
 // Registro y edición de un examen. Con `?examen=3&paso=2` se abre un examen
 // ya registrado en el paso indicado (0 es «Examen», 2 es «Aulas», 3 es «Quién
 // atiende»).
-export default function RegistrarExamen() {
+function RegistrarExamenPagina() {
     const [parametros] = useSearchParams();
     const examenId = Number(parametros.get('examen')) || null;
     const pasoPedido = Math.min(Math.max(Number(parametros.get('paso')) || 0, 0), 3);
@@ -1543,6 +1568,9 @@ export default function RegistrarExamen() {
     const tipos = usarConsulta('/examenes/tipos');
     const periodos = usarConsulta('/periodos/vigentes');
     const detalle = usarConsulta(examenId ? `/examenes/${examenId}` : null);
+    // El examen del que parte «otro examen a la misma hora».
+    const copiarId = examenId ? null : Number(parametros.get('copiar')) || null;
+    const copia = usarConsulta(copiarId ? `/examenes/${copiarId}` : null);
     // Los exámenes del docente, para copiar las normas a uno nuevo.
     const anteriores = usarConsulta(examenId ? null : '/examenes');
     // El examen recién guardado, para el título.
@@ -1551,7 +1579,12 @@ export default function RegistrarExamen() {
 
     const previo = detalle.datos ?? null;
     const examen = guardado ?? previo;
-    const cargando = misGrupos.cargando || tipos.cargando || periodos.cargando || detalle.cargando;
+    const cargando =
+        misGrupos.cargando ||
+        tipos.cargando ||
+        periodos.cargando ||
+        detalle.cargando ||
+        copia.cargando;
     const negado = detalle.error && [403, 404].includes(estadoDe(detalle.error));
     const error = misGrupos.error || tipos.error || (negado ? null : detalle.error);
 
@@ -1618,6 +1651,7 @@ export default function RegistrarExamen() {
                             periodos={periodos.datos ?? []}
                             inicial={previo}
                             anteriores={anteriores.datos ?? []}
+                            base={copia.datos?.propio === false ? null : (copia.datos ?? null)}
                             pasoInicial={previo ? pasoPedido : 0}
                             sugerido={previo ? undefined : sugerido}
                             onExamen={(guardadoAhora) => {
@@ -1637,5 +1671,16 @@ export default function RegistrarExamen() {
             )}
             {aviso}
         </div>
+    );
+}
+
+// Cada examen (y cada «otro a la misma hora») es una página nueva: con la
+// dirección cambia la clave y el asistente no arrastra lo del anterior.
+export default function RegistrarExamen() {
+    const [parametros] = useSearchParams();
+    return (
+        <RegistrarExamenPagina
+            key={`${parametros.get('examen') ?? 'nuevo'}-${parametros.get('copiar') ?? ''}`}
+        />
     );
 }

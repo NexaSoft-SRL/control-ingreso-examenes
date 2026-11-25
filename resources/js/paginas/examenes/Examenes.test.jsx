@@ -119,6 +119,28 @@ beforeEach(() => {
 });
 
 describe('Examenes · lista', () => {
+    it('los exámenes a la misma fecha y hora van juntos en un marco, con su rótulo', async () => {
+        examenes = [SIN_AULAS, { ...POR_HABILITAR, fecha: '2026-11-23', hora: '14:15' }, CON_QR];
+        montar();
+
+        const grupo = await screen.findByRole('group', {
+            name: '2 exámenes el lunes 23 de noviembre a las 14:15',
+        });
+        expect(
+            within(grupo).getByText(/lunes 23 de noviembre · 14:15 · 2 exámenes a la misma hora/)
+        ).toBeInTheDocument();
+        expect(
+            within(grupo)
+                .getAllByRole('heading', { level: 3 })
+                .map((h) => h.textContent)
+        ).toEqual([
+            'Segundo parcial · Introducción a la Programación',
+            'Segundo parcial · Taller de Ingeniería de Software',
+        ]);
+        // Un examen solo no lleva marco.
+        expect(screen.getAllByRole('group', { name: /exámenes el/ })).toHaveLength(1);
+    });
+
     it('lista los exámenes agrupados por mes y destaca el de hoy', async () => {
         montar();
 

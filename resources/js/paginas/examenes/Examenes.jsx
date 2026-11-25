@@ -184,6 +184,48 @@ TarjetaExamen.propTypes = {
 // Los exámenes del docente en el período, de todas sus asignaturas. El de
 // hoy (o el próximo) va primero; el color de la asignatura queda solo en
 // el bloque de la fecha. Se filtra por asignatura.
+// Los exámenes que comparten fecha y hora, juntos y en el orden de la lista.
+function porHora(examenes) {
+    const grupos = [];
+    for (const e of examenes) {
+        const ultimo = grupos[grupos.length - 1];
+        if (ultimo && ultimo[0].fecha === e.fecha && ultimo[0].hora === e.hora) ultimo.push(e);
+        else grupos.push([e]);
+    }
+    return grupos;
+}
+
+// Uno solo va como tarjeta; dos o más a la misma hora, en un marco con su
+// fecha y hora.
+function GrupoPorHora({ examenes, hoy, destacado = false }) {
+    if (examenes.length === 1) {
+        return <TarjetaExamen e={examenes[0]} hoy={hoy} destacado={destacado} />;
+    }
+    const { fecha, hora } = examenes[0];
+    return (
+        <div
+            role="group"
+            aria-label={`${plural(examenes.length, 'examen', 'exámenes')} el ${fechaLarga(fecha)} a las ${hora}`}
+            className={`space-y-2 rounded-2xl border bg-primary-50/50 p-2 ${destacado ? 'border-primary-500 ring-2 ring-primary-500/30' : 'border-primary-200'}`}
+        >
+            <p className="px-2 pt-1 text-xs font-semibold text-primary-800">
+                {fechaLarga(fecha)} · {hora} · {examenes.length} exámenes a la misma hora
+            </p>
+            {examenes.map((e) => (
+                <TarjetaExamen key={e.id} e={e} hoy={hoy} destacado={false} />
+            ))}
+        </div>
+    );
+}
+
+GrupoPorHora.propTypes = {
+    examenes: PropTypes.arrayOf(
+        PropTypes.shape({ fecha: PropTypes.string, hora: PropTypes.string })
+    ).isRequired,
+    hoy: PropTypes.string,
+    destacado: PropTypes.bool,
+};
+
 export default function Examenes() {
     const { datos, meta, cargando, error, recargar } = usarConsulta('/examenes');
     const [asignatura, setAsignatura] = useState(null);
@@ -208,7 +250,13 @@ export default function Examenes() {
     // El de hoy que no terminó o, si no hay, el próximo.
     const primero = examenes.find((e) => !e.rendido && (!hoy || e.fecha >= hoy)) ?? null;
     const destacado = primero && visible(primero) ? primero : null;
-    const lista = examenes.filter((e) => visible(e) && e !== destacado);
+    // Con el destacado van los que son a su misma fecha y hora.
+    const delDestacado = destacado
+        ? examenes.filter(
+              (e) => visible(e) && e.fecha === destacado.fecha && e.hora === destacado.hora
+          )
+        : [];
+    const lista = examenes.filter((e) => visible(e) && !delDestacado.includes(e));
     const meses = [...new Set(lista.map((e) => e.fecha.slice(0, 7)))];
 
     const opciones = [
@@ -272,7 +320,7 @@ export default function Examenes() {
                         <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                             {destacado.fecha === hoy ? 'Hoy' : 'Próximo'}
                         </h2>
-                        <TarjetaExamen e={destacado} destacado hoy={hoy} />
+                        <GrupoPorHora examenes={delDestacado} hoy={hoy} destacado />
                     </section>
                 )}
 
@@ -283,8 +331,8 @@ export default function Examenes() {
                             <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                                 {mesDe(`${mes}-01`)} · {delMes.length}
                             </h2>
-                            {delMes.map((e) => (
-                                <TarjetaExamen key={e.id} e={e} hoy={hoy} />
+                            {porHora(delMes).map((grupo) => (
+                                <GrupoPorHora key={grupo[0].id} examenes={grupo} hoy={hoy} />
                             ))}
                         </section>
                     );

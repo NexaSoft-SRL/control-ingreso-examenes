@@ -523,6 +523,26 @@ describe('RegistrarExamen · normas del examen anterior', () => {
         expect(screen.getByLabelText(/^Hora de inicio/)).toHaveValue('09:30');
     });
 
+    it('otro examen a la misma hora parte del tipo, la fecha, la hora y la duración del anterior, con otra asignatura', async () => {
+        montar('/examenes/nuevo?copiar=4');
+
+        expect(await campo(/^Fecha/)).toHaveValue('2026-11-23');
+        expect(screen.getByLabelText(/^Hora de inicio/)).toHaveValue('14:15');
+        expect(screen.getByLabelText(/^Duración/)).toHaveValue('120');
+        expect(screen.getByRole('button', { name: /^Asignatura/ })).toHaveTextContent(
+            'Taller de Ingeniería de Software'
+        );
+        expect(screen.getByLabelText(/^Tipo/)).toHaveValue('SEGUNDO_PARCIAL');
+    });
+
+    it('si el examen de partida ya pasó, solo se aprovecha lo demás', async () => {
+        detalle = { ...DETALLE, fecha: '2026-10-01' };
+        montar('/examenes/nuevo?copiar=4');
+
+        expect(await campo(/^Fecha/)).not.toHaveValue('2026-10-01');
+        expect(screen.getByLabelText(/^Hora de inicio/)).not.toHaveValue('14:15');
+    });
+
     it('una fecha pasada o una hora mal escrita de la dirección se ignoran', async () => {
         montar('/examenes/nuevo?fecha=2026-10-01&hora=25:99');
 
@@ -1723,6 +1743,10 @@ describe('RegistrarExamen · guardar', () => {
         expect(screen.getByRole('link', { name: /Habilitar estudiantes/ })).toHaveAttribute(
             'href',
             '/examenes/detalle?examen=9&pestana=habilitacion'
+        );
+        expect(screen.getByRole('link', { name: 'Otro examen a la misma hora' })).toHaveAttribute(
+            'href',
+            '/examenes/nuevo?copiar=9'
         );
     });
 
