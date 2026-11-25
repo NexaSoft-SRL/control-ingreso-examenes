@@ -61,6 +61,7 @@ final class PostgreSqlMigrationTest extends TestCase
         // migraciones.
         $expectedTables = [
             'accesos_aula',
+            'ajustes',
             'alertas_reportes',
             'alertas_reportes_procesadas',
             'anulaciones_ingreso',
@@ -96,6 +97,7 @@ final class PostgreSqlMigrationTest extends TestCase
             'incidencias_comunes',
             'ingresos',
             'inscripciones',
+            'invitaciones_examen',
             'irregularidades_sin_conexion',
             'job_batches',
             'jobs',
