@@ -83,6 +83,8 @@ final readonly class ConsultarBitacora
         'examen.aceptar_invitacion' => 'Aceptó sumar su grupo a un examen',
         'examen.rechazar_invitacion' => 'Rechazó sumar su grupo a un examen',
         'examen.salir' => 'Sacó su grupo de un examen',
+        'examen.equipo_sumar' => 'Sumó a alguien al equipo del examen',
+        'examen.equipo_quitar' => 'Sacó a alguien del equipo del examen',
         'examen.eliminar' => 'Eliminó el examen',
         'norma.plantilla_crear' => 'Creó la plantilla de norma',
         'norma.plantilla_editar' => 'Modificó la plantilla de norma',

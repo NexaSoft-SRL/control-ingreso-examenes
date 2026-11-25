@@ -485,8 +485,13 @@ final class EloquentExamenGateway implements ExamenGateway
                 ExamenAulaApoyo::where('examen_aula_id', $asignada->id)->whereIn('user_id', $sobran)->delete();
             }
 
+            // Las filas que siguen conservan quien las sumo; las nuevas, quien guarda.
             foreach ($faltan as $apoyoId) {
-                ExamenAulaApoyo::create(['examen_aula_id' => $asignada->id, 'user_id' => $apoyoId]);
+                ExamenAulaApoyo::create([
+                    'examen_aula_id' => $asignada->id,
+                    'user_id' => $apoyoId,
+                    'agregado_por' => $usuarioId,
+                ]);
             }
 
             $personalCambio = $personalCambio || $sobran !== [] || $faltan !== [];
@@ -591,7 +596,11 @@ final class EloquentExamenGateway implements ExamenGateway
         ]);
 
         foreach ($aula->apoyo as $apoyoId) {
-            ExamenAulaApoyo::create(['examen_aula_id' => $asignada->id, 'user_id' => $apoyoId]);
+            ExamenAulaApoyo::create([
+                'examen_aula_id' => $asignada->id,
+                'user_id' => $apoyoId,
+                'agregado_por' => $usuarioId,
+            ]);
         }
     }
 

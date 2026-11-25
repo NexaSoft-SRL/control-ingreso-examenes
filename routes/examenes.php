@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Modules\Examenes\Http\Controllers\AuxiliarController;
 use App\Modules\Examenes\Http\Controllers\CodigoAulaController;
+use App\Modules\Examenes\Http\Controllers\EquipoExamenController;
 use App\Modules\Examenes\Http\Controllers\ExamenController;
 use App\Modules\Examenes\Http\Controllers\InvitacionExamenController;
 use App\Modules\Examenes\Http\Controllers\OpcionesExamenController;
@@ -56,6 +57,14 @@ Route::prefix('api')
         Route::post('/examenes/{examen}/salir', [InvitacionExamenController::class, 'salir'])
             ->whereNumber('examen')
             ->name('examenes.salir');
+
+        Route::post('/examenes/{examen}/equipo', [EquipoExamenController::class, 'sumar'])
+            ->whereNumber('examen')
+            ->name('examenes.equipo.sumar');
+
+        Route::delete('/examenes/{examen}/equipo/{usuario}', [EquipoExamenController::class, 'quitar'])
+            ->whereNumber(['examen', 'usuario'])
+            ->name('examenes.equipo.quitar');
 
         Route::post('/examenes/{examen}/finalizar', [ExamenController::class, 'finalizar'])
             ->whereNumber('examen')

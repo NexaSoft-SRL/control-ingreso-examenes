@@ -7,6 +7,7 @@ namespace App\Modules\Examenes\Infrastructure\Persistence;
 use App\Modules\Examenes\Application\Contracts\ConsultaExamenGateway;
 use App\Modules\Examenes\Application\DTOs\AulaDetalleData;
 use App\Modules\Examenes\Application\DTOs\AvanceData;
+use App\Modules\Examenes\Application\DTOs\EquipoDeExamenData;
 use App\Modules\Examenes\Application\DTOs\ExamenDetalleData;
 use App\Modules\Examenes\Application\DTOs\ExamenResumenData;
 use App\Modules\Examenes\Application\DTOs\GrupoDeExamenData;
@@ -572,10 +573,67 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
                 aulas: $aulasDelExamen,
                 normasMarcadas: $normas[$id] ?? [],
                 invitaciones: $invitaciones[$id] ?? [],
+                equipo: $this->equipoDe($aulasDelExamen, $usuarioId, $this->enteroONulo($columnas['creado_por'] ?? null)),
             );
         }
 
         return $examenes;
+    }
+
+    /**
+     * Las personas del equipo: encargados y apoyos de todas las aulas, una
+     * vez cada una. Quien sumo a cada una es quien la dejo de apoyo (la
+     * primera vez que aparece).
+     *
+     * @param  list<AulaDetalleData>  $aulas
+     * @return list<EquipoDeExamenData>
+     */
+    private function equipoDe(array $aulas, int $usuarioId, ?int $creadorId): array
+    {
+        /** @var array<int, array{persona: PersonaData, aCargo: bool, agregadoPor: int|null, agregadoPorNombre: string|null}> $porId */
+        $porId = [];
+
+        foreach ($aulas as $aula) {
+            $porId[$aula->encargado->id] ??= [
+                'persona' => $aula->encargado,
+                'aCargo' => false,
+                'agregadoPor' => null,
+                'agregadoPorNombre' => null,
+            ];
+            $porId[$aula->encargado->id]['aCargo'] = true;
+
+            foreach ($aula->apoyo as $apoyo) {
+                if (! isset($porId[$apoyo->id])) {
+                    $porId[$apoyo->id] = [
+                        'persona' => $apoyo,
+                        'aCargo' => false,
+                        'agregadoPor' => $apoyo->agregadoPor,
+                        'agregadoPorNombre' => $apoyo->agregadoPorNombre,
+                    ];
+                } elseif ($porId[$apoyo->id]['agregadoPor'] === null && $apoyo->agregadoPor !== null) {
+                    $porId[$apoyo->id]['agregadoPor'] = $apoyo->agregadoPor;
+                    $porId[$apoyo->id]['agregadoPorNombre'] = $apoyo->agregadoPorNombre;
+                }
+            }
+        }
+
+        $equipo = [];
+
+        foreach ($porId as $id => $fila) {
+            $equipo[] = new EquipoDeExamenData(
+                id: $id,
+                nombre: $fila['persona']->nombre,
+                esDocente: $fila['persona']->esDocente,
+                esAuxiliar: $fila['persona']->esAuxiliar,
+                aCargo: $fila['aCargo'],
+                agregadoPor: $fila['agregadoPor'],
+                agregadoPorNombre: $fila['agregadoPorNombre'],
+                puedeQuitar: ! $fila['aCargo']
+                    && ($usuarioId === $creadorId || ($fila['agregadoPor'] !== null && $fila['agregadoPor'] === $usuarioId)),
+            );
+        }
+
+        return $equipo;
     }
 
     private function avance(int $aulas, int $habilitados, int $sinRevisar, int $conCodigo, int $porPersona, int $sinAula): AvanceData
@@ -770,14 +828,19 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
                 ->join('examen_aula as asignada', 'asignada.id', '=', 'apoyo.examen_aula_id')
                 ->whereIn('asignada.examen_id', $examenIds)
                 ->orderBy('apoyo.id')
-                ->get(['apoyo.examen_aula_id', 'apoyo.user_id']);
+                ->get(['apoyo.examen_aula_id', 'apoyo.user_id', 'apoyo.agregado_por']);
 
             foreach ($filasDeApoyo as $fila) {
                 $columnas = $this->columnas($fila);
                 $cuenta = $this->entero($columnas['user_id'] ?? null);
+                $agregadoPor = $this->enteroONulo($columnas['agregado_por'] ?? null);
 
-                $apoyos[$this->entero($columnas['examen_aula_id'] ?? null)][] = $cuenta;
+                $apoyos[$this->entero($columnas['examen_aula_id'] ?? null)][] = [$cuenta, $agregadoPor];
                 $cuentas[] = $cuenta;
+
+                if ($agregadoPor !== null) {
+                    $cuentas[] = $agregadoPor;
+                }
             }
         }
 
@@ -795,9 +858,16 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
             $piso = $this->texto($columnas['piso'] ?? null);
             $apoyo = [];
 
-            foreach ($apoyos[$this->entero($columnas['id'] ?? null)] ?? [] as $cuenta) {
+            foreach ($apoyos[$this->entero($columnas['id'] ?? null)] ?? [] as [$cuenta, $agregadoPor]) {
                 if (isset($personas[$cuenta])) {
-                    $apoyo[] = $personas[$cuenta];
+                    $apoyo[] = new PersonaData(
+                        id: $personas[$cuenta]->id,
+                        nombre: $personas[$cuenta]->nombre,
+                        esDocente: $personas[$cuenta]->esDocente,
+                        esAuxiliar: $personas[$cuenta]->esAuxiliar,
+                        agregadoPor: $agregadoPor,
+                        agregadoPorNombre: $agregadoPor === null ? null : ($personas[$agregadoPor]->nombre ?? null),
+                    );
                 }
             }
 

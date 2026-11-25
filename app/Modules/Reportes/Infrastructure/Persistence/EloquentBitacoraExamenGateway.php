@@ -65,6 +65,8 @@ final class EloquentBitacoraExamenGateway implements BitacoraExamenGateway
         'examen.aceptar_invitacion' => 'Invitación al examen aceptada',
         'examen.rechazar_invitacion' => 'Invitación al examen rechazada',
         'examen.salir' => 'Grupo fuera del examen',
+        'examen.equipo_sumar' => 'Persona sumada al equipo',
+        'examen.equipo_quitar' => 'Persona fuera del equipo',
         'habilitacion.habilitar' => 'Estudiantes habilitados',
         'habilitacion.inhabilitar' => 'Estudiantes no habilitados',
         'habilitacion.sin_foto' => 'No habilitados por no subir su foto',

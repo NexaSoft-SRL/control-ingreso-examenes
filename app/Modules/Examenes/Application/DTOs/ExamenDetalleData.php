@@ -14,6 +14,7 @@ final readonly class ExamenDetalleData
      * @param  list<AulaDetalleData>  $aulas
      * @param  list<NormaMarcadaData>  $normasMarcadas
      * @param  list<InvitacionDeExamenData>  $invitaciones  las pendientes y las rechazadas
+     * @param  list<EquipoDeExamenData>  $equipo  encargados y apoyos de todas las aulas
      */
     public function __construct(
         public ExamenResumenData $resumen,
@@ -22,5 +23,6 @@ final readonly class ExamenDetalleData
         public array $aulas,
         public array $normasMarcadas = [],
         public array $invitaciones = [],
+        public array $equipo = [],
     ) {}
 }

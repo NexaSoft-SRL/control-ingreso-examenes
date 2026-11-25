@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $examen_aula_id
  * @property int $user_id
+ * @property int|null $agregado_por
  */
 final class ExamenAulaApoyo extends Model
 {
@@ -26,6 +27,7 @@ final class ExamenAulaApoyo extends Model
     protected $fillable = [
         'examen_aula_id',
         'user_id',
+        'agregado_por',
     ];
 
     /**
@@ -36,6 +38,7 @@ final class ExamenAulaApoyo extends Model
         return [
             'examen_aula_id' => 'integer',
             'user_id' => 'integer',
+            'agregado_por' => 'integer',
         ];
     }
 
