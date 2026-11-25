@@ -648,10 +648,10 @@ function Asistente({
     const hoy = new Date().toLocaleDateString('en-CA');
     // Con `base` (otro examen a la misma hora) el examen nuevo parte de su
     // tipo, fecha, hora, duración, aulas y personal, y de otra asignatura.
+    // Un examen nuevo con varias asignaturas a elegir empieza sin ninguna; con
+    // una sola, ya viene elegida.
     const [asignaturaId, setAsignaturaId] = useState(
-        inicial?.asignatura.id ??
-            (asignaturas.find((a) => a.id !== base?.asignatura?.id) ?? asignaturas[0])?.id ??
-            null
+        inicial?.asignatura.id ?? (asignaturas.length === 1 ? asignaturas[0].id : null)
     );
     const fechaBase = base && base.fecha >= hoy ? base.fecha : undefined;
     // Otras asignaturas que se dan ese mismo día: cada una será su examen, con
@@ -676,8 +676,11 @@ function Asistente({
     const sumarAsignatura = (id) => {
         const elegida = asignaturas.find((x) => x.id === id);
         if (!elegida) return;
-        if (asignaturaId === null) cambiarAsignatura(id);
-        else
+        if (asignaturaId === null) {
+            setAsignaturaId(id);
+            if (!bloqueado) ajustarFecha(periodoDe(id), tipo);
+            quitarError('asignatura_id');
+        } else
             setExtras((previos) => [
                 ...previos,
                 { id: elegida.id, asignatura: elegida, elegidos: null },
