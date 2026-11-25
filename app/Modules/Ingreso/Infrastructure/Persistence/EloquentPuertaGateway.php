@@ -150,7 +150,6 @@ final class EloquentPuertaGateway implements PuertaGateway
             ->where(function (Builder $suyas) use ($usuarioId): void {
                 $suyas
                     ->where('examen.creado_por', $usuarioId)
-                    ->orWhere('asignada.encargado_id', $usuarioId)
                     ->orWhereExists(function (Builder $grupo) use ($usuarioId): void {
                         $grupo->selectRaw('1')
                             ->from('examen_grupo as incluido')
@@ -159,11 +158,21 @@ final class EloquentPuertaGateway implements PuertaGateway
                             ->whereColumn('incluido.examen_id', 'examen.id')
                             ->where('docente.user_id', $usuarioId);
                     })
-                    ->orWhereExists(function (Builder $apoyo) use ($usuarioId): void {
-                        $apoyo->selectRaw('1')
-                            ->from('examen_aula_apoyo as apoyo')
-                            ->whereColumn('apoyo.examen_aula_id', 'asignada.id')
-                            ->where('apoyo.user_id', $usuarioId);
+                    // El equipo del examen: a cargo o de apoyo en cualquiera de sus aulas.
+                    ->orWhereExists(function (Builder $equipo) use ($usuarioId): void {
+                        $equipo->selectRaw('1')
+                            ->from('examen_aula as del_equipo')
+                            ->whereColumn('del_equipo.examen_id', 'examen.id')
+                            ->where(function (Builder $miembro) use ($usuarioId): void {
+                                $miembro
+                                    ->where('del_equipo.encargado_id', $usuarioId)
+                                    ->orWhereExists(function (Builder $apoyo) use ($usuarioId): void {
+                                        $apoyo->selectRaw('1')
+                                            ->from('examen_aula_apoyo as apoyo')
+                                            ->whereColumn('apoyo.examen_aula_id', 'del_equipo.id')
+                                            ->where('apoyo.user_id', $usuarioId);
+                                    });
+                            });
                     });
             })
             ->addSelect([

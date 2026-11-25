@@ -145,16 +145,16 @@ final class ExpulsionTest extends TestCase
             ->assertJsonPath('permiso_requerido', 'punto_control');
     }
 
-    public function test_only_who_attends_the_room_of_the_entry_can_expel(): void
+    public function test_only_the_team_of_the_exam_can_expel_in_any_of_its_rooms(): void
     {
         $otra = $this->aula('617');
         $this->sumarAula($otra);
         $deOtraAula = $this->cuentaAuxiliar();
         $this->ponerACargo($this->examen, $otra, $deOtraAula);
-        $deEstaAula = $this->cuentaAuxiliar();
-        $this->ponerDeApoyo($this->examen, $this->aula, $deEstaAula);
+        $sinEquipo = $this->cuentaAuxiliar();
 
-        $this->actingAs($deOtraAula)
+        // Quien no está en el equipo del examen no expulsa en ningún aula.
+        $this->actingAs($sinEquipo)
             ->postJson($this->ruta(), ['motivo' => 'Usó el celular'])
             ->assertForbidden()
             ->assertJsonPath('alcance', true);
@@ -166,7 +166,8 @@ final class ExpulsionTest extends TestCase
 
         $this->assertDatabaseCount('incidencias', 0);
 
-        $this->actingAs($deEstaAula)
+        // Quien está a cargo de otra aula del mismo examen sí: los equipos rotan.
+        $this->actingAs($deOtraAula)
             ->postJson($this->ruta(), ['motivo' => 'Usó el celular'])
             ->assertCreated();
     }

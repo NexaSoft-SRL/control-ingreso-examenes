@@ -54,7 +54,7 @@ final class PuertaTest extends TestCase
         $this->assertNotSame($manana->id, $this->examen->id);
     }
 
-    public function test_an_assistant_lists_only_the_rooms_it_attends_today(): void
+    public function test_an_assistant_lists_all_the_rooms_of_the_exams_of_its_team_today(): void
     {
         $otra = $this->aula('617');
         $this->sumarAula($otra);
@@ -64,8 +64,9 @@ final class PuertaTest extends TestCase
         $this->actingAs($auxiliar)
             ->getJson('/api/puerta/aulas')
             ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.aula_id', $otra->id);
+            ->assertJsonCount(2, 'data')
+            ->assertJsonFragment(['aula_id' => $otra->id])
+            ->assertJsonFragment(['aula_id' => $this->aula->id]);
     }
 
     public function test_a_room_is_listed_closed_before_its_window(): void
