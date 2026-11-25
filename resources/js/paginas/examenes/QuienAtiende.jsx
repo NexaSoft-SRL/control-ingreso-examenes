@@ -30,7 +30,7 @@ const FORMA_PERSONA = PropTypes.shape({
 
 // Alta de un auxiliar sin salir del asistente (ruta 51): se crea su cuenta y
 // la contraseña temporal va a su correo institucional.
-function AuxiliarNuevo({ onAgregado, onAviso }) {
+export function AuxiliarNuevo({ onAgregado, onAviso }) {
     const [nombre, setNombre] = useState('');
     const [codigo, setCodigo] = useState('');
     const [errores, setErrores] = useState({});

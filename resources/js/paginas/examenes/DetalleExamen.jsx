@@ -33,6 +33,7 @@ import BitacoraDelExamen from './BitacoraDelExamen';
 import ChoquesDeEstudiantes from './ChoquesDeEstudiantes';
 import RevisionSinConexion from './RevisionSinConexion';
 import EliminarExamen from './EliminarExamen';
+import EquipoDelExamen from './EquipoDelExamen';
 import SalirDelExamen from './SalirDelExamen';
 import { FORMA_EXAMEN, PASOS, accionDe, estadoDe, pendiente, tipoDe } from './avanceDelExamen';
 import rutaDelExamen from './rutaDelExamen';
@@ -389,7 +390,10 @@ export default function DetalleExamen() {
 
             <div role="tabpanel" aria-label={PESTANAS.find((p) => p.clave === pestana).texto}>
                 {pestana === 'resumen' && (
-                    <Resumen e={e} accion={accion} puedeHabilitar={puede('habilitacion')} />
+                    <div className="space-y-6">
+                        <Resumen e={e} accion={accion} puedeHabilitar={puede('habilitacion')} />
+                        <EquipoDelExamen key={e.id} examenId={e.id} onCambio={alCambiarCifras} />
+                    </div>
                 )}
                 {pestana === 'habilitacion' && (
                     <ListaDelExamen key={e.id} examenId={e.id} onCifras={alCambiarCifras} />
