@@ -79,7 +79,6 @@ function AjustesAutomaticos({ onGuardado, onCerrar }) {
             await api.put('/respaldos/ajustes', {
                 habilitado: Boolean(actual.habilitado),
                 hora: String(actual.hora),
-                reintento_minutos: Number(actual.reintento_minutos),
             });
             onGuardado('Ajustes guardados');
         } catch (rechazo) {
@@ -129,7 +128,7 @@ function AjustesAutomaticos({ onGuardado, onCerrar }) {
                             />
                             Respaldar cada día
                         </label>
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="max-w-xs">
                             <Campo
                                 etiqueta="Hora"
                                 type="time"
@@ -137,16 +136,6 @@ function AjustesAutomaticos({ onGuardado, onCerrar }) {
                                 disabled={!actual.habilitado}
                                 onChange={(e) => poner('hora', e.target.value)}
                                 error={errores.hora ?? undefined}
-                            />
-                            <Campo
-                                etiqueta="Reintentar cada (min)"
-                                type="number"
-                                min={5}
-                                max={720}
-                                value={actual.reintento_minutos}
-                                disabled={!actual.habilitado}
-                                onChange={(e) => poner('reintento_minutos', e.target.value)}
-                                error={errores.reintento_minutos ?? undefined}
                             />
                         </div>
                     </form>

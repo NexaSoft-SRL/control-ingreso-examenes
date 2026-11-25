@@ -66,7 +66,7 @@ final class RespaldoController
         GuardarAjustesDeRespaldo $guardar,
         ConsultarAjustesDeRespaldo $consultar,
     ): JsonResponse {
-        $guardar->execute((int) Auth::id(), $request->ajustes());
+        $guardar->execute((int) Auth::id(), $request->ajustes($consultar->execute()));
 
         return response()->json([
             'message' => 'Ajustes guardados.',

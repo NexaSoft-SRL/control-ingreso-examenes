@@ -421,7 +421,7 @@ describe('Respaldo', () => {
         ).toBeInTheDocument();
     });
 
-    it('configura el respaldo automático: hora y reintento, o apagado', async () => {
+    it('configura el respaldo automático: hora o apagado', async () => {
         await montar();
 
         fireEvent.click(screen.getByRole('button', { name: /Configurar automático/ }));
@@ -444,7 +444,6 @@ describe('Respaldo', () => {
         expect(api.put).toHaveBeenCalledWith('/respaldos/ajustes', {
             habilitado: true,
             hora: '22:30',
-            reintento_minutos: 30,
         });
         expect(screen.queryByRole('dialog', { name: 'Respaldo automático' })).toBeNull();
     });

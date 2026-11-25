@@ -52,7 +52,7 @@ final class AjustesDeRespaldoTest extends TestCase
         $admin = $this->usuarioConRol('Administrador');
 
         $this->actingAs($admin)
-            ->putJson('/api/respaldos/ajustes', ['habilitado' => true, 'hora' => '22:30', 'reintento_minutos' => 60])
+            ->putJson('/api/respaldos/ajustes', ['habilitado' => true, 'hora' => '22:30'])
             ->assertOk()
             ->assertJsonPath('data.programacion', 'Diario, 22:30');
 
@@ -60,7 +60,7 @@ final class AjustesDeRespaldoTest extends TestCase
             ->getJson('/api/respaldos/ajustes')
             ->assertJsonPath('data.habilitado', true)
             ->assertJsonPath('data.hora', '22:30')
-            ->assertJsonPath('data.reintento_minutos', 60);
+            ->assertJsonPath('data.reintento_minutos', 30);
         $this->actingAs($admin)
             ->getJson('/api/respaldos')
             ->assertJsonPath('meta.programacion', 'Diario, 22:30');
@@ -69,6 +69,17 @@ final class AjustesDeRespaldoTest extends TestCase
         $this->assertIsString($descripcion);
         $this->assertStringContainsString('Hora: 03:00 → 22:30', $descripcion);
         $this->assertStringContainsString('Automático: no → sí', $descripcion);
+    }
+
+    public function test_the_retry_wait_is_kept_when_only_the_switch_and_the_hour_are_sent(): void
+    {
+        config(['umss.respaldo_automatico.reintento_minutos' => 45]);
+        $admin = $this->usuarioConRol('Administrador');
+
+        $this->actingAs($admin)
+            ->putJson('/api/respaldos/ajustes', ['habilitado' => true, 'hora' => '05:00'])
+            ->assertOk()
+            ->assertJsonPath('data.reintento_minutos', 45);
     }
 
     public function test_it_says_when_the_automatic_backup_is_off(): void
@@ -90,7 +101,7 @@ final class AjustesDeRespaldoTest extends TestCase
             ['habilitado' => true, 'hora' => '3am', 'reintento_minutos' => 30],
             ['habilitado' => true, 'hora' => '03:00', 'reintento_minutos' => 1],
             ['habilitado' => true, 'hora' => '03:00', 'reintento_minutos' => 5000],
-            ['hora' => '03:00', 'reintento_minutos' => 30],
+            ['hora' => '03:00'],
         ] as $cuerpo) {
             $this->actingAs($admin)->putJson('/api/respaldos/ajustes', $cuerpo)->assertUnprocessable();
         }

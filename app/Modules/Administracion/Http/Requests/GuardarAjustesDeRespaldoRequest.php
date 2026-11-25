@@ -23,7 +23,7 @@ final class GuardarAjustesDeRespaldoRequest extends FormRequest
             'habilitado' => ['required', 'boolean'],
             'hora' => ['required', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
             'reintento_minutos' => [
-                'required', 'integer',
+                'sometimes', 'integer',
                 'min:'.AjustesDeRespaldoData::REINTENTO_MINIMO,
                 'max:'.AjustesDeRespaldoData::REINTENTO_MAXIMO,
             ],
@@ -43,12 +43,17 @@ final class GuardarAjustesDeRespaldoRequest extends FormRequest
         ];
     }
 
-    public function ajustes(): AjustesDeRespaldoData
+    /**
+     * El reintento es opcional: si no viene, se conserva el actual.
+     */
+    public function ajustes(AjustesDeRespaldoData $actuales): AjustesDeRespaldoData
     {
         return new AjustesDeRespaldoData(
             habilitado: $this->boolean('habilitado'),
             hora: $this->string('hora')->trim()->toString(),
-            reintentoMinutos: $this->integer('reintento_minutos'),
+            reintentoMinutos: $this->has('reintento_minutos')
+                ? $this->integer('reintento_minutos')
+                : $actuales->reintentoMinutos,
         );
     }
 }
