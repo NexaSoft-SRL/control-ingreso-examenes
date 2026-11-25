@@ -226,6 +226,29 @@ final class PeriodosTest extends TestCase
         $this->assertDatabaseMissing('bitacora_operaciones', ['operacion' => 'periodo.ajustar']);
     }
 
+    public function test_the_calendar_of_a_closed_period_can_only_be_read(): void
+    {
+        $periodo = $this->periodo('1/2030', -200, -20, TipoPeriodo::Semestre1);
+        $periodo->forceFill(['ventanas' => ['primeros_parciales' => ['2030-03-01', '2030-03-15']]])->save();
+        $administrador = $this->usuarioConPermisos(['periodo_oferta']);
+
+        $this->actingAs($administrador)
+            ->putJson("/api/periodos/{$periodo->id}/calendario", [
+                'ventanas' => ['segundos_parciales' => [now()->toDateString(), now()->addDays(5)->toDateString()]],
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'El período está cerrado: su calendario solo se consulta.');
+
+        $this->actingAs($administrador)
+            ->deleteJson("/api/periodos/{$periodo->id}/calendario")
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'El período está cerrado: su calendario solo se consulta.');
+
+        $periodo->refresh();
+        $this->assertSame(['primeros_parciales' => ['2030-03-01', '2030-03-15']], $periodo->ventanas);
+        $this->assertNull($periodo->ajustado_por);
+    }
+
     public function test_the_administrator_opens_the_exam_calendar_and_the_detection_does_not_undo_it(): void
     {
         $periodo = $this->periodo('2/2030', -10, 60);

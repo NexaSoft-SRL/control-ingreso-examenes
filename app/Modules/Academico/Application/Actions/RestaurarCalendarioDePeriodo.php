@@ -9,6 +9,7 @@ use App\Modules\Academico\Application\Contracts\ConsultaOfertaGateway;
 use App\Modules\Academico\Application\Contracts\FuenteCalendarioGateway;
 use App\Modules\Academico\Application\DTOs\CalendarioData;
 use App\Modules\Academico\Domain\Exceptions\CalendarioDeLaUniversidadNoDisponibleException;
+use App\Modules\Academico\Domain\Exceptions\PeriodoCerradoException;
 
 /**
  * Devuelve un periodo a lo que publica la universidad: las fechas y las
@@ -29,6 +30,7 @@ final readonly class RestaurarCalendarioDePeriodo
      * @return array<string, mixed>|null
      *
      * @throws CalendarioDeLaUniversidadNoDisponibleException
+     * @throws PeriodoCerradoException
      */
     public function execute(int $periodoId, ?int $autorId): ?array
     {
@@ -36,6 +38,10 @@ final readonly class RestaurarCalendarioDePeriodo
 
         if ($fila === null) {
             return null;
+        }
+
+        if (($fila['estado'] ?? null) === 'Cerrado') {
+            throw new PeriodoCerradoException;
         }
 
         $codigo = is_string($fila['codigo'] ?? null) ? $fila['codigo'] : '';

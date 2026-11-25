@@ -451,10 +451,14 @@ export default function Periodo() {
                                             Ajustar
                                         </Boton>
                                     )}
-                                    {/* El período anual no tiene calendario de exámenes: sin botón. */}
-                                    {p.estado !== 'Cerrado' &&
-                                        p.estado !== 'Sin fechas' &&
-                                        p.tipo !== 'Anual' && (
+                                    {/* El anual no tiene calendario de exámenes; el cerrado
+                                        se consulta pero ya no se ajusta. */}
+                                    {p.estado !== 'Sin fechas' &&
+                                        (p.tipo === 'Anual' ? (
+                                            <span className="text-sm text-slate-500">
+                                                No disponible
+                                            </span>
+                                        ) : (
                                             <Boton
                                                 type="button"
                                                 variante="secundario"
@@ -465,7 +469,7 @@ export default function Periodo() {
                                             >
                                                 Calendario académico
                                             </Boton>
-                                        )}
+                                        ))}
                                 </span>
                             </li>
                         ))}

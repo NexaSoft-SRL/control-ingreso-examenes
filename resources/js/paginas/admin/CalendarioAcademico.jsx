@@ -20,8 +20,10 @@ const VENTANAS = [
 const hoyISO = () => new Date().toLocaleDateString('en-CA');
 
 // Cada ventana respecto de hoy.
-function estadoDe(rango, hoy) {
-    if (!rango?.[0] || !rango?.[1]) return { texto: 'Sin fechas', tono: 'advertencia' };
+function estadoDe(rango, hoy, cerrado = false) {
+    // En un período cerrado ya no hay nada que completar: no es una alerta.
+    if (!rango?.[0] || !rango?.[1])
+        return { texto: 'Sin fechas', tono: cerrado ? 'neutro' : 'advertencia' };
     if (hoy < rango[0]) return { texto: 'Próxima', tono: 'info' };
     if (hoy > rango[1]) return { texto: 'Cerrada', tono: 'neutro' };
     return { texto: 'Abierta ahora', tono: 'exito' };
@@ -231,6 +233,8 @@ export default function CalendarioAcademico({ periodo, onCerrar, onCambio }) {
     const [modo, setModo] = useState('ver');
     const hoy = hoyISO();
     const ajustado = Boolean(periodo.calendario_ajustado);
+    // Un período cerrado solo se consulta: ya no se ajusta.
+    const cerrado = periodo.estado === 'Cerrado';
 
     if (modo === 'ajustar') {
         return (
@@ -262,13 +266,15 @@ export default function CalendarioAcademico({ periodo, onCerrar, onCambio }) {
                     </>
                 ) : (
                     <>
-                        <Boton
-                            type="button"
-                            variante="secundario"
-                            onClick={() => setModo(ajustado ? 'ajustar' : 'confirmar-ajuste')}
-                        >
-                            Ajustar fechas
-                        </Boton>
+                        {!cerrado && (
+                            <Boton
+                                type="button"
+                                variante="secundario"
+                                onClick={() => setModo(ajustado ? 'ajustar' : 'confirmar-ajuste')}
+                            >
+                                Ajustar fechas
+                            </Boton>
+                        )}
                         <Boton type="button" onClick={onCerrar}>
                             Cerrar
                         </Boton>
@@ -307,7 +313,7 @@ export default function CalendarioAcademico({ periodo, onCerrar, onCambio }) {
                     <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200">
                         {enOrden(periodo).map(([clave, nombre]) => {
                             const rango = periodo.calendario?.[clave];
-                            const estado = estadoDe(rango, hoy);
+                            const estado = estadoDe(rango, hoy, cerrado);
                             return (
                                 <li
                                     key={clave}
@@ -329,7 +335,9 @@ export default function CalendarioAcademico({ periodo, onCerrar, onCambio }) {
                         })}
                     </ul>
                     <p className="text-xs text-slate-600">
-                        Dentro de cada ventana el docente puede registrar exámenes de ese tipo.
+                        {cerrado
+                            ? 'El período cerró: el calendario solo se consulta.'
+                            : 'Dentro de cada ventana el docente puede registrar exámenes de ese tipo.'}
                     </p>
                 </div>
             )}
@@ -344,6 +352,7 @@ CalendarioAcademico.propTypes = {
         fecha_inicio: PropTypes.string,
         fecha_fin: PropTypes.string,
         calendario: PropTypes.object,
+        estado: PropTypes.string,
         calendario_ajustado: PropTypes.bool,
         calendario_ajustado_por: PropTypes.string,
         calendario_ajustado_en: PropTypes.string,

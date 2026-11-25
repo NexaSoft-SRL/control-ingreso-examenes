@@ -282,9 +282,26 @@ describe('Periodo', () => {
             expect(
                 screen.queryByRole('button', { name: 'Calendario académico 0/2026' })
             ).not.toBeInTheDocument();
+            expect(within(fila('0/2026')).getByText('No disponible')).toBeInTheDocument();
             expect(
                 screen.getByRole('button', { name: 'Calendario académico 2/2026' })
             ).toBeEnabled();
+        });
+
+        it('un período cerrado se consulta, pero ya no se ajusta', async () => {
+            simular(conPeriodo0(CERRADOS[0]));
+            montar();
+
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Calendario académico 1/2026' })
+            );
+            const dialogo = screen.getByRole('dialog', { name: 'Calendario académico 1/2026' });
+
+            expect(
+                within(dialogo).getByText('El período cerró: el calendario solo se consulta.')
+            ).toBeInTheDocument();
+            expect(within(dialogo).queryByRole('button', { name: 'Ajustar fechas' })).toBeNull();
+            expect(within(dialogo).getAllByRole('button', { name: 'Cerrar' })).not.toHaveLength(0);
         });
 
         it('ajustar pide confirmar y solo después muestra el formulario', async () => {
