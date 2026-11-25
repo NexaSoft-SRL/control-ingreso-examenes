@@ -636,7 +636,9 @@ class DemoSeeder extends Seeder
     /**
      * El plazo de fotos abierto y la foto de tres de cada cuatro
      * estudiantes de los examenes de hoy: la puerta muestra la cara de
-     * casi todos y el resto queda «Sin foto». Las imagenes son siluetas.
+     * casi todos y el resto queda «Sin foto». Las imagenes son los retratos
+     * sinteticos de `database/seeders/fotos` (no son personas reales); sin
+     * ellos, siluetas.
      */
     private function fotos(): void
     {
@@ -662,9 +664,14 @@ class DemoSeeder extends Seeder
         );
 
         $almacen = app(AlmacenImagenes::class);
+        $retratos = glob(database_path('seeders/fotos/retrato_*.jpg')) ?: [];
+        sort($retratos);
 
         foreach ($estudiantes as $estudianteId) {
-            $ruta = $almacen->guardar('estudiantes', 'demo-'.$estudianteId, $this->silueta($estudianteId), 480);
+            $imagen = $retratos !== []
+                ? (string) file_get_contents($retratos[$estudianteId % count($retratos)])
+                : $this->silueta($estudianteId);
+            $ruta = $almacen->guardar('estudiantes', 'demo-'.$estudianteId, $imagen, 480);
 
             DB::table('estudiantes')->where('id', $estudianteId)->update([
                 'foto' => $ruta,
