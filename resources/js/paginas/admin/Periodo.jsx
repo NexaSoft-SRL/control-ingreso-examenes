@@ -444,26 +444,21 @@ export default function Periodo() {
                                         Ajustar
                                     </Boton>
                                 )}
-                                {p.estado !== 'Cerrado' && p.estado !== 'Sin fechas' && (
-                                    <Boton
-                                        type="button"
-                                        variante="secundario"
-                                        tamano="chico"
-                                        className="min-h-11"
-                                        // La universidad no publica calendario de exámenes
-                                        // para el período anual.
-                                        disabled={p.tipo === 'Anual'}
-                                        title={
-                                            p.tipo === 'Anual'
-                                                ? 'El período anual no tiene calendario de exámenes'
-                                                : undefined
-                                        }
-                                        onClick={() => setCalendario(p)}
-                                        aria-label={`Calendario académico ${p.codigo}`}
-                                    >
-                                        Calendario académico
-                                    </Boton>
-                                )}
+                                {/* El período anual no tiene calendario de exámenes: sin botón. */}
+                                {p.estado !== 'Cerrado' &&
+                                    p.estado !== 'Sin fechas' &&
+                                    p.tipo !== 'Anual' && (
+                                        <Boton
+                                            type="button"
+                                            variante="secundario"
+                                            tamano="chico"
+                                            className="min-h-11"
+                                            onClick={() => setCalendario(p)}
+                                            aria-label={`Calendario académico ${p.codigo}`}
+                                        >
+                                            Calendario académico
+                                        </Boton>
+                                    )}
                             </li>
                         ))}
                     </ul>

@@ -193,11 +193,11 @@ describe('Periodo', () => {
         expect(within(sinFechas).getByRole('button', { name: 'Ajustar 4/2026' })).toBeVisible();
     });
 
-    it('los períodos vigentes y próximos ofrecen el calendario académico; los cerrados y sin fechas, no', async () => {
+    it('los semestres vigentes y próximos ofrecen el calendario académico; el anual, los cerrados y los sin fechas, no', async () => {
         montar();
         await cargada();
 
-        expect(screen.getAllByRole('button', { name: /^Calendario académico/ })).toHaveLength(3);
+        expect(screen.getAllByRole('button', { name: /^Calendario académico/ })).toHaveLength(2);
         expect(
             within(fila('4/2026')).queryByRole('button', { name: /^Calendario académico/ })
         ).toBeNull();
@@ -275,13 +275,13 @@ describe('Periodo', () => {
             expect(within(ajuste).queryByRole('button', { name: 'Restablecer' })).toBeNull();
         });
 
-        it('el período anual no tiene calendario de exámenes: su botón está desactivado', async () => {
+        it('el período anual no tiene calendario de exámenes: no muestra el botón', async () => {
             montar();
             await cargada();
 
             expect(
-                screen.getByRole('button', { name: 'Calendario académico 0/2026' })
-            ).toBeDisabled();
+                screen.queryByRole('button', { name: 'Calendario académico 0/2026' })
+            ).not.toBeInTheDocument();
             expect(
                 screen.getByRole('button', { name: 'Calendario académico 2/2026' })
             ).toBeEnabled();
