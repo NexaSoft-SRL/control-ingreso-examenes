@@ -528,8 +528,10 @@ describe('Periodo', () => {
 
         detectar.resolver({ creados: 1, actualizados: 3 });
 
-        // El resultado queda junto al título (no es un aviso que se va).
-        expect(await screen.findByText('Al día · 1 nuevo · 3 actualizados')).toBeInTheDocument();
+        // El resultado sale como aviso temporal.
+        expect(
+            await screen.findByText('Períodos al día · 1 nuevo · 3 actualizados')
+        ).toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith('/periodos/detectar');
         await waitFor(() =>
             expect(screen.getByRole('button', { name: 'Buscar períodos' })).toBeEnabled()

@@ -254,8 +254,6 @@ export default function Periodo() {
     const resumen = usarConsulta('/periodos/resumen');
 
     const [detectando, setDetectando] = useState(false);
-    // El resultado de la última búsqueda queda junto al título, no solo en un aviso.
-    const [busqueda, setBusqueda] = useState(null);
     const [ajustando, setAjustando] = useState(null);
     const [calendario, setCalendario] = useState(null);
     // Por sigla: `{ estado: 'importando' }` mientras dura la petición y
@@ -271,7 +269,10 @@ export default function Periodo() {
         api.post('/periodos/detectar')
             .then((respuesta) => {
                 const { creados = 0, actualizados = 0 } = respuesta.data ?? {};
-                setBusqueda({ creados, actualizados });
+                // El resultado sale como aviso temporal.
+                avisar(
+                    `Períodos al día · ${creados} ${creados === 1 ? 'nuevo' : 'nuevos'} · ${actualizados} ${actualizados === 1 ? 'actualizado' : 'actualizados'}`
+                );
                 return recargarTodo();
             })
             .catch((error) => avisar(mensajeDe(error, 'No se pudo actualizar'), 'error'))
@@ -374,15 +375,6 @@ export default function Periodo() {
                 sinRelleno
                 titulo="Períodos"
                 icono={CalendarRange}
-                insignia={
-                    busqueda && (
-                        <Insignia tono="exito">
-                            Al día · {busqueda.creados}{' '}
-                            {busqueda.creados === 1 ? 'nuevo' : 'nuevos'} · {busqueda.actualizados}{' '}
-                            {busqueda.actualizados === 1 ? 'actualizado' : 'actualizados'}
-                        </Insignia>
-                    )
-                }
                 acciones={
                     <Boton
                         type="button"
