@@ -70,15 +70,32 @@
     {
       "facultad": "FCYT",
       "periodo": "1/2026",
-      "que_da": "Calendario del primer semestre, en dos versiones: la detallada es una lista de actividades con sus fechas en texto.",
+      "que_da": "Calendario del primer semestre, en dos versiones: la detallada trae las fechas de inicio, fin y exámenes en un cuadro de actividades con su fecha en texto.",
       "url": "https://www.fcyt.umss.edu.bo/wp-content/uploads/2026/02/fcyt-1-2026-calendario-DETALLADO.pdf",
       "url_alternativa": "https://www.fcyt.umss.edu.bo/wp-content/uploads/2025/12/calendario-academico-FCyT-1-2026.pdf",
       "formato": "PDF con texto",
       "fechas_leidas": {
         "inicio": "2026-02-23",
-        "fin": "2026-07-04"
+        "fin": "2026-07-04",
+        "primeros_parciales": [
+          "2026-04-21",
+          "2026-05-05"
+        ],
+        "segundos_parciales": [
+          "2026-06-08",
+          "2026-06-20"
+        ],
+        "finales_y_segunda_instancia": [
+          "2026-06-22",
+          "2026-07-03"
+        ],
+        "examenes_de_mesa": [
+          "2026-02-23",
+          "2026-02-28"
+        ]
       },
-      "comprobado": true
+      "comprobado": true,
+      "como_leerlo": "pdftotext -layout. Las fechas están escritas en texto («Del martes 21 de abril al martes 5 de mayo»); los exámenes, en el punto 13 «Cronograma de exámenes y registro de notas». Exámenes finales, segunda instancia y segunda mesa comparten fechas."
     },
     {
       "facultad": "FCE",
