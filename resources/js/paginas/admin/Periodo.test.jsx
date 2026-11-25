@@ -820,7 +820,10 @@ describe('Periodo', () => {
         expect(await screen.findAllByText('No se pudo cargar')).toHaveLength(3);
 
         simular();
-        fireEvent.click(screen.getAllByRole('button', { name: 'Reintentar' })[0]);
+        // Cada bloque tiene su propio «Reintentar»: se pulsan todos.
+        screen
+            .getAllByRole('button', { name: 'Reintentar' })
+            .forEach((boton) => fireEvent.click(boton));
 
         expect(await screen.findByText('2/2026')).toBeInTheDocument();
     });

@@ -372,6 +372,37 @@ export default function Periodo() {
 
             <Tarjeta
                 sinRelleno
+                titulo="Pendientes"
+                icono={ClipboardList}
+                acciones={
+                    pendientes.length > 0 && (
+                        <Insignia tono="advertencia">{pendientes.length}</Insignia>
+                    )
+                }
+            >
+                <EstadoCarga
+                    cargando={resumen.cargando}
+                    error={resumen.error}
+                    vacio={pendientes.length === 0}
+                    textoVacio="Sin pendientes"
+                    onReintentar={resumen.recargar}
+                    filas={2}
+                >
+                    <ul className="divide-y divide-slate-200">
+                        {pendientes.map((p) => (
+                            <FilaPendiente
+                                key={p.clave}
+                                pendiente={p}
+                                cifras={p.cifras}
+                                enlazada={puede(p.permiso)}
+                            />
+                        ))}
+                    </ul>
+                </EstadoCarga>
+            </Tarjeta>
+
+            <Tarjeta
+                sinRelleno
                 titulo="Períodos"
                 icono={CalendarRange}
                 acciones={
@@ -478,37 +509,6 @@ export default function Periodo() {
                         unidad={['período', 'períodos']}
                         className="border-t border-slate-200"
                     />
-                </EstadoCarga>
-            </Tarjeta>
-
-            <Tarjeta
-                sinRelleno
-                titulo="Pendientes"
-                icono={ClipboardList}
-                acciones={
-                    pendientes.length > 0 && (
-                        <Insignia tono="advertencia">{pendientes.length}</Insignia>
-                    )
-                }
-            >
-                <EstadoCarga
-                    cargando={resumen.cargando}
-                    error={resumen.error}
-                    vacio={pendientes.length === 0}
-                    textoVacio="Sin pendientes"
-                    onReintentar={resumen.recargar}
-                    filas={2}
-                >
-                    <ul className="divide-y divide-slate-200">
-                        {pendientes.map((p) => (
-                            <FilaPendiente
-                                key={p.clave}
-                                pendiente={p}
-                                cifras={p.cifras}
-                                enlazada={puede(p.permiso)}
-                            />
-                        ))}
-                    </ul>
                 </EstadoCarga>
             </Tarjeta>
 
