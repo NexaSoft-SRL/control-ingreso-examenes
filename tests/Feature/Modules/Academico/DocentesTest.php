@@ -34,7 +34,12 @@ final class DocentesTest extends TestCase
             'Flores Villarroel Corina',
         );
         $sinCuenta = $this->docenteSinCuenta('Álvarez Rojas Pedro');
+        // Solo dio clases en un período cerrado: no es de esta lista.
+        $soloCerrado = $this->docenteSinCuenta('Zuleta Mamani Ruth');
+        $anterior = $this->periodo('1/2020', -900, -800, TipoPeriodo::Semestre1);
 
+        $this->grupo($sinCuenta, null, '5', $periodo, $fcyt);
+        $this->grupo($soloCerrado, null, '6', $anterior, $fcyt);
         $this->grupo($blanco, null, '1', $periodo, $fcyt);
         $this->grupo($blanco, null, '2', $periodo, $fcyt);
         $this->grupo($blanco, null, '3', $periodo, $fce);
@@ -51,7 +56,7 @@ final class DocentesTest extends TestCase
             ->assertJsonPath('data.0', [
                 'id' => $sinCuenta->id,
                 'nombre' => 'Álvarez Rojas Pedro',
-                'facultades' => [],
+                'facultades' => [['sigla' => 'FCyT', 'grupos' => 1]],
                 'cuenta' => 'sin_cuenta',
             ])
             // En dos facultades sale una sola vez.
@@ -71,7 +76,7 @@ final class DocentesTest extends TestCase
                 'por_pagina' => 20,
                 'conteos' => [
                     'todas' => 3,
-                    'FCyT' => 1,
+                    'FCyT' => 2,
                     'FCE' => 2,
                     'sin_cuenta' => 1,
                     'varias_facultades' => 1,
@@ -86,8 +91,9 @@ final class DocentesTest extends TestCase
 
         $enDos = $this->docenteConCuenta(null, 'Blanco Coca Leticia');
         $soloFce = $this->docenteSinCuenta('Núñez Vela Raúl');
-        $this->docenteSinCuenta('Arce Rojas Ana');
+        $arce = $this->docenteSinCuenta('Arce Rojas Ana');
 
+        $this->grupo($arce, null, '4', null, $fcyt);
         $this->grupo($enDos, null, '1', null, $fcyt);
         $this->grupo($enDos, null, '2', null, $fce);
         $this->grupo($soloFce, null, '3', null, $fce);
@@ -96,8 +102,8 @@ final class DocentesTest extends TestCase
 
         $sesion->getJson('/api/docentes?facultad=fcyt')
             ->assertOk()
-            ->assertJsonPath('data.*.nombre', ['Blanco Coca Leticia'])
-            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.*.nombre', ['Arce Rojas Ana', 'Blanco Coca Leticia'])
+            ->assertJsonPath('meta.total', 2)
             // Los conteos no dependen del filtro elegido.
             ->assertJsonPath('meta.conteos.todas', 3)
             ->assertJsonPath('meta.conteos.FCE', 2);

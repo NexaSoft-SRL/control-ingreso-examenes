@@ -20,6 +20,7 @@ final class EloquentConsultaDocentesGateway implements ConsultaDocentesGateway
     {
         $consulta = DB::table('docentes as d')
             ->leftJoin('users as u', 'u.id', '=', 'd.user_id');
+        $this->delPeriodo($consulta, $periodoIds);
 
         if ($filtro->sinCuenta) {
             $consulta->whereNull('d.user_id');
@@ -85,9 +86,33 @@ final class EloquentConsultaDocentesGateway implements ConsultaDocentesGateway
         return ['filas' => $docentes, 'total' => $total];
     }
 
+    /**
+     * Los docentes que dan clases en el período vigente: también hay oferta
+     * de períodos cerrados y sus docentes no son de esta lista. Sin período
+     * vigente, todos.
+     *
+     * @param  list<int>  $periodoIds
+     */
+    private function delPeriodo(Builder $consulta, array $periodoIds): void
+    {
+        if ($periodoIds === []) {
+            return;
+        }
+
+        $consulta->whereExists(function (Builder $dicta) use ($periodoIds): void {
+            $dicta->selectRaw('1')
+                ->from('grupos as dg')
+                ->whereColumn('dg.docente_id', 'd.id')
+                ->whereIn('dg.periodo_id', $periodoIds);
+        });
+    }
+
     public function conteos(array $periodoIds): array
     {
-        $conteos = ['todas' => DB::table('docentes')->count()];
+        $delPeriodo = DB::table('docentes as d');
+        $this->delPeriodo($delPeriodo, $periodoIds);
+
+        $conteos = ['todas' => (clone $delPeriodo)->count()];
 
         $porFacultad = DB::table('grupos as g')
             ->whereNotNull('g.docente_id')
@@ -105,7 +130,7 @@ final class EloquentConsultaDocentesGateway implements ConsultaDocentesGateway
             $conteos[$this->cadena($fila->sigla)] = $totales[$this->entero($fila->id)] ?? 0;
         }
 
-        $conteos['sin_cuenta'] = DB::table('docentes')->whereNull('user_id')->count();
+        $conteos['sin_cuenta'] = (clone $delPeriodo)->whereNull('d.user_id')->count();
         $conteos['varias_facultades'] = DB::query()
             ->fromSub($this->conVariasFacultades($periodoIds), 'varias')
             ->count();
