@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
-import { Check, ChevronDown, KeyRound, Plus, Shuffle, UserCheck, UserPlus, X } from 'lucide-react';
+import { Plus, Trash2, UserCheck, UserPlus, X } from 'lucide-react';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
@@ -9,9 +9,8 @@ import Buscador from '../../componentes/Buscador';
 import Campo from '../../componentes/Campo';
 import Dialogo from '../../componentes/Dialogo';
 import Insignia from '../../componentes/Insignia';
-import Seleccion from '../../componentes/Seleccion';
 import Tarjeta from '../../componentes/Tarjeta';
-import { errorDeNombre, plural, ubicacionSin } from '../../utiles/texto';
+import { errorDeNombre, plural } from '../../utiles/texto';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
@@ -164,9 +163,6 @@ export default function QuienAtiende({
     onSumar,
     onQuitar,
     errores = {},
-    conCodigo = [],
-    usanCodigo = [],
-    onCodigo,
     onAviso,
     children,
 }) {
@@ -249,36 +245,8 @@ export default function QuienAtiende({
                 })
             )
         );
-    const [ajustando, setAjustando] = useState(
-        () => conCodigo.length > 0 || Object.keys(errores).some((c) => c.startsWith('aulas.'))
-    );
-    const fijar = (aulaId, cambio) =>
-        onPersonal({ ...personal, [aulaId]: { ...de(aulaId), ...cambio } });
-    // Un auxiliar a cargo de cada aula; la primera y las que sobran quedan
-    // con el docente.
-    const repartir = () =>
-        onPersonal(
-            Object.fromEntries(
-                aulas.map((a, i) => {
-                    const encargado = i === 0 ? yo.id : (auxiliares[i - 1]?.id ?? yo.id);
-                    return [
-                        a.id,
-                        { encargado, apoyo: idsDelEquipo.filter((x) => x !== encargado) },
-                    ];
-                })
-            )
-        );
-    const errorDe = (i) => Object.entries(errores).find(([c]) => c.startsWith(`aulas.${i}.`))?.[1];
-
-    // Nadie atiende más de dos aulas a la vez: el paso queda pendiente
-    // (AvanceDeExamen::AULAS_POR_PERSONA) y aquí se dice quién se pasa.
-    const cargaPorPersona = aulas.reduce((cuenta, a) => {
-        const id = de(a.id).encargado;
-        return { ...cuenta, [id]: (cuenta[id] ?? 0) + 1 };
-    }, {});
-    const sobrecargados = Object.entries(cargaPorPersona)
-        .filter(([, n]) => n > 2)
-        .map(([id, n]) => `${nombreDe(Number(id))} · ${plural(n, 'aula')} a la vez`);
+    // Un rechazo del servidor sobre las aulas (por ejemplo, un encargado no válido).
+    const errorDeAulas = Object.entries(errores).find(([c]) => c.startsWith('aulas.'))?.[1];
 
     // Se quitan los de la cuenta (en el servidor) y los sumados en la visita.
     const [porQuitar, setPorQuitar] = useState(null);
@@ -311,14 +279,6 @@ export default function QuienAtiende({
         }
     };
 
-    // Un rechazo en un aula, o un examen que ya tiene códigos de aula, abre el
-    // ajuste y lo deja abierto.
-    const hayErrorDeAula = Object.keys(errores).some((campo) => campo.startsWith('aulas.'));
-    const hayCodigos = conCodigo.length > 0;
-    useEffect(() => {
-        if (hayErrorDeAula || hayCodigos) setAjustando(true);
-    }, [hayErrorDeAula, hayCodigos]);
-    const abiertoAjuste = ajustando;
     const miembros = [
         ...docentes.map((d) => ({ ...d, esDocente: true, pendiente: Boolean(d.pendiente) })),
         ...idsDelEquipo
@@ -326,20 +286,15 @@ export default function QuienAtiende({
             .map((id) => ({ id, nombre: nombreDe(id), esDocente: false })),
     ];
 
+    // Los auxiliares que aún no están en el equipo, para sumarlos.
+    const disponibles = auxiliares.filter((x) => !delEquipo(x.id));
+
     return (
         <Tarjeta
             titulo="4. Equipo"
             icono={UserCheck}
             acciones={<Insignia tono="primario">{plural(miembros.length, 'persona')}</Insignia>}
         >
-            {sobrecargados.length > 0 && (
-                <p
-                    role="status"
-                    className="mb-3 rounded-lg bg-warning-50 px-3 py-2 text-sm font-medium text-warning-800"
-                >
-                    {sobrecargados.join(' · ')}
-                </p>
-            )}
             <section
                 aria-label="Equipo del examen"
                 className="rounded-lg border border-slate-200 p-4"
@@ -375,13 +330,16 @@ export default function QuienAtiende({
                         </li>
                     ))}
                 </ul>
+                {errorDeAulas && (
+                    <p role="alert" className={ERROR}>
+                        {errorDeAulas}
+                    </p>
+                )}
             </section>
 
             <div className="mt-4 rounded-lg bg-slate-50 p-4">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold text-slate-800">
-                        Auxiliares · {auxiliares.length}
-                    </h3>
+                    <h3 className="text-sm font-semibold text-slate-800">Agregar auxiliares</h3>
                     <Buscador
                         valor={buscar}
                         onCambiar={setBuscar}
@@ -403,29 +361,18 @@ export default function QuienAtiende({
                     </p>
                 ) : (
                     <ul className="mb-4 flex flex-wrap gap-2" aria-label="Auxiliares">
-                        {auxiliares.map((x) => (
+                        {disponibles.map((x) => (
                             <li
                                 key={x.id}
-                                className={`inline-flex min-h-10 min-w-0 max-w-full items-center rounded-full border bg-white pl-1 text-sm text-slate-800 ${delEquipo(x.id) ? 'border-primary-500' : 'border-slate-200'} ${quitable(x.id) ? '' : 'pr-3'}`}
+                                className={`inline-flex min-h-10 min-w-0 max-w-full items-center rounded-full border border-slate-200 bg-white pl-1 text-sm text-slate-800 ${quitable(x.id) ? '' : 'pr-3'}`}
                             >
                                 <button
                                     type="button"
-                                    aria-pressed={delEquipo(x.id)}
-                                    aria-label={
-                                        delEquipo(x.id)
-                                            ? `Sacar a ${x.nombre} del equipo`
-                                            : `Sumar a ${x.nombre} al equipo`
-                                    }
-                                    onClick={() =>
-                                        delEquipo(x.id) ? sacarDelEquipo(x.id) : sumarAlEquipo(x.id)
-                                    }
+                                    aria-label={`Sumar a ${x.nombre} al equipo`}
+                                    onClick={() => sumarAlEquipo(x.id)}
                                     className={`flex min-h-10 min-w-0 items-center gap-1.5 rounded-full px-2 hover:bg-slate-50 ${FOCO}`}
                                 >
-                                    {delEquipo(x.id) ? (
-                                        <Check className="h-4 w-4 shrink-0 text-primary-700" />
-                                    ) : (
-                                        <Plus className="h-4 w-4 shrink-0 text-slate-500" />
-                                    )}
+                                    <Plus className="h-4 w-4 shrink-0 text-primary-700" />
                                     <span className="truncate">{x.nombre}</span>{' '}
                                     {x.usuario && (
                                         <span className="ml-1 shrink-0 text-xs text-slate-500">
@@ -437,11 +384,11 @@ export default function QuienAtiende({
                                     <button
                                         type="button"
                                         aria-label={`Quitar a ${x.nombre} de la lista`}
-                                        title="Quitar de la lista"
+                                        title="Quitar de mi lista de auxiliares"
                                         onClick={() => setPorQuitar(x)}
-                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 ${FOCO}`}
+                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-danger-700 ${FOCO}`}
                                     >
-                                        <X className="h-4 w-4" />
+                                        <Trash2 className="h-4 w-4" />
                                     </button>
                                 )}
                             </li>
@@ -462,119 +409,15 @@ export default function QuienAtiende({
                                 </button>
                             </li>
                         ))}
-                        {auxiliares.length === 0 && otros.length === 0 && !propios.cargando && (
-                            <li className="text-sm text-slate-600">Sin auxiliares</li>
+                        {disponibles.length === 0 && otros.length === 0 && !propios.cargando && (
+                            <li className="text-sm text-slate-600">
+                                {auxiliares.length === 0 ? 'Sin auxiliares' : 'Todos en el equipo'}
+                            </li>
                         )}
                     </ul>
                 )}
                 <AuxiliarNuevo onAgregado={sumarNuevo} onAviso={onAviso} />
             </div>
-
-            {aulas.length > 0 && (
-                <div className="mt-4">
-                    <button
-                        type="button"
-                        aria-expanded={abiertoAjuste}
-                        onClick={() => setAjustando((previo) => !previo)}
-                        className={`-ml-1 flex min-h-10 items-center gap-1 rounded-lg px-1 text-sm font-semibold text-slate-700 hover:text-slate-900 ${FOCO}`}
-                    >
-                        <ChevronDown
-                            className={`h-4 w-4 transition-transform ${abiertoAjuste ? '' : '-rotate-90'}`}
-                            aria-hidden="true"
-                        />
-                        Ajustar por aula
-                    </button>
-                    {abiertoAjuste && (
-                        <>
-                            {aulas.length > 2 && auxiliares.length > 0 && (
-                                <div className="mb-2 flex justify-end">
-                                    <Boton
-                                        type="button"
-                                        variante="secundario"
-                                        tamano="chico"
-                                        onClick={repartir}
-                                    >
-                                        <Shuffle className="h-4 w-4" /> Repartir
-                                    </Boton>
-                                </div>
-                            )}
-                            <ul
-                                className={`mt-1 grid gap-2 ${aulas.length > 4 ? 'lg:grid-cols-2' : ''}`}
-                                aria-label="Aulas del examen"
-                            >
-                                {aulas.map((a, i) => {
-                                    const { encargado } = de(a.id);
-                                    const error = errorDe(i);
-                                    return (
-                                        <li
-                                            key={a.id}
-                                            aria-label={`Aula ${a.nombre}`}
-                                            className="min-w-0 rounded-lg border border-slate-200 p-3"
-                                        >
-                                            <div className="flex items-center justify-between gap-2">
-                                                <p className="min-w-0 truncate text-sm font-semibold text-slate-800">
-                                                    Aula {a.nombre}
-                                                    {ubicacionSin(a.nombre, a.ubicacion) && (
-                                                        <span className="font-normal text-slate-600">
-                                                            {' '}
-                                                            · {ubicacionSin(a.nombre, a.ubicacion)}
-                                                        </span>
-                                                    )}
-                                                </p>
-                                                <button
-                                                    type="button"
-                                                    aria-label={`Código de acceso del aula ${a.nombre}`}
-                                                    title="Código de acceso"
-                                                    disabled={!conCodigo.includes(a.id)}
-                                                    onClick={() => onCodigo(a)}
-                                                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-slate-100 disabled:text-slate-300 disabled:hover:bg-transparent ${usanCodigo.includes(a.id) ? 'text-primary-700' : 'text-slate-600'} ${FOCO}`}
-                                                >
-                                                    <KeyRound className="h-4 w-4" />
-                                                </button>
-                                            </div>
-                                            <Seleccion
-                                                etiqueta="A cargo"
-                                                className="mt-1 min-w-0"
-                                                value={encargado}
-                                                onChange={(e) => {
-                                                    const id = Number(e.target.value);
-                                                    const { apoyo, encargado: antes } = de(a.id);
-                                                    // Quien deja de estar a cargo sigue en el equipo.
-                                                    fijar(a.id, {
-                                                        encargado: id,
-                                                        apoyo: [
-                                                            ...apoyo.filter((x) => x !== id),
-                                                            ...(antes !== yo.id && antes !== id
-                                                                ? [antes]
-                                                                : []),
-                                                        ],
-                                                    });
-                                                }}
-                                            >
-                                                {miembros.map((x) => (
-                                                    <option key={x.id} value={x.id}>
-                                                        {x.nombre}
-                                                    </option>
-                                                ))}
-                                            </Seleccion>
-                                            {error && (
-                                                <p role="alert" className={ERROR}>
-                                                    {error}
-                                                </p>
-                                            )}
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        </>
-                    )}
-                </div>
-            )}
-            {aulas.length === 0 && (
-                <p className="mt-4 rounded-lg border border-slate-200 py-4 text-center text-sm text-slate-600">
-                    Sin aulas
-                </p>
-            )}
             {children}
             <Dialogo
                 titulo="Quitar auxiliar"
@@ -631,9 +474,6 @@ QuienAtiende.propTypes = {
     onSumar: PropTypes.func.isRequired,
     onQuitar: PropTypes.func.isRequired,
     errores: PropTypes.objectOf(PropTypes.string),
-    conCodigo: PropTypes.arrayOf(PropTypes.number),
-    usanCodigo: PropTypes.arrayOf(PropTypes.number),
-    onCodigo: PropTypes.func.isRequired,
     onAviso: PropTypes.func.isRequired,
     children: PropTypes.node,
 };

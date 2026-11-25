@@ -122,8 +122,6 @@ const personalDe = (examen, yo) =>
             { encargado: a.encargado?.id ?? yo, apoyo: (a.apoyo ?? []).map((p) => p.id) },
         ])
     );
-const conCodigoDe = (examen) =>
-    (examen?.aulas_detalle ?? []).filter((a) => a.usa_codigo).map((a) => a.aula_id);
 
 function ubicacionDe(aula, facultad) {
     const lugar = [aula.edificio, aula.piso].filter(Boolean).join(' · ') || 'Sin edificio';
@@ -979,14 +977,8 @@ function Asistente({
     );
     // Auxiliares sumados en esta visita: los buscados y los recién creados.
     const [sumados, setSumados] = useState([]);
-    const [acceso, setAcceso] = useState(null);
-    const [conCodigo, setConCodigo] = useState(() => conCodigoDe(inicial));
     // Las cifras de la lista de habilitación no se usan en el asistente.
     const anotarCifras = useCallback(() => {}, []);
-    const anotarCodigo = useCallback(
-        (id) => setConCodigo((previos) => (previos.includes(id) ? previos : [...previos, id])),
-        []
-    );
     const [busqueda, setBusqueda] = useState('');
     const [edificio, setEdificio] = useState('');
     // Cuántas aulas se piden al sugerir.
@@ -1187,6 +1179,14 @@ function Asistente({
         ),
     ];
     const de = (id) => personal[id] ?? { encargado: yo.id, apoyo: equipoActual };
+    // Cada aula necesita a alguien nominalmente a cargo, aunque cualquiera del
+    // equipo atiende cualquier aula: se mantiene el que ya tenía y, si no, se
+    // reparte por turnos entre quien registra y los auxiliares del equipo.
+    const turnos = [yo.id, ...equipoActual];
+    const encargadoDe = (id, indice) => {
+        const previo = (examen?.aulas_detalle ?? []).find((a) => a.aula_id === id)?.encargado?.id;
+        return previo && turnos.includes(previo) ? previo : turnos[indice % turnos.length];
+    };
     const cambiarPersonal = (siguiente) => {
         setPersonal(siguiente);
         setErrores((previos) =>
@@ -1212,7 +1212,6 @@ function Asistente({
             )
         );
     };
-    const guardadas = (examen?.aulas_detalle ?? []).map((a) => a.aula_id);
     // Quienes pueden atender sin ser de la cuenta: los docentes de los grupos
     // del examen (con cuenta) y quienes ya atienden el examen guardado.
     const conocidos = [
@@ -1309,11 +1308,14 @@ function Asistente({
             normas: normas.trim(),
             normas_marcadas: marcadas,
             grupos: elegidosIds,
-            aulas: aulas.map((id) => ({
-                aula_id: id,
-                encargado_id: de(id).encargado,
-                apoyo: de(id).apoyo,
-            })),
+            aulas: aulas.map((id, indice) => {
+                const encargado = encargadoDe(id, indice);
+                return {
+                    aula_id: id,
+                    encargado_id: encargado,
+                    apoyo: equipoActual.filter((x) => x !== encargado),
+                };
+            }),
         };
         try {
             const { data } = examen
@@ -1331,7 +1333,6 @@ function Asistente({
             setGrupos((guardado.grupos_detalle ?? []).map((g) => g.id));
             setAulas((guardado.aulas_detalle ?? []).map((a) => a.aula_id));
             setPersonal(personalDe(guardado, usuario.id));
-            setConCodigo(conCodigoDe(guardado));
             // Las otras asignaturas del día: un examen más por cada una, con lo mismo.
             if (!examen && extras.length > 0) {
                 const hechos = [];
@@ -1951,9 +1952,6 @@ function Asistente({
                     onSumar={sumar}
                     onQuitar={quitarAuxiliar}
                     errores={errores}
-                    conCodigo={examen ? guardadas : []}
-                    usanCodigo={conCodigo}
-                    onCodigo={setAcceso}
                     onAviso={avisar}
                 >
                     {rechazo && (
@@ -2062,16 +2060,6 @@ function Asistente({
                         </Link>
                     </div>
                 </Tarjeta>
-            )}
-            {acceso && examen && (
-                <CodigoDeAula
-                    key={acceso.id}
-                    examenId={examen.id}
-                    aula={acceso}
-                    onCerrar={() => setAcceso(null)}
-                    onAviso={avisar}
-                    onGenerado={anotarCodigo}
-                />
             )}
             {aviso}
         </>
