@@ -249,8 +249,30 @@ describe('Periodo', () => {
                 'Exámenes de mesa—Sin fechas',
             ]);
             expect(
-                within(dialogo).queryByRole('button', { name: 'Usar el de la universidad' })
+                within(dialogo).queryByRole('button', { name: /universidad|Restablecer/ })
             ).toBeNull();
+        });
+
+        it('ya ajustado, la lectura no ofrece volver: «Restablecer» está dentro del ajuste', async () => {
+            const dialogo = await abrir(AJUSTADO);
+
+            expect(
+                within(dialogo).queryByRole('button', { name: /universidad|Restablecer/ })
+            ).toBeNull();
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Ajustar fechas' }));
+
+            const ajuste = screen.getByRole('dialog', { name: 'Ajustar calendario 2/2026' });
+            expect(within(ajuste).getByRole('button', { name: 'Restablecer' })).toBeInTheDocument();
+        });
+
+        it('sin ajustes, el formulario no ofrece restablecer', async () => {
+            const dialogo = await abrir();
+
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Ajustar fechas' }));
+            fireEvent.click(screen.getByRole('button', { name: 'Sí, ajustar' }));
+
+            const ajuste = screen.getByRole('dialog', { name: 'Ajustar calendario 2/2026' });
+            expect(within(ajuste).queryByRole('button', { name: 'Restablecer' })).toBeNull();
         });
 
         it('ajustar pide confirmar y solo después muestra el formulario', async () => {
@@ -362,23 +384,19 @@ describe('Periodo', () => {
             ).toBeInTheDocument();
         });
 
-        it('vuelve al calendario de la universidad solo tras confirmar', async () => {
+        it('restablece el calendario de la universidad solo tras confirmar', async () => {
             const dialogo = await abrir(AJUSTADO, {
                 'DELETE /periodos/*/calendario': { data: PERIODOS[0] },
             });
 
-            fireEvent.click(
-                within(dialogo).getByRole('button', { name: 'Usar el de la universidad' })
-            );
-            expect(
-                within(dialogo).getByText('¿Volver al calendario de la universidad?')
-            ).toBeInTheDocument();
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Ajustar fechas' }));
+            const ajuste = screen.getByRole('dialog', { name: 'Ajustar calendario 2/2026' });
+            fireEvent.click(within(ajuste).getByRole('button', { name: 'Restablecer' }));
+            expect(within(ajuste).getByText('¿Restablecer el calendario?')).toBeInTheDocument();
             expect(api.delete).not.toHaveBeenCalled();
 
             api.get.mockClear();
-            fireEvent.click(
-                within(dialogo).getByRole('button', { name: 'Sí, volver al de la universidad' })
-            );
+            fireEvent.click(within(ajuste).getByRole('button', { name: 'Sí, restablecer' }));
 
             await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
             expect(api.delete).toHaveBeenCalledWith('/periodos/1/calendario');
@@ -398,15 +416,13 @@ describe('Periodo', () => {
                     ),
             });
 
-            fireEvent.click(
-                within(dialogo).getByRole('button', { name: 'Usar el de la universidad' })
-            );
-            fireEvent.click(
-                within(dialogo).getByRole('button', { name: 'Sí, volver al de la universidad' })
-            );
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Ajustar fechas' }));
+            const ajuste = screen.getByRole('dialog', { name: 'Ajustar calendario 2/2026' });
+            fireEvent.click(within(ajuste).getByRole('button', { name: 'Restablecer' }));
+            fireEvent.click(within(ajuste).getByRole('button', { name: 'Sí, restablecer' }));
 
             expect(
-                await within(dialogo).findByText(
+                await within(ajuste).findByText(
                     'La universidad no publica calendario para este período.'
                 )
             ).toBeInTheDocument();
