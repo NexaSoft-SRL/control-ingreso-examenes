@@ -1752,7 +1752,13 @@ describe('RegistrarExamen · guardar', () => {
 
     it('con otra asignatura del día registra un examen por cada una, con los grupos propios marcados', async () => {
         montar();
-        cambiar(await screen.findByLabelText(/Agregar otra asignatura/), '53');
+        fireEvent.click(await screen.findByRole('button', { name: /^Otra asignatura de ese día/ }));
+        fireEvent.click(
+            within(screen.getByRole('listbox', { name: /Otra asignatura de ese día/ })).getByRole(
+                'option',
+                { name: /Taller de Ingeniería de Software/ }
+            )
+        );
         expect(screen.getByRole('button', { name: 'Quitar Taller de Ingeniería de Software' }));
 
         await llenarExamen();

@@ -13,7 +13,6 @@ import {
     LayoutGrid,
     ListChecks,
     MapPin,
-    Plus,
     ScrollText,
     Tag,
     UserCheck,
@@ -36,10 +35,11 @@ import Insignia from '../../componentes/Insignia';
 import MapaCampus from '../../componentes/MapaCampus';
 import Pasos from '../../componentes/Pasos';
 import Seleccion from '../../componentes/Seleccion';
-import SelectorAsignatura from '../../componentes/SelectorAsignatura';
+import IconoAsignatura from '../../componentes/IconoAsignatura';
+import SelectorAsignatura, { Detalle } from '../../componentes/SelectorAsignatura';
 import Tarjeta from '../../componentes/Tarjeta';
 import { usarSesion } from '../../sesion/SesionContexto';
-import { diaMes, fechaLarga, normalizar, plural } from '../../utiles/texto';
+import { colorDeAsignatura, diaMes, fechaLarga, normalizar, plural } from '../../utiles/texto';
 import ChoquesDeEstudiantes from './ChoquesDeEstudiantes';
 import CodigoDeAula from './CodigoDeAula';
 import NormasDelExamen from './NormasDelExamen';
@@ -660,6 +660,9 @@ function Asistente({
     const [extras, setExtras] = useState([]);
     const [gruposDeExtra, setGruposDeExtra] = useState({});
     const [tambien, setTambien] = useState({ hechos: [], fallos: [] });
+    const restantes = asignaturas.filter(
+        (a) => a.id !== asignaturaId && !extras.some((e) => e.id === a.id)
+    );
     const periodoDe = (id) =>
         periodos.find((p) => p.codigo === asignaturas.find((a) => a.id === id)?.periodo) ?? null;
     // Un tipo cuya ventana ya terminó no se ofrece para un examen nuevo.
@@ -772,7 +775,7 @@ function Asistente({
     const todos = [...propios, ...otrosTodos];
     const elegidosIds = grupos ?? propios.map((g) => g.id);
     const elegidos = todos.filter((g) => elegidosIds.includes(g.id));
-    const idsDeExtra = (e) => e.grupos ?? (gruposDeExtra[e.id]?.propios ?? []).map((g) => g.id);
+    const idsDeExtra = (e) => e.elegidos ?? (gruposDeExtra[e.id]?.propios ?? []).map((g) => g.id);
     const inscritosDeExtras = extras.reduce((suma, e) => {
         const { propios: suyos = [], otros: ajenos = [] } = gruposDeExtra[e.id] ?? {};
         return (
@@ -1073,11 +1076,14 @@ function Asistente({
                             asignatura_id: extra.id,
                             grupos: idsDeExtra(extra),
                         });
-                        hechos.push({ id: respuesta.data.data.id, nombre: extra.nombre });
+                        hechos.push({
+                            id: respuesta.data.data.id,
+                            nombre: extra.asignatura.nombre,
+                        });
                     } catch (falla) {
                         const motivo = Object.values(erroresDe(falla))[0];
                         fallos.push({
-                            nombre: extra.nombre,
+                            nombre: extra.asignatura.nombre,
                             motivo: sinPunto(motivo ?? mensajeDe(falla, 'No se pudo registrar')),
                         });
                     }
@@ -1156,61 +1162,56 @@ function Asistente({
                                     >
                                         {extras.map((e) => (
                                             <li key={e.id}>
-                                                <span className="inline-flex min-h-9 items-center gap-1 rounded-full bg-primary-50 py-1 pl-3 pr-1 text-sm font-medium text-primary-800">
-                                                    {e.nombre}
+                                                <div className="flex min-h-14 items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2">
+                                                    <IconoAsignatura
+                                                        nombre={e.asignatura.nombre}
+                                                        color={colorDeAsignatura(
+                                                            e.asignatura.nombre
+                                                        )}
+                                                        tamano="md"
+                                                    />
+                                                    <span className="min-w-0 flex-1">
+                                                        <span className="block truncate text-sm font-semibold text-slate-900">
+                                                            {e.asignatura.nombre}
+                                                        </span>
+                                                        <Detalle asignatura={e.asignatura} />
+                                                    </span>
                                                     <button
                                                         type="button"
-                                                        aria-label={`Quitar ${e.nombre}`}
+                                                        aria-label={`Quitar ${e.asignatura.nombre}`}
                                                         onClick={() =>
                                                             setExtras((previos) =>
                                                                 previos.filter((x) => x.id !== e.id)
                                                             )
                                                         }
-                                                        className={`flex h-7 w-7 items-center justify-center rounded-full hover:bg-primary-100 ${FOCO}`}
+                                                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 ${FOCO}`}
                                                     >
                                                         <X className="h-4 w-4" aria-hidden="true" />
                                                     </button>
-                                                </span>
+                                                </div>
                                             </li>
                                         ))}
                                     </ul>
                                 )}
-                                {asignaturas.filter(
-                                    (a) =>
-                                        a.id !== asignaturaId && !extras.some((e) => e.id === a.id)
-                                ).length > 0 && (
-                                    <Seleccion
-                                        etiqueta="Agregar otra asignatura de ese día"
-                                        icono={Plus}
-                                        value=""
-                                        onChange={(evento) => {
-                                            const elegida = asignaturas.find(
-                                                (a) => a.id === Number(evento.target.value)
-                                            );
+                                {restantes.length > 0 && (
+                                    <SelectorAsignatura
+                                        etiqueta="Otra asignatura de ese día"
+                                        vacio="Agregar otra asignatura"
+                                        asignaturas={restantes}
+                                        valor={null}
+                                        onCambiar={(id) => {
+                                            const elegida = restantes.find((a) => a.id === id);
                                             if (elegida)
                                                 setExtras((previos) => [
                                                     ...previos,
                                                     {
                                                         id: elegida.id,
-                                                        nombre: elegida.nombre,
-                                                        grupos: null,
+                                                        asignatura: elegida,
+                                                        elegidos: null,
                                                     },
                                                 ]);
                                         }}
-                                    >
-                                        <option value="">Ninguna más</option>
-                                        {asignaturas
-                                            .filter(
-                                                (a) =>
-                                                    a.id !== asignaturaId &&
-                                                    !extras.some((e) => e.id === a.id)
-                                            )
-                                            .map((a) => (
-                                                <option key={a.id} value={a.id}>
-                                                    {a.nombre}
-                                                </option>
-                                            ))}
-                                    </Seleccion>
+                                    />
                                 )}
                             </div>
                         )}
@@ -1469,12 +1470,12 @@ function Asistente({
                             {extras.map((e) => (
                                 <GruposDeExtra
                                     key={e.id}
-                                    asignatura={e}
-                                    elegidos={e.grupos}
+                                    asignatura={e.asignatura}
+                                    elegidos={e.elegidos}
                                     onElegidos={(siguiente) =>
                                         setExtras((previos) =>
                                             previos.map((x) =>
-                                                x.id === e.id ? { ...x, grupos: siguiente } : x
+                                                x.id === e.id ? { ...x, elegidos: siguiente } : x
                                             )
                                         )
                                     }

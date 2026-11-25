@@ -8,7 +8,7 @@ import usarDesplegable from './usarDesplegable';
 // Con más asignaturas que estas, la lista lleva buscador.
 const CON_BUSCADOR = 7;
 
-function Detalle({ asignatura }) {
+export function Detalle({ asignatura }) {
     const partes = [
         asignatura.codigo,
         asignatura.grupos?.length
@@ -42,6 +42,7 @@ export default function SelectorAsignatura({
     valor,
     onCambiar,
     disabled = false,
+    vacio = 'Elegir asignatura',
 }) {
     const [filtro, setFiltro] = useState('');
 
@@ -108,7 +109,7 @@ export default function SelectorAsignatura({
                         </span>
                     </>
                 ) : (
-                    <span className="flex-1 text-sm text-slate-500">Elegir asignatura</span>
+                    <span className="flex-1 text-sm text-slate-500">{vacio}</span>
                 )}
                 <ChevronDown
                     className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${abierta ? 'rotate-180' : ''}`}
@@ -215,4 +216,5 @@ SelectorAsignatura.propTypes = {
     valor: PropTypes.number,
     onCambiar: PropTypes.func.isRequired,
     disabled: PropTypes.bool,
+    vacio: PropTypes.string,
 };
