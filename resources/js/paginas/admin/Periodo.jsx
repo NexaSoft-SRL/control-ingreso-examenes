@@ -405,7 +405,10 @@ export default function Periodo() {
                         {(periodos.datos ?? []).map((p) => (
                             <li
                                 key={p.id}
-                                className="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3"
+                                // En escritorio cada dato va en su columna (el estado y la
+                                // acción quedan alineados en todas las filas); en teléfono
+                                // se acomodan en líneas.
+                                className="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 md:grid md:grid-cols-[2.25rem_3.5rem_minmax(0,1fr)_7rem_12rem]"
                             >
                                 <span
                                     className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${FONDO_PERIODO[p.estado] ?? 'bg-slate-100 text-slate-500'}`}
@@ -419,7 +422,7 @@ export default function Periodo() {
                                 <span className="w-14 shrink-0 text-base font-semibold tabular-nums text-slate-900">
                                     {p.codigo}
                                 </span>
-                                <span className="min-w-0 flex-1 basis-32">
+                                <span className="min-w-0 flex-1 basis-32 md:basis-auto">
                                     <span className="block text-sm font-medium text-slate-800">
                                         {[p.tipo, rango(p.fecha_inicio, p.fecha_fin)]
                                             .filter(Boolean)
@@ -429,36 +432,41 @@ export default function Periodo() {
                                         {p.nota}
                                     </span>
                                 </span>
-                                <Insignia tono={TONO_PERIODO[p.estado] ?? 'neutro'} punto>
-                                    {p.estado}
-                                </Insignia>
-                                {p.estado === 'Sin fechas' && (
-                                    <Boton
-                                        type="button"
-                                        variante="secundario"
-                                        tamano="chico"
-                                        className="min-h-11"
-                                        onClick={() => setAjustando(p)}
-                                        aria-label={`Ajustar ${p.codigo}`}
-                                    >
-                                        Ajustar
-                                    </Boton>
-                                )}
-                                {/* El período anual no tiene calendario de exámenes: sin botón. */}
-                                {p.estado !== 'Cerrado' &&
-                                    p.estado !== 'Sin fechas' &&
-                                    p.tipo !== 'Anual' && (
+                                <span className="md:justify-self-start">
+                                    <Insignia tono={TONO_PERIODO[p.estado] ?? 'neutro'} punto>
+                                        {p.estado}
+                                    </Insignia>
+                                </span>
+                                {/* La columna de la acción se reserva aunque no haya botón. */}
+                                <span className="md:flex md:justify-end">
+                                    {p.estado === 'Sin fechas' && (
                                         <Boton
                                             type="button"
                                             variante="secundario"
                                             tamano="chico"
                                             className="min-h-11"
-                                            onClick={() => setCalendario(p)}
-                                            aria-label={`Calendario académico ${p.codigo}`}
+                                            onClick={() => setAjustando(p)}
+                                            aria-label={`Ajustar ${p.codigo}`}
                                         >
-                                            Calendario académico
+                                            Ajustar
                                         </Boton>
                                     )}
+                                    {/* El período anual no tiene calendario de exámenes: sin botón. */}
+                                    {p.estado !== 'Cerrado' &&
+                                        p.estado !== 'Sin fechas' &&
+                                        p.tipo !== 'Anual' && (
+                                            <Boton
+                                                type="button"
+                                                variante="secundario"
+                                                tamano="chico"
+                                                className="min-h-11"
+                                                onClick={() => setCalendario(p)}
+                                                aria-label={`Calendario académico ${p.codigo}`}
+                                            >
+                                                Calendario académico
+                                            </Boton>
+                                        )}
+                                </span>
                             </li>
                         ))}
                     </ul>
