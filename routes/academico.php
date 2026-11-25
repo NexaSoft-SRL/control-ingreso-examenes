@@ -68,6 +68,9 @@ Route::prefix('api')->middleware(['auth', 'permiso:aulas_docentes'])->group(func
     Route::post('/docentes/{docente}/cuenta', [DocenteController::class, 'activarCuenta'])
         ->whereNumber('docente')
         ->name('docentes.cuenta.activar');
+    Route::post('/docentes/{docente}/contrasena-temporal', [DocenteController::class, 'contrasenaTemporal'])
+        ->whereNumber('docente')
+        ->name('docentes.contrasena_temporal');
 });
 
 Route::get('/api/docente/grupos', [GruposDocenteController::class, 'index'])

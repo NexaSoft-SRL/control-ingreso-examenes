@@ -209,7 +209,7 @@ final class DocentesTest extends TestCase
                     ],
                     ['sigla' => 'FCE', 'grupos' => 1, 'materias' => ['Estadística']],
                 ],
-                'cuenta' => ['estado' => 'activo', 'usuario' => 'leticia blanco', 'correo' => null],
+                'cuenta' => ['estado' => 'activo', 'usuario' => 'leticia blanco', 'correo' => null, 'caduca_en' => null],
                 'usuario_sugerido' => 'leticia blanco',
             ]]);
     }
@@ -240,17 +240,42 @@ final class DocentesTest extends TestCase
             'usuario' => 'corina.flores',
             'email' => 'corina@umss.edu.bo',
             'password_changed_at' => null,
+            'password_temporal_expira_en' => now()->addHours(10),
         ]);
         $docente = $this->docenteConCuenta($cuenta, 'Flores Villarroel Corina');
 
-        $this->actingAs($this->usuarioConPermisos(['aulas_docentes']))
+        $cuentaJson = $this->actingAs($this->usuarioConPermisos(['aulas_docentes']))
             ->getJson("/api/docentes/{$docente->id}")
             ->assertOk()
-            ->assertJsonPath('data.cuenta', [
-                'estado' => 'temporal',
-                'usuario' => 'corina.flores',
-                'correo' => 'corina@umss.edu.bo',
-            ]);
+            ->assertJsonPath('data.cuenta.estado', 'temporal')
+            ->assertJsonPath('data.cuenta.usuario', 'corina.flores')
+            ->assertJsonPath('data.cuenta.correo', 'corina@umss.edu.bo')
+            ->json('data.cuenta.caduca_en');
+
+        // Hasta cuándo sirve la temporal, en ISO 8601 con zona.
+        $this->assertIsString($cuentaJson);
+        $this->assertEqualsWithDelta(now()->addHours(10)->getTimestamp(), strtotime($cuentaJson), 2);
+    }
+
+    public function test_teacher_detail_of_an_expired_temporary_password_says_when_it_expired(): void
+    {
+        $cuenta = UserFactory::new()->createOne([
+            'usuario' => 'corina.flores',
+            'email' => null,
+            'password_changed_at' => null,
+            'password_temporal_expira_en' => now()->subDays(2),
+        ]);
+        $docente = $this->docenteConCuenta($cuenta, 'Flores Villarroel Corina');
+
+        $vencimiento = $this->actingAs($this->usuarioConPermisos(['aulas_docentes']))
+            ->getJson("/api/docentes/{$docente->id}")
+            ->assertOk()
+            ->assertJsonPath('data.cuenta.estado', 'temporal')
+            ->assertJsonPath('data.cuenta.correo', null)
+            ->json('data.cuenta.caduca_en');
+
+        $this->assertIsString($vencimiento);
+        $this->assertLessThan(now()->getTimestamp(), strtotime($vencimiento));
     }
 
     public function test_teacher_detail_handles_unknown_teacher_session_and_permission(): void
@@ -279,10 +304,10 @@ final class DocentesTest extends TestCase
         $docente = $this->docenteSinCuenta('Blanco Coca Leticia');
 
         $respuesta = $this->actingAs($administrador)
-            ->postJson("/api/docentes/{$docente->id}/cuenta", ['usuario' => 'LeticiaBlanco', 'correo' => null])
+            ->postJson("/api/docentes/{$docente->id}/cuenta", ['usuario' => 'LeticiaBlanco', 'correo' => 'leticia@umss.edu.bo'])
             ->assertCreated()
             ->assertJsonPath('data.usuario', 'leticiablanco')
-            ->assertJsonPath('data.enviada_a', null)
+            ->assertJsonPath('data.enviada_a', 'leticia@umss.edu.bo')
             ->assertJsonPath('message', 'Cuenta activada.')
             ->assertJsonStructure(['data' => ['usuario', 'contrasena_temporal', 'enviada_a', 'caduca_en'], 'message']);
 
@@ -293,17 +318,19 @@ final class DocentesTest extends TestCase
         $cuenta = User::where('usuario', 'leticiablanco')->firstOrFail();
 
         $this->assertSame('Blanco Coca Leticia', $cuenta->name);
-        $this->assertNull($cuenta->email);
+        $this->assertSame('leticia@umss.edu.bo', $cuenta->email);
         $this->assertNull($cuenta->password_changed_at);
         $this->assertTrue(Hash::check($temporal, $cuenta->password));
         $this->assertSame('Docente', $cuenta->role?->name);
         $this->assertSame($cuenta->id, $docente->refresh()->user_id);
-        Mail::assertNothingSent();
+        Mail::assertSent(CredencialesInicialesMail::class);
 
         // La temporal no se vuelve a mostrar: el detalle solo dice el estado.
         $this->getJson("/api/docentes/{$docente->id}")
             ->assertOk()
-            ->assertJsonPath('data.cuenta', ['estado' => 'temporal', 'usuario' => 'leticiablanco', 'correo' => null])
+            ->assertJsonPath('data.cuenta.estado', 'temporal')
+            ->assertJsonPath('data.cuenta.usuario', 'leticiablanco')
+            ->assertJsonPath('data.cuenta.correo', 'leticia@umss.edu.bo')
             ->assertJsonMissingPath('data.contrasena_temporal');
     }
 
@@ -330,7 +357,7 @@ final class DocentesTest extends TestCase
         $docente = $this->docenteSinCuenta('Blanco Coca Leticia');
 
         $this->actingAs($administrador)
-            ->postJson("/api/docentes/{$docente->id}/cuenta", ['usuario' => 'leticiablanco'])
+            ->postJson("/api/docentes/{$docente->id}/cuenta", ['usuario' => 'leticiablanco', 'correo' => 'leticia@umss.edu.bo'])
             ->assertCreated();
 
         $this->assertDatabaseHas('bitacora_operaciones', [
@@ -351,7 +378,7 @@ final class DocentesTest extends TestCase
         $cuentas = User::count();
 
         $this->actingAs($this->usuarioConRol('Administrador'))
-            ->postJson("/api/docentes/{$docente->id}/cuenta", ['usuario' => 'leticiablanco'])
+            ->postJson("/api/docentes/{$docente->id}/cuenta", ['usuario' => 'leticiablanco', 'correo' => 'leticia@umss.edu.bo'])
             ->assertConflict()
             ->assertExactJson([
                 'message' => 'El docente ya tiene una cuenta.',
@@ -368,7 +395,7 @@ final class DocentesTest extends TestCase
         $docente = $this->docenteSinCuenta('Blanco Coca Leticia');
         $sesion = $this->actingAs($this->usuarioConRol('Administrador'));
 
-        $sesion->postJson("/api/docentes/{$docente->id}/cuenta", ['usuario' => 'LETICIABLANCO'])
+        $sesion->postJson("/api/docentes/{$docente->id}/cuenta", ['usuario' => 'LETICIABLANCO', 'correo' => 'otra@umss.edu.bo'])
             ->assertUnprocessable()
             ->assertJsonPath('errors.usuario.0', 'Ya existe una cuenta con ese usuario.');
 
@@ -390,7 +417,8 @@ final class DocentesTest extends TestCase
 
         $sesion->postJson("/api/docentes/{$docente->id}/cuenta", [])
             ->assertUnprocessable()
-            ->assertJsonPath('errors.usuario.0', 'Obligatorio');
+            ->assertJsonPath('errors.usuario.0', 'Obligatorio')
+            ->assertJsonPath('errors.correo.0', 'Obligatorio');
 
         foreach (['leticia/blanco', 'leticia..blanco', '.leticia', 'leticia-'] as $usuario) {
             $sesion->postJson("/api/docentes/{$docente->id}/cuenta", ['usuario' => $usuario, 'correo' => 'no-es-correo'])
@@ -405,7 +433,7 @@ final class DocentesTest extends TestCase
     public function test_activating_an_account_handles_unknown_teacher_session_and_permission(): void
     {
         $docente = $this->docenteSinCuenta();
-        $cuerpo = ['usuario' => 'leticiablanco'];
+        $cuerpo = ['usuario' => 'leticiablanco', 'correo' => 'leticia@umss.edu.bo'];
 
         $this->postJson("/api/docentes/{$docente->id}/cuenta", $cuerpo)->assertUnauthorized();
 
@@ -420,5 +448,142 @@ final class DocentesTest extends TestCase
             ->assertJsonPath('permiso_requerido', 'aulas_docentes');
 
         $this->assertNull($docente->refresh()->user_id);
+    }
+
+    public function test_activating_an_account_requires_an_email(): void
+    {
+        Mail::fake();
+        $docente = $this->docenteSinCuenta('Blanco Coca Leticia');
+        $sesion = $this->actingAs($this->usuarioConRol('Administrador'));
+        $cuentas = User::count();
+
+        // Ausente, nulo o en blanco: sin correo no se activa.
+        foreach ([['usuario' => 'leticiablanco'], ['usuario' => 'leticiablanco', 'correo' => null], ['usuario' => 'leticiablanco', 'correo' => '   ']] as $cuerpo) {
+            $sesion->postJson("/api/docentes/{$docente->id}/cuenta", $cuerpo)
+                ->assertUnprocessable()
+                ->assertJsonPath('errors.correo.0', 'Obligatorio');
+        }
+
+        $this->assertNull($docente->refresh()->user_id);
+        $this->assertSame($cuentas, User::count());
+        Mail::assertNothingSent();
+        $this->assertDatabaseMissing('bitacora_operaciones', ['operacion' => 'docente.activar_cuenta']);
+    }
+
+    public function test_a_new_temporary_password_replaces_the_old_one_and_must_be_changed_on_entry(): void
+    {
+        Mail::fake();
+        $administrador = $this->usuarioConRol('Administrador');
+        $cuenta = UserFactory::new()->createOne([
+            'usuario' => 'corina flores',
+            'email' => 'corina@umss.edu.bo',
+            'password' => 'Anterior-123',
+            'password_changed_at' => null,
+            'password_temporal_expira_en' => now()->subDay(),
+        ]);
+        $docente = $this->docenteConCuenta($cuenta, 'Flores Villarroel Corina');
+
+        $respuesta = $this->actingAs($administrador)
+            ->postJson("/api/docentes/{$docente->id}/contrasena-temporal")
+            ->assertOk()
+            ->assertJsonPath('data.usuario', 'corina flores')
+            ->assertJsonPath('data.enviada_a', 'corina@umss.edu.bo')
+            ->assertJsonPath('message', 'Contraseña temporal nueva.')
+            ->assertJsonStructure(['data' => ['usuario', 'contrasena_temporal', 'enviada_a', 'caduca_en'], 'message']);
+
+        $nueva = $respuesta->json('data.contrasena_temporal');
+        $this->assertIsString($nueva);
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9]{3}-[A-Za-z0-9]{4}-[A-Za-z0-9]{3}$/', $nueva);
+
+        // Caduca en 72 horas.
+        $caduca = $respuesta->json('data.caduca_en');
+        $this->assertIsString($caduca);
+        $this->assertEqualsWithDelta(now()->addHours(72)->getTimestamp(), strtotime($caduca), 5);
+
+        $cuenta->refresh();
+        $this->assertTrue(Hash::check($nueva, $cuenta->password));
+        $this->assertFalse(Hash::check('Anterior-123', $cuenta->password));
+        // Sigue pendiente de cambiarla al entrar.
+        $this->assertNull($cuenta->password_changed_at);
+        Mail::assertSent(CredencialesInicialesMail::class);
+
+        // Queda anotado quién la pidió.
+        $this->assertDatabaseHas('bitacora_operaciones', [
+            'usuario_id' => $administrador->id,
+            'operacion' => 'usuario.restablecer_temporal',
+            'registro_id' => $cuenta->id,
+        ]);
+
+        // La anterior ya no entra; la nueva sí y pide cambiarla.
+        $this->postJson('/api/auth/login', ['usuario' => 'corina flores', 'password' => 'Anterior-123'])->assertUnauthorized();
+        $this->postJson('/api/auth/login', ['usuario' => 'corina flores', 'password' => $nueva])
+            ->assertOk()
+            ->assertJsonPath('user.debe_cambiar_contrasena', true);
+    }
+
+    public function test_a_new_temporary_password_without_an_email_is_not_sent(): void
+    {
+        Mail::fake();
+        $cuenta = UserFactory::new()->createOne(['usuario' => 'corina flores', 'email' => null, 'password_changed_at' => null]);
+        $docente = $this->docenteConCuenta($cuenta, 'Flores Villarroel Corina');
+
+        $this->actingAs($this->usuarioConRol('Administrador'))
+            ->postJson("/api/docentes/{$docente->id}/contrasena-temporal")
+            ->assertOk()
+            ->assertJsonPath('data.enviada_a', null);
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_a_new_temporary_password_only_applies_to_an_account_still_on_its_temporary_one(): void
+    {
+        $sesion = $this->actingAs($this->usuarioConRol('Administrador'));
+
+        $sinCuenta = $this->docenteSinCuenta();
+        $sesion->postJson("/api/docentes/{$sinCuenta->id}/contrasena-temporal")
+            ->assertConflict()
+            ->assertExactJson(['message' => 'El docente no tiene cuenta.', 'codigo' => 'SIN_CUENTA']);
+
+        $propia = UserFactory::new()->createOne(['password_changed_at' => now()->subDay()]);
+        $conPropia = $this->docenteConCuenta($propia);
+        $hash = $propia->password;
+        $sesion->postJson("/api/docentes/{$conPropia->id}/contrasena-temporal")
+            ->assertConflict()
+            ->assertExactJson(['message' => 'La cuenta ya tiene contraseña propia.', 'codigo' => 'CONTRASENA_PROPIA']);
+        $this->assertSame($hash, $propia->refresh()->password);
+
+        $bloqueada = UserFactory::new()->createOne(['password_changed_at' => null, 'is_active' => false]);
+        $conBloqueo = $this->docenteConCuenta($bloqueada);
+        $sesion->postJson("/api/docentes/{$conBloqueo->id}/contrasena-temporal")
+            ->assertConflict()
+            ->assertJsonPath('codigo', 'BLOQUEADA');
+
+        $this->assertDatabaseMissing('bitacora_operaciones', ['operacion' => 'usuario.restablecer_temporal']);
+    }
+
+    public function test_a_new_temporary_password_handles_unknown_teacher_session_and_permission(): void
+    {
+        $cuenta = UserFactory::new()->createOne(['password_changed_at' => null]);
+        $docente = $this->docenteConCuenta($cuenta);
+        $hash = $cuenta->password;
+
+        $this->postJson("/api/docentes/{$docente->id}/contrasena-temporal")->assertUnauthorized();
+
+        $this->actingAs($this->usuarioConRol('Administrador'))
+            ->postJson('/api/docentes/999/contrasena-temporal')
+            ->assertNotFound()
+            ->assertExactJson(['message' => 'Docente no encontrado.']);
+
+        // Con el permiso de la pantalla Docentes basta: no hace falta el de Usuarios y roles.
+        $this->actingAs($this->usuarioConRol('Docente'))
+            ->postJson("/api/docentes/{$docente->id}/contrasena-temporal")
+            ->assertForbidden()
+            ->assertJsonPath('permiso_requerido', 'aulas_docentes');
+        $this->assertSame($hash, $cuenta->refresh()->password);
+
+        Mail::fake();
+        $this->actingAs($this->usuarioConPermisos(['aulas_docentes']))
+            ->postJson("/api/docentes/{$docente->id}/contrasena-temporal")
+            ->assertOk();
     }
 }

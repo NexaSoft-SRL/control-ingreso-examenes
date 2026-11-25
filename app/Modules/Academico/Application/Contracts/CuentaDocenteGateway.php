@@ -20,6 +20,14 @@ interface CuentaDocenteGateway
     public function docente(int $docenteId): ?array;
 
     /**
+     * La cuenta del docente, o null si no tiene: su id de usuario, si sigue
+     * con contraseña temporal y si está activa (no bloqueada).
+     *
+     * @return array{usuario_id: int, temporal: bool, activa: bool}|null
+     */
+    public function cuenta(int $docenteId): ?array;
+
+    /**
      * Crea la cuenta, la une al docente y asienta `docente.activar_cuenta`,
      * todo en una transaccion.
      *

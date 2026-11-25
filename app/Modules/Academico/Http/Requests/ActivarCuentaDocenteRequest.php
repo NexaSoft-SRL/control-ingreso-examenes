@@ -24,7 +24,8 @@ final class ActivarCuentaDocenteRequest extends FormRequest
         return [
             // Nombre y apellido con un espacio; sin separadores seguidos.
             'usuario' => ['required', 'string', 'max:60', 'regex:'.ProponedorUsuario::FORMATO],
-            'correo' => ['sometimes', 'nullable', 'string', 'email', 'max:255'],
+            // Sin correo la persona no puede recuperar su contraseña: se exige.
+            'correo' => ['required', 'string', 'email', 'max:255'],
         ];
     }
 
@@ -37,6 +38,7 @@ final class ActivarCuentaDocenteRequest extends FormRequest
             'usuario.required' => 'Obligatorio',
             'usuario.regex' => 'Nombre y apellido, separados por un espacio',
             'usuario.max' => 'Máximo 60 caracteres',
+            'correo.required' => 'Obligatorio',
             'correo.email' => 'Correo no válido',
             'correo.max' => 'Máximo 255 caracteres',
         ];
