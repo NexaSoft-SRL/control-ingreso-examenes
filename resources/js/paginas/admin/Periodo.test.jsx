@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Periodo from './Periodo';
 import { api } from '../../api/cliente';
 import {
@@ -193,88 +193,225 @@ describe('Periodo', () => {
         expect(within(sinFechas).getByRole('button', { name: 'Ajustar 4/2026' })).toBeVisible();
     });
 
-    it('los períodos vigentes y próximos ofrecen el calendario de exámenes; los cerrados y sin fechas, no', async () => {
+    it('los períodos vigentes y próximos ofrecen el calendario académico; los cerrados y sin fechas, no', async () => {
         montar();
         await cargada();
 
+        expect(screen.getAllByRole('button', { name: /^Calendario académico/ })).toHaveLength(3);
         expect(
-            screen
-                .getAllByRole('button', { name: /^Calendario de exámenes/ })
-                .map((b) => b.textContent)
-        ).toHaveLength(3);
-        expect(
-            within(fila('4/2026')).queryByRole('button', { name: /^Calendario de exámenes/ })
+            within(fila('4/2026')).queryByRole('button', { name: /^Calendario académico/ })
         ).toBeNull();
     });
 
-    it('el administrador abre una ventana del calendario y la guarda', async () => {
-        simular({ 'PUT /periodos/*/calendario': { data: PERIODOS[0] } });
-        montar();
-        await cargada();
-
-        fireEvent.click(screen.getByRole('button', { name: 'Calendario de exámenes 2/2026' }));
-        const dialogo = screen.getByRole('dialog', { name: 'Calendario de exámenes 2/2026' });
-        const segundos = within(
-            within(dialogo).getByText('Segundos parciales').closest('fieldset')
-        );
-        expect(segundos.getByLabelText('Desde')).toHaveValue('2026-12-07');
-
-        fireEvent.change(segundos.getByLabelText('Desde'), { target: { value: '2026-11-23' } });
-        api.get.mockClear();
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar calendario' }));
-
-        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-        expect(api.put).toHaveBeenCalledWith('/periodos/1/calendario', {
-            ventanas: {
-                primeros_parciales: ['2026-10-12', '2026-11-20'],
-                segundos_parciales: ['2026-11-23', '2026-12-17'],
-                finales_y_segunda_instancia: ['2026-12-19', '2026-12-24'],
-            },
+    describe('calendario académico', () => {
+        const AJUSTADO = {
+            ...PERIODOS[0],
+            calendario_ajustado: true,
+            calendario_ajustado_por: 'Administración Académica',
+            calendario_ajustado_en: '2026-11-24T10:30:00-04:00',
+        };
+        const conPeriodo0 = (periodo) => ({
+            'GET /periodos': () => ({
+                data: [periodo, ...PERIODOS.slice(1)],
+                meta: { total: 6, pagina: 1, por_pagina: 4 },
+            }),
         });
-        expect(screen.getByText('Calendario guardado')).toBeInTheDocument();
-        await waitFor(() =>
-            expect(api.get).toHaveBeenCalledWith('/periodos/resumen', { params: {} })
-        );
-    });
 
-    it('el calendario señala en su campo una ventana que termina antes de empezar, sin enviar', async () => {
-        montar();
-        await cargada();
+        async function abrir(periodoUno = PERIODOS[0], rutas = {}) {
+            simular({ ...conPeriodo0(periodoUno), ...rutas });
+            montar();
+            await cargada();
+            fireEvent.click(screen.getByRole('button', { name: 'Calendario académico 2/2026' }));
+            return screen.getByRole('dialog', { name: 'Calendario académico 2/2026' });
+        }
 
-        fireEvent.click(screen.getByRole('button', { name: 'Calendario de exámenes 2/2026' }));
-        const dialogo = screen.getByRole('dialog');
-        const mesa = within(within(dialogo).getByText('Exámenes de mesa').closest('fieldset'));
-        fireEvent.change(mesa.getByLabelText('Desde'), { target: { value: '2026-12-20' } });
-        fireEvent.change(mesa.getByLabelText('Hasta'), { target: { value: '2026-12-10' } });
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar calendario' }));
+        beforeEach(() => {
+            vi.useFakeTimers({ toFake: ['Date'] });
+            vi.setSystemTime(new Date('2026-12-10T09:00:00'));
+        });
 
-        expect(within(dialogo).getByText('Debe ser después de Desde')).toBeInTheDocument();
-        expect(api.put).not.toHaveBeenCalled();
-    });
+        afterEach(() => {
+            vi.useRealTimers();
+        });
 
-    it('el calendario va en orden de fechas y no admite fechas fuera del período', async () => {
-        montar();
-        await cargada();
+        it('se abre para leer, sin campos que editar, con el origen y el estado de cada ventana', async () => {
+            const dialogo = await abrir();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Calendario de exámenes 2/2026' }));
-        const dialogo = screen.getByRole('dialog');
-        expect([...dialogo.querySelectorAll('legend')].map((l) => l.textContent)).toEqual([
-            'Primeros parciales',
-            'Segundos parciales',
-            'Finales y segunda instancia',
-            'Exámenes de mesa',
-        ]);
-        const primeros = within(
-            within(dialogo).getByText('Primeros parciales').closest('fieldset')
-        );
-        expect(primeros.getByLabelText('Desde')).toHaveAttribute('min', '2026-08-10');
-        expect(primeros.getByLabelText('Hasta')).toHaveAttribute('max', '2026-12-26');
+            expect(within(dialogo).getByText('Según la universidad')).toBeInTheDocument();
+            expect(dialogo.querySelector('input')).toBeNull();
+            const ventanas = within(dialogo)
+                .getAllByRole('listitem')
+                .map((li) => li.textContent);
+            expect(ventanas).toEqual([
+                'Primeros parciales12 oct – 20 nov 2026Cerrada',
+                'Segundos parciales7 dic – 17 dic 2026Abierta ahora',
+                'Finales y segunda instancia19 dic – 24 dic 2026Próxima',
+                'Exámenes de mesa—Sin fechas',
+            ]);
+            expect(
+                within(dialogo).queryByRole('button', { name: 'Usar el de la universidad' })
+            ).toBeNull();
+        });
 
-        fireEvent.change(primeros.getByLabelText('Hasta'), { target: { value: '2027-01-15' } });
-        fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar calendario' }));
+        it('ajustar pide confirmar y solo después muestra el formulario', async () => {
+            const dialogo = await abrir();
 
-        expect(within(dialogo).getByText('Fuera del período')).toBeInTheDocument();
-        expect(api.put).not.toHaveBeenCalled();
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Ajustar fechas' }));
+            expect(
+                within(dialogo).getByText(
+                    'Estas fechas vienen del calendario de la universidad. ¿Ajustarlas solo en este sistema?'
+                )
+            ).toBeInTheDocument();
+            expect(dialogo.querySelector('input')).toBeNull();
+
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Cancelar' }));
+            expect(within(dialogo).getByText('Según la universidad')).toBeInTheDocument();
+            expect(api.put).not.toHaveBeenCalled();
+
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Ajustar fechas' }));
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Sí, ajustar' }));
+            expect(
+                screen.getByRole('dialog', { name: 'Ajustar calendario 2/2026' })
+            ).toBeInTheDocument();
+        });
+
+        it('el administrador ajusta una ventana y la guarda', async () => {
+            const dialogo = await abrir(PERIODOS[0], {
+                'PUT /periodos/*/calendario': { data: PERIODOS[0] },
+            });
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Ajustar fechas' }));
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Sí, ajustar' }));
+
+            const formulario = screen.getByRole('dialog', { name: 'Ajustar calendario 2/2026' });
+            const segundos = within(
+                within(formulario).getByText('Segundos parciales').closest('fieldset')
+            );
+            expect(segundos.getByLabelText('Desde')).toHaveValue('2026-12-07');
+
+            fireEvent.change(segundos.getByLabelText('Desde'), { target: { value: '2026-11-23' } });
+            api.get.mockClear();
+            fireEvent.click(within(formulario).getByRole('button', { name: 'Guardar ajuste' }));
+
+            await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+            expect(api.put).toHaveBeenCalledWith('/periodos/1/calendario', {
+                ventanas: {
+                    primeros_parciales: ['2026-10-12', '2026-11-20'],
+                    segundos_parciales: ['2026-11-23', '2026-12-17'],
+                    finales_y_segunda_instancia: ['2026-12-19', '2026-12-24'],
+                },
+            });
+            expect(screen.getByText('Calendario ajustado')).toBeInTheDocument();
+            await waitFor(() =>
+                expect(api.get).toHaveBeenCalledWith('/periodos/resumen', { params: {} })
+            );
+        });
+
+        it('el formulario señala en su campo una ventana que termina antes de empezar, sin enviar', async () => {
+            const dialogo = await abrir();
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Ajustar fechas' }));
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Sí, ajustar' }));
+
+            const formulario = screen.getByRole('dialog');
+            const mesa = within(
+                within(formulario).getByText('Exámenes de mesa').closest('fieldset')
+            );
+            fireEvent.change(mesa.getByLabelText('Desde'), { target: { value: '2026-12-20' } });
+            fireEvent.change(mesa.getByLabelText('Hasta'), { target: { value: '2026-12-10' } });
+            fireEvent.click(within(formulario).getByRole('button', { name: 'Guardar ajuste' }));
+
+            expect(within(formulario).getByText('Debe ser después de Desde')).toBeInTheDocument();
+            expect(api.put).not.toHaveBeenCalled();
+        });
+
+        it('el formulario va en orden de fechas y no admite fechas fuera del período', async () => {
+            const dialogo = await abrir();
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Ajustar fechas' }));
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Sí, ajustar' }));
+
+            const formulario = screen.getByRole('dialog');
+            expect([...formulario.querySelectorAll('legend')].map((l) => l.textContent)).toEqual([
+                'Primeros parciales',
+                'Segundos parciales',
+                'Finales y segunda instancia',
+                'Exámenes de mesa',
+            ]);
+            const primeros = within(
+                within(formulario).getByText('Primeros parciales').closest('fieldset')
+            );
+            expect(primeros.getByLabelText('Desde')).toHaveAttribute('min', '2026-08-10');
+            expect(primeros.getByLabelText('Hasta')).toHaveAttribute('max', '2026-12-26');
+
+            fireEvent.change(primeros.getByLabelText('Hasta'), { target: { value: '2027-01-15' } });
+            fireEvent.click(within(formulario).getByRole('button', { name: 'Guardar ajuste' }));
+
+            expect(within(formulario).getByText('Fuera del período')).toBeInTheDocument();
+            expect(api.put).not.toHaveBeenCalled();
+        });
+
+        it('si ya está ajustado dice quién y cuándo, y ajustar va directo al formulario', async () => {
+            const dialogo = await abrir(AJUSTADO);
+
+            expect(within(dialogo).getByText('Ajustado por administración')).toBeInTheDocument();
+            expect(
+                within(dialogo).getByText('Administración Académica · 24 nov 2026, 10:30')
+            ).toBeInTheDocument();
+
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Ajustar fechas' }));
+            expect(
+                screen.getByRole('dialog', { name: 'Ajustar calendario 2/2026' })
+            ).toBeInTheDocument();
+        });
+
+        it('vuelve al calendario de la universidad solo tras confirmar', async () => {
+            const dialogo = await abrir(AJUSTADO, {
+                'DELETE /periodos/*/calendario': { data: PERIODOS[0] },
+            });
+
+            fireEvent.click(
+                within(dialogo).getByRole('button', { name: 'Usar el de la universidad' })
+            );
+            expect(
+                within(dialogo).getByText('¿Volver al calendario de la universidad?')
+            ).toBeInTheDocument();
+            expect(api.delete).not.toHaveBeenCalled();
+
+            api.get.mockClear();
+            fireEvent.click(
+                within(dialogo).getByRole('button', { name: 'Sí, volver al de la universidad' })
+            );
+
+            await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+            expect(api.delete).toHaveBeenCalledWith('/periodos/1/calendario');
+            expect(screen.getByText('Calendario de la universidad')).toBeInTheDocument();
+            await waitFor(() =>
+                expect(api.get).toHaveBeenCalledWith('/periodos/resumen', { params: {} })
+            );
+        });
+
+        it('si la universidad no publica calendario, lo dice y no cambia nada', async () => {
+            const dialogo = await abrir(AJUSTADO, {
+                'DELETE /periodos/*/calendario': () =>
+                    Promise.reject(
+                        errorHttp(409, {
+                            message: 'La universidad no publica calendario para este período.',
+                        })
+                    ),
+            });
+
+            fireEvent.click(
+                within(dialogo).getByRole('button', { name: 'Usar el de la universidad' })
+            );
+            fireEvent.click(
+                within(dialogo).getByRole('button', { name: 'Sí, volver al de la universidad' })
+            );
+
+            expect(
+                await within(dialogo).findByText(
+                    'La universidad no publica calendario para este período.'
+                )
+            ).toBeInTheDocument();
+            expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
     });
 
     it('guarda el ajuste de fechas y vuelve a leer la lista (criterio 4)', async () => {

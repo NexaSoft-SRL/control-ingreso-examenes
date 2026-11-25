@@ -222,7 +222,7 @@ final class EsquemaReplanteoTest extends TestCase
         $this->ingresar($examen, $estudiantes[0], $aula);
 
         $this->assertRechaza(
-            'uq_ingreso_examen_estudiante',
+            'uq_ingreso_examen_estudiante_intento',
             fn () => $this->ingresar($examen, $estudiantes[0], $this->aula()),
         );
 

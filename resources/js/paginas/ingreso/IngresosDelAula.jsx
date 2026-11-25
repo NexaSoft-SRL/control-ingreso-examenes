@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
-import { UserX } from 'lucide-react';
+import { Undo2, UserX } from 'lucide-react';
 import { codigoDe, erroresDe, mensajeDe } from '../../api/errores';
 import { useAviso } from '../../componentes/Aviso';
 import Boton from '../../componentes/Boton';
@@ -12,7 +12,8 @@ import { colorDeAsignatura } from '../../utiles/texto';
 
 // Cuántos ingresos devuelve la ruta 63 sin pedir `ingresos=todos`.
 const RECIENTES = 5;
-const MOTIVO_MINIMO = 5;
+// La expulsión pide 5 caracteres de motivo; la anulación, 3.
+const MOTIVO_MINIMO = { expulsion: 5, anulacion: 3 };
 // Igual que en la puerta: pasados 15 minutos del inicio, el ingreso es tarde.
 const TOLERANCIA_MINUTOS = 15;
 
@@ -26,9 +27,12 @@ const minutosDe = (hora) => {
 
 const sinPunto = (texto) => String(texto ?? '').replace(/\.$/, '');
 
-// Los ingresos del aula, del más reciente al más antiguo (ruta 63), y la
-// expulsión sobre uno de ellos (ruta 66). `expulsar(ingreso, motivo)` hace
-// la llamada y devuelve su promesa.
+// Los ingresos del aula, del más reciente al más antiguo (ruta 63), la
+// expulsión sobre uno de ellos (ruta 66) y su anulación, si se hizo por error.
+// `expulsar(ingreso, motivo)` y `anular(ingreso, motivo)` hacen la llamada y
+// devuelven su promesa; sin ellas no se ofrece la acción (código de aula, o un
+// auxiliar, que no anula).
+
 export default function IngresosDelAula({
     ingresos,
     total,
@@ -41,8 +45,13 @@ export default function IngresosDelAula({
     operador,
     hora,
     expulsar,
+    anular,
 }) {
-    const [elegido, setElegido] = useState(null);
+    // Qué se hace sobre qué ingreso: { tipo: 'expulsion' | 'anulacion', ingreso }.
+    const [accion, setAccion] = useState(null);
+    const elegido = accion?.ingreso ?? null;
+    const tipo = accion?.tipo ?? 'expulsion';
+    const minimo = MOTIVO_MINIMO[tipo];
     const [motivo, setMotivo] = useState('');
     const [errorMotivo, setErrorMotivo] = useState(null);
     const [enviando, setEnviando] = useState(false);
@@ -60,31 +69,34 @@ export default function IngresosDelAula({
     };
 
     const cerrar = () => {
-        setElegido(null);
+        setAccion(null);
         setMotivo('');
         setErrorMotivo(null);
     };
     const registrar = async () => {
         if (enviando || !elegido) return;
-        if (motivo.trim().length < MOTIVO_MINIMO) {
-            setErrorMotivo(`Mínimo ${MOTIVO_MINIMO} caracteres`);
+        if (motivo.trim().length < minimo) {
+            setErrorMotivo(`Mínimo ${minimo} caracteres`);
             return;
         }
         setEnviando(true);
         try {
-            await expulsar(elegido, motivo.trim());
+            await (tipo === 'anulacion' ? anular : expulsar)(elegido, motivo.trim());
             cerrar();
-            avisar('Expulsión registrada');
+            avisar(tipo === 'anulacion' ? 'Ingreso anulado' : 'Expulsión registrada');
         } catch (fallo) {
             const campo = erroresDe(fallo).motivo;
             if (campo) {
                 setErrorMotivo(campo);
             } else {
+                const codigo = codigoDe(fallo);
                 cerrar();
                 avisar(
-                    codigoDe(fallo) === 'YA_EXPULSADO'
+                    codigo === 'YA_EXPULSADO'
                         ? 'Ya estaba expulsado'
-                        : sinPunto(mensajeDe(fallo, 'No se pudo registrar')),
+                        : codigo === 'YA_ANULADO'
+                          ? 'Ya estaba anulado'
+                          : sinPunto(mensajeDe(fallo, 'No se pudo registrar')),
                     'error'
                 );
             }
@@ -126,15 +138,28 @@ export default function IngresosDelAula({
                 className={`divide-y divide-slate-100 ${todos ? '-mr-2 max-h-80 overflow-y-auto pr-2' : ''}`}
             >
                 {ingresos.map((i) => (
-                    <li key={i.id} className="flex min-h-12 items-center gap-2">
+                    <li key={i.id} className={`flex min-h-12 items-center gap-2`}>
                         {conColor && (
                             <span
                                 className="h-2.5 w-2.5 shrink-0 rounded-full"
                                 style={{ backgroundColor: colorDe(i.examen_id) ?? undefined }}
                             />
                         )}
-                        <span className="min-w-0 flex-1 break-words py-1.5 text-sm leading-snug text-slate-800">
-                            {i.nombre}
+                        <span className="min-w-0 flex-1 break-words py-1.5 text-sm leading-snug">
+                            <span
+                                className={
+                                    i.anulado ? 'text-slate-500 line-through' : 'text-slate-800'
+                                }
+                            >
+                                {i.nombre}
+                            </span>
+                            {i.anulado && (
+                                <span className="block text-xs text-slate-600">
+                                    {i.motivo_anulacion
+                                        ? `Anulado · ${i.motivo_anulacion}`
+                                        : 'Anulado'}
+                                </span>
+                            )}
                         </span>
                         <span className="flex shrink-0 flex-wrap items-center justify-end gap-1">
                             {i.expulsado && <Insignia tono="peligro">Expulsado</Insignia>}
@@ -144,13 +169,27 @@ export default function IngresosDelAula({
                         <span className="shrink-0 text-sm tabular-nums text-slate-600">
                             {i.hora}
                         </span>
-                        {!expulsar ? null : i.expulsado ? (
+                        {anular &&
+                            (i.anulado ? (
+                                <span className="h-11 w-11 shrink-0" aria-hidden="true" />
+                            ) : (
+                                <button
+                                    type="button"
+                                    aria-label={`Anular el ingreso de ${i.nombre}`}
+                                    title="Anular ingreso"
+                                    onClick={() => setAccion({ tipo: 'anulacion', ingreso: i })}
+                                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600"
+                                >
+                                    <Undo2 className="h-5 w-5" />
+                                </button>
+                            ))}
+                        {!expulsar ? null : i.expulsado || i.anulado ? (
                             <span className="h-11 w-11 shrink-0" aria-hidden="true" />
                         ) : (
                             <button
                                 type="button"
                                 aria-label={`Registrar expulsión de ${i.nombre}`}
-                                onClick={() => setElegido(i)}
+                                onClick={() => setAccion({ tipo: 'expulsion', ingreso: i })}
                                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-danger-50 hover:text-danger-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600"
                             >
                                 <UserX className="h-5 w-5" />
@@ -167,7 +206,7 @@ export default function IngresosDelAula({
             </ul>
 
             <Dialogo
-                titulo="Expulsión"
+                titulo={tipo === 'anulacion' ? 'Anular ingreso' : 'Expulsión'}
                 abierto={elegido !== null}
                 onCerrar={cerrar}
                 acciones={
@@ -177,12 +216,12 @@ export default function IngresosDelAula({
                         </Boton>
                         <Boton
                             type="button"
-                            variante="peligro"
+                            variante={tipo === 'anulacion' ? 'primario' : 'peligro'}
                             onClick={registrar}
-                            disabled={enviando || motivo.trim().length < MOTIVO_MINIMO}
+                            disabled={enviando || motivo.trim().length < minimo}
                             cargando={enviando}
                         >
-                            Expulsar
+                            {tipo === 'anulacion' ? 'Anular ingreso' : 'Expulsar'}
                         </Boton>
                     </>
                 }
@@ -210,13 +249,18 @@ export default function IngresosDelAula({
                             maxLength={500}
                             value={motivo}
                             error={errorMotivo}
-                            ayuda={`Mínimo ${MOTIVO_MINIMO} caracteres`}
+                            ayuda={`Mínimo ${minimo} caracteres`}
                             onChange={(e) => {
                                 setMotivo(e.target.value);
                                 setErrorMotivo(null);
                             }}
                             autoFocus
                         />
+                        {tipo === 'anulacion' && (
+                            <p className="text-xs text-slate-600">
+                                Podrá volver a pasar por la puerta
+                            </p>
+                        )}
                         <p className="text-xs text-slate-600">
                             {[operador, hora].filter(Boolean).join(' · ')}
                         </p>
@@ -238,6 +282,8 @@ IngresosDelAula.propTypes = {
             examen_id: PropTypes.number,
             excepcion: PropTypes.bool,
             expulsado: PropTypes.bool,
+            anulado: PropTypes.bool,
+            motivo_anulacion: PropTypes.string,
         })
     ).isRequired,
     total: PropTypes.number.isRequired,
@@ -257,4 +303,6 @@ IngresosDelAula.propTypes = {
     hora: PropTypes.string,
     // Sin ella (código de aula) no se ofrece expulsar.
     expulsar: PropTypes.func,
+    // Solo el docente del examen anula un ingreso hecho por error.
+    anular: PropTypes.func,
 };

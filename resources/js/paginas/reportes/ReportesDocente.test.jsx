@@ -189,6 +189,15 @@ describe('Reportes del docente', () => {
         expect(screen.getByLabelText('Desglose de inscritos')).not.toHaveTextContent('Pendientes');
     });
 
+    it('cuenta aparte los ingresos anulados', async () => {
+        servidor([rendido(1, PROGRAMACION, '2026-10-12', { inscritos: 264, anulados: 2 })]);
+        await abrir();
+
+        expect(screen.getByLabelText('Desglose de inscritos')).toHaveTextContent(
+            'Inscritos 264 · Habilitados 255 · No habilitados 9 · Ingresos anulados 2'
+        );
+    });
+
     it('un examen rendido sin ingresos dice «Sin ingresos», no 0 %', async () => {
         servidor([
             rendido(1, PROGRAMACION, '2026-10-12', {

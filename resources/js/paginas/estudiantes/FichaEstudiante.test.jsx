@@ -173,9 +173,11 @@ describe('FichaEstudiante', () => {
 
         revisarFoto.mockResolvedValueOnce({ errores: [], avisos: ['Use un fondo claro'] });
         fireEvent.change(screen.getByLabelText('Poner foto'), { target: { files: [foto] } });
-        expect(await screen.findByRole('status')).toHaveTextContent(
-            'Foto guardada · Use un fondo claro'
-        );
+        // El aviso del rechazo anterior sigue unos segundos con el mismo rol
+        // `status`: se espera al texto nuevo, no al primer aviso que aparezca.
+        expect(
+            (await screen.findAllByText('Foto guardada · Use un fondo claro')).length
+        ).toBeGreaterThan(0);
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith('/estudiantes/5/foto', expect.any(FormData));
     });

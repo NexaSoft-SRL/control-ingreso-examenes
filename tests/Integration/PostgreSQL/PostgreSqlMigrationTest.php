@@ -63,6 +63,7 @@ final class PostgreSqlMigrationTest extends TestCase
             'accesos_aula',
             'alertas_reportes',
             'alertas_reportes_procesadas',
+            'anulaciones_ingreso',
             'asignaturas',
             'aulas',
             'auxiliares',

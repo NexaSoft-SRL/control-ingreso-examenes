@@ -7,9 +7,11 @@ namespace App\Modules\Academico\Http\Controllers;
 use App\Modules\Academico\Application\Actions\AjustarCalendarioDePeriodo;
 use App\Modules\Academico\Application\Actions\AjustarPeriodo;
 use App\Modules\Academico\Application\Actions\DetectarPeriodos;
+use App\Modules\Academico\Application\Actions\RestaurarCalendarioDePeriodo;
 use App\Modules\Academico\Application\Queries\ConsultarPeriodosVigentes;
 use App\Modules\Academico\Application\Queries\ConsultarResumenPeriodo;
 use App\Modules\Academico\Application\Queries\ListarPeriodos;
+use App\Modules\Academico\Domain\Exceptions\CalendarioDeLaUniversidadNoDisponibleException;
 use App\Modules\Academico\Http\Requests\AjustarCalendarioRequest;
 use App\Modules\Academico\Http\Requests\AjustarPeriodoRequest;
 use App\Modules\Academico\Http\Requests\PaginaRequest;
@@ -64,6 +66,25 @@ final class PeriodoController
         $autorId = Auth::id();
 
         $fila = $ajustar->execute($periodo, $request->ventanas(), is_int($autorId) ? $autorId : null);
+
+        if ($fila === null) {
+            return response()->json([
+                'message' => 'Período no encontrado.',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        return response()->json(['data' => $fila]);
+    }
+
+    public function restaurarCalendario(int $periodo, RestaurarCalendarioDePeriodo $restaurar): JsonResponse
+    {
+        $autorId = Auth::id();
+
+        try {
+            $fila = $restaurar->execute($periodo, is_int($autorId) ? $autorId : null);
+        } catch (CalendarioDeLaUniversidadNoDisponibleException $error) {
+            return response()->json(['message' => $error->getMessage()], Response::HTTP_CONFLICT);
+        }
 
         if ($fila === null) {
             return response()->json([

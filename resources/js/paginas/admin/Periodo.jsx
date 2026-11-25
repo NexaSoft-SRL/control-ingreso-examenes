@@ -30,6 +30,7 @@ import Paginacion from '../../componentes/Paginacion';
 import Tarjeta from '../../componentes/Tarjeta';
 import { usarFacultades, usarSesion } from '../../sesion/SesionContexto';
 import { diaMes, fechaCorta } from '../../utiles/texto';
+import CalendarioAcademico from './CalendarioAcademico';
 
 const FOCO = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600';
 const COLUMNAS = 'md:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_minmax(0,1fr)_9rem]';
@@ -179,148 +180,6 @@ function AjustarFechas({ periodo, onCerrar, onGuardado }) {
     );
 }
 
-// Las ventanas del calendario de exámenes: dentro de cada una los docentes
-// pueden registrar exámenes de ese tipo. El administrador las abre o las mueve.
-const VENTANAS = [
-    ['primeros_parciales', 'Primeros parciales'],
-    ['segundos_parciales', 'Segundos parciales'],
-    ['finales_y_segunda_instancia', 'Finales y segunda instancia'],
-    ['examenes_de_mesa', 'Exámenes de mesa'],
-];
-
-function AjustarCalendario({ periodo, onCerrar, onGuardado }) {
-    const [fechas, setFechas] = useState(() =>
-        Object.fromEntries(
-            VENTANAS.map(([clave]) => [
-                clave,
-                [periodo.calendario?.[clave]?.[0] ?? '', periodo.calendario?.[clave]?.[1] ?? ''],
-            ])
-        )
-    );
-    const [errores, setErrores] = useState({});
-    const [general, setGeneral] = useState(null);
-    const [guardando, setGuardando] = useState(false);
-    // Las fechas caben dentro del período.
-    const minimo = periodo.fecha_inicio ?? undefined;
-    const maximo = periodo.fecha_fin ?? undefined;
-    const fuera = (fecha) => fecha && ((minimo && fecha < minimo) || (maximo && fecha > maximo));
-    // En el orden del calendario: primero lo que empieza antes (se fija al abrir).
-    const [orden] = useState(() =>
-        [...VENTANAS].sort(([a], [b]) => {
-            const da = periodo.calendario?.[a]?.[0] ?? '9999';
-            const db = periodo.calendario?.[b]?.[0] ?? '9999';
-            return da.localeCompare(db);
-        })
-    );
-
-    function poner(clave, posicion, valor) {
-        setFechas((previas) => {
-            const rango = [...previas[clave]];
-            rango[posicion] = valor;
-            return { ...previas, [clave]: rango };
-        });
-        setErrores((previos) => ({ ...previos, [`ventanas.${clave}.${posicion}`]: undefined }));
-    }
-
-    function guardar(evento) {
-        evento.preventDefault();
-        const locales = {};
-        const ventanas = {};
-        VENTANAS.forEach(([clave]) => {
-            const [desde, hasta] = fechas[clave];
-            if (!desde && !hasta) return;
-            if (!desde) locales[`ventanas.${clave}.0`] = 'Obligatorio';
-            if (!hasta) locales[`ventanas.${clave}.1`] = 'Obligatorio';
-            if (fuera(desde)) locales[`ventanas.${clave}.0`] = 'Fuera del período';
-            if (fuera(hasta)) locales[`ventanas.${clave}.1`] = 'Fuera del período';
-            else if (desde && hasta && hasta < desde)
-                locales[`ventanas.${clave}.1`] = 'Debe ser después de Desde';
-            ventanas[clave] = [desde, hasta];
-        });
-        if (Object.keys(ventanas).length === 0) {
-            setGeneral('Indique al menos una ventana');
-            return;
-        }
-        setErrores(locales);
-        setGeneral(null);
-        if (Object.keys(locales).length > 0) return;
-
-        setGuardando(true);
-        api.put(`/periodos/${periodo.id}/calendario`, { ventanas })
-            .then(() => onGuardado())
-            .catch((error) => {
-                const deCampo = erroresDe(error);
-                setErrores(deCampo);
-                if (Object.keys(deCampo).length === 0)
-                    setGeneral(mensajeDe(error, 'No se pudo guardar'));
-                setGuardando(false);
-            });
-    }
-
-    return (
-        <Dialogo
-            titulo={`Calendario de exámenes ${periodo.codigo}`}
-            onCerrar={onCerrar}
-            ancho="max-w-xl"
-            acciones={
-                <>
-                    <Boton type="button" variante="secundario" onClick={onCerrar}>
-                        Cancelar
-                    </Boton>
-                    <Boton type="submit" form="ajustar-calendario" cargando={guardando}>
-                        {guardando ? 'Guardando' : 'Guardar calendario'}
-                    </Boton>
-                </>
-            }
-        >
-            <form id="ajustar-calendario" onSubmit={guardar} noValidate className="space-y-4">
-                {orden.map(([clave, nombre]) => (
-                    <fieldset key={clave} className="grid gap-3 sm:grid-cols-2">
-                        <legend className="mb-1 text-sm font-semibold text-slate-800">
-                            {nombre}
-                        </legend>
-                        <Campo
-                            etiqueta="Desde"
-                            type="date"
-                            min={minimo}
-                            max={maximo}
-                            value={fechas[clave][0]}
-                            onChange={(e) => poner(clave, 0, e.target.value)}
-                            error={errores[`ventanas.${clave}.0`]}
-                        />
-                        <Campo
-                            etiqueta="Hasta"
-                            type="date"
-                            min={fechas[clave][0] || minimo}
-                            max={maximo}
-                            value={fechas[clave][1]}
-                            onChange={(e) => poner(clave, 1, e.target.value)}
-                            error={errores[`ventanas.${clave}.1`]}
-                        />
-                    </fieldset>
-                ))}
-                {general && (
-                    <p role="alert" className="text-sm text-danger-600">
-                        {general}
-                    </p>
-                )}
-            </form>
-        </Dialogo>
-    );
-}
-
-AjustarCalendario.propTypes = {
-    periodo: PropTypes.shape({
-        id: PropTypes.number.isRequired,
-        codigo: PropTypes.string.isRequired,
-        fecha_inicio: PropTypes.string,
-        fecha_fin: PropTypes.string,
-        calendario: PropTypes.object,
-    }).isRequired,
-    onCerrar: PropTypes.func.isRequired,
-    onGuardado: PropTypes.func.isRequired,
-};
-
 AjustarFechas.propTypes = {
     periodo: PropTypes.shape({
         id: PropTypes.number.isRequired,
@@ -451,9 +310,9 @@ export default function Periodo() {
         void recargarTodo();
     }
 
-    function calendarioGuardado() {
+    function calendarioCambiado(texto) {
         setCalendario(null);
-        avisar('Calendario guardado');
+        avisar(texto);
         void recargarTodo();
     }
 
@@ -559,9 +418,9 @@ export default function Periodo() {
                                         tamano="chico"
                                         className="min-h-11"
                                         onClick={() => setCalendario(p)}
-                                        aria-label={`Calendario de exámenes ${p.codigo}`}
+                                        aria-label={`Calendario académico ${p.codigo}`}
                                     >
-                                        Calendario
+                                        Calendario académico
                                     </Boton>
                                 )}
                             </li>
@@ -715,10 +574,10 @@ export default function Periodo() {
                 />
             )}
             {calendario && (
-                <AjustarCalendario
+                <CalendarioAcademico
                     periodo={calendario}
                     onCerrar={() => setCalendario(null)}
-                    onGuardado={calendarioGuardado}
+                    onCambio={calendarioCambiado}
                 />
             )}
             {aviso}
