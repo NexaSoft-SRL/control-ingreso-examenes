@@ -148,7 +148,8 @@ describe('Periodo', () => {
         expect(
             screen.getByText('Hoy: 9 oct 2026 · Primeros parciales 12 – 31 oct')
         ).toBeInTheDocument();
-        expect(screen.getByText('2/2026 · Vigente')).toBeInTheDocument();
+        // Con período vigente la cabecera no lleva insignia: la lista ya lo muestra.
+        expect(screen.queryByText('2/2026 · Vigente')).not.toBeInTheDocument();
     });
 
     it('lista los períodos con código, tipo, fechas y estado, de a cuatro (criterios 1 y 7)', async () => {

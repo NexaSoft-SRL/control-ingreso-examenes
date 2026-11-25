@@ -362,11 +362,10 @@ export default function Periodo() {
     return (
         <div className="space-y-6">
             <Encabezado titulo="Período" subtitulo={subtituloDe(datos)}>
-                {datos && (
-                    <Insignia tono={principal ? 'exito' : 'neutro'} punto>
-                        {principal
-                            ? `${principal.codigo} · ${principal.estado}`
-                            : 'Sin período vigente'}
+                {/* Con período vigente no hay insignia: la lista ya lo muestra. */}
+                {datos && !principal && (
+                    <Insignia tono="neutro" punto>
+                        Sin período vigente
                     </Insignia>
                 )}
             </Encabezado>
