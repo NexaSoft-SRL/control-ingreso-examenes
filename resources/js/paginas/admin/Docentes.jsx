@@ -1,7 +1,16 @@
 import PropTypes from 'prop-types';
 import { useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { ArrowRight, Copy, KeyRound, Mail, ShieldCheck, UserRound } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import {
+    ArrowRight,
+    Copy,
+    KeyRound,
+    Mail,
+    MailX,
+    ShieldCheck,
+    TriangleAlert,
+    UserRound,
+} from 'lucide-react';
 import { api } from '../../api/cliente';
 import { codigoDe, erroresDe, estadoDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
@@ -9,6 +18,7 @@ import usarPaginaServidor from '../../api/usarPaginaServidor';
 import { useAviso } from '../../componentes/Aviso';
 import Boton from '../../componentes/Boton';
 import Buscador from '../../componentes/Buscador';
+import Dialogo from '../../componentes/Dialogo';
 import Campo from '../../componentes/Campo';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
@@ -20,6 +30,8 @@ import IconoAsignatura from '../../componentes/IconoAsignatura';
 import Insignia from '../../componentes/Insignia';
 import Paginacion from '../../componentes/Paginacion';
 import Tarjeta from '../../componentes/Tarjeta';
+import { usarSesion } from '../../sesion/SesionContexto';
+import { fechaCorta } from '../../utiles/texto';
 import { ERROR_USUARIO, normalizarUsuario, usuarioValido } from '../../utiles/usuario';
 
 const POR_PAGINA = 20;
@@ -42,9 +54,10 @@ const CUENTA = {
     sin_cuenta: { tono: 'neutro', texto: 'Sin cuenta' },
 };
 
-const correoValido = (v) => v.trim() === '' || CORREO.test(v.trim());
+const correoValido = (v) => CORREO.test(v.trim());
 
-// Usuario propuesto por el servidor, editable, y correo opcional.
+// Usuario propuesto por el servidor, editable, y correo obligatorio: sin él la
+// persona no podría recuperar su contraseña.
 function FormularioActivar({ docente, onActivada, onRechazo }) {
     const [usuario, setUsuario] = useState(docente.usuario_sugerido ?? '');
     const [correo, setCorreo] = useState('');
@@ -60,7 +73,7 @@ function FormularioActivar({ docente, onActivada, onRechazo }) {
         setEnviando(true);
         api.post(`/docentes/${docente.id}/cuenta`, {
             usuario: normalizarUsuario(usuario),
-            correo: escrito === '' ? null : escrito,
+            correo: escrito,
         })
             .then((respuesta) => onActivada(respuesta.data?.data ?? {}, escrito))
             .catch((error) => {
@@ -93,6 +106,7 @@ function FormularioActivar({ docente, onActivada, onRechazo }) {
             />
             <Campo
                 etiqueta="Correo"
+                requerido
                 type="email"
                 placeholder="usuario@umss.edu.bo"
                 value={correo}
@@ -102,14 +116,20 @@ function FormularioActivar({ docente, onActivada, onRechazo }) {
                     setCorreo(e.target.value);
                     setErrores((previos) => ({ ...previos, correo: undefined }));
                 }}
-                validar={(v) => (correoValido(String(v)) ? null : 'Correo no válido')}
+                validar={(v) =>
+                    String(v).trim() === '' || correoValido(String(v)) ? null : 'Correo no válido'
+                }
             />
             <Boton type="submit" className="w-full sm:w-auto" disabled={!valido || enviando}>
                 <KeyRound className="h-4 w-4" aria-hidden="true" /> Activar cuenta
             </Boton>
             {!valido && (
                 <p className="text-xs text-slate-600">
-                    {usuarioValido(usuario) ? 'Revise el correo' : 'Falta el usuario'}
+                    {!usuarioValido(usuario)
+                        ? 'Falta el usuario'
+                        : correo.trim() === ''
+                          ? 'Falta el correo'
+                          : 'Revise el correo'}
                 </p>
             )}
         </form>
@@ -123,6 +143,98 @@ FormularioActivar.propTypes = {
     }).isRequired,
     onActivada: PropTypes.func.isRequired,
     onRechazo: PropTypes.func.isRequired,
+};
+
+const ENLACE =
+    'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-primary-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
+
+// Una cuenta ya activada: usuario, correo y el estado de la contraseña, con el
+// vencimiento de la temporal. Sin correo la persona no puede recuperarla;
+// «Nueva contraseña temporal» sirve mientras siga con la temporal (venció,
+// no la usó o la perdió).
+function PanelDeCuenta({ cuenta, puedeAgregarCorreo, onNueva }) {
+    const temporal = cuenta.estado === 'temporal';
+    const vencida =
+        temporal && Boolean(cuenta.caduca_en) && new Date(cuenta.caduca_en).getTime() < Date.now();
+    const alerta = vencida || !cuenta.correo;
+    let contrasena = 'Contraseña propia';
+    if (cuenta.estado === 'bloqueado') contrasena = 'Cuenta bloqueada';
+    else if (temporal) {
+        if (!cuenta.caduca_en) contrasena = 'Contraseña temporal';
+        else if (vencida)
+            contrasena = `Contraseña temporal · Venció el ${fechaCorta(cuenta.caduca_en)}`;
+        else contrasena = `Contraseña temporal · Caduca el ${fechaCorta(cuenta.caduca_en)}`;
+    }
+
+    return (
+        <div
+            className={`space-y-3 rounded-lg p-4 text-sm ${alerta ? 'bg-warning-50 text-warning-900' : 'bg-success-50 text-success-900'}`}
+        >
+            <div className="flex items-start gap-3">
+                {alerta ? (
+                    <TriangleAlert
+                        className="h-5 w-5 shrink-0 text-warning-600"
+                        aria-hidden="true"
+                    />
+                ) : (
+                    <ShieldCheck className="h-5 w-5 shrink-0 text-success-600" aria-hidden="true" />
+                )}
+                <div className="min-w-0 space-y-1">
+                    <p className="flex items-center gap-1.5 break-all">
+                        <UserRound className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <strong>{cuenta.usuario}</strong>
+                    </p>
+                    {cuenta.correo ? (
+                        <p className="flex items-center gap-1.5 break-all">
+                            <Mail className="h-4 w-4 shrink-0" aria-hidden="true" />
+                            {cuenta.correo}
+                        </p>
+                    ) : (
+                        <>
+                            <p className="flex items-center gap-1.5 font-medium">
+                                <MailX className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                Sin correo
+                            </p>
+                            <p className="text-xs">No podrá recuperar su contraseña</p>
+                        </>
+                    )}
+                    <p className={`flex items-center gap-1.5 ${vencida ? 'font-medium' : ''}`}>
+                        <KeyRound className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        {contrasena}
+                    </p>
+                </div>
+            </div>
+            {(temporal || (!cuenta.correo && puedeAgregarCorreo)) && (
+                <div className="flex flex-wrap gap-2">
+                    {temporal && (
+                        <Boton type="button" variante="secundario" onClick={onNueva}>
+                            <KeyRound className="h-4 w-4" aria-hidden="true" /> Nueva contraseña
+                            temporal
+                        </Boton>
+                    )}
+                    {!cuenta.correo && puedeAgregarCorreo && (
+                        <Link
+                            to={`/usuarios?buscar=${encodeURIComponent(cuenta.usuario)}`}
+                            className={ENLACE}
+                        >
+                            <Mail className="h-4 w-4" aria-hidden="true" /> Agregar correo
+                        </Link>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+PanelDeCuenta.propTypes = {
+    cuenta: PropTypes.shape({
+        estado: PropTypes.string,
+        usuario: PropTypes.string,
+        correo: PropTypes.string,
+        caduca_en: PropTypes.string,
+    }).isRequired,
+    puedeAgregarCorreo: PropTypes.bool,
+    onNueva: PropTypes.func.isRequired,
 };
 
 // Docentes de la oferta. Un docente es una sola persona con una sola
@@ -149,6 +261,10 @@ export default function Docentes() {
     // del docente activado sigue abierto.
     const [recien, setRecien] = useState(null);
     const [buscando, setBuscando] = useState(false);
+    // «Nueva contraseña temporal»: pide confirmar y luego emite.
+    const [confirmandoNueva, setConfirmandoNueva] = useState(false);
+    const [generando, setGenerando] = useState(false);
+    const { puede } = usarSesion();
     const posicion = useRef(0);
     const detalle = useRef(null);
     const [aviso, avisar] = useAviso();
@@ -209,6 +325,33 @@ export default function Docentes() {
         avisar('Cuenta activada');
         recargar();
         ficha.recargar();
+    }
+
+    // La anterior deja de servir; la nueva se muestra esta única vez, como al
+    // activar la cuenta.
+    function nuevaTemporal() {
+        setGenerando(true);
+        const correoCuenta = docente?.cuenta?.correo ?? '';
+        api.post(`/docentes/${elegido}/contrasena-temporal`)
+            .then((respuesta) => {
+                setRecien({
+                    ...(respuesta.data?.data ?? {}),
+                    docenteId: elegido,
+                    correoEscrito: correoCuenta,
+                    nueva: true,
+                });
+                setConfirmandoNueva(false);
+                avisar('Contraseña temporal nueva');
+                recargar();
+                ficha.recargar();
+            })
+            .catch((error) => {
+                avisar(mensajeDe(error, 'No se pudo generar'), 'error');
+                // Si la cuenta ya cambió (contraseña propia, bloqueo), se vuelve a leer.
+                if (estadoDe(error) === 409 || estadoDe(error) === 404) ficha.recargar();
+                setConfirmandoNueva(false);
+            })
+            .finally(() => setGenerando(false));
     }
 
     function alRechazar(rechazo) {
@@ -484,13 +627,13 @@ export default function Docentes() {
                                             {activada.enviada_a
                                                 ? ` · enviada a ${activada.enviada_a}`
                                                 : activada.correoEscrito
-                                                  ? ' · correo no enviado'
-                                                  : ' · sin correo'}
+                                                  ? ' · correo no enviado: entréguela usted'
+                                                  : ' · sin correo: entréguela usted'}
                                         </p>
                                     </div>
                                     <div className="flex flex-wrap items-center justify-between gap-3">
                                         <p className="text-sm text-slate-600">Caduca en 72 horas</p>
-                                        {quedan && (
+                                        {quedan && !activada.nueva && (
                                             <Boton
                                                 onClick={irAlSiguiente}
                                                 disabled={buscando || actualizando}
@@ -505,39 +648,11 @@ export default function Docentes() {
                                     </div>
                                 </div>
                             ) : docente.cuenta ? (
-                                <div className="flex items-center gap-3 rounded-lg bg-success-50 p-4 text-sm text-success-900">
-                                    <ShieldCheck
-                                        className="h-5 w-5 shrink-0 text-success-600"
-                                        aria-hidden="true"
-                                    />
-                                    <div className="min-w-0 space-y-1">
-                                        <p className="flex items-center gap-1.5 break-all">
-                                            <UserRound
-                                                className="h-4 w-4 shrink-0"
-                                                aria-hidden="true"
-                                            />
-                                            <strong>{docente.cuenta.usuario}</strong>
-                                        </p>
-                                        {docente.cuenta.correo && (
-                                            <p className="flex items-center gap-1.5 break-all">
-                                                <Mail
-                                                    className="h-4 w-4 shrink-0"
-                                                    aria-hidden="true"
-                                                />
-                                                {docente.cuenta.correo}
-                                            </p>
-                                        )}
-                                        <p className="flex items-center gap-1.5">
-                                            <KeyRound
-                                                className="h-4 w-4 shrink-0"
-                                                aria-hidden="true"
-                                            />
-                                            {docente.cuenta.estado === 'temporal'
-                                                ? 'Contraseña temporal'
-                                                : 'Contraseña propia'}
-                                        </p>
-                                    </div>
-                                </div>
+                                <PanelDeCuenta
+                                    cuenta={docente.cuenta}
+                                    puedeAgregarCorreo={puede('usuarios_roles')}
+                                    onNueva={() => setConfirmandoNueva(true)}
+                                />
                             ) : (
                                 <FormularioActivar
                                     key={docente.id}
@@ -550,6 +665,37 @@ export default function Docentes() {
                     )}
                 </div>
             </div>
+            {confirmandoNueva && docente?.cuenta && (
+                <Dialogo
+                    titulo="Nueva contraseña temporal"
+                    onCerrar={() => !generando && setConfirmandoNueva(false)}
+                    acciones={
+                        <>
+                            <Boton
+                                type="button"
+                                variante="secundario"
+                                disabled={generando}
+                                onClick={() => setConfirmandoNueva(false)}
+                            >
+                                Cancelar
+                            </Boton>
+                            <Boton type="button" cargando={generando} onClick={nuevaTemporal}>
+                                Generar contraseña
+                            </Boton>
+                        </>
+                    }
+                >
+                    <div className="space-y-2 text-sm text-slate-700">
+                        <p className="font-semibold text-slate-900">{docente.cuenta.usuario}</p>
+                        <p>La anterior deja de servir.</p>
+                        <p>
+                            {docente.cuenta.correo
+                                ? `Se enviará a ${docente.cuenta.correo}`
+                                : 'Sin correo: tendrá que entregarla usted'}
+                        </p>
+                    </div>
+                </Dialogo>
+            )}
             {aviso}
         </div>
     );

@@ -1,0 +1,64 @@
+{
+  "INFO": {
+    "SEMESTER": "Semestre 1/2026",
+    "DATE": "3/2/2026"
+  },
+  "LICENCIATURA EN INGENIERIA DE SISTEMAS": {
+    "_CAREER_CODE": "411702",
+    "SEMESTRE 1": {
+      "ALGEBRA I": {
+        "_CODE": "2008019",
+        "5": {
+          "PROFESSOR": "TABORGA ACHA FIDEL",
+          "AUX_INDEX": -1,
+          "DAY": [
+            "MI"
+          ],
+          "HOUR": [
+            "14:15-15:45"
+          ],
+          "CLASS": [
+            "617"
+          ]
+        }
+      },
+      "FISICA GENERAL": {
+        "_CODE": "2008099",
+        "1": {
+          "PROFESSOR": "VARGAS ROJAS DANIELA",
+          "AUX_INDEX": -1,
+          "DAY": [
+            "LU"
+          ],
+          "HOUR": [
+            "08:15-09:45"
+          ],
+          "CLASS": [
+            "619"
+          ]
+        }
+      }
+    }
+  },
+  "LICENCIATURA EN ARQUITECTURA": {
+    "_CAREER_CODE": "202002",
+    "PRIMER AÑO": {
+      "DISEÑO ANUAL": {
+        "_CODE": "2020001",
+        "1": {
+          "PROFESSOR": "MENDOZA LIMA PABLO",
+          "AUX_INDEX": -1,
+          "DAY": [
+            "MA"
+          ],
+          "HOUR": [
+            "08:15-09:45"
+          ],
+          "CLASS": [
+            "700"
+          ]
+        }
+      }
+    }
+  }
+}

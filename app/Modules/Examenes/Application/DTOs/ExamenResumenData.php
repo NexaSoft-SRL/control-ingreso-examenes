@@ -42,5 +42,7 @@ final readonly class ExamenResumenData
         public bool $conIngresos = false,
         public bool $conIncidencias = false,
         public int $codigosDeAula = 0,
+        // Grupos de otros docentes invitados que aun no responden.
+        public int $invitadosPendientes = 0,
     ) {}
 }

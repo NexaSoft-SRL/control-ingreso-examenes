@@ -550,7 +550,7 @@ final class VerificacionEnPuertaTest extends TestCase
         $this->assertDatabaseCount('ingresos', 0);
     }
 
-    public function test_an_assistant_verifies_only_at_the_room_it_attends(): void
+    public function test_an_assistant_verifies_at_any_room_of_its_exam_but_not_of_another_exam(): void
     {
         $otra = $this->aula('617');
         $this->sumarAula($otra);
@@ -563,12 +563,19 @@ final class VerificacionEnPuertaTest extends TestCase
             ->assertOk()
             ->assertJsonPath('veredicto', 'admitido');
 
+        // El equipo cubre cualquier aula del examen y queda quién lo registró.
         $this->verificar($auxiliar, $alla->codigo_universitario, $otra)
-            ->assertForbidden()
-            ->assertJsonPath('alcance', true);
+            ->assertOk()
+            ->assertJsonPath('veredicto', 'admitido');
 
         $this->assertDatabaseHas('ingresos', ['estudiante_id' => $aqui->id, 'registrado_por' => $auxiliar->id]);
-        $this->assertDatabaseMissing('ingresos', ['estudiante_id' => $alla->id]);
+        $this->assertDatabaseHas('ingresos', ['estudiante_id' => $alla->id, 'registrado_por' => $auxiliar->id]);
+
+        // Quien no está en el equipo no verifica en ninguna.
+        [$otro] = $this->habilitados(1);
+        $this->verificar($this->cuentaAuxiliar(), $otro->codigo_universitario)
+            ->assertForbidden()
+            ->assertJsonPath('alcance', true);
     }
 
     public function test_an_unknown_room_is_not_found(): void

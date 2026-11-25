@@ -7,6 +7,8 @@ namespace App\Modules\Academico\Infrastructure\Persistence;
 use App\Modules\Academico\Application\Contracts\ConsultaDocentesGateway;
 use App\Modules\Academico\Application\DTOs\FiltroDocentesData;
 use App\Modules\Academico\Application\DTOs\PaginaData;
+use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -18,6 +20,7 @@ final class EloquentConsultaDocentesGateway implements ConsultaDocentesGateway
     {
         $consulta = DB::table('docentes as d')
             ->leftJoin('users as u', 'u.id', '=', 'd.user_id');
+        $this->delPeriodo($consulta, $periodoIds);
 
         if ($filtro->sinCuenta) {
             $consulta->whereNull('d.user_id');
@@ -83,9 +86,33 @@ final class EloquentConsultaDocentesGateway implements ConsultaDocentesGateway
         return ['filas' => $docentes, 'total' => $total];
     }
 
+    /**
+     * Los docentes que dan clases en el período vigente: también hay oferta
+     * de períodos cerrados y sus docentes no son de esta lista. Sin período
+     * vigente, todos.
+     *
+     * @param  list<int>  $periodoIds
+     */
+    private function delPeriodo(Builder $consulta, array $periodoIds): void
+    {
+        if ($periodoIds === []) {
+            return;
+        }
+
+        $consulta->whereExists(function (Builder $dicta) use ($periodoIds): void {
+            $dicta->selectRaw('1')
+                ->from('grupos as dg')
+                ->whereColumn('dg.docente_id', 'd.id')
+                ->whereIn('dg.periodo_id', $periodoIds);
+        });
+    }
+
     public function conteos(array $periodoIds): array
     {
-        $conteos = ['todas' => DB::table('docentes')->count()];
+        $delPeriodo = DB::table('docentes as d');
+        $this->delPeriodo($delPeriodo, $periodoIds);
+
+        $conteos = ['todas' => (clone $delPeriodo)->count()];
 
         $porFacultad = DB::table('grupos as g')
             ->whereNotNull('g.docente_id')
@@ -103,7 +130,7 @@ final class EloquentConsultaDocentesGateway implements ConsultaDocentesGateway
             $conteos[$this->cadena($fila->sigla)] = $totales[$this->entero($fila->id)] ?? 0;
         }
 
-        $conteos['sin_cuenta'] = DB::table('docentes')->whereNull('user_id')->count();
+        $conteos['sin_cuenta'] = (clone $delPeriodo)->whereNull('d.user_id')->count();
         $conteos['varias_facultades'] = DB::query()
             ->fromSub($this->conVariasFacultades($periodoIds), 'varias')
             ->count();
@@ -117,7 +144,7 @@ final class EloquentConsultaDocentesGateway implements ConsultaDocentesGateway
             DB::table('docentes as d')
                 ->leftJoin('users as u', 'u.id', '=', 'd.user_id')
                 ->where('d.id', $docenteId),
-            ['d.id', 'd.nombre_completo', 'd.user_id', 'u.usuario', 'u.email', 'u.password_changed_at', 'u.is_active'],
+            ['d.id', 'd.nombre_completo', 'd.user_id', 'u.usuario', 'u.email', 'u.password_changed_at', 'u.is_active', 'u.password_temporal_expira_en'],
         );
 
         if ($fila === null) {
@@ -157,10 +184,16 @@ final class EloquentConsultaDocentesGateway implements ConsultaDocentesGateway
         $cuenta = null;
 
         if ($fila->user_id !== null) {
+            $estado = $this->estadoDeCuenta($fila->user_id, $fila->password_changed_at, $fila->is_active);
+
             $cuenta = [
-                'estado' => $this->estadoDeCuenta($fila->user_id, $fila->password_changed_at, $fila->is_active),
+                'estado' => $estado,
                 'usuario' => $this->cadena($fila->usuario),
                 'correo' => $this->texto($fila->email),
+                // Hasta cuándo sirve la contraseña temporal (solo de lectura).
+                'caduca_en' => $fila->password_changed_at === null
+                    ? $this->instante($fila->password_temporal_expira_en)
+                    : null,
             ];
         }
 
@@ -171,6 +204,19 @@ final class EloquentConsultaDocentesGateway implements ConsultaDocentesGateway
             'facultades' => $facultades,
             'cuenta' => $cuenta,
         ];
+    }
+
+    // Instante ISO 8601 con la zona de la aplicación, o null si no hay.
+    private function instante(mixed $valor): ?string
+    {
+        if (! is_string($valor) || $valor === '') {
+            return null;
+        }
+
+        $zona = config('app.timezone');
+
+        return (new DateTimeImmutable($valor, new DateTimeZone(is_string($zona) ? $zona : 'UTC')))
+            ->format(DATE_ATOM);
     }
 
     // Los mismos estados que la pantalla de usuarios.

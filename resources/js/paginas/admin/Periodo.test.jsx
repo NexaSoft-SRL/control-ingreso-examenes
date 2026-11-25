@@ -148,7 +148,8 @@ describe('Periodo', () => {
         expect(
             screen.getByText('Hoy: 9 oct 2026 · Primeros parciales 12 – 31 oct')
         ).toBeInTheDocument();
-        expect(screen.getByText('2/2026 · Vigente')).toBeInTheDocument();
+        // Con período vigente la cabecera no lleva insignia: la lista ya lo muestra.
+        expect(screen.queryByText('2/2026 · Vigente')).not.toBeInTheDocument();
     });
 
     it('lista los períodos con código, tipo, fechas y estado, de a cuatro (criterios 1 y 7)', async () => {
@@ -193,11 +194,11 @@ describe('Periodo', () => {
         expect(within(sinFechas).getByRole('button', { name: 'Ajustar 4/2026' })).toBeVisible();
     });
 
-    it('los períodos vigentes y próximos ofrecen el calendario académico; los cerrados y sin fechas, no', async () => {
+    it('los semestres vigentes y próximos ofrecen el calendario académico; el anual, los cerrados y los sin fechas, no', async () => {
         montar();
         await cargada();
 
-        expect(screen.getAllByRole('button', { name: /^Calendario académico/ })).toHaveLength(3);
+        expect(screen.getAllByRole('button', { name: /^Calendario académico/ })).toHaveLength(2);
         expect(
             within(fila('4/2026')).queryByRole('button', { name: /^Calendario académico/ })
         ).toBeNull();
@@ -249,8 +250,59 @@ describe('Periodo', () => {
                 'Exámenes de mesa—Sin fechas',
             ]);
             expect(
-                within(dialogo).queryByRole('button', { name: 'Usar el de la universidad' })
+                within(dialogo).queryByRole('button', { name: /universidad|Restablecer/ })
             ).toBeNull();
+        });
+
+        it('ya ajustado, la lectura no ofrece volver: «Restablecer» está dentro del ajuste', async () => {
+            const dialogo = await abrir(AJUSTADO);
+
+            expect(
+                within(dialogo).queryByRole('button', { name: /universidad|Restablecer/ })
+            ).toBeNull();
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Ajustar fechas' }));
+
+            const ajuste = screen.getByRole('dialog', { name: 'Ajustar calendario 2/2026' });
+            expect(within(ajuste).getByRole('button', { name: 'Restablecer' })).toBeInTheDocument();
+        });
+
+        it('sin ajustes, el formulario no ofrece restablecer', async () => {
+            const dialogo = await abrir();
+
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Ajustar fechas' }));
+            fireEvent.click(screen.getByRole('button', { name: 'Sí, ajustar' }));
+
+            const ajuste = screen.getByRole('dialog', { name: 'Ajustar calendario 2/2026' });
+            expect(within(ajuste).queryByRole('button', { name: 'Restablecer' })).toBeNull();
+        });
+
+        it('el período anual no tiene calendario de exámenes: no muestra el botón', async () => {
+            montar();
+            await cargada();
+
+            expect(
+                screen.queryByRole('button', { name: 'Calendario académico 0/2026' })
+            ).not.toBeInTheDocument();
+            expect(within(fila('0/2026')).getByText('No disponible')).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Calendario académico 2/2026' })
+            ).toBeEnabled();
+        });
+
+        it('un período cerrado se consulta, pero ya no se ajusta', async () => {
+            simular(conPeriodo0(CERRADOS[0]));
+            montar();
+
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Calendario académico 1/2026' })
+            );
+            const dialogo = screen.getByRole('dialog', { name: 'Calendario académico 1/2026' });
+
+            expect(
+                within(dialogo).getByText('El período cerró: el calendario solo se consulta.')
+            ).toBeInTheDocument();
+            expect(within(dialogo).queryByRole('button', { name: 'Ajustar fechas' })).toBeNull();
+            expect(within(dialogo).getAllByRole('button', { name: 'Cerrar' })).not.toHaveLength(0);
         });
 
         it('ajustar pide confirmar y solo después muestra el formulario', async () => {
@@ -362,23 +414,19 @@ describe('Periodo', () => {
             ).toBeInTheDocument();
         });
 
-        it('vuelve al calendario de la universidad solo tras confirmar', async () => {
+        it('restablece el calendario de la universidad solo tras confirmar', async () => {
             const dialogo = await abrir(AJUSTADO, {
                 'DELETE /periodos/*/calendario': { data: PERIODOS[0] },
             });
 
-            fireEvent.click(
-                within(dialogo).getByRole('button', { name: 'Usar el de la universidad' })
-            );
-            expect(
-                within(dialogo).getByText('¿Volver al calendario de la universidad?')
-            ).toBeInTheDocument();
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Ajustar fechas' }));
+            const ajuste = screen.getByRole('dialog', { name: 'Ajustar calendario 2/2026' });
+            fireEvent.click(within(ajuste).getByRole('button', { name: 'Restablecer' }));
+            expect(within(ajuste).getByText('¿Restablecer el calendario?')).toBeInTheDocument();
             expect(api.delete).not.toHaveBeenCalled();
 
             api.get.mockClear();
-            fireEvent.click(
-                within(dialogo).getByRole('button', { name: 'Sí, volver al de la universidad' })
-            );
+            fireEvent.click(within(ajuste).getByRole('button', { name: 'Sí, restablecer' }));
 
             await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
             expect(api.delete).toHaveBeenCalledWith('/periodos/1/calendario');
@@ -398,15 +446,13 @@ describe('Periodo', () => {
                     ),
             });
 
-            fireEvent.click(
-                within(dialogo).getByRole('button', { name: 'Usar el de la universidad' })
-            );
-            fireEvent.click(
-                within(dialogo).getByRole('button', { name: 'Sí, volver al de la universidad' })
-            );
+            fireEvent.click(within(dialogo).getByRole('button', { name: 'Ajustar fechas' }));
+            const ajuste = screen.getByRole('dialog', { name: 'Ajustar calendario 2/2026' });
+            fireEvent.click(within(ajuste).getByRole('button', { name: 'Restablecer' }));
+            fireEvent.click(within(ajuste).getByRole('button', { name: 'Sí, restablecer' }));
 
             expect(
-                await within(dialogo).findByText(
+                await within(ajuste).findByText(
                     'La universidad no publica calendario para este período.'
                 )
             ).toBeInTheDocument();
@@ -500,24 +546,25 @@ describe('Periodo', () => {
         expect(within(dialogo).getByRole('button', { name: 'Guardar fechas' })).toBeEnabled();
     });
 
-    it('«Actualizar períodos» pide la detección y vuelve a leer períodos y resumen (criterio 6)', async () => {
+    it('«Buscar períodos» pide la detección y vuelve a leer períodos y resumen (criterio 6)', async () => {
         const detectar = respuestaDiferida();
         simular({ 'POST /periodos/detectar': () => detectar.promesa });
         montar();
         await cargada();
 
         api.get.mockClear();
-        fireEvent.click(screen.getByRole('button', { name: 'Actualizar períodos' }));
-        expect(screen.getByRole('button', { name: 'Actualizando' })).toBeDisabled();
+        fireEvent.click(screen.getByRole('button', { name: 'Buscar períodos' }));
+        expect(screen.getByRole('button', { name: 'Buscando' })).toBeDisabled();
 
         detectar.resolver({ creados: 1, actualizados: 3 });
 
+        // El resultado sale como aviso temporal.
         expect(
-            await screen.findByText('Períodos al día · 1 nuevos · 3 actualizados')
+            await screen.findByText('Períodos al día · 1 nuevo · 3 actualizados')
         ).toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith('/periodos/detectar');
         await waitFor(() =>
-            expect(screen.getByRole('button', { name: 'Actualizar períodos' })).toBeEnabled()
+            expect(screen.getByRole('button', { name: 'Buscar períodos' })).toBeEnabled()
         );
         expect(api.get).toHaveBeenCalledWith('/periodos', {
             params: { pagina: 1, por_pagina: 4 },
@@ -542,93 +589,183 @@ describe('Periodo', () => {
         expect(within(fach).getByText('Falló')).toBeInTheDocument();
         expect(within(fach).getByText('No se pudo leer la fuente.')).toBeInTheDocument();
         expect(screen.getByText('1 de 4 importadas')).toBeInTheDocument();
+        // Las filas son de lectura: se importa todo con un solo botón.
         expect(
-            screen.getAllByRole('button', { name: /^(Importar|Reintentar|Volver a importar) / })
-        ).toHaveLength(4);
+            screen.queryAllByRole('button', {
+                name: /^(Importar|Reintentar|Volver a importar) [A-Z]/,
+            })
+        ).toHaveLength(0);
+        expect(screen.getByRole('button', { name: 'Importar todas' })).toBeEnabled();
     });
 
-    it('al importar figura «Importando» con el botón deshabilitado y luego «Importada» con las cifras nuevas (criterios 9 y 10)', async () => {
-        const importacion = respuestaDiferida();
-        simular({ 'POST /oferta/importaciones': () => importacion.promesa });
+    // Resumen con las cuatro facultades ya importadas.
+    const TODAS = () =>
+        resumenDe({
+            facultades: [
+                facultad('FCyT', 'Ciencias y Tecnología', [20, 1100, 115], {
+                    estado: 'importada',
+                    fecha: '2026-10-09',
+                }),
+                facultad('FCE', 'Ciencias Económicas', [5, 1007, 85], {
+                    estado: 'importada',
+                    fecha: '2026-10-09',
+                }),
+                facultad('FHCE', 'Humanidades y Ciencias de la Educación', [10, 679, 48], {
+                    estado: 'importada',
+                    fecha: '2026-10-09',
+                }),
+                facultad('FACH', 'Arquitectura y Ciencias del Hábitat', [6, 383, 33], {
+                    estado: 'importada',
+                    fecha: '2026-10-09',
+                }),
+            ],
+        });
+
+    const llamadasA = (ruta) => api.get.mock.calls.filter(([r]) => r === ruta).length;
+    const importadasEn = () => api.post.mock.calls.map(([, cuerpo]) => cuerpo.facultad);
+
+    it('«Importar todas» importa una facultad tras otra, con el avance, y recarga una sola vez (criterios 9 y 10)', async () => {
+        const pendientes = [0, 1, 2, 3].map(() => respuestaDiferida());
+        let n = 0;
+        simular({ 'POST /oferta/importaciones': () => pendientes[n++].promesa });
         montar();
         await cargada();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Importar FHCE' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Importar todas' }));
 
-        const fhce = fila('Humanidades y Ciencias de la Educación');
-        expect(api.post).toHaveBeenCalledWith('/oferta/importaciones', { facultad: 'fhce' });
-        expect(within(fhce).getByRole('button', { name: 'Importar FHCE' })).toBeDisabled();
-        expect(within(fhce).getAllByText('Importando')).toHaveLength(2);
-        expect(screen.getByRole('button', { name: 'Volver a importar FCyT' })).toBeEnabled();
+        // Primera facultad en turno: su fila y el botón lo dicen.
+        const avance = await screen.findByRole('button', { name: 'Importando 1 de 4' });
+        expect(avance).toBeDisabled();
+        expect(within(fila('Ciencias y Tecnología')).getByText('Importando')).toBeInTheDocument();
+        expect(importadasEn()).toEqual(['fcyt']);
 
-        const nuevo = resumenDe();
-        nuevo.facultades[2] = facultad(
-            'FHCE',
-            'Humanidades y Ciencias de la Educación',
-            [10, 679, 48],
-            { estado: 'importada', fecha: '2026-10-09' }
-        );
-        simular({ 'GET /periodos/resumen': nuevo });
-        importacion.resolver({ data: { estado: 'importada', fecha: '2026-10-09', resumen: {} } });
+        pendientes[0].resolver({ data: { estado: 'importada' } });
+        expect(await screen.findByRole('button', { name: 'Importando 2 de 4' })).toBeDisabled();
+        expect(importadasEn()).toEqual(['fcyt', 'fce']);
+        expect(within(fila('Ciencias y Tecnología')).getByText(/^Importada/)).toBeInTheDocument();
 
-        expect(await within(fhce).findByText('Importada · 9 oct 2026')).toBeInTheDocument();
-        expect(within(fhce).getByText('10 carreras · 679 grupos · 48 aulas')).toBeInTheDocument();
-        expect(within(fhce).getByRole('button', { name: 'Volver a importar FHCE' })).toBeEnabled();
-        expect(screen.getByText('2 de 4 importadas')).toBeInTheDocument();
+        pendientes[1].resolver({ data: { estado: 'importada' } });
+        await screen.findByRole('button', { name: 'Importando 3 de 4' });
+        pendientes[2].resolver({ data: { estado: 'importada' } });
+        await screen.findByRole('button', { name: 'Importando 4 de 4' });
+
+        api.get.mockClear();
+        simular({
+            'POST /oferta/importaciones': () => pendientes[3].promesa,
+            'GET /periodos/resumen': TODAS(),
+        });
+        pendientes[3].resolver({ data: { estado: 'importada' } });
+
+        expect(await screen.findByText('Oferta de las 4 facultades importada')).toBeInTheDocument();
+        expect(llamadasA('/periodos/resumen')).toBe(1);
+        expect(screen.getByText('4 de 4 importadas')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Volver a importar todas' })).toBeEnabled();
+        expect(
+            within(fila('Humanidades y Ciencias de la Educación')).getByText(
+                'Importada · 9 oct 2026'
+            )
+        ).toBeInTheDocument();
     });
 
-    it('si la importación falla queda «Falló» con el motivo y «Reintentar»; al reintentar queda «Importada» (criterio 11)', async () => {
+    it('una facultad que falla queda «Falló» con su motivo y las demás se importan (criterio 11)', async () => {
         simular({
-            'POST /oferta/importaciones': errorHttp(422, {
-                message: 'No se pudo importar FCyT.',
-                data: { estado: 'fallo', error: 'La fuente no tiene grupos.' },
-            }),
+            'POST /oferta/importaciones': ({ data }) =>
+                data.facultad === 'fce'
+                    ? errorHttp(422, {
+                          message: 'No se pudo importar FCE.',
+                          data: { estado: 'fallo', error: 'La fuente no tiene grupos.' },
+                      })
+                    : { data: { estado: 'importada' } },
         });
         montar();
         await cargada();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Volver a importar FCyT' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Importar todas' }));
         // Importa directo, sin confirmar.
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-        const fcyt = fila('Ciencias y Tecnología');
-        expect(await within(fcyt).findByText('Falló')).toBeInTheDocument();
-        expect(within(fcyt).getByText('La fuente no tiene grupos.')).toBeInTheDocument();
-        const reintentar = within(fcyt).getByRole('button', { name: 'Reintentar FCyT' });
-        expect(reintentar).toBeEnabled();
-
-        simular({
-            'POST /oferta/importaciones': {
-                data: { estado: 'importada', fecha: '2026-10-09', resumen: {} },
-            },
-        });
-        fireEvent.click(reintentar);
-
-        expect(await within(fcyt).findByText('Importada · 3 ago 2026')).toBeInTheDocument();
-        expect(within(fcyt).queryByText('La fuente no tiene grupos.')).not.toBeInTheDocument();
-        expect(within(fcyt).getByRole('button', { name: 'Volver a importar FCyT' })).toBeEnabled();
+        expect(await screen.findByText('3 de 4 importadas · 1 con error')).toBeInTheDocument();
+        // No se detuvo en la que falló: las cuatro se intentaron, en orden.
+        expect(api.post.mock.calls.map(([, c]) => c.facultad)).toEqual([
+            'fcyt',
+            'fce',
+            'fhce',
+            'fach',
+        ]);
+        const fce = fila('Ciencias Económicas');
+        expect(within(fce).getByText('Falló')).toBeInTheDocument();
+        expect(within(fce).getByText('La fuente no tiene grupos.')).toBeInTheDocument();
+        await waitFor(() =>
+            expect(screen.getByRole('button', { name: 'Importar todas' })).toBeEnabled()
+        );
     });
 
-    it('avisa cuando el servidor rechaza un segundo pedido de la misma facultad (criterio 10)', async () => {
+    it('para reintentar basta volver a pulsar «Importar todas»: lo importado queda al día', async () => {
+        let fallar = true;
         simular({
-            'POST /oferta/importaciones': errorHttp(409, {
-                message: 'Ya hay una importación de esa facultad en curso.',
-                codigo: 'IMPORTACION_EN_CURSO',
-            }),
+            'POST /oferta/importaciones': ({ data }) =>
+                fallar && data.facultad === 'fcyt'
+                    ? errorHttp(422, {
+                          message: 'No se pudo importar FCyT.',
+                          data: { estado: 'fallo', error: 'La fuente no tiene grupos.' },
+                      })
+                    : { data: { estado: 'importada' } },
         });
         montar();
         await cargada();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Importar FCE' }));
-
-        expect(
-            await screen.findByText('Ya hay una importación de esa facultad en curso.')
-        ).toBeInTheDocument();
-        const fce = fila('Ciencias Económicas');
+        fireEvent.click(screen.getByRole('button', { name: 'Importar todas' }));
+        const fcyt = fila('Ciencias y Tecnología');
+        expect(await within(fcyt).findByText('Falló')).toBeInTheDocument();
+        await screen.findByText('3 de 4 importadas · 1 con error');
         await waitFor(() =>
-            expect(within(fce).getByRole('button', { name: 'Importar FCE' })).toBeEnabled()
+            expect(screen.getByRole('button', { name: 'Importar todas' })).toBeEnabled()
         );
+
+        fallar = false;
+        simular({
+            'POST /oferta/importaciones': { data: { estado: 'importada' } },
+            'GET /periodos/resumen': TODAS(),
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Importar todas' }));
+
+        expect(await screen.findByText('Oferta de las 4 facultades importada')).toBeInTheDocument();
+        expect(within(fcyt).queryByText('La fuente no tiene grupos.')).not.toBeInTheDocument();
+        expect(within(fcyt).getByText('Importada · 9 oct 2026')).toBeInTheDocument();
+    });
+
+    it('si otra importación de una facultad sigue en curso, no es un error (criterio 10)', async () => {
+        simular({
+            'POST /oferta/importaciones': ({ data }) =>
+                data.facultad === 'fce'
+                    ? errorHttp(409, {
+                          message: 'Ya hay una importación de esa facultad en curso.',
+                          codigo: 'IMPORTACION_EN_CURSO',
+                      })
+                    : { data: { estado: 'importada' } },
+        });
+        montar();
+        await cargada();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Importar todas' }));
+
+        expect(await screen.findByText('3 de 4 importadas · 1 en curso')).toBeInTheDocument();
+        expect(api.post).toHaveBeenCalledTimes(4);
+        const fce = fila('Ciencias Económicas');
         expect(within(fce).queryByText('Falló')).not.toBeInTheDocument();
+        await waitFor(() =>
+            expect(screen.getByRole('button', { name: 'Importar todas' })).toBeEnabled()
+        );
+    });
+
+    it('con las cuatro facultades importadas el botón dice «Volver a importar todas»', async () => {
+        simular({ 'GET /periodos/resumen': TODAS() });
+        montar();
+        await cargada();
+
+        expect(screen.getByText('4 de 4 importadas')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Volver a importar todas' })).toBeEnabled();
+        expect(screen.queryByRole('button', { name: 'Importar todas' })).not.toBeInTheDocument();
     });
 
     it('indica los pendientes sobre el total y enlaza a Docentes y a la Oferta ya filtrados (criterio 13)', async () => {
@@ -683,7 +820,10 @@ describe('Periodo', () => {
         expect(await screen.findAllByText('No se pudo cargar')).toHaveLength(3);
 
         simular();
-        fireEvent.click(screen.getAllByRole('button', { name: 'Reintentar' })[0]);
+        // Cada bloque tiene su propio «Reintentar»: se pulsan todos.
+        screen
+            .getAllByRole('button', { name: 'Reintentar' })
+            .forEach((boton) => fireEvent.click(boton));
 
         expect(await screen.findByText('2/2026')).toBeInTheDocument();
     });
@@ -698,9 +838,10 @@ describe('Periodo', () => {
         expect(fcyt.className).toContain('grid');
         expect(fcyt.className).toMatch(/md:grid-cols-/);
         expect(fcyt.className).not.toMatch(/(^| )grid-cols-/);
-        const boton = within(fcyt).getByRole('button', { name: 'Volver a importar FCyT' });
+        // El botón único va en la cabecera, que baja de línea si no cabe.
+        const boton = screen.getByRole('button', { name: 'Importar todas' });
         expect(boton.className).toContain('min-h-11');
-        expect(boton.parentElement.className).toContain('flex-wrap');
+        expect(boton.closest('header').className).toContain('flex-wrap');
     });
 
     it('si la fuente no cambió avisa que la oferta ya está al día', async () => {
@@ -713,7 +854,8 @@ describe('Periodo', () => {
         montar();
         await cargada();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Volver a importar FCyT' }));
-        expect(await screen.findByText('La oferta de FCyT ya está al día')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Importar todas' }));
+        // Que la fuente no haya cambiado cuenta como al día, no como error.
+        expect(await screen.findByText('Oferta de las 4 facultades importada')).toBeInTheDocument();
     });
 });

@@ -177,7 +177,7 @@ final class IncidenciasTest extends TestCase
         $this->assertDatabaseCount('incidencias', 0);
     }
 
-    public function test_an_assistant_reports_only_in_its_own_room(): void
+    public function test_an_assistant_reports_in_any_room_of_its_exam_but_a_stranger_does_not(): void
     {
         $auxiliar = $this->cuentaAuxiliar();
         $this->ponerACargo($this->examen, $this->otra, $auxiliar);
@@ -187,11 +187,14 @@ final class IncidenciasTest extends TestCase
             ->assertJsonPath('data.aula', '617')
             ->assertJsonPath('data.por', $auxiliar->name);
 
-        $this->reportar($auxiliar)
+        // También en otra aula del mismo examen: el equipo rota.
+        $this->reportar($auxiliar)->assertCreated();
+
+        $this->reportar($this->cuentaAuxiliar())
             ->assertForbidden()
             ->assertJsonPath('alcance', true);
 
-        $this->assertDatabaseCount('incidencias', 1);
+        $this->assertDatabaseCount('incidencias', 2);
     }
 
     public function test_reporting_requires_a_session_and_one_of_the_two_permissions(): void
@@ -281,7 +284,7 @@ final class IncidenciasTest extends TestCase
             ->assertJsonPath('meta.sin_atender', 0);
     }
 
-    public function test_an_assistant_lists_only_its_room_and_must_name_it(): void
+    public function test_an_assistant_lists_the_incidents_of_a_room_of_its_exam_and_must_name_it(): void
     {
         $auxiliar = $this->cuentaAuxiliar();
         $this->ponerACargo($this->examen, $this->otra, $auxiliar);
@@ -300,6 +303,12 @@ final class IncidenciasTest extends TestCase
             ->assertJsonPath('errors.aula.0', 'Indique el aula.');
 
         $this->actingAs($auxiliar)
+            ->getJson("/api/examenes/{$this->examen->id}/incidencias?aula={$this->aula->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.detalle', 'En la 691A');
+
+        $this->actingAs($this->cuentaAuxiliar())
             ->getJson("/api/examenes/{$this->examen->id}/incidencias?aula={$this->aula->id}")
             ->assertForbidden()
             ->assertJsonPath('alcance', true);

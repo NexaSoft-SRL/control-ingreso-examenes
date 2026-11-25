@@ -17,12 +17,19 @@ const VIGENTES = {
 
 const PERIODOS = {
     data: [
-        { id: 1, codigo: '2/2026', tipo: 'Semestre 2', estado: 'Vigente' },
-        { id: 2, codigo: '0/2026', tipo: 'Anual', estado: 'Vigente' },
-        { id: 3, codigo: '1/2026', tipo: 'Semestre 1', estado: 'Cerrado' },
+        { id: 1, codigo: '2/2026', tipo: 'Semestre 2', estado: 'Vigente', grupos: 2844 },
+        { id: 2, codigo: '0/2026', tipo: 'Anual', estado: 'Vigente', grupos: 325 },
+        { id: 3, codigo: '1/2026', tipo: 'Semestre 1', estado: 'Cerrado', grupos: 2841 },
+        // Detectado, pero sin oferta importada: no se ofrece en el filtro.
+        { id: 4, codigo: '4/2026', tipo: 'Invierno', estado: 'Sin fechas', grupos: 0 },
     ],
-    meta: { total: 3, pagina: 1, por_pagina: 100 },
+    meta: { total: 4, pagina: 1, por_pagina: 100 },
 };
+
+// Las facultades con oferta en cada período (id de período): el anual solo
+// tiene a la FACH; el resto, a todas las del catálogo de prueba.
+const CON_OFERTA = { 2: ['fach'] };
+const TODAS = ['fcyt', 'fce', 'fhce', 'fach'];
 
 const CARRERAS = {
     fcyt: [
@@ -97,6 +104,7 @@ const grupos = ({ params = {} }) => ({
 const rutas = (cambios = {}) => ({
     'GET /periodos/vigentes': VIGENTES,
     'GET /periodos': PERIODOS,
+    'GET /oferta/facultades': ({ params }) => ({ data: CON_OFERTA[params.periodo] ?? TODAS }),
     'GET /oferta/carreras': ({ params }) => ({ data: CARRERAS[params.facultad] ?? [] }),
     'GET /oferta/asignaturas': asignaturas,
     'GET /oferta/asignaturas/*/grupos': grupos,
@@ -148,7 +156,7 @@ describe('Oferta', () => {
             pagina: 1,
             por_pagina: 15,
         });
-        expect(pedidos('/oferta/carreras')[0]).toEqual({ facultad: 'fcyt' });
+        expect(pedidos('/oferta/carreras')[0]).toEqual({ facultad: 'fcyt', con_oferta: 1 });
         expect(screen.getByLabelText('Facultad')).toHaveValue('fcyt');
         expect(screen.getByText('1.168 grupos')).toBeInTheDocument();
         expect(screen.getByRole('navigation', { name: 'Paginación' })).toHaveTextContent(
@@ -160,7 +168,9 @@ describe('Oferta', () => {
         montar();
         await fila('Algebra I');
 
-        expect(screen.getByRole('heading', { level: 1, name: 'Oferta' })).toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', { level: 1, name: 'Oferta académica' })
+        ).toBeInTheDocument();
         expect(screen.queryByText(/no se edita/)).toBeNull();
         expect(await screen.findByText('Períodos 2/2026 y 0/2026 · FCyT')).toBeInTheDocument();
 
@@ -262,7 +272,7 @@ describe('Oferta', () => {
         await waitFor(() =>
             expect(ultimo()).toEqual({ facultad: 'fach', pagina: 1, por_pagina: 15 })
         );
-        expect(pedidos('/oferta/carreras').at(-1)).toEqual({ facultad: 'fach' });
+        expect(pedidos('/oferta/carreras').at(-1)).toEqual({ facultad: 'fach', con_oferta: 1 });
         expect(screen.getByLabelText('Carrera')).toHaveValue('');
     });
 
@@ -434,5 +444,161 @@ describe('ordenarNiveles', () => {
             'Semestre 2',
             'Semestre 10',
         ]);
+    });
+
+    describe('filtros encadenados', () => {
+        const opciones = (etiqueta) =>
+            within(listaDe(screen.getByLabelText(etiqueta)))
+                .getAllByRole('option')
+                .map((o) => o.textContent);
+
+        it('con el período anual solo ofrece las facultades que tienen oferta anual', async () => {
+            montar();
+            await fila('Algebra I');
+            expect(opciones('Facultad')).toEqual(['FCyT', 'FCE', 'FHCE', 'FACH']);
+
+            fireEvent.change(screen.getByLabelText('Período'), { target: { value: '2' } });
+
+            await waitFor(() => expect(opciones('Facultad')).toEqual(['FACH']));
+            expect(screen.getByLabelText('Facultad')).toHaveValue('fach');
+            await waitFor(() =>
+                expect(ultimo()).toEqual({
+                    periodo: '2',
+                    facultad: 'fach',
+                    pagina: 1,
+                    por_pagina: 15,
+                })
+            );
+            expect(pedidos('/oferta/facultades').at(-1)).toEqual({ periodo: '2' });
+            expect(pedidos('/oferta/carreras').at(-1)).toEqual({
+                facultad: 'fach',
+                periodo: '2',
+                con_oferta: 1,
+            });
+        });
+
+        it('la facultad que ya no tiene oferta pasa a la primera que sí, sin consultarla', async () => {
+            montar();
+            await fila('Algebra I');
+            expect(screen.getByLabelText('Facultad')).toHaveValue('fcyt');
+
+            fireEvent.change(screen.getByLabelText('Período'), { target: { value: '2' } });
+
+            await waitFor(() => expect(screen.getByLabelText('Facultad')).toHaveValue('fach'));
+            // Nunca se pidió la FCyT del período anual.
+            expect(
+                pedidos('/oferta/asignaturas').filter(
+                    (p) => p.periodo === '2' && p.facultad === 'fcyt'
+                )
+            ).toHaveLength(0);
+            expect(
+                pedidos('/oferta/carreras').filter(
+                    (p) => p.periodo === '2' && p.facultad === 'fcyt'
+                )
+            ).toHaveLength(0);
+        });
+
+        it('al volver a «Vigentes» vuelven todas las facultades', async () => {
+            montar();
+            await fila('Algebra I');
+            fireEvent.change(screen.getByLabelText('Período'), { target: { value: '2' } });
+            await waitFor(() => expect(opciones('Facultad')).toEqual(['FACH']));
+
+            fireEvent.change(screen.getByLabelText('Período'), { target: { value: '' } });
+
+            await waitFor(() =>
+                expect(opciones('Facultad')).toEqual(['FCyT', 'FCE', 'FHCE', 'FACH'])
+            );
+        });
+
+        it('la carrera elegida que no tiene oferta en el período pasa a «Todas»', async () => {
+            simularApi(
+                api,
+                rutas({
+                    'GET /oferta/carreras': ({ params }) => ({
+                        data:
+                            params.periodo === '3'
+                                ? CARRERAS.fcyt.filter((c) => c.id !== 15)
+                                : (CARRERAS[params.facultad] ?? []),
+                    }),
+                })
+            );
+            montar();
+            await fila('Algebra I');
+            fireEvent.change(screen.getByLabelText('Carrera'), { target: { value: '15' } });
+            await waitFor(() => expect(ultimo()).toMatchObject({ carrera: '15' }));
+
+            fireEvent.change(screen.getByLabelText('Período'), { target: { value: '3' } });
+
+            await waitFor(() => expect(screen.getByLabelText('Carrera')).toHaveValue(''));
+            await waitFor(() =>
+                expect(ultimo()).toEqual({
+                    periodo: '3',
+                    facultad: 'fcyt',
+                    pagina: 1,
+                    por_pagina: 15,
+                })
+            );
+            // No se pidieron asignaturas del período 3 con la carrera que no vale.
+            expect(
+                pedidos('/oferta/asignaturas').filter((p) => p.periodo === '3' && p.carrera)
+            ).toHaveLength(0);
+        });
+
+        it('la carrera elegida que sigue teniendo oferta se conserva', async () => {
+            montar();
+            await fila('Algebra I');
+            fireEvent.change(screen.getByLabelText('Carrera'), { target: { value: '15' } });
+            await waitFor(() => expect(ultimo()).toMatchObject({ carrera: '15' }));
+
+            fireEvent.change(screen.getByLabelText('Período'), { target: { value: '3' } });
+
+            await waitFor(() =>
+                expect(ultimo()).toMatchObject({ periodo: '3', facultad: 'fcyt', carrera: '15' })
+            );
+            expect(screen.getByLabelText('Carrera')).toHaveValue('15');
+        });
+
+        it('sin oferta en el período lo dice y deja los filtros desactivados', async () => {
+            simularApi(
+                api,
+                rutas({
+                    'GET /oferta/facultades': ({ params }) => ({
+                        data: params.periodo === '3' ? [] : TODAS,
+                    }),
+                })
+            );
+            montar();
+            await fila('Algebra I');
+
+            fireEvent.change(screen.getByLabelText('Período'), { target: { value: '3' } });
+
+            expect(await screen.findByText('Sin oferta en este período')).toBeInTheDocument();
+            expect(screen.getByLabelText('Facultad')).toBeDisabled();
+            expect(screen.getByLabelText('Carrera')).toBeDisabled();
+            expect(screen.getByLabelText('Nivel')).toBeDisabled();
+            expect(pedidos('/oferta/asignaturas').filter((p) => p.periodo === '3')).toHaveLength(0);
+        });
+
+        it('si no se puede leer qué facultades tienen oferta, ofrece todas y lista igual', async () => {
+            simularApi(api, rutas({ 'GET /oferta/facultades': errorHttp(500) }));
+            montar();
+
+            expect(await fila('Algebra I')).toBeInTheDocument();
+            expect(opciones('Facultad')).toEqual(['FCyT', 'FCE', 'FHCE', 'FACH']);
+        });
+
+        it('no repite peticiones: cada filtro se consulta una vez por cambio', async () => {
+            montar();
+            await fila('Algebra I');
+            const antes = pedidos('/oferta/asignaturas').length;
+
+            fireEvent.change(screen.getByLabelText('Período'), { target: { value: '3' } });
+            await waitFor(() => expect(ultimo()).toMatchObject({ periodo: '3', facultad: 'fcyt' }));
+            await screen.findByText('Período 1/2026 · FCyT');
+
+            expect(pedidos('/oferta/asignaturas').length - antes).toBe(1);
+            expect(pedidos('/oferta/facultades').filter((p) => p.periodo === '3')).toHaveLength(1);
+        });
     });
 });

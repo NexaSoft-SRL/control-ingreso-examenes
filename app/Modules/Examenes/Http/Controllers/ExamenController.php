@@ -11,9 +11,11 @@ use App\Modules\Examenes\Application\Actions\ReanudarExamen;
 use App\Modules\Examenes\Application\Actions\RegistrarExamen;
 use App\Modules\Examenes\Application\Actions\SuspenderExamen;
 use App\Modules\Examenes\Application\DTOs\AulaDetalleData;
+use App\Modules\Examenes\Application\DTOs\EquipoDeExamenData;
 use App\Modules\Examenes\Application\DTOs\ExamenDetalleData;
 use App\Modules\Examenes\Application\DTOs\ExamenResumenData;
 use App\Modules\Examenes\Application\DTOs\GrupoDeExamenData;
+use App\Modules\Examenes\Application\DTOs\InvitacionDeExamenData;
 use App\Modules\Examenes\Application\DTOs\NormaMarcadaData;
 use App\Modules\Examenes\Application\DTOs\PersonaData;
 use App\Modules\Examenes\Application\Queries\ConsultarExamen;
@@ -261,6 +263,7 @@ final class ExamenController
             'con_ingresos' => $examen->conIngresos,
             'con_incidencias' => $examen->conIncidencias,
             'codigos_aula' => $examen->codigosDeAula,
+            'invitados_pendientes' => $examen->invitadosPendientes,
         ];
     }
 
@@ -290,6 +293,29 @@ final class ExamenController
                 ],
                 $examen->grupos,
             ),
+            'invitaciones' => array_map(
+                static fn (InvitacionDeExamenData $invitacion): array => [
+                    'id' => $invitacion->id,
+                    'grupo_id' => $invitacion->grupoId,
+                    'grupo_codigo' => $invitacion->grupoCodigo,
+                    'docente' => $invitacion->docente,
+                    'estado' => $invitacion->estado,
+                ],
+                $examen->invitaciones,
+            ),
+            'equipo' => array_map(
+                static fn (EquipoDeExamenData $persona): array => [
+                    'id' => $persona->id,
+                    'nombre' => $persona->nombre,
+                    'es_docente' => $persona->esDocente,
+                    'es_auxiliar' => $persona->esAuxiliar,
+                    'a_cargo' => $persona->aCargo,
+                    'agregado_por' => $persona->agregadoPor,
+                    'agregado_por_nombre' => $persona->agregadoPorNombre,
+                    'puede_quitar' => $persona->puedeQuitar,
+                ],
+                $examen->equipo,
+            ),
             'aulas_detalle' => array_map(
                 static fn (AulaDetalleData $aula): array => [
                     'aula_id' => $aula->aulaId,
@@ -305,6 +331,7 @@ final class ExamenController
                         static fn (PersonaData $persona): array => [
                             'id' => $persona->id,
                             'nombre' => $persona->nombre,
+                            'agregado_por' => $persona->agregadoPor,
                         ],
                         $aula->apoyo,
                     ),

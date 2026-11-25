@@ -57,13 +57,13 @@ final class LectorOfertaGenda implements FuenteOfertaGateway
         return hash_final($contexto);
     }
 
-    public function leer(string $facultad): OfertaFacultadData
+    public function leer(string $facultad, ?string $periodo = null): OfertaFacultadData
     {
         if (preg_match('/^[a-z]+$/', $facultad) !== 1) {
             throw new FuenteNoDisponibleException("La facultad «{$facultad}» no tiene archivo de oferta.");
         }
 
-        $datos = LectorJson::leer(LectorJson::rutaGenda($facultad.'.json'));
+        $datos = LectorJson::leer(LectorJson::rutaGenda($this->archivo($facultad, $periodo)));
 
         $info = $datos['INFO'] ?? null;
         $info = is_array($info) ? $info : [];
@@ -88,6 +88,31 @@ final class LectorOfertaGenda implements FuenteOfertaGateway
             fechaFuente: $this->fecha($info['DATE'] ?? null),
             carreras: $carreras,
         );
+    }
+
+    /**
+     * El archivo de la oferta: el vigente, o el guardado de un período en
+     * `historial/<N>-<AAAA>/`.
+     */
+    private function archivo(string $facultad, ?string $periodo): string
+    {
+        if ($periodo === null) {
+            return $facultad.'.json';
+        }
+
+        if (preg_match('/^(\d)\/(\d{4})$/', $periodo, $partes) !== 1) {
+            throw new FuenteNoDisponibleException("El período «{$periodo}» no es válido (ejemplo: 1/2026).");
+        }
+
+        $archivo = "historial/{$partes[1]}-{$partes[2]}/{$facultad}.json";
+
+        if (! is_file(LectorJson::rutaGenda($archivo))) {
+            throw new FuenteNoDisponibleException(
+                "No hay oferta guardada del período {$periodo} para {$facultad}."
+            );
+        }
+
+        return $archivo;
     }
 
     /**

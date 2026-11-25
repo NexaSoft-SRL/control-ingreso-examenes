@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Modules\Academico\Http\Controllers;
 
 use App\Modules\Academico\Application\Actions\ActivarCuentaDocente;
+use App\Modules\Academico\Application\Actions\RenovarContrasenaTemporalDeDocente;
 use App\Modules\Academico\Application\Queries\ConsultarDocente;
 use App\Modules\Academico\Application\Queries\ListarDocentes;
+use App\Modules\Academico\Domain\Exceptions\ContrasenaTemporalNoAplicaException;
 use App\Modules\Academico\Domain\Exceptions\DatoDeCuentaEnUsoException;
 use App\Modules\Academico\Domain\Exceptions\DocenteYaTieneCuentaException;
 use App\Modules\Academico\Http\Requests\ActivarCuentaDocenteRequest;
@@ -76,6 +78,38 @@ final class DocenteController
             ],
             'message' => 'Cuenta activada.',
         ], Response::HTTP_CREATED);
+    }
+
+    /**
+     * Contraseña temporal nueva para un docente cuya temporal no usó, perdió o
+     * venció. Se entrega esta única vez.
+     */
+    public function contrasenaTemporal(int $docente, RenovarContrasenaTemporalDeDocente $renovar): JsonResponse
+    {
+        $autorId = Auth::id();
+
+        try {
+            $cuenta = $renovar->execute($docente, is_int($autorId) ? $autorId : null);
+        } catch (ContrasenaTemporalNoAplicaException $error) {
+            return response()->json([
+                'message' => $error->getMessage(),
+                'codigo' => $error->codigo,
+            ], Response::HTTP_CONFLICT);
+        }
+
+        if ($cuenta === null) {
+            return $this->noEncontrado();
+        }
+
+        return response()->json([
+            'data' => [
+                'usuario' => $cuenta->usuario,
+                'contrasena_temporal' => $cuenta->contrasenaTemporal,
+                'enviada_a' => $cuenta->enviadaA,
+                'caduca_en' => $cuenta->caducaEn,
+            ],
+            'message' => 'Contraseña temporal nueva.',
+        ]);
     }
 
     private function noEncontrado(): JsonResponse

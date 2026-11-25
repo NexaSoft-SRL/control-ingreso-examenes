@@ -10,11 +10,6 @@ use App\Modules\Administracion\Application\DTOs\PaginaRespaldosData;
 final readonly class ListarRespaldos
 {
     /**
-     * Cuando corre la tarea programada (`routes/console.php`).
-     */
-    public const PROGRAMACION = 'Diario, 03:00';
-
-    /**
      * @var list<string>
      */
     public const FILTROS = ['todos', 'programados', 'puntuales', 'fallidos'];

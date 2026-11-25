@@ -85,6 +85,25 @@ final class EloquentImportacionGateway implements ImportacionGateway
         );
     }
 
+    public function asentarHistorial(?int $usuarioId, ResumenImportacionData $resumen, string $periodo): void
+    {
+        $this->bitacora->registrar(
+            $usuarioId,
+            'oferta.importar_historial',
+            'grupos',
+            null,
+            sprintf(
+                'Oferta de %s del período %s importada del historial: %s carreras, %s asignaturas, %s grupos, %s docentes.',
+                $resumen->sigla,
+                $periodo,
+                ...array_map(
+                    static fn (int $cifra): string => number_format($cifra, 0, ',', '.'),
+                    [$resumen->carreras, $resumen->asignaturas, $resumen->grupos, $resumen->docentes],
+                ),
+            ),
+        );
+    }
+
     public function fallar(int $importacionId, string $error): void
     {
         DB::table('importaciones_oferta')->where('id', $importacionId)->update([

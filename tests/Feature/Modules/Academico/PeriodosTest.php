@@ -53,7 +53,7 @@ final class PeriodosTest extends TestCase
         $this->getJson('/api/facultades')->assertUnauthorized();
     }
 
-    public function test_periods_list_current_ones_first_then_most_recent(): void
+    public function test_periods_list_by_year_newest_first_and_then_from_highest_number(): void
     {
         $this->periodo('1/2031', 30, 120, TipoPeriodo::Semestre1);
         $vigente = $this->periodo('2/2030', -10, 10);
@@ -69,16 +69,18 @@ final class PeriodosTest extends TestCase
         $this->grupo(null, $asignatura, '1', $vigente);
         $this->grupo(null, $asignatura, '2', $vigente);
 
+        // El año más reciente primero y, dentro de cada año, de mayor a menor
+        // número (2, 1, 0 anual). El período vigente no se adelanta.
         $this->actingAs($this->usuarioConPermisos(['periodo_oferta']))
             ->getJson('/api/periodos')
             ->assertOk()
-            ->assertJsonPath('data.*.codigo', ['2/2030', '1/2031', '1/2030', '0/2030'])
-            ->assertJsonPath('data.*.estado', ['Vigente', 'Próximo', 'Cerrado', 'Sin fechas'])
-            ->assertJsonPath('data.0.id', $vigente->id)
-            ->assertJsonPath('data.0.tipo', 'Semestre 2')
-            ->assertJsonPath('data.0.fecha_inicio', now()->subDays(10)->toDateString())
-            ->assertJsonPath('data.0.fecha_fin', now()->addDays(10)->toDateString())
-            ->assertJsonPath('data.0.nota', '1 carrera · 2 grupos')
+            ->assertJsonPath('data.*.codigo', ['1/2031', '2/2030', '1/2030', '0/2030'])
+            ->assertJsonPath('data.*.estado', ['Próximo', 'Vigente', 'Cerrado', 'Sin fechas'])
+            ->assertJsonPath('data.1.id', $vigente->id)
+            ->assertJsonPath('data.1.tipo', 'Semestre 2')
+            ->assertJsonPath('data.1.fecha_inicio', now()->subDays(10)->toDateString())
+            ->assertJsonPath('data.1.fecha_fin', now()->addDays(10)->toDateString())
+            ->assertJsonPath('data.1.nota', '1 carrera · 2 grupos')
             ->assertJsonPath('data.3.fecha_inicio', null)
             ->assertJsonPath('data.3.nota', 'Sin oferta importada')
             ->assertJsonPath('meta', ['total' => 4, 'pagina' => 1, 'por_pagina' => 4]);
@@ -224,6 +226,29 @@ final class PeriodosTest extends TestCase
         $this->assertDatabaseMissing('bitacora_operaciones', ['operacion' => 'periodo.ajustar']);
     }
 
+    public function test_the_calendar_of_a_closed_period_can_only_be_read(): void
+    {
+        $periodo = $this->periodo('1/2030', -200, -20, TipoPeriodo::Semestre1);
+        $periodo->forceFill(['ventanas' => ['primeros_parciales' => ['2030-03-01', '2030-03-15']]])->save();
+        $administrador = $this->usuarioConPermisos(['periodo_oferta']);
+
+        $this->actingAs($administrador)
+            ->putJson("/api/periodos/{$periodo->id}/calendario", [
+                'ventanas' => ['segundos_parciales' => [now()->toDateString(), now()->addDays(5)->toDateString()]],
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'El período está cerrado: su calendario solo se consulta.');
+
+        $this->actingAs($administrador)
+            ->deleteJson("/api/periodos/{$periodo->id}/calendario")
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'El período está cerrado: su calendario solo se consulta.');
+
+        $periodo->refresh();
+        $this->assertSame(['primeros_parciales' => ['2030-03-01', '2030-03-15']], $periodo->ventanas);
+        $this->assertNull($periodo->ajustado_por);
+    }
+
     public function test_the_administrator_opens_the_exam_calendar_and_the_detection_does_not_undo_it(): void
     {
         $periodo = $this->periodo('2/2030', -10, 60);
@@ -326,13 +351,15 @@ final class PeriodosTest extends TestCase
         $this->aula('691B', $this->edificio($fcyt));
 
         $conCuenta = $this->docenteConCuenta();
-        $this->docenteSinCuenta();
-        $this->docenteSinCuenta();
+        $sinCuentaUno = $this->docenteSinCuenta();
+        $sinCuentaDos = $this->docenteSinCuenta();
+        // Solo dio clases en el período cerrado: no es un pendiente del vigente.
+        $soloCerrado = $this->docenteSinCuenta();
 
         $conLista = $this->grupo($conCuenta, null, '1', $periodo, $fcyt);
-        $this->grupo(null, null, '2', $periodo, $fcyt);
-        $this->grupo(null, null, '3', $periodo, $fce);
-        $this->grupo(null, null, '4', $cerrado, $fcyt);
+        $this->grupo($sinCuentaUno, null, '2', $periodo, $fcyt);
+        $this->grupo($sinCuentaDos, null, '3', $periodo, $fce);
+        $this->grupo($soloCerrado, null, '4', $cerrado, $fcyt);
         $this->estudiantesInscritos($conLista, 2);
 
         ImportacionOferta::create([

@@ -511,11 +511,11 @@ describe('Padrón · ficha del estudiante (criterio 5)', () => {
         expect(ficha).toHaveTextContent('5000000');
         expect(ficha).toHaveTextContent('202110007@est.umss.edu');
         expect(ficha).toHaveTextContent('Licenciatura en Fisica');
-        expect(within(ficha).getByRole('group', { name: 'Origen' })).toHaveTextContent('Docente');
+        expect(ficha).toHaveTextContent('Registrado porDocente');
 
         const [primera, segunda] = within(materias).getAllByRole('listitem');
         expect(primera).toHaveTextContent('Introduccion a la Programacion');
-        expect(primera).toHaveTextContent('2010010Grupo 12/2026');
+        expect(primera).toHaveTextContent('2010010 · Grupo 1 · 2/2026');
         expect(primera).toHaveTextContent('Salazar Serrudo Carla');
         expect(segunda).toHaveTextContent('Algebra I');
         expect(segunda).toHaveTextContent('Grupo 8');
@@ -535,9 +535,7 @@ describe('Padrón · ficha del estudiante (criterio 5)', () => {
 
         const ficha = await screen.findByRole('dialog', { name: 'Pérez Pardo Daniela' });
         expect(await within(ficha).findByText('Sin materias')).toBeInTheDocument();
-        expect(within(ficha).getByRole('group', { name: 'Origen' })).toHaveTextContent(
-            'Administración'
-        );
+        expect(ficha).toHaveTextContent('Registrado porAdministración');
     });
 
     it('si la ficha no carga, lo dice dentro del diálogo', async () => {

@@ -46,6 +46,13 @@ interface ImportacionGateway
     public function completar(int $importacionId, ResumenImportacionData $resumen, ?int $usuarioId): void;
 
     /**
+     * Asienta en la bitacora (`oferta.importar_historial`) la importacion de
+     * la oferta guardada de un periodo cerrado. No abre fila de importacion:
+     * el estado de cada facultad es el de su oferta vigente.
+     */
+    public function asentarHistorial(?int $usuarioId, ResumenImportacionData $resumen, string $periodo): void;
+
+    /**
      * Cierra la fila como `FALLO` con el mensaje. Se llama fuera de la
      * transaccion, ya revertida.
      */

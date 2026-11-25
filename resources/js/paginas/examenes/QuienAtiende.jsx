@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
-import { KeyRound, Plus, Shuffle, UserCheck, UserPlus, X } from 'lucide-react';
+import { Plus, Trash2, UserCheck, UserPlus, X } from 'lucide-react';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
@@ -9,9 +9,8 @@ import Buscador from '../../componentes/Buscador';
 import Campo from '../../componentes/Campo';
 import Dialogo from '../../componentes/Dialogo';
 import Insignia from '../../componentes/Insignia';
-import Seleccion from '../../componentes/Seleccion';
 import Tarjeta from '../../componentes/Tarjeta';
-import { errorDeNombre, plural, ubicacionSin } from '../../utiles/texto';
+import { errorDeNombre, plural } from '../../utiles/texto';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
@@ -30,8 +29,9 @@ const FORMA_PERSONA = PropTypes.shape({
 
 // Alta de un auxiliar sin salir del asistente (ruta 51): se crea su cuenta y
 // la contraseña temporal va a su correo institucional.
-function AuxiliarNuevo({ onAgregado, onAviso }) {
-    const [nombre, setNombre] = useState('');
+export function AuxiliarNuevo({ onAgregado, onAviso }) {
+    const [nombres, setNombres] = useState('');
+    const [apellidos, setApellidos] = useState('');
     const [codigo, setCodigo] = useState('');
     const [errores, setErrores] = useState({});
     const [enviando, setEnviando] = useState(false);
@@ -40,8 +40,10 @@ function AuxiliarNuevo({ onAgregado, onAviso }) {
 
     const agregar = async () => {
         const faltas = {};
-        const errorNombre = errorDeNombre(nombre, 3);
-        if (errorNombre) faltas.nombre = errorNombre;
+        const errorNombres = errorDeNombre(nombres, 3);
+        if (errorNombres) faltas.nombres = errorNombres;
+        const errorApellidos = errorDeNombre(apellidos, 3);
+        if (errorApellidos) faltas.apellidos = errorApellidos;
         if (!codigo.trim()) faltas.codigo_universitario = 'Obligatorio';
         else if (!CODIGO.test(codigo.trim())) faltas.codigo_universitario = 'Entre 5 y 10 dígitos';
         setErrores(faltas);
@@ -50,12 +52,14 @@ function AuxiliarNuevo({ onAgregado, onAviso }) {
         setEnviando(true);
         try {
             const correo = `${codigo.trim()}@est.umss.edu`;
+            // El servidor guarda un solo nombre: «Apellidos Nombres», como en el padrón.
             const { data } = await api.post('/auxiliares', {
-                nombre: nombre.trim(),
+                nombre: `${apellidos.trim()} ${nombres.trim()}`.replace(/\s+/g, ' '),
                 codigo_universitario: codigo.trim(),
             });
             onAgregado(data.data);
-            setNombre('');
+            setNombres('');
+            setApellidos('');
             setCodigo('');
             setVuelta((n) => n + 1);
             // Quien lo agrega sabe con qué usuario entra y a dónde llegó su
@@ -72,7 +76,13 @@ function AuxiliarNuevo({ onAgregado, onAviso }) {
                 onAgregado(existente);
                 onAviso(sinPunto(mensajeDe(fallo, 'Auxiliar ya registrado')), 'error');
             } else if (Object.keys(erroresDe(fallo)).length > 0) {
-                setErrores(erroresDe(fallo));
+                // Un error del nombre cae en el campo de los apellidos.
+                const delServidor = erroresDe(fallo);
+                setErrores(
+                    delServidor.nombre
+                        ? { ...delServidor, apellidos: delServidor.nombre }
+                        : delServidor
+                );
             } else {
                 onAviso(sinPunto(mensajeDe(fallo, 'No se pudo agregar')), 'error');
             }
@@ -96,21 +106,34 @@ function AuxiliarNuevo({ onAgregado, onAviso }) {
     return (
         <>
             <h3 className="mb-2 text-sm font-semibold text-slate-800">Auxiliar nuevo</h3>
-            <div key={vuelta} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-start">
+            <div key={vuelta} className="grid gap-3 sm:grid-cols-2 sm:items-start">
                 <Campo
-                    etiqueta="Nombre completo"
+                    etiqueta="Nombres"
                     requerido
                     formato="letras"
-                    maxLength={100}
-                    placeholder="Apellidos y nombres"
+                    maxLength={60}
                     onKeyDown={alEnter}
                     className="min-w-0"
-                    value={nombre}
+                    value={nombres}
                     onChange={(e) => {
-                        setNombre(e.target.value);
-                        quitarError('nombre');
+                        setNombres(e.target.value);
+                        quitarError('nombres');
                     }}
-                    error={errores.nombre}
+                    error={errores.nombres}
+                />
+                <Campo
+                    etiqueta="Apellidos"
+                    requerido
+                    formato="letras"
+                    maxLength={60}
+                    onKeyDown={alEnter}
+                    className="min-w-0"
+                    value={apellidos}
+                    onChange={(e) => {
+                        setApellidos(e.target.value);
+                        quitarError('apellidos');
+                    }}
+                    error={errores.apellidos}
                 />
                 <Campo
                     etiqueta="Código SIS del auxiliar"
@@ -164,9 +187,6 @@ export default function QuienAtiende({
     onSumar,
     onQuitar,
     errores = {},
-    conCodigo = [],
-    usanCodigo = [],
-    onCodigo,
     onAviso,
     children,
 }) {
@@ -189,7 +209,18 @@ export default function QuienAtiende({
         ...sumados,
         ...conocidos.filter((p) => !p.es_docente && p.id !== yo.id),
     ]).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-    const docentes = sinRepetir([yo, ...conocidos.filter((p) => p.es_docente)]);
+    // Un docente con varios grupos está pendiente solo si todos lo están.
+    const docentes = sinRepetir([
+        yo,
+        ...conocidos
+            .filter((p) => p.es_docente)
+            .map((p) => ({
+                ...p,
+                pendiente: conocidos
+                    .filter((q) => q.es_docente && q.id === p.id)
+                    .every((q) => q.pendiente),
+            })),
+    ]);
     const otros = buscando
         ? (hallados.datos ?? []).filter((p) => !auxiliares.some((a) => a.id === p.id))
         : [];
@@ -197,49 +228,57 @@ export default function QuienAtiende({
         [...docentes, ...auxiliares].find((p) => p.id === id)?.nombre ?? String(id);
 
     const de = (aulaId) => personal[aulaId] ?? { encargado: yo.id, apoyo: [] };
-    const fijar = (aulaId, cambio) =>
-        onPersonal({ ...personal, [aulaId]: { ...de(aulaId), ...cambio } });
-    // Un auxiliar a cargo de cada aula; la primera y las que sobran quedan
-    // con el docente.
-    const repartir = () =>
+    // El equipo del examen: quienes están a cargo o de apoyo en alguna aula, más
+    // los docentes de sus grupos. Cualquiera del equipo atiende cualquier aula
+    // y todo lo que registra queda con su nombre.
+    const idsDelEquipo = [
+        ...new Set(
+            aulas
+                .flatMap((a) => [de(a.id).encargado, ...de(a.id).apoyo])
+                .filter((id) => id !== yo.id)
+        ),
+    ];
+    const delEquipo = (id) => idsDelEquipo.includes(id);
+    // Sumar a alguien deja su apoyo en todas las aulas; quitarlo lo saca de todas.
+    const sumarAlEquipo = (id) =>
         onPersonal(
             Object.fromEntries(
-                aulas.map((a, i) => [
-                    a.id,
-                    { encargado: i === 0 ? yo.id : (auxiliares[i - 1]?.id ?? yo.id), apoyo: [] },
-                ])
+                aulas.map((a) => {
+                    const actual = de(a.id);
+                    return [
+                        a.id,
+                        actual.encargado === id || actual.apoyo.includes(id)
+                            ? actual
+                            : { ...actual, apoyo: [...actual.apoyo, id] },
+                    ];
+                })
             )
         );
-    const errorDe = (i) => Object.entries(errores).find(([c]) => c.startsWith(`aulas.${i}.`))?.[1];
-
-    // Nadie atiende más de dos aulas a la vez: el paso queda pendiente
-    // (AvanceDeExamen::AULAS_POR_PERSONA) y aquí se dice quién se pasa.
-    const cargaPorPersona = aulas.reduce((cuenta, a) => {
-        const id = de(a.id).encargado;
-        return { ...cuenta, [id]: (cuenta[id] ?? 0) + 1 };
-    }, {});
-    const sobrecargados = Object.entries(cargaPorPersona)
-        .filter(([, n]) => n > 2)
-        .map(([id, n]) => `${nombreDe(Number(id))} · ${plural(n, 'aula')} a la vez`);
+    const sacarDelEquipo = (id) =>
+        onPersonal(
+            Object.fromEntries(
+                aulas.map((a) => {
+                    const actual = de(a.id);
+                    return [
+                        a.id,
+                        {
+                            encargado: actual.encargado === id ? yo.id : actual.encargado,
+                            apoyo: actual.apoyo.filter((x) => x !== id),
+                        },
+                    ];
+                })
+            )
+        );
+    // Un rechazo del servidor sobre las aulas (por ejemplo, un encargado no válido).
+    const errorDeAulas = Object.entries(errores).find(([c]) => c.startsWith('aulas.'))?.[1];
 
     // Se quitan los de la cuenta (en el servidor) y los sumados en la visita.
     const [porQuitar, setPorQuitar] = useState(null);
     const [quitando, setQuitando] = useState(false);
-    // Tras sumar un auxiliar nuevo, qué falta para que atienda.
-    const [pista, setPista] = useState(null);
     const sumarNuevo = (persona) => {
         onSumar(persona);
         propios.recargar();
-        if (aulas.length === 1) {
-            // Con una sola aula queda de apoyo en ella.
-            const { encargado, apoyo } = de(aulas[0].id);
-            if (persona.id !== encargado && !apoyo.includes(persona.id)) {
-                fijar(aulas[0].id, { apoyo: [...apoyo, persona.id] });
-            }
-            setPista(null);
-        } else if (aulas.length > 1) {
-            setPista(`Elija a ${persona.nombre} en «Apoyo» de su aula`);
-        }
+        sumarAlEquipo(persona.id);
     };
     const esDeLaCuenta = (id) => (propios.datos ?? []).some((p) => p.id === id);
     const quitable = (id) => esDeLaCuenta(id) || sumados.some((p) => p.id === id);
@@ -264,171 +303,67 @@ export default function QuienAtiende({
         }
     };
 
+    const miembros = [
+        ...docentes.map((d) => ({ ...d, esDocente: true, pendiente: Boolean(d.pendiente) })),
+        ...idsDelEquipo
+            .filter((id) => !docentes.some((d) => d.id === id))
+            .map((id) => ({ id, nombre: nombreDe(id), esDocente: false })),
+    ];
+
+    // Los auxiliares que aún no están en el equipo, para sumarlos.
+    const disponibles = auxiliares.filter((x) => !delEquipo(x.id));
+
     return (
         <Tarjeta
-            titulo="4. Quién atiende"
+            titulo="4. Equipo"
             icono={UserCheck}
-            acciones={
-                <>
-                    <Insignia tono="primario">{plural(aulas.length, 'aula')}</Insignia>
-                    {aulas.length > 2 && auxiliares.length > 0 && (
-                        <Boton
-                            type="button"
-                            variante="secundario"
-                            tamano="chico"
-                            onClick={repartir}
-                        >
-                            <Shuffle className="h-4 w-4" /> Repartir
-                        </Boton>
-                    )}
-                </>
-            }
+            acciones={<Insignia tono="primario">{plural(miembros.length, 'persona')}</Insignia>}
         >
-            {sobrecargados.length > 0 && (
-                <p
-                    role="status"
-                    className="mb-3 rounded-lg bg-warning-50 px-3 py-2 text-sm font-medium text-warning-800"
-                >
-                    {sobrecargados.join(' · ')}
-                </p>
-            )}
-            {aulas.length > 0 ? (
-                <ul
-                    className={`grid gap-2 ${aulas.length > 4 ? 'lg:grid-cols-2' : ''}`}
-                    aria-label="Aulas del examen"
-                >
-                    {aulas.map((a, i) => {
-                        const { encargado, apoyo } = de(a.id);
-                        const libres = auxiliares.filter(
-                            (x) => !apoyo.includes(x.id) && x.id !== encargado
-                        );
-                        const error = errorDe(i);
-                        return (
-                            <li
-                                key={a.id}
-                                aria-label={`Aula ${a.nombre}`}
-                                className="min-w-0 rounded-lg border border-slate-200 p-3"
-                            >
-                                <div className="flex items-center justify-between gap-2">
-                                    <p className="min-w-0 truncate text-sm font-semibold text-slate-800">
-                                        Aula {a.nombre}
-                                        {ubicacionSin(a.nombre, a.ubicacion) && (
-                                            <span className="font-normal text-slate-600">
-                                                {' '}
-                                                · {ubicacionSin(a.nombre, a.ubicacion)}
-                                            </span>
-                                        )}
-                                    </p>
-                                    <button
-                                        type="button"
-                                        aria-label={`Código de acceso del aula ${a.nombre}`}
-                                        title="Código de acceso"
-                                        disabled={!conCodigo.includes(a.id)}
-                                        onClick={() => onCodigo(a)}
-                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-slate-100 disabled:text-slate-300 disabled:hover:bg-transparent ${usanCodigo.includes(a.id) ? 'text-primary-700' : 'text-slate-600'} ${FOCO}`}
-                                    >
-                                        <KeyRound className="h-4 w-4" />
-                                    </button>
-                                </div>
-                                <div className="mt-1 grid grid-cols-2 gap-3">
-                                    <Seleccion
-                                        etiqueta="A cargo"
-                                        className="min-w-0"
-                                        value={encargado}
-                                        onChange={(e) => {
-                                            const id = Number(e.target.value);
-                                            fijar(a.id, {
-                                                encargado: id,
-                                                apoyo: apoyo.filter((x) => x !== id),
-                                            });
-                                        }}
-                                    >
-                                        {docentes.map((x) => (
-                                            <option key={x.id} value={x.id}>
-                                                {x.nombre}
-                                            </option>
-                                        ))}
-                                        {auxiliares.map((x) => (
-                                            <option key={x.id} value={x.id}>
-                                                {x.nombre}
-                                            </option>
-                                        ))}
-                                    </Seleccion>
-                                    <Seleccion
-                                        etiqueta="Apoyo"
-                                        className="min-w-0"
-                                        value=""
-                                        disabled={libres.length === 0}
-                                        onChange={(e) => {
-                                            if (!e.target.value) return;
-                                            fijar(a.id, {
-                                                apoyo: [...apoyo, Number(e.target.value)],
-                                            });
-                                            setPista(null);
-                                        }}
-                                    >
-                                        <option value="">
-                                            {apoyo.length ? 'Agregar' : 'Nadie'}
-                                        </option>
-                                        {libres.map((x) => (
-                                            <option key={x.id} value={x.id}>
-                                                {x.nombre}
-                                            </option>
-                                        ))}
-                                    </Seleccion>
-                                </div>
-                                {auxiliares.length === 0 && (
-                                    <p className="mt-1 text-right text-xs text-slate-600">
-                                        Para apoyo, agregue un auxiliar
-                                    </p>
-                                )}
-                                {apoyo.length > 0 && (
-                                    <ul
-                                        className="mt-2 flex flex-wrap justify-end gap-2"
-                                        aria-label={`Apoyo del aula ${a.nombre}`}
-                                    >
-                                        {apoyo.map((id) => (
-                                            <li
-                                                key={id}
-                                                className="inline-flex min-w-0 max-w-full items-center rounded-full bg-slate-100 pl-3 text-sm text-slate-800"
-                                            >
-                                                <span className="truncate">{nombreDe(id)}</span>
-                                                <button
-                                                    type="button"
-                                                    aria-label={`Quitar a ${nombreDe(id)}`}
-                                                    onClick={() =>
-                                                        fijar(a.id, {
-                                                            apoyo: apoyo.filter((y) => y !== id),
-                                                        })
-                                                    }
-                                                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-200 ${FOCO}`}
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </button>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                                {error && (
-                                    <p role="alert" className={ERROR}>
-                                        {error}
-                                    </p>
-                                )}
-                            </li>
-                        );
-                    })}
+            <section
+                aria-label="Equipo del examen"
+                className="rounded-lg border border-slate-200 p-4"
+            >
+                <h3 className="mb-2 text-sm font-semibold text-slate-800">
+                    Equipo · {miembros.length}
+                </h3>
+                <ul className="flex flex-wrap gap-2" aria-label="Equipo">
+                    {miembros.map((m) => (
+                        <li
+                            key={m.id}
+                            className={`inline-flex min-h-10 min-w-0 max-w-full items-center rounded-full bg-primary-50 pl-3 text-sm font-medium text-primary-900 ${m.esDocente ? 'pr-3' : ''}`}
+                        >
+                            <span className="truncate">{m.nombre}</span>{' '}
+                            <span className="ml-1.5 shrink-0 text-xs font-normal text-primary-700">
+                                ·{' '}
+                                {m.esDocente
+                                    ? m.pendiente
+                                        ? 'docente · invitación pendiente'
+                                        : 'docente'
+                                    : 'auxiliar'}
+                            </span>
+                            {!m.esDocente && (
+                                <button
+                                    type="button"
+                                    aria-label={`Sacar a ${m.nombre} del equipo`}
+                                    onClick={() => sacarDelEquipo(m.id)}
+                                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-primary-700 hover:bg-primary-100 ${FOCO}`}
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            )}
+                        </li>
+                    ))}
                 </ul>
-            ) : (
-                <p className="rounded-lg border border-slate-200 py-4 text-center text-sm text-slate-600">
-                    Sin aulas
-                </p>
-            )}
+                {errorDeAulas && (
+                    <p role="alert" className={ERROR}>
+                        {errorDeAulas}
+                    </p>
+                )}
+            </section>
 
             <div className="mt-4 rounded-lg bg-slate-50 p-4">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold text-slate-800">
-                        Auxiliares · {auxiliares.length}
-                    </h3>
+                    <h3 className="text-sm font-semibold text-slate-800">Agregar auxiliares</h3>
                     <Buscador
                         valor={buscar}
                         onCambiar={setBuscar}
@@ -450,26 +385,34 @@ export default function QuienAtiende({
                     </p>
                 ) : (
                     <ul className="mb-4 flex flex-wrap gap-2" aria-label="Auxiliares">
-                        {auxiliares.map((x) => (
+                        {disponibles.map((x) => (
                             <li
                                 key={x.id}
-                                className={`inline-flex min-h-10 min-w-0 max-w-full items-center rounded-full border border-slate-200 bg-white pl-3 text-sm text-slate-800 ${quitable(x.id) ? '' : 'pr-3'}`}
+                                className={`inline-flex min-h-10 min-w-0 max-w-full items-center rounded-full border border-slate-200 bg-white pl-1 text-sm text-slate-800 ${quitable(x.id) ? '' : 'pr-3'}`}
                             >
-                                <span className="truncate">{x.nombre}</span>{' '}
-                                {x.usuario && (
-                                    <span className="ml-1.5 shrink-0 text-xs text-slate-500">
-                                        · usuario: {x.usuario}
-                                    </span>
-                                )}
+                                <button
+                                    type="button"
+                                    aria-label={`Sumar a ${x.nombre} al equipo`}
+                                    onClick={() => sumarAlEquipo(x.id)}
+                                    className={`flex min-h-10 min-w-0 items-center gap-1.5 rounded-full px-2 hover:bg-slate-50 ${FOCO}`}
+                                >
+                                    <Plus className="h-4 w-4 shrink-0 text-primary-700" />
+                                    <span className="truncate">{x.nombre}</span>{' '}
+                                    {x.usuario && (
+                                        <span className="ml-1 shrink-0 text-xs text-slate-500">
+                                            · usuario: {x.usuario}
+                                        </span>
+                                    )}
+                                </button>
                                 {quitable(x.id) && (
                                     <button
                                         type="button"
                                         aria-label={`Quitar a ${x.nombre} de la lista`}
-                                        title="Quitar de la lista"
+                                        title="Quitar de mi lista de auxiliares"
                                         onClick={() => setPorQuitar(x)}
-                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 ${FOCO}`}
+                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-danger-700 ${FOCO}`}
                                     >
-                                        <X className="h-4 w-4" />
+                                        <Trash2 className="h-4 w-4" />
                                     </button>
                                 )}
                             </li>
@@ -479,7 +422,10 @@ export default function QuienAtiende({
                                 <button
                                     type="button"
                                     aria-label={`Sumar a ${x.nombre}`}
-                                    onClick={() => onSumar(x)}
+                                    onClick={() => {
+                                        onSumar(x);
+                                        sumarAlEquipo(x.id);
+                                    }}
                                     className={`inline-flex min-h-10 max-w-full items-center gap-1.5 rounded-full border border-dashed border-primary-500 bg-white px-3 text-sm font-medium text-primary-700 hover:bg-primary-50 ${FOCO}`}
                                 >
                                     <Plus className="h-4 w-4 shrink-0" />
@@ -487,15 +433,12 @@ export default function QuienAtiende({
                                 </button>
                             </li>
                         ))}
-                        {auxiliares.length === 0 && otros.length === 0 && !propios.cargando && (
-                            <li className="text-sm text-slate-600">Sin auxiliares</li>
+                        {disponibles.length === 0 && otros.length === 0 && !propios.cargando && (
+                            <li className="text-sm text-slate-600">
+                                {auxiliares.length === 0 ? 'Sin auxiliares' : 'Todos en el equipo'}
+                            </li>
                         )}
                     </ul>
-                )}
-                {pista && (
-                    <p role="status" className="mb-3 text-sm font-medium text-primary-800">
-                        {pista}
-                    </p>
                 )}
                 <AuxiliarNuevo onAgregado={sumarNuevo} onAviso={onAviso} />
             </div>
@@ -555,9 +498,6 @@ QuienAtiende.propTypes = {
     onSumar: PropTypes.func.isRequired,
     onQuitar: PropTypes.func.isRequired,
     errores: PropTypes.objectOf(PropTypes.string),
-    conCodigo: PropTypes.arrayOf(PropTypes.number),
-    usanCodigo: PropTypes.arrayOf(PropTypes.number),
-    onCodigo: PropTypes.func.isRequired,
     onAviso: PropTypes.func.isRequired,
     children: PropTypes.node,
 };

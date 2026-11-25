@@ -56,7 +56,7 @@ describe('EsquemaApp', () => {
 
         expect(enlaces(menus()[lateral])).toEqual([
             'Período',
-            'Oferta',
+            'Oferta académica',
             'Aulas y mapa',
             'Docentes',
             'Padrón',
@@ -78,7 +78,7 @@ describe('EsquemaApp', () => {
                 .getAllByRole('link')
                 .map((e) => e.textContent)
         ).toEqual([
-            'OfertaPreparación',
+            'Oferta académicaPreparación',
             'Aulas y mapaPreparación',
             'Usuarios y rolesSistema',
             'BitácoraSistema',
@@ -134,7 +134,7 @@ describe('EsquemaApp', () => {
             permisos: ['examenes', 'periodo_oferta'],
         });
 
-        expect(enlaces(menus()[lateral])).toEqual(['Período', 'Oferta', 'Exámenes']);
+        expect(enlaces(menus()[lateral])).toEqual(['Período', 'Oferta académica', 'Exámenes']);
         expect(screen.getAllByText('Coordinación')).toHaveLength(2);
     });
 

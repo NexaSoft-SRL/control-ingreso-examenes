@@ -302,12 +302,16 @@ final class AsistenciaDeAulaTest extends TestCase
         }
     }
 
-    public function test_an_assistant_cannot_follow_another_room(): void
+    public function test_an_assistant_follows_any_room_of_its_exam_but_a_stranger_cannot(): void
     {
         $auxiliar = $this->auxiliarQueSigue();
         $this->ponerACargo($this->examenDelDia, $this->aula, $auxiliar);
 
         $this->actingAs($auxiliar)
+            ->getJson($this->ruta($this->otraAula))
+            ->assertOk();
+
+        $this->actingAs($this->auxiliarQueSigue())
             ->getJson($this->ruta($this->otraAula))
             ->assertForbidden()
             ->assertExactJson([

@@ -168,4 +168,45 @@ final class EditarEstudianteTest extends TestCase
             ->putJson("/api/estudiantes/{$estudiante->id}", self::DATOS)
             ->assertForbidden();
     }
+
+    public function test_the_administration_corrects_a_wrong_sis_code_and_it_is_logged(): void
+    {
+        $estudiante = $this->estudiante(['codigo_universitario' => '202100001', 'documento_identidad' => '6000001']);
+        $otro = $this->estudiante(['codigo_universitario' => '202100002', 'documento_identidad' => '6000002']);
+
+        $this->actingAs($this->administrador())
+            ->putJson("/api/estudiantes/{$estudiante->id}", self::DATOS + ['codigo' => '202100002'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('codigo');
+        $this->actingAs($this->administrador())
+            ->putJson("/api/estudiantes/{$estudiante->id}", self::DATOS + ['codigo' => '12'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('codigo');
+
+        $this->actingAs($this->administrador())
+            ->putJson("/api/estudiantes/{$estudiante->id}", self::DATOS + ['codigo' => '202199999'])
+            ->assertOk();
+
+        $this->assertSame('202199999', $estudiante->refresh()->codigo_universitario);
+        $this->assertSame('202100002', $otro->refresh()->codigo_universitario);
+
+        $descripcion = DB::table('bitacora_operaciones')
+            ->where('operacion', 'estudiante.editar')
+            ->where('registro_id', $estudiante->id)
+            ->value('descripcion');
+        $this->assertIsString($descripcion);
+        $this->assertStringContainsString('Código SIS: «202100001» → «202199999»', $descripcion);
+    }
+
+    public function test_a_teacher_cannot_change_the_sis_code(): void
+    {
+        $docente = $this->docente();
+        $grupo = $this->grupo($docente);
+        [$estudiante] = $this->estudiantesInscritos($grupo, 1);
+        $codigo = $estudiante->codigo_universitario;
+
+        $this->editar($docente, $grupo, $estudiante, self::DATOS + ['codigo' => '202188888'])->assertOk();
+
+        $this->assertSame($codigo, $estudiante->refresh()->codigo_universitario);
+    }
 }

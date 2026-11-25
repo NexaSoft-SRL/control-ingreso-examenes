@@ -113,6 +113,54 @@ Artisan::command('oferta:importar {facultad? : fcyt, fce, fhce o fach; sin ella,
     return $fallo ? 1 : 0;
 })->purpose('Importa la oferta academica de GENDA');
 
+/*
+ * Importa la oferta GUARDADA de un periodo cerrado (por ahora, 1/2026) desde
+ * `database/umss/genda/historial/`. No toca la oferta vigente ni el estado de
+ * su importacion; lo anual no entra. Sale con codigo 1 si alguna falla.
+ */
+Artisan::command('oferta:importar-historial {periodo : 1/2026} {facultad? : fcyt, fce, fhce o fach; sin ella, las cuatro}', function (
+    ImportarOferta $importar,
+    FuenteOfertaGateway $fuente,
+) {
+    $periodoPedido = $this->argument('periodo');
+    $periodo = is_string($periodoPedido) ? $periodoPedido : '';
+    $pedida = $this->argument('facultad');
+    $facultades = is_string($pedida) && $pedida !== '' ? [$pedida] : $fuente->facultades();
+    $fallo = false;
+
+    foreach ($facultades as $facultad) {
+        try {
+            $resumen = $importar->historial($facultad, $periodo);
+        } catch (FuenteNoDisponibleException $error) {
+            $this->error($error->getMessage());
+            $fallo = true;
+
+            continue;
+        }
+
+        if (! $resumen->importada) {
+            $this->error(sprintf('%s: %s', $resumen->sigla, (string) $resumen->error));
+            $fallo = true;
+
+            continue;
+        }
+
+        $this->info(sprintf(
+            '%s %s: %d asignaturas, %d grupos (%d sin docente), %d docentes, %d aulas. Pico de memoria: %.1f MB.',
+            $resumen->sigla,
+            $periodo,
+            $resumen->asignaturas,
+            $resumen->grupos,
+            $resumen->gruposSinDocente,
+            $resumen->docentes,
+            $resumen->aulas,
+            memory_get_peak_usage(true) / 1048576,
+        ));
+    }
+
+    return $fallo ? 1 : 0;
+})->purpose('Importa la oferta guardada de un periodo cerrado');
+
 Schedule::command('respaldo:generar')
     ->dailyAt('03:00')
     ->withoutOverlapping();

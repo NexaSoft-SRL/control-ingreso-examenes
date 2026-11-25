@@ -9,6 +9,7 @@ use App\Modules\Estudiantes\Application\DTOs\EdicionDeEstudianteData;
 use App\Modules\Estudiantes\Application\Queries\ConsultarFichaDeEstudiante;
 use App\Modules\Estudiantes\Application\Queries\ConsultarResumenPadron;
 use App\Modules\Estudiantes\Application\Queries\ListarEstudiantes;
+use App\Modules\Estudiantes\Domain\Exceptions\CodigoEnUsoException;
 use App\Modules\Estudiantes\Domain\Exceptions\DocumentoEnUsoException;
 use App\Modules\Estudiantes\Http\Requests\EditarEstudianteRequest;
 use App\Modules\Estudiantes\Http\Requests\ListaRequest;
@@ -49,7 +50,14 @@ final class PadronController
                 documento: $request->documento(),
                 nombres: $request->nombres(),
                 apellidos: $request->apellidos(),
+                codigo: $request->codigo(),
             ));
+        } catch (CodigoEnUsoException $excepcion) {
+            return response()->json([
+                'message' => $excepcion->getMessage(),
+                'codigo' => 'CODIGO_EN_USO',
+                'errors' => ['codigo' => [$excepcion->getMessage()]],
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (DocumentoEnUsoException $excepcion) {
             return response()->json([
                 'message' => $excepcion->getMessage(),

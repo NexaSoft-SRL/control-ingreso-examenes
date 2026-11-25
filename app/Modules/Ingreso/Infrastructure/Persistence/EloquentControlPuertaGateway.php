@@ -89,6 +89,12 @@ final class EloquentControlPuertaGateway implements ControlPuertaGateway
                 $estaba = true;
             }
 
+            // Quien lo sumo al equipo se conserva al moverlo.
+            $agregadoPor = DB::table('examen_aula_apoyo')
+                ->where('examen_aula_id', $origen['id'])
+                ->where('user_id', $usuarioId)
+                ->value('agregado_por');
+
             $estaba = DB::table('examen_aula_apoyo')
                 ->where('examen_aula_id', $origen['id'])
                 ->where('user_id', $usuarioId)
@@ -108,6 +114,7 @@ final class EloquentControlPuertaGateway implements ControlPuertaGateway
                 DB::table('examen_aula_apoyo')->insert([
                     'examen_aula_id' => $destino['id'],
                     'user_id' => $usuarioId,
+                    'agregado_por' => $this->enteroONulo($agregadoPor),
                 ]);
             }
 

@@ -124,6 +124,7 @@ export const FORMA_EXAMEN = PropTypes.shape({
     propio: PropTypes.bool,
     registrado_por: PropTypes.string,
     junto_con: PropTypes.number,
+    invitados_pendientes: PropTypes.number,
     es_hoy: PropTypes.bool,
     rendido: PropTypes.bool,
     con_ingresos: PropTypes.bool,

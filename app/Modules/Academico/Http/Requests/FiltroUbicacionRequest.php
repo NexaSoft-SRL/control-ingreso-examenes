@@ -24,6 +24,9 @@ final class FiltroUbicacionRequest extends FormRequest
         return [
             'facultad' => ['sometimes', 'nullable', 'string', Rule::exists('facultades', 'clave')],
             'ubicadas' => ['sometimes', 'nullable', 'boolean'],
+            // Solo las carreras con oferta en el período (por omisión, los vigentes).
+            'con_oferta' => ['sometimes', 'nullable', 'boolean'],
+            'periodo' => ['sometimes', 'nullable', 'integer', 'min:1'],
         ];
     }
 
@@ -35,6 +38,16 @@ final class FiltroUbicacionRequest extends FormRequest
     public function facultad(): ?string
     {
         return $this->textoOpcional('facultad');
+    }
+
+    public function conOferta(): bool
+    {
+        return $this->marcado('con_oferta');
+    }
+
+    public function periodoId(): ?int
+    {
+        return $this->enteroOpcional('periodo');
     }
 
     public function soloUbicadas(): bool

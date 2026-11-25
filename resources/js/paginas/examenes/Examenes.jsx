@@ -2,8 +2,11 @@ import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
 import { ArrowRight, CalendarDays, Check, Plus, Radio, Timer, UserRound } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { api } from '../../api/cliente';
+import { erroresDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
 import { useAviso } from '../../componentes/Aviso';
+import Boton from '../../componentes/Boton';
 import Chips from '../../componentes/Chips';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
@@ -91,6 +94,8 @@ function TarjetaExamen({ e, destacado = false, hoy = null }) {
                                 {plural(e.inscritos, 'inscrito')} · {aulas}
                                 {e.junto_con > 0 &&
                                     ` · junto con ${plural(e.junto_con, 'examen', 'exámenes')}`}
+                                {e.invitados_pendientes > 0 &&
+                                    ` · ${plural(e.invitados_pendientes, 'invitación pendiente', 'invitaciones pendientes')}`}
                             </span>{' '}
                             <span className="whitespace-nowrap">
                                 · {hechos} de {PASOS.length} pasos
@@ -184,8 +189,121 @@ TarjetaExamen.propTypes = {
 // Los exámenes del docente en el período, de todas sus asignaturas. El de
 // hoy (o el próximo) va primero; el color de la asignatura queda solo en
 // el bloque de la fecha. Se filtra por asignatura.
+// Los exámenes a los que otro docente invitó un grupo suyo: hasta que acepta,
+// el grupo no entra al examen. Aceptar o rechazar recarga la lista.
+function Invitaciones({ invitaciones, onResuelta, onAviso }) {
+    const [respondiendo, setRespondiendo] = useState(null);
+
+    async function responder(invitacion, accion) {
+        setRespondiendo(invitacion.id);
+        try {
+            await api.post(`/examenes/invitaciones/${invitacion.id}/${accion}`);
+            onAviso(accion === 'aceptar' ? 'Invitación aceptada' : 'Invitación rechazada');
+        } catch (fallo) {
+            onAviso(erroresDe(fallo).grupos ?? mensajeDe(fallo, 'No se pudo responder'), 'error');
+        } finally {
+            setRespondiendo(null);
+            onResuelta();
+        }
+    }
+
+    return (
+        <section aria-label="Invitaciones" className="space-y-2">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                Invitaciones · {invitaciones.length}
+            </h2>
+            {invitaciones.map((i) => (
+                <article
+                    key={i.id}
+                    className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-warning-200 bg-warning-50 px-4 py-3"
+                >
+                    <div className="min-w-0 flex-1 basis-64">
+                        <p className="break-words text-sm font-semibold text-slate-900">
+                            {i.examen.tipo_texto} · {i.examen.asignatura.nombre} · Grupo{' '}
+                            {i.grupo.codigo}
+                        </p>
+                        <p className="text-sm text-slate-700">
+                            {fechaLarga(i.examen.fecha)}, {i.examen.hora} · {i.examen.duracion} min
+                            {i.examen.aulas.length > 0 && ` · ${i.examen.aulas.join(', ')}`}
+                        </p>
+                        <p className="text-xs text-slate-600">Invita {i.invitado_por}</p>
+                    </div>
+                    <div className="ml-auto flex gap-2">
+                        <Boton
+                            type="button"
+                            variante="secundario"
+                            disabled={respondiendo === i.id}
+                            aria-label={`Rechazar la invitación a ${i.examen.asignatura.nombre}`}
+                            onClick={() => responder(i, 'rechazar')}
+                        >
+                            Rechazar
+                        </Boton>
+                        <Boton
+                            type="button"
+                            cargando={respondiendo === i.id}
+                            aria-label={`Aceptar la invitación a ${i.examen.asignatura.nombre}`}
+                            onClick={() => responder(i, 'aceptar')}
+                        >
+                            Aceptar
+                        </Boton>
+                    </div>
+                </article>
+            ))}
+        </section>
+    );
+}
+
+Invitaciones.propTypes = {
+    invitaciones: PropTypes.array.isRequired,
+    onResuelta: PropTypes.func.isRequired,
+    onAviso: PropTypes.func.isRequired,
+};
+
+// Los exámenes que comparten fecha y hora, juntos y en el orden de la lista.
+function porHora(examenes) {
+    const grupos = [];
+    for (const e of examenes) {
+        const ultimo = grupos[grupos.length - 1];
+        if (ultimo && ultimo[0].fecha === e.fecha && ultimo[0].hora === e.hora) ultimo.push(e);
+        else grupos.push([e]);
+    }
+    return grupos;
+}
+
+// Uno solo va como tarjeta; dos o más a la misma hora, en un marco con su
+// fecha y hora.
+function GrupoPorHora({ examenes, hoy, destacado = false }) {
+    if (examenes.length === 1) {
+        return <TarjetaExamen e={examenes[0]} hoy={hoy} destacado={destacado} />;
+    }
+    const { fecha, hora } = examenes[0];
+    return (
+        <div
+            role="group"
+            aria-label={`${plural(examenes.length, 'examen', 'exámenes')} el ${fechaLarga(fecha)} a las ${hora}`}
+            className={`space-y-2 rounded-2xl border bg-primary-50/50 p-2 ${destacado ? 'border-primary-500 ring-2 ring-primary-500/30' : 'border-primary-200'}`}
+        >
+            <p className="px-2 pt-1 text-xs font-semibold text-primary-800">
+                {fechaLarga(fecha)} · {hora} · {examenes.length} exámenes a la misma hora
+            </p>
+            {examenes.map((e) => (
+                <TarjetaExamen key={e.id} e={e} hoy={hoy} destacado={false} />
+            ))}
+        </div>
+    );
+}
+
+GrupoPorHora.propTypes = {
+    examenes: PropTypes.arrayOf(
+        PropTypes.shape({ fecha: PropTypes.string, hora: PropTypes.string })
+    ).isRequired,
+    hoy: PropTypes.string,
+    destacado: PropTypes.bool,
+};
+
 export default function Examenes() {
     const { datos, meta, cargando, error, recargar } = usarConsulta('/examenes');
+    const invitaciones = usarConsulta('/examenes/invitaciones');
     const [asignatura, setAsignatura] = useState(null);
     const [aviso, avisar] = useAviso();
     // El aviso que deja la página del examen al eliminarlo.
@@ -208,7 +326,13 @@ export default function Examenes() {
     // El de hoy que no terminó o, si no hay, el próximo.
     const primero = examenes.find((e) => !e.rendido && (!hoy || e.fecha >= hoy)) ?? null;
     const destacado = primero && visible(primero) ? primero : null;
-    const lista = examenes.filter((e) => visible(e) && e !== destacado);
+    // Con el destacado van los que son a su misma fecha y hora.
+    const delDestacado = destacado
+        ? examenes.filter(
+              (e) => visible(e) && e.fecha === destacado.fecha && e.hora === destacado.hora
+          )
+        : [];
+    const lista = examenes.filter((e) => visible(e) && !delDestacado.includes(e));
     const meses = [...new Set(lista.map((e) => e.fecha.slice(0, 7)))];
 
     const opciones = [
@@ -259,6 +383,17 @@ export default function Examenes() {
                 </Link>
             </Encabezado>
 
+            {(invitaciones.datos ?? []).length > 0 && (
+                <Invitaciones
+                    invitaciones={invitaciones.datos}
+                    onAviso={avisar}
+                    onResuelta={() => {
+                        invitaciones.recargar();
+                        recargar();
+                    }}
+                />
+            )}
+
             <EstadoCarga cargando={cargando} error={error} onReintentar={recargar}>
                 <Chips
                     opciones={opciones}
@@ -272,7 +407,7 @@ export default function Examenes() {
                         <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                             {destacado.fecha === hoy ? 'Hoy' : 'Próximo'}
                         </h2>
-                        <TarjetaExamen e={destacado} destacado hoy={hoy} />
+                        <GrupoPorHora examenes={delDestacado} hoy={hoy} destacado />
                     </section>
                 )}
 
@@ -283,8 +418,8 @@ export default function Examenes() {
                             <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                                 {mesDe(`${mes}-01`)} · {delMes.length}
                             </h2>
-                            {delMes.map((e) => (
-                                <TarjetaExamen key={e.id} e={e} hoy={hoy} />
+                            {porHora(delMes).map((grupo) => (
+                                <GrupoPorHora key={grupo[0].id} examenes={grupo} hoy={hoy} />
                             ))}
                         </section>
                     );

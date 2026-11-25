@@ -7,6 +7,7 @@ namespace App\Modules\Administracion\Infrastructure\Providers;
 use App\Modules\Administracion\Application\Actions\GenerarRespaldoAutomatico;
 use App\Modules\Administracion\Application\Actions\ProcesarRebotesDeCorreo;
 use App\Modules\Administracion\Application\Actions\ProponerUsuario;
+use App\Modules\Administracion\Application\Contracts\AjustesDeRespaldoGateway;
 use App\Modules\Administracion\Application\Contracts\AlmacenImagenes;
 use App\Modules\Administracion\Application\Contracts\AuthenticationSecurityGateway;
 use App\Modules\Administracion\Application\Contracts\BitacoraGateway;
@@ -27,6 +28,7 @@ use App\Modules\Administracion\Infrastructure\Files\AlmacenImagenesEnDisco;
 use App\Modules\Administracion\Infrastructure\Files\RespaldoSqlEnDisco;
 use App\Modules\Administracion\Infrastructure\Mail\ImapBuzonDeRebotes;
 use App\Modules\Administracion\Infrastructure\Mail\LectorDeRebote;
+use App\Modules\Administracion\Infrastructure\Persistence\EloquentAjustesDeRespaldoGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentAuthenticationSecurityGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentBitacoraGateway;
 use App\Modules\Administracion\Infrastructure\Persistence\EloquentConsultaBitacoraGateway;
@@ -104,6 +106,11 @@ final class AdministracionServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(
+            AjustesDeRespaldoGateway::class,
+            EloquentAjustesDeRespaldoGateway::class,
+        );
+
+        $this->app->bind(
             RespaldoGateway::class,
             RespaldoSqlEnDisco::class,
         );
@@ -138,7 +145,7 @@ final class AdministracionServiceProvider extends ServiceProvider
 
         $this->app->when(GenerarRespaldoAutomatico::class)
             ->needs('$hora')
-            ->give(fn (): string => $this->texto('umss.respaldo_automatico.hora', GenerarRespaldoAutomatico::HORA_POR_DEFECTO));
+            ->give(fn (): string => $this->app->make(AjustesDeRespaldoGateway::class)->leer()->hora);
 
         $this->app->when(GenerarRespaldoAutomatico::class)
             ->needs('$zona')
@@ -190,10 +197,6 @@ final class AdministracionServiceProvider extends ServiceProvider
     private function respaldarAlResponder(): void
     {
         $this->app->terminating(function (): void {
-            if (config('umss.respaldo_automatico.habilitado') !== true) {
-                return;
-            }
-
             if ($this->app->runningInConsole() && ! $this->app->runningUnitTests()) {
                 return;
             }
@@ -203,13 +206,19 @@ final class AdministracionServiceProvider extends ServiceProvider
                     return;
                 }
 
+                $ajustes = $this->app->make(AjustesDeRespaldoGateway::class)->leer();
+
+                if (! $ajustes->habilitado) {
+                    return;
+                }
+
                 $respaldo = $this->app->make(GenerarRespaldoAutomatico::class);
 
                 if (! $respaldo->corresponde(DateTimeImmutable::createFromInterface(now()))) {
                     return;
                 }
 
-                $reintento = max(1, $this->entero('umss.respaldo_automatico.reintento_minutos', 30));
+                $reintento = max(1, $ajustes->reintentoMinutos);
 
                 if (! Cache::add('respaldo:automatico:intento', true, $reintento * 60)) {
                     return;

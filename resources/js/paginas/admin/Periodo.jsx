@@ -9,8 +9,7 @@ import {
     DownloadCloud,
     ListX,
     LoaderCircle,
-    RefreshCw,
-    RotateCw,
+    Search,
     UserX,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -33,7 +32,7 @@ import { diaMes, fechaCorta } from '../../utiles/texto';
 import CalendarioAcademico from './CalendarioAcademico';
 
 const FOCO = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600';
-const COLUMNAS = 'md:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_minmax(0,1fr)_9rem]';
+const COLUMNAS = 'md:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_minmax(0,1fr)]';
 const POR_PAGINA = 4;
 
 const miles = (n) => Number(n ?? 0).toLocaleString('es-BO');
@@ -260,6 +259,8 @@ export default function Periodo() {
     // Por sigla: `{ estado: 'importando' }` mientras dura la petición y
     // `{ estado: 'fallo', error }` cuando el servidor la rechaza.
     const [locales, setLocales] = useState({});
+    // Mientras corre «Importar todas»: la facultad en turno y el total.
+    const [lote, setLote] = useState(null);
 
     const recargarTodo = () => Promise.all([periodos.recargar(), resumen.recargar()]);
 
@@ -268,39 +269,70 @@ export default function Periodo() {
         api.post('/periodos/detectar')
             .then((respuesta) => {
                 const { creados = 0, actualizados = 0 } = respuesta.data ?? {};
-                avisar(`Períodos al día · ${creados} nuevos · ${actualizados} actualizados`);
+                // El resultado sale como aviso temporal.
+                avisar(
+                    `Períodos al día · ${creados} ${creados === 1 ? 'nuevo' : 'nuevos'} · ${actualizados} ${actualizados === 1 ? 'actualizado' : 'actualizados'}`
+                );
                 return recargarTodo();
             })
             .catch((error) => avisar(mensajeDe(error, 'No se pudo actualizar'), 'error'))
             .finally(() => setDetectando(false));
     }
 
-    async function importar(facultad) {
+    // Importa una facultad y deja su estado en la fila. Devuelve 'ok', 'en_curso'
+    // (otra importación de la misma facultad sigue en marcha) o 'fallo'.
+    async function importarUna(facultad) {
         const { sigla } = facultad;
         const clave = catalogo.find((f) => f.sigla === sigla)?.clave ?? sigla.toLowerCase();
         const poner = (valor) => setLocales((previos) => ({ ...previos, [sigla]: valor }));
 
         poner({ estado: 'importando' });
         try {
-            // Si la fuente no cambió, el servidor no hace nada y lo dice.
-            const { data } = await api.post('/oferta/importaciones', { facultad: clave });
-            await recargarTodo();
-            poner(undefined);
-            avisar(String(data?.message ?? `Oferta de ${sigla} importada`).replace(/\.$/, ''));
+            // Si la fuente no cambió, el servidor no hace nada y lo dice: queda al día.
+            await api.post('/oferta/importaciones', { facultad: clave });
+            poner({ estado: 'importada', fecha: new Date().toLocaleDateString('en-CA') });
+            return 'ok';
         } catch (error) {
             if (estadoDe(error) === 409) {
-                // Otra importación de la misma facultad sigue en curso.
-                avisar(mensajeDe(error, 'Importación en curso'), 'error');
-                await resumen.recargar();
                 poner(undefined);
-                return;
+                return 'en_curso';
             }
             poner({
                 estado: 'fallo',
                 error:
                     error?.response?.data?.data?.error ?? mensajeDe(error, 'No se pudo importar'),
             });
-            await resumen.recargar();
+            return 'fallo';
+        }
+    }
+
+    // Una tras otra, en orden: no pasa del tiempo de PHP y la fila en turno
+    // muestra «Importando». Un fallo no detiene a las demás.
+    async function importarTodas() {
+        if (lote) return;
+        const lista = [...(resumen.datos?.facultades ?? [])];
+        const resultados = [];
+        for (let i = 0; i < lista.length; i += 1) {
+            setLote({ actual: i + 1, total: lista.length });
+            resultados.push(await importarUna(lista[i]));
+        }
+        await recargarTodo();
+        // Lo importado ya viene del servidor; solo quedan las filas que fallaron.
+        setLocales((previos) =>
+            Object.fromEntries(Object.entries(previos).filter(([, v]) => v?.estado === 'fallo'))
+        );
+        setLote(null);
+
+        const total = lista.length;
+        const buenas = resultados.filter((r) => r === 'ok').length;
+        const enCurso = resultados.filter((r) => r === 'en_curso').length;
+        const fallos = resultados.filter((r) => r === 'fallo').length;
+        if (fallos > 0) {
+            avisar(`${buenas} de ${total} importadas · ${fallos} con error`, 'error');
+        } else if (enCurso > 0) {
+            avisar(`${buenas} de ${total} importadas · ${enCurso} en curso`);
+        } else {
+            avisar(`Oferta de las ${total} facultades importada`);
         }
     }
 
@@ -330,109 +362,13 @@ export default function Periodo() {
     return (
         <div className="space-y-6">
             <Encabezado titulo="Período" subtitulo={subtituloDe(datos)}>
-                {datos && (
-                    <Insignia tono={principal ? 'exito' : 'neutro'} punto>
-                        {principal
-                            ? `${principal.codigo} · ${principal.estado}`
-                            : 'Sin período vigente'}
+                {/* Con período vigente no hay insignia: la lista ya lo muestra. */}
+                {datos && !principal && (
+                    <Insignia tono="neutro" punto>
+                        Sin período vigente
                     </Insignia>
                 )}
             </Encabezado>
-
-            <Tarjeta
-                sinRelleno
-                titulo="Períodos"
-                icono={CalendarRange}
-                acciones={
-                    <Boton
-                        type="button"
-                        variante="secundario"
-                        tamano="chico"
-                        className="min-h-11"
-                        disabled={detectando}
-                        onClick={detectar}
-                    >
-                        <RefreshCw
-                            className={`h-4 w-4 ${detectando ? 'animate-spin' : ''}`}
-                            aria-hidden="true"
-                        />
-                        {detectando ? 'Actualizando' : 'Actualizar períodos'}
-                    </Boton>
-                }
-            >
-                <EstadoCarga
-                    cargando={periodos.cargando}
-                    error={periodos.error}
-                    vacio={periodos.datos?.length === 0}
-                    textoVacio="Sin períodos"
-                    onReintentar={periodos.recargar}
-                    filas={POR_PAGINA}
-                >
-                    <ul className="divide-y divide-slate-200">
-                        {(periodos.datos ?? []).map((p) => (
-                            <li
-                                key={p.id}
-                                className="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3"
-                            >
-                                <span
-                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${FONDO_PERIODO[p.estado] ?? 'bg-slate-100 text-slate-500'}`}
-                                >
-                                    {p.tipo === 'Anual' ? (
-                                        <CalendarRange className="h-4 w-4" aria-hidden="true" />
-                                    ) : (
-                                        <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                                    )}
-                                </span>
-                                <span className="w-14 shrink-0 text-base font-semibold tabular-nums text-slate-900">
-                                    {p.codigo}
-                                </span>
-                                <span className="min-w-0 flex-1 basis-32">
-                                    <span className="block text-sm font-medium text-slate-800">
-                                        {[p.tipo, rango(p.fecha_inicio, p.fecha_fin)]
-                                            .filter(Boolean)
-                                            .join(' · ')}
-                                    </span>
-                                    <span className="block truncate text-xs text-slate-600">
-                                        {p.nota}
-                                    </span>
-                                </span>
-                                <Insignia tono={TONO_PERIODO[p.estado] ?? 'neutro'} punto>
-                                    {p.estado}
-                                </Insignia>
-                                {p.estado === 'Sin fechas' && (
-                                    <Boton
-                                        type="button"
-                                        variante="secundario"
-                                        tamano="chico"
-                                        className="min-h-11"
-                                        onClick={() => setAjustando(p)}
-                                        aria-label={`Ajustar ${p.codigo}`}
-                                    >
-                                        Ajustar
-                                    </Boton>
-                                )}
-                                {p.estado !== 'Cerrado' && p.estado !== 'Sin fechas' && (
-                                    <Boton
-                                        type="button"
-                                        variante="secundario"
-                                        tamano="chico"
-                                        className="min-h-11"
-                                        onClick={() => setCalendario(p)}
-                                        aria-label={`Calendario académico ${p.codigo}`}
-                                    >
-                                        Calendario académico
-                                    </Boton>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                    <Paginacion
-                        {...lista.paginacion(periodos.meta)}
-                        unidad={['período', 'períodos']}
-                        className="border-t border-slate-200"
-                    />
-                </EstadoCarga>
-            </Tarjeta>
 
             <Tarjeta
                 sinRelleno
@@ -467,13 +403,152 @@ export default function Periodo() {
 
             <Tarjeta
                 sinRelleno
+                titulo="Períodos"
+                icono={CalendarRange}
+                acciones={
+                    <Boton
+                        type="button"
+                        variante="secundario"
+                        tamano="chico"
+                        className="min-h-11"
+                        disabled={detectando}
+                        onClick={detectar}
+                    >
+                        {detectando ? (
+                            <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                            <Search className="h-4 w-4" aria-hidden="true" />
+                        )}
+                        {detectando ? 'Buscando' : 'Buscar períodos'}
+                    </Boton>
+                }
+            >
+                <EstadoCarga
+                    cargando={periodos.cargando}
+                    error={periodos.error}
+                    vacio={periodos.datos?.length === 0}
+                    textoVacio="Sin períodos"
+                    onReintentar={periodos.recargar}
+                    filas={POR_PAGINA}
+                >
+                    <ul className="divide-y divide-slate-200">
+                        {(periodos.datos ?? []).map((p) => (
+                            <li
+                                key={p.id}
+                                // En escritorio cada dato va en su columna (el estado y la
+                                // acción quedan alineados en todas las filas); en teléfono
+                                // se acomodan en líneas.
+                                className="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 md:grid md:grid-cols-[2.25rem_3.5rem_minmax(0,1fr)_7rem_12rem]"
+                            >
+                                <span
+                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${FONDO_PERIODO[p.estado] ?? 'bg-slate-100 text-slate-500'}`}
+                                >
+                                    {p.tipo === 'Anual' ? (
+                                        <CalendarRange className="h-4 w-4" aria-hidden="true" />
+                                    ) : (
+                                        <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                                    )}
+                                </span>
+                                <span className="w-14 shrink-0 text-base font-semibold tabular-nums text-slate-900">
+                                    {p.codigo}
+                                </span>
+                                <span className="min-w-0 flex-1 basis-32 md:basis-auto">
+                                    <span className="block text-sm font-medium text-slate-800">
+                                        {[p.tipo, rango(p.fecha_inicio, p.fecha_fin)]
+                                            .filter(Boolean)
+                                            .join(' · ')}
+                                    </span>
+                                    <span className="block truncate text-xs text-slate-600">
+                                        {p.nota}
+                                    </span>
+                                </span>
+                                <span className="md:justify-self-start">
+                                    <Insignia tono={TONO_PERIODO[p.estado] ?? 'neutro'} punto>
+                                        {p.estado}
+                                    </Insignia>
+                                </span>
+                                {/* La columna de la acción se reserva aunque no haya botón. */}
+                                <span className="md:flex md:justify-end">
+                                    {p.estado === 'Sin fechas' && (
+                                        <Boton
+                                            type="button"
+                                            variante="secundario"
+                                            tamano="chico"
+                                            className="min-h-11"
+                                            onClick={() => setAjustando(p)}
+                                            aria-label={`Ajustar ${p.codigo}`}
+                                        >
+                                            Ajustar
+                                        </Boton>
+                                    )}
+                                    {/* El anual no tiene calendario de exámenes; el cerrado
+                                        se consulta pero ya no se ajusta. */}
+                                    {p.estado !== 'Sin fechas' &&
+                                        (p.tipo === 'Anual' ? (
+                                            <span className="text-sm text-slate-500">
+                                                No disponible
+                                            </span>
+                                        ) : (
+                                            <Boton
+                                                type="button"
+                                                variante="secundario"
+                                                tamano="chico"
+                                                className="min-h-11"
+                                                onClick={() => setCalendario(p)}
+                                                aria-label={`Calendario académico ${p.codigo}`}
+                                            >
+                                                Calendario académico
+                                            </Boton>
+                                        ))}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                    <Paginacion
+                        {...lista.paginacion(periodos.meta)}
+                        unidad={['período', 'períodos']}
+                        className="border-t border-slate-200"
+                    />
+                </EstadoCarga>
+            </Tarjeta>
+
+            <Tarjeta
+                sinRelleno
                 titulo="Oferta académica por facultad"
                 icono={Building2}
-                acciones={
+                insignia={
                     facultades.length > 0 && (
                         <Insignia tono={importadas === facultades.length ? 'exito' : 'advertencia'}>
                             {importadas} de {facultades.length} importadas
                         </Insignia>
+                    )
+                }
+                acciones={
+                    facultades.length > 0 && (
+                        // El botón no pasa del ancho de la pantalla: en móvil baja de
+                        // línea en lugar de salirse de la tarjeta.
+                        <div className="flex max-w-[calc(100vw-5.5rem)] flex-wrap items-center gap-2">
+                            <Boton
+                                type="button"
+                                variante="secundario"
+                                disabled={Boolean(lote)}
+                                onClick={importarTodas}
+                            >
+                                {lote ? (
+                                    <LoaderCircle
+                                        className="h-4 w-4 animate-spin"
+                                        aria-hidden="true"
+                                    />
+                                ) : (
+                                    <DownloadCloud className="h-4 w-4" aria-hidden="true" />
+                                )}
+                                {lote
+                                    ? `Importando ${lote.actual} de ${lote.total}`
+                                    : importadas === facultades.length
+                                      ? 'Volver a importar todas'
+                                      : 'Importar todas'}
+                            </Boton>
+                        </div>
                     )
                 }
             >
@@ -491,19 +566,12 @@ export default function Periodo() {
                         <span>Facultad</span>
                         <span>Oferta</span>
                         <span>Estado</span>
-                        <span className="sr-only">Acción</span>
                     </div>
                     <ul className="divide-y divide-slate-200">
                         {facultades.map((f) => {
                             const imp = locales[f.sigla] ?? f.importacion ?? { estado: 'sin' };
                             const estado = ESTADOS[imp.estado] ?? ESTADOS.sin;
-                            const ocupado = locales[f.sigla]?.estado === 'importando';
                             const fallo = imp.estado === 'fallo';
-                            const accion = fallo
-                                ? 'Reintentar'
-                                : imp.estado === 'importada'
-                                  ? 'Volver a importar'
-                                  : 'Importar';
                             return (
                                 <li
                                     key={f.sigla}
@@ -524,41 +592,16 @@ export default function Periodo() {
                                         {miles(f.carreras)} carreras · {miles(f.grupos)} grupos ·{' '}
                                         {miles(f.aulas)} aulas
                                     </p>
-                                    <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 md:contents">
-                                        <span aria-live="polite" className="min-w-0">
-                                            <Insignia tono={estado.tono} punto>
-                                                {estado.texto(imp.fecha)}
-                                            </Insignia>
-                                            {fallo && imp.error && (
-                                                <span className="mt-1 block break-words text-xs text-danger-700">
-                                                    {imp.error}
-                                                </span>
-                                            )}
-                                        </span>
-                                        <Boton
-                                            type="button"
-                                            variante={fallo ? 'primario' : 'secundario'}
-                                            className="md:w-full"
-                                            disabled={ocupado}
-                                            onClick={() => importar(f)}
-                                            aria-label={`${accion} ${f.sigla}`}
-                                        >
-                                            {ocupado ? (
-                                                <LoaderCircle
-                                                    className="h-4 w-4 animate-spin"
-                                                    aria-hidden="true"
-                                                />
-                                            ) : fallo ? (
-                                                <RotateCw className="h-4 w-4" aria-hidden="true" />
-                                            ) : (
-                                                <DownloadCloud
-                                                    className="h-4 w-4"
-                                                    aria-hidden="true"
-                                                />
-                                            )}
-                                            {ocupado ? 'Importando' : accion}
-                                        </Boton>
-                                    </div>
+                                    <span aria-live="polite" className="min-w-0">
+                                        <Insignia tono={estado.tono} punto>
+                                            {estado.texto(imp.fecha)}
+                                        </Insignia>
+                                        {fallo && imp.error && (
+                                            <span className="mt-1 block break-words text-xs text-danger-700">
+                                                {imp.error}
+                                            </span>
+                                        )}
+                                    </span>
                                 </li>
                             );
                         })}

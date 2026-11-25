@@ -62,14 +62,10 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
 
     public function periodos(PaginaData $pagina): array
     {
-        $hoy = $this->hoy();
-
         $periodos = array_values(
+            // Del año más reciente al más antiguo y, dentro de cada año, de
+            // mayor a menor número: 2, 1, 0 (anual). El vigente no se adelanta.
             Periodo::query()
-                ->orderByRaw(
-                    'case when fecha_inicio <= ? and fecha_fin >= ? then 0 else 1 end',
-                    [$hoy, $hoy],
-                )
                 ->orderByDesc('anio')
                 ->orderByDesc('numero')
                 ->forPage($pagina->pagina, $pagina->porPagina)
@@ -106,9 +102,23 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
                 ->whereNull('i.baja_en');
         });
 
+        // Los docentes que dan clases en el período vigente, no todos los que
+        // alguna vez estuvieron en la oferta (también hay oferta de períodos
+        // cerrados). Sin período vigente, todos, como los grupos.
+        $docentes = DB::table('docentes as d');
+
+        if ($periodoIds !== []) {
+            $docentes->whereExists(function (Builder $dicta) use ($periodoIds): void {
+                $dicta->selectRaw('1')
+                    ->from('grupos as dg')
+                    ->whereColumn('dg.docente_id', 'd.id')
+                    ->whereIn('dg.periodo_id', $periodoIds);
+            });
+        }
+
         return [
-            'docentes' => DB::table('docentes')->count(),
-            'docentes_sin_cuenta' => DB::table('docentes')->whereNull('user_id')->count(),
+            'docentes' => (clone $docentes)->count(),
+            'docentes_sin_cuenta' => (clone $docentes)->whereNull('d.user_id')->count(),
             'grupos' => $grupos->count(),
             'grupos_sin_lista' => $sinLista->count(),
         ];
@@ -162,12 +172,48 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
             ->exists();
     }
 
-    public function carreras(?string $claveFacultad): array
+    public function facultadesConOferta(array $periodoIds): array
+    {
+        $consulta = DB::table('grupos as g')
+            ->join('facultades as f', 'f.id', '=', 'g.facultad_id')
+            ->distinct()
+            ->orderBy('f.id');
+        $this->enPeriodos($consulta, 'g.periodo_id', $periodoIds);
+
+        $claves = [];
+
+        foreach ($consulta->get(['f.id', 'f.clave']) as $fila) {
+            $claves[] = $this->cadena($fila->clave);
+        }
+
+        return $claves;
+    }
+
+    public function carreras(?string $claveFacultad, ?array $periodoIds = null): array
     {
         $consulta = DB::table('carreras')->orderByRaw($this->sinTildes('nombre'))->orderBy('id');
 
         if ($this->hayTexto($claveFacultad)) {
             $consulta->where('facultad_id', $this->facultadId((string) $claveFacultad));
+        }
+
+        if ($periodoIds !== null && $periodoIds !== []) {
+            // Con oferta en el período: sus asignaturas tienen grupos ahí. Las
+            // carreras anuales tienen sus grupos en el período anual y las
+            // demás, en los semestres.
+            $consulta->whereExists(function (Builder $oferta) use ($periodoIds): void {
+                $oferta->selectRaw('1')
+                    ->from('grupos as g')
+                    ->join('periodos as p', 'p.id', '=', 'g.periodo_id')
+                    ->join('plan_estudios as pe', 'pe.asignatura_id', '=', 'g.asignatura_id')
+                    ->whereColumn('pe.carrera_id', 'carreras.id')
+                    ->whereColumn('g.facultad_id', 'carreras.facultad_id')
+                    ->whereIn('g.periodo_id', $periodoIds)
+                    ->whereRaw('(p.tipo = ?) = (carreras.regimen = ?)', [
+                        TipoPeriodo::Anual->value,
+                        RegimenCarrera::Anual->value,
+                    ]);
+            });
         }
 
         $carreras = [];
@@ -526,6 +572,7 @@ final class EloquentConsultaOfertaGateway implements ConsultaOfertaGateway
                 'fecha_fin' => $periodo->fecha_fin?->toDateString(),
                 'estado' => $periodo->estado()->etiqueta(),
                 'nota' => $this->nota($carreras[$periodo->id] ?? 0, $grupos[$periodo->id] ?? 0),
+                'grupos' => $grupos[$periodo->id] ?? 0,
                 'calendario' => $this->calendarioDe($periodo),
                 'calendario_ajustado' => $periodo->ajustado_por !== null,
                 'calendario_ajustado_por' => $ajustes[$periodo->id]['por'] ?? null,

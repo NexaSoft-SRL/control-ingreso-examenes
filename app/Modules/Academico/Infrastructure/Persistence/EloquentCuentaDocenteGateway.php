@@ -37,6 +37,26 @@ final readonly class EloquentCuentaDocenteGateway implements CuentaDocenteGatewa
         ];
     }
 
+    public function cuenta(int $docenteId): ?array
+    {
+        $fila = DB::table('docentes as d')
+            ->join('users as u', 'u.id', '=', 'd.user_id')
+            ->where('d.id', $docenteId)
+            ->first(['u.id', 'u.password_changed_at', 'u.is_active']);
+
+        if ($fila === null) {
+            return null;
+        }
+
+        $datos = (array) $fila;
+
+        return [
+            'usuario_id' => is_numeric($datos['id'] ?? null) ? (int) $datos['id'] : 0,
+            'temporal' => ($datos['password_changed_at'] ?? null) === null,
+            'activa' => (bool) ($datos['is_active'] ?? false),
+        ];
+    }
+
     public function activar(int $docenteId, NuevaCuentaData $cuenta, ?int $autorId): CuentaCreadaData
     {
         try {

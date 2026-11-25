@@ -12,7 +12,7 @@ import {
     UserRound,
     UsersRound,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { erroresDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
@@ -441,9 +441,12 @@ FormularioCuenta.propTypes = {
 // filtro y de las cifras son los que existen (`meta.conteos`), no una lista
 // fija; la matriz de permisos va en PermisosPorRol.
 export default function Usuarios() {
+    // «Agregar correo» de Docentes llega con `?buscar=usuario`.
+    const [parametrosUrl] = useSearchParams();
     const lista = usarPaginaServidor({
         porPagina: POR_PAGINA,
         filtros: { rol: null, bloqueadas: null },
+        buscarInicial: parametrosUrl.get('buscar') ?? '',
     });
     const { datos, meta, cargando, error, recargar } = usarConsulta('/usuarios', {
         parametros: lista.parametros,
@@ -660,7 +663,7 @@ export default function Usuarios() {
                                 <th scope="col" className={`${TH} w-36`}>
                                     Rol
                                 </th>
-                                <th scope="col" className={`${TH} w-32`}>
+                                <th scope="col" className={`${TH} w-52`}>
                                     Estado
                                 </th>
                                 <th scope="col" className={`${TH} w-24`}>

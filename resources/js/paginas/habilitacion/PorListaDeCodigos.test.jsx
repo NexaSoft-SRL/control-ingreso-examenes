@@ -98,7 +98,7 @@ describe('PorListaDeCodigos', () => {
         });
         fireEvent.click(screen.getByRole('button', { name: 'Habilitar 3' }));
 
-        const resultado = within(await screen.findByRole('dialog')).getByRole('status');
+        const resultado = await within(screen.getByRole('dialog')).findByRole('status');
         expect(resultado).toHaveTextContent('1 habilitado. 1 código no es del examen.');
         expect(resultado).toHaveTextContent('En el examen2');
         expect(resultado).toHaveTextContent('Habilitados1');
@@ -124,7 +124,7 @@ describe('PorListaDeCodigos', () => {
         fireEvent.change(screen.getByLabelText(/Códigos SIS/), { target: { value: '202100417' } });
         fireEvent.click(screen.getByRole('button', { name: 'Habilitar 1' }));
 
-        const resultado = within(await screen.findByRole('dialog')).getByRole('status');
+        const resultado = await within(screen.getByRole('dialog')).findByRole('status');
         expect(resultado).toHaveTextContent('Ninguno cambió. 0 habilitados.');
         expect(resultado).toHaveTextContent('Sin carnet · no se habilitaron1');
         expect(resultado).not.toHaveTextContent('No son del examen');

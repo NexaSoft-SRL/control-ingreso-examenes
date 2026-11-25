@@ -79,8 +79,10 @@ final class RestaurarCalendarioTest extends TestCase
             'ventanas' => ['segundos_parciales' => ['2026-11-23', '2026-12-17']],
         ])->assertOk();
 
-        $fila = $this->actingAs($administrador)->getJson('/api/periodos')->assertOk()
-            ->json('data.0');
+        // La lista va por año y por número (2, 1, 0): se busca la fila del período.
+        $filas = $this->actingAs($administrador)->getJson('/api/periodos')->assertOk()
+            ->json('data');
+        $fila = collect(is_array($filas) ? $filas : [])->firstWhere('codigo', '2/2026');
 
         $this->assertIsArray($fila);
         $this->assertSame('2/2026', $fila['codigo']);
