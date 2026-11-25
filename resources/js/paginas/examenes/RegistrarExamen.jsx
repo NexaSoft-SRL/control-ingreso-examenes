@@ -597,6 +597,8 @@ function Resumen({ examen, recien = false, onAviso, onElegirAulas, onHabilitar }
     const [saliendo, setSaliendo] = useState(null);
     const grupos = examen.grupos_detalle ?? [];
     const invitaciones = examen.invitaciones ?? [];
+    // Los docentes de los grupos que ya están en el examen.
+    const docentes = [...new Set(grupos.map((g) => g.docente).filter(Boolean))];
     // Quien colabora (no registró el examen) puede salirse mientras no haya ingresos.
     const puedeSalir = examen.propio === false && !examen.con_ingresos;
 
@@ -637,6 +639,9 @@ function Resumen({ examen, recien = false, onAviso, onElegirAulas, onHabilitar }
                         {plural(grupos.length, 'grupo')} ({grupos.map((g) => g.codigo).join(', ')})
                         · {plural(examen.inscritos ?? 0, 'inscrito')}
                     </p>
+                    {docentes.length > 1 && (
+                        <p className="text-sm text-slate-600">Docentes: {docentes.join(', ')}</p>
+                    )}
                     {invitaciones.length > 0 && (
                         <ul
                             aria-label="Invitaciones a otros docentes"
@@ -1213,7 +1218,13 @@ function Asistente({
     const conocidos = [
         ...elegidos
             .filter((g) => g.docente_usuario_id && g.docente_usuario_id !== yo.id)
-            .map((g) => ({ id: g.docente_usuario_id, nombre: g.docente, es_docente: true })),
+            .map((g) => ({
+                id: g.docente_usuario_id,
+                nombre: g.docente,
+                es_docente: true,
+                // Sin aceptar todavía: el grupo aún no está en el examen.
+                pendiente: !(examen?.grupos_detalle ?? []).some((x) => x.id === g.id),
+            })),
         ...(examen?.aulas_detalle ?? base?.aulas_detalle ?? []).flatMap((a) => [
             ...(a.encargado ? [a.encargado] : []),
             ...(a.apoyo ?? []).map((p) => ({ ...p, es_docente: false })),

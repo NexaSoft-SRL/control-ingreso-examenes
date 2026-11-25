@@ -1509,8 +1509,9 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         await screen.findByRole('heading', { name: '4. Equipo' });
 
         // Los docentes de los grupos son del equipo; un docente no cuenta como auxiliar.
+        // Mientras no acepte, el docente invitado figura como pendiente.
         expect(screen.getByRole('list', { name: 'Equipo' })).toHaveTextContent(
-            'Salazar Serrudo Carla · docente'
+            'Salazar Serrudo Carla · docente · invitación pendiente'
         );
         expect(screen.getByText('Auxiliares · 2')).toBeInTheDocument();
         await abrirAjuste();
@@ -2273,6 +2274,15 @@ describe('RegistrarExamen · edición', () => {
         expect(screen.getByText('Mochilas al frente.')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Guardar|Continuar/ })).not.toBeInTheDocument();
         expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
+
+    it('el resumen nombra a los docentes de los grupos que ya están en el examen', async () => {
+        detalle = { ...DETALLE, propio: false };
+        montar('/examenes/nuevo?examen=4');
+
+        expect(
+            await screen.findByText('Docentes: Blanco Coca Leticia, Salazar Serrudo Carla')
+        ).toBeVisible();
     });
 
     it('quien registró el examen ve el estado de cada invitación a otro docente', async () => {

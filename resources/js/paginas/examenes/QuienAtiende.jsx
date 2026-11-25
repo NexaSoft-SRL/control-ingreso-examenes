@@ -189,7 +189,18 @@ export default function QuienAtiende({
         ...sumados,
         ...conocidos.filter((p) => !p.es_docente && p.id !== yo.id),
     ]).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-    const docentes = sinRepetir([yo, ...conocidos.filter((p) => p.es_docente)]);
+    // Un docente con varios grupos está pendiente solo si todos lo están.
+    const docentes = sinRepetir([
+        yo,
+        ...conocidos
+            .filter((p) => p.es_docente)
+            .map((p) => ({
+                ...p,
+                pendiente: conocidos
+                    .filter((q) => q.es_docente && q.id === p.id)
+                    .every((q) => q.pendiente),
+            })),
+    ]);
     const otros = buscando
         ? (hallados.datos ?? []).filter((p) => !auxiliares.some((a) => a.id === p.id))
         : [];
@@ -309,7 +320,7 @@ export default function QuienAtiende({
     }, [hayErrorDeAula, hayCodigos]);
     const abiertoAjuste = ajustando;
     const miembros = [
-        ...docentes.map((d) => ({ ...d, esDocente: true })),
+        ...docentes.map((d) => ({ ...d, esDocente: true, pendiente: Boolean(d.pendiente) })),
         ...idsDelEquipo
             .filter((id) => !docentes.some((d) => d.id === id))
             .map((id) => ({ id, nombre: nombreDe(id), esDocente: false })),
@@ -344,7 +355,12 @@ export default function QuienAtiende({
                         >
                             <span className="truncate">{m.nombre}</span>{' '}
                             <span className="ml-1.5 shrink-0 text-xs font-normal text-primary-700">
-                                · {m.esDocente ? 'docente' : 'auxiliar'}
+                                ·{' '}
+                                {m.esDocente
+                                    ? m.pendiente
+                                        ? 'docente · invitación pendiente'
+                                        : 'docente'
+                                    : 'auxiliar'}
                             </span>
                             {!m.esDocente && (
                                 <button
