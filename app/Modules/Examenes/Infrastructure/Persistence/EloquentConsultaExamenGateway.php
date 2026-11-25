@@ -10,6 +10,7 @@ use App\Modules\Examenes\Application\DTOs\AvanceData;
 use App\Modules\Examenes\Application\DTOs\ExamenDetalleData;
 use App\Modules\Examenes\Application\DTOs\ExamenResumenData;
 use App\Modules\Examenes\Application\DTOs\GrupoDeExamenData;
+use App\Modules\Examenes\Application\DTOs\InvitacionDeExamenData;
 use App\Modules\Examenes\Application\DTOs\NormaMarcadaData;
 use App\Modules\Examenes\Application\DTOs\PersonaData;
 use App\Modules\Examenes\Domain\Enums\TipoExamen;
@@ -488,6 +489,7 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         $condiciones = $this->condicionesPorExamen($ids);
         $juntos = $this->juntosPorExamen($ids, $usuarioId);
         $normas = $this->normasPorExamen($ids);
+        $invitaciones = $this->invitacionesPorExamen($ids);
         $conIngresos = $this->conFilas('ingresos', $ids);
         $conIncidencias = $this->conFilas('incidencias', $ids);
         $ahora = now();
@@ -557,6 +559,10 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
                     $aulasDelExamen,
                     static fn (AulaDetalleData $aula): bool => $aula->usaCodigo,
                 )),
+                invitadosPendientes: count(array_filter(
+                    $invitaciones[$id] ?? [],
+                    static fn (InvitacionDeExamenData $invitacion): bool => $invitacion->estado === InvitacionDeExamenData::PENDIENTE,
+                )),
             );
 
             $examenes[] = new ExamenDetalleData(
@@ -565,6 +571,7 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
                 grupos: $gruposDelExamen,
                 aulas: $aulasDelExamen,
                 normasMarcadas: $normas[$id] ?? [],
+                invitaciones: $invitaciones[$id] ?? [],
             );
         }
 
@@ -844,6 +851,47 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         }
 
         return $inscritos;
+    }
+
+    /**
+     * Los grupos invitados que aun no estan en el examen: las pendientes y
+     * las rechazadas, por codigo de grupo.
+     *
+     * @param  list<int>  $examenIds
+     * @return array<int, list<InvitacionDeExamenData>>
+     */
+    private function invitacionesPorExamen(array $examenIds): array
+    {
+        $filas = DB::table('invitaciones_examen as invitacion')
+            ->join('grupos as grupo', 'grupo.id', '=', 'invitacion.grupo_id')
+            ->leftJoin('docentes as docente', 'docente.id', '=', 'grupo.docente_id')
+            ->whereIn('invitacion.examen_id', $examenIds)
+            ->orderBy('grupo.codigo')
+            ->orderBy('invitacion.id')
+            ->get([
+                'invitacion.id',
+                'invitacion.examen_id',
+                'invitacion.grupo_id',
+                'invitacion.estado',
+                'grupo.codigo',
+                'docente.nombre_completo as docente',
+            ]);
+
+        $porExamen = [];
+
+        foreach ($filas as $fila) {
+            $columnas = $this->columnas($fila);
+
+            $porExamen[$this->entero($columnas['examen_id'] ?? null)][] = new InvitacionDeExamenData(
+                id: $this->entero($columnas['id'] ?? null),
+                grupoId: $this->entero($columnas['grupo_id'] ?? null),
+                grupoCodigo: $this->cadena($columnas['codigo'] ?? null),
+                docente: $this->texto($columnas['docente'] ?? null),
+                estado: $this->cadena($columnas['estado'] ?? null),
+            );
+        }
+
+        return $porExamen;
     }
 
     /**

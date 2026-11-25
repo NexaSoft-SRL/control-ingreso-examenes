@@ -12,8 +12,8 @@ use App\Modules\Examenes\Domain\Exceptions\DatoInvalidoException;
 
 /**
  * Registra el examen de una vez, con sus grupos, sus aulas, quien las
- * atiende y sus normas. Puede sumar grupos de otros docentes sin pedirles aprobacion:
- * queda en la bitacora.
+ * atiende y sus normas. Los grupos de otros docentes no entran solos: se
+ * les invita y entran cuando aceptan (queda en la bitacora).
  */
 final readonly class RegistrarExamen
 {

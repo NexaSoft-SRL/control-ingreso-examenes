@@ -14,6 +14,7 @@ use App\Modules\Examenes\Application\DTOs\AulaDetalleData;
 use App\Modules\Examenes\Application\DTOs\ExamenDetalleData;
 use App\Modules\Examenes\Application\DTOs\ExamenResumenData;
 use App\Modules\Examenes\Application\DTOs\GrupoDeExamenData;
+use App\Modules\Examenes\Application\DTOs\InvitacionDeExamenData;
 use App\Modules\Examenes\Application\DTOs\NormaMarcadaData;
 use App\Modules\Examenes\Application\DTOs\PersonaData;
 use App\Modules\Examenes\Application\Queries\ConsultarExamen;
@@ -261,6 +262,7 @@ final class ExamenController
             'con_ingresos' => $examen->conIngresos,
             'con_incidencias' => $examen->conIncidencias,
             'codigos_aula' => $examen->codigosDeAula,
+            'invitados_pendientes' => $examen->invitadosPendientes,
         ];
     }
 
@@ -289,6 +291,16 @@ final class ExamenController
                     'propio' => $grupo->propio,
                 ],
                 $examen->grupos,
+            ),
+            'invitaciones' => array_map(
+                static fn (InvitacionDeExamenData $invitacion): array => [
+                    'id' => $invitacion->id,
+                    'grupo_id' => $invitacion->grupoId,
+                    'grupo_codigo' => $invitacion->grupoCodigo,
+                    'docente' => $invitacion->docente,
+                    'estado' => $invitacion->estado,
+                ],
+                $examen->invitaciones,
             ),
             'aulas_detalle' => array_map(
                 static fn (AulaDetalleData $aula): array => [

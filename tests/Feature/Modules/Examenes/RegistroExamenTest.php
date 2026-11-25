@@ -170,7 +170,7 @@ final class RegistroExamenTest extends TestCase
             ->assertCreated();
     }
 
-    public function test_groups_of_other_teachers_can_be_added_without_their_approval(): void
+    public function test_groups_of_other_teachers_are_invited_and_the_rest_enter_directly(): void
     {
         $docente = $this->docente();
         $otro = $this->docente('Taborga Acha Fidel');
@@ -182,21 +182,46 @@ final class RegistroExamenTest extends TestCase
         $this->actingAs($this->cuenta($docente))
             ->postJson('/api/examenes', $this->cuerpo($asignatura, [$propio, $ajeno, $sinDocente]))
             ->assertCreated()
-            ->assertJsonPath('data.grupos', ['1', '2', '3'])
-            ->assertJsonPath('data.grupos_detalle.1.docente', 'Taborga Acha Fidel')
-            ->assertJsonPath('data.grupos_detalle.1.propio', false)
-            ->assertJsonPath('data.grupos_detalle.2.docente', null);
+            ->assertJsonPath('data.grupos', ['1', '3'])
+            ->assertJsonPath('data.grupos_detalle.1.docente', null)
+            ->assertJsonPath('data.invitados_pendientes', 1)
+            ->assertJsonPath('data.invitaciones.0.grupo_id', $ajeno->id)
+            ->assertJsonPath('data.invitaciones.0.grupo_codigo', '2')
+            ->assertJsonPath('data.invitaciones.0.docente', 'Taborga Acha Fidel')
+            ->assertJsonPath('data.invitaciones.0.estado', 'pendiente');
 
-        $this->assertDatabaseHas('bitacora_operaciones', [
-            'operacion' => 'examen.registrar',
-            'usuario_id' => $docente->user_id,
+        $this->assertDatabaseCount('examen_grupo', 2);
+        $this->assertDatabaseHas('invitaciones_examen', [
+            'grupo_id' => $ajeno->id,
+            'invitado_por' => $docente->user_id,
+            'estado' => 'pendiente',
         ]);
+
         $descripcion = DB::table('bitacora_operaciones')
-            ->where('operacion', 'examen.registrar')
+            ->where('operacion', 'examen.invitar')
+            ->where('usuario_id', $docente->user_id)
             ->value('descripcion');
 
         $this->assertIsString($descripcion);
-        $this->assertStringContainsString('De otros docentes: 2, 3.', $descripcion);
+        $this->assertStringContainsString('grupo 2 (Taborga Acha Fidel)', $descripcion);
+        $this->assertDatabaseHas('bitacora_operaciones', ['operacion' => 'examen.registrar']);
+    }
+
+    public function test_an_exam_needs_at_least_one_group_that_enters_directly(): void
+    {
+        $docente = $this->docente();
+        $otro = $this->docente();
+        $asignatura = $this->asignatura();
+        $this->grupo($docente, $asignatura, '1');
+        $ajeno = $this->grupo($otro, $asignatura, '2');
+
+        $this->actingAs($this->cuenta($docente))
+            ->postJson('/api/examenes', $this->cuerpo($asignatura, [$ajeno]))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.grupos.0', 'Incluya al menos un grupo suyo.');
+
+        $this->assertSame(0, Examen::count());
+        $this->assertDatabaseCount('invitaciones_examen', 0);
     }
 
     public function test_the_subject_must_have_a_group_of_the_teacher_in_a_current_period(): void
@@ -372,7 +397,8 @@ final class RegistroExamenTest extends TestCase
                 ],
             ]))
             ->assertCreated()
-            ->assertJsonPath('data.grupos_detalle.*.docente_usuario_id', [$docente->user_id, $sumado->user_id])
+            ->assertJsonPath('data.grupos_detalle.*.docente_usuario_id', [$docente->user_id])
+            ->assertJsonPath('data.invitaciones.0.docente', 'Taborga Acha Fidel')
             ->assertJsonPath('data.aulas_detalle.1.encargado.id', $sumado->user_id)
             ->assertJsonPath('data.aulas_detalle.1.encargado.nombre', 'Taborga Acha Fidel')
             ->assertJsonPath('data.aulas_detalle.1.encargado.es_docente', true)

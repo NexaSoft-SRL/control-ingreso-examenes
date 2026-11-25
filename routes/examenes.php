@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Modules\Examenes\Http\Controllers\AuxiliarController;
 use App\Modules\Examenes\Http\Controllers\CodigoAulaController;
 use App\Modules\Examenes\Http\Controllers\ExamenController;
+use App\Modules\Examenes\Http\Controllers\InvitacionExamenController;
 use App\Modules\Examenes\Http\Controllers\OpcionesExamenController;
 use App\Modules\Examenes\Http\Controllers\PlantillaNormaController;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +28,17 @@ Route::prefix('api')
         Route::get('/examenes/opciones/choques', [OpcionesExamenController::class, 'choques'])
             ->name('examenes.opciones.choques');
 
+        Route::get('/examenes/invitaciones', [InvitacionExamenController::class, 'index'])
+            ->name('examenes.invitaciones.index');
+
+        Route::post('/examenes/invitaciones/{invitacion}/aceptar', [InvitacionExamenController::class, 'aceptar'])
+            ->whereNumber('invitacion')
+            ->name('examenes.invitaciones.aceptar');
+
+        Route::post('/examenes/invitaciones/{invitacion}/rechazar', [InvitacionExamenController::class, 'rechazar'])
+            ->whereNumber('invitacion')
+            ->name('examenes.invitaciones.rechazar');
+
         Route::post('/examenes', [ExamenController::class, 'store'])->name('examenes.store');
 
         Route::get('/examenes/{examen}', [ExamenController::class, 'show'])
@@ -40,6 +52,10 @@ Route::prefix('api')
         Route::delete('/examenes/{examen}', [ExamenController::class, 'destroy'])
             ->whereNumber('examen')
             ->name('examenes.destroy');
+
+        Route::post('/examenes/{examen}/salir', [InvitacionExamenController::class, 'salir'])
+            ->whereNumber('examen')
+            ->name('examenes.salir');
 
         Route::post('/examenes/{examen}/finalizar', [ExamenController::class, 'finalizar'])
             ->whereNumber('examen')

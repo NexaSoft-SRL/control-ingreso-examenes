@@ -75,7 +75,7 @@ final readonly class ActualizarExamen
             || $actual->fecha !== $datos->fecha
             || $actual->horaInicio !== $datos->horaInicio
             || $actual->duracionMinutos !== $datos->duracionMinutos
-            || $this->ordenados($actual->grupos) !== $this->ordenados($datos->grupos)
+            || $this->ordenados($actual->grupos) !== $this->ordenados(array_values(array_diff($datos->grupos, $actual->invitados)))
             || array_diff($actual->aulas, $aulas) !== [];
     }
 
