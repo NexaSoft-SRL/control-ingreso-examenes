@@ -13,6 +13,7 @@ import {
     LayoutGrid,
     ListChecks,
     MapPin,
+    Plus,
     ScrollText,
     Tag,
     UserCheck,
@@ -205,6 +206,63 @@ FilaGrupo.propTypes = {
     marcado: PropTypes.bool.isRequired,
     onCambiar: PropTypes.func.isRequired,
     bloqueado: PropTypes.bool,
+};
+
+// Los grupos de una asignatura que se suma al examen en el mismo paso: los
+// propios vienen marcados y los de otros docentes se pueden sumar.
+function GruposDeExtra({ asignatura, elegidos, onElegidos, onDatos, quitar }) {
+    const opciones = usarConsulta('/examenes/opciones/grupos', {
+        parametros: { asignatura_id: asignatura.id },
+    });
+    const propios = opciones.datos?.propios ?? [];
+    const otros = opciones.datos?.otros ?? [];
+    const cargado = Boolean(opciones.datos);
+    const ids = elegidos ?? propios.map((g) => g.id);
+    useEffect(() => {
+        if (cargado) onDatos(asignatura.id, { propios, otros });
+        // Solo cuando llegan los grupos de la asignatura.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [cargado, asignatura.id]);
+
+    return (
+        <section aria-label={`Grupos de ${asignatura.nombre}`} className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+                <h3 className="min-w-0 truncate text-sm font-semibold text-slate-900">
+                    {asignatura.nombre}
+                </h3>
+                <Boton type="button" variante="enlace" tamano="chico" onClick={quitar}>
+                    Quitar
+                </Boton>
+            </div>
+            <EstadoCarga
+                cargando={opciones.cargando}
+                error={opciones.error}
+                onReintentar={opciones.recargar}
+                filas={2}
+            >
+                <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200">
+                    {[...propios, ...otros].map((g) => (
+                        <FilaGrupo
+                            key={g.id}
+                            g={g}
+                            marcado={ids.includes(g.id)}
+                            onCambiar={() => onElegidos(alternar(ids, g.id))}
+                        />
+                    ))}
+                </ul>
+                {propios.length === 0 && otros.length === 0 && <p className={VACIO}>Sin grupos</p>}
+            </EstadoCarga>
+        </section>
+    );
+}
+
+GruposDeExtra.propTypes = {
+    asignatura: PropTypes.shape({ id: PropTypes.number.isRequired, nombre: PropTypes.string })
+        .isRequired,
+    elegidos: PropTypes.arrayOf(PropTypes.number),
+    onElegidos: PropTypes.func.isRequired,
+    onDatos: PropTypes.func.isRequired,
+    quitar: PropTypes.func.isRequired,
 };
 
 // `compartida`: otro examen usa el aula a esa hora. Es aviso, no impide.
@@ -518,6 +576,12 @@ function Asistente({
             null
     );
     const fechaBase = base && base.fecha >= hoy ? base.fecha : undefined;
+    // Otras asignaturas que se dan ese mismo día: cada una será su examen, con
+    // la misma fecha, hora, aulas y personal. Solo al registrar uno nuevo.
+    // `grupos`: null mientras no se toquen (valen sus grupos propios).
+    const [extras, setExtras] = useState([]);
+    const [gruposDeExtra, setGruposDeExtra] = useState({});
+    const [tambien, setTambien] = useState({ hechos: [], fallos: [] });
     const periodoDe = (id) =>
         periodos.find((p) => p.codigo === asignaturas.find((a) => a.id === id)?.periodo) ?? null;
     // Un tipo cuya ventana ya terminó no se ofrece para un examen nuevo.
@@ -630,7 +694,21 @@ function Asistente({
     const todos = [...propios, ...otrosTodos];
     const elegidosIds = grupos ?? propios.map((g) => g.id);
     const elegidos = todos.filter((g) => elegidosIds.includes(g.id));
-    const inscritos = elegidos.reduce((s, g) => s + (g.inscritos ?? 0), 0);
+    const idsDeExtra = (e) => e.grupos ?? (gruposDeExtra[e.id]?.propios ?? []).map((g) => g.id);
+    const inscritosDeExtras = extras.reduce((suma, e) => {
+        const { propios: suyos = [], otros: ajenos = [] } = gruposDeExtra[e.id] ?? {};
+        return (
+            suma +
+            [...suyos, ...ajenos]
+                .filter((g) => idsDeExtra(e).includes(g.id))
+                .reduce((s, g) => s + (g.inscritos ?? 0), 0)
+        );
+    }, 0);
+    const todosLosGrupos = [...elegidosIds, ...extras.flatMap(idsDeExtra)];
+    const extraVacio = extras.some(
+        (e) => gruposDeExtra[e.id] !== undefined && idsDeExtra(e).length === 0
+    );
+    const inscritos = elegidos.reduce((s, g) => s + (g.inscritos ?? 0), 0) + inscritosDeExtras;
     const textoGrupo = normalizar(buscado.trim());
     const otros = otrosTodos.filter(
         (g) =>
@@ -646,7 +724,7 @@ function Asistente({
     const enAulas = paso === 2;
     const opcionesAulas = usarConsulta('/examenes/opciones/aulas', {
         parametros: {
-            grupos: elegidosIds,
+            grupos: todosLosGrupos,
             fecha,
             hora_inicio: hora,
             duracion_minutos: Number(duracion),
@@ -752,6 +830,7 @@ function Asistente({
 
     const cambiarAsignatura = (valor) => {
         setAsignaturaId(Number(valor));
+        setExtras((previos) => previos.filter((e) => e.id !== Number(valor)));
         if (!bloqueado) ajustarFecha(periodoDe(Number(valor)), tipo);
         setGrupos(null);
         setAulas([]);
@@ -905,6 +984,29 @@ function Asistente({
             setAulas((guardado.aulas_detalle ?? []).map((a) => a.aula_id));
             setPersonal(personalDe(guardado, usuario.id));
             setConCodigo(conCodigoDe(guardado));
+            // Las otras asignaturas del día: un examen más por cada una, con lo mismo.
+            if (!examen && extras.length > 0) {
+                const hechos = [];
+                const fallos = [];
+                for (const extra of extras) {
+                    try {
+                        const respuesta = await api.post('/examenes', {
+                            ...cuerpo,
+                            asignatura_id: extra.id,
+                            grupos: idsDeExtra(extra),
+                        });
+                        hechos.push({ id: respuesta.data.data.id, nombre: extra.nombre });
+                    } catch (falla) {
+                        const motivo = Object.values(erroresDe(falla))[0];
+                        fallos.push({
+                            nombre: extra.nombre,
+                            motivo: sinPunto(motivo ?? mensajeDe(falla, 'No se pudo registrar')),
+                        });
+                    }
+                }
+                setTambien({ hechos, fallos });
+                setExtras([]);
+            }
             setPaso(4);
             onExamen(guardado);
             avisar(sinPunto(data.message ?? (examen ? 'Examen guardado' : 'Examen registrado')));
@@ -967,6 +1069,73 @@ function Asistente({
                                 </p>
                             )}
                         </div>
+                        {!inicial && !examen && asignaturas.length > 1 && (
+                            <div className="min-w-0 sm:col-span-2">
+                                {extras.length > 0 && (
+                                    <ul
+                                        aria-label="Otras asignaturas del mismo día"
+                                        className="mb-2 flex flex-wrap gap-2"
+                                    >
+                                        {extras.map((e) => (
+                                            <li key={e.id}>
+                                                <span className="inline-flex min-h-9 items-center gap-1 rounded-full bg-primary-50 py-1 pl-3 pr-1 text-sm font-medium text-primary-800">
+                                                    {e.nombre}
+                                                    <button
+                                                        type="button"
+                                                        aria-label={`Quitar ${e.nombre}`}
+                                                        onClick={() =>
+                                                            setExtras((previos) =>
+                                                                previos.filter((x) => x.id !== e.id)
+                                                            )
+                                                        }
+                                                        className={`flex h-7 w-7 items-center justify-center rounded-full hover:bg-primary-100 ${FOCO}`}
+                                                    >
+                                                        <X className="h-4 w-4" aria-hidden="true" />
+                                                    </button>
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                                {asignaturas.filter(
+                                    (a) =>
+                                        a.id !== asignaturaId && !extras.some((e) => e.id === a.id)
+                                ).length > 0 && (
+                                    <Seleccion
+                                        etiqueta="Agregar otra asignatura de ese día"
+                                        icono={Plus}
+                                        value=""
+                                        onChange={(evento) => {
+                                            const elegida = asignaturas.find(
+                                                (a) => a.id === Number(evento.target.value)
+                                            );
+                                            if (elegida)
+                                                setExtras((previos) => [
+                                                    ...previos,
+                                                    {
+                                                        id: elegida.id,
+                                                        nombre: elegida.nombre,
+                                                        grupos: null,
+                                                    },
+                                                ]);
+                                        }}
+                                    >
+                                        <option value="">Ninguna más</option>
+                                        {asignaturas
+                                            .filter(
+                                                (a) =>
+                                                    a.id !== asignaturaId &&
+                                                    !extras.some((e) => e.id === a.id)
+                                            )
+                                            .map((a) => (
+                                                <option key={a.id} value={a.id}>
+                                                    {a.nombre}
+                                                </option>
+                                            ))}
+                                    </Seleccion>
+                                )}
+                            </div>
+                        )}
                         <div className="min-w-0">
                             <Seleccion
                                 etiqueta="Tipo"
@@ -1217,6 +1386,30 @@ function Asistente({
                             </div>
                         </div>
                     </EstadoCarga>
+                    {extras.length > 0 && (
+                        <div className="mt-5 space-y-4 border-t border-slate-200 pt-4">
+                            {extras.map((e) => (
+                                <GruposDeExtra
+                                    key={e.id}
+                                    asignatura={e}
+                                    elegidos={e.grupos}
+                                    onElegidos={(siguiente) =>
+                                        setExtras((previos) =>
+                                            previos.map((x) =>
+                                                x.id === e.id ? { ...x, grupos: siguiente } : x
+                                            )
+                                        )
+                                    }
+                                    onDatos={(id, datos) =>
+                                        setGruposDeExtra((previos) => ({ ...previos, [id]: datos }))
+                                    }
+                                    quitar={() =>
+                                        setExtras((previos) => previos.filter((x) => x.id !== e.id))
+                                    }
+                                />
+                            ))}
+                        </div>
+                    )}
                     {errorDe('grupos') && (
                         <p role="alert" className={ERROR}>
                             {errorDe('grupos')}
@@ -1224,7 +1417,7 @@ function Asistente({
                     )}
                     <div className="mt-4">
                         <ChoquesDeEstudiantes
-                            grupos={elegidosIds}
+                            grupos={todosLosGrupos}
                             fecha={fecha}
                             hora={hora}
                             duracion={Number(duracion)}
@@ -1237,12 +1430,16 @@ function Asistente({
                         <Boton type="button" variante="secundario" onClick={() => setPaso(0)}>
                             Atrás
                         </Boton>
-                        {!cargandoGrupos && elegidosIds.length === 0 && (
-                            <p className="text-sm text-slate-600">Elija al menos un grupo</p>
+                        {!cargandoGrupos && (elegidosIds.length === 0 || extraVacio) && (
+                            <p className="text-sm text-slate-600">
+                                {extras.length > 0
+                                    ? 'Elija al menos un grupo de cada asignatura'
+                                    : 'Elija al menos un grupo'}
+                            </p>
                         )}
                         <Boton
                             type="button"
-                            disabled={cargandoGrupos || elegidosIds.length === 0}
+                            disabled={cargandoGrupos || elegidosIds.length === 0 || extraVacio}
                             onClick={() => setPaso(2)}
                         >
                             Continuar: Aulas <ArrowRight className="h-4 w-4" />
@@ -1488,6 +1685,38 @@ function Asistente({
 
             {paso === 4 && examen && (
                 <Resumen examen={examen} recien onAviso={avisar} onElegirAulas={() => setPaso(2)} />
+            )}
+            {paso === 4 && tambien.hechos.length > 0 && (
+                <Tarjeta titulo="También registrados" icono={CheckCircle2}>
+                    <ul className="divide-y divide-slate-200">
+                        {tambien.hechos.map((e) => (
+                            <li key={e.id} className="flex items-center justify-between gap-3 py-2">
+                                <span className="min-w-0 truncate text-sm font-medium text-slate-800">
+                                    {e.nombre}
+                                </span>
+                                <Link
+                                    to={rutaDelExamen(e.id)}
+                                    className={`shrink-0 rounded-lg px-1 text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
+                                >
+                                    Abrir
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
+                </Tarjeta>
+            )}
+            {paso === 4 && tambien.fallos.length > 0 && (
+                <ul
+                    role="alert"
+                    aria-label="Sin registrar"
+                    className="space-y-1 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-700"
+                >
+                    {tambien.fallos.map((f) => (
+                        <li key={f.nombre}>
+                            <strong>{f.nombre}</strong> no se registró · {f.motivo}
+                        </li>
+                    ))}
+                </ul>
             )}
             {acceso && examen && (
                 <CodigoDeAula

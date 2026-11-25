@@ -1750,6 +1750,46 @@ describe('RegistrarExamen · guardar', () => {
         );
     });
 
+    it('con otra asignatura del día registra un examen por cada una, con los grupos propios marcados', async () => {
+        montar();
+        cambiar(await screen.findByLabelText(/Agregar otra asignatura/), '53');
+        expect(screen.getByRole('button', { name: 'Quitar Taller de Ingeniería de Software' }));
+
+        await llenarExamen();
+        const taller = screen.getByRole('region', {
+            name: 'Grupos de Taller de Ingeniería de Software',
+        });
+        expect(
+            await within(taller).findByRole('checkbox', { name: /^Grupo 2 · Blanco/ })
+        ).toBeChecked();
+        expect(within(taller).getByRole('checkbox', { name: /^Grupo 5 · Blanco/ })).toBeChecked();
+        // Los inscritos de las dos asignaturas: 65 de Introducción + 46 + 30 de Taller.
+        expect(await screen.findByText('141 inscritos')).toBeInTheDocument();
+
+        pulsar(/Continuar/);
+        await screen.findByRole('heading', { name: '3. Aulas' });
+        await guardar('Registrar examen');
+
+        expect(await screen.findByText('Examen registrado')).toBeInTheDocument();
+        expect(api.post).toHaveBeenCalledTimes(2);
+        expect(api.post).toHaveBeenNthCalledWith(
+            1,
+            '/examenes',
+            expect.objectContaining({ asignatura_id: 20, grupos: [37] })
+        );
+        expect(api.post).toHaveBeenNthCalledWith(
+            2,
+            '/examenes',
+            expect.objectContaining({ asignatura_id: 53, grupos: [100, 101], fecha: '2026-10-20' })
+        );
+        const tambien = await screen.findByText('También registrados');
+        expect(
+            within(tambien.closest('section') ?? tambien.parentElement).getByText(
+                'Taller de Ingeniería de Software'
+            )
+        ).toBeInTheDocument();
+    });
+
     it('sin normas también se registra', async () => {
         montar();
         await irAAulas();
