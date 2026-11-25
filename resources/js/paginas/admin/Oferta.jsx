@@ -200,24 +200,58 @@ export default function Oferta() {
     });
     const [abierta, setAbierta] = useState(null);
 
-    // Se abre en la primera facultad del catálogo, como llega de la sesión.
-    const facultad = lista.filtros.facultad ?? facultades[0]?.clave ?? null;
-    const { periodo, carrera, nivel, sin_lista: sinLista } = lista.filtros;
-    const parametros = { ...lista.parametros, facultad };
+    const { periodo, nivel, sin_lista: sinLista } = lista.filtros;
 
     const vigentes = usarConsulta('/periodos/vigentes');
     const detectados = usarConsulta('/periodos', { parametros: { por_pagina: 100 } });
+
+    // Los filtros van encadenados: período → facultad → carrera → nivel. Cada
+    // uno solo ofrece lo que tiene oferta en el período elegido, y si lo que
+    // estaba elegido ya no vale, pasa solo al primero que vale (la facultad) o
+    // a «Todas» (la carrera).
+    const conOferta = usarConsulta('/oferta/facultades', { parametros: { periodo } });
+    const delCatalogo = (claves) => facultades.filter((f) => claves.includes(f.clave));
+    // Mientras llega la respuesta nueva se siguen mostrando las opciones
+    // anteriores, pero no se consulta nada con ellas.
+    const opcionesDeFacultad = conOferta.datos ? delCatalogo(conOferta.datos) : facultades;
+    const disponibles = conOferta.vigente
+        ? delCatalogo(conOferta.datos ?? [])
+        : conOferta.error
+          ? facultades
+          : null;
+    const facultad =
+        disponibles === null
+            ? null
+            : (disponibles.find((f) => f.clave === lista.filtros.facultad)?.clave ??
+              disponibles[0]?.clave ??
+              null);
+    const sinOferta = disponibles !== null && disponibles.length === 0;
+
     const carreras = usarConsulta('/oferta/carreras', {
-        parametros: { facultad },
+        parametros: { facultad, periodo, con_oferta: 1 },
         activa: facultad !== null,
     });
+    const opcionesDeCarrera = carreras.datos ?? [];
+    const pedida = String(lista.filtros.carrera ?? '');
+    // Una carrera elegida se comprueba contra la lista de este período y de
+    // esta facultad antes de pedir las asignaturas.
+    const carrera =
+        pedida === ''
+            ? ''
+            : carreras.vigente
+              ? opcionesDeCarrera.some((c) => String(c.id) === pedida)
+                  ? pedida
+                  : ''
+              : null;
+    const listo = facultad !== null && carrera !== null;
+    const parametros = { ...lista.parametros, facultad, carrera };
     const { datos, meta, cargando, error, recargar } = usarConsulta('/oferta/asignaturas', {
         parametros,
-        activa: facultad !== null,
+        activa: listo,
     });
 
     const sigla = facultades.find((f) => f.clave === facultad)?.sigla ?? null;
-    const elegida = (carreras.datos ?? []).find((c) => String(c.id) === String(carrera)) ?? null;
+    const elegida = opcionesDeCarrera.find((c) => String(c.id) === String(carrera)) ?? null;
     const pedido = (detectados.datos ?? []).find((p) => String(p.id) === String(periodo));
     const periodos = (pedido ? [pedido] : periodosDe(vigentes.datos ?? [], elegida)).map(
         (p) => p.codigo
@@ -236,7 +270,7 @@ export default function Oferta() {
         <div className="space-y-6">
             <Encabezado titulo="Oferta académica" subtitulo={subtitulo || undefined} />
 
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-[9.5rem_7rem_minmax(0,1.4fr)_9.5rem_minmax(0,1fr)]">
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-[9.5rem_8.5rem_minmax(0,1.4fr)_9.5rem_minmax(0,1fr)]">
                 <Seleccion
                     etiqueta="Período"
                     icono={CalendarRange}
@@ -248,23 +282,27 @@ export default function Oferta() {
                     }}
                 >
                     <option value="">Vigentes</option>
-                    {(detectados.datos ?? []).map((p) => (
-                        <option key={p.id} value={p.id}>
-                            {p.estado === 'Vigente' ? p.codigo : `${p.codigo} · ${p.estado}`}
-                        </option>
-                    ))}
+                    {(detectados.datos ?? [])
+                        .filter((p) => (p.grupos ?? 0) > 0 || String(p.id) === String(periodo))
+                        .map((p) => (
+                            <option key={p.id} value={p.id}>
+                                {p.estado === 'Vigente' ? p.codigo : `${p.codigo} · ${p.estado}`}
+                            </option>
+                        ))}
                 </Seleccion>
                 <Seleccion
                     etiqueta="Facultad"
                     icono={Building2}
                     className="min-w-0"
-                    value={facultad ?? ''}
+                    value={facultad ?? lista.filtros.facultad ?? ''}
+                    disabled={sinOferta}
                     onChange={(e) => {
                         lista.ponerFiltros({ facultad: e.target.value, carrera: '', nivel: '' });
                         setAbierta(null);
                     }}
                 >
-                    {facultades.map((f) => (
+                    {sinOferta && <option value="">—</option>}
+                    {opcionesDeFacultad.map((f) => (
                         <option key={f.clave} value={f.clave}>
                             {f.sigla}
                         </option>
@@ -274,14 +312,15 @@ export default function Oferta() {
                     etiqueta="Carrera"
                     icono={GraduationCap}
                     className="order-last col-span-2 min-w-0 sm:order-none sm:col-span-1"
-                    value={carrera}
+                    value={carrera ?? pedida}
+                    disabled={sinOferta}
                     onChange={(e) => {
                         lista.ponerFiltros({ carrera: e.target.value, nivel: '' });
                         setAbierta(null);
                     }}
                 >
                     <option value="">Todas</option>
-                    {(carreras.datos ?? []).map((c) => (
+                    {opcionesDeCarrera.map((c) => (
                         <option key={c.id} value={c.id}>
                             {c.nombre}
                         </option>
@@ -292,6 +331,7 @@ export default function Oferta() {
                     icono={Layers}
                     className="min-w-0"
                     value={nivel}
+                    disabled={sinOferta}
                     onChange={(e) => lista.ponerFiltro('nivel', e.target.value)}
                 >
                     <option value="">Todos</option>
@@ -338,10 +378,10 @@ export default function Oferta() {
                 }
             >
                 <EstadoCarga
-                    cargando={cargando || facultad === null}
+                    cargando={!sinOferta && (cargando || !listo)}
                     error={error}
-                    vacio={datos?.length === 0}
-                    textoVacio="Sin resultados"
+                    vacio={sinOferta || datos?.length === 0}
+                    textoVacio={sinOferta ? 'Sin oferta en este período' : 'Sin resultados'}
                     onReintentar={recargar}
                     filas={8}
                 >

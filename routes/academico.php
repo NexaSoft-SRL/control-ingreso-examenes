@@ -45,6 +45,8 @@ Route::prefix('api')->middleware(['auth', 'permiso:periodo_oferta'])->group(func
 
     Route::post('/oferta/importaciones', [ImportacionOfertaController::class, 'store'])
         ->name('oferta.importaciones.store');
+    Route::get('/oferta/facultades', [OfertaController::class, 'facultades'])
+        ->name('oferta.facultades');
     Route::get('/oferta/asignaturas', [OfertaController::class, 'asignaturas'])
         ->name('oferta.asignaturas');
     Route::get('/oferta/asignaturas/{asignatura}/grupos', [OfertaController::class, 'grupos'])

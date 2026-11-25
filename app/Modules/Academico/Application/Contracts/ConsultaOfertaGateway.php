@@ -60,9 +60,23 @@ interface ConsultaOfertaGateway
     public function importacionEnCurso(string $claveFacultad, int $minutos): bool;
 
     /**
+     * Las carreras de una facultad (o todas). Con `$periodoIds`, solo las que
+     * tienen oferta en esos períodos: una carrera anual en el período anual y
+     * una semestral en los semestres. Una lista vacía es «sin filtrar».
+     *
+     * @param  list<int>|null  $periodoIds
      * @return list<array{id: int, codigo: string, nombre: string, regimen: string}>
      */
-    public function carreras(?string $claveFacultad): array;
+    public function carreras(?string $claveFacultad, ?array $periodoIds = null): array;
+
+    /**
+     * Las claves de las facultades con grupos en esos períodos, en el orden
+     * del catálogo. Una lista vacía es «sin filtrar».
+     *
+     * @param  list<int>  $periodoIds
+     * @return list<string>
+     */
+    public function facultadesConOferta(array $periodoIds): array;
 
     /**
      * @param  list<int>  $periodoIds
