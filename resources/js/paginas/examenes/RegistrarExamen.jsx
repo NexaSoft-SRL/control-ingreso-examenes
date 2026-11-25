@@ -218,10 +218,9 @@ FilaGrupo.propTypes = {
     bloqueado: PropTypes.bool,
 };
 
-// Los grupos de UNA asignatura del examen, igual para todas: sus grupos
-// propios marcados y, aparte, los de otros docentes a quienes se invita. Con
-// varias asignaturas cada una lleva su cabecera con lo elegido y las
-// invitaciones empiezan plegadas.
+// Los grupos de UNA asignatura del examen, igual para todas (una o varias):
+// cabecera con lo elegido, sus grupos propios marcados y, aparte, los de otros
+// docentes con los que se colabora, plegados hasta que se abren.
 function SeccionGrupos({
     asignatura,
     conCabecera,
@@ -235,7 +234,7 @@ function SeccionGrupos({
     onReintentar,
 }) {
     const [buscado, setBuscado] = useState('');
-    const [abierto, setAbierto] = useState(!conCabecera);
+    const [desplegado, setDesplegado] = useState(false);
     const texto = normalizar(buscado.trim());
     const visibles = otros.filter(
         (g) =>
@@ -246,6 +245,8 @@ function SeccionGrupos({
     const elegidos = [...propios, ...otros].filter((g) => elegidosIds.includes(g.id));
     const inscritos = elegidos.reduce((suma, g) => suma + (g.inscritos ?? 0), 0);
     const sinGrupos = !cargando && elegidos.length === 0;
+    // Con grupos de otros docentes ya elegidos, la lista queda a la vista.
+    const abierto = desplegado || deOtros > 0;
 
     const cuerpo = (
         <EstadoCarga cargando={cargando} error={error} onReintentar={onReintentar} filas={3}>
@@ -270,105 +271,107 @@ function SeccionGrupos({
                         <p className={VACIO}>Sin grupos</p>
                     )}
                 </div>
-                <div>
-                    <div className="mb-1.5 flex min-h-9 flex-wrap items-center justify-between gap-x-3">
-                        {conCabecera ? (
-                            <button
-                                type="button"
-                                aria-expanded={abierto}
-                                onClick={() => setAbierto((previo) => !previo)}
-                                className={`-ml-1 flex min-h-9 items-center gap-1 rounded-lg px-1 text-xs font-semibold uppercase tracking-wide text-slate-600 hover:text-slate-900 ${FOCO}`}
-                            >
-                                <ChevronDown
-                                    className={`h-4 w-4 transition-transform ${abierto ? '' : '-rotate-90'}`}
-                                    aria-hidden="true"
-                                />
-                                Para colaborar, añade grupos de otros docentes · {deOtros} de{' '}
-                                {otros.length}
-                            </button>
-                        ) : (
-                            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                                Para colaborar, añade grupos de otros docentes · {deOtros} de{' '}
-                                {otros.length}
-                            </h3>
-                        )}
-                        {abierto && otros.length > 1 && !bloqueado && (
-                            <span className="-mr-2 flex">
-                                <Boton
+                {otros.length > 0 && (
+                    <div>
+                        <div className="mb-1.5 flex min-h-9 flex-wrap items-center justify-between gap-x-3">
+                            {conCabecera ? (
+                                <button
                                     type="button"
-                                    variante="enlace"
-                                    tamano="chico"
-                                    onClick={() =>
-                                        onCambiar([
-                                            ...new Set([
-                                                ...elegidosIds,
-                                                ...visibles.map((g) => g.id),
-                                            ]),
-                                        ])
-                                    }
+                                    aria-expanded={abierto}
+                                    onClick={() => setDesplegado((previo) => !previo)}
+                                    className={`-ml-1 flex min-h-9 items-center gap-1 rounded-lg px-1 text-xs font-semibold uppercase tracking-wide text-slate-600 hover:text-slate-900 ${FOCO}`}
                                 >
-                                    Todos
-                                </Boton>
-                                <Boton
-                                    type="button"
-                                    variante="enlace"
-                                    tamano="chico"
-                                    onClick={() =>
-                                        onCambiar(
-                                            elegidosIds.filter(
-                                                (id) => !visibles.some((g) => g.id === id)
-                                            )
-                                        )
-                                    }
-                                >
-                                    Ninguno
-                                </Boton>
-                            </span>
-                        )}
-                    </div>
-                    {abierto && (
-                        <>
-                            {muchos && (
-                                <Buscador
-                                    valor={buscado}
-                                    onCambiar={setBuscado}
-                                    placeholder="Grupo o docente"
-                                    etiqueta="Buscar grupo"
-                                    className="mb-2"
-                                />
+                                    <ChevronDown
+                                        className={`h-4 w-4 transition-transform ${abierto ? '' : '-rotate-90'}`}
+                                        aria-hidden="true"
+                                    />
+                                    Para colaborar, añade grupos de otros docentes · {deOtros} de{' '}
+                                    {otros.length}
+                                </button>
+                            ) : (
+                                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                                    Para colaborar, añade grupos de otros docentes · {deOtros} de{' '}
+                                    {otros.length}
+                                </h3>
                             )}
-                            {visibles.length > 0 ? (
-                                <div
-                                    className={`rounded-lg border border-slate-200 ${muchos ? 'max-h-80 overflow-y-auto' : ''}`}
-                                >
-                                    <ul
-                                        className={
-                                            muchos
-                                                ? 'grid divide-y divide-slate-200 md:grid-cols-2 md:gap-x-px md:divide-y-0 md:bg-slate-200 md:[&>li]:border-b md:[&>li]:border-slate-200 md:[&>li]:bg-white'
-                                                : 'divide-y divide-slate-200'
+                            {abierto && otros.length > 1 && !bloqueado && (
+                                <span className="-mr-2 flex">
+                                    <Boton
+                                        type="button"
+                                        variante="enlace"
+                                        tamano="chico"
+                                        onClick={() =>
+                                            onCambiar([
+                                                ...new Set([
+                                                    ...elegidosIds,
+                                                    ...visibles.map((g) => g.id),
+                                                ]),
+                                            ])
                                         }
                                     >
-                                        {visibles.map((g) => (
-                                            <FilaGrupo
-                                                key={g.id}
-                                                g={g}
-                                                marcado={elegidosIds.includes(g.id)}
-                                                bloqueado={bloqueado}
-                                                onCambiar={() =>
-                                                    onCambiar(alternar(elegidosIds, g.id))
-                                                }
-                                            />
-                                        ))}
-                                    </ul>
-                                </div>
-                            ) : (
-                                <p className={VACIO}>
-                                    {otros.length ? 'Sin resultados' : 'Sin grupos'}
-                                </p>
+                                        Todos
+                                    </Boton>
+                                    <Boton
+                                        type="button"
+                                        variante="enlace"
+                                        tamano="chico"
+                                        onClick={() =>
+                                            onCambiar(
+                                                elegidosIds.filter(
+                                                    (id) => !visibles.some((g) => g.id === id)
+                                                )
+                                            )
+                                        }
+                                    >
+                                        Ninguno
+                                    </Boton>
+                                </span>
                             )}
-                        </>
-                    )}
-                </div>
+                        </div>
+                        {abierto && (
+                            <>
+                                {muchos && (
+                                    <Buscador
+                                        valor={buscado}
+                                        onCambiar={setBuscado}
+                                        placeholder="Grupo o docente"
+                                        etiqueta="Buscar grupo"
+                                        className="mb-2"
+                                    />
+                                )}
+                                {visibles.length > 0 ? (
+                                    <div
+                                        className={`rounded-lg border border-slate-200 ${muchos ? 'max-h-80 overflow-y-auto' : ''}`}
+                                    >
+                                        <ul
+                                            className={
+                                                muchos
+                                                    ? 'grid divide-y divide-slate-200 md:grid-cols-2 md:gap-x-px md:divide-y-0 md:bg-slate-200 md:[&>li]:border-b md:[&>li]:border-slate-200 md:[&>li]:bg-white'
+                                                    : 'divide-y divide-slate-200'
+                                            }
+                                        >
+                                            {visibles.map((g) => (
+                                                <FilaGrupo
+                                                    key={g.id}
+                                                    g={g}
+                                                    marcado={elegidosIds.includes(g.id)}
+                                                    bloqueado={bloqueado}
+                                                    onCambiar={() =>
+                                                        onCambiar(alternar(elegidosIds, g.id))
+                                                    }
+                                                />
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ) : (
+                                    <p className={VACIO}>
+                                        {otros.length ? 'Sin resultados' : 'Sin grupos'}
+                                    </p>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )}
             </div>
         </EstadoCarga>
     );
@@ -1554,7 +1557,7 @@ function Asistente({
                     <div className="space-y-4">
                         <SeccionGrupos
                             asignatura={asignatura}
-                            conCabecera={extras.length > 0}
+                            conCabecera={Boolean(asignatura)}
                             propios={propios}
                             otros={otrosTodos}
                             elegidosIds={elegidosIds}

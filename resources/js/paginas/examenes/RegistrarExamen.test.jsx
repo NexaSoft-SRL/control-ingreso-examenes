@@ -406,6 +406,12 @@ async function llenarExamen({ fecha = '2026-10-20', hora = '08:15', duracion = '
     await screen.findByRole('heading', { name: '2. Grupos' });
 }
 
+// Los grupos de otros docentes empiezan plegados: se abren para marcarlos.
+async function abrirColaboracion() {
+    const boton = await screen.findByRole('button', { name: /Para colaborar, añade grupos/ });
+    if (boton.getAttribute('aria-expanded') === 'false') fireEvent.click(boton);
+}
+
 async function irAAulas(datos) {
     await llenarExamen(datos);
     await casilla(/^Grupo 2 · Blanco/);
@@ -658,7 +664,8 @@ describe('RegistrarExamen · paso 1, examen', () => {
         const grupos = screen.getAllByRole('checkbox');
         grupos.filter((c) => c.checked).forEach((c) => fireEvent.click(c));
 
-        expect(screen.getByText('Elija al menos un grupo')).toBeInTheDocument();
+        // Lo dice la cabecera de la asignatura y también junto al botón.
+        expect(screen.getAllByText('Elija al menos un grupo')).toHaveLength(2);
         expect(screen.getByRole('button', { name: /Continuar: Aulas/ })).toBeDisabled();
     });
 
@@ -830,6 +837,7 @@ describe('RegistrarExamen · paso 2, grupos', () => {
     it('trae marcados los propios, suma los de otros docentes y muestra el total', async () => {
         montar();
         await llenarExamen();
+        await abrirColaboracion();
 
         expect(await casilla(/^Grupo 2 · Blanco Coca Leticia/)).toBeChecked();
         expect(screen.getByText('65 inscritos')).toBeInTheDocument();
@@ -857,6 +865,7 @@ describe('RegistrarExamen · paso 2, grupos', () => {
     it('busca por grupo o por docente; «Todos» suma solo lo buscado', async () => {
         montar();
         await llenarExamen();
+        await abrirColaboracion();
         await casilla(/^Grupo 2 · Blanco/);
 
         cambiar(screen.getByLabelText('Buscar grupo'), 'montano');
@@ -1438,6 +1447,7 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
     it('ofrece a cargo a los docentes con cuenta de los grupos sumados', async () => {
         montar();
         await llenarExamen();
+        await abrirColaboracion();
         fireEvent.click(await casilla(/^Grupo 3 · Salazar/));
         // El docente del grupo 5 no tiene cuenta activa.
         fireEvent.click(await casilla(/^Grupo 5 · Montaño/));
@@ -1483,6 +1493,7 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
     it('al quitar el grupo, su docente deja el aula que tenía a cargo', async () => {
         montar();
         await llenarExamen();
+        await abrirColaboracion();
         fireEvent.click(await casilla(/^Grupo 3 · Salazar/));
         pulsar(/Continuar/);
         await screen.findByRole('list', { name: 'Aulas' });
@@ -1953,6 +1964,20 @@ describe('RegistrarExamen · guardar', () => {
         expect(screen.getByRole('button', { name: /Continuar: Aulas/ })).toBeDisabled();
     });
 
+    it('con una sola asignatura la sección se ve igual: cabecera con lo elegido y colaboración plegada', async () => {
+        montar();
+        await llenarExamen();
+
+        const seccion = await screen.findByRole('region', {
+            name: 'Grupos de Introducción a la Programación',
+        });
+        expect(within(seccion).getByText('1 grupo · 65 inscritos')).toBeVisible();
+        expect(
+            within(seccion).getByRole('button', { name: /Para colaborar, añade grupos/ })
+        ).toHaveAttribute('aria-expanded', 'false');
+        expect(within(seccion).queryByRole('checkbox', { name: /^Grupo 3 · Salazar/ })).toBeNull();
+    });
+
     it('sin normas también se registra', async () => {
         montar();
         await irAAulas();
@@ -2005,6 +2030,7 @@ describe('RegistrarExamen · guardar', () => {
         );
 
         // Al cambiar los grupos el mensaje se va.
+        await abrirColaboracion();
         fireEvent.click(await casilla(/^Grupo 3 · Salazar/));
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
