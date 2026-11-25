@@ -516,24 +516,23 @@ describe('Periodo', () => {
         expect(within(dialogo).getByRole('button', { name: 'Guardar fechas' })).toBeEnabled();
     });
 
-    it('«Actualizar períodos» pide la detección y vuelve a leer períodos y resumen (criterio 6)', async () => {
+    it('«Buscar períodos» pide la detección y vuelve a leer períodos y resumen (criterio 6)', async () => {
         const detectar = respuestaDiferida();
         simular({ 'POST /periodos/detectar': () => detectar.promesa });
         montar();
         await cargada();
 
         api.get.mockClear();
-        fireEvent.click(screen.getByRole('button', { name: 'Actualizar períodos' }));
-        expect(screen.getByRole('button', { name: 'Actualizando' })).toBeDisabled();
+        fireEvent.click(screen.getByRole('button', { name: 'Buscar períodos' }));
+        expect(screen.getByRole('button', { name: 'Buscando' })).toBeDisabled();
 
         detectar.resolver({ creados: 1, actualizados: 3 });
 
-        expect(
-            await screen.findByText('Períodos al día · 1 nuevos · 3 actualizados')
-        ).toBeInTheDocument();
+        // El resultado queda junto al título (no es un aviso que se va).
+        expect(await screen.findByText('Al día · 1 nuevo · 3 actualizados')).toBeInTheDocument();
         expect(api.post).toHaveBeenCalledWith('/periodos/detectar');
         await waitFor(() =>
-            expect(screen.getByRole('button', { name: 'Actualizar períodos' })).toBeEnabled()
+            expect(screen.getByRole('button', { name: 'Buscar períodos' })).toBeEnabled()
         );
         expect(api.get).toHaveBeenCalledWith('/periodos', {
             params: { pagina: 1, por_pagina: 4 },

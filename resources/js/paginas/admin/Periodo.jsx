@@ -9,7 +9,7 @@ import {
     DownloadCloud,
     ListX,
     LoaderCircle,
-    RefreshCw,
+    Search,
     UserX,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -254,6 +254,8 @@ export default function Periodo() {
     const resumen = usarConsulta('/periodos/resumen');
 
     const [detectando, setDetectando] = useState(false);
+    // El resultado de la última búsqueda queda junto al título, no solo en un aviso.
+    const [busqueda, setBusqueda] = useState(null);
     const [ajustando, setAjustando] = useState(null);
     const [calendario, setCalendario] = useState(null);
     // Por sigla: `{ estado: 'importando' }` mientras dura la petición y
@@ -269,7 +271,7 @@ export default function Periodo() {
         api.post('/periodos/detectar')
             .then((respuesta) => {
                 const { creados = 0, actualizados = 0 } = respuesta.data ?? {};
-                avisar(`Períodos al día · ${creados} nuevos · ${actualizados} actualizados`);
+                setBusqueda({ creados, actualizados });
                 return recargarTodo();
             })
             .catch((error) => avisar(mensajeDe(error, 'No se pudo actualizar'), 'error'))
@@ -372,6 +374,15 @@ export default function Periodo() {
                 sinRelleno
                 titulo="Períodos"
                 icono={CalendarRange}
+                insignia={
+                    busqueda && (
+                        <Insignia tono="exito">
+                            Al día · {busqueda.creados}{' '}
+                            {busqueda.creados === 1 ? 'nuevo' : 'nuevos'} · {busqueda.actualizados}{' '}
+                            {busqueda.actualizados === 1 ? 'actualizado' : 'actualizados'}
+                        </Insignia>
+                    )
+                }
                 acciones={
                     <Boton
                         type="button"
@@ -381,11 +392,12 @@ export default function Periodo() {
                         disabled={detectando}
                         onClick={detectar}
                     >
-                        <RefreshCw
-                            className={`h-4 w-4 ${detectando ? 'animate-spin' : ''}`}
-                            aria-hidden="true"
-                        />
-                        {detectando ? 'Actualizando' : 'Actualizar períodos'}
+                        {detectando ? (
+                            <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                            <Search className="h-4 w-4" aria-hidden="true" />
+                        )}
+                        {detectando ? 'Buscando' : 'Buscar períodos'}
                     </Boton>
                 }
             >
