@@ -47,6 +47,7 @@ import NormasDelExamen from './NormasDelExamen';
 import rutaDelExamen from './rutaDelExamen';
 import solapamientoDe from './solapamientoDe';
 import QuienAtiende from './QuienAtiende';
+import proponerAulas from './proponerAulas';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
@@ -967,6 +968,8 @@ function Asistente({
     );
     const [busqueda, setBusqueda] = useState('');
     const [edificio, setEdificio] = useState('');
+    // Cuántas aulas se piden al sugerir.
+    const [cantidadAulas, setCantidadAulas] = useState(1);
     const [errores, setErrores] = useState({});
     const [rechazo, setRechazo] = useState(null);
     const [enviando, setEnviando] = useState(false);
@@ -1052,7 +1055,10 @@ function Asistente({
     );
     // Una sola lista: las sugeridas primero, después las de la facultad de
     // la asignatura y al final el resto.
-    const orden = (a) => (sugeridas.includes(a.id) ? 0 : a.facultad === facultad ? 1 : 2);
+    // Con la hora comprobada, las libres van antes que las ocupadas.
+    const orden = (a) =>
+        (conHora && !libre(a.id) ? 3 : 0) +
+        (sugeridas.includes(a.id) ? 0 : a.facultad === facultad ? 1 : 2);
     const ordenadas = [...catalogo].sort((a, b) => orden(a) - orden(b));
     const edificiosConAulas = [
         ...new Map(
@@ -1204,6 +1210,21 @@ function Asistente({
         setErrores((previos) =>
             Object.fromEntries(Object.entries(previos).filter(([c]) => !c.startsWith('aulas')))
         );
+    };
+
+    const libresALaHora = catalogo.filter((a) => libre(a.id)).length;
+    // Reemplaza lo elegido por una propuesta de aulas libres a esa hora.
+    const sugerirAulas = () => {
+        const ids = proponerAulas({
+            aulas: catalogo,
+            libre,
+            sugeridas,
+            facultad,
+            cantidad: cantidadAulas,
+        });
+        if (ids.length === 0) return;
+        cambiarAulas([...new Set([...aulasGuardadas, ...ids])]);
+        setEdificio('elegidas');
     };
 
     // Lo que el servidor también rechaza: un examen nuevo o movido no
@@ -1687,6 +1708,54 @@ function Asistente({
                                         </li>
                                     ))}
                                 </ul>
+                            )}
+                            {conHora && !bloqueado && (
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-primary-50 px-3 py-2">
+                                    <p className="min-w-0 flex-1 text-sm font-medium text-primary-900">
+                                        {libresALaHora} {libresALaHora === 1 ? 'libre' : 'libres'}{' '}
+                                        de {catalogo.length} a esa hora
+                                    </p>
+                                    <span
+                                        role="group"
+                                        aria-label="Aulas que sugerir"
+                                        className="flex items-center gap-1"
+                                    >
+                                        <button
+                                            type="button"
+                                            aria-label="Menos aulas"
+                                            disabled={cantidadAulas <= 1}
+                                            onClick={() =>
+                                                setCantidadAulas((n) => Math.max(1, n - 1))
+                                            }
+                                            className={`flex h-9 w-9 items-center justify-center rounded-lg border border-primary-200 bg-white text-primary-800 disabled:opacity-40 ${FOCO}`}
+                                        >
+                                            −
+                                        </button>
+                                        <output
+                                            aria-label="Cantidad de aulas"
+                                            className="w-8 text-center text-sm font-semibold text-primary-900"
+                                        >
+                                            {cantidadAulas}
+                                        </output>
+                                        <button
+                                            type="button"
+                                            aria-label="Más aulas"
+                                            disabled={cantidadAulas >= Math.max(1, libresALaHora)}
+                                            onClick={() => setCantidadAulas((n) => n + 1)}
+                                            className={`flex h-9 w-9 items-center justify-center rounded-lg border border-primary-200 bg-white text-primary-800 disabled:opacity-40 ${FOCO}`}
+                                        >
+                                            +
+                                        </button>
+                                    </span>
+                                    <Boton
+                                        type="button"
+                                        variante="secundario"
+                                        disabled={libresALaHora === 0}
+                                        onClick={sugerirAulas}
+                                    >
+                                        Sugerirme aulas
+                                    </Boton>
+                                </div>
                             )}
                             <div className="grid gap-2 sm:grid-cols-[3fr_2fr]">
                                 <Desplegable

@@ -972,14 +972,34 @@ describe('RegistrarExamen · paso 3, aulas', () => {
         montar();
         await irAAulas();
 
-        const aula = within(screen.getByRole('list', { name: 'Aulas' })).getAllByRole(
-            'listitem'
-        )[0];
+        const aula = screen.getByRole('checkbox', { name: 'Aula 691A' }).closest('li');
 
         expect(aula).toHaveTextContent('Cálculo I · Primer parcial');
         expect(aula).toHaveTextContent('Mendez Paz Luis');
         expect(aula).toHaveTextContent('08:15');
         expect(aula).toHaveTextContent('09:45');
+    });
+
+    it('dice cuántas aulas hay libres a esa hora y sugiere las que se piden', async () => {
+        montar();
+        await irAAulas();
+
+        // De las cuatro de la facultad, solo la 691B está libre a esa hora.
+        expect(screen.getByText('1 libre de 4 a esa hora')).toBeVisible();
+        fireEvent.click(screen.getByRole('button', { name: 'Sugerirme aulas' }));
+
+        expect(screen.getByRole('list', { name: 'Aulas elegidas' })).toHaveTextContent('691B');
+        expect(screen.getByRole('checkbox', { name: 'Aula 691B' })).toBeChecked();
+        expect(screen.getByRole('button', { name: /Continuar: Quién atiende/ })).toBeEnabled();
+    });
+
+    it('la cantidad de aulas a sugerir no pasa de las libres', async () => {
+        montar();
+        await irAAulas();
+
+        expect(screen.getByRole('button', { name: 'Más aulas' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Menos aulas' })).toBeDisabled();
+        expect(screen.getByLabelText('Cantidad de aulas')).toHaveTextContent('1');
     });
 
     it('EV-03: informa de una clase ajena coincidente', async () => {
@@ -1001,19 +1021,20 @@ describe('RegistrarExamen · paso 3, aulas', () => {
         await irAAulas();
 
         const filas = within(screen.getByRole('list', { name: 'Aulas' })).getAllByRole('listitem');
-        // Sugeridas y después las de la facultad de la asignatura; las de otras
-        // facultades no se ofrecen.
+        // Las libres a esa hora primero; después las compartidas y ocupadas. Dentro
+        // de cada una, las de los grupos y las de la facultad de la asignatura; las
+        // de otras facultades no se ofrecen.
         expect(filas.map((f) => f.textContent.slice(0, 4).trim())).toEqual([
-            '691A',
             '691B',
+            '691A',
             '606D',
             '691C',
         ]);
         // Sin rótulos ni explicaciones: solo el aviso de otro examen a esa hora.
-        expect(filas[0]).toHaveTextContent(
+        expect(filas[1]).toHaveTextContent(
             '691AEdificio Académico 2 · 1° PisoCompartida · Cálculo I · Primer parcial'
         );
-        expect(filas[1]).toHaveTextContent(/^691BEdificio Académico 2 · 1° Piso$/);
+        expect(filas[0]).toHaveTextContent(/^691BEdificio Académico 2 · 1° Piso$/);
         expect(filas[2]).toHaveTextContent('Compartida · Análisis Numérico · Primer parcial');
         expect(filas[3]).toHaveTextContent('691CEdificio Académico 2 · 1° Piso');
         expect(screen.queryByText(/Sugerida/)).not.toBeInTheDocument();
@@ -1119,7 +1140,7 @@ describe('RegistrarExamen · paso 3, aulas', () => {
         expect(visibles()).toEqual(['Aula 606']);
 
         fireEvent.click(edificio('Edificio Académico 2'));
-        expect(visibles()).toEqual(['Aula 691A', 'Aula 691B', 'Aula 691C']);
+        expect(visibles()).toEqual(['Aula 691B', 'Aula 691A', 'Aula 691C']);
 
         fireEvent.click(edificio('Edificio Académico 2'));
         expect(filtro()).toHaveAccessibleName('Edificio: Todos los edificios');
