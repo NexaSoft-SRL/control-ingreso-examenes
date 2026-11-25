@@ -67,27 +67,34 @@ final class AlcanceExamenGatewayTest extends TestCase
 
         $alcance = $this->alcance();
 
+        // El equipo del examen atiende cualquiera de sus aulas: se rota y se cubre.
         $this->assertTrue($alcance->atiendeAula((int) $docente->user_id, $examen->id, $propia->id));
-        $this->assertFalse($alcance->atiendeAula((int) $docente->user_id, $examen->id, $delegada->id));
+        $this->assertTrue($alcance->atiendeAula((int) $docente->user_id, $examen->id, $delegada->id));
 
         $this->assertTrue($alcance->atiendeAula($this->id($encargado->getKey()), $examen->id, $delegada->id));
+        $this->assertTrue($alcance->atiendeAula($this->id($encargado->getKey()), $examen->id, $propia->id));
         $this->assertTrue($alcance->atiendeAula($this->id($apoyo->getKey()), $examen->id, $delegada->id));
-        $this->assertFalse($alcance->atiendeAula($this->id($apoyo->getKey()), $examen->id, $propia->id));
+        $this->assertTrue($alcance->atiendeAula($this->id($apoyo->getKey()), $examen->id, $propia->id));
+        // Quien no está en el equipo no atiende ninguna.
         $this->assertFalse($alcance->atiendeAula($this->id($ajeno->getKey()), $examen->id, $delegada->id));
+        $this->assertFalse($alcance->atiendeAula($this->id($ajeno->getKey()), $examen->id, $propia->id));
+        // Ni un aula que no es del examen.
+        $this->assertFalse($alcance->atiendeAula($this->id($apoyo->getKey()), $examen->id, $this->aula()->id));
     }
 
-    public function test_rooms_attended_are_those_of_the_exams_of_that_day(): void
+    public function test_rooms_attended_are_all_the_rooms_of_the_exams_of_that_day_where_the_account_is_in_the_team(): void
     {
         $docente = $this->docenteConCuenta();
         $grupo = $this->grupo($docente);
         $deHoy = $this->aula();
         $deApoyo = $this->aula();
+        $sinAsignar = $this->aula();
         $deManana = $this->aula();
 
         $hoy = now()->toDateString();
         $manana = now()->addDay()->toDateString();
 
-        $examenHoy = $this->examen($docente, [$grupo], [$deHoy, $deApoyo]);
+        $examenHoy = $this->examen($docente, [$grupo], [$deHoy, $deApoyo, $sinAsignar]);
         $examenManana = $this->examen($docente, [$grupo], [$deManana], [
             'tipo' => 'SEGUNDO_PARCIAL',
             'fecha' => $manana,
@@ -102,9 +109,14 @@ final class AlcanceExamenGatewayTest extends TestCase
 
         $aulas = $this->alcance()->aulasQueAtiende($auxiliarId, $hoy);
 
-        $this->assertCount(2, $aulas);
+        // También la tercera aula del examen: el equipo cubre donde haga falta.
+        $this->assertCount(3, $aulas);
         $this->assertSame(
-            [[$examenHoy->id, $deHoy->id, true], [$examenHoy->id, $deApoyo->id, false]],
+            [
+                [$examenHoy->id, $deHoy->id, true],
+                [$examenHoy->id, $deApoyo->id, false],
+                [$examenHoy->id, $sinAsignar->id, false],
+            ],
             array_map(
                 static fn ($aula): array => [$aula->examenId, $aula->aulaId, $aula->esEncargado],
                 $aulas,

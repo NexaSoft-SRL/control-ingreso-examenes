@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import { DatabaseBackup, Download } from 'lucide-react';
+import PropTypes from 'prop-types';
+import { DatabaseBackup, Download, Settings2 } from 'lucide-react';
 import { api } from '../../api/cliente';
 import descargar from '../../api/descargar';
-import { codigoDe, mensajeDe } from '../../api/errores';
+import { codigoDe, erroresDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
 import usarPaginaServidor from '../../api/usarPaginaServidor';
 import { useAviso } from '../../componentes/Aviso';
 import Boton from '../../componentes/Boton';
+import Campo from '../../componentes/Campo';
+import Dialogo from '../../componentes/Dialogo';
 import Chips from '../../componentes/Chips';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
@@ -51,6 +54,110 @@ export function tamanoLegible(bytes) {
 const TIPO = { Programado: 'Automático', Puntual: 'Manual' };
 const tipoDe = (tipo) => TIPO[tipo] ?? tipo;
 
+// Cómo se hace el respaldo automático: activado, hora y reintento. Lo guardado
+// aquí manda sobre lo que diga el servidor en su archivo de configuración.
+function AjustesAutomaticos({ onGuardado, onCerrar }) {
+    const { datos, cargando, error, recargar } = usarConsulta('/respaldos/ajustes');
+    const [cambios, setCambios] = useState({});
+    const [errores, setErrores] = useState({});
+    const [negativa, setNegativa] = useState(null);
+    const [enviando, setEnviando] = useState(false);
+    const ajustes = datos && !Array.isArray(datos) ? datos : null;
+    const actual = ajustes ? { ...ajustes, ...cambios } : null;
+
+    const poner = (campo, valor) => {
+        setCambios((previos) => ({ ...previos, [campo]: valor }));
+        setErrores((previos) => ({ ...previos, [campo]: null }));
+        setNegativa(null);
+    };
+
+    async function guardar(evento) {
+        evento.preventDefault();
+        setEnviando(true);
+        setNegativa(null);
+        try {
+            await api.put('/respaldos/ajustes', {
+                habilitado: Boolean(actual.habilitado),
+                hora: String(actual.hora),
+            });
+            onGuardado('Ajustes guardados');
+        } catch (rechazo) {
+            const delServidor = erroresDe(rechazo);
+            if (Object.keys(delServidor).length > 0) setErrores(delServidor);
+            else setNegativa(sinPunto(mensajeDe(rechazo, 'No se pudieron guardar los ajustes')));
+        } finally {
+            setEnviando(false);
+        }
+    }
+
+    return (
+        <Dialogo
+            titulo="Respaldo automático"
+            onCerrar={onCerrar}
+            acciones={
+                <>
+                    <Boton type="button" variante="secundario" onClick={onCerrar}>
+                        Cancelar
+                    </Boton>
+                    <Boton
+                        type="submit"
+                        form="ajustes-respaldo"
+                        cargando={enviando}
+                        disabled={!actual}
+                    >
+                        {enviando ? 'Guardando' : 'Guardar'}
+                    </Boton>
+                </>
+            }
+        >
+            <EstadoCarga
+                cargando={cargando}
+                error={error}
+                onReintentar={recargar}
+                filas={3}
+                className="!p-0"
+            >
+                {actual && (
+                    <form id="ajustes-respaldo" noValidate onSubmit={guardar} className="space-y-4">
+                        <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium text-slate-800">
+                            <input
+                                type="checkbox"
+                                className="h-5 w-5 rounded border-slate-300 text-primary-600"
+                                checked={Boolean(actual.habilitado)}
+                                onChange={(e) => poner('habilitado', e.target.checked)}
+                            />
+                            Respaldar cada día
+                        </label>
+                        <div className="max-w-xs">
+                            <Campo
+                                etiqueta="Hora"
+                                type="time"
+                                value={actual.hora}
+                                disabled={!actual.habilitado}
+                                onChange={(e) => poner('hora', e.target.value)}
+                                error={errores.hora ?? undefined}
+                            />
+                        </div>
+                    </form>
+                )}
+            </EstadoCarga>
+            {negativa && (
+                <p
+                    role="alert"
+                    className="mt-3 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-700"
+                >
+                    {negativa}
+                </p>
+            )}
+        </Dialogo>
+    );
+}
+
+AjustesAutomaticos.propTypes = {
+    onGuardado: PropTypes.func.isRequired,
+    onCerrar: PropTypes.func.isRequired,
+};
+
 // HU-25 · Respaldo y restauración: a demanda y programado. Restaurar es
 // destructivo: pide confirmación en la misma fila. El servidor rechaza el
 // respaldo de un esquema anterior (409 `RESPALDO_INCOMPATIBLE`) y la fila
@@ -67,6 +174,7 @@ export default function Respaldo() {
     const [descargando, setDescargando] = useState(null);
     // Ids que el servidor rechazó por incompatibles en esta visita.
     const [incompatibles, setIncompatibles] = useState([]);
+    const [configurando, setConfigurando] = useState(false);
     const [aviso, avisar] = useAviso();
 
     const { filtro } = lista.filtros;
@@ -209,10 +317,16 @@ export default function Respaldo() {
     return (
         <div className="space-y-6">
             <Encabezado titulo="Respaldo" subtitulo={subtitulo}>
-                <Boton onClick={respaldar} disabled={ocupado}>
-                    <DatabaseBackup className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
-                    {generando ? 'Respaldando' : 'Respaldar ahora'}
-                </Boton>
+                <div className="flex flex-wrap gap-2">
+                    <Boton variante="secundario" onClick={() => setConfigurando(true)}>
+                        <Settings2 className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+                        Configurar automático
+                    </Boton>
+                    <Boton onClick={respaldar} disabled={ocupado}>
+                        <DatabaseBackup className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+                        {generando ? 'Respaldando' : 'Respaldar ahora'}
+                    </Boton>
+                </div>
             </Encabezado>
 
             {meta && (
@@ -310,6 +424,16 @@ export default function Respaldo() {
                     />
                 )}
             </Tarjeta>
+            {configurando && (
+                <AjustesAutomaticos
+                    onGuardado={(texto) => {
+                        setConfigurando(false);
+                        avisar(texto);
+                        recargar();
+                    }}
+                    onCerrar={() => setConfigurando(false)}
+                />
+            )}
             {aviso}
         </div>
     );

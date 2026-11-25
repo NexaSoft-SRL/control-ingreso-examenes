@@ -98,6 +98,20 @@ function servidor(docentes, periodo = '2/2026') {
         'GET /docentes/*': detalle,
         'GET /periodos/vigentes': { data: [], principal: periodo },
         'POST /docentes/*/cuenta': activar,
+        'POST /docentes/*/contrasena-temporal': ({ url }) => {
+            const id = Number(url.split('/')[2]);
+            const actual = cuentas.get(id);
+            cuentas.set(id, { ...actual, caduca_en: '2099-01-01T10:00:00-04:00' });
+            return {
+                data: {
+                    usuario: actual.usuario,
+                    contrasena_temporal: TEMPORAL,
+                    enviada_a: actual.correo,
+                    caduca_en: '2099-01-01T10:00:00-04:00',
+                },
+                message: 'Contraseña temporal nueva.',
+            };
+        },
     });
 
     return { cuentas };
@@ -160,12 +174,10 @@ const elegir = async (nombre) =>
 const peticiones = () =>
     api.get.mock.calls.filter(([url]) => url === '/docentes').map(([, c]) => c.params);
 
-async function activar({ usuario, correo } = {}) {
+async function activar({ usuario, correo = 'docente.prueba@umss.edu.bo' } = {}) {
     const campo = await screen.findByLabelText(/Usuario/);
     if (usuario !== undefined) fireEvent.change(campo, { target: { value: usuario } });
-    if (correo !== undefined) {
-        fireEvent.change(screen.getByLabelText(/^Correo/), { target: { value: correo } });
-    }
+    fireEvent.change(screen.getByLabelText(/^Correo/), { target: { value: correo } });
     fireEvent.click(screen.getByRole('button', { name: /Activar cuenta/ }));
 }
 
@@ -386,7 +398,7 @@ describe('Docentes', () => {
         expect(screen.queryByText(TEMPORAL)).not.toBeInTheDocument();
     });
 
-    it('propone el usuario marcado «Sugerido», editable, y el correo es opcional (criterio 8)', async () => {
+    it('propone el usuario marcado «Sugerido», editable, y el correo es obligatorio (criterio 8)', async () => {
         montar();
         await elegir('Cespedes Guizada');
 
@@ -394,18 +406,20 @@ describe('Docentes', () => {
         expect(usuario).toHaveValue('maria.cespedes');
         expect(screen.getByText('Sugerido')).toBeInTheDocument();
         expect(screen.getByLabelText(/^Correo/)).toHaveValue('');
-        expect(screen.getByRole('button', { name: /Activar cuenta/ })).toBeEnabled();
+        expect(screen.getByLabelText(/^Correo/)).toBeRequired();
+        expect(screen.getByRole('button', { name: /Activar cuenta/ })).toBeDisabled();
+        expect(screen.getByText('Falta el correo')).toBeInTheDocument();
 
         fireEvent.change(usuario, { target: { value: 'mb.cespedes' } });
         expect(screen.queryByText('Sugerido')).not.toBeInTheDocument();
-        await activar();
+        await activar({ correo: 'mb@umss.edu.bo' });
 
         await screen.findByText(TEMPORAL);
         expect(api.post).toHaveBeenCalledWith('/docentes/21/cuenta', {
             usuario: 'mb.cespedes',
-            correo: null,
+            correo: 'mb@umss.edu.bo',
         });
-        expect(screen.getByText('mb.cespedes · sin correo')).toBeInTheDocument();
+        expect(screen.getByText('mb.cespedes · enviada a mb@umss.edu.bo')).toBeInTheDocument();
     });
 
     it('el botón deshabilitado dice qué falta', async () => {
@@ -421,6 +435,7 @@ describe('Docentes', () => {
         expect(screen.getByText('Revise el correo')).toBeInTheDocument();
 
         fireEvent.change(screen.getByLabelText(/^Correo/), { target: { value: '' } });
+        expect(screen.getByText('Falta el correo')).toBeInTheDocument();
         expect(screen.queryByText('Falta el usuario')).toBeNull();
         expect(screen.queryByText('Revise el correo')).toBeNull();
     });
@@ -442,6 +457,10 @@ describe('Docentes', () => {
         expect(boton).toBeDisabled();
 
         fireEvent.change(usuario, { target: { value: 'maria.cespedes' } });
+        expect(boton).toBeDisabled();
+        fireEvent.change(screen.getByLabelText(/^Correo/), {
+            target: { value: 'maria@umss.edu.bo' },
+        });
         expect(boton).toBeEnabled();
 
         fireEvent.change(screen.getByLabelText(/^Correo/), { target: { value: 'maria@' } });
@@ -613,5 +632,85 @@ describe('Docentes', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
 
         expect(await screen.findByRole('button', { name: /Cespedes Guizada/ })).toBeInTheDocument();
+    });
+
+    describe('cuenta con contraseña temporal', () => {
+        const con = (cuenta) => [
+            {
+                id: 32,
+                nombre: 'Acha Perez Samuel',
+                sugerido: 'samuel.acha',
+                facultades: [fcyt(1)],
+                cuenta: { estado: 'temporal', usuario: 'samuel.acha', ...cuenta },
+            },
+        ];
+
+        it('dice cuándo caduca y a qué correo llegó', async () => {
+            servidor(con({ correo: 'samuel@umss.edu.bo', caduca_en: '2099-01-01T10:00:00-04:00' }));
+            montar();
+            expect(await screen.findByText(/Caduca el/)).toBeInTheDocument();
+            expect(screen.getByText('samuel@umss.edu.bo')).toBeInTheDocument();
+            expect(screen.queryByText('Sin correo')).not.toBeInTheDocument();
+        });
+
+        it('vencida: avisa «Venció el» y deja pedir otra', async () => {
+            servidor(con({ correo: 'samuel@umss.edu.bo', caduca_en: '2020-01-01T10:00:00-04:00' }));
+            montar();
+            expect(await screen.findByText(/Venció el/)).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: /Nueva contraseña temporal/ })
+            ).toBeInTheDocument();
+        });
+
+        it('sin correo: lo advierte y ofrece «Agregar correo» solo con permiso de usuarios', async () => {
+            servidor(con({ correo: null, caduca_en: '2099-01-01T10:00:00-04:00' }));
+            const { unmount } = renderConSesion(<Docentes />, {
+                usuario: usuarioDePrueba('Administrador', {
+                    permisos: ['aulas_docentes'],
+                }),
+                ruta: '/docentes',
+            });
+            expect(await screen.findByText('Sin correo')).toBeInTheDocument();
+            expect(screen.getByText('No podrá recuperar su contraseña')).toBeInTheDocument();
+            expect(screen.queryByRole('link', { name: /Agregar correo/ })).not.toBeInTheDocument();
+            unmount();
+
+            montar();
+            const enlace = await screen.findByRole('link', { name: /Agregar correo/ });
+            expect(enlace).toHaveAttribute('href', '/usuarios?buscar=samuel.acha');
+        });
+
+        it('pide confirmar, emite otra y la muestra una vez con «Copiar»', async () => {
+            servidor(con({ correo: 'samuel@umss.edu.bo', caduca_en: '2020-01-01T10:00:00-04:00' }));
+            montar();
+            fireEvent.click(
+                await screen.findByRole('button', { name: /Nueva contraseña temporal/ })
+            );
+            expect(await screen.findByText('La anterior deja de servir.')).toBeInTheDocument();
+            expect(screen.getByText(/Se enviará a samuel@umss.edu.bo/)).toBeInTheDocument();
+            expect(api.post).not.toHaveBeenCalled();
+
+            fireEvent.click(screen.getByRole('button', { name: 'Generar contraseña' }));
+
+            expect(await screen.findByText(TEMPORAL)).toBeInTheDocument();
+            expect(api.post).toHaveBeenCalledWith('/docentes/32/contrasena-temporal');
+            expect(screen.getByText('Caduca en 72 horas')).toBeInTheDocument();
+            expect(screen.getByText(/enviada a samuel@umss.edu.bo/)).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Copiar/ })).toBeInTheDocument();
+            await waitFor(() => expect(screen.queryByText(/Venció el/)).not.toBeInTheDocument());
+        });
+
+        it('cancelar la confirmación no emite nada y sin correo avisa que la entregue el administrador', async () => {
+            servidor(con({ correo: null, caduca_en: '2099-01-01T10:00:00-04:00' }));
+            montar();
+            fireEvent.click(
+                await screen.findByRole('button', { name: /Nueva contraseña temporal/ })
+            );
+            expect(
+                await screen.findByText(/Sin correo: tendrá que entregarla/)
+            ).toBeInTheDocument();
+            fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+            expect(api.post).not.toHaveBeenCalled();
+        });
     });
 });

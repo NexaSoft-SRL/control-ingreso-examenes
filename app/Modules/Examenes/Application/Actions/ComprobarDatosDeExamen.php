@@ -47,8 +47,11 @@ final readonly class ComprobarDatosDeExamen
     ) {}
 
     /**
-     * Devuelve los datos listos para guardar: con el periodo resuelto y un
-     * encargado en cada aula. Con `$soloPersonal` (examen con ingresos) lo
+     * Devuelve los datos listos para guardar: con el periodo resuelto, un
+     * encargado en cada aula y los grupos repartidos entre los que entran
+     * directo (`grupos`: los propios, los sin docente con cuenta y los que ya
+     * estaban en el examen) y los de otros docentes que se invitan
+     * (`invitados`). Con `$soloPersonal` (examen con ingresos) lo
      * demas no cambia y no se vuelve a comprobar.
      *
      * @throws DatoInvalidoException
@@ -59,9 +62,16 @@ final readonly class ComprobarDatosDeExamen
         ?ExamenActualData $actual = null,
         bool $soloPersonal = false,
     ): GuardarExamenData {
-        $periodoId = $actual !== null && $soloPersonal
-            ? $actual->periodoId
-            : $this->periodoDeLosGrupos($datos, $usuarioId, $actual);
+        // Con ingresos nada de los grupos cambia: ni se tocan las invitaciones.
+        $directos = $datos->grupos;
+        $invitados = null;
+
+        if ($actual !== null && $soloPersonal) {
+            $periodoId = $actual->periodoId;
+            $directos = $actual->grupos;
+        } else {
+            [$periodoId, $directos, $invitados] = $this->periodoDeLosGrupos($datos, $usuarioId, $actual);
+        }
 
         $this->comprobarNormasMarcadas($datos->normasMarcadas, $usuarioId);
 
@@ -72,11 +82,12 @@ final readonly class ComprobarDatosDeExamen
             horaInicio: $datos->horaInicio,
             duracionMinutos: $datos->duracionMinutos,
             normas: $datos->normas,
-            grupos: $datos->grupos,
+            grupos: $directos,
             aulas: $this->aulasConPersonal($datos->aulas, $usuarioId),
             periodoId: $periodoId,
             normasMarcadas: $datos->normasMarcadas,
             normasConservadas: $datos->normasConservadas,
+            invitados: $invitados,
         );
     }
 
@@ -107,11 +118,17 @@ final readonly class ComprobarDatosDeExamen
         }
     }
 
+    /**
+     * @return array{0: int, 1: list<int>, 2: list<int>} el periodo, los grupos que entran
+     *                                                   directo y los invitados
+     *
+     * @throws DatoInvalidoException
+     */
     private function periodoDeLosGrupos(
         GuardarExamenData $datos,
         int $usuarioId,
         ?ExamenActualData $actual,
-    ): int {
+    ): array {
         $vigentes = [];
         $ventanas = [];
 
@@ -194,7 +211,27 @@ final readonly class ComprobarDatosDeExamen
             );
         }
 
-        return $primero->periodoId;
+        // Un grupo de otro docente con cuenta activa no entra solo: se le
+        // invita y entra cuando acepta. Los que ya estaban en el examen se
+        // quedan.
+        $directos = [];
+        $invitados = [];
+
+        foreach ($elegidos as $grupo) {
+            $ajeno = $grupo->docenteUsuarioId !== null && $grupo->docenteUsuarioId !== $usuarioId;
+
+            if ($ajeno && ! in_array($grupo->id, $actual->grupos ?? [], true)) {
+                $invitados[] = $grupo->id;
+            } else {
+                $directos[] = $grupo->id;
+            }
+        }
+
+        if ($directos === []) {
+            throw new DatoInvalidoException('grupos', 'Incluya al menos un grupo suyo.');
+        }
+
+        return [$primero->periodoId, $directos, $invitados];
     }
 
     /**

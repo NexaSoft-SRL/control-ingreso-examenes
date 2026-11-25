@@ -13,6 +13,7 @@ final readonly class ExamenActualData
     /**
      * @param  list<int>  $grupos
      * @param  list<int>  $aulas
+     * @param  list<int>  $invitados  grupos invitados que aun no estan en el examen
      */
     public function __construct(
         public int $id,
@@ -24,5 +25,6 @@ final readonly class ExamenActualData
         public int $duracionMinutos,
         public array $grupos,
         public array $aulas,
+        public array $invitados = [],
     ) {}
 }

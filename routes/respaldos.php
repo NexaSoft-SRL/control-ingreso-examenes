@@ -15,6 +15,10 @@ Route::prefix('api')
 
         Route::post('/respaldos', [RespaldoController::class, 'store'])->name('store');
 
+        Route::get('/respaldos/ajustes', [RespaldoController::class, 'ajustes'])->name('ajustes');
+
+        Route::put('/respaldos/ajustes', [RespaldoController::class, 'guardarAjustes'])->name('ajustes.guardar');
+
         Route::get('/respaldos/{respaldo}/descargar', [RespaldoController::class, 'descargar'])
             ->whereNumber('respaldo')
             ->name('descargar');

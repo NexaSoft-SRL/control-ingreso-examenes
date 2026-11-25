@@ -171,12 +171,14 @@ AgregarEstudiante.propTypes = {
     onCerrar: PropTypes.func.isRequired,
 };
 
-// Corrige los nombres y el C.I. de un estudiante. El código SIS no cambia. El
+// Corrige los nombres y el C.I. de un estudiante; la administración también su
+// código SIS (`conCodigo`) si se cargó mal. El
 // estudiante es uno solo en el padrón: el cambio vale en todos sus grupos y
 // queda en la bitácora. `ruta` es la del docente (`/docente/grupos/{g}/inscritos/{e}`)
 // o la de la administración (`/estudiantes/{e}`).
-export function EditarEstudiante({ estudiante, ruta, onEditado, onCerrar }) {
+export function EditarEstudiante({ estudiante, ruta, onEditado, onCerrar, conCodigo = false }) {
     const [datos, setDatos] = useState({
+        codigo: estudiante.codigo ?? '',
         documento: estudiante.documento ?? '',
         apellidos: estudiante.apellidos ?? '',
         nombres: estudiante.nombres ?? '',
@@ -184,7 +186,9 @@ export function EditarEstudiante({ estudiante, ruta, onEditado, onCerrar }) {
     const [errores, setErrores] = useState({});
     const [negativa, setNegativa] = useState(null);
     const [enviando, setEnviando] = useState(false);
-    const campos = ['documento', 'apellidos', 'nombres'];
+    const campos = conCodigo
+        ? ['codigo', 'documento', 'apellidos', 'nombres']
+        : ['documento', 'apellidos', 'nombres'];
 
     const cambiar = (campo) => (evento) => {
         const valor = evento.target.value;
@@ -231,10 +235,6 @@ export function EditarEstudiante({ estudiante, ruta, onEditado, onCerrar }) {
                 </>
             }
         >
-            <p className="mb-4 text-sm text-slate-600">
-                Código SIS <span className="font-mono">{estudiante.codigo}</span> · se corrige en
-                todas sus asignaturas
-            </p>
             <form
                 id="editar-estudiante"
                 noValidate
@@ -242,14 +242,13 @@ export function EditarEstudiante({ estudiante, ruta, onEditado, onCerrar }) {
                 className="grid gap-3 sm:grid-cols-2"
             >
                 <Campo
-                    etiqueta="C.I."
+                    etiqueta="Nombres"
                     requerido
-                    formato="documento"
-                    maxLength={MAXIMOS.documento}
-                    value={datos.documento}
-                    onChange={cambiar('documento')}
-                    ayuda="Ej. 5003748"
-                    error={errores.documento ?? undefined}
+                    formato="letras"
+                    maxLength={MAXIMOS.nombres}
+                    value={datos.nombres}
+                    onChange={cambiar('nombres')}
+                    error={errores.nombres ?? undefined}
                     autoFocus
                 />
                 <Campo
@@ -262,14 +261,26 @@ export function EditarEstudiante({ estudiante, ruta, onEditado, onCerrar }) {
                     error={errores.apellidos ?? undefined}
                 />
                 <Campo
-                    etiqueta="Nombres"
+                    etiqueta="C.I."
                     requerido
-                    formato="letras"
-                    maxLength={MAXIMOS.nombres}
-                    value={datos.nombres}
-                    onChange={cambiar('nombres')}
-                    error={errores.nombres ?? undefined}
+                    formato="documento"
+                    maxLength={MAXIMOS.documento}
+                    value={datos.documento}
+                    onChange={cambiar('documento')}
+                    error={errores.documento ?? undefined}
                 />
+                {conCodigo && (
+                    <Campo
+                        etiqueta="Código SIS"
+                        requerido
+                        formato="documento"
+                        maxLength={MAXIMOS.codigo}
+                        value={datos.codigo}
+                        onChange={cambiar('codigo')}
+                        ayuda={`Su correo pasará a ser ${datos.codigo.trim() || '…'}@est.umss.edu`}
+                        error={errores.codigo ?? undefined}
+                    />
+                )}
             </form>
             {negativa && (
                 <p
@@ -284,6 +295,7 @@ export function EditarEstudiante({ estudiante, ruta, onEditado, onCerrar }) {
 }
 
 EditarEstudiante.propTypes = {
+    conCodigo: PropTypes.bool,
     estudiante: PropTypes.shape({
         codigo: PropTypes.string,
         documento: PropTypes.string,

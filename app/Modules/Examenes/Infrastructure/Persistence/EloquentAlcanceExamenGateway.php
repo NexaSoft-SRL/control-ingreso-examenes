@@ -38,12 +38,22 @@ final class EloquentAlcanceExamenGateway implements AlcanceExamenGateway
             ->exists();
     }
 
+    /**
+     * El equipo del examen: quien esta a cargo o de apoyo en alguna de sus
+     * aulas atiende cualquiera de ellas. Los docentes rotan y los auxiliares
+     * cubren donde hace falta; todo queda con el nombre de quien lo registro.
+     */
     public function atiendeAula(int $usuarioId, int $examenId, int $aulaId): bool
     {
-        return $this->asignaciones($usuarioId)
-            ->where('asignada.examen_id', $examenId)
-            ->where('asignada.aula_id', $aulaId)
+        $esDelExamen = DB::table('examen_aula')
+            ->where('examen_id', $examenId)
+            ->where('aula_id', $aulaId)
             ->exists();
+
+        return $esDelExamen
+            && $this->asignaciones($usuarioId)
+                ->where('asignada.examen_id', $examenId)
+                ->exists();
     }
 
     /**
@@ -51,15 +61,23 @@ final class EloquentAlcanceExamenGateway implements AlcanceExamenGateway
      */
     public function aulasQueAtiende(int $usuarioId, string $fecha): array
     {
-        $filas = $this->asignaciones($usuarioId)
+        // Todas las aulas de los exámenes del día donde la cuenta está en el equipo.
+        $examenes = $this->asignaciones($usuarioId)
             ->join('examenes as examen', 'examen.id', '=', 'asignada.examen_id')
             ->whereDate('examen.fecha', $fecha)
+            ->pluck('asignada.examen_id')
+            ->unique()
+            ->all();
+
+        $filas = DB::table('examen_aula as aula_del_examen')
+            ->join('examenes as examen', 'examen.id', '=', 'aula_del_examen.examen_id')
+            ->whereIn('aula_del_examen.examen_id', $examenes)
             ->orderBy('examen.hora_inicio')
-            ->orderBy('asignada.id')
+            ->orderBy('aula_del_examen.id')
             ->select([
-                'asignada.examen_id',
-                'asignada.aula_id',
-                'asignada.encargado_id',
+                'aula_del_examen.examen_id',
+                'aula_del_examen.aula_id',
+                'aula_del_examen.encargado_id',
             ])
             ->get();
 

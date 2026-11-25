@@ -1,18 +1,6 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import {
-    BookOpen,
-    CalendarDays,
-    Camera,
-    GraduationCap,
-    IdCard,
-    Loader2,
-    Mail,
-    Pencil,
-    ShieldCheck,
-    UserRound,
-    UsersRound,
-} from 'lucide-react';
+import { BookOpen, Camera, Loader2, Pencil, ShieldCheck, UserRound } from 'lucide-react';
 import { api } from '../../api/cliente';
 import { erroresDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
@@ -28,6 +16,9 @@ import { encuadrarFoto } from '../../utiles/encuadrarFoto';
 import { revisarFoto } from '../../utiles/revisarFoto';
 import { fechaCorta } from '../../utiles/texto';
 import { EditarEstudiante } from '../docente/EdicionDeLista';
+
+// Solo el día («3 nov 2026»): en la ficha la hora sobra.
+const soloDia = (fecha) => (fecha ? fechaCorta(String(fecha).slice(0, 10)) : '');
 
 // De dónde salió el dato del estudiante: «Administración» si lo cargó la
 // administración (verificado), «Docente» si llegó en la lista de un grupo.
@@ -45,39 +36,20 @@ export function Origen({ origen }) {
 
 Origen.propTypes = { origen: PropTypes.string };
 
-function Dato({ icono: Icono, etiqueta, children }) {
+// Un dato de la ficha con su etiqueta a la vista.
+function Dato({ etiqueta, children }) {
     return (
-        <div className="flex min-w-0 items-center gap-2">
-            <dt className="shrink-0 text-slate-400">
-                <Icono className="h-4 w-4" aria-hidden="true" />
-                <span className="sr-only">{etiqueta}</span>
-            </dt>
-            <dd className="min-w-0 break-words text-sm text-slate-700">{children}</dd>
+        <div className="min-w-0">
+            <dt className="text-xs font-medium text-slate-500">{etiqueta}</dt>
+            <dd className="min-w-0 break-words text-sm font-medium text-slate-900">{children}</dd>
         </div>
     );
 }
 
 Dato.propTypes = {
-    icono: PropTypes.elementType.isRequired,
     etiqueta: PropTypes.string.isRequired,
     children: PropTypes.node,
 };
-
-// Cómo llegó el estudiante al grupo, con el mismo ícono que su origen.
-function Via({ via }) {
-    const Icono = via === 'Administración' ? ShieldCheck : UserRound;
-    return (
-        <span
-            className="ml-auto inline-flex shrink-0 items-center text-slate-400"
-            title={`Vía: ${via}`}
-        >
-            <Icono className="h-3.5 w-3.5" aria-hidden="true" />
-            <span className="sr-only">Vía: {via}</span>
-        </span>
-    );
-}
-
-Via.propTypes = { via: PropTypes.string.isRequired };
 
 // La foto del estudiante (GET /api/estudiantes/{id}/foto). La
 // administración la pone o la cambia en cualquier momento: la cámara abre
@@ -86,10 +58,17 @@ Via.propTypes = { via: PropTypes.string.isRequired };
 // una vez.
 const MINIMO_PX = 240;
 
-function FotoDelEstudiante({ id, conFoto, alCambiar }) {
+function FotoDelEstudiante({ id, conFoto, subidaEn, alCambiar, nombre, alAmpliar }) {
     const entrada = useId();
     const [url, setUrl] = useState(null);
     const [version, setVersion] = useState(0);
+    const [grande, setGrande] = useState(false);
+    const ampliar = (valor) => {
+        setGrande(valor);
+        // Al cerrar, se avisa después del evento: el mismo Escape no debe cerrar la ficha.
+        if (valor) alAmpliar?.(true);
+        else setTimeout(() => alAmpliar?.(false), 0);
+    };
     const [enviando, setEnviando] = useState(false);
     // El resultado queda a la vista hasta el siguiente intento: el aviso
     // fugaz no alcanza a leerse.
@@ -150,18 +129,38 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
     }
 
     return (
-        <div className="relative shrink-0">
+        <div className="relative w-28 shrink-0">
             {url ? (
-                <img
-                    src={url}
-                    alt="Foto del estudiante"
-                    className="h-28 w-28 rounded-xl border border-slate-200 object-cover shadow-sm"
-                />
+                <button
+                    type="button"
+                    onClick={() => ampliar(true)}
+                    aria-label="Ver foto más grande"
+                    className="block w-28 cursor-zoom-in rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600"
+                >
+                    <img
+                        src={url}
+                        alt="Foto del estudiante"
+                        className="aspect-[3/4] w-28 rounded-xl border border-slate-200 object-cover object-top shadow-sm"
+                    />
+                </button>
             ) : (
                 <span className="flex h-28 w-28 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500">
                     <UserRound className="h-7 w-7 text-slate-400" strokeWidth={1.5} />
                     Sin foto
                 </span>
+            )}
+            {grande && url && (
+                <Dialogo
+                    titulo={nombre ?? 'Foto del estudiante'}
+                    onCerrar={() => ampliar(false)}
+                    ancho="max-w-md"
+                >
+                    <img
+                        src={url}
+                        alt={`Foto de ${nombre ?? 'el estudiante'}`}
+                        className="mx-auto max-h-[70dvh] w-auto max-w-full rounded-xl"
+                    />
+                </Dialogo>
             )}
             {enviando && (
                 <span className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/70">
@@ -169,9 +168,15 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
                     <span className="sr-only">Guardando foto</span>
                 </span>
             )}
+            {conFoto && subidaEn && (
+                <p className="mt-1.5 text-center text-xs">
+                    <span className="block font-medium text-slate-700">Con foto</span>
+                    <span className="block text-slate-500">del {soloDia(subidaEn)}</span>
+                </p>
+            )}
             <label
                 htmlFor={entrada}
-                className="mt-2 flex min-h-10 w-28 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-primary-50 hover:text-primary-700 focus-within:outline focus-within:outline-2 focus-within:outline-primary-600"
+                className="mt-2 flex min-h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-primary-50 hover:text-primary-700 focus-within:outline focus-within:outline-2 focus-within:outline-primary-600"
             >
                 <Camera className="h-4 w-4" aria-hidden="true" />
                 {accion}
@@ -190,7 +195,7 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
             {resultado && (
                 <p
                     role={resultado.error ? 'alert' : 'status'}
-                    className={`mt-4 max-w-28 text-xs font-medium ${resultado.error ? 'text-danger-700' : 'text-success-700'}`}
+                    className={`mt-3 text-xs font-medium ${resultado.error ? 'text-danger-700' : 'text-success-700'}`}
                 >
                     {resultado.texto}
                 </p>
@@ -203,26 +208,36 @@ function FotoDelEstudiante({ id, conFoto, alCambiar }) {
 FotoDelEstudiante.propTypes = {
     id: PropTypes.number.isRequired,
     conFoto: PropTypes.bool,
+    subidaEn: PropTypes.string,
     alCambiar: PropTypes.func.isRequired,
+    nombre: PropTypes.string,
+    alAmpliar: PropTypes.func,
 };
 
 // Ficha de un estudiante: sus datos, su origen y las materias que lleva en
-// los períodos vigentes, con el grupo y el docente de cada una.
+// los períodos vigentes, con el grupo y el docente de cada una. En escritorio,
+// la identidad a la izquierda y las materias a la derecha; en teléfono, una
+// sola columna.
 export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }) {
     const { datos, cargando, error, recargar } = usarConsulta(`/estudiantes/${estudiante.id}`);
     const ficha = datos?.id === estudiante.id ? datos : null;
     const materias = ficha?.materias ?? [];
+    const conflictos = ficha?.conflictos ?? [];
     const [editando, setEditando] = useState(false);
+    // Con la foto ampliada, Escape solo la cierra a ella, no a la ficha.
+    const fotoAmpliada = useRef(false);
     const [aviso, avisar] = useAviso();
 
     return (
         <Dialogo
             titulo={ficha?.nombre ?? estudiante.nombre}
-            onCerrar={onCerrar}
-            ancho="max-w-2xl"
+            onCerrar={() => {
+                if (!fotoAmpliada.current) onCerrar();
+            }}
+            ancho="max-w-4xl"
             acciones={
                 ficha && (
-                    <Boton type="button" variante="secundario" onClick={() => setEditando(true)}>
+                    <Boton type="button" onClick={() => setEditando(true)}>
                         <Pencil className="h-4 w-4" /> Editar datos
                     </Boton>
                 )
@@ -236,197 +251,179 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
                 className="!p-0"
             >
                 {ficha && (
-                    <div className="space-y-5">
-                        <div className="flex gap-5 rounded-xl bg-gradient-to-br from-primary-50 to-slate-50 p-4">
-                            <FotoDelEstudiante
-                                id={ficha.id}
-                                conFoto={Boolean(ficha.con_foto)}
-                                alCambiar={() => {
-                                    recargar();
-                                    onFotoCambiada?.();
-                                }}
-                            />
-                            <div className="min-w-0 flex-1 space-y-3">
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                                    <p className="font-mono text-xl font-semibold tracking-wide text-slate-900">
-                                        <span className="sr-only">Código SIS </span>
-                                        {ficha.codigo}
-                                    </p>
-                                    <span role="group" aria-label="Origen">
-                                        <Origen origen={ficha.origen} />
-                                    </span>
-                                    {ficha.facultad && (
-                                        <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
-                                            <PuntoFacultad sigla={ficha.facultad} />
-                                        </span>
-                                    )}
+                    <div className="grid gap-5 md:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
+                        <div className="min-w-0 space-y-4 self-start rounded-xl bg-gradient-to-br from-primary-50 to-slate-50 p-4">
+                            <div className="flex gap-4">
+                                <FotoDelEstudiante
+                                    id={ficha.id}
+                                    nombre={ficha.nombre}
+                                    alAmpliar={(abierta) => {
+                                        fotoAmpliada.current = abierta;
+                                    }}
+                                    conFoto={Boolean(ficha.con_foto)}
+                                    subidaEn={ficha.foto_subida_en ?? undefined}
+                                    alCambiar={() => {
+                                        recargar();
+                                        onFotoCambiada?.();
+                                    }}
+                                />
+                                <div className="min-w-0 flex-1 space-y-2.5">
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-medium text-slate-500">
+                                            Código SIS
+                                        </p>
+                                        <p className="font-mono text-xl font-semibold tracking-wide text-slate-900">
+                                            {ficha.codigo}
+                                        </p>
+                                    </div>
+                                    {ficha.facultad && <PuntoFacultad sigla={ficha.facultad} />}
+                                    <dl className="space-y-2.5 border-t border-slate-200/80 pt-3">
+                                        <Dato etiqueta="Carrera">{ficha.carrera ?? '—'}</Dato>
+                                        <Dato etiqueta="C.I.">
+                                            {ficha.documento ?? (
+                                                <Insignia tono="advertencia">Sin carnet</Insignia>
+                                            )}
+                                        </Dato>
+                                        <Dato etiqueta="Correo">
+                                            <span className="break-all">{ficha.correo ?? '—'}</span>
+                                        </Dato>
+                                        <Dato etiqueta="Registrado por">
+                                            {ficha.origen ?? 'Docente'}
+                                        </Dato>
+                                    </dl>
                                 </div>
-                                <dl className="space-y-1.5">
-                                    <Dato icono={GraduationCap} etiqueta="Carrera">
-                                        {ficha.carrera ?? '—'}
-                                    </Dato>
-                                    <Dato icono={IdCard} etiqueta="C.I.">
-                                        {ficha.documento ?? '—'}
-                                    </Dato>
-                                    <Dato icono={Mail} etiqueta="Correo">
-                                        {ficha.correo ?? '—'}
-                                    </Dato>
-                                </dl>
                             </div>
+                            <p className="text-xs text-slate-500">
+                                Registrado {soloDia(ficha.registrado_en) || 'sin fecha'} ·
+                                actualizado {soloDia(ficha.actualizado_en) || 'sin fecha'}
+                            </p>
                         </div>
 
-                        <section aria-label="Procedencia e historial">
-                            <h3 className="text-sm font-semibold text-slate-900">
-                                Origen del dato
-                            </h3>
-                            <p className="mt-1 text-sm text-slate-700">
-                                Origen: {ficha.origen} ·{' '}
-                                {ficha.verificado
-                                    ? 'Datos verificados'
-                                    : 'Pendiente de verificación'}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                                Registro creado {fechaCorta(ficha.registrado_en) || 'sin fecha'} ·{' '}
-                                última actualización{' '}
-                                {fechaCorta(ficha.actualizado_en) || 'sin fecha'}
-                            </p>
-                        </section>
-
-                        <section aria-label="Historial de conflictos">
-                            <h3 className="text-sm font-semibold text-slate-900">
-                                Historial de conflictos
-                                <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                                    {ficha.conflictos?.length ?? 0}
-                                </span>
-                            </h3>
-                            {ficha.conflictos?.length ? (
-                                <ol className="mt-2 space-y-2">
-                                    {ficha.conflictos.map((conflicto) => (
-                                        <li
-                                            key={conflicto.id}
-                                            className="rounded-lg border border-slate-200 p-3 text-sm"
-                                        >
-                                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                                <strong className="text-slate-800">
-                                                    {conflicto.tipo === 'DOCUMENTO_DISTINTO'
-                                                        ? 'Documento distinto'
-                                                        : 'Nombre distinto'}
-                                                </strong>
-                                                <Insignia
-                                                    tono={
-                                                        conflicto.estado === 'resuelto'
-                                                            ? 'exito'
-                                                            : 'advertencia'
-                                                    }
-                                                >
-                                                    {conflicto.estado === 'resuelto'
-                                                        ? 'Resuelto'
-                                                        : 'Pendiente'}
-                                                </Insignia>
-                                            </div>
-                                            <p className="mt-1 break-words text-slate-700">
-                                                Propuesto: {conflicto.nombre_nuevo}
-                                                {conflicto.documento_nuevo &&
-                                                    ` · C.I. ${conflicto.documento_nuevo}`}
-                                            </p>
-                                            <p className="text-xs text-slate-500">
-                                                {[
-                                                    conflicto.asignatura &&
-                                                        `${conflicto.asignatura}${conflicto.grupo ? `, grupo ${conflicto.grupo}` : ''}`,
-                                                    `Reportado por ${conflicto.reportado_por ?? conflicto.via ?? '—'}`,
-                                                    fechaCorta(conflicto.reportado_en),
-                                                ]
-                                                    .filter(Boolean)
-                                                    .join(' · ')}
-                                            </p>
-                                            {conflicto.estado === 'resuelto' && (
-                                                <p className="text-xs text-slate-500">
-                                                    Resolución:{' '}
-                                                    {conflicto.resolucion === 'USAR_CARGA'
-                                                        ? 'Se usó el nuevo'
-                                                        : 'Se dejó el actual'}
-                                                    {conflicto.resuelto_por &&
-                                                        ` · ${conflicto.resuelto_por}`}
-                                                    {conflicto.resuelto_en &&
-                                                        ` · ${fechaCorta(conflicto.resuelto_en)}`}
+                        <div className="min-w-0 space-y-5">
+                            {conflictos.length > 0 && (
+                                <section aria-label="Historial de conflictos">
+                                    <h3 className="text-sm font-semibold text-slate-900">
+                                        Historial de conflictos
+                                        <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                                            {conflictos.length}
+                                        </span>
+                                    </h3>
+                                    <ol className="mt-2 space-y-2">
+                                        {conflictos.map((conflicto) => (
+                                            <li
+                                                key={conflicto.id}
+                                                className="rounded-lg border border-slate-200 p-3 text-sm"
+                                            >
+                                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                                    <strong className="text-slate-800">
+                                                        {conflicto.tipo === 'DOCUMENTO_DISTINTO'
+                                                            ? 'Documento distinto'
+                                                            : 'Nombre distinto'}
+                                                    </strong>
+                                                    <Insignia
+                                                        tono={
+                                                            conflicto.estado === 'resuelto'
+                                                                ? 'exito'
+                                                                : 'advertencia'
+                                                        }
+                                                    >
+                                                        {conflicto.estado === 'resuelto'
+                                                            ? 'Resuelto'
+                                                            : 'Pendiente'}
+                                                    </Insignia>
+                                                </div>
+                                                <p className="mt-1 break-words text-slate-700">
+                                                    Propuesto: {conflicto.nombre_nuevo}
+                                                    {conflicto.documento_nuevo &&
+                                                        ` · C.I. ${conflicto.documento_nuevo}`}
                                                 </p>
-                                            )}
-                                        </li>
-                                    ))}
-                                </ol>
-                            ) : (
-                                <p className="mt-1 text-sm text-slate-600">
-                                    Sin conflictos registrados.
-                                </p>
+                                                <p className="text-xs text-slate-500">
+                                                    {[
+                                                        conflicto.asignatura &&
+                                                            `${conflicto.asignatura}${conflicto.grupo ? `, grupo ${conflicto.grupo}` : ''}`,
+                                                        `Reportado por ${conflicto.reportado_por ?? conflicto.via ?? '—'}`,
+                                                        fechaCorta(conflicto.reportado_en),
+                                                    ]
+                                                        .filter(Boolean)
+                                                        .join(' · ')}
+                                                </p>
+                                                {conflicto.estado === 'resuelto' && (
+                                                    <p className="text-xs text-slate-500">
+                                                        Resolución:{' '}
+                                                        {conflicto.resolucion === 'USAR_CARGA'
+                                                            ? 'Se usó el nuevo'
+                                                            : 'Se dejó el actual'}
+                                                        {conflicto.resuelto_por &&
+                                                            ` · ${conflicto.resuelto_por}`}
+                                                        {conflicto.resuelto_en &&
+                                                            ` · ${fechaCorta(conflicto.resuelto_en)}`}
+                                                    </p>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ol>
+                                </section>
                             )}
-                        </section>
 
-                        <section aria-label="Materias">
-                            <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                                <BookOpen className="h-4 w-4 text-primary-600" aria-hidden="true" />
-                                Materias
-                                <span className="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-700">
-                                    {materias.length}
-                                </span>
-                            </h3>
-                            {materias.length === 0 ? (
-                                <p className="mt-2 flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-600">
+                            <section aria-label="Materias">
+                                <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                                     <BookOpen
-                                        className="h-6 w-6 text-slate-400"
+                                        className="h-4 w-4 text-primary-600"
                                         aria-hidden="true"
                                     />
-                                    Sin materias
-                                </p>
-                            ) : (
-                                <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                                    {materias.map((m) => (
-                                        <li
-                                            key={`${m.grupo_id ?? `${m.asignatura.codigo}-${m.grupo}`}-${m.periodo}`}
-                                            className="flex min-w-0 gap-2.5 rounded-xl border border-slate-200 p-2.5 transition-colors hover:border-primary-200 hover:bg-primary-50/40"
-                                        >
-                                            <IconoAsignatura
-                                                nombre={m.asignatura.nombre}
-                                                color={m.asignatura.color}
-                                            />
-                                            <div className="min-w-0 flex-1 space-y-1">
-                                                <p className="text-sm font-semibold leading-snug text-slate-900">
-                                                    {m.asignatura.nombre}
-                                                </p>
-                                                <p className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-slate-500">
-                                                    <span className="font-mono">
-                                                        {m.asignatura.codigo}
-                                                    </span>
-                                                    <span className="inline-flex items-center gap-1">
-                                                        <UsersRound
-                                                            className="h-3.5 w-3.5"
-                                                            aria-hidden="true"
-                                                        />
-                                                        Grupo {m.grupo}
-                                                    </span>
-                                                    <span className="inline-flex items-center gap-1">
-                                                        <CalendarDays
-                                                            className="h-3.5 w-3.5"
-                                                            aria-hidden="true"
-                                                        />
-                                                        {m.periodo}
-                                                    </span>
-                                                </p>
-                                                <p className="flex min-w-0 items-center gap-1.5 text-xs text-slate-700">
-                                                    <UserRound
-                                                        className="h-3.5 w-3.5 shrink-0 text-slate-400"
-                                                        aria-hidden="true"
-                                                    />
-                                                    <span className="truncate" title={m.docente}>
+                                    Materias
+                                    <span className="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-700">
+                                        {materias.length}
+                                    </span>
+                                </h3>
+                                {materias.length === 0 ? (
+                                    <p className="mt-2 flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-600">
+                                        <BookOpen
+                                            className="h-6 w-6 text-slate-400"
+                                            aria-hidden="true"
+                                        />
+                                        Sin materias
+                                    </p>
+                                ) : (
+                                    <ul className="mt-2 divide-y divide-slate-200 rounded-xl border border-slate-200">
+                                        {materias.map((m) => (
+                                            <li
+                                                key={`${m.grupo_id ?? `${m.asignatura.codigo}-${m.grupo}`}-${m.periodo}`}
+                                                className="flex min-w-0 gap-3 p-3"
+                                            >
+                                                <IconoAsignatura
+                                                    nombre={m.asignatura.nombre}
+                                                    color={m.asignatura.color}
+                                                />
+                                                <div className="min-w-0 flex-1 space-y-0.5">
+                                                    <p className="text-sm font-semibold leading-snug text-slate-900">
+                                                        {m.asignatura.nombre}
+                                                    </p>
+                                                    <p className="text-xs text-slate-600">
+                                                        <span className="font-mono">
+                                                            {m.asignatura.codigo}
+                                                        </span>{' '}
+                                                        · Grupo {m.grupo} · {m.periodo}
+                                                    </p>
+                                                    <p className="text-xs text-slate-700">
+                                                        <span className="text-slate-500">
+                                                            Docente:
+                                                        </span>{' '}
                                                         {m.docente ?? 'Por designar'}
-                                                    </span>
-                                                    {m.via && <Via via={m.via} />}
-                                                </p>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </section>
+                                                        {m.via && (
+                                                            <span className="text-slate-500">
+                                                                {' '}
+                                                                · vía {m.via}
+                                                            </span>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </section>
+                        </div>
                     </div>
                 )}
             </EstadoCarga>
@@ -434,6 +431,7 @@ export default function FichaEstudiante({ estudiante, onCerrar, onFotoCambiada }
                 <EditarEstudiante
                     estudiante={ficha}
                     ruta={`/estudiantes/${ficha.id}`}
+                    conCodigo
                     onEditado={(texto) => {
                         setEditando(false);
                         avisar(texto);

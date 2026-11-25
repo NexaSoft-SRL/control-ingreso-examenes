@@ -8,7 +8,7 @@ import usarDesplegable from './usarDesplegable';
 // Con más asignaturas que estas, la lista lleva buscador.
 const CON_BUSCADOR = 7;
 
-function Detalle({ asignatura }) {
+export function Detalle({ asignatura }) {
     const partes = [
         asignatura.codigo,
         asignatura.grupos?.length
@@ -42,6 +42,8 @@ export default function SelectorAsignatura({
     valor,
     onCambiar,
     disabled = false,
+    vacio = 'Elegir asignatura',
+    ocultarEtiqueta = false,
 }) {
     const [filtro, setFiltro] = useState('');
 
@@ -68,10 +70,10 @@ export default function SelectorAsignatura({
             {etiqueta && (
                 <span
                     id={`${id}-etiqueta`}
-                    className="mb-1.5 block text-sm font-medium text-slate-700"
+                    className={`block text-sm font-medium text-slate-700 ${ocultarEtiqueta ? 'sr-only' : 'mb-1.5'}`}
                 >
                     {etiqueta}
-                    {requerido && (
+                    {requerido && !ocultarEtiqueta && (
                         <span className="ml-0.5 text-danger-600" aria-hidden="true">
                             *
                         </span>
@@ -108,7 +110,7 @@ export default function SelectorAsignatura({
                         </span>
                     </>
                 ) : (
-                    <span className="flex-1 text-sm text-slate-500">Elegir asignatura</span>
+                    <span className="flex-1 text-sm text-slate-500">{vacio}</span>
                 )}
                 <ChevronDown
                     className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${abierta ? 'rotate-180' : ''}`}
@@ -214,5 +216,7 @@ SelectorAsignatura.propTypes = {
     ).isRequired,
     valor: PropTypes.number,
     onCambiar: PropTypes.func.isRequired,
+    ocultarEtiqueta: PropTypes.bool,
     disabled: PropTypes.bool,
+    vacio: PropTypes.string,
 };

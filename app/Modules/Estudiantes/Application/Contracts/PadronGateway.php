@@ -77,6 +77,11 @@ interface PadronGateway
     public function documentoDeOtro(string $documento, int $estudianteId): bool;
 
     /**
+     * Si el codigo SIS ya es de otro estudiante.
+     */
+    public function codigoDeOtro(string $codigo, int $estudianteId): bool;
+
+    /**
      * Guarda los datos corregidos y, si algo cambio, asienta
      * `estudiante.editar` con el dato anterior y el nuevo.
      */

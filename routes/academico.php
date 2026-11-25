@@ -45,6 +45,8 @@ Route::prefix('api')->middleware(['auth', 'permiso:periodo_oferta'])->group(func
 
     Route::post('/oferta/importaciones', [ImportacionOfertaController::class, 'store'])
         ->name('oferta.importaciones.store');
+    Route::get('/oferta/facultades', [OfertaController::class, 'facultades'])
+        ->name('oferta.facultades');
     Route::get('/oferta/asignaturas', [OfertaController::class, 'asignaturas'])
         ->name('oferta.asignaturas');
     Route::get('/oferta/asignaturas/{asignatura}/grupos', [OfertaController::class, 'grupos'])
@@ -66,6 +68,9 @@ Route::prefix('api')->middleware(['auth', 'permiso:aulas_docentes'])->group(func
     Route::post('/docentes/{docente}/cuenta', [DocenteController::class, 'activarCuenta'])
         ->whereNumber('docente')
         ->name('docentes.cuenta.activar');
+    Route::post('/docentes/{docente}/contrasena-temporal', [DocenteController::class, 'contrasenaTemporal'])
+        ->whereNumber('docente')
+        ->name('docentes.contrasena_temporal');
 });
 
 Route::get('/api/docente/grupos', [GruposDocenteController::class, 'index'])

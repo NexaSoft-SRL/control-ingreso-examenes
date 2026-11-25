@@ -20,8 +20,10 @@ const VENTANAS = [
 const hoyISO = () => new Date().toLocaleDateString('en-CA');
 
 // Cada ventana respecto de hoy.
-function estadoDe(rango, hoy) {
-    if (!rango?.[0] || !rango?.[1]) return { texto: 'Sin fechas', tono: 'advertencia' };
+function estadoDe(rango, hoy, cerrado = false) {
+    // En un período cerrado ya no hay nada que completar: no es una alerta.
+    if (!rango?.[0] || !rango?.[1])
+        return { texto: 'Sin fechas', tono: cerrado ? 'neutro' : 'advertencia' };
     if (hoy < rango[0]) return { texto: 'Próxima', tono: 'info' };
     if (hoy > rango[1]) return { texto: 'Cerrada', tono: 'neutro' };
     return { texto: 'Abierta ahora', tono: 'exito' };
@@ -43,7 +45,7 @@ function enOrden(periodo) {
     });
 }
 
-function AjustarCalendario({ periodo, onCerrar, onGuardado }) {
+function AjustarCalendario({ periodo, onCerrar, onGuardado, onRestablecido }) {
     const [fechas, setFechas] = useState(() =>
         Object.fromEntries(
             VENTANAS.map(([clave]) => [
@@ -55,6 +57,10 @@ function AjustarCalendario({ periodo, onCerrar, onGuardado }) {
     const [errores, setErrores] = useState({});
     const [general, setGeneral] = useState(null);
     const [guardando, setGuardando] = useState(false);
+    // «Restablecer» vuelve a las fechas de la universidad y pide confirmar.
+    const [confirmando, setConfirmando] = useState(false);
+    const [restableciendo, setRestableciendo] = useState(false);
+    const ajustado = Boolean(periodo.calendario_ajustado);
     // Las fechas caben dentro del período.
     const minimo = periodo.fecha_inicio ?? undefined;
     const maximo = periodo.fecha_fin ?? undefined;
@@ -69,6 +75,18 @@ function AjustarCalendario({ periodo, onCerrar, onGuardado }) {
             return { ...previas, [clave]: rango };
         });
         setErrores((previos) => ({ ...previos, [`ventanas.${clave}.${posicion}`]: undefined }));
+    }
+
+    function restablecer() {
+        setRestableciendo(true);
+        setGeneral(null);
+        api.delete(`/periodos/${periodo.id}/calendario`)
+            .then(() => onRestablecido())
+            .catch((falla) => {
+                setGeneral(mensajeDe(falla, 'No se pudo restablecer'));
+                setConfirmando(false);
+                setRestableciendo(false);
+            });
     }
 
     function guardar(evento) {
@@ -112,17 +130,52 @@ function AjustarCalendario({ periodo, onCerrar, onGuardado }) {
             onCerrar={onCerrar}
             ancho="max-w-xl"
             acciones={
-                <>
-                    <Boton type="button" variante="secundario" onClick={onCerrar}>
-                        Cancelar
-                    </Boton>
-                    <Boton type="submit" form="ajustar-calendario" cargando={guardando}>
-                        {guardando ? 'Guardando' : 'Guardar ajuste'}
-                    </Boton>
-                </>
+                confirmando ? (
+                    <>
+                        <Boton
+                            type="button"
+                            variante="secundario"
+                            onClick={() => setConfirmando(false)}
+                        >
+                            Cancelar
+                        </Boton>
+                        <Boton type="button" cargando={restableciendo} onClick={restablecer}>
+                            Sí, restablecer
+                        </Boton>
+                    </>
+                ) : (
+                    <>
+                        {ajustado && (
+                            <Boton
+                                type="button"
+                                variante="secundario"
+                                onClick={() => setConfirmando(true)}
+                            >
+                                Restablecer
+                            </Boton>
+                        )}
+                        <Boton type="button" variante="secundario" onClick={onCerrar}>
+                            Cancelar
+                        </Boton>
+                        <Boton type="submit" form="ajustar-calendario" cargando={guardando}>
+                            {guardando ? 'Guardando' : 'Guardar ajuste'}
+                        </Boton>
+                    </>
+                )
             }
         >
-            <form id="ajustar-calendario" onSubmit={guardar} noValidate className="space-y-4">
+            {confirmando && (
+                <div className="space-y-2 text-sm text-slate-700">
+                    <p className="font-semibold text-slate-900">¿Restablecer el calendario?</p>
+                    <p>Se pierden los ajustes y vuelven las fechas de la universidad.</p>
+                </div>
+            )}
+            <form
+                id="ajustar-calendario"
+                onSubmit={guardar}
+                noValidate
+                className={`space-y-4 ${confirmando ? 'hidden' : ''}`}
+            >
                 {orden.map(([clave, nombre]) => (
                     <fieldset key={clave} className="grid gap-3 sm:grid-cols-2">
                         <legend className="mb-1 text-sm font-semibold text-slate-800">
@@ -165,32 +218,23 @@ AjustarCalendario.propTypes = {
         fecha_inicio: PropTypes.string,
         fecha_fin: PropTypes.string,
         calendario: PropTypes.object,
+        calendario_ajustado: PropTypes.bool,
     }).isRequired,
     onCerrar: PropTypes.func.isRequired,
     onGuardado: PropTypes.func.isRequired,
+    onRestablecido: PropTypes.func.isRequired,
 };
 
 // El calendario académico de un período: se lee tal como lo publica la
-// universidad y no se edita a la primera. Ajustarlo es una decisión
-// (pide confirmar) y se puede volver al de la universidad.
+// universidad y no se edita a la primera. Ajustarlo es una decisión (pide
+// confirmar); dentro del ajuste, «Restablecer» vuelve al de la universidad.
 export default function CalendarioAcademico({ periodo, onCerrar, onCambio }) {
-    // 'ver' | 'confirmar-ajuste' | 'confirmar-vuelta' | 'ajustar'
+    // 'ver' | 'confirmar-ajuste' | 'ajustar'
     const [modo, setModo] = useState('ver');
-    const [trabajando, setTrabajando] = useState(false);
-    const [error, setError] = useState(null);
     const hoy = hoyISO();
     const ajustado = Boolean(periodo.calendario_ajustado);
-
-    function volver() {
-        setTrabajando(true);
-        setError(null);
-        api.delete(`/periodos/${periodo.id}/calendario`)
-            .then(() => onCambio('Calendario de la universidad'))
-            .catch((falla) => {
-                setError(mensajeDe(falla, 'No se pudo volver al de la universidad'));
-                setTrabajando(false);
-            });
-    }
+    // Un período cerrado solo se consulta: ya no se ajusta.
+    const cerrado = periodo.estado === 'Cerrado';
 
     if (modo === 'ajustar') {
         return (
@@ -198,12 +242,12 @@ export default function CalendarioAcademico({ periodo, onCerrar, onCambio }) {
                 periodo={periodo}
                 onCerrar={onCerrar}
                 onGuardado={() => onCambio('Calendario ajustado')}
+                onRestablecido={() => onCambio('Calendario de la universidad')}
             />
         );
     }
 
-    const confirmando = modo === 'confirmar-ajuste' || modo === 'confirmar-vuelta';
-    const alVolver = modo === 'confirmar-vuelta';
+    const confirmando = modo === 'confirmar-ajuste';
 
     return (
         <Dialogo
@@ -213,42 +257,24 @@ export default function CalendarioAcademico({ periodo, onCerrar, onCambio }) {
             acciones={
                 confirmando ? (
                     <>
-                        <Boton
-                            type="button"
-                            variante="secundario"
-                            onClick={() => {
-                                setModo('ver');
-                                setError(null);
-                            }}
-                        >
+                        <Boton type="button" variante="secundario" onClick={() => setModo('ver')}>
                             Cancelar
                         </Boton>
-                        <Boton
-                            type="button"
-                            cargando={trabajando}
-                            onClick={alVolver ? volver : () => setModo('ajustar')}
-                        >
-                            {alVolver ? 'Sí, volver al de la universidad' : 'Sí, ajustar'}
+                        <Boton type="button" onClick={() => setModo('ajustar')}>
+                            Sí, ajustar
                         </Boton>
                     </>
                 ) : (
                     <>
-                        {ajustado && (
+                        {!cerrado && (
                             <Boton
                                 type="button"
                                 variante="secundario"
-                                onClick={() => setModo('confirmar-vuelta')}
+                                onClick={() => setModo(ajustado ? 'ajustar' : 'confirmar-ajuste')}
                             >
-                                Usar el de la universidad
+                                Ajustar fechas
                             </Boton>
                         )}
-                        <Boton
-                            type="button"
-                            variante="secundario"
-                            onClick={() => setModo(ajustado ? 'ajustar' : 'confirmar-ajuste')}
-                        >
-                            Ajustar fechas
-                        </Boton>
                         <Boton type="button" onClick={onCerrar}>
                             Cerrar
                         </Boton>
@@ -258,19 +284,11 @@ export default function CalendarioAcademico({ periodo, onCerrar, onCambio }) {
         >
             {confirmando ? (
                 <div className="space-y-2 text-sm text-slate-700">
-                    <p className="font-semibold text-slate-900">
-                        {alVolver ? '¿Volver al calendario de la universidad?' : '¿Ajustar fechas?'}
-                    </p>
+                    <p className="font-semibold text-slate-900">¿Ajustar fechas?</p>
                     <p>
-                        {alVolver
-                            ? 'Se pierden los ajustes de este período.'
-                            : 'Estas fechas vienen del calendario de la universidad. ¿Ajustarlas solo en este sistema?'}
+                        Estas fechas vienen del calendario de la universidad. ¿Ajustarlas solo en
+                        este sistema?
                     </p>
-                    {error && (
-                        <p role="alert" className="text-danger-600">
-                            {error}
-                        </p>
-                    )}
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -295,7 +313,7 @@ export default function CalendarioAcademico({ periodo, onCerrar, onCambio }) {
                     <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200">
                         {enOrden(periodo).map(([clave, nombre]) => {
                             const rango = periodo.calendario?.[clave];
-                            const estado = estadoDe(rango, hoy);
+                            const estado = estadoDe(rango, hoy, cerrado);
                             return (
                                 <li
                                     key={clave}
@@ -317,7 +335,9 @@ export default function CalendarioAcademico({ periodo, onCerrar, onCambio }) {
                         })}
                     </ul>
                     <p className="text-xs text-slate-600">
-                        Dentro de cada ventana el docente puede registrar exámenes de ese tipo.
+                        {cerrado
+                            ? 'El período cerró: el calendario solo se consulta.'
+                            : 'Dentro de cada ventana el docente puede registrar exámenes de ese tipo.'}
                     </p>
                 </div>
             )}
@@ -332,6 +352,7 @@ CalendarioAcademico.propTypes = {
         fecha_inicio: PropTypes.string,
         fecha_fin: PropTypes.string,
         calendario: PropTypes.object,
+        estado: PropTypes.string,
         calendario_ajustado: PropTypes.bool,
         calendario_ajustado_por: PropTypes.string,
         calendario_ajustado_en: PropTypes.string,

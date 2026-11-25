@@ -6,7 +6,9 @@ namespace App\Modules\Academico\Http\Controllers;
 
 use App\Modules\Academico\Application\Queries\ListarAsignaturas;
 use App\Modules\Academico\Application\Queries\ListarCarreras;
+use App\Modules\Academico\Application\Queries\ListarFacultadesConOferta;
 use App\Modules\Academico\Application\Queries\ListarGruposDeAsignatura;
+use App\Modules\Academico\Http\Requests\FiltroPeriodoRequest;
 use App\Modules\Academico\Http\Requests\FiltroUbicacionRequest;
 use App\Modules\Academico\Http\Requests\ListarAsignaturasRequest;
 use App\Modules\Academico\Http\Requests\ListarGruposDeAsignaturaRequest;
@@ -20,7 +22,16 @@ final class OfertaController
 {
     public function carreras(FiltroUbicacionRequest $request, ListarCarreras $listar): JsonResponse
     {
-        return response()->json(['data' => $listar->execute($request->facultad())]);
+        return response()->json(['data' => $listar->execute(
+            $request->facultad(),
+            $request->conOferta(),
+            $request->periodoId(),
+        )]);
+    }
+
+    public function facultades(FiltroPeriodoRequest $request, ListarFacultadesConOferta $listar): JsonResponse
+    {
+        return response()->json(['data' => $listar->execute($request->periodoId())]);
     }
 
     public function asignaturas(ListarAsignaturasRequest $request, ListarAsignaturas $listar): JsonResponse

@@ -12,6 +12,7 @@ use App\Modules\Academico\Application\Queries\ConsultarPeriodosVigentes;
 use App\Modules\Academico\Application\Queries\ConsultarResumenPeriodo;
 use App\Modules\Academico\Application\Queries\ListarPeriodos;
 use App\Modules\Academico\Domain\Exceptions\CalendarioDeLaUniversidadNoDisponibleException;
+use App\Modules\Academico\Domain\Exceptions\PeriodoCerradoException;
 use App\Modules\Academico\Http\Requests\AjustarCalendarioRequest;
 use App\Modules\Academico\Http\Requests\AjustarPeriodoRequest;
 use App\Modules\Academico\Http\Requests\PaginaRequest;
@@ -65,7 +66,11 @@ final class PeriodoController
     {
         $autorId = Auth::id();
 
-        $fila = $ajustar->execute($periodo, $request->ventanas(), is_int($autorId) ? $autorId : null);
+        try {
+            $fila = $ajustar->execute($periodo, $request->ventanas(), is_int($autorId) ? $autorId : null);
+        } catch (PeriodoCerradoException $error) {
+            return response()->json(['message' => $error->getMessage()], Response::HTTP_CONFLICT);
+        }
 
         if ($fila === null) {
             return response()->json([
@@ -82,7 +87,7 @@ final class PeriodoController
 
         try {
             $fila = $restaurar->execute($periodo, is_int($autorId) ? $autorId : null);
-        } catch (CalendarioDeLaUniversidadNoDisponibleException $error) {
+        } catch (CalendarioDeLaUniversidadNoDisponibleException|PeriodoCerradoException $error) {
             return response()->json(['message' => $error->getMessage()], Response::HTTP_CONFLICT);
         }
 

@@ -48,7 +48,7 @@ export const VISTAS = [
     },
     {
         ruta: '/oferta',
-        titulo: 'Oferta',
+        titulo: 'Oferta académica',
         Icono: BookMarked,
         grupo: 'Preparación',
         permiso: 'periodo_oferta',

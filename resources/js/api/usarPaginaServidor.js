@@ -14,11 +14,13 @@ export default function usePaginaServidor({
     porPagina = 25,
     filtros: iniciales = {},
     espera = 300,
+    // Texto con que se abre la búsqueda (p. ej. `?buscar=` de la dirección).
+    buscarInicial = '',
 } = {}) {
     const [pagina, setPagina] = useState(1);
     const [filtros, setFiltros] = useState(iniciales);
-    const [buscar, setBuscar] = useState('');
-    const [buscado, setBuscado] = useState('');
+    const [buscar, setBuscar] = useState(buscarInicial);
+    const [buscado, setBuscado] = useState(buscarInicial.trim());
 
     useEffect(() => {
         const texto = buscar.trim();

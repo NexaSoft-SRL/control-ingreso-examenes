@@ -16,7 +16,6 @@ use App\Modules\Examenes\Domain\Models\ExamenGrupo;
 use App\Modules\Examenes\Domain\Models\ExamenNorma;
 use App\Modules\Examenes\Domain\Models\PlantillaNorma;
 use App\Modules\Examenes\Domain\Models\SuspensionExamen;
-use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
@@ -27,6 +26,7 @@ use LogicException;
 final class EloquentExamenGateway implements ExamenGateway
 {
     use ConvierteFilas;
+    use DejaSinHabilitacionAQuienSale;
 
     public function __construct(
         private readonly BitacoraGateway $bitacora,
@@ -65,6 +65,7 @@ final class EloquentExamenGateway implements ExamenGateway
             duracionMinutos: $examen->duracion_minutos,
             grupos: $this->ids(ExamenGrupo::where('examen_id', $examenId)->pluck('grupo_id')->all()),
             aulas: $this->ids(ExamenAula::where('examen_id', $examenId)->pluck('aula_id')->all()),
+            invitados: $this->ids(DB::table('invitaciones_examen')->where('examen_id', $examenId)->pluck('grupo_id')->all()),
         );
     }
 
@@ -92,6 +93,8 @@ final class EloquentExamenGateway implements ExamenGateway
                 ExamenGrupo::create(['examen_id' => $examen->id, 'grupo_id' => $grupoId]);
             }
 
+            $invitados = $this->sincronizarInvitaciones($examen->id, $datos->invitados ?? [], $usuarioId);
+
             $personalAjeno = false;
 
             foreach ($datos->aulas as $aula) {
@@ -111,6 +114,8 @@ final class EloquentExamenGateway implements ExamenGateway
                 $examen->id,
                 $this->descripcion($examen, 'registrado').' '.$this->resumenDeGrupos($examen->id, $usuarioId),
             );
+
+            $this->asentarInvitaciones($examen, $usuarioId, $invitados);
 
             if ($personalAjeno) {
                 $this->asentarPersonal($examen, $usuarioId);
@@ -146,6 +151,9 @@ final class EloquentExamenGateway implements ExamenGateway
             ])->save();
 
             $gruposCambiaron = $this->sincronizarGrupos($examenId, $datos->grupos);
+            $invitados = $datos->invitados === null
+                ? ['nuevos' => [], 'quitados' => []]
+                : $this->sincronizarInvitaciones($examenId, $datos->invitados, $usuarioId);
             $personalCambio = $this->sincronizarAulas($examenId, $datos->aulas, $usuarioId);
             $this->sincronizarNormas($examenId, $datos->normasMarcadas, $datos->normasConservadas);
 
@@ -157,6 +165,8 @@ final class EloquentExamenGateway implements ExamenGateway
                 $this->descripcion($examen, 'modificado')
                     .($gruposCambiaron ? ' '.$this->resumenDeGrupos($examenId, $usuarioId) : ''),
             );
+
+            $this->asentarInvitaciones($examen, $usuarioId, $invitados);
 
             if ($personalCambio) {
                 $this->asentarPersonal($examen, $usuarioId);
@@ -330,24 +340,103 @@ final class EloquentExamenGateway implements ExamenGateway
         if ($quitados !== []) {
             ExamenGrupo::where('examen_id', $examenId)->whereIn('grupo_id', $quitados)->delete();
 
-            // Quien ya no esta inscrito en ningun grupo del examen deja de
-            // tener habilitacion y codigo QR en el.
-            foreach (['habilitaciones', 'codigos_qr'] as $tabla) {
-                DB::table($tabla)
-                    ->where($tabla.'.examen_id', $examenId)
-                    ->whereNotExists(function (Builder $inscrito) use ($examenId, $tabla): void {
-                        $inscrito->selectRaw('1')
-                            ->from('examen_grupo as incluido')
-                            ->join('inscripciones as inscripcion', 'inscripcion.grupo_id', '=', 'incluido.grupo_id')
-                            ->where('incluido.examen_id', $examenId)
-                            ->whereColumn('inscripcion.estudiante_id', $tabla.'.estudiante_id')
-                            ->whereNull('inscripcion.baja_en');
-                    })
-                    ->delete();
-            }
+            $this->limpiarHabilitacionesDelExamen($examenId);
         }
 
         return $quitados !== [] || $nuevos !== [];
+    }
+
+    /**
+     * Deja invitados exactamente esos grupos: crea la invitacion de los que
+     * faltan y borra la de los que se quitaron. La que ya estaba (pendiente
+     * o rechazada) no se toca.
+     *
+     * @param  list<int>  $invitados
+     * @return array{nuevos: list<int>, quitados: list<int>}
+     */
+    private function sincronizarInvitaciones(int $examenId, array $invitados, int $usuarioId): array
+    {
+        $actuales = $this->ids(
+            DB::table('invitaciones_examen')->where('examen_id', $examenId)->pluck('grupo_id')->all()
+        );
+        $nuevos = array_values(array_diff($invitados, $actuales));
+        $quitados = array_values(array_diff($actuales, $invitados));
+        $ahora = now();
+
+        foreach ($nuevos as $grupoId) {
+            DB::table('invitaciones_examen')->insert([
+                'examen_id' => $examenId,
+                'grupo_id' => $grupoId,
+                'invitado_por' => $usuarioId,
+                'estado' => 'pendiente',
+                'created_at' => $ahora,
+                'updated_at' => $ahora,
+            ]);
+        }
+
+        if ($quitados !== []) {
+            DB::table('invitaciones_examen')
+                ->where('examen_id', $examenId)
+                ->whereIn('grupo_id', $quitados)
+                ->delete();
+        }
+
+        return ['nuevos' => $nuevos, 'quitados' => $quitados];
+    }
+
+    /**
+     * @param  array{nuevos: list<int>, quitados: list<int>}  $cambios
+     */
+    private function asentarInvitaciones(Examen $examen, int $usuarioId, array $cambios): void
+    {
+        foreach ([
+            'examen.invitar' => ['nuevos', 'Invitó a sumar'],
+            'examen.retirar_invitacion' => ['quitados', 'Retiró la invitación a'],
+        ] as $operacion => [$clave, $verbo]) {
+            if ($cambios[$clave] === []) {
+                continue;
+            }
+
+            $this->bitacora->registrar(
+                $usuarioId,
+                $operacion,
+                'examenes',
+                $examen->id,
+                sprintf(
+                    '%s en %s: %s.',
+                    $verbo,
+                    $this->descripcion($examen, 'registrado'),
+                    $this->grupos($cambios[$clave]),
+                ),
+            );
+        }
+    }
+
+    /**
+     * «grupo 3 (Salazar Serrudo Carla), grupo 5 (sin docente)».
+     *
+     * @param  list<int>  $grupoIds
+     */
+    private function grupos(array $grupoIds): string
+    {
+        $partes = [];
+
+        $filas = DB::table('grupos as grupo')
+            ->leftJoin('docentes as docente', 'docente.id', '=', 'grupo.docente_id')
+            ->whereIn('grupo.id', $grupoIds)
+            ->orderBy('grupo.codigo')
+            ->get(['grupo.codigo', 'docente.nombre_completo']);
+
+        foreach ($filas as $fila) {
+            $columnas = $this->columnas($fila);
+            $partes[] = sprintf(
+                'grupo %s (%s)',
+                $this->cadena($columnas['codigo'] ?? null),
+                $this->texto($columnas['nombre_completo'] ?? null) ?? 'sin docente',
+            );
+        }
+
+        return implode(', ', $partes);
     }
 
     /**
@@ -396,8 +485,13 @@ final class EloquentExamenGateway implements ExamenGateway
                 ExamenAulaApoyo::where('examen_aula_id', $asignada->id)->whereIn('user_id', $sobran)->delete();
             }
 
+            // Las filas que siguen conservan quien las sumo; las nuevas, quien guarda.
             foreach ($faltan as $apoyoId) {
-                ExamenAulaApoyo::create(['examen_aula_id' => $asignada->id, 'user_id' => $apoyoId]);
+                ExamenAulaApoyo::create([
+                    'examen_aula_id' => $asignada->id,
+                    'user_id' => $apoyoId,
+                    'agregado_por' => $usuarioId,
+                ]);
             }
 
             $personalCambio = $personalCambio || $sobran !== [] || $faltan !== [];
@@ -502,7 +596,11 @@ final class EloquentExamenGateway implements ExamenGateway
         ]);
 
         foreach ($aula->apoyo as $apoyoId) {
-            ExamenAulaApoyo::create(['examen_aula_id' => $asignada->id, 'user_id' => $apoyoId]);
+            ExamenAulaApoyo::create([
+                'examen_aula_id' => $asignada->id,
+                'user_id' => $apoyoId,
+                'agregado_por' => $usuarioId,
+            ]);
         }
     }
 
@@ -556,8 +654,7 @@ final class EloquentExamenGateway implements ExamenGateway
     }
 
     /**
-     * Los grupos del examen; los de otros docentes se nombran, porque
-     * sumarlos no pide aprobacion.
+     * Los grupos del examen; los de otros docentes se nombran.
      */
     private function resumenDeGrupos(int $examenId, int $usuarioId): string
     {

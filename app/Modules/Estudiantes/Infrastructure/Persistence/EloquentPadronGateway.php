@@ -376,6 +376,14 @@ final class EloquentPadronGateway implements PadronGateway
             ->exists();
     }
 
+    public function codigoDeOtro(string $codigo, int $estudianteId): bool
+    {
+        return DB::table('estudiantes')
+            ->where('codigo_universitario', $codigo)
+            ->where('id', '<>', $estudianteId)
+            ->exists();
+    }
+
     public function editar(EdicionDeEstudianteData $edicion): void
     {
         DB::transaction(function () use ($edicion): void {
@@ -396,7 +404,16 @@ final class EloquentPadronGateway implements PadronGateway
                 'nombres' => $edicion->nombres,
                 'apellidos' => $edicion->apellidos,
             ];
-            $etiquetas = ['documento_identidad' => 'C.I.', 'nombres' => 'Nombres', 'apellidos' => 'Apellidos'];
+            $etiquetas = [
+                'codigo_universitario' => 'Código SIS',
+                'documento_identidad' => 'C.I.',
+                'nombres' => 'Nombres',
+                'apellidos' => 'Apellidos',
+            ];
+
+            if ($edicion->codigo !== null) {
+                $nuevos = ['codigo_universitario' => $edicion->codigo] + $nuevos;
+            }
             $cambios = [];
 
             foreach ($nuevos as $campo => $valor) {
