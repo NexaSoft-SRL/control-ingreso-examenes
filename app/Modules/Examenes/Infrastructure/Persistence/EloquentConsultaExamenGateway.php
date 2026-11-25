@@ -90,6 +90,36 @@ final class EloquentConsultaExamenGateway implements ConsultaExamenGateway
         return $grupos;
     }
 
+    public function gruposOcupadosPorTipo(array $grupoIds, string $tipo, ?int $exceptoExamenId): array
+    {
+        if ($grupoIds === []) {
+            return [];
+        }
+
+        $consulta = DB::table('examen_grupo as incluido')
+            ->join('examenes as examen', 'examen.id', '=', 'incluido.examen_id')
+            ->join('grupos as grupo', 'grupo.id', '=', 'incluido.grupo_id')
+            ->whereIn('incluido.grupo_id', $grupoIds)
+            ->where('examen.tipo', $tipo)
+            ->orderBy('grupo.codigo')
+            ->distinct();
+
+        if ($exceptoExamenId !== null) {
+            $consulta->where('examen.id', '<>', $exceptoExamenId);
+        }
+
+        $ocupados = [];
+
+        foreach ($consulta->get(['grupo.id', 'grupo.codigo']) as $fila) {
+            $ocupados[] = [
+                'id' => $this->entero($fila->id),
+                'codigo' => $this->cadena($fila->codigo),
+            ];
+        }
+
+        return $ocupados;
+    }
+
     public function gruposConExamenDeTipo(array $grupoIds, string $tipo, ?int $exceptoExamenId): array
     {
         if ($grupoIds === []) {

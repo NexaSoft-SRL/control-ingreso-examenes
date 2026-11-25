@@ -29,6 +29,9 @@ Route::prefix('api')
         Route::get('/examenes/opciones/choques', [OpcionesExamenController::class, 'choques'])
             ->name('examenes.opciones.choques');
 
+        Route::get('/examenes/opciones/ocupados', [OpcionesExamenController::class, 'ocupados'])
+            ->name('examenes.opciones.ocupados');
+
         Route::get('/examenes/invitaciones', [InvitacionExamenController::class, 'index'])
             ->name('examenes.invitaciones.index');
 

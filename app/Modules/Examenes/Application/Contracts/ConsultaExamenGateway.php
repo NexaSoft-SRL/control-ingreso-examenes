@@ -46,6 +46,14 @@ interface ConsultaExamenGateway
     public function gruposConExamenDeTipo(array $grupoIds, string $tipo, ?int $exceptoExamenId): array;
 
     /**
+     * Lo mismo con el identificador de cada grupo, para marcarlos en el asistente.
+     *
+     * @param  list<int>  $grupoIds
+     * @return list<array{id: int, codigo: string}>
+     */
+    public function gruposOcupadosPorTipo(array $grupoIds, string $tipo, ?int $exceptoExamenId): array;
+
+    /**
      * @param  list<int>  $usuarioIds
      * @return array<int, PersonaData>
      */

@@ -6,11 +6,13 @@ namespace App\Modules\Examenes\Http\Controllers;
 
 use App\Modules\Examenes\Application\DTOs\GrupoDeExamenData;
 use App\Modules\Examenes\Application\Queries\ConsultarChoquesDeEstudiantes;
+use App\Modules\Examenes\Application\Queries\ConsultarGruposConExamenDeTipo;
 use App\Modules\Examenes\Application\Queries\ConsultarOpcionesDeAulas;
 use App\Modules\Examenes\Application\Queries\ConsultarOpcionesDeGrupos;
 use App\Modules\Examenes\Http\Requests\OpcionesDeAulasRequest;
 use App\Modules\Examenes\Http\Requests\OpcionesDeChoquesRequest;
 use App\Modules\Examenes\Http\Requests\OpcionesDeGruposRequest;
+use App\Modules\Examenes\Http\Requests\OpcionesDeOcupadosRequest;
 use Illuminate\Http\JsonResponse;
 
 final class OpcionesExamenController
@@ -53,6 +55,17 @@ final class OpcionesExamenController
         return response()->json([
             'total' => $choques->total,
             'estudiantes' => $choques->estudiantes,
+        ]);
+    }
+
+    /**
+     * Los grupos elegidos que ya tienen un examen de ese tipo: el registro los
+     * rechazaria, el asistente lo dice en el paso de grupos.
+     */
+    public function ocupados(OpcionesDeOcupadosRequest $request, ConsultarGruposConExamenDeTipo $consultar): JsonResponse
+    {
+        return response()->json([
+            'ocupados' => $consultar->execute($request->grupos(), $request->tipo(), $request->examenId()),
         ]);
     }
 
