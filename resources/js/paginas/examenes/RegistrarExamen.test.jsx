@@ -1901,6 +1901,46 @@ describe('RegistrarExamen · guardar', () => {
         expect(screen.queryByRole('heading', { name: '2. Grupos' })).toBeNull();
     });
 
+    it('con varias asignaturas cada una tiene su sección, con lo elegido y las invitaciones plegadas', async () => {
+        montar();
+        fireEvent.click(await screen.findByRole('button', { name: /Agregar otra asignatura/ }));
+        fireEvent.click(
+            within(screen.getByRole('listbox')).getByRole('option', {
+                name: /Taller de Ingeniería de Software/,
+            })
+        );
+        await llenarExamen();
+
+        const intro = await screen.findByRole('region', {
+            name: 'Grupos de Introducción a la Programación',
+        });
+        const taller = await screen.findByRole('region', {
+            name: 'Grupos de Taller de Ingeniería de Software',
+        });
+        // Misma estructura y un resumen de lo elegido en cada cabecera.
+        expect(within(intro).getByText('1 grupo · 65 inscritos')).toBeVisible();
+        expect(await within(taller).findByText('2 grupos · 76 inscritos')).toBeVisible();
+        for (const seccion of [intro, taller]) {
+            expect(within(seccion).getByText('Mis grupos')).toBeVisible();
+            const invitar = within(seccion).getByRole('button', {
+                name: /Invitar a otros docentes/,
+            });
+            expect(invitar).toHaveAttribute('aria-expanded', 'false');
+        }
+
+        // Plegadas: no se ven los grupos de otros docentes hasta abrirlas.
+        expect(within(intro).queryByRole('checkbox', { name: /^Grupo 3 · Salazar/ })).toBeNull();
+        fireEvent.click(within(intro).getByRole('button', { name: /Invitar a otros docentes/ }));
+        fireEvent.click(within(intro).getByRole('checkbox', { name: /^Grupo 3 · Salazar/ }));
+        expect(within(intro).getByText('2 grupos · 75 inscritos')).toBeVisible();
+
+        // Una sección sin grupos lo dice en su propia cabecera.
+        fireEvent.click(within(intro).getByRole('checkbox', { name: /^Grupo 2 · Blanco/ }));
+        fireEvent.click(within(intro).getByRole('checkbox', { name: /^Grupo 3 · Salazar/ }));
+        expect(within(intro).getByText('Elija al menos un grupo')).toBeVisible();
+        expect(screen.getByRole('button', { name: /Continuar: Aulas/ })).toBeDisabled();
+    });
+
     it('sin normas también se registra', async () => {
         montar();
         await irAAulas();
