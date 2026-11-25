@@ -515,7 +515,7 @@ describe('Padrón · ficha del estudiante (criterio 5)', () => {
 
         const [primera, segunda] = within(materias).getAllByRole('listitem');
         expect(primera).toHaveTextContent('Introduccion a la Programacion');
-        expect(primera).toHaveTextContent('2010010Grupo 12/2026');
+        expect(primera).toHaveTextContent('2010010 · Grupo 1 · 2/2026');
         expect(primera).toHaveTextContent('Salazar Serrudo Carla');
         expect(segunda).toHaveTextContent('Algebra I');
         expect(segunda).toHaveTextContent('Grupo 8');

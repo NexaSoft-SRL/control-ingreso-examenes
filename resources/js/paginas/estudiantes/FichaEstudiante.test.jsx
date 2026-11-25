@@ -62,7 +62,7 @@ describe('FichaEstudiante', () => {
             <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={vi.fn()} />
         );
 
-        expect(await screen.findByText(/Datos verificados/)).toBeInTheDocument();
+        expect(await screen.findByText(/Administración · verificado/)).toBeInTheDocument();
         expect(screen.getByText('Historial de conflictos')).toBeInTheDocument();
         expect(screen.getByText('Documento distinto')).toBeInTheDocument();
         expect(
@@ -70,6 +70,143 @@ describe('FichaEstudiante', () => {
         ).toBeInTheDocument();
         expect(screen.getByText(/Reportado por Blanco Coca Leticia/)).toBeInTheDocument();
         expect(screen.getByText(/Se dejó el actual · Rojas Vargas Ana/)).toBeInTheDocument();
+    });
+
+    it('rotula cada dato y junta el origen en una sola insignia', async () => {
+        simularApi(api, { 'GET /estudiantes/5': { data: FICHA } });
+        renderConSesion(
+            <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={vi.fn()} />
+        );
+
+        const datos = (await screen.findByText('Carrera')).closest('dl');
+        for (const etiqueta of ['Carrera', 'Facultad', 'C.I.', 'Correo']) {
+            expect(within(datos).getByText(etiqueta)).toBeVisible();
+        }
+        expect(within(datos).getByText('Ing. Informática')).toBeInTheDocument();
+        expect(within(datos).getByText('FCyT')).toBeInTheDocument();
+        expect(within(datos).getByText('7928194')).toBeInTheDocument();
+        expect(within(datos).getByText('202104821@est.umss.edu')).toBeInTheDocument();
+        // Un solo origen, sin bloque aparte ni repetición.
+        expect(screen.getAllByText(/Administración/)).toHaveLength(1);
+        expect(screen.getByText('Administración · verificado')).toBeInTheDocument();
+        expect(screen.queryByText('Origen del dato')).not.toBeInTheDocument();
+        expect(
+            screen.getByText(/Registrado 1 oct 2026 · actualizado 2 oct 2026/)
+        ).toBeInTheDocument();
+    });
+
+    it('un dato que vino del estudiante sin revisar dice «sin verificar»', async () => {
+        simularApi(api, {
+            'GET /estudiantes/5': { data: { ...FICHA, origen: 'Estudiante', verificado: false } },
+        });
+        renderConSesion(
+            <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={vi.fn()} />
+        );
+
+        expect(await screen.findByText('Estudiante · sin verificar')).toBeInTheDocument();
+    });
+
+    it('sin carnet lo dice en advertencia en lugar de un guion', async () => {
+        simularApi(api, { 'GET /estudiantes/5': { data: { ...FICHA, documento: null } } });
+        renderConSesion(
+            <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={vi.fn()} />
+        );
+
+        const datos = (await screen.findByText('C.I.')).closest('dl');
+        expect(within(datos).getByText('Sin carnet')).toBeInTheDocument();
+    });
+
+    it('sin conflictos no muestra el bloque del historial; con conflictos, sí', async () => {
+        simularApi(api, { 'GET /estudiantes/5': { data: FICHA } });
+        const { unmount } = renderConSesion(
+            <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={vi.fn()} />
+        );
+
+        await screen.findByText('Carrera');
+        expect(screen.queryByText('Historial de conflictos')).not.toBeInTheDocument();
+        expect(screen.queryByText(/Sin conflictos registrados/)).not.toBeInTheDocument();
+        unmount();
+
+        simularApi(api, {
+            'GET /estudiantes/5': {
+                data: {
+                    ...FICHA,
+                    conflictos: [
+                        {
+                            id: 9,
+                            tipo: 'NOMBRE_DISTINTO',
+                            estado: 'pendiente',
+                            nombre_nuevo: 'Aguilar Mariana',
+                            reportado_por: 'Blanco Coca Leticia',
+                            reportado_en: '2026-10-10 12:00',
+                        },
+                    ],
+                },
+            },
+        });
+        renderConSesion(
+            <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={vi.fn()} />
+        );
+
+        expect(await screen.findByText('Historial de conflictos')).toBeInTheDocument();
+        expect(screen.getByText('Nombre distinto')).toBeInTheDocument();
+        expect(screen.getByText('Pendiente')).toBeInTheDocument();
+    });
+
+    it('cada materia dice su código, grupo, período y quién es el docente', async () => {
+        simularApi(api, {
+            'GET /estudiantes/5': {
+                data: {
+                    ...FICHA,
+                    materias: [
+                        {
+                            grupo_id: 3,
+                            asignatura: {
+                                nombre: 'Introduccion a la Programacion',
+                                codigo: '2010010',
+                            },
+                            grupo: '6',
+                            periodo: '2/2026',
+                            docente: 'Salazar Serrudo Carla',
+                            via: 'Administración',
+                        },
+                        {
+                            grupo_id: 4,
+                            asignatura: { nombre: 'Algebra I', codigo: '2008053' },
+                            grupo: '2',
+                            periodo: '2/2026',
+                            docente: null,
+                        },
+                    ],
+                },
+            },
+        });
+        renderConSesion(
+            <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={vi.fn()} />
+        );
+
+        const materias = within(await screen.findByRole('region', { name: 'Materias' }));
+        const primera = materias.getByText('Introduccion a la Programacion').closest('li');
+        expect(primera).toHaveTextContent('2010010 · Grupo 6 · 2/2026');
+        expect(primera).toHaveTextContent('Docente: Salazar Serrudo Carla · vía Administración');
+        expect(materias.getByText('Algebra I').closest('li')).toHaveTextContent(
+            'Docente: Por designar'
+        );
+    });
+
+    it('con foto dice desde cuándo la tiene', async () => {
+        simularApi(api, {
+            'GET /estudiantes/5': {
+                data: { ...FICHA, con_foto: true, foto_subida_en: '2026-11-03 10:15:00' },
+            },
+            'GET /estudiantes/5/foto': new Blob(['jpeg']),
+        });
+        renderConSesion(
+            <FichaEstudiante estudiante={{ id: 5, nombre: FICHA.nombre }} onCerrar={vi.fn()} />
+        );
+
+        expect(await screen.findByText('Con foto')).toBeInTheDocument();
+        expect(screen.getByText('del 3 nov 2026')).toBeInTheDocument();
     });
 
     it('sin foto la sube apenas se elige, sin pasos de más', async () => {
