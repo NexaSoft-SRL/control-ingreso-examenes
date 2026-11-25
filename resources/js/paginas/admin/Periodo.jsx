@@ -450,6 +450,14 @@ export default function Periodo() {
                                         variante="secundario"
                                         tamano="chico"
                                         className="min-h-11"
+                                        // La universidad no publica calendario de exámenes
+                                        // para el período anual.
+                                        disabled={p.tipo === 'Anual'}
+                                        title={
+                                            p.tipo === 'Anual'
+                                                ? 'El período anual no tiene calendario de exámenes'
+                                                : undefined
+                                        }
                                         onClick={() => setCalendario(p)}
                                         aria-label={`Calendario académico ${p.codigo}`}
                                     >

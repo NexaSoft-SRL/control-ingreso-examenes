@@ -275,6 +275,18 @@ describe('Periodo', () => {
             expect(within(ajuste).queryByRole('button', { name: 'Restablecer' })).toBeNull();
         });
 
+        it('el período anual no tiene calendario de exámenes: su botón está desactivado', async () => {
+            montar();
+            await cargada();
+
+            expect(
+                screen.getByRole('button', { name: 'Calendario académico 0/2026' })
+            ).toBeDisabled();
+            expect(
+                screen.getByRole('button', { name: 'Calendario académico 2/2026' })
+            ).toBeEnabled();
+        });
+
         it('ajustar pide confirmar y solo después muestra el formulario', async () => {
             const dialogo = await abrir();
 
