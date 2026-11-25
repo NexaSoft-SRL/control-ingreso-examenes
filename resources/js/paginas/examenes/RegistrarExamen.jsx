@@ -55,7 +55,7 @@ import proponerAulas from './proponerAulas';
 
 const FOCO =
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
-const PASOS = ['Examen', 'Grupos', 'Aulas', 'Quién atiende', 'Listo'];
+const PASOS = ['Examen', 'Grupos', 'Aulas', 'Equipo', 'Listo'];
 const ICONOS_DE_PASO = [ClipboardList, Users, DoorOpen, UserCheck, CheckCircle2];
 // Después de registrar el examen el asistente sigue con la habilitación de
 // estudiantes y los códigos QR, para quien tiene esos permisos.
@@ -1172,7 +1172,16 @@ function Asistente({
         );
     };
 
-    const de = (id) => personal[id] ?? { encargado: yo.id, apoyo: [] };
+    // Un aula sin ajustes parte con el equipo que ya hay: se suma a las aulas
+    // que se agreguen después.
+    const equipoActual = [
+        ...new Set(
+            Object.values(personal)
+                .flatMap((p) => [p.encargado, ...p.apoyo])
+                .filter((id) => id !== yo.id)
+        ),
+    ];
+    const de = (id) => personal[id] ?? { encargado: yo.id, apoyo: equipoActual };
     const cambiarPersonal = (siguiente) => {
         setPersonal(siguiente);
         setErrores((previos) =>
@@ -1897,7 +1906,7 @@ function Asistente({
                                     disabled={elegidosIds.length === 0 || aulas.length === 0}
                                     onClick={() => setPaso(3)}
                                 >
-                                    Continuar: Quién atiende <ArrowRight className="h-4 w-4" />
+                                    Continuar: Equipo <ArrowRight className="h-4 w-4" />
                                 </Boton>
                             </span>
                         </div>

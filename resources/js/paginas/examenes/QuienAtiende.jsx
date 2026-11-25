@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
-import { KeyRound, Plus, Shuffle, UserCheck, UserPlus, X } from 'lucide-react';
+import { Check, ChevronDown, KeyRound, Plus, Shuffle, UserCheck, UserPlus, X } from 'lucide-react';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
 import usarConsulta from '../../api/usarConsulta';
@@ -197,6 +197,50 @@ export default function QuienAtiende({
         [...docentes, ...auxiliares].find((p) => p.id === id)?.nombre ?? String(id);
 
     const de = (aulaId) => personal[aulaId] ?? { encargado: yo.id, apoyo: [] };
+    // El equipo del examen: quienes están a cargo o de apoyo en alguna aula, más
+    // los docentes de sus grupos. Cualquiera del equipo atiende cualquier aula
+    // y todo lo que registra queda con su nombre.
+    const idsDelEquipo = [
+        ...new Set(
+            aulas
+                .flatMap((a) => [de(a.id).encargado, ...de(a.id).apoyo])
+                .filter((id) => id !== yo.id)
+        ),
+    ];
+    const delEquipo = (id) => idsDelEquipo.includes(id);
+    // Sumar a alguien deja su apoyo en todas las aulas; quitarlo lo saca de todas.
+    const sumarAlEquipo = (id) =>
+        onPersonal(
+            Object.fromEntries(
+                aulas.map((a) => {
+                    const actual = de(a.id);
+                    return [
+                        a.id,
+                        actual.encargado === id || actual.apoyo.includes(id)
+                            ? actual
+                            : { ...actual, apoyo: [...actual.apoyo, id] },
+                    ];
+                })
+            )
+        );
+    const sacarDelEquipo = (id) =>
+        onPersonal(
+            Object.fromEntries(
+                aulas.map((a) => {
+                    const actual = de(a.id);
+                    return [
+                        a.id,
+                        {
+                            encargado: actual.encargado === id ? yo.id : actual.encargado,
+                            apoyo: actual.apoyo.filter((x) => x !== id),
+                        },
+                    ];
+                })
+            )
+        );
+    const [ajustando, setAjustando] = useState(
+        () => conCodigo.length > 0 || Object.keys(errores).some((c) => c.startsWith('aulas.'))
+    );
     const fijar = (aulaId, cambio) =>
         onPersonal({ ...personal, [aulaId]: { ...de(aulaId), ...cambio } });
     // Un auxiliar a cargo de cada aula; la primera y las que sobran quedan
@@ -204,10 +248,13 @@ export default function QuienAtiende({
     const repartir = () =>
         onPersonal(
             Object.fromEntries(
-                aulas.map((a, i) => [
-                    a.id,
-                    { encargado: i === 0 ? yo.id : (auxiliares[i - 1]?.id ?? yo.id), apoyo: [] },
-                ])
+                aulas.map((a, i) => {
+                    const encargado = i === 0 ? yo.id : (auxiliares[i - 1]?.id ?? yo.id);
+                    return [
+                        a.id,
+                        { encargado, apoyo: idsDelEquipo.filter((x) => x !== encargado) },
+                    ];
+                })
             )
         );
     const errorDe = (i) => Object.entries(errores).find(([c]) => c.startsWith(`aulas.${i}.`))?.[1];
@@ -225,21 +272,10 @@ export default function QuienAtiende({
     // Se quitan los de la cuenta (en el servidor) y los sumados en la visita.
     const [porQuitar, setPorQuitar] = useState(null);
     const [quitando, setQuitando] = useState(false);
-    // Tras sumar un auxiliar nuevo, qué falta para que atienda.
-    const [pista, setPista] = useState(null);
     const sumarNuevo = (persona) => {
         onSumar(persona);
         propios.recargar();
-        if (aulas.length === 1) {
-            // Con una sola aula queda de apoyo en ella.
-            const { encargado, apoyo } = de(aulas[0].id);
-            if (persona.id !== encargado && !apoyo.includes(persona.id)) {
-                fijar(aulas[0].id, { apoyo: [...apoyo, persona.id] });
-            }
-            setPista(null);
-        } else if (aulas.length > 1) {
-            setPista(`Elija a ${persona.nombre} en «Apoyo» de su aula`);
-        }
+        sumarAlEquipo(persona.id);
     };
     const esDeLaCuenta = (id) => (propios.datos ?? []).some((p) => p.id === id);
     const quitable = (id) => esDeLaCuenta(id) || sumados.some((p) => p.id === id);
@@ -264,25 +300,26 @@ export default function QuienAtiende({
         }
     };
 
+    // Un rechazo en un aula, o un examen que ya tiene códigos de aula, abre el
+    // ajuste y lo deja abierto.
+    const hayErrorDeAula = Object.keys(errores).some((campo) => campo.startsWith('aulas.'));
+    const hayCodigos = conCodigo.length > 0;
+    useEffect(() => {
+        if (hayErrorDeAula || hayCodigos) setAjustando(true);
+    }, [hayErrorDeAula, hayCodigos]);
+    const abiertoAjuste = ajustando;
+    const miembros = [
+        ...docentes.map((d) => ({ ...d, esDocente: true })),
+        ...idsDelEquipo
+            .filter((id) => !docentes.some((d) => d.id === id))
+            .map((id) => ({ id, nombre: nombreDe(id), esDocente: false })),
+    ];
+
     return (
         <Tarjeta
-            titulo="4. Quién atiende"
+            titulo="4. Equipo"
             icono={UserCheck}
-            acciones={
-                <>
-                    <Insignia tono="primario">{plural(aulas.length, 'aula')}</Insignia>
-                    {aulas.length > 2 && auxiliares.length > 0 && (
-                        <Boton
-                            type="button"
-                            variante="secundario"
-                            tamano="chico"
-                            onClick={repartir}
-                        >
-                            <Shuffle className="h-4 w-4" /> Repartir
-                        </Boton>
-                    )}
-                </>
-            }
+            acciones={<Insignia tono="primario">{plural(miembros.length, 'persona')}</Insignia>}
         >
             {sobrecargados.length > 0 && (
                 <p
@@ -292,137 +329,37 @@ export default function QuienAtiende({
                     {sobrecargados.join(' · ')}
                 </p>
             )}
-            {aulas.length > 0 ? (
-                <ul
-                    className={`grid gap-2 ${aulas.length > 4 ? 'lg:grid-cols-2' : ''}`}
-                    aria-label="Aulas del examen"
-                >
-                    {aulas.map((a, i) => {
-                        const { encargado, apoyo } = de(a.id);
-                        const libres = auxiliares.filter(
-                            (x) => !apoyo.includes(x.id) && x.id !== encargado
-                        );
-                        const error = errorDe(i);
-                        return (
-                            <li
-                                key={a.id}
-                                aria-label={`Aula ${a.nombre}`}
-                                className="min-w-0 rounded-lg border border-slate-200 p-3"
-                            >
-                                <div className="flex items-center justify-between gap-2">
-                                    <p className="min-w-0 truncate text-sm font-semibold text-slate-800">
-                                        Aula {a.nombre}
-                                        {ubicacionSin(a.nombre, a.ubicacion) && (
-                                            <span className="font-normal text-slate-600">
-                                                {' '}
-                                                · {ubicacionSin(a.nombre, a.ubicacion)}
-                                            </span>
-                                        )}
-                                    </p>
-                                    <button
-                                        type="button"
-                                        aria-label={`Código de acceso del aula ${a.nombre}`}
-                                        title="Código de acceso"
-                                        disabled={!conCodigo.includes(a.id)}
-                                        onClick={() => onCodigo(a)}
-                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-slate-100 disabled:text-slate-300 disabled:hover:bg-transparent ${usanCodigo.includes(a.id) ? 'text-primary-700' : 'text-slate-600'} ${FOCO}`}
-                                    >
-                                        <KeyRound className="h-4 w-4" />
-                                    </button>
-                                </div>
-                                <div className="mt-1 grid grid-cols-2 gap-3">
-                                    <Seleccion
-                                        etiqueta="A cargo"
-                                        className="min-w-0"
-                                        value={encargado}
-                                        onChange={(e) => {
-                                            const id = Number(e.target.value);
-                                            fijar(a.id, {
-                                                encargado: id,
-                                                apoyo: apoyo.filter((x) => x !== id),
-                                            });
-                                        }}
-                                    >
-                                        {docentes.map((x) => (
-                                            <option key={x.id} value={x.id}>
-                                                {x.nombre}
-                                            </option>
-                                        ))}
-                                        {auxiliares.map((x) => (
-                                            <option key={x.id} value={x.id}>
-                                                {x.nombre}
-                                            </option>
-                                        ))}
-                                    </Seleccion>
-                                    <Seleccion
-                                        etiqueta="Apoyo"
-                                        className="min-w-0"
-                                        value=""
-                                        disabled={libres.length === 0}
-                                        onChange={(e) => {
-                                            if (!e.target.value) return;
-                                            fijar(a.id, {
-                                                apoyo: [...apoyo, Number(e.target.value)],
-                                            });
-                                            setPista(null);
-                                        }}
-                                    >
-                                        <option value="">
-                                            {apoyo.length ? 'Agregar' : 'Nadie'}
-                                        </option>
-                                        {libres.map((x) => (
-                                            <option key={x.id} value={x.id}>
-                                                {x.nombre}
-                                            </option>
-                                        ))}
-                                    </Seleccion>
-                                </div>
-                                {auxiliares.length === 0 && (
-                                    <p className="mt-1 text-right text-xs text-slate-600">
-                                        Para apoyo, agregue un auxiliar
-                                    </p>
-                                )}
-                                {apoyo.length > 0 && (
-                                    <ul
-                                        className="mt-2 flex flex-wrap justify-end gap-2"
-                                        aria-label={`Apoyo del aula ${a.nombre}`}
-                                    >
-                                        {apoyo.map((id) => (
-                                            <li
-                                                key={id}
-                                                className="inline-flex min-w-0 max-w-full items-center rounded-full bg-slate-100 pl-3 text-sm text-slate-800"
-                                            >
-                                                <span className="truncate">{nombreDe(id)}</span>
-                                                <button
-                                                    type="button"
-                                                    aria-label={`Quitar a ${nombreDe(id)}`}
-                                                    onClick={() =>
-                                                        fijar(a.id, {
-                                                            apoyo: apoyo.filter((y) => y !== id),
-                                                        })
-                                                    }
-                                                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-200 ${FOCO}`}
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </button>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                                {error && (
-                                    <p role="alert" className={ERROR}>
-                                        {error}
-                                    </p>
-                                )}
-                            </li>
-                        );
-                    })}
+            <section
+                aria-label="Equipo del examen"
+                className="rounded-lg border border-slate-200 p-4"
+            >
+                <h3 className="mb-2 text-sm font-semibold text-slate-800">
+                    Equipo · {miembros.length}
+                </h3>
+                <ul className="flex flex-wrap gap-2" aria-label="Equipo">
+                    {miembros.map((m) => (
+                        <li
+                            key={m.id}
+                            className={`inline-flex min-h-10 min-w-0 max-w-full items-center rounded-full bg-primary-50 pl-3 text-sm font-medium text-primary-900 ${m.esDocente ? 'pr-3' : ''}`}
+                        >
+                            <span className="truncate">{m.nombre}</span>{' '}
+                            <span className="ml-1.5 shrink-0 text-xs font-normal text-primary-700">
+                                · {m.esDocente ? 'docente' : 'auxiliar'}
+                            </span>
+                            {!m.esDocente && (
+                                <button
+                                    type="button"
+                                    aria-label={`Sacar a ${m.nombre} del equipo`}
+                                    onClick={() => sacarDelEquipo(m.id)}
+                                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-primary-700 hover:bg-primary-100 ${FOCO}`}
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            )}
+                        </li>
+                    ))}
                 </ul>
-            ) : (
-                <p className="rounded-lg border border-slate-200 py-4 text-center text-sm text-slate-600">
-                    Sin aulas
-                </p>
-            )}
+            </section>
 
             <div className="mt-4 rounded-lg bg-slate-50 p-4">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -453,14 +390,33 @@ export default function QuienAtiende({
                         {auxiliares.map((x) => (
                             <li
                                 key={x.id}
-                                className={`inline-flex min-h-10 min-w-0 max-w-full items-center rounded-full border border-slate-200 bg-white pl-3 text-sm text-slate-800 ${quitable(x.id) ? '' : 'pr-3'}`}
+                                className={`inline-flex min-h-10 min-w-0 max-w-full items-center rounded-full border bg-white pl-1 text-sm text-slate-800 ${delEquipo(x.id) ? 'border-primary-500' : 'border-slate-200'} ${quitable(x.id) ? '' : 'pr-3'}`}
                             >
-                                <span className="truncate">{x.nombre}</span>{' '}
-                                {x.usuario && (
-                                    <span className="ml-1.5 shrink-0 text-xs text-slate-500">
-                                        · usuario: {x.usuario}
-                                    </span>
-                                )}
+                                <button
+                                    type="button"
+                                    aria-pressed={delEquipo(x.id)}
+                                    aria-label={
+                                        delEquipo(x.id)
+                                            ? `Sacar a ${x.nombre} del equipo`
+                                            : `Sumar a ${x.nombre} al equipo`
+                                    }
+                                    onClick={() =>
+                                        delEquipo(x.id) ? sacarDelEquipo(x.id) : sumarAlEquipo(x.id)
+                                    }
+                                    className={`flex min-h-10 min-w-0 items-center gap-1.5 rounded-full px-2 hover:bg-slate-50 ${FOCO}`}
+                                >
+                                    {delEquipo(x.id) ? (
+                                        <Check className="h-4 w-4 shrink-0 text-primary-700" />
+                                    ) : (
+                                        <Plus className="h-4 w-4 shrink-0 text-slate-500" />
+                                    )}
+                                    <span className="truncate">{x.nombre}</span>{' '}
+                                    {x.usuario && (
+                                        <span className="ml-1 shrink-0 text-xs text-slate-500">
+                                            · usuario: {x.usuario}
+                                        </span>
+                                    )}
+                                </button>
                                 {quitable(x.id) && (
                                     <button
                                         type="button"
@@ -479,7 +435,10 @@ export default function QuienAtiende({
                                 <button
                                     type="button"
                                     aria-label={`Sumar a ${x.nombre}`}
-                                    onClick={() => onSumar(x)}
+                                    onClick={() => {
+                                        onSumar(x);
+                                        sumarAlEquipo(x.id);
+                                    }}
                                     className={`inline-flex min-h-10 max-w-full items-center gap-1.5 rounded-full border border-dashed border-primary-500 bg-white px-3 text-sm font-medium text-primary-700 hover:bg-primary-50 ${FOCO}`}
                                 >
                                     <Plus className="h-4 w-4 shrink-0" />
@@ -492,13 +451,114 @@ export default function QuienAtiende({
                         )}
                     </ul>
                 )}
-                {pista && (
-                    <p role="status" className="mb-3 text-sm font-medium text-primary-800">
-                        {pista}
-                    </p>
-                )}
                 <AuxiliarNuevo onAgregado={sumarNuevo} onAviso={onAviso} />
             </div>
+
+            {aulas.length > 0 && (
+                <div className="mt-4">
+                    <button
+                        type="button"
+                        aria-expanded={abiertoAjuste}
+                        onClick={() => setAjustando((previo) => !previo)}
+                        className={`-ml-1 flex min-h-10 items-center gap-1 rounded-lg px-1 text-sm font-semibold text-slate-700 hover:text-slate-900 ${FOCO}`}
+                    >
+                        <ChevronDown
+                            className={`h-4 w-4 transition-transform ${abiertoAjuste ? '' : '-rotate-90'}`}
+                            aria-hidden="true"
+                        />
+                        Ajustar por aula
+                    </button>
+                    {abiertoAjuste && (
+                        <>
+                            {aulas.length > 2 && auxiliares.length > 0 && (
+                                <div className="mb-2 flex justify-end">
+                                    <Boton
+                                        type="button"
+                                        variante="secundario"
+                                        tamano="chico"
+                                        onClick={repartir}
+                                    >
+                                        <Shuffle className="h-4 w-4" /> Repartir
+                                    </Boton>
+                                </div>
+                            )}
+                            <ul
+                                className={`mt-1 grid gap-2 ${aulas.length > 4 ? 'lg:grid-cols-2' : ''}`}
+                                aria-label="Aulas del examen"
+                            >
+                                {aulas.map((a, i) => {
+                                    const { encargado } = de(a.id);
+                                    const error = errorDe(i);
+                                    return (
+                                        <li
+                                            key={a.id}
+                                            aria-label={`Aula ${a.nombre}`}
+                                            className="min-w-0 rounded-lg border border-slate-200 p-3"
+                                        >
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="min-w-0 truncate text-sm font-semibold text-slate-800">
+                                                    Aula {a.nombre}
+                                                    {ubicacionSin(a.nombre, a.ubicacion) && (
+                                                        <span className="font-normal text-slate-600">
+                                                            {' '}
+                                                            · {ubicacionSin(a.nombre, a.ubicacion)}
+                                                        </span>
+                                                    )}
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    aria-label={`Código de acceso del aula ${a.nombre}`}
+                                                    title="Código de acceso"
+                                                    disabled={!conCodigo.includes(a.id)}
+                                                    onClick={() => onCodigo(a)}
+                                                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-slate-100 disabled:text-slate-300 disabled:hover:bg-transparent ${usanCodigo.includes(a.id) ? 'text-primary-700' : 'text-slate-600'} ${FOCO}`}
+                                                >
+                                                    <KeyRound className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                            <Seleccion
+                                                etiqueta="A cargo"
+                                                className="mt-1 min-w-0"
+                                                value={encargado}
+                                                onChange={(e) => {
+                                                    const id = Number(e.target.value);
+                                                    const { apoyo, encargado: antes } = de(a.id);
+                                                    // Quien deja de estar a cargo sigue en el equipo.
+                                                    fijar(a.id, {
+                                                        encargado: id,
+                                                        apoyo: [
+                                                            ...apoyo.filter((x) => x !== id),
+                                                            ...(antes !== yo.id && antes !== id
+                                                                ? [antes]
+                                                                : []),
+                                                        ],
+                                                    });
+                                                }}
+                                            >
+                                                {miembros.map((x) => (
+                                                    <option key={x.id} value={x.id}>
+                                                        {x.nombre}
+                                                    </option>
+                                                ))}
+                                            </Seleccion>
+                                            {error && (
+                                                <p role="alert" className={ERROR}>
+                                                    {error}
+                                                </p>
+                                            )}
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </>
+                    )}
+                </div>
+            )}
+            {aulas.length === 0 && (
+                <p className="mt-4 rounded-lg border border-slate-200 py-4 text-center text-sm text-slate-600">
+                    Sin aulas
+                </p>
+            )}
             {children}
             <Dialogo
                 titulo="Quitar auxiliar"

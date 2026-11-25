@@ -422,22 +422,28 @@ async function irAAulas(datos) {
 
 // Sin un aula no se continúa: si no hay ninguna elegida, se elige la 691B.
 function elegirAulaSiFalta() {
-    const continuar = screen.getByRole('button', { name: /Continuar: Quién atiende/ });
+    const continuar = screen.getByRole('button', { name: /Continuar: Equipo/ });
     if (continuar.disabled) fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
+}
+
+// «Ajustar por aula» empieza plegado: se abre para tocar el aula de cada uno.
+async function abrirAjuste() {
+    const boton = await screen.findByRole('button', { name: /Ajustar por aula/ });
+    if (boton.getAttribute('aria-expanded') === 'false') fireEvent.click(boton);
 }
 
 async function irAQuienAtiende(datos) {
     await irAAulas(datos);
     elegirAulaSiFalta();
     pulsar(/Continuar/);
-    await screen.findByRole('heading', { name: '4. Quién atiende' });
+    await screen.findByRole('heading', { name: '4. Equipo' });
 }
 
 // Del paso de aulas al de quién atiende, y a guardar.
 async function guardar(nombre) {
     elegirAulaSiFalta();
     pulsar(/Continuar/);
-    await screen.findByRole('heading', { name: '4. Quién atiende' });
+    await screen.findByRole('heading', { name: '4. Equipo' });
     pulsar(nombre);
 }
 
@@ -647,15 +653,7 @@ describe('RegistrarExamen · paso 1, examen', () => {
             within(pasos)
                 .getAllByRole('listitem')
                 .map((p) => p.textContent)
-        ).toEqual([
-            'Examen',
-            'Grupos',
-            'Aulas',
-            'Quién atiende',
-            'Listo',
-            'Habilitar',
-            'Códigos QR',
-        ]);
+        ).toEqual(['Examen', 'Grupos', 'Aulas', 'Equipo', 'Listo', 'Habilitar', 'Códigos QR']);
     });
 
     it('un examen nuevo empieza con la fecha de hoy y la primera hora de la mañana', async () => {
@@ -1006,7 +1004,7 @@ describe('RegistrarExamen · paso 3, aulas', () => {
 
         expect(screen.getByRole('list', { name: 'Aulas elegidas' })).toHaveTextContent('691B');
         expect(screen.getByRole('checkbox', { name: 'Aula 691B' })).toBeChecked();
-        expect(screen.getByRole('button', { name: /Continuar: Quién atiende/ })).toBeEnabled();
+        expect(screen.getByRole('button', { name: /Continuar: Equipo/ })).toBeEnabled();
     });
 
     it('la cantidad de aulas a sugerir no pasa de las libres', async () => {
@@ -1181,65 +1179,52 @@ describe('RegistrarExamen · paso 3, aulas', () => {
 });
 
 describe('RegistrarExamen · paso 4, quién atiende', () => {
-    it('cada aula queda a cargo de quien registra; se asigna un auxiliar y apoyo y viaja al guardar', async () => {
+    it('cada aula parte a cargo de quien registra; se suma gente al equipo y viaja al guardar', async () => {
         montar();
         await irAAulas();
         fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
         fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 606' }));
         pulsar(/Continuar/);
-        await screen.findByRole('heading', { name: '4. Quién atiende' });
+        await screen.findByRole('heading', { name: '4. Equipo' });
 
-        expect(screen.getByText('2 aulas')).toBeInTheDocument();
+        const equipo = () => screen.getByRole('list', { name: 'Equipo' });
+        expect(equipo()).toHaveTextContent('Blanco Coca Leticia · docente');
+        await waitFor(() =>
+            expect(
+                within(screen.getByRole('list', { name: 'Auxiliares' }))
+                    .getAllByRole('listitem')
+                    .map((x) => x.textContent)
+            ).toEqual([
+                'Rojas Ledezma Andrea · usuario: andrea.rojas',
+                'Vargas Arce Sergio · usuario: sergio.vargas',
+            ])
+        );
+        expect(screen.getByText('Auxiliares · 2')).toBeInTheDocument();
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Sumar a Vargas Arce Sergio al equipo' })
+        );
+        expect(equipo()).toHaveTextContent('Vargas Arce Sergio · auxiliar');
+
+        await abrirAjuste();
         const b = filaDeAula('691B');
         expect(b).toHaveTextContent('Aula 691B · Edificio Académico 2 · 1° Piso');
         const aCargo = within(b).getByLabelText('A cargo');
         expect(aCargo).toHaveValue('7');
-        await waitFor(() =>
-            expect(
-                within(listaDe(aCargo))
-                    .getAllByRole('option')
-                    .map((o) => o.textContent)
-            ).toEqual(['Blanco Coca Leticia', 'Rojas Ledezma Andrea', 'Vargas Arce Sergio'])
-        );
         expect(
-            within(screen.getByRole('list', { name: 'Auxiliares' }))
-                .getAllByRole('listitem')
-                .map((x) => x.textContent)
-        ).toEqual([
-            'Rojas Ledezma Andrea · usuario: andrea.rojas',
-            'Vargas Arce Sergio · usuario: sergio.vargas',
-        ]);
-        expect(screen.getByText('Auxiliares · 2')).toBeInTheDocument();
-
-        cambiar(aCargo, '12');
-        // Quien queda a cargo no se ofrece como apoyo.
-        const apoyo = within(b).getByLabelText('Apoyo');
-        expect(
-            within(listaDe(apoyo))
+            within(listaDe(aCargo))
                 .getAllByRole('option')
                 .map((o) => o.textContent)
-        ).toEqual(['Nadie', 'Rojas Ledezma Andrea']);
-        cambiar(apoyo, '9');
-        expect(
-            within(within(b).getByRole('list', { name: 'Apoyo del aula 691B' })).getByText(
-                'Rojas Ledezma Andrea'
-            )
-        ).toBeInTheDocument();
-        expect(within(b).getByLabelText('Apoyo')).toBeDisabled();
+        ).toEqual(['Blanco Coca Leticia', 'Vargas Arce Sergio']);
 
+        cambiar(aCargo, '12');
         pulsar('Registrar examen');
 
         expect(await screen.findByText('Examen registrado')).toBeInTheDocument();
+        // El equipo cubre todas las aulas: quien está a cargo de una apoya en la otra.
         expect(api.post.mock.calls[0][1].aulas).toEqual([
-            { aula_id: 32, encargado_id: 12, apoyo: [9] },
-            { aula_id: 78, encargado_id: 7, apoyo: [] },
-        ]);
-        const atencion = within(screen.getByRole('list', { name: 'Quién atiende' })).getAllByRole(
-            'listitem'
-        );
-        expect(atencion.map((x) => x.textContent)).toEqual([
-            '691B · Vargas Arce Sergio · Rojas Ledezma Andrea',
-            '606 · Blanco Coca Leticia',
+            { aula_id: 32, encargado_id: 12, apoyo: [] },
+            { aula_id: 78, encargado_id: 7, apoyo: [12] },
         ]);
     });
 
@@ -1270,29 +1255,54 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         expect(screen.getByRole('button', { name: 'Quitar el aula 606' })).toBeInTheDocument();
     });
 
-    it('quitar a alguien del apoyo y pasar a cargo a quien apoyaba', async () => {
-        montar('/examenes/nuevo?examen=4&paso=3');
-        await screen.findByRole('heading', { name: '4. Quién atiende' });
-        const fila = filaDeAula('691B');
-
-        expect(within(fila).getByLabelText('A cargo')).toHaveValue('12');
+    it('un aula que se agrega después ya cuenta con el equipo', async () => {
+        montar();
+        await irAAulas();
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
+        pulsar(/Continuar/);
+        await screen.findByRole('heading', { name: '4. Equipo' });
         fireEvent.click(
-            within(fila).getByRole('button', { name: 'Quitar a Rojas Ledezma Andrea' })
+            await screen.findByRole('button', { name: 'Sumar a Vargas Arce Sergio al equipo' })
         );
-        expect(
-            within(fila).queryByRole('list', { name: 'Apoyo del aula 691B' })
-        ).not.toBeInTheDocument();
 
-        cambiar(within(fila).getByLabelText('Apoyo'), '9');
-        cambiar(within(fila).getByLabelText('A cargo'), '9');
-        expect(
-            within(fila).queryByRole('list', { name: 'Apoyo del aula 691B' })
-        ).not.toBeInTheDocument();
+        pulsar('Atrás');
+        fireEvent.click(await screen.findByRole('checkbox', { name: 'Aula 606' }));
+        pulsar(/Continuar/);
+        await screen.findByRole('heading', { name: '4. Equipo' });
+        pulsar('Registrar examen');
+
+        await screen.findByText('Examen registrado');
+        expect(api.post.mock.calls[0][1].aulas).toEqual([
+            { aula_id: 32, encargado_id: 7, apoyo: [12] },
+            { aula_id: 78, encargado_id: 7, apoyo: [12] },
+        ]);
+    });
+
+    it('sacar a alguien del equipo; quien deja de estar a cargo sigue en el equipo', async () => {
+        montar('/examenes/nuevo?examen=4&paso=3');
+        await screen.findByRole('heading', { name: '4. Equipo' });
+        const equipo = () => screen.getByRole('list', { name: 'Equipo' });
+
+        expect(equipo()).toHaveTextContent('Vargas Arce Sergio');
+        expect(equipo()).toHaveTextContent('Rojas Ledezma Andrea');
+        fireEvent.click(
+            within(equipo()).getByRole('button', {
+                name: 'Sacar a Rojas Ledezma Andrea del equipo',
+            })
+        );
+        expect(equipo()).not.toHaveTextContent('Rojas Ledezma Andrea');
+
+        await abrirAjuste();
+        const fila = filaDeAula('691B');
+        expect(within(fila).getByLabelText('A cargo')).toHaveValue('12');
+        cambiar(within(fila).getByLabelText('A cargo'), '7');
+        // Vargas deja el aula pero sigue en el equipo.
+        expect(equipo()).toHaveTextContent('Vargas Arce Sergio');
 
         pulsar('Guardar examen');
         await screen.findByText('Examen guardado');
         expect(api.put.mock.calls[0][1].aulas).toEqual([
-            { aula_id: 32, encargado_id: 9, apoyo: [] },
+            { aula_id: 32, encargado_id: 7, apoyo: [12] },
         ]);
     });
 
@@ -1306,6 +1316,7 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
 
         // Las cuatro con el docente: se avisa que no puede atenderlas a la vez.
         expect(await screen.findByText(/4 aulas a la vez/)).toBeInTheDocument();
+        await abrirAjuste();
         fireEvent.click(await screen.findByRole('button', { name: /Repartir/ }));
 
         expect(
@@ -1320,10 +1331,10 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         montar();
         await irAAulas();
 
-        expect(screen.getByRole('button', { name: /Continuar: Quién atiende/ })).toBeDisabled();
+        expect(screen.getByRole('button', { name: /Continuar: Equipo/ })).toBeDisabled();
         expect(screen.getByText('Elija al menos un aula')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
-        expect(screen.getByRole('button', { name: /Continuar: Quién atiende/ })).toBeEnabled();
+        expect(screen.getByRole('button', { name: /Continuar: Equipo/ })).toBeEnabled();
         expect(screen.queryByText('Elija al menos un aula')).not.toBeInTheDocument();
     });
 
@@ -1339,6 +1350,7 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
     it('con un aula y sin auxiliares no ofrece «Repartir»', async () => {
         montar();
         await irAQuienAtiende();
+        await abrirAjuste();
 
         expect(screen.queryByRole('button', { name: /Repartir/ })).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Registrar examen' })).toBeEnabled();
@@ -1349,7 +1361,7 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         await irAAulas();
         fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
         pulsar(/Continuar/);
-        await screen.findByRole('heading', { name: '4. Quién atiende' });
+        await screen.findByRole('heading', { name: '4. Equipo' });
 
         cambiar(screen.getByLabelText(/^Nombre completo/), 'Rosa 2 Quispe');
         cambiar(screen.getByLabelText(/^Código SIS del auxiliar/), 'SIS 2020-0123');
@@ -1363,7 +1375,7 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         await irAAulas();
         fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
         pulsar(/Continuar/);
-        await screen.findByRole('heading', { name: '4. Quién atiende' });
+        await screen.findByRole('heading', { name: '4. Equipo' });
 
         cambiar(screen.getByLabelText(/^Nombre completo/), 'Quispe Mamani Rosa');
         cambiar(screen.getByLabelText(/^Código SIS del auxiliar/), '202000123');
@@ -1377,15 +1389,16 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         );
     });
 
-    it('sin auxiliares, el apoyo dice qué falta', async () => {
+    it('sin auxiliares la lista lo dice y el equipo es solo el docente', async () => {
         auxiliares = [];
         montar();
         await irAQuienAtiende();
 
-        expect(within(filaDeAula('691B')).getByLabelText('Apoyo')).toBeDisabled();
-        expect(
-            within(filaDeAula('691B')).getByText('Para apoyo, agregue un auxiliar')
-        ).toBeInTheDocument();
+        expect(await screen.findByText('Sin auxiliares')).toBeInTheDocument();
+        expect(screen.getByRole('list', { name: 'Equipo' })).toHaveTextContent(
+            'Blanco Coca Leticia · docente'
+        );
+        expect(screen.getByRole('button', { name: 'Registrar examen' })).toBeEnabled();
     });
 
     it('da de alta un auxiliar nuevo y queda disponible para las aulas', async () => {
@@ -1393,7 +1406,7 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         await irAAulas();
         fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
         pulsar(/Continuar/);
-        await screen.findByRole('heading', { name: '4. Quién atiende' });
+        await screen.findByRole('heading', { name: '4. Equipo' });
 
         // Sin datos no se envía.
         pulsar(/Agregar/);
@@ -1421,10 +1434,11 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         expect(screen.getByRole('list', { name: 'Auxiliares' })).toHaveTextContent(
             'Quispe Mamani Rosa · usuario: nuevo.auxiliar'
         );
-        // Con una sola aula queda de apoyo en ella sin más pasos.
-        expect(
-            within(filaDeAula('691B')).getByRole('list', { name: 'Apoyo del aula 691B' })
-        ).toHaveTextContent('Quispe Mamani Rosa');
+        // Queda en el equipo sin más pasos.
+        expect(screen.getByRole('list', { name: 'Equipo' })).toHaveTextContent(
+            'Quispe Mamani Rosa · auxiliar'
+        );
+        await abrirAjuste();
         cambiar(within(filaDeAula('691B')).getByLabelText('A cargo'), '40');
         pulsar('Registrar examen');
         await screen.findByText('Examen registrado');
@@ -1492,28 +1506,20 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         await screen.findByRole('list', { name: 'Aulas' });
         fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
         pulsar(/Continuar/);
-        await screen.findByRole('heading', { name: '4. Quién atiende' });
+        await screen.findByRole('heading', { name: '4. Equipo' });
 
-        const aCargo = within(filaDeAula('691B')).getByLabelText('A cargo');
-        await waitFor(() =>
-            expect(
-                within(listaDe(aCargo))
-                    .getAllByRole('option')
-                    .map((o) => o.textContent)
-            ).toEqual([
-                'Blanco Coca Leticia',
-                'Salazar Serrudo Carla',
-                'Rojas Ledezma Andrea',
-                'Vargas Arce Sergio',
-            ])
+        // Los docentes de los grupos son del equipo; un docente no cuenta como auxiliar.
+        expect(screen.getByRole('list', { name: 'Equipo' })).toHaveTextContent(
+            'Salazar Serrudo Carla · docente'
         );
-        // Un docente no se ofrece como apoyo ni cuenta como auxiliar.
+        expect(screen.getByText('Auxiliares · 2')).toBeInTheDocument();
+        await abrirAjuste();
+        const aCargo = within(filaDeAula('691B')).getByLabelText('A cargo');
         expect(
-            within(listaDe(within(filaDeAula('691B')).getByLabelText('Apoyo')))
+            within(listaDe(aCargo))
                 .getAllByRole('option')
                 .map((o) => o.textContent)
-        ).toEqual(['Nadie', 'Rojas Ledezma Andrea', 'Vargas Arce Sergio']);
-        expect(screen.getByText('Auxiliares · 2')).toBeInTheDocument();
+        ).toEqual(['Blanco Coca Leticia', 'Salazar Serrudo Carla']);
 
         cambiar(aCargo, '61');
         pulsar('Registrar examen');
@@ -1536,7 +1542,8 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         await screen.findByRole('list', { name: 'Aulas' });
         fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
         pulsar(/Continuar/);
-        await screen.findByRole('heading', { name: '4. Quién atiende' });
+        await screen.findByRole('heading', { name: '4. Equipo' });
+        await abrirAjuste();
         cambiar(within(filaDeAula('691B')).getByLabelText('A cargo'), '61');
 
         pulsar('Atrás');
@@ -1545,7 +1552,8 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         pulsar(/Continuar/);
         await screen.findByRole('list', { name: 'Aulas' });
         pulsar(/Continuar/);
-        await screen.findByRole('heading', { name: '4. Quién atiende' });
+        await screen.findByRole('heading', { name: '4. Equipo' });
+        await abrirAjuste();
 
         const aCargo = within(filaDeAula('691B')).getByLabelText('A cargo');
         expect(aCargo).toHaveValue('7');
@@ -1557,11 +1565,17 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         await irAAulas();
         fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
         pulsar(/Continuar/);
-        await screen.findByRole('heading', { name: '4. Quién atiende' });
+        await screen.findByRole('heading', { name: '4. Equipo' });
         await screen.findByText('Auxiliares · 2');
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Sumar a Vargas Arce Sergio al equipo' })
+        );
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Sumar a Rojas Ledezma Andrea al equipo' })
+        );
+        await abrirAjuste();
         const fila = filaDeAula('691B');
         cambiar(within(fila).getByLabelText('A cargo'), '12');
-        cambiar(within(fila).getByLabelText('Apoyo'), '9');
 
         pulsar('Quitar a Vargas Arce Sergio de la lista');
         const dialogo = screen.getByRole('dialog', { name: 'Quitar auxiliar' });
@@ -1582,9 +1596,12 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         expect(
             within(fila).queryByRole('option', { name: 'Vargas Arce Sergio' })
         ).not.toBeInTheDocument();
-        // El otro sigue de apoyo.
-        expect(within(fila).getByRole('list', { name: 'Apoyo del aula 691B' })).toHaveTextContent(
+        // El otro sigue en el equipo; el quitado, no.
+        expect(screen.getByRole('list', { name: 'Equipo' })).toHaveTextContent(
             'Rojas Ledezma Andrea'
+        );
+        expect(screen.getByRole('list', { name: 'Equipo' })).not.toHaveTextContent(
+            'Vargas Arce Sergio'
         );
     });
 
@@ -1608,7 +1625,7 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
         // El 12 atiende el examen pero ya no es de la cuenta.
         auxiliares = [AUXILIARES[0]];
         montar('/examenes/nuevo?examen=4&paso=3');
-        await screen.findByRole('heading', { name: '4. Quién atiende' });
+        await screen.findByRole('heading', { name: '4. Equipo' });
         await screen.findByText('Auxiliares · 2');
         expect(
             screen.queryByRole('button', { name: 'Quitar a Vargas Arce Sergio de la lista' })
@@ -1638,12 +1655,16 @@ describe('RegistrarExamen · paso 4, quién atiende', () => {
 
         await guardar('Registrar examen');
 
-        const fila = filaDeAula('691B');
+        // Con un rechazo en un aula, «Ajustar por aula» se abre solo.
+        const fila = (await screen.findByRole('listitem', { name: 'Aula 691B' })) ?? null;
         expect(await within(fila).findByRole('alert')).toHaveTextContent(
             'El encargado no es docente ni auxiliar.'
         );
-        expect(screen.getByRole('heading', { name: '4. Quién atiende' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: '4. Equipo' })).toBeInTheDocument();
 
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Sumar a Rojas Ledezma Andrea al equipo' })
+        );
         cambiar(within(fila).getByLabelText('A cargo'), '9');
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
@@ -1654,7 +1675,7 @@ describe('RegistrarExamen · código de acceso del aula', () => {
         const writeText = vi.fn().mockResolvedValue();
         Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
         montar('/examenes/nuevo?examen=4&paso=3');
-        await screen.findByRole('heading', { name: '4. Quién atiende' });
+        await screen.findByRole('heading', { name: '4. Equipo' });
 
         pulsar('Código de acceso del aula 691B');
 
@@ -1692,7 +1713,7 @@ describe('RegistrarExamen · código de acceso del aula', () => {
             aulas_detalle: [{ ...DETALLE.aulas_detalle[0], usa_codigo: false }],
         };
         montar('/examenes/nuevo?examen=4&paso=3');
-        await screen.findByRole('heading', { name: '4. Quién atiende' });
+        await screen.findByRole('heading', { name: '4. Equipo' });
         const llave = screen.getByRole('button', { name: 'Código de acceso del aula 691B' });
         expect(llave).toHaveClass('text-slate-600');
 
@@ -1726,7 +1747,7 @@ describe('RegistrarExamen · código de acceso del aula', () => {
     it('si no se pudo generar lo avisa y sigue sin código', async () => {
         codigo = null;
         montar('/examenes/nuevo?examen=4&paso=3');
-        await screen.findByRole('heading', { name: '4. Quién atiende' });
+        await screen.findByRole('heading', { name: '4. Equipo' });
         pulsar('Código de acceso del aula 691B');
         const dialogo = await screen.findByRole('dialog');
         await within(dialogo).findByText('Sin código');
@@ -1742,7 +1763,7 @@ describe('RegistrarExamen · código de acceso del aula', () => {
         montar('/examenes/nuevo?examen=4&paso=2');
         fireEvent.click(await screen.findByRole('checkbox', { name: 'Aula 691A' }));
         pulsar(/Continuar/);
-        await screen.findByRole('heading', { name: '4. Quién atiende' });
+        await screen.findByRole('heading', { name: '4. Equipo' });
 
         expect(
             screen.getByRole('button', { name: 'Código de acceso del aula 691A' })
@@ -1757,7 +1778,8 @@ describe('RegistrarExamen · código de acceso del aula', () => {
         await irAAulas();
         fireEvent.click(screen.getByRole('checkbox', { name: 'Aula 691B' }));
         pulsar(/Continuar/);
-        await screen.findByRole('heading', { name: '4. Quién atiende' });
+        await screen.findByRole('heading', { name: '4. Equipo' });
+        await abrirAjuste();
         expect(
             screen.getByRole('button', { name: 'Código de acceso del aula 691B' })
         ).toBeDisabled();
@@ -2236,7 +2258,7 @@ describe('RegistrarExamen · edición', () => {
         expect(await screen.findByRole('alert')).toHaveTextContent(
             'El examen ya tiene ingresos registrados: solo se pueden cambiar las normas.'
         );
-        expect(screen.getByRole('heading', { name: '4. Quién atiende' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: '4. Equipo' })).toBeInTheDocument();
     });
 
     it('al docente de un grupo incluido le muestra el examen sin poder modificarlo', async () => {
