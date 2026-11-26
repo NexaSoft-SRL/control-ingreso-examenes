@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Aplicacion, { PAGINAS, Rutas } from './Aplicacion';
@@ -151,7 +151,10 @@ describe('Aplicacion', () => {
                     .getAllByRole('link', { name: /^(Punto de control|Control)$/ })
                     .map((e) => e.getAttribute('href'))
             ).toEqual(['/control', '/control']);
-            expect(document.title).toBe('Punto de control · Control de exámenes');
+            // El título de la pestaña se pone en un efecto, un instante después del encabezado.
+            await waitFor(() =>
+                expect(document.title).toBe('Punto de control · Control de exámenes')
+            );
             unmount();
 
             montar('/en-curso/aula?examen=1&aula=30', usuarioDePrueba('Auxiliar'));
