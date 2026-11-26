@@ -1,7 +1,6 @@
 import PropTypes from 'prop-types';
 import { useCallback, useState } from 'react';
 import {
-    ArrowLeft,
     ArrowRight,
     BarChart3,
     CalendarDays,
@@ -42,7 +41,6 @@ import {
     accionDe,
     estadoDe,
     pasoDeLaPestana,
-    primerPasoPendiente,
     pendiente,
     tipoDe,
 } from './avanceDelExamen';
@@ -281,8 +279,7 @@ export default function DetalleExamen() {
     // ya trae la habilitación y los códigos QR: aquí quedan la bitácora, lo de
     // sin conexión y los exámenes ya tomados o de otro docente.
     const pestanaPedida = parametros.get('pestana') ?? 'resumen';
-    const enPreparacion = e.propio && !e.rendido;
-    if (enPreparacion && !['bitacora', 'sin-conexion'].includes(pestana)) {
+    if (e.propio && !e.rendido) {
         return (
             <Navigate
                 replace
@@ -291,11 +288,6 @@ export default function DetalleExamen() {
         );
     }
 
-    // Preparando el examen, aquí solo quedan la bitácora y lo de sin conexión: el
-    // resto (resumen, habilitación, códigos QR) está en el asistente.
-    const pestanasVisibles = enPreparacion
-        ? PESTANAS.filter((p) => ['bitacora', 'sin-conexion'].includes(p.clave))
-        : PESTANAS;
     const nombre = e.asignatura.nombre;
     const accion = accionDe(e, puede('habilitacion'), puede('codigos_qr'), {
         hoy,
@@ -342,15 +334,6 @@ export default function DetalleExamen() {
                         <Radio className="h-4 w-4" /> En curso
                     </Link>
                 )}
-                {/* Mientras se prepara, el asistente es el lugar del examen. */}
-                {enPreparacion && (
-                    <Link
-                        to={`/examenes/nuevo?examen=${e.id}&paso=${primerPasoPendiente(e)}`}
-                        className={`${BOTON} bg-primary-600 text-white hover:bg-primary-700`}
-                    >
-                        <ArrowLeft className="h-4 w-4" /> Volver a la preparación
-                    </Link>
-                )}
                 {/* Lo que pasó en un examen ya tomado se ve en su reporte. */}
                 {e.rendido && puede('reportes_examenes') && (
                     <Link
@@ -360,7 +343,7 @@ export default function DetalleExamen() {
                         <BarChart3 className="h-4 w-4" /> Reporte
                     </Link>
                 )}
-                {e.propio && !enPreparacion && (
+                {e.propio && (
                     <Link
                         to={`/examenes/nuevo?examen=${e.id}`}
                         className={`${BOTON} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50`}
@@ -379,7 +362,7 @@ export default function DetalleExamen() {
                     </button>
                 )}
                 {/* Con ingresos o incidencias el examen ya es historia. */}
-                {e.propio && !enPreparacion && !e.con_ingresos && !e.con_incidencias && (
+                {e.propio && !e.con_ingresos && !e.con_incidencias && (
                     <button
                         type="button"
                         onClick={() => setPorEliminar(e)}
@@ -395,7 +378,7 @@ export default function DetalleExamen() {
                 aria-label="Secciones del examen"
                 className="flex gap-1 overflow-x-auto border-b border-slate-200"
             >
-                {pestanasVisibles.map((p) => {
+                {PESTANAS.map((p) => {
                     const activa = p.clave === pestana;
                     const permitida = disponible(p);
                     return (

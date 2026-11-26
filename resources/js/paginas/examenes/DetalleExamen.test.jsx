@@ -320,11 +320,11 @@ describe('DetalleExamen · el asistente prepara los exámenes que aún no se tom
         );
 
     it('abre en el primer paso que falta', async () => {
-        // Los códigos QR son lo que falta: el paso 6.
+        // Los códigos QR son lo que falta.
         examenes = [examen({ rendido: false })];
         montarConRutas('/examenes/detalle?examen=24');
 
-        expect(await screen.findByText('Estoy en /examenes/nuevo?examen=24&paso=6')).toBeVisible();
+        expect(await screen.findByText('Estoy en /examenes/nuevo?examen=24&paso=qr')).toBeVisible();
     });
 
     it('con todo listo abre en «Listo»', async () => {
@@ -349,43 +349,31 @@ describe('DetalleExamen · el asistente prepara los exámenes que aún no se tom
         examenes = [examen({ rendido: false })];
         montarConRutas('/examenes/detalle?examen=24&pestana=habilitacion');
 
-        expect(await screen.findByText('Estoy en /examenes/nuevo?examen=24&paso=5')).toBeVisible();
+        expect(
+            await screen.findByText('Estoy en /examenes/nuevo?examen=24&paso=habilitar')
+        ).toBeVisible();
     });
 
-    it('la bitácora y los exámenes ya tomados se quedan en esta página', async () => {
+    it('la bitácora y lo de sin conexión también son pasos del asistente', async () => {
         examenes = [examen({ rendido: false })];
         const { unmount } = montarConRutas('/examenes/detalle?examen=24&pestana=bitacora');
         expect(
-            await screen.findByRole('heading', { name: /Primer parcial · Taller/ })
-        ).toBeInTheDocument();
+            await screen.findByText('Estoy en /examenes/nuevo?examen=24&paso=bitacora')
+        ).toBeVisible();
         unmount();
 
+        montarConRutas('/examenes/detalle?examen=24&pestana=sin-conexion');
+        expect(
+            await screen.findByText('Estoy en /examenes/nuevo?examen=24&paso=sin-conexion')
+        ).toBeVisible();
+    });
+
+    it('los exámenes ya tomados se quedan en esta página', async () => {
         examenes = [examen({ rendido: true })];
         montarConRutas('/examenes/detalle?examen=24');
         expect(
             await screen.findByRole('heading', { name: /Primer parcial · Taller/ })
         ).toBeInTheDocument();
-    });
-
-    it('mientras prepara el examen, la bitácora y lo de sin conexión no repiten el resto', async () => {
-        examenes = [examen({ rendido: false })];
-        montarConRutas('/examenes/detalle?examen=24&pestana=sin-conexion');
-
-        expect(await screen.findByRole('tab', { name: /^Revisión sin conexión/ })).toHaveAttribute(
-            'aria-selected',
-            'true'
-        );
-        expect(screen.getByRole('tab', { name: /^Bitácora/ })).toBeVisible();
-        // Resumen, habilitación y códigos QR están en el asistente, no aquí.
-        for (const nombre of [/^Resumen/, /^Habilitación/, /^Códigos QR/]) {
-            expect(screen.queryByRole('tab', { name: nombre })).not.toBeInTheDocument();
-        }
-        expect(screen.queryByRole('link', { name: /Editar/ })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /Eliminar/ })).not.toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /Volver a la preparación/ })).toHaveAttribute(
-            'href',
-            '/examenes/nuevo?examen=24&paso=6'
-        );
     });
 
     it('quien colabora sigue viendo la página con sus pestañas', async () => {

@@ -470,6 +470,14 @@ beforeEach(() => {
         'GET /examenes/opciones/choques': () => choques,
         'GET /examenes/opciones/ocupados': () => ({ ocupados }),
         'GET /calendario/aulas': ({ params }) => ({ aulas: { [params.aulas[0]]: agendaDelAula } }),
+        'GET /examenes/*/sin-conexion': () => ({
+            usado: false,
+            sesiones: [],
+            sin_sincronizar: [],
+            irregularidades: [],
+            resumen: { pendientes: 0, altas: 0, resueltas: 0, sin_sincronizar: 0 },
+        }),
+        'GET /reportes/examenes/*/bitacora': () => ({ data: [], meta: { total: 0 } }),
         'GET /examenes/*/habilitaciones': () => ({
             data: [],
             meta: { total: 0, cifras: { inscritos: 65, habilitados: 0 } },
@@ -2361,29 +2369,42 @@ describe('RegistrarExamen · edición', () => {
             expect(screen.getByRole('heading', { name: '1. Examen' })).toBeVisible();
         });
 
-        it('la cabecera trae la fecha, los accesos a bitácora y sin conexión, y eliminar', async () => {
+        it('la bitácora y la revisión sin conexión son pasos más, sin botones sueltos', async () => {
             montar('/examenes/nuevo?examen=4&paso=0');
 
             expect(await screen.findByText(/lunes 23 de noviembre, 14:15 · 120 min/)).toBeVisible();
-            expect(await screen.findByRole('link', { name: 'Bitácora' })).toHaveAttribute(
+            // Ya no hay botones aparte en la cabecera.
+            expect(screen.queryByRole('link', { name: 'Bitácora' })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /^Eliminar$/ })).not.toBeInTheDocument();
+
+            fireEvent.click(await screen.findByRole('button', { name: /^Bitácora/ }));
+            expect(await screen.findByRole('button', { name: 'Atrás' })).toBeVisible();
+            expect(screen.getByRole('link', { name: 'Terminar' })).toHaveAttribute(
                 'href',
-                '/examenes/detalle?examen=4&pestana=bitacora'
-            );
-            expect(screen.getByRole('link', { name: 'Revisión sin conexión' })).toHaveAttribute(
-                'href',
-                '/examenes/detalle?examen=4&pestana=sin-conexion'
+                '/examenes'
             );
 
-            fireEvent.click(screen.getByRole('button', { name: /Eliminar/ }));
+            fireEvent.click(screen.getByRole('button', { name: /^Revisión sin conexión/ }));
+            expect(
+                await screen.findByText('No se usó el modo sin conexión en este examen')
+            ).toBeVisible();
+        });
+
+        it('eliminar está en «Listo», con confirmación', async () => {
+            montar('/examenes/nuevo?examen=4&paso=4');
+
+            fireEvent.click(await screen.findByRole('button', { name: 'Eliminar examen' }));
             expect(await screen.findByRole('dialog', { name: 'Eliminar examen' })).toBeVisible();
         });
 
         it('con ingresos o incidencias ya no se ofrece eliminar', async () => {
             anteriores = [{ ...DE_LA_LISTA, con_ingresos: true }];
-            montar('/examenes/nuevo?examen=4&paso=0');
+            montar('/examenes/nuevo?examen=4&paso=4');
 
-            await screen.findByRole('link', { name: 'Bitácora' });
-            expect(screen.queryByRole('button', { name: /Eliminar/ })).not.toBeInTheDocument();
+            await screen.findByRole('button', { name: /Continuar: Habilitar/ });
+            expect(
+                screen.queryByRole('button', { name: 'Eliminar examen' })
+            ).not.toBeInTheDocument();
         });
     });
 

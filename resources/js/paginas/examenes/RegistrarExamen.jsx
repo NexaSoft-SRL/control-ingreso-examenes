@@ -9,6 +9,7 @@ import {
     ClipboardList,
     Clock,
     DoorOpen,
+    History,
     Hourglass,
     Info,
     KeyRound,
@@ -22,6 +23,7 @@ import {
     Trash2,
     UserCheck,
     Users,
+    WifiOff,
     X,
 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -45,6 +47,8 @@ import SelectorAsignatura, { Detalle } from '../../componentes/SelectorAsignatur
 import Tarjeta from '../../componentes/Tarjeta';
 import { usarSesion } from '../../sesion/SesionContexto';
 import { CodigosDelExamen } from '../docente/CodigosQr';
+import BitacoraDelExamen from './BitacoraDelExamen';
+import RevisionSinConexion from './RevisionSinConexion';
 import { ListaDelExamen } from '../habilitacion/Habilitacion';
 import { colorDeAsignatura, diaMes, fechaLarga, normalizar, plural } from '../../utiles/texto';
 import ChoquesDeEstudiantes from './ChoquesDeEstudiantes';
@@ -65,7 +69,10 @@ const ICONOS_DE_PASO = [ClipboardList, Users, DoorOpen, UserCheck, CheckCircle2]
 // estudiantes y los códigos QR, para quien tiene esos permisos.
 const PASO_HABILITAR = 'Habilitar';
 const PASO_QR = 'Códigos QR';
-const ENLACE_DE_CABECERA = `inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 ${FOCO}`;
+// Y, con el examen registrado, lo que se revisa durante y después: la bitácora y
+// lo que dejó el modo sin conexión.
+const PASO_BITACORA = 'Bitácora';
+const PASO_SIN_CONEXION = 'Revisión sin conexión';
 // Del avance de la lista: true si está hecho, false si falta, sin dato si no se sabe.
 const estadoDeAvance = (valor) => (valor === 'ok' ? true : valor ? false : undefined);
 // Con más grupos que estos, la lista lleva buscador y desplazamiento propio.
@@ -614,7 +621,7 @@ FilaAula.propTypes = {
 
 // El examen tal como quedó guardado: lo que se ve tras registrar y lo que ve
 // el docente de un grupo incluido, que no lo modifica.
-function Resumen({ examen, recien = false, onAviso, onElegirAulas, onHabilitar }) {
+function Resumen({ examen, recien = false, onAviso, onElegirAulas, onHabilitar, onEliminar }) {
     const { puede } = usarSesion();
     const [acceso, setAcceso] = useState(null);
     const [generados, setGenerados] = useState([]);
@@ -757,6 +764,15 @@ function Resumen({ examen, recien = false, onAviso, onElegirAulas, onHabilitar }
                 </div>
             </div>
             <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">
+                {onEliminar && (
+                    <button
+                        type="button"
+                        onClick={onEliminar}
+                        className={`mr-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-danger-200 bg-white px-4 text-sm font-medium text-danger-700 hover:bg-danger-50 ${FOCO}`}
+                    >
+                        <Trash2 className="h-4 w-4" /> Eliminar examen
+                    </button>
+                )}
                 <Link
                     to="/examenes"
                     className={`inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 ${FOCO}`}
@@ -846,6 +862,7 @@ Resumen.propTypes = {
     onAviso: PropTypes.func.isRequired,
     onElegirAulas: PropTypes.func,
     onHabilitar: PropTypes.func,
+    onEliminar: PropTypes.func,
 };
 
 // Las normas del examen que quedaron sin plantilla (la plantilla se quitó).
@@ -873,11 +890,49 @@ function Asistente({
     sugerido = {},
     base = null,
     avance = null,
+    onEliminar,
 }) {
-    const { usuario } = usarSesion();
+    const { usuario, puede } = usarSesion();
     const yo = { id: usuario.id, nombre: usuario.nombre };
     const [examen, setExamen] = useState(inicial);
-    const [paso, setPaso] = useState(pasoInicial);
+    // Los pasos de después de registrar dependen de los permisos de la cuenta; la
+    // bitácora y la revisión sin conexión, de que el examen ya exista.
+    const pasosExtra = [
+        puede('habilitacion') ? PASO_HABILITAR : null,
+        puede('codigos_qr') ? PASO_QR : null,
+        examen && puede('reportes_examenes') ? PASO_BITACORA : null,
+        examen && puede('seguimiento_vivo') ? PASO_SIN_CONEXION : null,
+    ].filter(Boolean);
+    const pasosDelAsistente = [...PASOS, ...pasosExtra];
+    const iconosDeExtra = {
+        [PASO_HABILITAR]: ShieldCheck,
+        [PASO_QR]: QrCode,
+        [PASO_BITACORA]: History,
+        [PASO_SIN_CONEXION]: WifiOff,
+    };
+    const iconosDelAsistente = [
+        ...ICONOS_DE_PASO,
+        ...pasosExtra.map((nombre) => iconosDeExtra[nombre]),
+    ];
+    const indiceHabilitar = pasosDelAsistente.indexOf(PASO_HABILITAR);
+    const indiceQr = pasosDelAsistente.indexOf(PASO_QR);
+    const indiceBitacora = pasosDelAsistente.indexOf(PASO_BITACORA);
+    const indiceSinConexion = pasosDelAsistente.indexOf(PASO_SIN_CONEXION);
+    // El paso pedido en la dirección: un número o el nombre de uno de los extras.
+    const [paso, setPaso] = useState(() => {
+        if (typeof pasoInicial === 'number') {
+            return Math.min(pasoInicial, pasosDelAsistente.length - 1);
+        }
+        const indice = pasosDelAsistente.indexOf(
+            {
+                habilitar: PASO_HABILITAR,
+                qr: PASO_QR,
+                bitacora: PASO_BITACORA,
+                'sin-conexion': PASO_SIN_CONEXION,
+            }[pasoInicial]
+        );
+        return indice >= 0 ? indice : 4;
+    });
     const hoy = new Date().toLocaleDateString('en-CA');
     // Con `base` (otro examen a la misma hora) el examen nuevo parte de su
     // tipo, fecha, hora, duración, aulas y personal, y de otra asignatura.
@@ -1436,19 +1491,20 @@ function Asistente({
             .map((n) => [n.plantilla_id, n.texto])
     );
 
-    // Los pasos de después de registrar dependen de los permisos de la cuenta.
-    const { puede } = usarSesion();
-    const pasosExtra = [
-        puede('habilitacion') ? PASO_HABILITAR : null,
-        puede('codigos_qr') ? PASO_QR : null,
-    ].filter(Boolean);
-    const pasosDelAsistente = [...PASOS, ...pasosExtra];
-    const iconosDelAsistente = [
-        ...ICONOS_DE_PASO,
-        ...pasosExtra.map((nombre) => (nombre === PASO_HABILITAR ? ShieldCheck : QrCode)),
-    ];
-    const indiceHabilitar = pasosDelAsistente.indexOf(PASO_HABILITAR);
-    const indiceQr = pasosDelAsistente.indexOf(PASO_QR);
+    // Lo que se revisa durante y después del examen: atrás y salir.
+    const pieDeSeguimiento = (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+            <Boton type="button" variante="secundario" onClick={() => setPaso(paso - 1)}>
+                Atrás
+            </Boton>
+            <Link
+                to="/examenes"
+                className={`inline-flex min-h-11 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 ${FOCO}`}
+            >
+                Terminar
+            </Link>
+        </div>
+    );
     // Con el examen ya registrado se puede guardar un cambio sin salir del paso.
     const botonGuardarCambios = examen ? (
         <Boton
@@ -2051,6 +2107,19 @@ function Asistente({
                 </div>
             )}
 
+            {paso === indiceBitacora && examen && (
+                <div className="space-y-4">
+                    <BitacoraDelExamen key={examen.id} examenId={examen.id} fecha={examen.fecha} />
+                    {pieDeSeguimiento}
+                </div>
+            )}
+            {paso === indiceSinConexion && examen && (
+                <div className="space-y-4">
+                    <RevisionSinConexion key={examen.id} examenId={examen.id} />
+                    {pieDeSeguimiento}
+                </div>
+            )}
+
             {detalleAula && paso === 2 && (
                 <DetalleDeAula
                     aula={detalleAula}
@@ -2108,6 +2177,7 @@ function Asistente({
                     onAviso={avisar}
                     onElegirAulas={() => setPaso(2)}
                     onHabilitar={indiceHabilitar > 0 ? () => setPaso(indiceHabilitar) : undefined}
+                    onEliminar={onEliminar}
                 />
             )}
             {paso === 4 && tambien.hechos.length > 0 && (
@@ -2225,11 +2295,12 @@ Asistente.propTypes = {
         })
     ).isRequired,
     inicial: FORMA_DETALLE,
-    pasoInicial: PropTypes.number.isRequired,
+    pasoInicial: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
     onExamen: PropTypes.func.isRequired,
     anteriores: PropTypes.array,
     base: FORMA_DETALLE,
     avance: PropTypes.objectOf(PropTypes.string),
+    onEliminar: PropTypes.func,
 };
 
 // Registro y edición de un examen. Con `?examen=3&paso=2` se abre un examen
@@ -2241,9 +2312,13 @@ function RegistrarExamenPagina() {
     const navegar = useNavigate();
     const [porEliminar, setPorEliminar] = useState(null);
     const examenId = Number(parametros.get('examen')) || null;
-    // 4 pasos de registro, «Listo» y, según los permisos, Habilitar y Códigos QR.
-    const ultimoPaso = 4 + (puede('habilitacion') ? 1 : 0) + (puede('codigos_qr') ? 1 : 0);
-    const pasoPedido = Math.min(Math.max(Number(parametros.get('paso')) || 0, 0), ultimoPaso);
+    // Por número se pide cualquier paso; el asistente lo ajusta a los que tiene.
+    const ultimoPaso = 20;
+    // El paso pedido: un número o el nombre de uno de los pasos de después.
+    const pasoDeLaDireccion = parametros.get('paso');
+    const pasoPedido = ['habilitar', 'qr', 'bitacora', 'sin-conexion'].includes(pasoDeLaDireccion)
+        ? pasoDeLaDireccion
+        : Math.min(Math.max(Number(pasoDeLaDireccion) || 0, 0), ultimoPaso);
     // Un examen nuevo puede abrirse con aula, fecha y hora (desde el calendario).
     // La fecha solo vale si es de hoy en adelante y bien escrita.
     const hoyDeHoy = new Date().toLocaleDateString('en-CA');
@@ -2328,43 +2403,17 @@ function RegistrarExamenPagina() {
                 }
                 volver={{ a: '/examenes', texto: 'Exámenes' }}
             >
-                {previo && previo.propio !== false && (
-                    <div className="flex flex-wrap gap-2">
-                        {puede('seguimiento_vivo') && previo.fecha === hoyDeHoy && (
-                            <Link
-                                to={`/en-curso?examen=${previo.id}`}
-                                className={ENLACE_DE_CABECERA}
-                            >
-                                En curso
-                            </Link>
-                        )}
-                        {puede('reportes_examenes') && (
-                            <Link
-                                to={rutaDelExamen(previo.id, 'bitacora')}
-                                className={ENLACE_DE_CABECERA}
-                            >
-                                Bitácora
-                            </Link>
-                        )}
-                        {puede('seguimiento_vivo') && (
-                            <Link
-                                to={rutaDelExamen(previo.id, 'sin-conexion')}
-                                className={ENLACE_DE_CABECERA}
-                            >
-                                Revisión sin conexión
-                            </Link>
-                        )}
-                        {delaLista && !delaLista.con_ingresos && !delaLista.con_incidencias && (
-                            <button
-                                type="button"
-                                onClick={() => setPorEliminar(delaLista)}
-                                className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-danger-200 bg-white px-4 text-sm font-medium text-danger-700 hover:bg-danger-50 ${FOCO}`}
-                            >
-                                <Trash2 className="h-4 w-4" /> Eliminar
-                            </button>
-                        )}
-                    </div>
-                )}
+                {previo &&
+                    previo.propio !== false &&
+                    puede('seguimiento_vivo') &&
+                    previo.fecha === hoyDeHoy && (
+                        <Link
+                            to={`/en-curso?examen=${previo.id}`}
+                            className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 ${FOCO}`}
+                        >
+                            Seguir en vivo
+                        </Link>
+                    )}
             </Encabezado>
 
             {negado ? (
@@ -2396,6 +2445,11 @@ function RegistrarExamenPagina() {
                             inicial={previo}
                             anteriores={examenId ? [] : (anteriores.datos ?? [])}
                             avance={delaLista?.avance ?? null}
+                            onEliminar={
+                                delaLista && !delaLista.con_ingresos && !delaLista.con_incidencias
+                                    ? () => setPorEliminar(delaLista)
+                                    : undefined
+                            }
                             base={copia.datos?.propio === false ? null : (copia.datos ?? null)}
                             pasoInicial={previo ? pasoPedido : 0}
                             sugerido={previo ? undefined : sugerido}

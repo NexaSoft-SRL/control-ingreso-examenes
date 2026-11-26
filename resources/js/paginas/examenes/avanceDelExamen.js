@@ -132,9 +132,10 @@ export const FORMA_EXAMEN = PropTypes.shape({
     codigos_aula: PropTypes.number,
 });
 
-// Los pasos del asistente de un examen, por su posición: 1 grupos, 2 aulas,
-// 3 equipo, 4 listo, 5 habilitar y 6 códigos QR.
-const PASO_DE_AVANCE = { grupos: 1, aulas: 2, auxiliares: 3, habilitacion: 5, qr: 6 };
+// Los pasos del asistente de un examen: los del registro, por su posición
+// (1 grupos, 2 aulas, 3 equipo, 4 listo), y los de después, por su nombre
+// (habilitar, qr, bitacora, sin-conexion), que no dependen de los permisos.
+const PASO_DE_AVANCE = { grupos: 1, aulas: 2, auxiliares: 3, habilitacion: 'habilitar', qr: 'qr' };
 
 // El primer paso que falta (o «Listo», el 4, si no falta ninguno).
 export function primerPasoPendiente(examen) {
@@ -146,7 +147,8 @@ export function primerPasoPendiente(examen) {
 
 // A qué paso del asistente lleva abrir el examen en una pestaña de la página.
 export function pasoDeLaPestana(examen, pestana) {
-    if (pestana === 'habilitacion') return PASO_DE_AVANCE.habilitacion;
-    if (pestana === 'qr') return PASO_DE_AVANCE.qr;
+    if (pestana === 'habilitacion') return 'habilitar';
+    if (pestana === 'qr') return 'qr';
+    if (pestana === 'bitacora' || pestana === 'sin-conexion') return pestana;
     return primerPasoPendiente(examen);
 }
