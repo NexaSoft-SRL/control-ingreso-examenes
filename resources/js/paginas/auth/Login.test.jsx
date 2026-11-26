@@ -44,16 +44,24 @@ describe('Login', () => {
         expect(screen.queryByText(/correo/i)).not.toBeInTheDocument();
     });
 
-    it('enlaza al acceso con código de aula y al de estudiantes', () => {
+    it('separa entrar con cuenta, con código de aula y como estudiante', () => {
         montar();
-        expect(screen.getByRole('link', { name: 'Soy personal de control' })).toHaveAttribute(
+        const tipos = screen.getByRole('navigation', { name: 'Tipo de acceso' });
+        expect(within(tipos).getByRole('link', { name: 'Con cuenta' })).toHaveAttribute(
+            'aria-current',
+            'page'
+        );
+        expect(within(tipos).getByRole('link', { name: 'Código de aula' })).toHaveAttribute(
             'href',
             '/acceso-aula'
         );
-        expect(screen.getByRole('link', { name: 'Soy estudiante' })).toHaveAttribute(
+        // «Soy personal de control» confundía con el auxiliar, que tiene cuenta.
+        expect(screen.queryByRole('link', { name: 'Soy personal de control' })).toBeNull();
+        expect(within(tipos).getByRole('link', { name: 'Estudiante' })).toHaveAttribute(
             'href',
             '/estudiante/ingreso'
         );
+        expect(screen.queryByRole('link', { name: 'Soy estudiante' })).toBeNull();
     });
 
     it('valida antes de llamar al servidor', () => {
@@ -100,7 +108,7 @@ describe('Login', () => {
         expect(campoUsuario()).toHaveAttribute('placeholder', 'ej. leticia blanco');
         // La contraseña vacía no aparenta tener algo escrito.
         expect(screen.getByLabelText(/^Contraseña/)).not.toHaveAttribute('placeholder');
-        expect(screen.getByText('Docente o administración')).toBeInTheDocument();
+        expect(screen.getByText('Docente, auxiliar o administración')).toBeInTheDocument();
         intentar('Letícia Blanco');
 
         expect(await screen.findByText('Estoy en /examenes')).toBeInTheDocument();

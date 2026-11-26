@@ -4,21 +4,28 @@ import { Check } from 'lucide-react';
 // Indicador de pasos de un proceso guiado: lo hecho, lo actual y lo que
 // falta. Se puede volver a un paso anterior, no saltar adelante. Con
 // `completos`, un paso anterior que quedó incompleto no lleva ✓. Con
-// `iconos`, cada paso muestra su icono en lugar del número.
-export default function Pasos({ pasos, actual, onIr, completos, iconos }) {
-    return (
+// `iconos`, cada paso muestra su icono en lugar del número. Con `libre` (un
+// examen ya registrado) se puede ir a cualquier paso y cada uno lleva su
+// estado: ✓ si está completo, ámbar si falta. Con `grupos` (cada uno con su
+// `titulo` y los pasos `desde` el primero hasta antes de `hasta`) los pasos se
+// separan en filas con su título, para no confundir lo que es de cada cosa.
+export default function Pasos({ pasos, actual, onIr, completos, iconos, libre = false, grupos }) {
+    const dibujar = (desde, hasta) => (
         <ol className="flex flex-wrap items-center gap-x-2 gap-y-3">
-            {pasos.map((titulo, i) => {
+            {pasos.slice(desde, hasta).map((titulo, posicion) => {
+                const i = desde + posicion;
                 const Icono = iconos?.[i];
                 const anterior = i < actual;
-                const hecho = anterior && completos?.[i] !== false;
-                const pendiente = anterior && !hecho;
                 const activo = i === actual;
+                const hecho = libre
+                    ? !activo && completos?.[i] === true
+                    : anterior && completos?.[i] !== false;
+                const pendiente = libre ? !activo && completos?.[i] === false : anterior && !hecho;
                 return (
                     <li key={titulo} className="flex items-center gap-2">
                         <button
                             type="button"
-                            disabled={!anterior}
+                            disabled={!anterior && !libre}
                             aria-label={pendiente ? `${titulo} · incompleto` : undefined}
                             onClick={() => onIr?.(i)}
                             className={`flex min-h-10 items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 ${
@@ -50,13 +57,28 @@ export default function Pasos({ pasos, actual, onIr, completos, iconos }) {
                             </span>
                             {titulo}
                         </button>
-                        {i < pasos.length - 1 && (
+                        {i < hasta - 1 && (
                             <span className="hidden h-px w-6 bg-slate-300 sm:block" />
                         )}
                     </li>
                 );
             })}
         </ol>
+    );
+
+    if (!grupos || grupos.length < 2) return dibujar(0, pasos.length);
+
+    return (
+        <div className="space-y-4">
+            {grupos.map((grupo) => (
+                <div key={grupo.titulo}>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                        {grupo.titulo}
+                    </p>
+                    {dibujar(grupo.desde, grupo.hasta)}
+                </div>
+            ))}
+        </div>
     );
 }
 
@@ -66,4 +88,12 @@ Pasos.propTypes = {
     onIr: PropTypes.func,
     completos: PropTypes.arrayOf(PropTypes.bool),
     iconos: PropTypes.arrayOf(PropTypes.elementType),
+    libre: PropTypes.bool,
+    grupos: PropTypes.arrayOf(
+        PropTypes.shape({
+            titulo: PropTypes.string.isRequired,
+            desde: PropTypes.number.isRequired,
+            hasta: PropTypes.number.isRequired,
+        })
+    ),
 };

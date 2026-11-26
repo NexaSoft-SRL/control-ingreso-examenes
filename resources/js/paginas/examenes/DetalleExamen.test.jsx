@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DetalleExamen from './DetalleExamen';
 import { api } from '../../api/cliente';
@@ -31,7 +32,9 @@ function examen(cambios) {
         registrado_por: 'Flores Villarroel Corina',
         junto_con: 0,
         es_hoy: false,
-        rendido: false,
+        // Quien registró un examen que aún no se toma lo prepara en el asistente;
+        // esta página es para los ya tomados y para los de otro docente.
+        rendido: true,
         ...cambios,
     };
 }
@@ -78,6 +81,8 @@ describe('DetalleExamen', () => {
                 },
             ],
         };
+        // Un colaborador de un examen que aún no se toma.
+        examenes = [examen({ propio: false, rendido: false })];
         montar();
 
         expect(
@@ -95,6 +100,7 @@ describe('DetalleExamen', () => {
     });
 
     it('reúne el examen: título, estado, pestañas con sus cifras y el paso siguiente', async () => {
+        examenes = [examen({ propio: false, rendido: false })];
         montar();
 
         expect(
@@ -111,18 +117,14 @@ describe('DetalleExamen', () => {
             '/examenes/detalle?examen=24&pestana=qr'
         );
         // Los pasos llevan a su lugar: el registro o la pestaña.
-        expect(screen.getByRole('link', { name: /Aulas/ })).toHaveAttribute(
-            'href',
-            '/examenes/nuevo?examen=24&paso=2'
-        );
+        // Los pasos del registro solo llevan a quien lo registró.
+        expect(screen.queryByRole('link', { name: /Aulas/ })).not.toBeInTheDocument();
         expect(screen.getByRole('link', { name: /^Habilitación/ })).toHaveAttribute(
             'href',
             '/examenes/detalle?examen=24&pestana=habilitacion'
         );
-        expect(screen.getByRole('link', { name: /Editar/ })).toHaveAttribute(
-            'href',
-            '/examenes/nuevo?examen=24'
-        );
+        // Quien no lo registró no lo edita.
+        expect(screen.queryByRole('link', { name: /Editar/ })).not.toBeInTheDocument();
     });
 
     it('cambia de pestaña sin salir del examen', async () => {
@@ -300,5 +302,86 @@ describe('DetalleExamen · colaboración', () => {
 
         expect(await screen.findByText(/2 invitaciones pendientes a otros docentes/)).toBeVisible();
         expect(screen.queryByRole('button', { name: /Salir del examen/ })).not.toBeInTheDocument();
+    });
+});
+
+describe('DetalleExamen · el asistente prepara los exámenes que aún no se toman', () => {
+    function Aqui() {
+        const { pathname, search } = useLocation();
+        return <p>Estoy en {pathname + search}</p>;
+    }
+    const montarConRutas = (ruta) =>
+        renderConSesion(
+            <Routes>
+                <Route path="/examenes/detalle" element={<DetalleExamen />} />
+                <Route path="/examenes/nuevo" element={<Aqui />} />
+            </Routes>,
+            { usuario: usuarioDePrueba('Docente'), ruta }
+        );
+
+    it('abre en el primer paso que falta', async () => {
+        // Los códigos QR son lo que falta.
+        examenes = [examen({ rendido: false })];
+        montarConRutas('/examenes/detalle?examen=24');
+
+        expect(await screen.findByText('Estoy en /examenes/nuevo?examen=24&paso=qr')).toBeVisible();
+    });
+
+    it('con todo listo abre en «Listo»', async () => {
+        examenes = [
+            examen({
+                rendido: false,
+                avance: {
+                    grupos: 'ok',
+                    aulas: 'ok',
+                    auxiliares: 'ok',
+                    habilitacion: 'ok',
+                    qr: 'ok',
+                },
+            }),
+        ];
+        montarConRutas('/examenes/detalle?examen=24');
+
+        expect(await screen.findByText('Estoy en /examenes/nuevo?examen=24&paso=4')).toBeVisible();
+    });
+
+    it('las pestañas de habilitación y códigos QR llevan a su paso', async () => {
+        examenes = [examen({ rendido: false })];
+        montarConRutas('/examenes/detalle?examen=24&pestana=habilitacion');
+
+        expect(
+            await screen.findByText('Estoy en /examenes/nuevo?examen=24&paso=habilitar')
+        ).toBeVisible();
+    });
+
+    it('la bitácora y lo de sin conexión también son pasos del asistente', async () => {
+        examenes = [examen({ rendido: false })];
+        const { unmount } = montarConRutas('/examenes/detalle?examen=24&pestana=bitacora');
+        expect(
+            await screen.findByText('Estoy en /examenes/nuevo?examen=24&paso=bitacora')
+        ).toBeVisible();
+        unmount();
+
+        montarConRutas('/examenes/detalle?examen=24&pestana=sin-conexion');
+        expect(
+            await screen.findByText('Estoy en /examenes/nuevo?examen=24&paso=sin-conexion')
+        ).toBeVisible();
+    });
+
+    it('los exámenes ya tomados se quedan en esta página', async () => {
+        examenes = [examen({ rendido: true })];
+        montarConRutas('/examenes/detalle?examen=24');
+        expect(
+            await screen.findByRole('heading', { name: /Primer parcial · Taller/ })
+        ).toBeInTheDocument();
+    });
+
+    it('quien colabora sigue viendo la página con sus pestañas', async () => {
+        examenes = [examen({ propio: false, rendido: false })];
+        montarConRutas('/examenes/detalle?examen=24');
+
+        expect(
+            await screen.findByRole('heading', { name: /Primer parcial · Taller/ })
+        ).toBeInTheDocument();
     });
 });

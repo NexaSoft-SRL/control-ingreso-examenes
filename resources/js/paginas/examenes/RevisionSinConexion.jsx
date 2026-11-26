@@ -87,7 +87,7 @@ export default function RevisionSinConexion({ examenId }) {
 
     if (!cuerpo.usado && sesiones.length === 0) {
         return (
-            <Tarjeta titulo="Sin conexión" icono={WifiOff}>
+            <Tarjeta titulo="Revisión sin conexión" icono={WifiOff}>
                 <p className="py-6 text-center text-sm text-slate-600">
                     No se usó el modo sin conexión en este examen
                     <span className="mt-1 block text-xs text-slate-500">

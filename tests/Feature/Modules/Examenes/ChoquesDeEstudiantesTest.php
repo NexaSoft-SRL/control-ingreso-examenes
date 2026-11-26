@@ -105,7 +105,9 @@ final class ChoquesDeEstudiantesTest extends TestCase
         $grupoOtro = $this->grupo($otro, $this->asignatura());
         [$estudiante] = $this->estudiantesInscritos($grupo, 1);
         $this->inscribir($estudiante, $grupoOtro);
-        $this->examen($otro, [$grupoOtro], [], ['fecha' => $this->diaHabil(4)] + self::HORA);
+        // Dos días hábiles distintos sea cual sea el día en que corre la prueba: si el
+        // tercero cae en domingo pasa al lunes, y el quinto nunca coincide con él.
+        $this->examen($otro, [$grupoOtro], [], ['fecha' => $this->diaHabil(5)] + self::HORA);
 
         $this->actingAs($this->cuenta($docente))
             ->getJson($this->choques([

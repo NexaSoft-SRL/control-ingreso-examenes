@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import { Link } from 'react-router-dom';
 import Escudo from './Escudo';
 
 // La tarjeta blanca de las pantallas de acceso.
@@ -31,12 +32,51 @@ CabeceraAcceso.propTypes = {
     subtitulo: PropTypes.node,
 };
 
+// Las tres formas de entrar al sistema: con cuenta (docente, auxiliar o
+// administración: usuario y contraseña), con el código de aula que da el docente
+// (para quien controla el ingreso sin cuenta) o como estudiante.
+const TIPOS_DE_ACCESO = [
+    { clave: 'cuenta', texto: 'Con cuenta', a: '/login' },
+    { clave: 'codigo', texto: 'Código de aula', a: '/acceso-aula' },
+    { clave: 'estudiante', texto: 'Estudiante', a: '/estudiante/ingreso' },
+];
+
+export function TipoDeAcceso({ activo }) {
+    return (
+        <nav
+            aria-label="Tipo de acceso"
+            className="mb-5 grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1"
+        >
+            {TIPOS_DE_ACCESO.map((tipo) => (
+                <Link
+                    key={tipo.clave}
+                    to={tipo.a}
+                    aria-current={tipo.clave === activo ? 'page' : undefined}
+                    className={`flex min-h-11 items-center justify-center rounded-lg px-1.5 text-center text-xs font-medium leading-tight sm:text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 ${
+                        tipo.clave === activo
+                            ? 'bg-white text-umss-marino shadow-sm'
+                            : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                >
+                    {tipo.texto}
+                </Link>
+            ))}
+        </nav>
+    );
+}
+
+TipoDeAcceso.propTypes = {
+    activo: PropTypes.oneOf(['cuenta', 'codigo', 'estudiante']).isRequired,
+};
+
 // El fondo de las pantallas de acceso (login, estudiante y código de aula):
 // un celeste muy claro con franjas diagonales translúcidas y, abajo, una franja
 // azul marino con una línea roja (los colores de la UMSS) que lleva el crédito
 // de la grupo empresa. Las franjas son decoración, fuera del lector de
 // pantalla.
-export default function FondoAcceso({ children }) {
+// Con `arriba` la tarjeta empieza siempre a la misma altura, en vez de centrarse:
+// al pasar de una forma de entrar a otra el selector no se mueve.
+export default function FondoAcceso({ children, arriba = false }) {
     return (
         <div className="relative isolate flex min-h-dvh flex-col overflow-hidden bg-primary-50">
             <svg
@@ -51,7 +91,9 @@ export default function FondoAcceso({ children }) {
                 <polygon points="0,88 100,76 100,77.4 0,89.4" className="fill-umss-rojo" />
                 <polygon points="0,90.2 100,78.2 100,100 0,100" className="fill-umss-marino" />
             </svg>
-            <main className="flex flex-1 items-center justify-center px-4 pb-28 pt-8 sm:pb-32">
+            <main
+                className={`flex flex-1 justify-center px-4 pb-28 sm:pb-32 ${arriba ? 'items-start pt-6 sm:pt-12' : 'items-center pt-8'}`}
+            >
                 {children}
             </main>
             <footer className="absolute inset-x-0 bottom-3 text-center text-xs leading-relaxed text-white/80">
@@ -62,4 +104,4 @@ export default function FondoAcceso({ children }) {
     );
 }
 
-FondoAcceso.propTypes = { children: PropTypes.node };
+FondoAcceso.propTypes = { children: PropTypes.node, arriba: PropTypes.bool };

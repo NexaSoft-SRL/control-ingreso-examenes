@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { CalendarDays, Camera, IdCard, LogOut, MapPin } from 'lucide-react';
+import {
+    AlertTriangle,
+    CalendarDays,
+    Camera,
+    IdCard,
+    LogOut,
+    MapPin,
+    UserRound,
+} from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
@@ -42,7 +50,7 @@ const SIN_ROSTRO = 'No se ve su rostro · tome otra de frente y con buena luz';
 
 const PESTANAS = [
     { ruta: '/estudiante', titulo: 'Mis exámenes', Icono: CalendarDays },
-    { ruta: '/estudiante/foto', titulo: 'Mi foto', Icono: Camera },
+    { ruta: '/estudiante/foto', titulo: 'Mi perfil', Icono: UserRound },
 ];
 
 function Examen({ examen, hoy, codigo }) {
@@ -268,6 +276,15 @@ function MiFoto({ sesion, alGuardar }) {
                 </div>
             ) : puede ? (
                 <div className="space-y-4">
+                    {!estudiante.con_foto && (
+                        <p
+                            role="alert"
+                            className="flex items-start gap-2 rounded-lg bg-warning-50 px-3 py-2 text-sm font-medium text-warning-800"
+                        >
+                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                            Obligatoria para dar un examen · después no se puede cambiar
+                        </p>
+                    )}
                     {habilitada ? (
                         <p className="rounded-lg bg-primary-50 px-3 py-2 text-sm text-primary-800">
                             {estudiante.con_foto ? 'Cambio de foto' : 'Subida'} habilitada hasta el{' '}

@@ -362,6 +362,8 @@ let detalle;
 let choques;
 // GET /examenes/opciones/ocupados: los grupos que ya tienen un examen de ese tipo.
 let ocupados;
+// GET /calendario/aulas: lo que pasa en un aula ese día.
+let agendaDelAula;
 
 // Un examen nuevo empieza sin asignatura: salvo que la prueba diga lo contrario,
 // `montar` elige Introducción a la Programación (la que antes venía elegida).
@@ -455,6 +457,7 @@ beforeEach(() => {
     detalle = DETALLE;
     choques = { total: 0, estudiantes: [] };
     ocupados = [];
+    agendaDelAula = { clases: [], examenes: [] };
     anteriores = [];
     simularApi(api, {
         'GET /examenes': () => ({ data: anteriores }),
@@ -466,6 +469,15 @@ beforeEach(() => {
         'GET /examenes/opciones/aulas': OPCIONES_AULAS,
         'GET /examenes/opciones/choques': () => choques,
         'GET /examenes/opciones/ocupados': () => ({ ocupados }),
+        'GET /calendario/aulas': ({ params }) => ({ aulas: { [params.aulas[0]]: agendaDelAula } }),
+        'GET /examenes/*/sin-conexion': () => ({
+            usado: false,
+            sesiones: [],
+            sin_sincronizar: [],
+            irregularidades: [],
+            resumen: { pendientes: 0, altas: 0, resueltas: 0, sin_sincronizar: 0 },
+        }),
+        'GET /reportes/examenes/*/bitacora': () => ({ data: [], meta: { total: 0 } }),
         'GET /examenes/*/habilitaciones': () => ({
             data: [],
             meta: { total: 0, cifras: { inscritos: 65, habilitados: 0 } },
@@ -1007,6 +1019,48 @@ describe('RegistrarExamen · paso 3, aulas', () => {
         expect(screen.getByRole('button', { name: 'Más aulas' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'Menos aulas' })).toBeDisabled();
         expect(screen.getByLabelText('Cantidad de aulas')).toHaveTextContent('1');
+    });
+
+    it('el detalle de un aula dice qué pasa ese día y deja elegirla desde ahí', async () => {
+        agendaDelAula = {
+            clases: [
+                {
+                    fecha: '2026-10-20',
+                    inicio: '08:15',
+                    fin: '09:45',
+                    asignatura: 'Física I',
+                    grupo: '2',
+                    docente: 'Ríos Vega Ana',
+                    auxiliatura: false,
+                },
+            ],
+            examenes: [],
+        };
+        montar();
+        await irAAulas();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Ver el detalle del aula 691B' }));
+
+        const dialogo = await screen.findByRole('dialog', { name: 'Aula 691B' });
+        expect(await within(dialogo).findByText('Ocupada a esa hora')).toBeVisible();
+        expect(within(dialogo).getByText('Física I')).toBeVisible();
+        expect(within(dialogo).getByText(/Coincide 08:15–09:45/)).toBeVisible();
+
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Elegir esta aula' }));
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: 'Aula 691B' })).toBeChecked();
+
+        // Elegida, el nombre de su chip también abre el detalle.
+        fireEvent.click(
+            within(screen.getByRole('list', { name: 'Aulas elegidas' })).getByRole('button', {
+                name: 'Ver el detalle del aula 691B',
+            })
+        );
+        expect(
+            await within(await screen.findByRole('dialog')).findByRole('button', {
+                name: 'Quitar del examen',
+            })
+        ).toBeVisible();
     });
 
     it('EV-03: informa de una clase ajena coincidente', async () => {
@@ -2006,9 +2060,9 @@ describe('RegistrarExamen · guardar', () => {
 
         pulsar(/Continuar: Códigos QR/);
         expect(await screen.findByRole('heading', { name: '7. Códigos QR' })).toBeVisible();
-        expect(screen.getByRole('link', { name: 'Terminar' })).toHaveAttribute(
+        expect(screen.getByRole('link', { name: 'Volver a Exámenes' })).toHaveAttribute(
             'href',
-            '/examenes/detalle?examen=9'
+            '/examenes'
         );
 
         // Atrás vuelve paso por paso.
@@ -2058,6 +2112,14 @@ describe('RegistrarExamen · guardar', () => {
         await waitFor(() =>
             expect(screen.queryByText('El grupo 2 ya tiene un segundo parcial.')).toBeNull()
         );
+    });
+
+    it('un examen nuevo muestra sus pasos en una sola fila, sin títulos', async () => {
+        montar();
+        await campo(/^Fecha/);
+
+        expect(screen.queryByText('Preparación')).not.toBeInTheDocument();
+        expect(screen.queryByText('Seguimiento')).not.toBeInTheDocument();
     });
 
     it('sin normas también se registra', async () => {
@@ -2246,6 +2308,122 @@ describe('RegistrarExamen · edición', () => {
             'El examen ya tiene ingresos registrados: solo se pueden cambiar las normas.'
         );
         expect(screen.getByRole('heading', { name: '4. Equipo' })).toBeInTheDocument();
+    });
+
+    describe('un examen ya registrado se prepara en el mismo asistente', () => {
+        const DE_LA_LISTA = {
+            id: 4,
+            asignatura: INTRO,
+            tipo: 'SEGUNDO_PARCIAL',
+            tipo_texto: 'Segundo parcial',
+            fecha: '2026-11-23',
+            hora: '14:15',
+            duracion: 120,
+            grupos: ['2', '3'],
+            inscritos: 75,
+            aulas: ['691B'],
+            habilitados: 0,
+            no_habilitados: 0,
+            qr_emitidos: 0,
+            codigos_aula: 0,
+            propio: true,
+            con_ingresos: false,
+            con_incidencias: false,
+            avance: {
+                grupos: 'ok',
+                aulas: 'ok',
+                auxiliares: 'ok',
+                habilitacion: 'ahora',
+                qr: 'falta',
+            },
+        };
+
+        beforeEach(() => {
+            anteriores = [DE_LA_LISTA];
+        });
+
+        it('cada paso se abre en cualquier momento y lleva su estado', async () => {
+            montar('/examenes/nuevo?examen=4&paso=0');
+            await screen.findByRole('heading', { name: '1. Examen' });
+
+            // Habilitar y códigos QR faltan; los del registro están completos.
+            expect(
+                await screen.findByRole('button', { name: 'Habilitar · incompleto' })
+            ).toBeEnabled();
+            expect(screen.getByRole('button', { name: 'Códigos QR · incompleto' })).toBeEnabled();
+
+            fireEvent.click(screen.getByRole('button', { name: 'Habilitar · incompleto' }));
+            expect(
+                await screen.findByRole('heading', { name: '6. Habilitar estudiantes' })
+            ).toBeVisible();
+
+            // También se vuelve y se salta hacia atrás y adelante.
+            fireEvent.click(screen.getByRole('button', { name: /^Aulas/ }));
+            expect(await screen.findByRole('heading', { name: '3. Aulas' })).toBeVisible();
+            fireEvent.click(screen.getByRole('button', { name: 'Códigos QR · incompleto' }));
+            expect(await screen.findByRole('heading', { name: '7. Códigos QR' })).toBeVisible();
+        });
+
+        it('guarda un cambio sin salir del paso', async () => {
+            api.put.mockResolvedValue({
+                data: { data: { ...DETALLE }, message: 'Examen guardado.' },
+            });
+            montar('/examenes/nuevo?examen=4&paso=0');
+            cambiar(await campo(/^Duración/), '100');
+
+            pulsar('Guardar cambios');
+
+            await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1));
+            expect(api.put.mock.calls[0][1]).toMatchObject({ duracion_minutos: 100 });
+            expect(await screen.findByText('Examen guardado')).toBeInTheDocument();
+            // Sigue en el mismo paso.
+            expect(screen.getByRole('heading', { name: '1. Examen' })).toBeVisible();
+        });
+
+        it('los pasos se separan en Preparación y Seguimiento', async () => {
+            montar('/examenes/nuevo?examen=4&paso=0');
+
+            expect(await screen.findByText('Preparación')).toBeVisible();
+            expect(screen.getByText('Seguimiento')).toBeVisible();
+        });
+
+        it('la bitácora y la revisión sin conexión son pasos más, sin botones sueltos', async () => {
+            montar('/examenes/nuevo?examen=4&paso=0');
+
+            expect(await screen.findByText(/lunes 23 de noviembre, 14:15 · 120 min/)).toBeVisible();
+            // Ya no hay botones aparte en la cabecera.
+            expect(screen.queryByRole('link', { name: 'Bitácora' })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /^Eliminar$/ })).not.toBeInTheDocument();
+
+            fireEvent.click(await screen.findByRole('button', { name: /^Bitácora/ }));
+            expect(await screen.findByRole('button', { name: 'Atrás' })).toBeVisible();
+            expect(screen.getByRole('link', { name: 'Volver a Exámenes' })).toHaveAttribute(
+                'href',
+                '/examenes'
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: /^Revisión sin conexión/ }));
+            expect(
+                await screen.findByText('No se usó el modo sin conexión en este examen')
+            ).toBeVisible();
+        });
+
+        it('eliminar está en «Listo», con confirmación', async () => {
+            montar('/examenes/nuevo?examen=4&paso=4');
+
+            fireEvent.click(await screen.findByRole('button', { name: 'Eliminar examen' }));
+            expect(await screen.findByRole('dialog', { name: 'Eliminar examen' })).toBeVisible();
+        });
+
+        it('con ingresos o incidencias ya no se ofrece eliminar', async () => {
+            anteriores = [{ ...DE_LA_LISTA, con_ingresos: true }];
+            montar('/examenes/nuevo?examen=4&paso=4');
+
+            await screen.findByRole('button', { name: /Continuar: Habilitar/ });
+            expect(
+                screen.queryByRole('button', { name: 'Eliminar examen' })
+            ).not.toBeInTheDocument();
+        });
     });
 
     it('al docente de un grupo incluido le muestra el examen sin poder modificarlo', async () => {
