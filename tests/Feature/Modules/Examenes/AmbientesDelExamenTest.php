@@ -55,7 +55,8 @@ final class AmbientesDelExamenTest extends TestCase
         $asignatura = $this->asignatura();
         $grupo = $this->grupo($docente, $asignatura);
         $aula = $this->aula();
-        $fecha = now()->addDays(3)->toDateString();
+        // Un día hábil: no se registran exámenes los domingos.
+        $fecha = $this->diaHabil(3);
         $this->examen($otro, [$this->grupo($otro)], [$aula], ['fecha' => $fecha] + self::FECHA_HORA);
 
         $this->actingAs($this->cuenta($docente))
@@ -76,7 +77,7 @@ final class AmbientesDelExamenTest extends TestCase
         $fisica = $this->asignatura('Física I');
         $compartida = $this->aula();
         $libre = $this->aula();
-        $fecha = now()->addDays(3)->toDateString();
+        $fecha = $this->diaHabil(3);
 
         // 08:15 a 09:45.
         $this->examen($otro, [$this->grupo($otro, $calculo)], [$compartida], ['fecha' => $fecha] + self::FECHA_HORA);
@@ -88,7 +89,7 @@ final class AmbientesDelExamenTest extends TestCase
             'tipo' => TipoExamen::Final,
         ]);
         // Otro dia a la misma hora.
-        $this->examen($otro, [$this->grupo($otro)], [$libre], ['fecha' => now()->addDays(4)->toDateString()] + self::FECHA_HORA);
+        $this->examen($otro, [$this->grupo($otro)], [$libre], ['fecha' => $this->diaHabil(5)] + self::FECHA_HORA);
 
         $this->actingAs($this->cuenta($docente))
             ->getJson($this->opciones(['fecha' => $fecha, 'hora_inicio' => '09:30', 'duracion_minutos' => 60]))
@@ -112,7 +113,7 @@ final class AmbientesDelExamenTest extends TestCase
         $docente = $this->docente();
         $grupo = $this->grupo($docente);
         $aula = $this->aula();
-        $fecha = now()->addDays(3)->toDateString();
+        $fecha = $this->diaHabil(3);
         $this->examen($docente, [$grupo], [$aula], ['fecha' => $fecha] + self::FECHA_HORA);
 
         $this->actingAs($this->cuenta($docente))
@@ -182,7 +183,7 @@ final class AmbientesDelExamenTest extends TestCase
         $docente = $this->docente();
         $otro = $this->docente();
         $aula = $this->aula();
-        $fecha = now()->addDays(3)->toDateString();
+        $fecha = $this->diaHabil(3);
         // 08:15 a 09:45.
         $this->examen($otro, [$this->grupo($otro)], [$aula], ['fecha' => $fecha] + self::FECHA_HORA);
         $cuenta = $this->cuenta($docente);
@@ -220,7 +221,7 @@ final class AmbientesDelExamenTest extends TestCase
     {
         $docente = $this->docente();
         $aula = $this->aula();
-        $fecha = now()->addDays(3)->toDateString();
+        $fecha = $this->diaHabil(3);
         $examen = $this->examen($docente, [$this->grupo($docente)], [$aula], ['fecha' => $fecha] + self::FECHA_HORA);
         $cuenta = $this->cuenta($docente);
         $parametros = ['fecha' => $fecha, 'hora_inicio' => '08:15', 'duracion_minutos' => 90];
