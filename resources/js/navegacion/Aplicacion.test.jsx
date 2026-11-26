@@ -57,7 +57,10 @@ function montar(ruta, usuario) {
     );
 }
 
-const titulo = (nombre) => screen.findByRole('heading', { level: 1, name: nombre });
+// Las páginas se cargan bajo demanda: con toda la suite corriendo, la primera vez tarda
+// más que el segundo que espera `findBy` por defecto.
+const titulo = (nombre) =>
+    screen.findByRole('heading', { level: 1, name: nombre }, { timeout: 5000 });
 
 // El título de la página de cada ruta.
 const TITULOS = {
@@ -137,24 +140,28 @@ describe('Aplicacion', () => {
         expect(await titulo('Sin permiso')).toBeInTheDocument();
     });
 
-    it('quien toma el examen y quien atiende un aula llegan cada uno a su control', async () => {
-        const { unmount } = montar('/ingreso?aula=30', usuarioDePrueba('Docente'));
-        expect(await titulo('Punto de control')).toBeInTheDocument();
-        expect(
-            screen
-                .getAllByRole('link', { name: /^(Punto de control|Control)$/ })
-                .map((e) => e.getAttribute('href'))
-        ).toEqual(['/control', '/control']);
-        expect(document.title).toBe('Punto de control · Control de exámenes');
-        unmount();
+    it(
+        'quien toma el examen y quien atiende un aula llegan cada uno a su control',
+        { timeout: 15000 },
+        async () => {
+            const { unmount } = montar('/ingreso?aula=30', usuarioDePrueba('Docente'));
+            expect(await titulo('Punto de control')).toBeInTheDocument();
+            expect(
+                screen
+                    .getAllByRole('link', { name: /^(Punto de control|Control)$/ })
+                    .map((e) => e.getAttribute('href'))
+            ).toEqual(['/control', '/control']);
+            expect(document.title).toBe('Punto de control · Control de exámenes');
+            unmount();
 
-        montar('/en-curso/aula?examen=1&aula=30', usuarioDePrueba('Auxiliar'));
-        expect(await titulo('Asistencia del aula')).toBeInTheDocument();
-        expect(screen.getAllByRole('link', { name: 'Mi aula' })[0]).toHaveAttribute(
-            'aria-current',
-            'page'
-        );
-    });
+            montar('/en-curso/aula?examen=1&aula=30', usuarioDePrueba('Auxiliar'));
+            expect(await titulo('Asistencia del aula')).toBeInTheDocument();
+            expect(screen.getAllByRole('link', { name: 'Mi aula' })[0]).toHaveAttribute(
+                'aria-current',
+                'page'
+            );
+        }
+    );
 
     it('una dirección desconocida lleva a la entrada de la cuenta', async () => {
         montar('/no-existe', usuarioDePrueba('Docente'));
