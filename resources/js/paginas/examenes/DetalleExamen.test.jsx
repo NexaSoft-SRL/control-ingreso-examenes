@@ -367,6 +367,27 @@ describe('DetalleExamen · el asistente prepara los exámenes que aún no se tom
         ).toBeInTheDocument();
     });
 
+    it('mientras prepara el examen, la bitácora y lo de sin conexión no repiten el resto', async () => {
+        examenes = [examen({ rendido: false })];
+        montarConRutas('/examenes/detalle?examen=24&pestana=sin-conexion');
+
+        expect(await screen.findByRole('tab', { name: /^Sin conexión/ })).toHaveAttribute(
+            'aria-selected',
+            'true'
+        );
+        expect(screen.getByRole('tab', { name: /^Bitácora/ })).toBeVisible();
+        // Resumen, habilitación y códigos QR están en el asistente, no aquí.
+        for (const nombre of [/^Resumen/, /^Habilitación/, /^Códigos QR/]) {
+            expect(screen.queryByRole('tab', { name: nombre })).not.toBeInTheDocument();
+        }
+        expect(screen.queryByRole('link', { name: /Editar/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Eliminar/ })).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /Volver a la preparación/ })).toHaveAttribute(
+            'href',
+            '/examenes/nuevo?examen=24&paso=6'
+        );
+    });
+
     it('quien colabora sigue viendo la página con sus pestañas', async () => {
         examenes = [examen({ propio: false, rendido: false })];
         montarConRutas('/examenes/detalle?examen=24');
