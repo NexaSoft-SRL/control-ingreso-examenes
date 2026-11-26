@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { ArrowLeft, DoorOpen, Hash, Hourglass, LogIn, LogOut, User } from 'lucide-react';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { DoorOpen, Hash, Hourglass, LogIn, LogOut, User } from 'lucide-react';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { api, suscribirSesion, SIN_SESION } from '../../api/cliente';
 import { erroresDe, estadoDe } from '../../api/errores';
 import { usarSesion } from '../../sesion/SesionContexto';
@@ -11,13 +11,16 @@ import Boton from '../../componentes/Boton';
 import Escudo from '../../componentes/Escudo';
 import EstadoCarga from '../../componentes/EstadoCarga';
 import usarTituloPestana from '../../utiles/usarTituloPestana';
-import FondoAcceso, { CabeceraAcceso, TARJETA_ACCESO } from '../../componentes/FondoAcceso';
+import SugerenciaInstalar from '../../componentes/SugerenciaInstalar';
+import FondoAcceso, {
+    CabeceraAcceso,
+    TARJETA_ACCESO,
+    TipoDeAcceso,
+} from '../../componentes/FondoAcceso';
 import { errorDeNombre } from '../../utiles/texto';
 
 const PuntoControl = lazy(() => import('../ingreso/PuntoControl'));
 
-const FOCO =
-    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
 const SEIS_DIGITOS = (v) => (/^\d{6}$/.test(v) ? null : 'Seis dígitos');
 const NOMBRE = (v) => errorDeNombre(v, 3);
 // '2026-10-12T09:45:00-04:00' → '09:45'.
@@ -37,7 +40,6 @@ export default function AccesoAula() {
     const { usuario } = usarSesion();
     const [, setParametros] = useSearchParams();
     const [acceso, setAcceso] = useState(null);
-    const [comprobando, setComprobando] = useState(true);
     const [codigo, setCodigo] = useState('');
     const [nombre, setNombre] = useState('');
     const [errores, setErrores] = useState({});
@@ -67,8 +69,7 @@ export default function AccesoAula() {
                 setAcceso(abierto);
                 ponerAula(abierto.aula_id);
             })
-            .catch(() => {})
-            .finally(() => vigente && setComprobando(false));
+            .catch(() => {});
         return () => {
             vigente = false;
         };
@@ -117,16 +118,8 @@ export default function AccesoAula() {
     );
 
     if (usuario) return <Navigate to={destinoDe(usuario)} replace />;
-    // Mientras pregunta, el mismo fondo sin tarjeta: así no parpadea al
-    // llegar desde el login.
-    if (comprobando)
-        return (
-            <FondoAcceso>
-                <span className="sr-only" role="status">
-                    Cargando
-                </span>
-            </FondoAcceso>
-        );
+    // Mientras pregunta si ya hay un acceso abierto se muestra el formulario de
+    // una vez: una pantalla vacía que luego se llena parecía una recarga.
 
     async function entrar(e) {
         e.preventDefault();
@@ -250,7 +243,7 @@ export default function AccesoAula() {
     }
 
     return (
-        <FondoAcceso>
+        <FondoAcceso arriba>
             <div className="w-full max-w-md">
                 <div className={TARJETA_ACCESO}>
                     <CabeceraAcceso
@@ -258,6 +251,7 @@ export default function AccesoAula() {
                         titulo="Punto de control"
                         subtitulo="Sin cuenta · código de aula"
                     />
+                    <TipoDeAcceso activo="codigo" />
 
                     <form className="space-y-4" noValidate onSubmit={entrar}>
                         <Campo
@@ -299,14 +293,8 @@ export default function AccesoAula() {
                             Entrar al aula
                         </Boton>
                     </form>
-
-                    <Link
-                        to="/login"
-                        className={`mt-5 flex min-h-11 w-full items-center justify-center rounded-lg border-t border-slate-100 pt-1 text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
-                    >
-                        <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" /> Volver al inicio
-                    </Link>
                 </div>
+                <SugerenciaInstalar />
             </div>
         </FondoAcceso>
     );

@@ -18,7 +18,7 @@ import {
     UserRound,
     WifiOff,
 } from 'lucide-react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import usarConsulta from '../../api/usarConsulta';
 import Encabezado from '../../componentes/Encabezado';
 import EstadoCarga from '../../componentes/EstadoCarga';
@@ -35,7 +35,15 @@ import RevisionSinConexion from './RevisionSinConexion';
 import EliminarExamen from './EliminarExamen';
 import EquipoDelExamen from './EquipoDelExamen';
 import SalirDelExamen from './SalirDelExamen';
-import { FORMA_EXAMEN, PASOS, accionDe, estadoDe, pendiente, tipoDe } from './avanceDelExamen';
+import {
+    FORMA_EXAMEN,
+    PASOS,
+    accionDe,
+    estadoDe,
+    pasoDeLaPestana,
+    pendiente,
+    tipoDe,
+} from './avanceDelExamen';
 import rutaDelExamen from './rutaDelExamen';
 
 const FOCO =
@@ -49,7 +57,12 @@ const PESTANAS = [
     { clave: 'habilitacion', texto: 'Habilitación', Icono: UserCheck, permiso: 'habilitacion' },
     { clave: 'qr', texto: 'Códigos QR', Icono: QrCode, permiso: 'codigos_qr' },
     { clave: 'bitacora', texto: 'Bitácora', Icono: History, permiso: 'reportes_examenes' },
-    { clave: 'sin-conexion', texto: 'Sin conexión', Icono: WifiOff, permiso: 'seguimiento_vivo' },
+    {
+        clave: 'sin-conexion',
+        texto: 'Revisión sin conexión',
+        Icono: WifiOff,
+        permiso: 'seguimiento_vivo',
+    },
 ];
 
 // A dónde lleva cada paso del resumen. Los tres primeros son del registro
@@ -259,6 +272,19 @@ export default function DetalleExamen() {
                     />
                 </Tarjeta>
             </div>
+        );
+    }
+
+    // Quien registró un examen que aún no se toma lo prepara en el asistente, que
+    // ya trae la habilitación y los códigos QR: aquí quedan la bitácora, lo de
+    // sin conexión y los exámenes ya tomados o de otro docente.
+    const pestanaPedida = parametros.get('pestana') ?? 'resumen';
+    if (e.propio && !e.rendido) {
+        return (
+            <Navigate
+                replace
+                to={`/examenes/nuevo?examen=${e.id}&paso=${pasoDeLaPestana(e, pestanaPedida)}`}
+            />
         );
     }
 

@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import AccesoEstudiante from './AccesoEstudiante';
@@ -211,10 +211,15 @@ describe('AccesoEstudiante', () => {
         expect(await screen.findByText('Estoy en /estudiante')).toBeInTheDocument();
     });
 
-    it('topes del código SIS y del código del correo, y vuelta al inicio a la vista', async () => {
+    it('topes del código SIS y del código del correo, y el selector de acceso a la vista', async () => {
         montar();
         expect(screen.getByLabelText(/Código SIS/)).toHaveAttribute('maxlength', '10');
-        expect(screen.getByRole('link', { name: 'Volver al inicio' })).toHaveAttribute(
+        const tipos = screen.getByRole('navigation', { name: 'Tipo de acceso' });
+        expect(within(tipos).getByRole('link', { name: 'Estudiante' })).toHaveAttribute(
+            'aria-current',
+            'page'
+        );
+        expect(within(tipos).getByRole('link', { name: 'Con cuenta' })).toHaveAttribute(
             'href',
             '/login'
         );

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-    ArrowLeft,
     CheckCircle2,
     GraduationCap,
     Hash,
@@ -12,17 +11,20 @@ import {
     UserPlus,
     UserRound,
 } from 'lucide-react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
 import Boton from '../../componentes/Boton';
 import usarTituloPestana from '../../utiles/usarTituloPestana';
-import FondoAcceso, { CabeceraAcceso, TARJETA_ACCESO } from '../../componentes/FondoAcceso';
+import SugerenciaInstalar from '../../componentes/SugerenciaInstalar';
+import FondoAcceso, {
+    CabeceraAcceso,
+    TARJETA_ACCESO,
+    TipoDeAcceso,
+} from '../../componentes/FondoAcceso';
 import Campo from '../../componentes/Campo';
 import Seleccion from '../../componentes/Seleccion';
 
-const FOCO =
-    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
 const ESPERA_REENVIO = 30;
 
 // Primero se quitan los no dígitos y después se recorta: así un código
@@ -267,7 +269,7 @@ export default function AccesoEstudiante() {
     }
 
     return (
-        <FondoAcceso>
+        <FondoAcceso arriba>
             <div className="w-full max-w-md">
                 <div className={TARJETA_ACCESO}>
                     <CabeceraAcceso
@@ -275,6 +277,7 @@ export default function AccesoEstudiante() {
                         titulo="Estudiantes"
                         subtitulo="Exámenes y foto"
                     />
+                    <TipoDeAcceso activo="estudiante" />
 
                     {registro ? (
                         <form
@@ -559,14 +562,8 @@ export default function AccesoEstudiante() {
                             </Boton>
                         </form>
                     )}
-
-                    <Link
-                        to="/login"
-                        className={`mt-5 flex min-h-11 w-full items-center justify-center rounded-lg border-t border-slate-100 pt-1 text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
-                    >
-                        <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" /> Volver al inicio
-                    </Link>
                 </div>
+                <SugerenciaInstalar />
             </div>
         </FondoAcceso>
     );

@@ -55,6 +55,37 @@ describe('Mi foto', () => {
         expect(api.post).not.toHaveBeenCalled();
     });
 
+    it('mientras no tenga foto, dice que es obligatoria y que después no se cambia', async () => {
+        montar();
+        await screen.findByRole('button', { name: 'Guardar foto' });
+
+        expect(
+            screen.getByText('Obligatoria para dar un examen · después no se puede cambiar')
+        ).toBeVisible();
+    });
+
+    it('con la foto ya registrada no repite el aviso', async () => {
+        simularApi(api, {
+            'GET /estudiante/sesion': {
+                estudiante: { id: 7, codigo: '202100417', nombre: 'Diego Mamani', con_foto: true },
+                plazo_foto: { desde: '2026-10-01', hasta: '2026-10-31', abierto: false },
+            },
+            'GET /estudiante/examenes': { data: [], hoy: '2026-10-22' },
+            'GET /estudiante/foto': new Blob(['jpeg']),
+        });
+        renderConSesion(
+            <Routes>
+                <Route path="/estudiante/foto" element={<PortalEstudiante />} />
+            </Routes>,
+            { usuario: null, ruta: '/estudiante/foto' }
+        );
+
+        expect(await screen.findByText('Registrada')).toBeVisible();
+        expect(
+            screen.queryByText('Obligatoria para dar un examen · después no se puede cambiar')
+        ).not.toBeInTheDocument();
+    });
+
     it('sin rostro dice qué hacer', async () => {
         revisarFoto.mockResolvedValue({ errores: ['No se detecta un rostro'], avisos: [] });
         montar();

@@ -1,7 +1,8 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, within, waitFor } from '@testing-library/react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import AccesoAula from './AccesoAula';
+import { escucharInstalacion } from '../../utiles/instalacion';
 import { usarAccesoAula } from '../../sesion/AccesoAulaContexto';
 import { api, suscribirSesion, SIN_SESION } from '../../api/cliente';
 import { errorHttp, renderConSesion, simularApi, usuarioDePrueba } from '../../test/apoyo';
@@ -55,6 +56,35 @@ async function entrar(valor = '482913', nombre = 'Vargas Arce Sergio') {
 }
 
 describe('AccesoAula', () => {
+    it('también invita a instalar la aplicación, como el inicio de sesión', async () => {
+        escucharInstalacion();
+        montar();
+        await codigo();
+
+        const aviso = new Event('beforeinstallprompt', { cancelable: true });
+        aviso.prompt = vi.fn(async () => {});
+        aviso.userChoice = Promise.resolve({ outcome: 'dismissed' });
+        act(() => {
+            window.dispatchEvent(aviso);
+        });
+
+        expect(await screen.findByText('Instalar la aplicación')).toBeVisible();
+    });
+
+    it('muestra el formulario de una vez, sin esperar a saber si ya había un acceso', () => {
+        // La consulta del estado tarda: el formulario no puede esperarla.
+        simularApi(api, { 'GET /auth/codigo-aula': new Promise(() => {}) });
+        renderConSesion(
+            <Routes>
+                <Route path="/acceso-aula" element={<AccesoAula />} />
+            </Routes>,
+            { usuario: null, ruta: '/acceso-aula' }
+        );
+
+        expect(screen.getByRole('button', { name: 'Entrar al aula' })).toBeVisible();
+        expect(screen.getByRole('navigation', { name: 'Tipo de acceso' })).toBeVisible();
+    });
+
     it('pide el código de seis dígitos y el nombre', async () => {
         montar();
 
@@ -62,11 +92,17 @@ describe('AccesoAula', () => {
         expect(screen.getByRole('heading', { name: 'Punto de control' })).toBeInTheDocument();
         // Para quien no tiene cuenta, y de dónde sale el código.
         expect(screen.getByText('Sin cuenta · código de aula')).toBeInTheDocument();
-        expect(screen.getByText('Lo entrega el docente del examen')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Volver al inicio' })).toHaveAttribute(
+        // El mismo selector que el inicio de sesión, con este lado activo.
+        const tipos = screen.getByRole('navigation', { name: 'Tipo de acceso' });
+        expect(within(tipos).getByRole('link', { name: 'Código de aula' })).toHaveAttribute(
+            'aria-current',
+            'page'
+        );
+        expect(within(tipos).getByRole('link', { name: 'Con cuenta' })).toHaveAttribute(
             'href',
             '/login'
         );
+        expect(screen.getByText('Lo entrega el docente del examen')).toBeInTheDocument();
 
         escribir(await codigo(), '48a29-13777');
         expect(await codigo()).toHaveValue('482913');
