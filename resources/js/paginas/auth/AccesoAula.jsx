@@ -11,6 +11,7 @@ import Boton from '../../componentes/Boton';
 import Escudo from '../../componentes/Escudo';
 import EstadoCarga from '../../componentes/EstadoCarga';
 import usarTituloPestana from '../../utiles/usarTituloPestana';
+import SugerenciaInstalar from '../../componentes/SugerenciaInstalar';
 import FondoAcceso, {
     CabeceraAcceso,
     TARJETA_ACCESO,
@@ -293,6 +294,7 @@ export default function AccesoAula() {
                         </Boton>
                     </form>
                 </div>
+                <SugerenciaInstalar />
             </div>
         </FondoAcceso>
     );

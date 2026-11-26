@@ -16,6 +16,7 @@ import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
 import Boton from '../../componentes/Boton';
 import usarTituloPestana from '../../utiles/usarTituloPestana';
+import SugerenciaInstalar from '../../componentes/SugerenciaInstalar';
 import FondoAcceso, {
     CabeceraAcceso,
     TARJETA_ACCESO,
@@ -562,6 +563,7 @@ export default function AccesoEstudiante() {
                         </form>
                     )}
                 </div>
+                <SugerenciaInstalar />
             </div>
         </FondoAcceso>
     );

@@ -2,6 +2,7 @@ import { fireEvent, screen, within, waitFor } from '@testing-library/react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import AccesoAula from './AccesoAula';
+import { escucharInstalacion } from '../../utiles/instalacion';
 import { usarAccesoAula } from '../../sesion/AccesoAulaContexto';
 import { api, suscribirSesion, SIN_SESION } from '../../api/cliente';
 import { errorHttp, renderConSesion, simularApi, usuarioDePrueba } from '../../test/apoyo';
@@ -55,6 +56,21 @@ async function entrar(valor = '482913', nombre = 'Vargas Arce Sergio') {
 }
 
 describe('AccesoAula', () => {
+    it('también invita a instalar la aplicación, como el inicio de sesión', async () => {
+        escucharInstalacion();
+        montar();
+        await codigo();
+
+        const aviso = new Event('beforeinstallprompt', { cancelable: true });
+        aviso.prompt = vi.fn(async () => {});
+        aviso.userChoice = Promise.resolve({ outcome: 'dismissed' });
+        act(() => {
+            window.dispatchEvent(aviso);
+        });
+
+        expect(await screen.findByText('Instalar la aplicación')).toBeVisible();
+    });
+
     it('muestra el formulario de una vez, sin esperar a saber si ya había un acceso', () => {
         // La consulta del estado tarda: el formulario no puede esperarla.
         simularApi(api, { 'GET /auth/codigo-aula': new Promise(() => {}) });
