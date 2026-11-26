@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { GraduationCap, KeyRound, Lock, LogIn, Mail, ShieldCheck, User } from 'lucide-react';
+import { GraduationCap, Lock, LogIn, Mail, ShieldCheck, User } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe } from '../../api/errores';
@@ -11,7 +11,11 @@ import Boton from '../../componentes/Boton';
 import Dialogo from '../../componentes/Dialogo';
 import { useAviso } from '../../componentes/Aviso';
 import usarTituloPestana from '../../utiles/usarTituloPestana';
-import FondoAcceso, { CabeceraAcceso, TARJETA_ACCESO } from '../../componentes/FondoAcceso';
+import FondoAcceso, {
+    CabeceraAcceso,
+    TARJETA_ACCESO,
+    TipoDeAcceso,
+} from '../../componentes/FondoAcceso';
 import SugerenciaInstalar from '../../componentes/SugerenciaInstalar';
 import { normalizarUsuario, usuarioValido } from '../../utiles/usuario';
 
@@ -143,8 +147,9 @@ export default function Login() {
                     <CabeceraAcceso
                         icono={ShieldCheck}
                         titulo="Control de exámenes"
-                        subtitulo="Docente o administración"
+                        subtitulo="Docente, auxiliar o administración"
                     />
+                    <TipoDeAcceso activo="cuenta" />
 
                     <form className="space-y-4" onSubmit={iniciar} noValidate>
                         <Campo
@@ -211,34 +216,16 @@ export default function Login() {
                     </form>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                    {[
-                        [
-                            '/estudiante/ingreso',
-                            'Soy estudiante',
-                            GraduationCap,
-                            'bg-primary-100 text-primary-700',
-                        ],
-                        [
-                            '/acceso-aula',
-                            'Soy personal de control',
-                            KeyRound,
-                            'bg-primary-100 text-primary-700',
-                        ],
-                    ].map(([a, texto, Icono, tono]) => (
-                        <Link
-                            key={a}
-                            to={a}
-                            className={`group flex min-h-14 items-center justify-start gap-2.5 rounded-xl border border-slate-200/70 bg-white px-3 text-left text-sm font-medium text-umss-marino shadow-sm transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md ${FOCO}`}
-                        >
-                            <span
-                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tono}`}
-                            >
-                                <Icono className="h-5 w-5" aria-hidden="true" />
-                            </span>
-                            <span className="min-w-0 leading-tight">{texto}</span>
-                        </Link>
-                    ))}
+                <div className="mt-4">
+                    <Link
+                        to="/estudiante/ingreso"
+                        className={`group flex min-h-14 items-center justify-start gap-2.5 rounded-xl border border-slate-200/70 bg-white px-3 text-left text-sm font-medium text-umss-marino shadow-sm transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md ${FOCO}`}
+                    >
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-100 text-primary-700">
+                            <GraduationCap className="h-5 w-5" aria-hidden="true" />
+                        </span>
+                        <span className="min-w-0 leading-tight">Soy estudiante</span>
+                    </Link>
                 </div>
                 <SugerenciaInstalar />
             </div>

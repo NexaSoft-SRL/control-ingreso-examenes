@@ -11,7 +11,11 @@ import Boton from '../../componentes/Boton';
 import Escudo from '../../componentes/Escudo';
 import EstadoCarga from '../../componentes/EstadoCarga';
 import usarTituloPestana from '../../utiles/usarTituloPestana';
-import FondoAcceso, { CabeceraAcceso, TARJETA_ACCESO } from '../../componentes/FondoAcceso';
+import FondoAcceso, {
+    CabeceraAcceso,
+    TARJETA_ACCESO,
+    TipoDeAcceso,
+} from '../../componentes/FondoAcceso';
 import { errorDeNombre } from '../../utiles/texto';
 
 const PuntoControl = lazy(() => import('../ingreso/PuntoControl'));
@@ -258,6 +262,7 @@ export default function AccesoAula() {
                         titulo="Punto de control"
                         subtitulo="Sin cuenta · código de aula"
                     />
+                    <TipoDeAcceso activo="codigo" />
 
                     <form className="space-y-4" noValidate onSubmit={entrar}>
                         <Campo

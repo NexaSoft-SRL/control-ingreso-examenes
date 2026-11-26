@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, within, waitFor } from '@testing-library/react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import AccesoAula from './AccesoAula';
@@ -62,6 +62,16 @@ describe('AccesoAula', () => {
         expect(screen.getByRole('heading', { name: 'Punto de control' })).toBeInTheDocument();
         // Para quien no tiene cuenta, y de dónde sale el código.
         expect(screen.getByText('Sin cuenta · código de aula')).toBeInTheDocument();
+        // El mismo selector que el inicio de sesión, con este lado activo.
+        const tipos = screen.getByRole('navigation', { name: 'Tipo de acceso' });
+        expect(within(tipos).getByRole('link', { name: 'Con código de aula' })).toHaveAttribute(
+            'aria-current',
+            'page'
+        );
+        expect(within(tipos).getByRole('link', { name: 'Con cuenta' })).toHaveAttribute(
+            'href',
+            '/login'
+        );
         expect(screen.getByText('Lo entrega el docente del examen')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Volver al inicio' })).toHaveAttribute(
             'href',

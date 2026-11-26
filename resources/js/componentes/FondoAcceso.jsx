@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import { Link } from 'react-router-dom';
 import Escudo from './Escudo';
 
 // La tarjeta blanca de las pantallas de acceso.
@@ -30,6 +31,40 @@ CabeceraAcceso.propTypes = {
     titulo: PropTypes.node.isRequired,
     subtitulo: PropTypes.node,
 };
+
+// Las dos formas de entrar al sistema que no son de estudiante: con cuenta
+// (docente, auxiliar o administración: usuario y contraseña) o con el código de
+// aula que da el docente, para quien controla el ingreso sin cuenta.
+const TIPOS_DE_ACCESO = [
+    { clave: 'cuenta', texto: 'Con cuenta', a: '/login' },
+    { clave: 'codigo', texto: 'Con código de aula', a: '/acceso-aula' },
+];
+
+export function TipoDeAcceso({ activo }) {
+    return (
+        <nav
+            aria-label="Tipo de acceso"
+            className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1"
+        >
+            {TIPOS_DE_ACCESO.map((tipo) => (
+                <Link
+                    key={tipo.clave}
+                    to={tipo.a}
+                    aria-current={tipo.clave === activo ? 'page' : undefined}
+                    className={`flex min-h-11 items-center justify-center rounded-lg px-2 text-center text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 ${
+                        tipo.clave === activo
+                            ? 'bg-white text-umss-marino shadow-sm'
+                            : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                >
+                    {tipo.texto}
+                </Link>
+            ))}
+        </nav>
+    );
+}
+
+TipoDeAcceso.propTypes = { activo: PropTypes.oneOf(['cuenta', 'codigo']).isRequired };
 
 // El fondo de las pantallas de acceso (login, estudiante y código de aula):
 // un celeste muy claro con franjas diagonales translúcidas y, abajo, una franja
