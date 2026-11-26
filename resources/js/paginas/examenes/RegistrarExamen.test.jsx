@@ -362,6 +362,8 @@ let detalle;
 let choques;
 // GET /examenes/opciones/ocupados: los grupos que ya tienen un examen de ese tipo.
 let ocupados;
+// GET /calendario/aulas: lo que pasa en un aula ese día.
+let agendaDelAula;
 
 // Un examen nuevo empieza sin asignatura: salvo que la prueba diga lo contrario,
 // `montar` elige Introducción a la Programación (la que antes venía elegida).
@@ -455,6 +457,7 @@ beforeEach(() => {
     detalle = DETALLE;
     choques = { total: 0, estudiantes: [] };
     ocupados = [];
+    agendaDelAula = { clases: [], examenes: [] };
     anteriores = [];
     simularApi(api, {
         'GET /examenes': () => ({ data: anteriores }),
@@ -466,6 +469,7 @@ beforeEach(() => {
         'GET /examenes/opciones/aulas': OPCIONES_AULAS,
         'GET /examenes/opciones/choques': () => choques,
         'GET /examenes/opciones/ocupados': () => ({ ocupados }),
+        'GET /calendario/aulas': ({ params }) => ({ aulas: { [params.aulas[0]]: agendaDelAula } }),
         'GET /examenes/*/habilitaciones': () => ({
             data: [],
             meta: { total: 0, cifras: { inscritos: 65, habilitados: 0 } },
@@ -1007,6 +1011,48 @@ describe('RegistrarExamen · paso 3, aulas', () => {
         expect(screen.getByRole('button', { name: 'Más aulas' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'Menos aulas' })).toBeDisabled();
         expect(screen.getByLabelText('Cantidad de aulas')).toHaveTextContent('1');
+    });
+
+    it('el detalle de un aula dice qué pasa ese día y deja elegirla desde ahí', async () => {
+        agendaDelAula = {
+            clases: [
+                {
+                    fecha: '2026-10-20',
+                    inicio: '08:15',
+                    fin: '09:45',
+                    asignatura: 'Física I',
+                    grupo: '2',
+                    docente: 'Ríos Vega Ana',
+                    auxiliatura: false,
+                },
+            ],
+            examenes: [],
+        };
+        montar();
+        await irAAulas();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Ver el detalle del aula 691B' }));
+
+        const dialogo = await screen.findByRole('dialog', { name: 'Aula 691B' });
+        expect(await within(dialogo).findByText('Ocupada a esa hora')).toBeVisible();
+        expect(within(dialogo).getByText('Física I')).toBeVisible();
+        expect(within(dialogo).getByText(/Coincide 08:15–09:45/)).toBeVisible();
+
+        fireEvent.click(within(dialogo).getByRole('button', { name: 'Elegir esta aula' }));
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: 'Aula 691B' })).toBeChecked();
+
+        // Elegida, el nombre de su chip también abre el detalle.
+        fireEvent.click(
+            within(screen.getByRole('list', { name: 'Aulas elegidas' })).getByRole('button', {
+                name: 'Ver el detalle del aula 691B',
+            })
+        );
+        expect(
+            await within(await screen.findByRole('dialog')).findByRole('button', {
+                name: 'Quitar del examen',
+            })
+        ).toBeVisible();
     });
 
     it('EV-03: informa de una clase ajena coincidente', async () => {

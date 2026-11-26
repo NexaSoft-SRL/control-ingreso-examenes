@@ -10,6 +10,7 @@ import {
     Clock,
     DoorOpen,
     Hourglass,
+    Info,
     KeyRound,
     LayoutGrid,
     ListChecks,
@@ -48,6 +49,7 @@ import { ListaDelExamen } from '../habilitacion/Habilitacion';
 import { colorDeAsignatura, diaMes, fechaLarga, normalizar, plural } from '../../utiles/texto';
 import ChoquesDeEstudiantes from './ChoquesDeEstudiantes';
 import CodigoDeAula from './CodigoDeAula';
+import DetalleDeAula from './DetalleDeAula';
 import EliminarExamen from './EliminarExamen';
 import NormasDelExamen from './NormasDelExamen';
 import rutaDelExamen from './rutaDelExamen';
@@ -497,6 +499,7 @@ function FilaAula({
     horaPropuesta,
     duracionPropuesta,
     onCambiar,
+    onDetalle,
     bloqueado = false,
 }) {
     const ajenas = clases.filter((clase) => !clase.propio);
@@ -517,6 +520,18 @@ function FilaAula({
                     {aula.nombre}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-xs text-slate-600">{ubicacion}</span>
+                <button
+                    type="button"
+                    aria-label={`Ver el detalle del aula ${aula.nombre}`}
+                    title="Ver qué pasa en el aula ese día"
+                    onClick={(evento) => {
+                        evento.preventDefault();
+                        onDetalle();
+                    }}
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-primary-700 ${FOCO}`}
+                >
+                    <Info className="h-4 w-4" aria-hidden="true" />
+                </button>
                 {compartida && (
                     <span className="w-full min-w-0 pl-7 text-xs font-medium text-warning-700 sm:w-auto sm:pl-0">
                         Compartida · {compartida}
@@ -593,6 +608,7 @@ FilaAula.propTypes = {
         })
     ),
     onCambiar: PropTypes.func.isRequired,
+    onDetalle: PropTypes.func.isRequired,
     bloqueado: PropTypes.bool,
 };
 
@@ -997,6 +1013,8 @@ function Asistente({
     const anotarCifras = useCallback(() => {}, []);
     const [busqueda, setBusqueda] = useState('');
     const [edificio, setEdificio] = useState('');
+    // El aula de la que se mira el detalle (qué pasa ese día).
+    const [detalleAula, setDetalleAula] = useState(null);
     // Cuántas aulas se piden al sugerir.
     const [cantidadAulas, setCantidadAulas] = useState(1);
     const [errores, setErrores] = useState({});
@@ -1807,7 +1825,22 @@ function Asistente({
                                             key={id}
                                             className="inline-flex items-center rounded-full bg-primary-50 pl-3 text-sm font-medium text-primary-900"
                                         >
-                                            {nombreAula(id)}
+                                            <button
+                                                type="button"
+                                                aria-label={`Ver el detalle del aula ${nombreAula(id)}`}
+                                                onClick={() =>
+                                                    setDetalleAula({
+                                                        id,
+                                                        nombre: nombreAula(id),
+                                                        ubicacion:
+                                                            aulasElegidas.find((x) => x.id === id)
+                                                                ?.ubicacion ?? '',
+                                                    })
+                                                }
+                                                className={`rounded-full py-1 hover:underline ${FOCO}`}
+                                            >
+                                                {nombreAula(id)}
+                                            </button>
                                             {disponibilidadComprobada && !libre(id) && (
                                                 <span className="ml-1 text-xs font-semibold text-warning-700">
                                                     · ocupada
@@ -1954,6 +1987,13 @@ function Asistente({
                                                 onCambiar={() =>
                                                     cambiarAulas(alternar(aulas, a.id))
                                                 }
+                                                onDetalle={() =>
+                                                    setDetalleAula({
+                                                        id: a.id,
+                                                        nombre: a.nombre,
+                                                        ubicacion: ubicacionDe(a, facultad),
+                                                    })
+                                                }
                                             />
                                         ))}
                                     </ul>
@@ -2009,6 +2049,22 @@ function Asistente({
                         />
                     </Tarjeta>
                 </div>
+            )}
+
+            {detalleAula && paso === 2 && (
+                <DetalleDeAula
+                    aula={detalleAula}
+                    fecha={fecha}
+                    hora={hora}
+                    duracion={Number(duracion)}
+                    elegida={aulas.includes(detalleAula.id)}
+                    onAlternar={
+                        aulaFija(detalleAula.id)
+                            ? undefined
+                            : () => cambiarAulas(alternar(aulas, detalleAula.id))
+                    }
+                    onCerrar={() => setDetalleAula(null)}
+                />
             )}
 
             {paso === 3 && (
