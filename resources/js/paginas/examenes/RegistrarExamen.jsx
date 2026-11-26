@@ -18,6 +18,7 @@ import {
     ScrollText,
     ShieldCheck,
     Tag,
+    Trash2,
     UserCheck,
     Users,
     X,
@@ -47,6 +48,7 @@ import { ListaDelExamen } from '../habilitacion/Habilitacion';
 import { colorDeAsignatura, diaMes, fechaLarga, normalizar, plural } from '../../utiles/texto';
 import ChoquesDeEstudiantes from './ChoquesDeEstudiantes';
 import CodigoDeAula from './CodigoDeAula';
+import EliminarExamen from './EliminarExamen';
 import NormasDelExamen from './NormasDelExamen';
 import rutaDelExamen from './rutaDelExamen';
 import solapamientoDe from './solapamientoDe';
@@ -61,6 +63,9 @@ const ICONOS_DE_PASO = [ClipboardList, Users, DoorOpen, UserCheck, CheckCircle2]
 // estudiantes y los códigos QR, para quien tiene esos permisos.
 const PASO_HABILITAR = 'Habilitar';
 const PASO_QR = 'Códigos QR';
+const ENLACE_DE_CABECERA = `inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 ${FOCO}`;
+// Del avance de la lista: true si está hecho, false si falta, sin dato si no se sabe.
+const estadoDeAvance = (valor) => (valor === 'ok' ? true : valor ? false : undefined);
 // Con más grupos que estos, la lista lleva buscador y desplazamiento propio.
 const MUCHOS_GRUPOS = 8;
 const VACIO = 'rounded-lg border border-slate-200 py-4 text-center text-sm text-slate-600';
@@ -851,6 +856,7 @@ function Asistente({
     anteriores = [],
     sugerido = {},
     base = null,
+    avance = null,
 }) {
     const { usuario } = usarSesion();
     const yo = { id: usuario.id, nombre: usuario.nombre };
@@ -1324,7 +1330,8 @@ function Asistente({
         if (Object.keys(faltas).length === 0) setPaso(1);
     };
 
-    const guardar = async () => {
+    // `quedarse`: guarda y sigue en el mismo paso (examen ya registrado).
+    const guardar = async (quedarse = false) => {
         setEnviando(true);
         setRechazo(null);
         setErrores({});
@@ -1388,7 +1395,7 @@ function Asistente({
                 setTambien({ hechos, fallos });
                 setExtras([]);
             }
-            setPaso(4);
+            if (!quedarse) setPaso(4);
             onExamen(guardado);
             avisar(sinPunto(data.message ?? (examen ? 'Examen guardado' : 'Examen registrado')));
         } catch (fallo) {
@@ -1414,8 +1421,8 @@ function Asistente({
     // Los pasos de después de registrar dependen de los permisos de la cuenta.
     const { puede } = usarSesion();
     const pasosExtra = [
-        !inicial && puede('habilitacion') ? PASO_HABILITAR : null,
-        !inicial && puede('codigos_qr') ? PASO_QR : null,
+        puede('habilitacion') ? PASO_HABILITAR : null,
+        puede('codigos_qr') ? PASO_QR : null,
     ].filter(Boolean);
     const pasosDelAsistente = [...PASOS, ...pasosExtra];
     const iconosDelAsistente = [
@@ -1424,6 +1431,18 @@ function Asistente({
     ];
     const indiceHabilitar = pasosDelAsistente.indexOf(PASO_HABILITAR);
     const indiceQr = pasosDelAsistente.indexOf(PASO_QR);
+    // Con el examen ya registrado se puede guardar un cambio sin salir del paso.
+    const botonGuardarCambios = examen ? (
+        <Boton
+            type="button"
+            variante="secundario"
+            cargando={enviando}
+            disabled={enviando}
+            onClick={() => guardar(true)}
+        >
+            Guardar cambios
+        </Boton>
+    ) : null;
 
     return (
         <>
@@ -1432,13 +1451,18 @@ function Asistente({
                 iconos={iconosDelAsistente}
                 actual={paso}
                 onIr={setPaso}
-                completos={[
-                    Boolean(fecha && hora) && duracionValida(duracion),
-                    elegidosIds.length > 0,
-                    aulas.length > 0,
-                    aulas.length > 0,
-                    Boolean(examen),
-                ]}
+                libre={Boolean(examen)}
+                completos={pasosDelAsistente.map((nombre, i) => {
+                    if (nombre === PASO_HABILITAR) return estadoDeAvance(avance?.habilitacion);
+                    if (nombre === PASO_QR) return estadoDeAvance(avance?.qr);
+                    return [
+                        Boolean(fecha && hora) && duracionValida(duracion),
+                        elegidosIds.length > 0,
+                        aulas.length > 0,
+                        aulas.length > 0,
+                        Boolean(examen),
+                    ][i];
+                })}
             />
 
             {paso === 0 && (
@@ -1637,7 +1661,8 @@ function Asistente({
                             onAviso={avisar}
                         />
                     </div>
-                    <div className="mt-5 flex justify-end">
+                    <div className="mt-5 flex flex-wrap justify-end gap-2">
+                        {botonGuardarCambios}
                         <Boton type="button" onClick={continuarExamen}>
                             Continuar: Grupos <ArrowRight className="h-4 w-4" />
                         </Boton>
@@ -1720,18 +1745,21 @@ function Asistente({
                                     : 'Elija al menos un grupo'}
                             </p>
                         )}
-                        <Boton
-                            type="button"
-                            disabled={
-                                cargandoGrupos ||
-                                elegidosIds.length === 0 ||
-                                extraVacio ||
-                                hayOcupados
-                            }
-                            onClick={() => setPaso(2)}
-                        >
-                            Continuar: Aulas <ArrowRight className="h-4 w-4" />
-                        </Boton>
+                        <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                            {botonGuardarCambios}
+                            <Boton
+                                type="button"
+                                disabled={
+                                    cargandoGrupos ||
+                                    elegidosIds.length === 0 ||
+                                    extraVacio ||
+                                    hayOcupados
+                                }
+                                onClick={() => setPaso(2)}
+                            >
+                                Continuar: Aulas <ArrowRight className="h-4 w-4" />
+                            </Boton>
+                        </span>
                     </div>
                 </Tarjeta>
             )}
@@ -1954,6 +1982,7 @@ function Asistente({
                                         Elija al menos un aula
                                     </span>
                                 )}
+                                {botonGuardarCambios}
                                 <Boton
                                     type="button"
                                     disabled={elegidosIds.length === 0 || aulas.length === 0}
@@ -2008,7 +2037,7 @@ function Asistente({
                             type="button"
                             disabled={enviando || elegidosIds.length === 0}
                             cargando={enviando}
-                            onClick={guardar}
+                            onClick={() => guardar(false)}
                         >
                             {examen ? 'Guardar examen' : 'Registrar examen'}
                         </Boton>
@@ -2073,7 +2102,7 @@ function Asistente({
                             </Boton>
                         ) : (
                             <Link
-                                to={rutaDelExamen(examen.id)}
+                                to="/examenes"
                                 className={`inline-flex min-h-11 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 ${FOCO}`}
                             >
                                 Terminar
@@ -2094,7 +2123,7 @@ function Asistente({
                             Atrás
                         </Boton>
                         <Link
-                            to={rutaDelExamen(examen.id)}
+                            to="/examenes"
                             className={`inline-flex min-h-11 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 ${FOCO}`}
                         >
                             Terminar
@@ -2144,6 +2173,7 @@ Asistente.propTypes = {
     onExamen: PropTypes.func.isRequired,
     anteriores: PropTypes.array,
     base: FORMA_DETALLE,
+    avance: PropTypes.objectOf(PropTypes.string),
 };
 
 // Registro y edición de un examen. Con `?examen=3&paso=2` se abre un examen
@@ -2151,8 +2181,13 @@ Asistente.propTypes = {
 // atiende»).
 function RegistrarExamenPagina() {
     const [parametros] = useSearchParams();
+    const { puede } = usarSesion();
+    const navegar = useNavigate();
+    const [porEliminar, setPorEliminar] = useState(null);
     const examenId = Number(parametros.get('examen')) || null;
-    const pasoPedido = Math.min(Math.max(Number(parametros.get('paso')) || 0, 0), 3);
+    // 4 pasos de registro, «Listo» y, según los permisos, Habilitar y Códigos QR.
+    const ultimoPaso = 4 + (puede('habilitacion') ? 1 : 0) + (puede('codigos_qr') ? 1 : 0);
+    const pasoPedido = Math.min(Math.max(Number(parametros.get('paso')) || 0, 0), ultimoPaso);
     // Un examen nuevo puede abrirse con aula, fecha y hora (desde el calendario).
     // La fecha solo vale si es de hoy en adelante y bien escrita.
     const hoyDeHoy = new Date().toLocaleDateString('en-CA');
@@ -2175,13 +2210,19 @@ function RegistrarExamenPagina() {
     const copiarId = examenId ? null : Number(parametros.get('copiar')) || null;
     const copia = usarConsulta(copiarId ? `/examenes/${copiarId}` : null);
     // Los exámenes del docente, para copiar las normas a uno nuevo.
-    const anteriores = usarConsulta(examenId ? null : '/examenes');
+    // Con el examen registrado se necesita su avance (qué pasos faltan); sin él,
+    // los demás para copiar las normas.
+    const anteriores = usarConsulta('/examenes');
     // El examen recién guardado, para el título.
     const [guardado, setGuardado] = useState(null);
     const [aviso, avisar] = useAviso();
 
     const previo = detalle.datos ?? null;
     const examen = guardado ?? previo;
+    // El examen como lo trae la lista: su avance y lo que se pierde al eliminarlo.
+    const delaLista = examenId
+        ? ((anteriores.datos ?? []).find((x) => x.id === examenId) ?? null)
+        : null;
     const cargando =
         misGrupos.cargando ||
         tipos.cargando ||
@@ -2222,9 +2263,53 @@ function RegistrarExamenPagina() {
                         ? `${examen.tipo_texto ?? examen.tipo} · ${examen.asignatura.nombre}`
                         : 'Registrar examen'
                 }
-                subtitulo={periodo ? `Período ${periodo}` : undefined}
+                subtitulo={
+                    previo
+                        ? `${fechaLarga(previo.fecha)}, ${previo.hora} · ${previo.duracion} min`
+                        : periodo
+                          ? `Período ${periodo}`
+                          : undefined
+                }
                 volver={{ a: '/examenes', texto: 'Exámenes' }}
-            />
+            >
+                {previo && previo.propio !== false && (
+                    <div className="flex flex-wrap gap-2">
+                        {puede('seguimiento_vivo') && previo.fecha === hoyDeHoy && (
+                            <Link
+                                to={`/en-curso?examen=${previo.id}`}
+                                className={ENLACE_DE_CABECERA}
+                            >
+                                En curso
+                            </Link>
+                        )}
+                        {puede('reportes_examenes') && (
+                            <Link
+                                to={rutaDelExamen(previo.id, 'bitacora')}
+                                className={ENLACE_DE_CABECERA}
+                            >
+                                Bitácora
+                            </Link>
+                        )}
+                        {puede('seguimiento_vivo') && (
+                            <Link
+                                to={rutaDelExamen(previo.id, 'sin-conexion')}
+                                className={ENLACE_DE_CABECERA}
+                            >
+                                Sin conexión
+                            </Link>
+                        )}
+                        {delaLista && !delaLista.con_ingresos && !delaLista.con_incidencias && (
+                            <button
+                                type="button"
+                                onClick={() => setPorEliminar(delaLista)}
+                                className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-danger-200 bg-white px-4 text-sm font-medium text-danger-700 hover:bg-danger-50 ${FOCO}`}
+                            >
+                                <Trash2 className="h-4 w-4" /> Eliminar
+                            </button>
+                        )}
+                    </div>
+                )}
+            </Encabezado>
 
             {negado ? (
                 <Tarjeta>
@@ -2253,7 +2338,8 @@ function RegistrarExamenPagina() {
                             tipos={tipos.datos ?? []}
                             periodos={periodos.datos ?? []}
                             inicial={previo}
-                            anteriores={anteriores.datos ?? []}
+                            anteriores={examenId ? [] : (anteriores.datos ?? [])}
+                            avance={delaLista?.avance ?? null}
                             base={copia.datos?.propio === false ? null : (copia.datos ?? null)}
                             pasoInicial={previo ? pasoPedido : 0}
                             sugerido={previo ? undefined : sugerido}
@@ -2272,6 +2358,13 @@ function RegistrarExamenPagina() {
                     )}
                 </EstadoCarga>
             )}
+            <EliminarExamen
+                examen={porEliminar}
+                onCerrar={() => setPorEliminar(null)}
+                onEliminado={() =>
+                    navegar('/examenes', { replace: true, state: { aviso: 'Examen eliminado' } })
+                }
+            />
             {aviso}
         </div>
     );

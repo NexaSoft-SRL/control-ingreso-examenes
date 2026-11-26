@@ -4,21 +4,25 @@ import { Check } from 'lucide-react';
 // Indicador de pasos de un proceso guiado: lo hecho, lo actual y lo que
 // falta. Se puede volver a un paso anterior, no saltar adelante. Con
 // `completos`, un paso anterior que quedó incompleto no lleva ✓. Con
-// `iconos`, cada paso muestra su icono en lugar del número.
-export default function Pasos({ pasos, actual, onIr, completos, iconos }) {
+// `iconos`, cada paso muestra su icono en lugar del número. Con `libre` (un
+// examen ya registrado) se puede ir a cualquier paso y cada uno lleva su
+// estado: ✓ si está completo, ámbar si falta.
+export default function Pasos({ pasos, actual, onIr, completos, iconos, libre = false }) {
     return (
         <ol className="flex flex-wrap items-center gap-x-2 gap-y-3">
             {pasos.map((titulo, i) => {
                 const Icono = iconos?.[i];
                 const anterior = i < actual;
-                const hecho = anterior && completos?.[i] !== false;
-                const pendiente = anterior && !hecho;
                 const activo = i === actual;
+                const hecho = libre
+                    ? !activo && completos?.[i] === true
+                    : anterior && completos?.[i] !== false;
+                const pendiente = libre ? !activo && completos?.[i] === false : anterior && !hecho;
                 return (
                     <li key={titulo} className="flex items-center gap-2">
                         <button
                             type="button"
-                            disabled={!anterior}
+                            disabled={!anterior && !libre}
                             aria-label={pendiente ? `${titulo} · incompleto` : undefined}
                             onClick={() => onIr?.(i)}
                             className={`flex min-h-10 items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 ${
@@ -66,4 +70,5 @@ Pasos.propTypes = {
     onIr: PropTypes.func,
     completos: PropTypes.arrayOf(PropTypes.bool),
     iconos: PropTypes.arrayOf(PropTypes.elementType),
+    libre: PropTypes.bool,
 };

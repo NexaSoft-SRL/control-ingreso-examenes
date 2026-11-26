@@ -131,3 +131,22 @@ export const FORMA_EXAMEN = PropTypes.shape({
     con_incidencias: PropTypes.bool,
     codigos_aula: PropTypes.number,
 });
+
+// Los pasos del asistente de un examen, por su posición: 1 grupos, 2 aulas,
+// 3 equipo, 4 listo, 5 habilitar y 6 códigos QR.
+const PASO_DE_AVANCE = { grupos: 1, aulas: 2, auxiliares: 3, habilitacion: 5, qr: 6 };
+
+// El primer paso que falta (o «Listo», el 4, si no falta ninguno).
+export function primerPasoPendiente(examen) {
+    for (const [clave, paso] of Object.entries(PASO_DE_AVANCE)) {
+        if (examen.avance?.[clave] !== 'ok') return paso;
+    }
+    return 4;
+}
+
+// A qué paso del asistente lleva abrir el examen en una pestaña de la página.
+export function pasoDeLaPestana(examen, pestana) {
+    if (pestana === 'habilitacion') return PASO_DE_AVANCE.habilitacion;
+    if (pestana === 'qr') return PASO_DE_AVANCE.qr;
+    return primerPasoPendiente(examen);
+}

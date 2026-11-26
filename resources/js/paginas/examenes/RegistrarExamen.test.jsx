@@ -2006,10 +2006,7 @@ describe('RegistrarExamen · guardar', () => {
 
         pulsar(/Continuar: Códigos QR/);
         expect(await screen.findByRole('heading', { name: '7. Códigos QR' })).toBeVisible();
-        expect(screen.getByRole('link', { name: 'Terminar' })).toHaveAttribute(
-            'href',
-            '/examenes/detalle?examen=9'
-        );
+        expect(screen.getByRole('link', { name: 'Terminar' })).toHaveAttribute('href', '/examenes');
 
         // Atrás vuelve paso por paso.
         pulsar('Atrás');
@@ -2246,6 +2243,102 @@ describe('RegistrarExamen · edición', () => {
             'El examen ya tiene ingresos registrados: solo se pueden cambiar las normas.'
         );
         expect(screen.getByRole('heading', { name: '4. Equipo' })).toBeInTheDocument();
+    });
+
+    describe('un examen ya registrado se prepara en el mismo asistente', () => {
+        const DE_LA_LISTA = {
+            id: 4,
+            asignatura: INTRO,
+            tipo: 'SEGUNDO_PARCIAL',
+            tipo_texto: 'Segundo parcial',
+            fecha: '2026-11-23',
+            hora: '14:15',
+            duracion: 120,
+            grupos: ['2', '3'],
+            inscritos: 75,
+            aulas: ['691B'],
+            habilitados: 0,
+            no_habilitados: 0,
+            qr_emitidos: 0,
+            codigos_aula: 0,
+            propio: true,
+            con_ingresos: false,
+            con_incidencias: false,
+            avance: {
+                grupos: 'ok',
+                aulas: 'ok',
+                auxiliares: 'ok',
+                habilitacion: 'ahora',
+                qr: 'falta',
+            },
+        };
+
+        beforeEach(() => {
+            anteriores = [DE_LA_LISTA];
+        });
+
+        it('cada paso se abre en cualquier momento y lleva su estado', async () => {
+            montar('/examenes/nuevo?examen=4&paso=0');
+            await screen.findByRole('heading', { name: '1. Examen' });
+
+            // Habilitar y códigos QR faltan; los del registro están completos.
+            expect(
+                await screen.findByRole('button', { name: 'Habilitar · incompleto' })
+            ).toBeEnabled();
+            expect(screen.getByRole('button', { name: 'Códigos QR · incompleto' })).toBeEnabled();
+
+            fireEvent.click(screen.getByRole('button', { name: 'Habilitar · incompleto' }));
+            expect(
+                await screen.findByRole('heading', { name: '6. Habilitar estudiantes' })
+            ).toBeVisible();
+
+            // También se vuelve y se salta hacia atrás y adelante.
+            fireEvent.click(screen.getByRole('button', { name: /^Aulas/ }));
+            expect(await screen.findByRole('heading', { name: '3. Aulas' })).toBeVisible();
+            fireEvent.click(screen.getByRole('button', { name: 'Códigos QR · incompleto' }));
+            expect(await screen.findByRole('heading', { name: '7. Códigos QR' })).toBeVisible();
+        });
+
+        it('guarda un cambio sin salir del paso', async () => {
+            api.put.mockResolvedValue({
+                data: { data: { ...DETALLE }, message: 'Examen guardado.' },
+            });
+            montar('/examenes/nuevo?examen=4&paso=0');
+            cambiar(await campo(/^Duración/), '100');
+
+            pulsar('Guardar cambios');
+
+            await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1));
+            expect(api.put.mock.calls[0][1]).toMatchObject({ duracion_minutos: 100 });
+            expect(await screen.findByText('Examen guardado')).toBeInTheDocument();
+            // Sigue en el mismo paso.
+            expect(screen.getByRole('heading', { name: '1. Examen' })).toBeVisible();
+        });
+
+        it('la cabecera trae la fecha, los accesos a bitácora y sin conexión, y eliminar', async () => {
+            montar('/examenes/nuevo?examen=4&paso=0');
+
+            expect(await screen.findByText(/lunes 23 de noviembre, 14:15 · 120 min/)).toBeVisible();
+            expect(await screen.findByRole('link', { name: 'Bitácora' })).toHaveAttribute(
+                'href',
+                '/examenes/detalle?examen=4&pestana=bitacora'
+            );
+            expect(screen.getByRole('link', { name: 'Sin conexión' })).toHaveAttribute(
+                'href',
+                '/examenes/detalle?examen=4&pestana=sin-conexion'
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: /Eliminar/ }));
+            expect(await screen.findByRole('dialog', { name: 'Eliminar examen' })).toBeVisible();
+        });
+
+        it('con ingresos o incidencias ya no se ofrece eliminar', async () => {
+            anteriores = [{ ...DE_LA_LISTA, con_ingresos: true }];
+            montar('/examenes/nuevo?examen=4&paso=0');
+
+            await screen.findByRole('link', { name: 'Bitácora' });
+            expect(screen.queryByRole('button', { name: /Eliminar/ })).not.toBeInTheDocument();
+        });
     });
 
     it('al docente de un grupo incluido le muestra el examen sin poder modificarlo', async () => {
