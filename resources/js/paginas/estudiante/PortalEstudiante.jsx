@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { CalendarDays, Camera, IdCard, LogOut, MapPin } from 'lucide-react';
+import { CalendarDays, Camera, IdCard, LogOut, MapPin, UserRound } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe, mensajeDe } from '../../api/errores';
@@ -42,7 +42,7 @@ const SIN_ROSTRO = 'No se ve su rostro · tome otra de frente y con buena luz';
 
 const PESTANAS = [
     { ruta: '/estudiante', titulo: 'Mis exámenes', Icono: CalendarDays },
-    { ruta: '/estudiante/foto', titulo: 'Mi foto', Icono: Camera },
+    { ruta: '/estudiante/foto', titulo: 'Mi perfil', Icono: UserRound },
 ];
 
 function Examen({ examen, hoy, codigo }) {
