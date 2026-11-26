@@ -55,6 +55,20 @@ async function entrar(valor = '482913', nombre = 'Vargas Arce Sergio') {
 }
 
 describe('AccesoAula', () => {
+    it('muestra el formulario de una vez, sin esperar a saber si ya había un acceso', () => {
+        // La consulta del estado tarda: el formulario no puede esperarla.
+        simularApi(api, { 'GET /auth/codigo-aula': new Promise(() => {}) });
+        renderConSesion(
+            <Routes>
+                <Route path="/acceso-aula" element={<AccesoAula />} />
+            </Routes>,
+            { usuario: null, ruta: '/acceso-aula' }
+        );
+
+        expect(screen.getByRole('button', { name: 'Entrar al aula' })).toBeVisible();
+        expect(screen.getByRole('navigation', { name: 'Tipo de acceso' })).toBeVisible();
+    });
+
     it('pide el código de seis dígitos y el nombre', async () => {
         montar();
 

@@ -74,7 +74,9 @@ TipoDeAcceso.propTypes = {
 // azul marino con una línea roja (los colores de la UMSS) que lleva el crédito
 // de la grupo empresa. Las franjas son decoración, fuera del lector de
 // pantalla.
-export default function FondoAcceso({ children }) {
+// Con `arriba` la tarjeta empieza siempre a la misma altura, en vez de centrarse:
+// al pasar de una forma de entrar a otra el selector no se mueve.
+export default function FondoAcceso({ children, arriba = false }) {
     return (
         <div className="relative isolate flex min-h-dvh flex-col overflow-hidden bg-primary-50">
             <svg
@@ -89,7 +91,9 @@ export default function FondoAcceso({ children }) {
                 <polygon points="0,88 100,76 100,77.4 0,89.4" className="fill-umss-rojo" />
                 <polygon points="0,90.2 100,78.2 100,100 0,100" className="fill-umss-marino" />
             </svg>
-            <main className="flex flex-1 items-center justify-center px-4 pb-28 pt-8 sm:pb-32">
+            <main
+                className={`flex flex-1 justify-center px-4 pb-28 sm:pb-32 ${arriba ? 'items-start pt-6 sm:pt-12' : 'items-center pt-8'}`}
+            >
                 {children}
             </main>
             <footer className="absolute inset-x-0 bottom-3 text-center text-xs leading-relaxed text-white/80">
@@ -100,4 +104,4 @@ export default function FondoAcceso({ children }) {
     );
 }
 
-FondoAcceso.propTypes = { children: PropTypes.node };
+FondoAcceso.propTypes = { children: PropTypes.node, arriba: PropTypes.bool };

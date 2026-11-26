@@ -39,7 +39,6 @@ export default function AccesoAula() {
     const { usuario } = usarSesion();
     const [, setParametros] = useSearchParams();
     const [acceso, setAcceso] = useState(null);
-    const [comprobando, setComprobando] = useState(true);
     const [codigo, setCodigo] = useState('');
     const [nombre, setNombre] = useState('');
     const [errores, setErrores] = useState({});
@@ -69,8 +68,7 @@ export default function AccesoAula() {
                 setAcceso(abierto);
                 ponerAula(abierto.aula_id);
             })
-            .catch(() => {})
-            .finally(() => vigente && setComprobando(false));
+            .catch(() => {});
         return () => {
             vigente = false;
         };
@@ -119,16 +117,8 @@ export default function AccesoAula() {
     );
 
     if (usuario) return <Navigate to={destinoDe(usuario)} replace />;
-    // Mientras pregunta, el mismo fondo sin tarjeta: así no parpadea al
-    // llegar desde el login.
-    if (comprobando)
-        return (
-            <FondoAcceso>
-                <span className="sr-only" role="status">
-                    Cargando
-                </span>
-            </FondoAcceso>
-        );
+    // Mientras pregunta si ya hay un acceso abierto se muestra el formulario de
+    // una vez: una pantalla vacía que luego se llena parecía una recarga.
 
     async function entrar(e) {
         e.preventDefault();
@@ -252,7 +242,7 @@ export default function AccesoAula() {
     }
 
     return (
-        <FondoAcceso>
+        <FondoAcceso arriba>
             <div className="w-full max-w-md">
                 <div className={TARJETA_ACCESO}>
                     <CabeceraAcceso

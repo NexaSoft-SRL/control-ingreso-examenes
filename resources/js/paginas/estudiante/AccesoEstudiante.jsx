@@ -268,7 +268,7 @@ export default function AccesoEstudiante() {
     }
 
     return (
-        <FondoAcceso>
+        <FondoAcceso arriba>
             <div className="w-full max-w-md">
                 <div className={TARJETA_ACCESO}>
                     <CabeceraAcceso
