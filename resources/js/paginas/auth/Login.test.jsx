@@ -44,23 +44,24 @@ describe('Login', () => {
         expect(screen.queryByText(/correo/i)).not.toBeInTheDocument();
     });
 
-    it('separa entrar con cuenta de entrar con código de aula, y enlaza al de estudiantes', () => {
+    it('separa entrar con cuenta, con código de aula y como estudiante', () => {
         montar();
         const tipos = screen.getByRole('navigation', { name: 'Tipo de acceso' });
         expect(within(tipos).getByRole('link', { name: 'Con cuenta' })).toHaveAttribute(
             'aria-current',
             'page'
         );
-        expect(within(tipos).getByRole('link', { name: 'Con código de aula' })).toHaveAttribute(
+        expect(within(tipos).getByRole('link', { name: 'Código de aula' })).toHaveAttribute(
             'href',
             '/acceso-aula'
         );
         // «Soy personal de control» confundía con el auxiliar, que tiene cuenta.
         expect(screen.queryByRole('link', { name: 'Soy personal de control' })).toBeNull();
-        expect(screen.getByRole('link', { name: 'Soy estudiante' })).toHaveAttribute(
+        expect(within(tipos).getByRole('link', { name: 'Estudiante' })).toHaveAttribute(
             'href',
             '/estudiante/ingreso'
         );
+        expect(screen.queryByRole('link', { name: 'Soy estudiante' })).toBeNull();
     });
 
     it('valida antes de llamar al servidor', () => {

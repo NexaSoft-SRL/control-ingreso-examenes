@@ -64,7 +64,7 @@ describe('AccesoAula', () => {
         expect(screen.getByText('Sin cuenta · código de aula')).toBeInTheDocument();
         // El mismo selector que el inicio de sesión, con este lado activo.
         const tipos = screen.getByRole('navigation', { name: 'Tipo de acceso' });
-        expect(within(tipos).getByRole('link', { name: 'Con código de aula' })).toHaveAttribute(
+        expect(within(tipos).getByRole('link', { name: 'Código de aula' })).toHaveAttribute(
             'aria-current',
             'page'
         );
@@ -73,10 +73,6 @@ describe('AccesoAula', () => {
             '/login'
         );
         expect(screen.getByText('Lo entrega el docente del examen')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Volver al inicio' })).toHaveAttribute(
-            'href',
-            '/login'
-        );
 
         escribir(await codigo(), '48a29-13777');
         expect(await codigo()).toHaveValue('482913');

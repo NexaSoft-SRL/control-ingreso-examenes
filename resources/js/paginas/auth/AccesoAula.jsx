@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
-import { ArrowLeft, DoorOpen, Hash, Hourglass, LogIn, LogOut, User } from 'lucide-react';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { DoorOpen, Hash, Hourglass, LogIn, LogOut, User } from 'lucide-react';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { api, suscribirSesion, SIN_SESION } from '../../api/cliente';
 import { erroresDe, estadoDe } from '../../api/errores';
 import { usarSesion } from '../../sesion/SesionContexto';
@@ -20,8 +20,6 @@ import { errorDeNombre } from '../../utiles/texto';
 
 const PuntoControl = lazy(() => import('../ingreso/PuntoControl'));
 
-const FOCO =
-    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600';
 const SEIS_DIGITOS = (v) => (/^\d{6}$/.test(v) ? null : 'Seis dígitos');
 const NOMBRE = (v) => errorDeNombre(v, 3);
 // '2026-10-12T09:45:00-04:00' → '09:45'.
@@ -304,13 +302,6 @@ export default function AccesoAula() {
                             Entrar al aula
                         </Boton>
                     </form>
-
-                    <Link
-                        to="/login"
-                        className={`mt-5 flex min-h-11 w-full items-center justify-center rounded-lg border-t border-slate-100 pt-1 text-sm font-medium text-primary-700 hover:underline ${FOCO}`}
-                    >
-                        <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" /> Volver al inicio
-                    </Link>
                 </div>
             </div>
         </FondoAcceso>

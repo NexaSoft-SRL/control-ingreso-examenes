@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { GraduationCap, Lock, LogIn, Mail, ShieldCheck, User } from 'lucide-react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Lock, LogIn, Mail, ShieldCheck, User } from 'lucide-react';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../api/cliente';
 import { erroresDe, estadoDe } from '../../api/errores';
 import { usarSesion } from '../../sesion/SesionContexto';
@@ -216,17 +216,6 @@ export default function Login() {
                     </form>
                 </div>
 
-                <div className="mt-4">
-                    <Link
-                        to="/estudiante/ingreso"
-                        className={`group flex min-h-14 items-center justify-center gap-2.5 rounded-xl border border-slate-200/70 bg-white px-3 text-center text-sm font-medium text-umss-marino shadow-sm transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md ${FOCO}`}
-                    >
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-100 text-primary-700">
-                            <GraduationCap className="h-5 w-5" aria-hidden="true" />
-                        </span>
-                        <span className="min-w-0 leading-tight">Soy estudiante</span>
-                    </Link>
-                </div>
                 <SugerenciaInstalar />
             </div>
 
