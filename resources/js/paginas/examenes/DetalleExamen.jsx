@@ -59,7 +59,12 @@ const PESTANAS = [
     { clave: 'habilitacion', texto: 'Habilitación', Icono: UserCheck, permiso: 'habilitacion' },
     { clave: 'qr', texto: 'Códigos QR', Icono: QrCode, permiso: 'codigos_qr' },
     { clave: 'bitacora', texto: 'Bitácora', Icono: History, permiso: 'reportes_examenes' },
-    { clave: 'sin-conexion', texto: 'Sin conexión', Icono: WifiOff, permiso: 'seguimiento_vivo' },
+    {
+        clave: 'sin-conexion',
+        texto: 'Revisión sin conexión',
+        Icono: WifiOff,
+        permiso: 'seguimiento_vivo',
+    },
 ];
 
 // A dónde lleva cada paso del resumen. Los tres primeros son del registro

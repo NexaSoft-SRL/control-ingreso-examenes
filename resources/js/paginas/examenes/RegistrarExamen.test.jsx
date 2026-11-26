@@ -2369,7 +2369,7 @@ describe('RegistrarExamen · edición', () => {
                 'href',
                 '/examenes/detalle?examen=4&pestana=bitacora'
             );
-            expect(screen.getByRole('link', { name: 'Sin conexión' })).toHaveAttribute(
+            expect(screen.getByRole('link', { name: 'Revisión sin conexión' })).toHaveAttribute(
                 'href',
                 '/examenes/detalle?examen=4&pestana=sin-conexion'
             );

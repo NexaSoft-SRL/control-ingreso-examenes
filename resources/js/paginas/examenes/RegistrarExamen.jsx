@@ -2351,7 +2351,7 @@ function RegistrarExamenPagina() {
                                 to={rutaDelExamen(previo.id, 'sin-conexion')}
                                 className={ENLACE_DE_CABECERA}
                             >
-                                Sin conexión
+                                Revisión sin conexión
                             </Link>
                         )}
                         {delaLista && !delaLista.con_ingresos && !delaLista.con_incidencias && (

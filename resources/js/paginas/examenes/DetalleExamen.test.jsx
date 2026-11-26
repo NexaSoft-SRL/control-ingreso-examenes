@@ -371,7 +371,7 @@ describe('DetalleExamen · el asistente prepara los exámenes que aún no se tom
         examenes = [examen({ rendido: false })];
         montarConRutas('/examenes/detalle?examen=24&pestana=sin-conexion');
 
-        expect(await screen.findByRole('tab', { name: /^Sin conexión/ })).toHaveAttribute(
+        expect(await screen.findByRole('tab', { name: /^Revisión sin conexión/ })).toHaveAttribute(
             'aria-selected',
             'true'
         );
