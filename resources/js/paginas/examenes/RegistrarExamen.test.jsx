@@ -2114,6 +2114,14 @@ describe('RegistrarExamen · guardar', () => {
         );
     });
 
+    it('un examen nuevo muestra sus pasos en una sola fila, sin títulos', async () => {
+        montar();
+        await campo(/^Fecha/);
+
+        expect(screen.queryByText('Preparación')).not.toBeInTheDocument();
+        expect(screen.queryByText('Seguimiento')).not.toBeInTheDocument();
+    });
+
     it('sin normas también se registra', async () => {
         montar();
         await irAAulas();
@@ -2370,6 +2378,13 @@ describe('RegistrarExamen · edición', () => {
             expect(await screen.findByText('Examen guardado')).toBeInTheDocument();
             // Sigue en el mismo paso.
             expect(screen.getByRole('heading', { name: '1. Examen' })).toBeVisible();
+        });
+
+        it('los pasos se separan en Preparación y Seguimiento', async () => {
+            montar('/examenes/nuevo?examen=4&paso=0');
+
+            expect(await screen.findByText('Preparación')).toBeVisible();
+            expect(screen.getByText('Seguimiento')).toBeVisible();
         });
 
         it('la bitácora y la revisión sin conexión son pasos más, sin botones sueltos', async () => {

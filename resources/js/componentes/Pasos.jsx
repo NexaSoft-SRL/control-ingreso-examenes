@@ -6,11 +6,14 @@ import { Check } from 'lucide-react';
 // `completos`, un paso anterior que quedó incompleto no lleva ✓. Con
 // `iconos`, cada paso muestra su icono en lugar del número. Con `libre` (un
 // examen ya registrado) se puede ir a cualquier paso y cada uno lleva su
-// estado: ✓ si está completo, ámbar si falta.
-export default function Pasos({ pasos, actual, onIr, completos, iconos, libre = false }) {
-    return (
+// estado: ✓ si está completo, ámbar si falta. Con `grupos` (cada uno con su
+// `titulo` y los pasos `desde` el primero hasta antes de `hasta`) los pasos se
+// separan en filas con su título, para no confundir lo que es de cada cosa.
+export default function Pasos({ pasos, actual, onIr, completos, iconos, libre = false, grupos }) {
+    const dibujar = (desde, hasta) => (
         <ol className="flex flex-wrap items-center gap-x-2 gap-y-3">
-            {pasos.map((titulo, i) => {
+            {pasos.slice(desde, hasta).map((titulo, posicion) => {
+                const i = desde + posicion;
                 const Icono = iconos?.[i];
                 const anterior = i < actual;
                 const activo = i === actual;
@@ -54,13 +57,28 @@ export default function Pasos({ pasos, actual, onIr, completos, iconos, libre = 
                             </span>
                             {titulo}
                         </button>
-                        {i < pasos.length - 1 && (
+                        {i < hasta - 1 && (
                             <span className="hidden h-px w-6 bg-slate-300 sm:block" />
                         )}
                     </li>
                 );
             })}
         </ol>
+    );
+
+    if (!grupos || grupos.length < 2) return dibujar(0, pasos.length);
+
+    return (
+        <div className="space-y-4">
+            {grupos.map((grupo) => (
+                <div key={grupo.titulo}>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                        {grupo.titulo}
+                    </p>
+                    {dibujar(grupo.desde, grupo.hasta)}
+                </div>
+            ))}
+        </div>
     );
 }
 
@@ -71,4 +89,11 @@ Pasos.propTypes = {
     completos: PropTypes.arrayOf(PropTypes.bool),
     iconos: PropTypes.arrayOf(PropTypes.elementType),
     libre: PropTypes.bool,
+    grupos: PropTypes.arrayOf(
+        PropTypes.shape({
+            titulo: PropTypes.string.isRequired,
+            desde: PropTypes.number.isRequired,
+            hasta: PropTypes.number.isRequired,
+        })
+    ),
 };

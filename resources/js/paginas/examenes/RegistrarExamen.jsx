@@ -918,6 +918,16 @@ function Asistente({
     const indiceQr = pasosDelAsistente.indexOf(PASO_QR);
     const indiceBitacora = pasosDelAsistente.indexOf(PASO_BITACORA);
     const indiceSinConexion = pasosDelAsistente.indexOf(PASO_SIN_CONEXION);
+    // Con la bitácora y la revisión, los pasos se separan en dos filas con su título.
+    const primerSeguimiento = [indiceBitacora, indiceSinConexion]
+        .filter((i) => i >= 0)
+        .reduce((menor, i) => Math.min(menor, i), Infinity);
+    const gruposDePasos = Number.isFinite(primerSeguimiento)
+        ? [
+              { titulo: 'Preparación', desde: 0, hasta: primerSeguimiento },
+              { titulo: 'Seguimiento', desde: primerSeguimiento, hasta: pasosDelAsistente.length },
+          ]
+        : undefined;
     // El paso pedido en la dirección: un número o el nombre de uno de los extras.
     const [paso, setPaso] = useState(() => {
         if (typeof pasoInicial === 'number') {
@@ -1526,6 +1536,7 @@ function Asistente({
                 actual={paso}
                 onIr={setPaso}
                 libre={Boolean(examen)}
+                grupos={gruposDePasos}
                 completos={pasosDelAsistente.map((nombre, i) => {
                     if (nombre === PASO_HABILITAR) return estadoDeAvance(avance?.habilitacion);
                     if (nombre === PASO_QR) return estadoDeAvance(avance?.qr);

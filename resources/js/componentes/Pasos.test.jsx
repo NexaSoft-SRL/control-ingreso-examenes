@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import Pasos from './Pasos';
 
@@ -35,5 +35,32 @@ describe('Pasos', () => {
         expect(aulas).toHaveTextContent('3');
         fireEvent.click(aulas);
         expect(onIr).toHaveBeenCalledWith(2);
+    });
+
+    it('con grupos separa los pasos en filas con su título', () => {
+        render(
+            <Pasos
+                pasos={['Examen', 'Grupos', 'Bitácora']}
+                actual={0}
+                libre
+                grupos={[
+                    { titulo: 'Preparación', desde: 0, hasta: 2 },
+                    { titulo: 'Seguimiento', desde: 2, hasta: 3 },
+                ]}
+            />
+        );
+
+        expect(screen.getByText('Preparación')).toBeVisible();
+        expect(screen.getByText('Seguimiento')).toBeVisible();
+        const [primera, segunda] = screen.getAllByRole('list');
+        expect(within(primera).getAllByRole('listitem')).toHaveLength(2);
+        expect(within(segunda).getByRole('button', { name: /Bitácora$/ })).toBeEnabled();
+    });
+
+    it('sin grupos es una sola fila, sin títulos', () => {
+        render(<Pasos pasos={['Examen', 'Grupos']} actual={0} />);
+
+        expect(screen.getAllByRole('list')).toHaveLength(1);
+        expect(screen.queryByText('Preparación')).toBeNull();
     });
 });
