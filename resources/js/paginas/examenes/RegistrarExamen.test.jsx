@@ -2060,7 +2060,10 @@ describe('RegistrarExamen · guardar', () => {
 
         pulsar(/Continuar: Códigos QR/);
         expect(await screen.findByRole('heading', { name: '7. Códigos QR' })).toBeVisible();
-        expect(screen.getByRole('link', { name: 'Terminar' })).toHaveAttribute('href', '/examenes');
+        expect(screen.getByRole('link', { name: 'Volver a Exámenes' })).toHaveAttribute(
+            'href',
+            '/examenes'
+        );
 
         // Atrás vuelve paso por paso.
         pulsar('Atrás');
@@ -2379,7 +2382,7 @@ describe('RegistrarExamen · edición', () => {
 
             fireEvent.click(await screen.findByRole('button', { name: /^Bitácora/ }));
             expect(await screen.findByRole('button', { name: 'Atrás' })).toBeVisible();
-            expect(screen.getByRole('link', { name: 'Terminar' })).toHaveAttribute(
+            expect(screen.getByRole('link', { name: 'Volver a Exámenes' })).toHaveAttribute(
                 'href',
                 '/examenes'
             );

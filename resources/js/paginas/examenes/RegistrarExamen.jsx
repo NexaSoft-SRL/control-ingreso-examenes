@@ -1501,7 +1501,7 @@ function Asistente({
                 to="/examenes"
                 className={`inline-flex min-h-11 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 ${FOCO}`}
             >
-                Terminar
+                Volver a Exámenes
             </Link>
         </div>
     );
@@ -2231,7 +2231,7 @@ function Asistente({
                                 to="/examenes"
                                 className={`inline-flex min-h-11 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 ${FOCO}`}
                             >
-                                Terminar
+                                Volver a Exámenes
                             </Link>
                         )}
                     </div>
@@ -2252,7 +2252,7 @@ function Asistente({
                             to="/examenes"
                             className={`inline-flex min-h-11 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700 ${FOCO}`}
                         >
-                            Terminar
+                            Volver a Exámenes
                         </Link>
                     </div>
                 </Tarjeta>
