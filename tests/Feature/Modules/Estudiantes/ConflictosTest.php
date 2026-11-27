@@ -338,6 +338,35 @@ final class ConflictosTest extends TestCase
         $this->assertSame(1, Estudiante::query()->count());
     }
 
+    public function test_using_a_load_without_document_column_preserves_the_existing_document(): void
+    {
+        $guardado = $this->estudiante(['documento_identidad' => '7928194', 'verificado' => false]);
+        // Otro estudiante sin carnet en el padron no debe provocar falso conflicto por cadena vacia.
+        $this->estudiante(['codigo_universitario' => '201901349', 'documento_identidad' => '']);
+
+        $this->prepararGrupo();
+        $this->cargarLista($this->docenteDelGrupo, $this->grupoDeLaCarga, [
+            'codigo_sis,nombres,apellidos',
+            '202104821,Kevin,Alvarado C.',
+        ])->assertOk()->assertJsonPath('resumen.conflictos', 1);
+
+        $conflicto = ConflictoPadron::query()->latest('id')->firstOrFail();
+
+        $this->actingAs($this->administrador())
+            ->postJson("/api/estudiantes/conflictos/{$conflicto->id}/resolucion", ['resolucion' => 'USAR_CARGA'])
+            ->assertOk()
+            ->assertExactJson(['message' => '202104821 actualizado.']);
+
+        $this->assertDatabaseHas('estudiantes', [
+            'id' => $guardado->id,
+            'codigo_universitario' => '202104821',
+            'documento_identidad' => '7928194',
+            'nombres' => 'Kevin',
+            'apellidos' => 'Alvarado C.',
+            'verificado' => true,
+        ]);
+    }
+
     private function prepararGrupo(): void
     {
         $this->docenteDelGrupo = $this->docenteConCuenta($this->usuarioConRol('Docente'), 'Blanco Coca Leticia');

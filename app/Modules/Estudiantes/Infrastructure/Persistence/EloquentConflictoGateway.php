@@ -205,6 +205,7 @@ final class EloquentConflictoGateway implements ConflictoGateway
             $ahora = now();
             $estudianteId = $this->entero(($conflicto['estudiante_id'] ?? null));
             $documento = $this->texto(($conflicto['documento_nuevo'] ?? null));
+            $documento = $documento === null || trim($documento) === '' ? null : trim($documento);
             $antes = DB::table('estudiantes')->where('id', $estudianteId)->first(['documento_identidad', 'nombres', 'apellidos']);
             $antes = $antes === null ? [] : get_object_vars($antes);
             $diferencias = $this->diferencias($antes, $conflicto);
