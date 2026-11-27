@@ -6,6 +6,7 @@ use App\Modules\Academico\Application\Contracts\FuenteOfertaGateway;
 use App\Modules\Academico\Domain\Exceptions\FuenteNoDisponibleException;
 use App\Modules\Administracion\Application\Actions\GenerarRespaldo;
 use App\Modules\Administracion\Application\Actions\ProcesarRebotesDeCorreo;
+use App\Modules\Ingreso\Application\Actions\EnviarRecordatoriosDeExamen;
 use App\Modules\Reportes\Application\Actions\ProcesarAlertasDeExamen;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -171,6 +172,17 @@ Schedule::command('respaldo:generar')
  */
 Schedule::command('queue:work --stop-when-empty --tries=3')
     ->everyMinute()
+    ->withoutOverlapping();
+
+Artisan::command('examenes:recordatorios', function (EnviarRecordatoriosDeExamen $enviar) {
+    $cantidad = $enviar->execute();
+
+    $this->info(sprintf('%d recordatorio(s) de examen enviados.', $cantidad));
+})->purpose('Envia recordatorios por correo de examenes del dia siguiente');
+
+Schedule::command('examenes:recordatorios')
+    ->dailyAt('08:00')
+    ->timezone(config('umss.zona_horaria', 'America/La_Paz'))
     ->withoutOverlapping();
 
 Artisan::command('reportes:alertas-cierre', function (ProcesarAlertasDeExamen $procesar) {

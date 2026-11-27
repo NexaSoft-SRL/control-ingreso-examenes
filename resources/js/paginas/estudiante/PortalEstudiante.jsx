@@ -6,6 +6,7 @@ import {
     Camera,
     IdCard,
     LogOut,
+    Mail,
     MapPin,
     UserRound,
 } from 'lucide-react';
@@ -57,6 +58,7 @@ function Examen({ examen, hoy, codigo }) {
     const estado = ESTADOS[examen.estado] ?? ESTADOS.PENDIENTE;
     const rendido = examen.fecha < hoy;
     const esHoy = examen.fecha === hoy;
+    const futuro = examen.fecha > hoy;
 
     return (
         <li
@@ -89,6 +91,12 @@ function Examen({ examen, hoy, codigo }) {
             <p className="mt-3 text-sm font-medium text-slate-800">
                 {fechaLarga(examen.fecha)} · {examen.hora}
             </p>
+            {futuro && (
+                <p className="mt-2 flex items-center gap-2 text-sm text-slate-600">
+                    <Mail className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    Se enviará un recordatorio al correo el día anterior, a las 08:00 (hora de Bolivia).
+                </p>
+            )}
             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
                 <Insignia tono={estado.tono} punto>
                     {estado.texto}

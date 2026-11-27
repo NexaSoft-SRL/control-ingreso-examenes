@@ -86,6 +86,11 @@ servidor, que el alojamiento no ofrece.
   * * * * * cd /home/<cuenta>/punku && php artisan schedule:run >> /dev/null 2>&1
   ```
 
+  El mismo planificador envía a las 08:00 (hora de Bolivia) un recordatorio por correo
+  a cada estudiante inscrito sin baja cuyo examen es al día siguiente, esté o no
+  habilitado. Para que llegue, deben estar configurados el correo saliente y la cola de
+  trabajos; cada envío queda registrado y no se repite en ejecuciones posteriores.
+
 El archivo contiene los **datos**, no el esquema: el esquema lo crean las migraciones
 (paso 9 de este procedimiento). Empieza con un `TRUNCATE` de todas las tablas, sigue con
 los `INSERT` en orden de dependencias y repone las secuencias, todo dentro de una

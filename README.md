@@ -27,10 +27,11 @@ docker compose up -d                 # PostgreSQL 15.10 (base y puerto en docker
 php artisan migrate
 composer datos:demo                  # datos de demostración
 
-php artisan serve                    # y, en otra terminal, npm run dev
+npm run dev                          # Laravel y Vite, con recarga en caliente
 ```
 
 La aplicación queda en `http://localhost:8000`.
+Para iniciar también el trabajador de la cola de correos, ejecuta `composer dev`.
 
 La base de pruebas se crea una sola vez dentro del contenedor:
 
@@ -100,8 +101,8 @@ Una historia no se da por terminada si alguno falla. Hoy: **1.091 pruebas de bac
 ### Durante el desarrollo
 
 ```sh
-php artisan serve                 # servidor de aplicación
-npm run dev                       # recursos, con recarga en caliente
+npm run dev                       # Laravel y recursos, con recarga en caliente
+composer dev                      # además, trabajador de la cola de correos
 php artisan test --filter=NombreDeLaPrueba
 vendor/bin/pint                   # formatea el PHP
 npx prettier --write resources/js # formatea el JavaScript

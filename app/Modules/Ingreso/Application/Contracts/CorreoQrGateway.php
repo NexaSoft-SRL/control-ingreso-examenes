@@ -31,4 +31,12 @@ interface CorreoQrGateway
      * @param  list<CredencialData>  $destinatarios
      */
     public function avisar(int $examenId, array $destinatarios, AvisoData $aviso, ?int $usuarioId): int;
+
+    /**
+     * Encola un recordatorio para cada destinatario y deja registro de cada
+     * envio. Los recordatorios automaticos no tienen un usuario solicitante.
+     *
+     * @param  list<CredencialData>  $destinatarios
+     */
+    public function recordar(int $examenId, array $destinatarios): int;
 }

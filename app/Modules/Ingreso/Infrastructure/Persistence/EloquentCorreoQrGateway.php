@@ -10,6 +10,7 @@ use App\Modules\Ingreso\Application\DTOs\AvisoData;
 use App\Modules\Ingreso\Application\DTOs\CredencialData;
 use App\Modules\Ingreso\Infrastructure\Mail\AvisoExamenMail;
 use App\Modules\Ingreso\Infrastructure\Mail\CodigoQrMail;
+use App\Modules\Ingreso\Infrastructure\Mail\RecordatorioExamenMail;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -60,6 +61,20 @@ final class EloquentCorreoQrGateway implements CorreoQrGateway
             'examenes',
             '%d aviso(s) enviado(s) por correo para el examen %d.',
             static fn (CredencialData $credencial, int $envioId): Mailable => new AvisoExamenMail($credencial, $aviso, $envioId),
+        );
+    }
+
+    public function recordar(int $examenId, array $destinatarios): int
+    {
+        return $this->despachar(
+            $examenId,
+            $destinatarios,
+            null,
+            'RECORDATORIO_EXAMEN',
+            'examen.recordatorio.enviar',
+            'examenes',
+            '%d recordatorio(s) enviado(s) para el examen %d.',
+            static fn (CredencialData $credencial, int $envioId): Mailable => new RecordatorioExamenMail($credencial, $envioId),
         );
     }
 

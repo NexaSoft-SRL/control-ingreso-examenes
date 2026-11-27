@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Ingreso\Application\DTOs;
 
 /**
- * La credencial de un estudiante habilitado para un examen. `token` es
- * nulo mientras el codigo no se haya emitido. `correo` es el institucional
- * del estudiante, que se deduce de su codigo universitario.
+ * Los datos del estudiante para un examen. `token` es nulo mientras el
+ * codigo no se haya emitido. `correo` es el institucional del estudiante,
+ * que se deduce de su codigo universitario.
  */
 final readonly class CredencialData
 {

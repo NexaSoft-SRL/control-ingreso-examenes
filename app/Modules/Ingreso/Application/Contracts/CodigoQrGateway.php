@@ -93,4 +93,20 @@ interface CodigoQrGateway
      * `$desde`.
      */
     public function porAvisar(int $examenId, FiltroCodigosData $filtro, string $desde): int;
+
+    /**
+     * Identificadores de examenes no finalizados con al menos un estudiante
+     * inscrito y sin baja para la fecha indicada.
+     *
+     * @return list<int>
+     */
+    public function examenesParaRecordatorio(string $fecha): array;
+
+    /**
+     * Estudiantes inscritos sin baja que aun no tienen un recordatorio
+     * registrado para el examen.
+     *
+     * @return list<CredencialData>
+     */
+    public function destinatariosParaRecordatorio(int $examenId): array;
 }

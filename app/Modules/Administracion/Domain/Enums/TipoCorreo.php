@@ -13,6 +13,7 @@ enum TipoCorreo: string
     case Restablecimiento = 'RESTABLECIMIENTO';
     case CodigoQr = 'CODIGO_QR';
     case Aviso = 'AVISO';
+    case RecordatorioExamen = 'RECORDATORIO_EXAMEN';
 
     /**
      * @return list<string>
@@ -32,6 +33,7 @@ enum TipoCorreo: string
             self::Restablecimiento => 'Restablecimiento',
             self::CodigoQr => 'Código QR',
             self::Aviso => 'Aviso de examen',
+            self::RecordatorioExamen => 'Recordatorio de examen',
         };
     }
 }

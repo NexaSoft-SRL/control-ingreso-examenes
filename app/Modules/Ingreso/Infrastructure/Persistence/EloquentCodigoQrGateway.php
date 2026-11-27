@@ -311,6 +311,70 @@ final class EloquentCodigoQrGateway implements CodigoQrGateway
         return $this->sinEnvioDesde($this->filtrados($examenId, $filtro), 'AVISO', $desde)->count();
     }
 
+    public function examenesParaRecordatorio(string $fecha): array
+    {
+        $ids = DB::table('examenes as examen')
+            ->whereDate('examen.fecha', $fecha)
+            ->whereNull('examen.finalizado_en')
+            ->whereExists(static function (Builder $inscritos): void {
+                $inscritos->selectRaw('1')
+                    ->from('inscripciones as inscripcion')
+                    ->join('examen_grupo as incluido', 'incluido.grupo_id', '=', 'inscripcion.grupo_id')
+                    ->whereColumn('incluido.examen_id', 'examen.id')
+                    ->whereNull('inscripcion.baja_en');
+            })
+            ->orderBy('examen.id')
+            ->pluck('examen.id');
+
+        return array_map(fn (mixed $id): int => $this->entero($id), $ids->all());
+    }
+
+    public function destinatariosParaRecordatorio(int $examenId): array
+    {
+        $consulta = DB::table('estudiantes as estudiante')
+            ->leftJoin('habilitaciones as habilitacion', static function (JoinClause $union) use ($examenId): void {
+                $union->on('habilitacion.estudiante_id', '=', 'estudiante.id')
+                    ->where('habilitacion.examen_id', $examenId)
+                    ->where('habilitacion.habilitado', true);
+            })
+            ->leftJoin('codigos_qr as codigo', static function (JoinClause $union) use ($examenId): void {
+                $union->on('codigo.estudiante_id', '=', 'estudiante.id')
+                    ->where('codigo.examen_id', $examenId);
+            })
+            ->leftJoin('aulas as aula', 'aula.id', '=', 'habilitacion.aula_id')
+            ->leftJoin('edificios as edificio', 'edificio.id', '=', 'aula.edificio_id')
+            ->whereExists(static function (Builder $inscripcion) use ($examenId): void {
+                $inscripcion->selectRaw('1')
+                    ->from('inscripciones as inscripcion')
+                    ->join('examen_grupo as incluido', 'incluido.grupo_id', '=', 'inscripcion.grupo_id')
+                    ->whereColumn('inscripcion.estudiante_id', 'estudiante.id')
+                    ->where('incluido.examen_id', $examenId)
+                    ->whereNull('inscripcion.baja_en');
+            })
+            ->whereNotExists(static function (Builder $envio) use ($examenId): void {
+                $envio->selectRaw('1')
+                    ->from('envios_correo as previo')
+                    ->where('previo.examen_id', $examenId)
+                    ->whereColumn('previo.estudiante_id', 'estudiante.id')
+                    ->where('previo.tipo', 'RECORDATORIO_EXAMEN');
+            })
+            ->select([
+                'estudiante.id as estudiante_id',
+                'estudiante.codigo_universitario',
+                'estudiante.nombres',
+                'estudiante.apellidos',
+                'codigo.token',
+                'codigo.enviado_en',
+                'aula.id as aula_id',
+                'aula.nombre as aula',
+                'aula.piso',
+                'aula.edificio_id',
+                'edificio.nombre as edificio',
+            ]);
+
+        return $this->credenciales($examenId, $consulta);
+    }
+
     /**
      * @return list<CredencialData>
      */

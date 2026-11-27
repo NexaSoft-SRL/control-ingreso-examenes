@@ -121,6 +121,17 @@ describe('PortalEstudiante', () => {
         expect(screen.getByText('Edificio Académico 2 · 1° Piso')).toBeInTheDocument();
     });
 
+    it('informa del recordatorio por correo para los exámenes futuros aunque no esté habilitado', async () => {
+        montar();
+
+        expect(await screen.findByText('Cálculo I')).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Se enviará un recordatorio al correo el día anterior, a las 08:00 (hora de Bolivia).'
+            )
+        ).toBeInTheDocument();
+    });
+
     it('sin carnet avisa en sus exámenes y lo pide junto a la foto', async () => {
         const sin = { estudiante: { ...ESTUDIANTE, con_carnet: false }, plazo_foto: PLAZO };
         montar('/estudiante', { 'GET /estudiante/sesion': sin });
