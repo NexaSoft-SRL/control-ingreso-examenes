@@ -325,6 +325,40 @@ final class DistribucionExamenTest extends TestCase
         $this->assertNull($this->aulaDe($examen, $estudiante));
     }
 
+    public function test_dropped_students_are_excluded_from_distribution_and_room_load(): void
+    {
+        $grupo = $this->grupo($this->docente);
+        $primera = $this->aula('691A');
+        $segunda = $this->aula('691B');
+        [$bajaConAula, $bajaSinAula, $activo] = $this->estudiantesInscritos($grupo, 3);
+        $examen = $this->examen($this->docente, [$grupo], [$primera, $segunda]);
+
+        $this->habilitar($examen, [$bajaConAula], $primera);
+        $this->habilitar($examen, [$bajaSinAula, $activo]);
+
+        // Ambos estudiantes son dados de baja despues de haber sido habilitados.
+        DB::table('inscripciones')
+            ->where('grupo_id', $grupo->id)
+            ->whereIn('estudiante_id', [$bajaConAula->id, $bajaSinAula->id])
+            ->update(['baja_en' => now()]);
+
+        $this->actingAs($this->cuenta)
+            ->postJson("/api/examenes/{$examen->id}/reparto")
+            ->assertOk()
+            ->assertExactJson([
+                'message' => '1 estudiante en 1 aula.',
+                'repartidos' => 1,
+                'por_aula' => [
+                    ['aula_id' => $primera->id, 'nombre' => '691A', 'asignados' => 1],
+                    ['aula_id' => $segunda->id, 'nombre' => '691B', 'asignados' => 0],
+                ],
+            ]);
+
+        $this->assertNull($this->aulaDe($examen, $bajaSinAula));
+        // Como bajaConAula ya no ocupa lugar en 691A, el activo entra en 691A (0 < 0 -> primera).
+        $this->assertSame($primera->id, $this->aulaDe($examen, $activo));
+    }
+
     /**
      * @return array{0: Examen, 1: Estudiante, 2: Aula}
      */

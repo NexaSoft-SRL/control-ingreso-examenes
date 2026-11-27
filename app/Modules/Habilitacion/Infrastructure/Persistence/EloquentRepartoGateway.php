@@ -9,6 +9,7 @@ use App\Modules\Habilitacion\Application\Contracts\RepartoGateway;
 use App\Modules\Habilitacion\Application\DTOs\AulaRepartoData;
 use App\Modules\Habilitacion\Application\DTOs\RepartoData;
 use App\Modules\Habilitacion\Domain\Rules\RepartoEquilibrado;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -77,11 +78,15 @@ final class EloquentRepartoGateway implements RepartoGateway
                 $cargaPorAula[$aulaId] = $carga[$aulaId] ?? 0;
             }
 
-            $pendientes = DB::table('habilitaciones as habilitacion')
+            $consultaPendientes = DB::table('habilitaciones as habilitacion')
                 ->join('estudiantes as estudiante', 'estudiante.id', '=', 'habilitacion.estudiante_id')
                 ->where('habilitacion.examen_id', $examenId)
                 ->where('habilitacion.habilitado', true)
-                ->whereNull('habilitacion.aula_id')
+                ->whereNull('habilitacion.aula_id');
+
+            $this->soloConInscripcionActiva($consultaPendientes, $examenId);
+
+            $pendientes = $consultaPendientes
                 ->orderByRaw("translate(lower(estudiante.apellidos), 'áéíóúüñ', 'aeiouun')")
                 ->orderByRaw("translate(lower(estudiante.nombres), 'áéíóúüñ', 'aeiouun')")
                 ->orderBy('estudiante.id')
@@ -135,11 +140,16 @@ final class EloquentRepartoGateway implements RepartoGateway
      */
     private function carga(int $examenId): array
     {
-        $filas = DB::table('habilitaciones')
-            ->where('examen_id', $examenId)
-            ->whereNotNull('aula_id')
-            ->groupBy('aula_id')
-            ->selectRaw('aula_id, count(*) as asignados')
+        $consulta = DB::table('habilitaciones as habilitacion')
+            ->where('habilitacion.examen_id', $examenId)
+            ->where('habilitacion.habilitado', true)
+            ->whereNotNull('habilitacion.aula_id');
+
+        $this->soloConInscripcionActiva($consulta, $examenId);
+
+        $filas = $consulta
+            ->groupBy('habilitacion.aula_id')
+            ->selectRaw('habilitacion.aula_id, count(*) as asignados')
             ->get();
 
         $carga = [];
@@ -151,5 +161,20 @@ final class EloquentRepartoGateway implements RepartoGateway
         }
 
         return $carga;
+    }
+
+    /**
+     * Quien fue dado de baja conserva su fila historica en `habilitaciones`,
+     * pero no entra al reparto ni ocupa cupo en el aula.
+     */
+    private function soloConInscripcionActiva(Builder $consulta, int $examenId): void
+    {
+        $consulta->whereExists(function (Builder $inscrito) use ($examenId): void {
+            $inscrito->from('examen_grupo as incluido')
+                ->join('inscripciones as inscripcion', 'inscripcion.grupo_id', '=', 'incluido.grupo_id')
+                ->where('incluido.examen_id', $examenId)
+                ->whereColumn('inscripcion.estudiante_id', 'habilitacion.estudiante_id')
+                ->whereNull('inscripcion.baja_en');
+        });
     }
 }
