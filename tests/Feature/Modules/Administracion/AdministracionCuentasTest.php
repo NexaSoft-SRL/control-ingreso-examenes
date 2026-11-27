@@ -224,6 +224,30 @@ final class AdministracionCuentasTest extends TestCase
         ])->assertStatus(423);
     }
 
+    public function test_blocking_an_account_deletes_its_sessions_and_revokes_access(): void
+    {
+        DB::table('sessions')->insert([
+            'id' => 'sesion-activa-docente',
+            'user_id' => $this->cuenta->getKey(),
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'PHPUnit',
+            'payload' => 'a:0:{}',
+            'last_activity' => time(),
+        ]);
+
+        $this->actingAs($this->administrador)
+            ->putJson($this->ruta(), $this->cuerpo(['activo' => false]))
+            ->assertOk();
+
+        $this->assertDatabaseMissing('sessions', [
+            'user_id' => $this->cuenta->getKey(),
+        ]);
+
+        $this->actingAs($this->cuenta->refresh())
+            ->getJson('/api/examenes')
+            ->assertForbidden();
+    }
+
     public function test_a_blocked_account_can_be_unblocked(): void
     {
         $this->cuenta->forceFill(['is_active' => false])->save();

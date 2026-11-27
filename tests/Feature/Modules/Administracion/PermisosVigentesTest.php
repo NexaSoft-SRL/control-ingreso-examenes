@@ -107,6 +107,22 @@ final class PermisosVigentesTest extends TestCase
             ->assertJsonPath('user.permisos', ['punto_control']);
     }
 
+    public function test_a_blocked_account_has_no_active_permissions_even_with_open_session(): void
+    {
+        $usuario = $this->usuarioConRol('Docente');
+        $this->asignarPermiso('Docente', 'bitacora', null, null);
+
+        $this->actingAs($usuario)
+            ->getJson('/api/bitacora')
+            ->assertOk();
+
+        $usuario->forceFill(['is_active' => false])->save();
+
+        $this->actingAs($usuario)
+            ->getJson('/api/bitacora')
+            ->assertForbidden();
+    }
+
     private function asignarPermiso(
         string $rol,
         string $permiso,

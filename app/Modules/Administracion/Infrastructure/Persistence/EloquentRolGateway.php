@@ -38,7 +38,7 @@ final class EloquentRolGateway implements RolGateway
     {
         $usuario = User::find($usuarioId);
 
-        if (! $usuario instanceof User) {
+        if (! $usuario instanceof User || ! (bool) $usuario->getAttribute('is_active')) {
             return [];
         }
 

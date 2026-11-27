@@ -19,6 +19,7 @@ use DateTimeImmutable;
 use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 use Throwable;
 
@@ -206,6 +207,10 @@ final class EloquentCuentaUsuarioGateway implements CuentaUsuarioGateway
 
         // is_active no es asignable en masa a proposito: se toca aqui.
         $usuario->forceFill(['is_active' => $activo])->save();
+
+        if (! $activo && Schema::hasTable('sessions')) {
+            DB::table('sessions')->where('user_id', $usuarioId)->delete();
+        }
 
         return true;
     }
