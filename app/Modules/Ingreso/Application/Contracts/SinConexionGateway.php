@@ -16,13 +16,14 @@ interface SinConexionGateway
 {
     /**
      * Los inscritos de esos examenes con su condicion y quien ya ingreso, y
-     * el hash (SHA-256) de cada codigo QR emitido. Nunca el carnet, la foto
-     * ni el QR en claro.
+     * el hash (SHA-256) de cada codigo QR emitido y de cada carnet normalizado.
+     * Nunca el carnet, la foto ni el QR en claro.
      *
      * @param  list<int>  $examenIds
      * @return array{
      *     estudiantes: list<array{id: int, codigo: string, nombre: string, examenes: list<array<string, mixed>>}>,
-     *     claves: array<string, array{examen_id: int, estudiante_id: int}>
+     *     claves: array<string, array{examen_id: int, estudiante_id: int}>,
+     *     documentos: array<string, int>
      * }
      */
     public function instantanea(array $examenIds): array;

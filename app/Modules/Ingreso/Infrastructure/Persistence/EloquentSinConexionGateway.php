@@ -17,7 +17,7 @@ final class EloquentSinConexionGateway implements SinConexionGateway
     public function instantanea(array $examenIds): array
     {
         if ($examenIds === []) {
-            return ['estudiantes' => [], 'claves' => []];
+            return ['estudiantes' => [], 'claves' => [], 'documentos' => []];
         }
 
         $inscritos = DB::table('examen_grupo as incluido')
@@ -34,6 +34,7 @@ final class EloquentSinConexionGateway implements SinConexionGateway
                 'incluido.examen_id',
                 'estudiante.id',
                 'estudiante.codigo_universitario',
+                'estudiante.documento_identidad',
                 'estudiante.apellidos',
                 'estudiante.nombres',
             ]);
@@ -72,6 +73,7 @@ final class EloquentSinConexionGateway implements SinConexionGateway
         }
 
         $estudiantes = [];
+        $carnetsPorId = [];
 
         foreach ($inscritos as $fila) {
             $c = $this->columnas($fila);
@@ -86,6 +88,12 @@ final class EloquentSinConexionGateway implements SinConexionGateway
                 'examenes' => [],
             ];
 
+            $doc = $this->texto($c['documento_identidad'] ?? null);
+
+            if ($doc !== null && trim($doc) !== '') {
+                $carnetsPorId[$id] = trim($doc);
+            }
+
             $estudiantes[$id]['examenes'][] = [
                 'examen_id' => $examenId,
                 // Sin fila, «sin revisar»: la puerta lo trata como no habilitado.
@@ -93,6 +101,8 @@ final class EloquentSinConexionGateway implements SinConexionGateway
                 'ingreso' => $ingresos[$clave] ?? null,
             ];
         }
+
+        $documentos = $this->hashesDeDocumentos($carnetsPorId);
 
         $claves = [];
 
@@ -108,7 +118,49 @@ final class EloquentSinConexionGateway implements SinConexionGateway
             }
         }
 
-        return ['estudiantes' => array_values($estudiantes), 'claves' => $claves];
+        return [
+            'estudiantes' => array_values($estudiantes),
+            'claves' => $claves,
+            'documentos' => $documentos,
+        ];
+    }
+
+    /**
+     * Indexa los carnets por su hash SHA-256 normalizado (sin enviar el carnet
+     * en claro al navegador). Si existen carnets antiguos con complemento,
+     * conserva prioridad para la coincidencia exacta frente al prefijo base,
+     * igual que en la puerta con conexion.
+     *
+     * @param  array<int, string>  $carnetsPorId
+     * @return array<string, int>
+     */
+    private function hashesDeDocumentos(array $carnetsPorId): array
+    {
+        ksort($carnetsPorId);
+        $exactos = [];
+        $prefijos = [];
+
+        foreach ($carnetsPorId as $id => $carnet) {
+            $normalizado = mb_strtoupper(str_replace([' ', '-'], '', $carnet));
+
+            if ($normalizado === '') {
+                continue;
+            }
+
+            $exactos[hash('sha256', $normalizado)] ??= $id;
+
+            $conGuion = str_replace(' ', '-', $carnet);
+
+            if (str_contains($conGuion, '-')) {
+                $base = mb_strtoupper(explode('-', $conGuion, 2)[0]);
+
+                if ($base !== '') {
+                    $prefijos[hash('sha256', $base)] ??= $id;
+                }
+            }
+        }
+
+        return $exactos + $prefijos;
     }
 
     public function abrirSesion(string $dispositivo, int $aulaId, OperadorData $operador, string $instantaneaEn, array $examenIds): int

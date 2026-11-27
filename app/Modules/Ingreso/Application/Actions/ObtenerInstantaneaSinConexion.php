@@ -61,6 +61,7 @@ final readonly class ObtenerInstantaneaSinConexion
             'examenes' => array_map(fn (ExamenData $examen): array => $this->examen($examen), $delDia),
             'estudiantes' => $datos['estudiantes'],
             'claves' => (object) $datos['claves'],
+            'documentos' => (object) $datos['documentos'],
         ];
     }
 

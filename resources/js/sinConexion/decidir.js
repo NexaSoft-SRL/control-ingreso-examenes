@@ -95,10 +95,21 @@ export default function decidir({ instantanea, cola, ahoraMs, peticion }) {
         // Con QR el examen es el del código, no otro del estudiante.
         candidatos = ids.has(clave.examen_id) ? [clave.examen_id] : [];
     } else {
-        medio = 'CODIGO';
         const codigo = String(peticion.identificador ?? '').trim();
         estudiante = instantanea.estudiantes.find((e) => e.codigo === codigo) ?? null;
-        if (!estudiante) return { sinRegistro: true };
+
+        if (estudiante) {
+            medio = 'CODIGO';
+        } else {
+            const normalizado = codigo.replace(/[\s-]+/g, '').toUpperCase();
+            const docId = normalizado
+                ? (instantanea.documentos?.[sha256(normalizado)] ?? null)
+                : null;
+            estudiante = docId ? (porId.get(docId) ?? null) : null;
+            if (!estudiante) return { sinRegistro: true };
+            medio = 'DOCUMENTO';
+        }
+
         candidatos = estudiante.examenes.map((x) => x.examen_id).filter((id) => ids.has(id));
     }
 

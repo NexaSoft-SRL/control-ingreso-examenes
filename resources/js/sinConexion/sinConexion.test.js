@@ -219,6 +219,44 @@ describe('decidir sin conexión (las reglas de la puerta)', () => {
         expect(veredicto.veredicto).toBe('expulsado');
         expect(evento).toBeNull();
     });
+
+    it('admite a un habilitado por C.I. usando el hash de documentos y registra medio DOCUMENTO', () => {
+        const inst = instantanea({
+            documentos: {
+                [sha256('5003748')]: 1,
+                [sha256('79281941A')]: 2,
+                [sha256('7928194')]: 2,
+            },
+        });
+
+        const { veredicto, evento } = decidirCon({ identificador: '5003748' }, { inst });
+
+        expect(veredicto.veredicto).toBe('admitido');
+        expect(veredicto.estudiante.id).toBe(1);
+        expect(evento).toMatchObject({
+            resultado: 'ADMITIDO',
+            medio: 'DOCUMENTO',
+            examen_id: 3,
+            estudiante_id: 1,
+        });
+
+        const conGuion = decidirCon({ identificador: '7928194-1a' }, { inst });
+        expect(conGuion.veredicto.veredicto).toBe('no_habilitado');
+        expect(conGuion.evento.medio).toBe('DOCUMENTO');
+    });
+
+    it('da prioridad al código SIS cuando coincide antes de buscar en documentos', () => {
+        const inst = instantanea({
+            documentos: {
+                [sha256('202100417')]: 2,
+            },
+        });
+
+        const { veredicto, evento } = decidirCon({ identificador: '202100417' }, { inst });
+
+        expect(veredicto.estudiante.id).toBe(1);
+        expect(evento.medio).toBe('CODIGO');
+    });
 });
 
 describe('almacén y flujo del puesto', () => {

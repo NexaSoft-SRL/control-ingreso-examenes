@@ -102,7 +102,8 @@ final class SinConexionTest extends TestCase
         $this->assertStringNotContainsString('foto', $contenido);
         $respuesta
             ->assertJsonPath('claves.'.hash('sha256', $token).'.examen_id', $this->examen->id)
-            ->assertJsonPath('claves.'.hash('sha256', $token).'.estudiante_id', $habilitado->id);
+            ->assertJsonPath('claves.'.hash('sha256', $token).'.estudiante_id', $habilitado->id)
+            ->assertJsonPath('documentos.'.hash('sha256', '5003748'), $habilitado->id);
 
         $estudiantes = $respuesta->json('estudiantes');
         self::assertIsArray($estudiantes);
@@ -127,6 +128,35 @@ final class SinConexionTest extends TestCase
             'aula_id' => $this->aula->id,
             'estado' => 'DESCARGADA',
         ]);
+    }
+
+    public function test_the_snapshot_hashes_documents_normalized_with_priority_for_exact_matches(): void
+    {
+        [$conComplemento, $soloNumero] = $this->habilitados(2);
+        $conComplemento->update(['documento_identidad' => '7928194-1A']);
+        $soloNumero->update(['documento_identidad' => '7928194']);
+
+        $respuesta = $this->descargar()->assertOk();
+        $contenido = (string) $respuesta->getContent();
+
+        $this->assertStringNotContainsString('7928194', $contenido);
+        $respuesta
+            ->assertJsonPath('documentos.'.hash('sha256', '79281941A'), $conComplemento->id)
+            ->assertJsonPath('documentos.'.hash('sha256', '7928194'), $soloNumero->id);
+    }
+
+    public function test_the_snapshot_indexes_the_numeric_base_when_only_a_complement_document_exists(): void
+    {
+        [$conComplemento] = $this->habilitados(1);
+        $conComplemento->update(['documento_identidad' => '8345120-1B']);
+
+        $respuesta = $this->descargar()->assertOk();
+        $contenido = (string) $respuesta->getContent();
+
+        $this->assertStringNotContainsString('8345120', $contenido);
+        $respuesta
+            ->assertJsonPath('documentos.'.hash('sha256', '83451201B'), $conComplemento->id)
+            ->assertJsonPath('documentos.'.hash('sha256', '8345120'), $conComplemento->id);
     }
 
     public function test_the_snapshot_is_only_for_who_controls_the_room(): void
